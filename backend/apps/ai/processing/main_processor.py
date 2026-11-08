@@ -66,6 +66,7 @@ from backend.shared.python_utils.learning_mode import (
     AGE_GROUP_13_15,
     apply_learning_mode_policy_to_skill_result,
     build_learning_mode_global_prompt,
+    is_collaborative_build_enabled,
     is_learning_mode_blocked_skill,
     is_learning_mode_enabled,
 )
@@ -4465,11 +4466,13 @@ async def handle_main_processing(
     selected_mate_config = next((mate for mate in all_mates_configs if mate.id == preprocessing_results.selected_mate_id), None)
     learning_mode_context = getattr(request_data, "learning_mode", None) or {}
     learning_mode_active = is_learning_mode_enabled(learning_mode_context)
+    collaborative_build_active = is_collaborative_build_enabled(learning_mode_context)
     if selected_mate_config:
         prompt_parts.append(select_mate_system_prompt(
             selected_mate_config,
             voice_mode=bool(getattr(request_data, "voice_mode", False)),
             learning_mode=learning_mode_active,
+            collaborative_build=collaborative_build_active,
         ))
         # Furry Mode prompt styling is disabled until any furry art is made by human artists.
     # Insert creator_and_used_model_instruction right after the mate-specific prompt
@@ -5311,10 +5314,12 @@ async def handle_main_processing(
 
     if learning_mode_active:
         learning_age_group = learning_mode_context.get("age_group") or AGE_GROUP_13_15
-        prompt_parts.append(build_learning_mode_global_prompt(learning_age_group))
+        prompt_parts.append(build_learning_mode_global_prompt(
+            learning_age_group, collaborative_build=collaborative_build_active,
+        ))
         logger.info(
             f"{log_prefix} Added Learning Mode global prompt "
-            f"(age_group={learning_age_group})"
+            f"(age_group={learning_age_group}, collaborative_build={collaborative_build_active})"
         )
 
     # Enforce response language based on the preprocessor's detected output_language.
@@ -5389,8 +5394,21 @@ async def handle_main_processing(
         )
     # Apply delivery after domain, focus and rich-output instructions. Keep the
     # exact same canonical ethics/privacy and tool/model policies in every mode.
-    from backend.apps.ai.assistant_speech.voice_context import build_voice_main_instruction
+    from backend.apps.ai.assistant_speech.voice_context import (
+        build_voice_learning_focus_instruction,
+        build_voice_main_instruction,
+    )
 
+    # The learning/focus speech rules come first so the main voice delivery
+    # block stays the final, highest-attention instruction of a voice turn.
+    voice_learning_focus_instruction = build_voice_learning_focus_instruction(
+        base_instructions,
+        voice_mode=bool(getattr(request_data, "voice_mode", False)),
+        learning_mode_active=learning_mode_active,
+        focus_active=bool(getattr(request_data, "active_focus_id", None)),
+    )
+    if voice_learning_focus_instruction:
+        prompt_parts.append(voice_learning_focus_instruction)
     voice_main_instruction = build_voice_main_instruction(
         base_instructions, voice_mode=bool(getattr(request_data, "voice_mode", False)),
     )

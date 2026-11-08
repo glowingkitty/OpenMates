@@ -1,0 +1,105 @@
+schema_version: 1
+id: feature.learning-mode
+version: 1
+status: draft
+title: Learning Mode — Age-Tiered Teaching, Collaborative Building and Guest Use
+summary: Account-wide and guest Learning Mode teaching rubric by age group, first-use term definitions, the collaborative
+  building toggle with its passcode gate, local-only guest operation and spoken delivery.
+scope:
+  includes:
+  - Age-tiered teaching rubric (reading level, term policy, analogies, tone, questions per turn, check-ins).
+  - First-use term definitions with encyclopedia links, once per chat.
+  - Allow collaborative building toggle, its default, passcode-gated enabling and free disabling.
+  - What collaborative building relaxes and what always stays locked.
+  - Guest (no account) Learning Mode stored on the device with a local passcode lock.
+  - Spoken delivery of Learning Mode and focus modes in voice calls.
+  excludes:
+  - Exact prompt wording and per-mate teaching tactics; these live in mate and instruction sources.
+  - Learn topic and Test knowledge phases and follow-up suggestions, owned by feature.focus-modes.
+  - Enforcement of agentic coding tools (Projects, tasks); only the collaborative flag is exposed as context.
+assertions:
+- id: learning-mode.age-rubric
+  type: behavior
+  must: Each supported age group (under 10, 10-12, 13-15, 16-18) receives its own teaching rubric covering reading level,
+    technical-term policy, analogies, tone, number of questions per turn and check-in frequency. Younger groups get shorter
+    sentences, fewer terms and at most one question per turn; older groups get progressively more technical language.
+  depends_on:
+  - examples.age_rubric
+- id: learning-mode.term-definitions
+  type: behavior
+  must: For ages 10 and up, the first time a technical term appears in a chat it is defined in one plain sentence and linked
+    with the existing encyclopedia link syntax; it is not defined or linked again later in the same chat. Under-10 learners
+    get no links and avoided jargon instead.
+  depends_on:
+  - examples.term_definitions
+- id: learning-mode.collaborative-toggle
+  type: security
+  must: Learning Mode setup offers an Allow collaborative building toggle, on by default from age 10-12 and unavailable (forced
+    off) under 10. Turning it on after setup requires the Learning Mode passcode and shares the deactivation attempt limit
+    (5 wrong attempts block for 24 hours); turning it off needs no passcode. Accounts that existed before this feature stay
+    off until the passcode holder turns it on. The server resolves the effective value; clients cannot raise it.
+  depends_on:
+  - examples.collaborative_toggle
+- id: learning-mode.collaborative-building
+  type: behavior
+  must: With collaborative building on, the assistant may build code and runnable applications together with the learner
+    - clarifying with at most two or three questions, summarizing and confirming, planning with an analogy and a diagram
+    from the Diagrams app, building in small steps, letting the learner try results in the in-chat preview and warning before
+    anything is published. Code length is capped at 300 lines without mid-file truncation and code or app suggestion chips
+    are allowed. With it off, the stricter 40-line cap and artifact limits remain. In both states, complete math results,
+    answer-key suggestions, document, sheet and mail caps, the exercise answer guard and the passcode lockout stay in force.
+  depends_on:
+  - examples.collaborative_building
+- id: learning-mode.anonymous-client-side
+  type: privacy
+  must: Guests without an account can use the same setup, including the collaborative toggle. Their settings are stored only
+    on the device (persistent local storage); the passcode is hashed on the device with PBKDF2-SHA256 and never sent. Five
+    wrong attempts block deactivation or enabling collaborative building for 24 hours on that device. Requests carry only
+    the enabled flag, the age group, the collaborative flag and the guest source. The interface states that clearing browser
+    data or using a private window bypasses the lock without an account.
+  depends_on:
+  - examples.anonymous_client_side
+- id: learning-mode.voice-delivery
+  type: behavior
+  must: In a voice call with Learning Mode or any focus mode active, all teaching and focus rules still apply and are delivered
+    as natural speech - one question at a time, spoken answers count as attempts, unclear transcriptions are confirmed, choices
+    are described in prose, link syntax, code and URLs are never read aloud, diagrams and previews are introduced in one
+    sentence and publishing needs a spoken yes. The spoken-delivery instruction is added only for voice, and the voice delivery
+    block stays last.
+  depends_on:
+  - examples.voice_delivery
+applies_to:
+  rest_api:
+    required: true
+    role: First-party authenticated Learning Mode routes (activate, status, collaborative, deactivate) and the anonymous chat
+      stream carrying only enabled, age group, collaborative flag and guest source. No new public access surface.
+  cli:
+    required: true
+    parity: semantic
+    role: Enable with an optional collaborative flag and change it with collaborative on or off through the session client.
+  sdks:
+    required: true
+    parity: semantic
+    implementations:
+      npm:
+        required: true
+      pip:
+        required: true
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web:
+        required: true
+      apple:
+        required: false
+        role: Follow-up after web; the server enforces the policy for any client.
+examples:
+  file: examples.yml
+  required_groups:
+  - age_rubric
+  - term_definitions
+  - collaborative_toggle
+  - collaborative_building
+  - anonymous_client_side
+  - voice_delivery

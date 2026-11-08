@@ -157,6 +157,8 @@ openmates settings --help
 openmates settings account export data --json
 openmates settings memories list --json
 openmates learning-mode status --json
+openmates learning-mode enable --age-group 16_18 --passcode <passcode> --no-collaborative-build
+openmates learning-mode collaborative on --passcode <passcode>
 openmates docs search "API keys"
 ```
 

@@ -140,7 +140,22 @@ pub async fn dispatch(
                 required(kwargs, "age_group")?,
                 required(kwargs, "passcode")?,
             );
-            c.learning_mode().enable(&age_group, &passcode).await
+            c.learning_mode()
+                .enable(
+                    &age_group,
+                    &passcode,
+                    kwargs["collaborative_build"].as_bool(),
+                )
+                .await
+        }
+        "learning_mode.collaborative" => {
+            let enabled = args
+                .first()
+                .and_then(Value::as_bool)
+                .ok_or("bool argument 0")?;
+            c.learning_mode()
+                .collaborative(enabled, kw(kwargs, "passcode").as_deref())
+                .await
         }
         "learning_mode.disable" => c.learning_mode().disable(&text(args, 0)?).await,
         "benchmark.run" => c.benchmark().run(arg(args, 0)?).await,

@@ -1040,28 +1040,9 @@ learning_mode_disable_description:
   verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 learning_mode_guest_description:
   context: Description on the guest Learning Mode setup page
-  en: Choose the learner age group. For guests, Learning Mode lasts only for this browser session and has no passcode.
-  de: Wähle die Altersgruppe der lernenden Person. Für Gäste gilt Learning Mode nur für diese Browsersitzung und hat keinen Passcode.
-  zh: 选择学习者年龄组。对于访客，Learning Mode 仅在此浏览器会话中持续有效，且没有密码。
-  es: Elige el grupo de edad del estudiante. Para invitados, Learning Mode dura solo esta sesión del navegador y no tiene código de acceso.
-  fr: Choisissez le groupe d'âge de l'apprenant. Pour les invités, Learning Mode ne dure que pendant cette session de navigateur et n'a pas de code d'accès.
-  pt: Escolha a faixa etária do aprendiz. Para convidados, o Learning Mode dura apenas nesta sessão do navegador e não tem código de acesso.
-  ru: Выберите возрастную группу учащегося. Для гостей Learning Mode действует только в этой сессии браузера и не имеет кода доступа.
-  ja: 学習者の年齢グループを選択してください。ゲストの場合、Learning Mode はこのブラウザセッション中のみ有効で、パスコードはありません。
-  ko: 학습자 연령대를 선택하세요. 게스트의 경우 Learning Mode는 이 브라우저 세션 동안만 지속되며 암호가 없습니다.
-  it: Scegli la fascia d'età dello studente. Per gli ospiti, Learning Mode dura solo per questa sessione del browser e non ha un codice.
-  tr: Öğrenci yaş grubunu seçin. Misafirler için Learning Mode yalnızca bu tarayıcı oturumu boyunca sürer ve parolası yoktur.
-  vi: Chọn nhóm tuổi người học. Với khách, Learning Mode chỉ kéo dài trong phiên trình duyệt này và không có mã khóa.
-  id: Pilih kelompok usia pelajar. Untuk tamu, Learning Mode hanya berlangsung selama sesi browser ini dan tidak memiliki kode akses.
-  pl: Wybierz grupę wiekową ucznia. Dla gości Learning Mode działa tylko w tej sesji przeglądarki i nie ma kodu dostępu.
-  nl: Kies de leeftijdsgroep van de leerling. Voor gasten duurt Learning Mode alleen tijdens deze browsersessie en heeft het geen toegangscode.
-  ar: اختر الفئة العمرية للمتعلم. للضيوف، يستمر Learning Mode خلال جلسة المتصفح هذه فقط ولا يحتوي على رمز مرور.
-  hi: सीखने वाले का आयु समूह चुनें। अतिथियों के लिए, Learning Mode केवल इस ब्राउज़र सत्र तक रहता है और इसमें पासकोड नहीं होता।
-  th: เลือกกลุ่มอายุของผู้เรียน สำหรับผู้เยี่ยมชม Learning Mode จะมีผลเฉพาะในเซสชันเบราว์เซอร์นี้และไม่มีรหัสผ่าน
-  cs: Vyberte věkovou skupinu studenta. Pro hosty Learning Mode trvá pouze po dobu této relace prohlížeče a nemá přístupový kód.
-  sv: Välj elevens åldersgrupp. För gäster varar Learning Mode bara under den här webbläsarsessionen och har ingen lösenkod.
-  he: בחר את קבוצת הגיל של הלומד. לאורחים, Learning Mode נמשך רק בהפעלת הדפדפן הזו ואין לו קוד גישה.
-  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+  en: "Choose the learner age group and set a passcode. The passcode is needed to turn Learning Mode off or to allow collaborative building again. It stays in this browser and is never sent to our servers."
+  de: "Wähle die Altersgruppe der lernenden Person und lege einen Passcode fest. Der Passcode ist nötig, um Learning Mode auszuschalten oder gemeinsames Bauen wieder zu erlauben. Er bleibt in diesem Browser und wird nie an unsere Server gesendet."
+  verified_by_human: []
 learning_mode_active_detail:
   context: Info text when Learning Mode is active
   en: Learning Mode is active for every chat on this account. Answers stay teaching-first and selected tools are restricted.
@@ -1111,53 +1092,15 @@ learning_mode_inactive_detail:
   he: כשהוא מופעל, OpenMates מדריך את הלומד צעד אחר צעד במקום לתת תשובות מלאות.
   verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 learning_mode_guest_active_detail:
-  context: Info text when guest Learning Mode is active
-  en: Learning Mode is active for anonymous chats in this browser session. Create an account to lock it with a passcode across devices.
-  de: Learning Mode ist für anonyme Chats in dieser Browsersitzung aktiv. Erstelle ein Konto, um ihn geräteübergreifend mit einem Passcode zu sperren.
-  zh: Learning Mode 已在此浏览器会话的匿名聊天中启用。创建账号即可用密码在多台设备上锁定它。
-  es: Learning Mode está activo para chats anónimos en esta sesión del navegador. Crea una cuenta para bloquearlo con un código de acceso en todos tus dispositivos.
-  fr: Learning Mode est actif pour les chats anonymes dans cette session de navigateur. Créez un compte pour le verrouiller avec un code d'accès sur tous vos appareils.
-  pt: O Learning Mode está ativo para chats anônimos nesta sessão do navegador. Crie uma conta para bloqueá-lo com um código de acesso em todos os dispositivos.
-  ru: Learning Mode активен для анонимных чатов в этой сессии браузера. Создайте аккаунт, чтобы закрепить его кодом доступа на всех устройствах.
-  ja: Learning Mode はこのブラウザセッションの匿名チャットで有効です。アカウントを作成すると、デバイス間でパスコード付きでロックできます。
-  ko: Learning Mode가 이 브라우저 세션의 익명 채팅에 활성화되어 있습니다. 계정을 만들면 여러 기기에서 암호로 잠글 수 있습니다.
-  it: Learning Mode è attivo per le chat anonime in questa sessione del browser. Crea un account per bloccarlo con un codice su tutti i dispositivi.
-  tr: Learning Mode bu tarayıcı oturumundaki anonim sohbetler için etkin. Cihazlar arasında parola ile kilitlemek için bir hesap oluşturun.
-  vi: Learning Mode đang hoạt động cho các cuộc trò chuyện ẩn danh trong phiên trình duyệt này. Tạo tài khoản để khóa bằng mã khóa trên nhiều thiết bị.
-  id: Learning Mode aktif untuk obrolan anonim dalam sesi browser ini. Buat akun untuk menguncinya dengan kode akses di berbagai perangkat.
-  pl: Learning Mode jest aktywny dla anonimowych czatów w tej sesji przeglądarki. Utwórz konto, aby zablokować go kodem dostępu na różnych urządzeniach.
-  nl: Learning Mode is actief voor anonieme chats in deze browsersessie. Maak een account om het op al je apparaten met een toegangscode te vergrendelen.
-  ar: Learning Mode نشط للدردشات المجهولة في جلسة المتصفح هذه. أنشئ حساباً لقفله برمز مرور عبر الأجهزة.
-  hi: Learning Mode इस ब्राउज़र सत्र में अनाम चैट के लिए सक्रिय है। इसे सभी डिवाइस पर पासकोड से लॉक करने के लिए खाता बनाएं।
-  th: Learning Mode เปิดใช้งานสำหรับแชทแบบไม่ระบุตัวตนในเซสชันเบราว์เซอร์นี้ สร้างบัญชีเพื่อล็อกด้วยรหัสผ่านบนอุปกรณ์ต่าง ๆ
-  cs: Learning Mode je aktivní pro anonymní chaty v této relaci prohlížeče. Vytvořte si účet, abyste jej mohli zamknout přístupovým kódem napříč zařízeními.
-  sv: Learning Mode är aktivt för anonyma chattar i den här webbläsarsessionen. Skapa ett konto för att låsa det med en lösenkod på flera enheter.
-  he: Learning Mode פעיל לצ'אטים אנונימיים בהפעלת הדפדפן הזו. צור חשבון כדי לנעול אותו עם קוד גישה בכל המכשירים.
-  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+  context: Info text when Learning Mode is active for a guest
+  en: "Learning Mode is active for anonymous chats in this browser. It stays on until it is turned off with the passcode."
+  de: "Learning Mode ist für anonyme Chats in diesem Browser aktiv. Er bleibt an, bis er mit dem Passcode ausgeschaltet wird."
+  verified_by_human: []
 learning_mode_guest_inactive_detail:
-  context: Info text when guest Learning Mode is inactive
-  en: Guests can try Learning Mode for anonymous chats in this browser session. Create an account to lock it with a passcode.
-  de: Gäste können Learning Mode für anonyme Chats in dieser Browsersitzung ausprobieren. Erstelle ein Konto, um ihn mit einem Passcode zu sperren.
-  zh: 访客可以在此浏览器会话中为匿名聊天试用 Learning Mode。创建账号即可用密码锁定它。
-  es: Los invitados pueden probar Learning Mode para chats anónimos en esta sesión del navegador. Crea una cuenta para bloquearlo con un código de acceso.
-  fr: Les invités peuvent essayer Learning Mode pour les chats anonymes dans cette session de navigateur. Créez un compte pour le verrouiller avec un code d'accès.
-  pt: Convidados podem experimentar o Learning Mode para chats anônimos nesta sessão do navegador. Crie uma conta para bloqueá-lo com um código de acesso.
-  ru: Гости могут попробовать Learning Mode для анонимных чатов в этой сессии браузера. Создайте аккаунт, чтобы закрепить его кодом доступа.
-  ja: ゲストはこのブラウザセッションの匿名チャットで Learning Mode を試せます。アカウントを作成すると、パスコードでロックできます。
-  ko: 게스트는 이 브라우저 세션의 익명 채팅에서 Learning Mode를 사용해 볼 수 있습니다. 계정을 만들면 암호로 잠글 수 있습니다.
-  it: Gli ospiti possono provare Learning Mode per le chat anonime in questa sessione del browser. Crea un account per bloccarlo con un codice.
-  tr: Misafirler bu tarayıcı oturumunda anonim sohbetler için Learning Mode'u deneyebilir. Parola ile kilitlemek için bir hesap oluşturun.
-  vi: Khách có thể thử Learning Mode cho các cuộc trò chuyện ẩn danh trong phiên trình duyệt này. Tạo tài khoản để khóa bằng mã khóa.
-  id: Tamu dapat mencoba Learning Mode untuk obrolan anonim dalam sesi browser ini. Buat akun untuk menguncinya dengan kode akses.
-  pl: Goście mogą wypróbować Learning Mode dla anonimowych czatów w tej sesji przeglądarki. Utwórz konto, aby zablokować go kodem dostępu.
-  nl: Gasten kunnen Learning Mode proberen voor anonieme chats in deze browsersessie. Maak een account om het met een toegangscode te vergrendelen.
-  ar: يمكن للضيوف تجربة Learning Mode للدردشات المجهولة في جلسة المتصفح هذه. أنشئ حساباً لقفله برمز مرور.
-  hi: अतिथि इस ब्राउज़र सत्र में अनाम चैट के लिए Learning Mode आज़मा सकते हैं। इसे पासकोड से लॉक करने के लिए खाता बनाएं।
-  th: ผู้เยี่ยมชมสามารถลองใช้ Learning Mode สำหรับแชทแบบไม่ระบุตัวตนในเซสชันเบราว์เซอร์นี้ สร้างบัญชีเพื่อล็อกด้วยรหัสผ่าน
-  cs: Hosté mohou vyzkoušet Learning Mode pro anonymní chaty v této relaci prohlížeče. Vytvořte si účet, abyste jej mohli zamknout přístupovým kódem.
-  sv: Gäster kan prova Learning Mode för anonyma chattar i den här webbläsarsessionen. Skapa ett konto för att låsa det med en lösenkod.
-  he: אורחים יכולים לנסות את Learning Mode לצ'אטים אנונימיים בהפעלת הדפדפן הזו. צור חשבון כדי לנעול אותו עם קוד גישה.
-  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+  context: Info text when Learning Mode is inactive for a guest
+  en: "Guests can use Learning Mode for anonymous chats in this browser, protected by a passcode."
+  de: "Gäste können Learning Mode für anonyme Chats in diesem Browser nutzen, geschützt durch einen Passcode."
+  verified_by_human: []
 learning_mode_age_group_label:
   context: Label for the Learning Mode learner age group dropdown
   en: Learner age group
@@ -1470,6 +1413,46 @@ learning_mode_disable_button:
   sv: Stäng av Learning Mode
   he: כבה את Learning Mode
   verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+learning_mode_collaborative_label:
+  context: Toggle label to allow collaborative building in Learning Mode
+  en: "Allow collaborative building"
+  de: "Gemeinsames Bauen erlauben"
+  verified_by_human: []
+learning_mode_collaborative_help:
+  context: Helper text under the collaborative building toggle in Learning Mode
+  en: "Lets the learner build things together with the AI, such as code, documents and files. When off, the AI only explains and guides. Not available for learners under 10."
+  de: "Erlaubt der lernenden Person, gemeinsam mit der KI Dinge zu bauen, etwa Code, Dokumente und Dateien. Wenn aus, erklärt und begleitet die KI nur. Nicht verfügbar für Lernende unter 10."
+  verified_by_human: []
+learning_mode_collaborative_enable_prompt:
+  context: Prompt asking for the passcode before collaborative building is turned back on
+  en: "Enter the Learning Mode passcode to allow collaborative building again."
+  de: "Gib den Learning Mode-Passcode ein, um gemeinsames Bauen wieder zu erlauben."
+  verified_by_human: []
+learning_mode_collaborative_confirm_button:
+  context: Button that confirms turning collaborative building on after entering the passcode
+  en: "Allow collaborative building"
+  de: "Gemeinsames Bauen erlauben"
+  verified_by_human: []
+learning_mode_collaborative_enabled:
+  context: Success notification when collaborative building is turned on
+  en: "Collaborative building is on."
+  de: "Gemeinsames Bauen ist an."
+  verified_by_human: []
+learning_mode_collaborative_disabled:
+  context: Success notification when collaborative building is turned off
+  en: "Collaborative building is off."
+  de: "Gemeinsames Bauen ist aus."
+  verified_by_human: []
+learning_mode_guest_notice:
+  context: Honest notice that guest Learning Mode only lives in this browser
+  en: "Without an account, Learning Mode only lives in this browser. Clearing browser data or using a private window removes or bypasses it. Create an account for a lock that holds everywhere."
+  de: "Ohne Konto gilt Learning Mode nur in diesem Browser. Das Löschen von Browserdaten oder ein privates Fenster entfernt oder umgeht ihn. Erstelle ein Konto für eine Sperre, die überall gilt."
+  verified_by_human: []
+learning_mode_passcode_invalid:
+  context: Validation error when the Learning Mode passcode length is out of range
+  en: "The passcode must be between 4 and 128 characters."
+  de: "Der Passcode muss zwischen 4 und 128 Zeichen lang sein."
+  verified_by_human: []
 incognito_explainer_description:
   context: Description of what incognito mode does
   en: "Incognito mode applies only to new chats you create. New chats created while incognito mode is active are not synced across devices, not stored on the server, and not cached. These chats exist only in your current browser session. Existing chats remain unchanged."

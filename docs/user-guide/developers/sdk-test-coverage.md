@@ -121,6 +121,7 @@ Run `python3 scripts/audit_sdk_test_coverage.py` to verify this file is current 
 | `ideabucket` | `om.ideabucket.settings()` | `om.ideabucket.settings()` | direct | direct |
 | `ideabucket` | `om.ideabucket.status()` | `om.ideabucket.status()` | direct | direct |
 | `inspirations` | `om.inspirations.list()` | `om.inspirations.list()` | direct | direct |
+| `learning_mode` | `om.learningMode.collaborative()` | `om.learning_mode.collaborative()` | direct | direct |
 | `learning_mode` | `om.learningMode.disable()` | `om.learning_mode.disable()` | direct | direct |
 | `learning_mode` | `om.learningMode.enable()` | `om.learning_mode.enable()` | direct | direct |
 | `learning_mode` | `om.learningMode.status()` | `om.learning_mode.status()` | direct | direct |

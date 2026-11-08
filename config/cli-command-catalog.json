@@ -5,7 +5,7 @@
   "source_snapshots": [
     {
       "path": "frontend/packages/openmates-cli/src/cli.ts",
-      "sha256": "da9b4a6e47954474d36051e30ca986ec18e3d18c7fe7d3bdbd3b39480682ae2e"
+      "sha256": "998fd159bc6feb16b3d94ecbaadbcb378da5bcbf80b20d148c1fe1fa5165085c"
     },
     {
       "path": "frontend/packages/openmates-cli/src/server.ts",
@@ -2967,6 +2967,19 @@
           "path": "frontend/packages/openmates-cli/src/cli.ts",
           "line": 15229,
           "symbol": "printAppsHelp"
+        }
+      ]
+    },
+    {
+      "long": "collaborative-build",
+      "arity": "switch",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "frontend/packages/openmates-cli/src/cli.ts",
+          "line": 14746,
+          "symbol": "printLearningModeHelp"
         }
       ]
     },
@@ -11953,6 +11966,19 @@
       ]
     },
     {
+      "long": "no-collaborative-build",
+      "arity": "switch",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "frontend/packages/openmates-cli/src/cli.ts",
+          "line": 14746,
+          "symbol": "printLearningModeHelp"
+        }
+      ]
+    },
+    {
       "long": "no-download",
       "arity": "switch",
       "repeatable": true,
@@ -13693,6 +13719,11 @@
         {
           "path": "frontend/packages/openmates-cli/src/cli.ts",
           "line": 14763,
+          "symbol": "printLearningModeHelp"
+        },
+        {
+          "path": "frontend/packages/openmates-cli/src/cli.ts",
+          "line": 14747,
           "symbol": "printLearningModeHelp"
         }
       ]
@@ -35038,6 +35069,54 @@
     {
       "path": [
         "learning-mode",
+        "collaborative"
+      ],
+      "summary": "learning-mode collaborative",
+      "usages": [
+        "learning-mode collaborative <on|off> [--passcode <passcode>] [--json]"
+      ],
+      "positionals": [
+        {
+          "name": "state",
+          "required": true,
+          "variadic": false,
+          "at": 2,
+          "synopsis": "<on|off>"
+        }
+      ],
+      "flags": [
+        "api-key",
+        "api-url",
+        "help",
+        "json",
+        "passcode",
+        "profile"
+      ],
+      "source_locations": [
+        {
+          "path": "frontend/packages/openmates-cli/src/cli.ts",
+          "line": 14747,
+          "symbol": "printLearningModeHelp"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "sdk.client.set_learning_mode_collaborative",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/learning_mode.rs"
+      },
+      "gaps": [
+        "Native-only addition for the collaborative build setting (the npm CLI handler mirrors it in handleLearningMode); not yet differential-verified. Integration against a live backend and platform verification remain open."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "learning-mode",
         "disable"
       ],
       "summary": "learning-mode disable",
@@ -35056,7 +35135,7 @@
       "source_locations": [
         {
           "path": "frontend/packages/openmates-cli/src/cli.ts",
-          "line": 14763,
+          "line": 14748,
           "symbol": "printLearningModeHelp"
         }
       ],
@@ -35082,22 +35161,24 @@
       ],
       "summary": "learning-mode enable",
       "usages": [
-        "learning-mode enable --age-group <group> --passcode <passcode> [--json]"
+        "learning-mode enable --age-group <group> --passcode <passcode> [--collaborative-build | --no-collaborative-build] [--json]"
       ],
       "positionals": [],
       "flags": [
         "age-group",
         "api-key",
         "api-url",
+        "collaborative-build",
         "help",
         "json",
+        "no-collaborative-build",
         "passcode",
         "profile"
       ],
       "source_locations": [
         {
           "path": "frontend/packages/openmates-cli/src/cli.ts",
-          "line": 14762,
+          "line": 14746,
           "symbol": "printLearningModeHelp"
         }
       ],
@@ -35136,7 +35217,7 @@
       "source_locations": [
         {
           "path": "frontend/packages/openmates-cli/src/cli.ts",
-          "line": 14761,
+          "line": 14745,
           "symbol": "printLearningModeHelp"
         }
       ],
@@ -62759,9 +62840,9 @@
     "Remote command protection is Linux-specific; unsupported hosts must fail closed."
   ],
   "coverage": {
-    "command_patterns": 722,
+    "command_patterns": 723,
     "flags": 608,
-    "native_handlers_partial": 716,
+    "native_handlers_partial": 717,
     "unsupported": 6,
     "feature_complete": false
   },

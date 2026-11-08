@@ -28,6 +28,7 @@ from backend.shared.python_utils.learning_mode import (
     activate_learning_mode_policy,
     build_learning_mode_context,
     deactivate_learning_mode_policy,
+    set_collaborative_build_policy,
 )
 
 logger = logging.getLogger(__name__)
@@ -37,6 +38,7 @@ router = APIRouter(prefix="/v1/learning-mode", tags=["Learning Mode"])
 LEARNING_MODE_USER_FIELDS = [
     "learning_mode_enabled",
     "learning_mode_age_group",
+    "learning_mode_collaborative_build",
     "learning_mode_passcode_hash",
     "learning_mode_failed_attempts",
     "learning_mode_deactivation_blocked_until",
@@ -47,6 +49,7 @@ LEARNING_MODE_USER_FIELDS = [
 class LearningModeStatusResponse(BaseModel):
     enabled: bool
     age_group: Optional[str] = None
+    collaborative_build: bool = False
     failed_attempts: int = 0
     deactivation_blocked_until: Optional[int] = None
 
@@ -54,6 +57,14 @@ class LearningModeStatusResponse(BaseModel):
 class LearningModeActivateRequest(BaseModel):
     passcode: str = Field(min_length=4, max_length=128)
     age_group: str
+    # Omitted means the age default (on, except under 10 where it is always off).
+    collaborative_build: Optional[bool] = None
+
+
+class LearningModeCollaborativeRequest(BaseModel):
+    enabled: bool
+    # Required only when enabling: turning the toggle on loosens the guardrails.
+    passcode: Optional[str] = Field(default=None, max_length=128)
 
 
 class LearningModeDeactivateRequest(BaseModel):
@@ -92,6 +103,7 @@ def _status_from_policy(policy: Dict[str, Any]) -> LearningModeStatusResponse:
     return LearningModeStatusResponse(
         enabled=bool(context.get("enabled")),
         age_group=context.get("age_group"),
+        collaborative_build=bool(context.get("collaborative_build")),
         failed_attempts=int(policy.get("learning_mode_failed_attempts") or 0),
         deactivation_blocked_until=context.get("deactivation_blocked_until"),
     )
@@ -124,6 +136,7 @@ async def activate_learning_mode(
             passcode=request_data.passcode,
             age_group=request_data.age_group,
             now=int(time.time()),
+            collaborative_build=request_data.collaborative_build,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -158,4 +171,36 @@ async def deactivate_learning_mode(
 
     await _persist_learning_mode_policy(current_user.id, updated_policy, cache_service, directus_service)
     logger.info("Learning Mode deactivated for user %s", current_user.id)
+    return _status_from_policy(updated_policy)
+
+
+@router.post("/collaborative", response_model=LearningModeStatusResponse, include_in_schema=False)
+async def set_collaborative_build(
+    request: Request,
+    request_data: LearningModeCollaborativeRequest,
+    current_user: User = Depends(get_current_user),
+    cache_service: CacheService = Depends(get_cache_service),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> LearningModeStatusResponse:
+    """Turn collaborative building off freely; turning it on needs the passcode."""
+
+    del request
+    policy = await _load_learning_mode_policy(current_user.id, cache_service, directus_service)
+    try:
+        updated_policy = set_collaborative_build_policy(
+            policy,
+            enabled=request_data.enabled,
+            passcode=request_data.passcode,
+            now=int(time.time()),
+        )
+    except LearningModeError as exc:
+        if exc.reason in {"learning_mode_inactive", "age_not_supported"}:
+            raise HTTPException(status_code=400, detail={"reason": exc.reason}) from exc
+        await _persist_learning_mode_policy(current_user.id, exc.updated_policy, cache_service, directus_service)
+        detail = _status_from_policy(exc.updated_policy).model_dump()
+        detail["reason"] = exc.reason
+        raise HTTPException(status_code=403, detail=detail) from exc
+
+    await _persist_learning_mode_policy(current_user.id, updated_policy, cache_service, directus_service)
+    logger.info("Learning Mode collaborative building set for user %s", current_user.id)
     return _status_from_policy(updated_policy)

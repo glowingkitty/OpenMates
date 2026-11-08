@@ -5812,7 +5812,16 @@ export class OpenMatesLearningMode {
   }
 
   async status(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/learning-mode"); }
-  async enable(input: { ageGroup: string; passcode: string }): Promise<Record<string, unknown>> { return this.client.request<Record<string, unknown>>("/v1/sdk/learning-mode/enable", { age_group: input.ageGroup, passcode: input.passcode }); }
+  async enable(input: { ageGroup: string; passcode: string; collaborativeBuild?: boolean }): Promise<Record<string, unknown>> {
+    const body: Record<string, unknown> = { age_group: input.ageGroup, passcode: input.passcode };
+    if (input.collaborativeBuild !== undefined) body.collaborative_build = input.collaborativeBuild;
+    return this.client.request<Record<string, unknown>>("/v1/sdk/learning-mode/enable", body);
+  }
+  async collaborative(input: { enabled: boolean; passcode?: string }): Promise<Record<string, unknown>> {
+    const body: Record<string, unknown> = { enabled: input.enabled };
+    if (input.passcode !== undefined) body.passcode = input.passcode;
+    return this.client.request<Record<string, unknown>>("/v1/sdk/learning-mode/collaborative", body);
+  }
   async disable(passcode: string): Promise<Record<string, unknown>> { return this.client.request<Record<string, unknown>>("/v1/sdk/learning-mode/disable", { passcode }); }
 }
 

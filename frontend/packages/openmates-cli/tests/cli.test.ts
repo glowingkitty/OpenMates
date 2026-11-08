@@ -2094,7 +2094,20 @@ async function withLearningModeMockApi<T>(
         writeJson(response, {
           enabled: true,
           age_group: "13_15",
+          collaborative_build: true,
           failed_attempts: 1,
+          deactivation_blocked_until: null,
+        });
+        return;
+      }
+      if (request.method === "POST" && request.url === "/v1/learning-mode/collaborative") {
+        const body = await readJsonBody(request);
+        requests.push({ method: request.method, url: request.url, body });
+        writeJson(response, {
+          enabled: true,
+          age_group: "16_18",
+          collaborative_build: body.enabled,
+          failed_attempts: 0,
           deactivation_blocked_until: null,
         });
         return;
@@ -4856,6 +4869,51 @@ describe("learning-mode command surface", () => {
     assert.match(output, /openmates learning-mode status/);
     assert.match(output, /openmates learning-mode enable --age-group <group>/);
     assert.match(output, /openmates learning-mode disable/);
+    assert.match(output, /--no-collaborative-build/);
+    assert.match(output, /openmates learning-mode collaborative <on\|off>/);
+  });
+
+  it("prints collaborative build in the text status", async () => {
+    await withLearningModeMockApi(async ({ apiUrl, tempHome }) => {
+      const output = await runCliAsync(
+        ["learning-mode", "status", "--api-url", apiUrl],
+        { HOME: tempHome, USERPROFILE: tempHome },
+      );
+      assert.match(output, /Collaborative build: on/);
+    });
+  });
+
+  it("forwards the collaborative build choice and toggles it", async () => {
+    await withLearningModeMockApi(async ({ apiUrl, tempHome, requests }) => {
+      const env = { HOME: tempHome, USERPROFILE: tempHome };
+      await runCliAsync(
+        ["learning-mode", "enable", "--age-group", "16_18", "--passcode", "teach-1234", "--no-collaborative-build", "--json", "--api-url", apiUrl],
+        env,
+      );
+      await runCliAsync(
+        ["learning-mode", "collaborative", "on", "--passcode", "teach-1234", "--json", "--api-url", apiUrl],
+        env,
+      );
+      await runCliAsync(["learning-mode", "collaborative", "off", "--json", "--api-url", apiUrl], env);
+
+      assert.deepEqual(requests, [
+        {
+          method: "POST",
+          url: "/v1/learning-mode/activate",
+          body: { age_group: "16_18", passcode: "teach-1234", collaborative_build: false },
+        },
+        {
+          method: "POST",
+          url: "/v1/learning-mode/collaborative",
+          body: { enabled: true, passcode: "teach-1234" },
+        },
+        {
+          method: "POST",
+          url: "/v1/learning-mode/collaborative",
+          body: { enabled: false },
+        },
+      ]);
+    });
   });
 
   it("prints authenticated status as JSON", async () => {

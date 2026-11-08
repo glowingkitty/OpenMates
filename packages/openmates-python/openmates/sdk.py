@@ -6783,7 +6783,16 @@ class OpenMatesTeams:
 class OpenMatesLearningMode:
     def __init__(self, client: OpenMates): self._client = client
     def status(self) -> dict[str, Any]: return self._client._get("/v1/sdk/learning-mode")
-    def enable(self, *, age_group: str, passcode: str) -> dict[str, Any]: return self._client._post("/v1/sdk/learning-mode/enable", {"age_group": age_group, "passcode": passcode})
+    def enable(self, *, age_group: str, passcode: str, collaborative_build: bool | None = None) -> dict[str, Any]:
+        body: dict[str, Any] = {"age_group": age_group, "passcode": passcode}
+        if collaborative_build is not None:
+            body["collaborative_build"] = collaborative_build
+        return self._client._post("/v1/sdk/learning-mode/enable", body)
+    def collaborative(self, enabled: bool, *, passcode: str | None = None) -> dict[str, Any]:
+        body: dict[str, Any] = {"enabled": enabled}
+        if passcode is not None:
+            body["passcode"] = passcode
+        return self._client._post("/v1/sdk/learning-mode/collaborative", body)
     def disable(self, passcode: str) -> dict[str, Any]: return self._client._post("/v1/sdk/learning-mode/disable", {"passcode": passcode})
 
 

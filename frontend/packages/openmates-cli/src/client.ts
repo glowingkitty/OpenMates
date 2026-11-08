@@ -787,6 +787,8 @@ export type LearningModeAgeGroup = "under_10" | "10_12" | "13_15" | "16_18" | "a
 export interface LearningModeStatus {
   enabled: boolean;
   age_group: LearningModeAgeGroup | null;
+  /** Collaborative build is on for this account; false/absent for under_10 or older backends. */
+  collaborative_build?: boolean;
   failed_attempts: number;
   deactivation_blocked_until: number | null;
 }
@@ -5119,15 +5121,38 @@ export class OpenMatesClient {
   async activateLearningMode(params: {
     ageGroup: LearningModeAgeGroup;
     passcode: string;
+    /** Omitted => backend default (on, except forced off for under_10). */
+    collaborativeBuild?: boolean;
   }): Promise<LearningModeStatus> {
     this.requireSession();
+    const body: Record<string, unknown> = { age_group: params.ageGroup, passcode: params.passcode };
+    if (params.collaborativeBuild !== undefined) body.collaborative_build = params.collaborativeBuild;
     const response = await this.http.post<LearningModeStatus>(
       "/v1/learning-mode/activate",
-      { age_group: params.ageGroup, passcode: params.passcode },
+      body,
       this.getCliRequestHeaders(),
     );
     if (!response.ok) {
       throw new Error(`Learning Mode activation failed with HTTP ${response.status}`);
+    }
+    return response.data;
+  }
+
+  /** Enabling collaborative build requires the passcode; disabling does not. */
+  async setLearningModeCollaborative(params: {
+    enabled: boolean;
+    passcode?: string;
+  }): Promise<LearningModeStatus> {
+    this.requireSession();
+    const body: Record<string, unknown> = { enabled: params.enabled };
+    if (params.passcode !== undefined) body.passcode = params.passcode;
+    const response = await this.http.post<LearningModeStatus>(
+      "/v1/learning-mode/collaborative",
+      body,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Learning Mode collaborative build update failed with HTTP ${response.status}`);
     }
     return response.data;
   }

@@ -66,6 +66,12 @@ class MateConfig(BaseModel):
     voice_learning_mode_system_prompt: str = Field(
         ..., min_length=1, description="Voice delivery instructions for domain plus Learning Mode prompts.",
     )
+    # Optional so older cached bundles stay valid. Build-capable mates replace
+    # their teach-first learning prompt with this one while the learner's
+    # collaborative-building toggle is on; other mates keep their learning prompt.
+    collaborative_build_system_prompt: Optional[str] = Field(
+        None, description="English Learning Mode variant used while collaborative building is enabled.",
+    )
 
     # Reserved fields — parsed but not yet enforced downstream.
     # When a frontmatter value is omitted or set to "inherit", these become None
@@ -97,19 +103,33 @@ class MateConfig(BaseModel):
     )
 
 
-def select_mate_system_prompt(mate: MateConfig, *, voice_mode: bool, learning_mode: bool) -> str:
+def select_learning_mode_prompt(mate: MateConfig, *, collaborative_build: bool) -> str:
+    """Return the Learning Mode domain prompt, honoring the collaborative variant."""
+    if collaborative_build and mate.collaborative_build_system_prompt:
+        return mate.collaborative_build_system_prompt
+    return mate.learning_mode_system_prompt
+
+
+def select_mate_system_prompt(
+    mate: MateConfig,
+    *,
+    voice_mode: bool,
+    learning_mode: bool,
+    collaborative_build: bool = False,
+) -> str:
     """Select delivery while preserving canonical domain and teaching policy.
 
     Text chat keeps its existing prompt exactly. Voice Learning Mode includes
     the domain source as well as the teaching restrictions, so delivery changes
     cannot discard medical boundaries, documentation requirements or expertise.
     """
+    learning_prompt = select_learning_mode_prompt(mate, collaborative_build=collaborative_build)
     if not voice_mode:
-        return mate.learning_mode_system_prompt if learning_mode else mate.default_system_prompt
+        return learning_prompt if learning_mode else mate.default_system_prompt
     if learning_mode:
         return "\n\n".join((
             mate.default_system_prompt,
-            mate.learning_mode_system_prompt,
+            learning_prompt,
             mate.voice_learning_mode_system_prompt,
         ))
     return "\n\n".join((mate.default_system_prompt, mate.voice_system_prompt))
@@ -224,6 +244,7 @@ def _build_mate_from_file(file_path: Path) -> MateConfig:
         "learning_mode_system_prompt": frontmatter.get("learning_mode_system_prompt"),
         "voice_system_prompt": frontmatter.get("voice_system_prompt"),
         "voice_learning_mode_system_prompt": frontmatter.get("voice_learning_mode_system_prompt"),
+        "collaborative_build_system_prompt": frontmatter.get("collaborative_build_system_prompt"),
         "tools": tools,
         "model": model,
         "focus_modes": focus_modes,

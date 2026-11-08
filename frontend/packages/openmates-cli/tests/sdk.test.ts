@@ -1335,6 +1335,32 @@ describe("OpenMates SDK", () => {
     assert.deepEqual(urls, [`GET /v1/sdk/chats/${CHAT_ID}`, "POST /v1/sdk/session"]);
   });
 
+  it("sends collaborative-build learning mode request bodies", async () => {
+    const bodies: Array<{ url?: string; body: unknown }> = [];
+    await withServer((request, response) => {
+      const chunks: Buffer[] = [];
+      request.on("data", (chunk) => chunks.push(chunk));
+      request.on("end", () => {
+        bodies.push({ url: request.url, body: JSON.parse(Buffer.concat(chunks).toString("utf8")) });
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ enabled: true }));
+      });
+    }, async (apiUrl) => {
+      const client = new OpenMates({ apiKey: "sk-api-test", apiUrl });
+      await client.learningMode.enable({ ageGroup: "16_18", passcode: "teach-1234" });
+      await client.learningMode.enable({ ageGroup: "16_18", passcode: "teach-1234", collaborativeBuild: false });
+      await client.learningMode.collaborative({ enabled: true, passcode: "teach-1234" });
+      await client.learningMode.collaborative({ enabled: false });
+    });
+
+    assert.deepEqual(bodies, [
+      { url: "/v1/sdk/learning-mode/enable", body: { age_group: "16_18", passcode: "teach-1234" } },
+      { url: "/v1/sdk/learning-mode/enable", body: { age_group: "16_18", passcode: "teach-1234", collaborative_build: false } },
+      { url: "/v1/sdk/learning-mode/collaborative", body: { enabled: true, passcode: "teach-1234" } },
+      { url: "/v1/sdk/learning-mode/collaborative", body: { enabled: false } },
+    ]);
+  });
+
   it("exposes named CLI parity namespaces without generic passthroughs", async () => {
     const requests: Array<{ method?: string; url?: string }> = [];
     await withServer((request, response) => {
@@ -1367,6 +1393,7 @@ describe("OpenMates SDK", () => {
       await client.learningMode.status();
       await client.learningMode.enable({ ageGroup: "16_18", passcode: "teach-1234" });
       await client.learningMode.disable("teach-1234");
+      await client.learningMode.collaborative({ enabled: true, passcode: "teach-1234" });
       await client.inspirations.list({ language: "de" });
       await client.newChatSuggestions.list({ limit: 4 });
     });
@@ -1386,6 +1413,7 @@ describe("OpenMates SDK", () => {
       { method: "GET", url: "/v1/sdk/learning-mode" },
       { method: "POST", url: "/v1/sdk/learning-mode/enable" },
       { method: "POST", url: "/v1/sdk/learning-mode/disable" },
+      { method: "POST", url: "/v1/sdk/learning-mode/collaborative" },
       { method: "GET", url: "/v1/sdk/inspirations?lang=de" },
       { method: "GET", url: "/v1/sdk/new-chat-suggestions?limit=4" },
     ]);

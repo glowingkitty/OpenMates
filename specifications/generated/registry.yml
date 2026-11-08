@@ -678,6 +678,17 @@ specifications:
     required_applies_to:
     - rest_api
     - gui.web
+  feature.learning-mode:
+    version: 1
+    status: draft
+    path: features/learning-mode
+    fingerprint: 63337ec7d4c19f019291435e76432a6761b08e458646023c10636df5e104d94f
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   feature.marketing-landing:
     version: 12
     status: draft
@@ -8517,6 +8528,72 @@ assertions:
     fingerprint: 8242e8f310a5fd04634676d01ba1e15b97f38d2a10415418e346f9ca0b1aa4b0
     required_applies_to:
     - rest_api
+    - gui.web
+  learning-mode.age-rubric:
+    specification: feature.learning-mode@1
+    specification_id: feature.learning-mode
+    type: behavior
+    fingerprint: 59bf598f18940e3ce5e757012f90ee2a477864569c639012335bef9ea2cb6376
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  learning-mode.term-definitions:
+    specification: feature.learning-mode@1
+    specification_id: feature.learning-mode
+    type: behavior
+    fingerprint: d1d6dd3100e2dbf872af5e1cdc9dcebd3bf4146a7a2704ce68dae33f59545268
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  learning-mode.collaborative-toggle:
+    specification: feature.learning-mode@1
+    specification_id: feature.learning-mode
+    type: security
+    fingerprint: 339c09d16bff4a99145f8fef387d6c025641f92c108d159ecef7d379bb2e30c3
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  learning-mode.collaborative-building:
+    specification: feature.learning-mode@1
+    specification_id: feature.learning-mode
+    type: behavior
+    fingerprint: db9982c64a7c32f7ea279ebc059b0d9f800bb9a14f7b64b977394df8336e727c
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  learning-mode.anonymous-client-side:
+    specification: feature.learning-mode@1
+    specification_id: feature.learning-mode
+    type: privacy
+    fingerprint: 0dd440a88a9237f6e9363f2b9acc400a9da5c4b2b22b1d386872139ebc7466b8
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  learning-mode.voice-delivery:
+    specification: feature.learning-mode@1
+    specification_id: feature.learning-mode
+    type: behavior
+    fingerprint: f494c157713a6fe4a4f781edce262dc50bddb3d27f2c0580e50603df26841d66
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
     - gui.web
   marketing-landing.independent-scroll:
     specification: feature.marketing-landing@12

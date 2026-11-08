@@ -2901,14 +2901,17 @@
         "npm": {
           "api": [
             "OpenMates.learningMode",
+            "OpenMates.learningMode.collaborative",
             "OpenMates.learningMode.disable",
             "OpenMates.learningMode.enable",
             "OpenMates.learningMode.status",
             "OpenMatesClient.learningMode",
+            "OpenMatesClient.learningMode.collaborative",
             "OpenMatesClient.learningMode.disable",
             "OpenMatesClient.learningMode.enable",
             "OpenMatesClient.learningMode.status",
             "OpenMatesLearningMode",
+            "OpenMatesLearningMode.collaborative",
             "OpenMatesLearningMode.disable",
             "OpenMatesLearningMode.enable",
             "OpenMatesLearningMode.status"
@@ -2923,10 +2926,12 @@
         "python": {
           "api": [
             "OpenMates.learning_mode",
+            "OpenMates.learning_mode.collaborative",
             "OpenMates.learning_mode.disable",
             "OpenMates.learning_mode.enable",
             "OpenMates.learning_mode.status",
             "OpenMatesLearningMode",
+            "OpenMatesLearningMode.collaborative",
             "OpenMatesLearningMode.disable",
             "OpenMatesLearningMode.enable",
             "OpenMatesLearningMode.status"
@@ -2944,6 +2949,7 @@
           "api": [
             "sdk_learning_mode",
             "sdk_learning_mode.LearningMode",
+            "sdk_learning_mode.LearningMode.collaborative",
             "sdk_learning_mode.LearningMode.disable",
             "sdk_learning_mode.LearningMode.enable",
             "sdk_learning_mode.LearningMode.status",
@@ -5379,6 +5385,7 @@
             "client.Client.set_credential_updates",
             "client.Client.set_identity",
             "client.Client.set_interactive",
+            "client.Client.set_learning_mode_collaborative",
             "client.Client.set_operation_cancel",
             "client.Client.set_privacy_options",
             "client.Client.set_private_operation_gate",

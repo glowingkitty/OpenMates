@@ -15,6 +15,7 @@ const ADAPTERS = {
   'billing.request_refund': (args, kwargs, vector) => [...args, { confirmed: vector.confirmed ?? kwargs.confirmed ?? true }],
   'reminders.delete': (args, kwargs, vector) => [...args, { confirmed: vector.confirmed ?? kwargs.confirmed ?? true }],
   'settings.set_model_defaults': (_args, kwargs) => [kwargs],
+  'learning_mode.collaborative': (args, kwargs) => [{ enabled: args[0], passcode: kwargs.passcode }],
 };
 
 function callArguments(vector) {

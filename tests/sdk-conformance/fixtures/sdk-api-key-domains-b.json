@@ -111,6 +111,58 @@
      }
     },
     {
+     "id": "learning-mode-enable-collaborative-build-off",
+     "operation": "learning_mode.enable",
+     "args": [],
+     "kwargs": {
+      "age_group": "teen",
+      "passcode": "synthetic-1234",
+      "collaborative_build": false
+     },
+     "expect": {
+      "method": "POST",
+      "path": "/v1/sdk/learning-mode/enable",
+      "body": {
+       "age_group": "teen",
+       "passcode": "synthetic-1234",
+       "collaborative_build": false
+      }
+     }
+    },
+    {
+     "id": "learning-mode-collaborative-on",
+     "operation": "learning_mode.collaborative",
+     "args": [
+      true
+     ],
+     "kwargs": {
+      "passcode": "synthetic-1234"
+     },
+     "expect": {
+      "method": "POST",
+      "path": "/v1/sdk/learning-mode/collaborative",
+      "body": {
+       "enabled": true,
+       "passcode": "synthetic-1234"
+      }
+     }
+    },
+    {
+     "id": "learning-mode-collaborative-off",
+     "operation": "learning_mode.collaborative",
+     "args": [
+      false
+     ],
+     "kwargs": {},
+     "expect": {
+      "method": "POST",
+      "path": "/v1/sdk/learning-mode/collaborative",
+      "body": {
+       "enabled": false
+      }
+     }
+    },
+    {
      "id": "learning-mode-disable",
      "operation": "learning_mode.disable",
      "args": [

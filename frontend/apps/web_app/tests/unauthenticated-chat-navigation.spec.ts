@@ -418,11 +418,11 @@ test.describe('Unauthenticated chat navigation stays reactive', () => {
 
 		const settingsMenu = page.getByTestId('settings-menu');
 		await expect(settingsMenu).toBeVisible({ timeout: SETTINGS_TIMEOUT });
-		await expect(settingsMenu.getByTestId('learning-mode-toggle-wrapper')).toHaveCount(0);
+		await expect(settingsMenu.getByTestId('learning-mode-toggle-wrapper')).toBeVisible();
 		if (proof) {
 			await proof.assert('guest-navigation.settings-responsive', async () => {
 				await expect(settingsMenu).toBeVisible();
-				await expect(settingsMenu.getByTestId('learning-mode-toggle-wrapper')).toHaveCount(0);
+				await expect(settingsMenu.getByTestId('learning-mode-toggle-wrapper')).toBeVisible();
 			});
 			await proof.checkpoint('settings-menu-responsive');
 		}

@@ -144,10 +144,12 @@ from backend.shared.python_utils.url_normalizer import (
 from backend.shared.python_utils.markdown_links import iter_markdown_links
 from backend.shared.python_utils.learning_mode import (
     LEARNING_MODE_CODE_MAX_LINES,
+    LEARNING_MODE_COLLABORATIVE_CODE_MAX_LINES,
     LEARNING_MODE_DOCUMENT_MAX_LINES,
     LEARNING_MODE_SHEET_MAX_COLS,
     LEARNING_MODE_SHEET_MAX_ROWS,
     cap_learning_mode_lines,
+    is_collaborative_build_enabled,
     is_learning_mode_enabled,
     should_disable_learning_mode_application_artifact,
 )
@@ -5067,11 +5069,16 @@ def _cap_code_for_learning_mode(
     request_data: AskSkillRequest,
     code_content: str,
 ) -> tuple[str, Optional[Dict[str, Any]]]:
-    if not is_learning_mode_enabled(_learning_mode_context(request_data)):
+    context = _learning_mode_context(request_data)
+    if not is_learning_mode_enabled(context):
         return code_content, None
     capped, metadata = cap_learning_mode_lines(
         code_content,
-        max_lines=LEARNING_MODE_CODE_MAX_LINES,
+        max_lines=(
+            LEARNING_MODE_COLLABORATIVE_CODE_MAX_LINES
+            if is_collaborative_build_enabled(context)
+            else LEARNING_MODE_CODE_MAX_LINES
+        ),
     )
     return capped, metadata
 

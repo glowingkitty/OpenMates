@@ -203,8 +203,9 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 
 | npm | pip | npm inputs | pip inputs | Return |
 | --- | --- | --- | --- | --- |
+| `om.learningMode.collaborative()` | `om.learning_mode.collaborative()` | `enabled, passcode` | `enabled, passcode` | `object` |
 | `om.learningMode.disable()` | `om.learning_mode.disable()` | `passcode` | `passcode` | `object` |
-| `om.learningMode.enable()` | `om.learning_mode.enable()` | `age_group, passcode` | `age_group, passcode` | `object` |
+| `om.learningMode.enable()` | `om.learning_mode.enable()` | `age_group, passcode, collaborative_build` | `age_group, passcode, collaborative_build` | `object` |
 | `om.learningMode.status()` | `om.learning_mode.status()` | `none` | `none` | `object` |
 
 ## `memories`

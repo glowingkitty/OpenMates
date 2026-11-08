@@ -486,17 +486,17 @@ capabilities:
   has_fixture: false
   rust:
     status: partial
-    api_symbols: 6
+    api_symbols: 7
     conformance: false
     gaps: 1
   npm:
     status: partial
-    api_symbols: 12
+    api_symbols: 15
     conformance: false
     gaps: 1
   python:
     status: partial
-    api_symbols: 8
+    api_symbols: 10
     conformance: false
     gaps: 1
 - id: sdk.memories

@@ -91,6 +91,7 @@ from backend.apps.ai.processing.postprocessor import (
 )
 from backend.shared.python_utils.learning_mode import (
     filter_learning_mode_suggestions,
+    is_collaborative_build_enabled,
     is_learning_mode_enabled,
     learning_mode_context_from_preferences,
 )
@@ -5078,11 +5079,14 @@ async def _async_process_ai_skill_ask_task(
                 _log_team_ai_pipeline_stage(request_data, task_id, "postprocess", "completed")
 
             if postprocessing_result and is_learning_mode_enabled(effective_learning_mode_context):
+                collaborative_suggestions = is_collaborative_build_enabled(effective_learning_mode_context)
                 postprocessing_result.follow_up_request_suggestions = filter_learning_mode_suggestions(
-                    postprocessing_result.follow_up_request_suggestions
+                    postprocessing_result.follow_up_request_suggestions,
+                    collaborative_build=collaborative_suggestions,
                 )
                 postprocessing_result.new_chat_request_suggestions = filter_learning_mode_suggestions(
-                    postprocessing_result.new_chat_request_suggestions
+                    postprocessing_result.new_chat_request_suggestions,
+                    collaborative_build=collaborative_suggestions,
                 )
 
 

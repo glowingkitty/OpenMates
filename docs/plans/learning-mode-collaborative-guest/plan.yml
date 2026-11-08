@@ -1,0 +1,224 @@
+schema_version: 2
+id: learning-mode-collaborative-guest
+title: Learning Mode - age rubric, collaborative building, guest use and voice
+status: approved
+goal: >
+  Improve Learning Mode with an age-tiered teaching rubric and first-use term
+  definitions with encyclopedia links; add an "Allow collaborative building" toggle
+  (on by default from age 10-12, passcode-gated to enable later, existing accounts
+  migrate to off) that relaxes code caps and artifacts while keeping the answer-key
+  guards; let guests without an account use the same mode stored on the device with a
+  local passcode lock; and make Learning Mode and all focus modes work in voice calls.
+scope:
+  in:
+    - Age rubric and term-definition prompt sections, per-mate collaborative prompts for build-capable mates.
+    - users.learning_mode_collaborative_build, POST /v1/learning-mode/collaborative, collaborative_build in the request context.
+    - Server resolution of the effective flag; code cap 40 vs 300, application artifacts and artifact chips only when collaborative.
+    - Voice instruction base_voice_learning_focus_instruction.md added only for voice with Learning Mode or a focus.
+    - Guest storage in localStorage with a PBKDF2-SHA256 passcode hash that never leaves the device.
+    - Web setup page toggle, CLI and npm/pip/Rust SDK surfaces.
+  out:
+    - Apple implementation (follow-up after web).
+    - Enforcing Projects/tasks agentic-coding tools; only the context flag is exposed.
+    - Making the guest lock tamper-proof; clearing browser data bypasses it by design and the UI says so.
+scenarios:
+  - id: S-1
+    title: Parent sets up collaborative building
+    given:
+      - Learning Mode is being set up for a 13-15 learner.
+    when:
+      - The parent keeps the collaborative toggle on, later turns it off, then tries to turn it on without the passcode.
+    then:
+      - It is on by default, off needs no passcode, and on again needs the passcode with the shared lockout.
+  - id: S-2
+    title: Guest uses Learning Mode
+    given:
+      - A visitor without an account opens Learning Mode settings.
+    when:
+      - They set an age group and passcode and reload the app.
+    then:
+      - Learning Mode persists on the device and requests carry only the four non-secret fields.
+  - id: S-3
+    title: Learner builds together by voice
+    given:
+      - A voice call has Learning Mode or a focus mode active.
+    when:
+      - The assistant teaches or builds.
+    then:
+      - Spoken-delivery rules apply and the voice delivery block stays last.
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: The server resolves the effective collaborative flag; under 10 is always off; legacy accounts stay off; enabling needs the passcode.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PYTEST]
+  - id: AC-2
+    scenario: S-1
+    text: Collaborative on raises the code cap to 300 lines and allows application artifacts; off keeps 40 lines; answer-key guards stay in both.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PYTEST]
+  - id: AC-3
+    scenario: S-2
+    text: Guest passcode is hashed locally, stored in localStorage, never sent, and five wrong attempts block for 24 hours.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-VITEST, T-E2E-WEB]
+  - id: AC-4
+    scenario: S-3
+    text: The voice learning/focus instruction appears only for voice with Learning Mode or a focus and precedes the voice main block.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PYTEST]
+  - id: AC-5
+    scenario: S-1
+    text: CLI and the npm, pip and Rust SDKs expose enable with the collaborative option and the collaborative on/off action.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: npm_sdk
+    verification_ids: [T-RUST, T-SDK]
+tests:
+  - id: T-PYTEST
+    type: pytest
+    file: backend/tests/test_learning_mode_collaborative.py
+    command: python3 scripts/ci_coordinator.py submit --session 87b1 --mode pytest --no-prepared-builds --spec backend/tests/test_learning_mode_collaborative.py
+    execution_environment: isolated_github_ci
+    target: isolated_github_ci
+    assertions: [toggle resolution, caps, chips, rubric, term definitions, voice instruction]
+    covers: [AC-1, AC-2, AC-4]
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence: {}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {run_id: '42488400960', source_commit: 'e6d6fca5ae', result: passed}
+  - id: T-VITEST
+    type: vitest
+    file: frontend/packages/ui/src/stores/__tests__/learningModeStore.test.ts
+    command: python3 scripts/ci_coordinator.py submit --session 87b1 --mode vitest --no-prepared-builds --spec frontend/packages/ui/src/stores/__tests__/learningModeStore.test.ts
+    execution_environment: isolated_github_ci
+    target: isolated_github_ci
+    assertions: [guest record, lockout, collaborative gate, request context]
+    covers: [AC-3]
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence: {}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {}
+  - id: T-RUST
+    type: unit
+    file: frontend/packages/openmates-tui-native/src/cli/account/learning_mode_tests.rs
+    command: python3 scripts/ci_coordinator.py submit --session 87b1 --mode rust-check --no-prepared-builds --spec all
+    execution_environment: isolated_github_ci
+    target: isolated_github_ci
+    assertions: [catalog counts, CLI flags, request bodies]
+    covers: [AC-5]
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence: {}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {}
+  - id: T-SDK
+    type: unit
+    file: tests/sdk-conformance/fixtures/sdk-api-key-domains-b.json
+    command: python3 scripts/ci_coordinator.py submit --session 87b1 --mode sdk-conformance --no-prepared-builds --spec sdk-conformance
+    execution_environment: isolated_github_ci
+    target: isolated_github_ci
+    assertions: [enable with collaborative flag, collaborative on, collaborative off]
+    covers: [AC-5]
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence: {}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {}
+  - id: T-E2E-WEB
+    type: playwright
+    file: frontend/apps/web_app/tests/learning-mode.spec.ts
+    command: python3 scripts/ci_coordinator.py submit --session 87b1 --mode e2e --spec learning-mode.spec.ts
+    execution_environment: isolated_github_ci
+    target: isolated_github_ci
+    assertions: [account toggle default and gate, guest persistence and lock]
+    covers: [AC-3]
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence: {}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {}
+tasks:
+  - id: TASK-1
+    title: Implement and verify Learning Mode collaborative building, guest mode and voice
+    status: in_progress
+    phase: running_checks
+    covers:
+      scenarios: [S-1, S-2, S-3]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5]
+    expected_files: [backend/shared/python_utils/learning_mode.py, frontend/packages/ui/src/stores/learningModeStore.ts]
+    verification_ids: [T-PYTEST, T-VITEST, T-RUST, T-SDK, T-E2E-WEB]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files: [backend/shared/python_utils/learning_mode.py, frontend/packages/ui/src/stores/learningModeStore.ts]
+      shared_files: []
+implementation_state:
+  subject_commit: e6d6fca5ae86efcfd5c11f2cdfc15acafc5ee63e
+approvals:
+  specification:
+    status: pending
+    reason: Draft feature.learning-mode is presented once for approval after deploy.
+  plan:
+    status: approved
+    approved_at: '2026-11-08'
+decisions:
+  - id: D-1
+    status: active
+    decision: Collaborative building is an explicit flag, never inferred from age alone; under 10 is always off.
+    reason: User approved the toggle design with passcode-gated enabling and free disabling.
+    decided_at: '2026-11-08'
+  - id: D-2
+    status: active
+    decision: Diagrams come from the Diagrams app and previews run in the chat.
+    reason: User corrected the Mermaid and open-in-browser suggestions.
+    decided_at: '2026-11-08'
+  - id: D-3
+    status: active
+    decision: The guest lock lives on the device and can be bypassed by clearing data; the UI states this.
+    reason: User accepted this limit for guests without an account.
+    decided_at: '2026-11-08'
+attempts:
+  - id: A-1
+    task_id: TASK-1
+    outcome: planned
+    approach: Backend, SDK/CLI and web lanes implemented; CI pytest passed, vitest and Rust catalog counts fixed after first run.
+    recorded_at: '2026-11-08'
+handoff:
+  current_task_id: TASK-1
+  next_action: Confirm green CI for all five checks on the final source, then deploy and present the Specification.
+  command: python3 scripts/plan_validate.py docs/plans/learning-mode-collaborative-guest/plan.yml
+  expected_outcome: Validated plan and passing CI checks.
+  last_verified_commit: e6d6fca5ae86efcfd5c11f2cdfc15acafc5ee63e
+  blocker: null

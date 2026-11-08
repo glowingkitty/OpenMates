@@ -10,6 +10,7 @@ from pydantic import ValidationError
 
 from backend.apps.ai.assistant_speech.voice_context import (
     VOICE_MAIN_INSTRUCTION_KEY,
+    build_voice_learning_focus_instruction,
     build_voice_main_instruction,
 )
 from backend.apps.ai.utils.instruction_loader import load_base_instructions
@@ -80,7 +81,10 @@ def test_old_cached_mates_require_reload_instead_of_silently_losing_voice_policy
 # contract-test: supporting surface=rest_api assertions=video-call.chat.ethics,video-call.chat.skill-integration,video-call.audio.spoken-rich-response
 @pytest.mark.parametrize("voice_mode", [False, True])
 @pytest.mark.parametrize("learning_mode", [False, True])
-def test_actual_main_prompt_blocks_select_voice_without_removing_canonical_safeguards(voice_mode, learning_mode):
+@pytest.mark.parametrize("focus_id", [None, "study-learn_topic"])
+def test_actual_main_prompt_blocks_select_voice_without_removing_canonical_safeguards(
+    voice_mode, learning_mode, focus_id,
+):
     """Execute actual assembly blocks without importing provider/runtime services.
 
     This is bounded source-wiring coverage, not full main processing or E2E.
@@ -100,9 +104,10 @@ def test_actual_main_prompt_blocks_select_voice_without_removing_canonical_safeg
     mate_index = next(index for index, node in enumerate(body)
                       if isinstance(node, ast.If) and isinstance(node.test, ast.Name)
                       and node.test.id == "selected_mate_config")
+    focus_voice_index = assignment_index("voice_learning_focus_instruction")
     voice_index = assignment_index("voice_main_instruction")
     join_index = assignment_index("full_system_prompt")
-    assert voice_index < join_index
+    assert focus_voice_index < voice_index < join_index
     # The delivery is appended after all ordinary format/focus instructions and
     # remains in prompt_parts for recovery/reassembly paths.
     assert isinstance(body[voice_index + 1], ast.If)
@@ -110,7 +115,7 @@ def test_actual_main_prompt_blocks_select_voice_without_removing_canonical_safeg
         *body[prefix_index:prefix_index + 3],
         *ast.parse('prompt_parts.append("ordinary format and focus guidance")').body,
         body[mate_index],
-        *body[voice_index:join_index + 1],
+        *body[focus_voice_index:join_index + 1],
     ]
     instructions = load_base_instructions()
     mate = next(mate for mate in MATES if mate.id == "sophia")
@@ -119,9 +124,11 @@ def test_actual_main_prompt_blocks_select_voice_without_removing_canonical_safeg
         "composer_suggestion_enabled": True,
         "selected_mate_config": mate,
         "learning_mode_active": learning_mode,
-        "request_data": SimpleNamespace(voice_mode=voice_mode),
+        "collaborative_build_active": False,
+        "request_data": SimpleNamespace(voice_mode=voice_mode, active_focus_id=focus_id),
         "select_mate_system_prompt": select_mate_system_prompt,
         "build_voice_main_instruction": build_voice_main_instruction,
+        "build_voice_learning_focus_instruction": build_voice_learning_focus_instruction,
     }
     exec(compile(ast.Module(body=selected_nodes, type_ignores=[]), "main_prompt_blocks", "exec"), namespace)
     prompt = namespace["full_system_prompt"]
@@ -132,3 +139,11 @@ def test_actual_main_prompt_blocks_select_voice_without_removing_canonical_safeg
     assert (voice_source in prompt) is voice_mode
     if voice_mode:
         assert prompt.endswith(voice_source)
+    # The spoken Learning Mode / focus rules appear only for voice with either
+    # mode active, and always before the final delivery block.
+    focus_source = build_voice_learning_focus_instruction(
+        instructions, voice_mode=True, learning_mode_active=True, focus_active=False,
+    )
+    assert (focus_source in prompt) is (voice_mode and (learning_mode or focus_id is not None))
+    if voice_mode and (learning_mode or focus_id is not None):
+        assert prompt.index(focus_source) < prompt.index(voice_source)

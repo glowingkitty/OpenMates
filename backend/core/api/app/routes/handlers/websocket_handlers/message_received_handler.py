@@ -174,6 +174,7 @@ AI_USER_PREFERENCE_FIELDS = [
     "quick_tips_enabled",
     "learning_mode_enabled",
     "learning_mode_age_group",
+    "learning_mode_collaborative_build",
     "learning_mode_failed_attempts",
     "learning_mode_deactivation_blocked_until",
 ]

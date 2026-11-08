@@ -35,6 +35,7 @@ from backend.apps.ai.processing.postprocessing_context_suggestions import genera
 from backend.apps.ai.processing.learning_followups import filter_learning_followups
 from backend.shared.python_utils.learning_mode import (
     filter_learning_mode_suggestions,
+    is_collaborative_build_enabled,
     is_learning_mode_enabled,
 )
 
@@ -714,7 +715,10 @@ async def handle_postprocessing(
                                                             "focus": learning_focus_context or {}},
             secrets_manager=secrets_manager, model_id=decision_model_id,
         )
-        sanitized_new_chat = filter_learning_mode_suggestions(sanitized_new_chat)
+        sanitized_new_chat = filter_learning_mode_suggestions(
+            sanitized_new_chat,
+            collaborative_build=is_collaborative_build_enabled(learning_mode_context),
+        )
         logger.info(
             f"[Task ID: {task_id}] [PostProcessor] Learning Mode filtered "
             f"{before_follow_up_count - len(sanitized_follow_up)} follow-up and "

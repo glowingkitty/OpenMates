@@ -700,7 +700,7 @@ async function main(): Promise<void> {
   }
 
   if (command === "learning-mode") {
-    await handleLearningMode(client, subcommand, parsed.flags);
+    await handleLearningMode(client, subcommand, rest, parsed.flags);
     return;
   }
 
@@ -11549,6 +11549,7 @@ const LEARNING_MODE_AGE_GROUPS = new Set<LearningModeAgeGroup>([
 async function handleLearningMode(
   client: OpenMatesClient,
   subcommand: string | undefined,
+  rest: string[],
   flags: Record<string, string | boolean>,
 ): Promise<void> {
   if (!subcommand || subcommand === "help" || flags.help === true) {
@@ -11564,8 +11565,25 @@ async function handleLearningMode(
   if (subcommand === "enable") {
     const ageGroup = parseLearningModeAgeGroup(flags["age-group"]);
     const passcode = parseRequiredStringFlag(flags.passcode, "--passcode");
+    const collaborativeBuild = parseCollaborativeBuildFlags(flags);
     printLearningModeStatus(
-      await client.activateLearningMode({ ageGroup, passcode }),
+      await client.activateLearningMode({ ageGroup, passcode, collaborativeBuild }),
+      flags.json === true,
+    );
+    return;
+  }
+
+  if (subcommand === "collaborative") {
+    const state = rest[0];
+    if (state !== "on" && state !== "off") {
+      throw new Error("Provide on or off: openmates learning-mode collaborative on|off [--passcode <passcode>].");
+    }
+    // Enabling needs the passcode; the backend refuses an unauthenticated enable.
+    const passcode = state === "on"
+      ? parseRequiredStringFlag(flags.passcode, "--passcode")
+      : typeof flags.passcode === "string" && flags.passcode.length > 0 ? flags.passcode : undefined;
+    printLearningModeStatus(
+      await client.setLearningModeCollaborative({ enabled: state === "on", passcode }),
       flags.json === true,
     );
     return;
@@ -11580,6 +11598,16 @@ async function handleLearningMode(
   console.error(`Unknown learning-mode command '${subcommand}'.\n`);
   printLearningModeHelp();
   process.exit(1);
+}
+
+/** `--collaborative-build` / `--no-collaborative-build`; neither => undefined (backend default). */
+function parseCollaborativeBuildFlags(flags: Record<string, string | boolean>): boolean | undefined {
+  const on = flags["collaborative-build"] === true;
+  const off = flags["no-collaborative-build"] === true;
+  if (on && off) throw new Error("Use only one of --collaborative-build and --no-collaborative-build.");
+  if (on) return true;
+  if (off) return false;
+  return undefined;
 }
 
 function parseLearningModeAgeGroup(value: string | boolean | undefined): LearningModeAgeGroup {
@@ -11612,6 +11640,9 @@ function printLearningModeStatus(status: LearningModeStatus, json: boolean): voi
   }
   console.log(`Learning Mode: ${status.enabled ? "enabled" : "disabled"}`);
   if (status.age_group) console.log(`Age group: ${status.age_group}`);
+  if (status.enabled && typeof status.collaborative_build === "boolean") {
+    console.log(`Collaborative build: ${status.collaborative_build ? "on" : "off"}`);
+  }
   if (status.failed_attempts > 0) console.log(`Failed disable attempts: ${status.failed_attempts}`);
   if (status.deactivation_blocked_until) {
     console.log(`Disable blocked until: ${new Date(status.deactivation_blocked_until * 1000).toISOString()}`);
@@ -14712,7 +14743,8 @@ Options:
 function printLearningModeHelp(): void {
   console.log(`Learning Mode commands:
   openmates learning-mode status [--json]
-  openmates learning-mode enable --age-group <group> --passcode <passcode> [--json]
+  openmates learning-mode enable --age-group <group> --passcode <passcode> [--collaborative-build | --no-collaborative-build] [--json]
+  openmates learning-mode collaborative <on|off> [--passcode <passcode>] [--json]
   openmates learning-mode disable --passcode <passcode> [--json]
 
 Learning Mode is account-wide and applies to CLI, web, Apple, and API chat requests.
@@ -14722,7 +14754,10 @@ Age groups:
 
 Options:
   --age-group <group>  Required for enable
-  --passcode <value>   Required for enable and disable
+  --passcode <value>   Required for enable, disable and collaborative on
+  --collaborative-build / --no-collaborative-build
+                       Choose collaborative build when enabling (default on,
+                       always off for under_10)
   --json               Output backend status JSON`);
 }
 

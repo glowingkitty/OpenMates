@@ -2021,6 +2021,7 @@ def test_named_cli_parity_namespaces_use_sdk_routes(monkeypatch):
     client.learning_mode.status()
     client.learning_mode.enable(age_group="16_18", passcode="teach-1234")
     client.learning_mode.disable("teach-1234")
+    client.learning_mode.collaborative(True, passcode="teach-1234")
     client.inspirations.list(language="de")
     client.new_chat_suggestions.list(limit=4)
 
@@ -2039,8 +2040,38 @@ def test_named_cli_parity_namespaces_use_sdk_routes(monkeypatch):
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/learning-mode"},
         {"method": "POST", "url": "https://api.openmates.org/v1/sdk/learning-mode/enable"},
         {"method": "POST", "url": "https://api.openmates.org/v1/sdk/learning-mode/disable"},
+        {"method": "POST", "url": "https://api.openmates.org/v1/sdk/learning-mode/collaborative"},
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/inspirations?lang=de"},
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/new-chat-suggestions?limit=4"},
+    ]
+
+
+def test_learning_mode_collaborative_build_bodies(monkeypatch):
+    bodies = []
+
+    class FakeResponse:
+        status_code = 200
+
+        def json(self):
+            return {"enabled": True}
+
+    def fake_post(url, *, json, headers, timeout):
+        bodies.append((url.rsplit("/", 1)[-1], json))
+        return FakeResponse()
+
+    monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
+    client = OpenMates(api_key="sk-api-test")
+
+    client.learning_mode.enable(age_group="16_18", passcode="teach-1234")
+    client.learning_mode.enable(age_group="16_18", passcode="teach-1234", collaborative_build=False)
+    client.learning_mode.collaborative(True, passcode="teach-1234")
+    client.learning_mode.collaborative(False)
+
+    assert bodies == [
+        ("enable", {"age_group": "16_18", "passcode": "teach-1234"}),
+        ("enable", {"age_group": "16_18", "passcode": "teach-1234", "collaborative_build": False}),
+        ("collaborative", {"enabled": True, "passcode": "teach-1234"}),
+        ("collaborative", {"enabled": False}),
     ]
 
 

@@ -502,40 +502,90 @@ async def test_sdk_dispatch_settings_language_reuses_settings_route(monkeypatch)
     assert result == {"success": True}
 
 
-@pytest.mark.asyncio
-async def test_sdk_dispatch_learning_mode_accepts_sdk_enable_alias(monkeypatch):
+def _fake_learning_mode_module(**handlers):
     class LearningModeActivateRequest:
-        def __init__(self, passcode, age_group):
+        def __init__(self, passcode, age_group, collaborative_build=None):
             self.passcode = passcode
             self.age_group = age_group
+            self.collaborative_build = collaborative_build
+
+    class LearningModeCollaborativeRequest:
+        def __init__(self, enabled, passcode=None):
+            self.enabled = enabled
+            self.passcode = passcode
 
     class LearningModeDeactivateRequest:
         def __init__(self, passcode):
             self.passcode = passcode
 
+    return SimpleNamespace(
+        LearningModeActivateRequest=LearningModeActivateRequest,
+        LearningModeCollaborativeRequest=LearningModeCollaborativeRequest,
+        LearningModeDeactivateRequest=LearningModeDeactivateRequest,
+        activate_learning_mode=handlers.get("activate_learning_mode"),
+        deactivate_learning_mode=handlers.get("deactivate_learning_mode"),
+        get_learning_mode_status=handlers.get("get_learning_mode_status"),
+        set_collaborative_build=handlers.get("set_collaborative_build"),
+    )
+
+
+@pytest.mark.asyncio
+async def test_sdk_dispatch_learning_mode_accepts_sdk_enable_alias(monkeypatch):
     async def fake_activate(request, request_data, current_user, cache_service, directus_service):
         assert request_data.age_group == "teen"
         assert request_data.passcode == "1234"
+        assert request_data.collaborative_build is False
         return SimpleNamespace(model_dump=lambda: {"enabled": True, "age_group": "teen"})
 
-    fake_learning_mode = SimpleNamespace(
-        LearningModeActivateRequest=LearningModeActivateRequest,
-        LearningModeDeactivateRequest=LearningModeDeactivateRequest,
-        activate_learning_mode=fake_activate,
-        deactivate_learning_mode=None,
-        get_learning_mode_status=None,
+    monkeypatch.setitem(
+        sys.modules,
+        "backend.core.api.app.routes.learning_mode",
+        _fake_learning_mode_module(activate_learning_mode=fake_activate),
     )
-    monkeypatch.setitem(sys.modules, "backend.core.api.app.routes.learning_mode", fake_learning_mode)
 
     result = await _dispatch_sdk_surface(
         _FakeRequest(method="POST"),
         {"user_id": "user-1"},
         "learning-mode",
         "enable",
-        {"age_group": "teen", "passcode": "1234"},
+        {"age_group": "teen", "passcode": "1234", "collaborative_build": False},
     )
 
     assert result == {"enabled": True, "age_group": "teen"}
+
+
+@pytest.mark.asyncio
+async def test_sdk_dispatch_learning_mode_collaborative_forwards_enabled_and_passcode(monkeypatch):
+    seen = []
+
+    async def fake_collaborative(request, request_data, current_user, cache_service, directus_service):
+        seen.append((request_data.enabled, request_data.passcode))
+        return SimpleNamespace(model_dump=lambda: {"enabled": True, "collaborative_build": request_data.enabled})
+
+    monkeypatch.setitem(
+        sys.modules,
+        "backend.core.api.app.routes.learning_mode",
+        _fake_learning_mode_module(set_collaborative_build=fake_collaborative),
+    )
+
+    on = await _dispatch_sdk_surface(
+        _FakeRequest(method="POST"),
+        {"user_id": "user-1"},
+        "learning-mode",
+        "collaborative",
+        {"enabled": True, "passcode": "1234"},
+    )
+    off = await _dispatch_sdk_surface(
+        _FakeRequest(method="POST"),
+        {"user_id": "user-1"},
+        "learning-mode",
+        "collaborative",
+        {"enabled": False},
+    )
+
+    assert on == {"enabled": True, "collaborative_build": True}
+    assert off == {"enabled": True, "collaborative_build": False}
+    assert seen == [(True, "1234"), (False, None)]
 
 
 @pytest.mark.asyncio

@@ -950,10 +950,12 @@ async def _dispatch_sdk_surface(
     if surface == "learning-mode":
         from backend.core.api.app.routes.learning_mode import (
             LearningModeActivateRequest,
+            LearningModeCollaborativeRequest,
             LearningModeDeactivateRequest,
             activate_learning_mode,
             deactivate_learning_mode,
             get_learning_mode_status,
+            set_collaborative_build,
         )
 
         if path == "" and request.method == "GET":
@@ -961,7 +963,15 @@ async def _dispatch_sdk_surface(
         if path in ("enable", "activate") and request.method == "POST":
             return _jsonable(await _sdk_route_handler(activate_learning_mode)(
                 request,
-                LearningModeActivateRequest(passcode=str((body or {}).get("passcode") or ""), age_group=str((body or {}).get("age_group") or "")),
+                LearningModeActivateRequest(passcode=str((body or {}).get("passcode") or ""), age_group=str((body or {}).get("age_group") or ""), collaborative_build=(body or {}).get("collaborative_build")),
+                user,
+                cache_service,
+                directus_service,
+            ))
+        if path == "collaborative" and request.method == "POST":
+            return _jsonable(await _sdk_route_handler(set_collaborative_build)(
+                request,
+                LearningModeCollaborativeRequest(enabled=bool((body or {}).get("enabled")), passcode=(body or {}).get("passcode")),
                 user,
                 cache_service,
                 directus_service,
