@@ -293,7 +293,23 @@ fn validation_text(value: &Value) -> String {
 fn output(i: &Invocation, value: Value, text: String) -> Result<CliOutput, CliError> {
     super::handlers::output(i, value, text)
 }
+/// Runs a Workflows command; usage and validation errors exit 1 like the npm CLI
+/// (which throws a plain `Error` for them) instead of the clap-style exit code 2.
 pub(super) async fn execute(
+    i: &Invocation,
+    client: &mut Client,
+    cancel: CancellationToken,
+) -> Result<CliOutput, CliError> {
+    match execute_routed(i, client, cancel).await {
+        Err(CliError::Invalid(message)) => Err(CliError::Contract {
+            code: "invalid_argument",
+            message,
+        }),
+        other => other,
+    }
+}
+
+async fn execute_routed(
     i: &Invocation,
     client: &mut Client,
     cancel: CancellationToken,

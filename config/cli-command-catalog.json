@@ -61623,7 +61623,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/workflows.rs"
       },
       "gaps": [
-        "Focused native validation coverage; isolated Workflow CLI integration pending. Delivery-aware --wait now observes the exact accepted run and selected chat acknowledgements; isolated CLI wait coverage remains pending. Team execution remains unavailable. Import into Project/folder requires additional typed linking support."
+        "Differential-verified against the npm CLI (cli-native-workflows-extra.spec.ts): exit code, normalized JSON stdout and stderr class match. Focused native validation coverage; isolated Workflow CLI integration pending. Delivery-aware --wait now observes the exact accepted run and selected chat acknowledgements; isolated CLI wait coverage remains pending. Team execution remains unavailable. Import into Project/folder requires additional typed linking support."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -61675,7 +61675,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/workflows.rs"
       },
       "gaps": [
-        "Focused native validation coverage; isolated Workflow CLI integration pending. Delivery-aware --wait now observes the exact accepted run and selected chat acknowledgements; isolated CLI wait coverage remains pending. Team execution remains unavailable. Import into Project/folder requires additional typed linking support."
+        "Differential-verified against the npm CLI (cli-native-workflows-extra.spec.ts): exit code, normalized JSON stdout and stderr class match. Focused native validation coverage; isolated Workflow CLI integration pending. Delivery-aware --wait now observes the exact accepted run and selected chat acknowledgements; isolated CLI wait coverage remains pending. Team execution remains unavailable. Import into Project/folder requires additional typed linking support."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -61723,7 +61723,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/workflows.rs"
       },
       "gaps": [
-        "Focused native validation coverage; isolated Workflow CLI integration pending. Delivery-aware --wait now observes the exact accepted run and selected chat acknowledgements; isolated CLI wait coverage remains pending. Team execution remains unavailable. Import into Project/folder requires additional typed linking support."
+        "Differential-verified against the npm CLI (cli-native-workflows-extra.spec.ts): exit code, normalized JSON stdout and stderr class match. Focused native validation coverage; isolated Workflow CLI integration pending. Delivery-aware --wait now observes the exact accepted run and selected chat acknowledgements; isolated CLI wait coverage remains pending. Team execution remains unavailable. Import into Project/folder requires additional typed linking support."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -61777,7 +61777,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/workflows.rs"
       },
       "gaps": [
-        "Focused native validation coverage; isolated Workflow CLI integration pending. Delivery-aware --wait now observes the exact accepted run and selected chat acknowledgements; isolated CLI wait coverage remains pending. Team execution remains unavailable. Import into Project/folder requires additional typed linking support."
+        "Differential-verified against the npm CLI (cli-native-workflows-extra.spec.ts): exit code, normalized JSON stdout and stderr class match. Focused native validation coverage; isolated Workflow CLI integration pending. Delivery-aware --wait now observes the exact accepted run and selected chat acknowledgements; isolated CLI wait coverage remains pending. Team execution remains unavailable. Import into Project/folder requires additional typed linking support."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -61824,7 +61824,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/workflows.rs"
       },
       "gaps": [
-        "Focused native validation coverage; isolated Workflow CLI integration pending. Delivery-aware --wait now observes the exact accepted run and selected chat acknowledgements; isolated CLI wait coverage remains pending. Team execution remains unavailable. Import into Project/folder requires additional typed linking support."
+        "Differential-verified against the npm CLI (cli-native-workflows-extra.spec.ts): exit code, normalized JSON stdout and stderr class match. Focused native validation coverage; isolated Workflow CLI integration pending. Delivery-aware --wait now observes the exact accepted run and selected chat acknowledgements; isolated CLI wait coverage remains pending. Team execution remains unavailable. Import into Project/folder requires additional typed linking support."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -61871,7 +61871,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/workflows.rs"
       },
       "gaps": [
-        "Focused native validation coverage; isolated Workflow CLI integration pending. Delivery-aware --wait now observes the exact accepted run and selected chat acknowledgements; isolated CLI wait coverage remains pending. Team execution remains unavailable. Import into Project/folder requires additional typed linking support."
+        "Differential-verified against the npm CLI (cli-native-workflows-extra.spec.ts): exit code, normalized JSON stdout and stderr class match. Focused native validation coverage; isolated Workflow CLI integration pending. Delivery-aware --wait now observes the exact accepted run and selected chat acknowledgements; isolated CLI wait coverage remains pending. Team execution remains unavailable. Import into Project/folder requires additional typed linking support."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -61918,7 +61918,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/workflows.rs"
       },
       "gaps": [
-        "Focused native validation coverage; isolated Workflow CLI integration pending. Delivery-aware --wait now observes the exact accepted run and selected chat acknowledgements; isolated CLI wait coverage remains pending. Team execution remains unavailable. Import into Project/folder requires additional typed linking support."
+        "Differential-verified against the npm CLI (cli-native-workflows-extra.spec.ts): exit code, normalized JSON stdout and stderr class match. Focused native validation coverage; isolated Workflow CLI integration pending. Delivery-aware --wait now observes the exact accepted run and selected chat acknowledgements; isolated CLI wait coverage remains pending. Team execution remains unavailable. Import into Project/folder requires additional typed linking support."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -62014,7 +62014,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/workflows/project_links.rs"
       },
       "gaps": [
-        "Native typed Workflow removal and legacy output pass focused synthetic tests; isolated native CLI proof remains pending. This does not implement add-to-project or remote YAML synchronization."
+        "Differential-verified against the npm CLI (cli-native-workflows-extra.spec.ts): exit code, normalized JSON stdout and stderr class match. Native typed Workflow removal and legacy output pass focused synthetic tests; isolated native CLI proof remains pending. This does not implement add-to-project or remote YAML synchronization."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -62076,7 +62076,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/workflows.rs"
       },
       "gaps": [
-        "Focused native validation coverage; isolated Workflow CLI integration pending. Delivery-aware --wait now observes the exact accepted run and selected chat acknowledgements; isolated CLI wait coverage remains pending. Team execution remains unavailable. Import into Project/folder requires additional typed linking support."
+        "Differential-verified against the npm CLI (cli-native-workflows-extra.spec.ts): exit code, normalized JSON stdout and stderr class match. Focused native validation coverage; isolated Workflow CLI integration pending. Delivery-aware --wait now observes the exact accepted run and selected chat acknowledgements; isolated CLI wait coverage remains pending. Team execution remains unavailable. Import into Project/folder requires additional typed linking support."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -62186,7 +62186,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/workflows.rs"
       },
       "gaps": [
-        "Focused native validation coverage; isolated Workflow CLI integration pending. Delivery-aware --wait now observes the exact accepted run and selected chat acknowledgements; isolated CLI wait coverage remains pending. Team execution remains unavailable. Import into Project/folder requires additional typed linking support."
+        "Differential-verified against the npm CLI (cli-native-workflows-extra.spec.ts): exit code, normalized JSON stdout and stderr class match. Focused native validation coverage; isolated Workflow CLI integration pending. Delivery-aware --wait now observes the exact accepted run and selected chat acknowledgements; isolated CLI wait coverage remains pending. Team execution remains unavailable. Import into Project/folder requires additional typed linking support."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -62240,7 +62240,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/workflows.rs"
       },
       "gaps": [
-        "Focused native validation coverage; isolated Workflow CLI integration pending. Delivery-aware --wait now observes the exact accepted run and selected chat acknowledgements; isolated CLI wait coverage remains pending. Team execution remains unavailable. Import into Project/folder requires additional typed linking support."
+        "Differential-verified against the npm CLI (cli-native-workflows-extra.spec.ts): exit code, normalized JSON stdout and stderr class match. Focused native validation coverage; isolated Workflow CLI integration pending. Delivery-aware --wait now observes the exact accepted run and selected chat acknowledgements; isolated CLI wait coverage remains pending. Team execution remains unavailable. Import into Project/folder requires additional typed linking support."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -62295,7 +62295,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/workflows.rs"
       },
       "gaps": [
-        "Focused native validation coverage; isolated Workflow CLI integration pending. Delivery-aware --wait now observes the exact accepted run and selected chat acknowledgements; isolated CLI wait coverage remains pending. Team execution remains unavailable. Import into Project/folder requires additional typed linking support."
+        "Differential-verified against the npm CLI (cli-native-workflows-extra.spec.ts): exit code, normalized JSON stdout and stderr class match. Focused native validation coverage; isolated Workflow CLI integration pending. Delivery-aware --wait now observes the exact accepted run and selected chat acknowledgements; isolated CLI wait coverage remains pending. Team execution remains unavailable. Import into Project/folder requires additional typed linking support."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -62343,7 +62343,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/workflows.rs"
       },
       "gaps": [
-        "Focused native validation coverage; isolated Workflow CLI integration pending. Delivery-aware --wait now observes the exact accepted run and selected chat acknowledgements; isolated CLI wait coverage remains pending. Team execution remains unavailable. Import into Project/folder requires additional typed linking support."
+        "Differential-verified against the npm CLI (cli-native-workflows-extra.spec.ts): exit code, normalized JSON stdout and stderr class match. Focused native validation coverage; isolated Workflow CLI integration pending. Delivery-aware --wait now observes the exact accepted run and selected chat acknowledgements; isolated CLI wait coverage remains pending. Team execution remains unavailable. Import into Project/folder requires additional typed linking support."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -62493,7 +62493,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/workflows.rs"
       },
       "gaps": [
-        "Focused native validation coverage; isolated Workflow CLI integration pending. Delivery-aware --wait now observes the exact accepted run and selected chat acknowledgements; isolated CLI wait coverage remains pending. Team execution remains unavailable. Import into Project/folder requires additional typed linking support."
+        "Differential-verified against the npm CLI (cli-native-workflows-extra.spec.ts): exit code, normalized JSON stdout and stderr class match. Focused native validation coverage; isolated Workflow CLI integration pending. Delivery-aware --wait now observes the exact accepted run and selected chat acknowledgements; isolated CLI wait coverage remains pending. Team execution remains unavailable. Import into Project/folder requires additional typed linking support."
       ],
       "platforms": {
         "linux": "not_verified",

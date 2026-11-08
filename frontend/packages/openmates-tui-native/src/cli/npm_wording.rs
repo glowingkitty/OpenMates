@@ -43,6 +43,7 @@ fn app_skill(command_path: &str) -> Option<(&str, &str)> {
 /// (keeps npm's stderr class).
 ///
 /// `chats show|messages|download` (text mode only) say "Chat '<id>' not found";
+/// `workflows <id> add-to-project|remove-from-project <project>` says "Project '<project>' not found.";
 /// `projects show` says "Project '<id>' not found"; `projects settings focus activate`
 /// says "Chat '<chat>' not found"; `projects sources remove` says
 /// "Project source delete failed: Source not found". Every other error, and every
@@ -50,6 +51,7 @@ fn app_skill(command_path: &str) -> Option<(&str, &str)> {
 pub fn unknown_id(
     command_path: &str,
     first_positional: Option<&str>,
+    second_positional: Option<&str>,
     chat_flag: Option<&str>,
     json: bool,
     error: CliError,
@@ -59,6 +61,16 @@ pub fn unknown_id(
             "not_found",
             format!("Chat '{id}' not found. Try 'openmates chats search \"{id}\"' to browse matches."),
         ),
+        ("workflows add-to-project" | "workflows remove-from-project", _)
+            if is_unavailable(&error, false) =>
+        {
+            match second_positional {
+                Some(project) => {
+                    not_found("command_failed", format!("Project '{project}' not found."))
+                }
+                None => error,
+            }
+        }
         ("projects show", Some(id)) if is_unavailable(&error, false) => {
             not_found("command_failed", format!("Project '{id}' not found."))
         }

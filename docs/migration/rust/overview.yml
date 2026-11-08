@@ -8,7 +8,7 @@ formula: percent = round(100 * done / total, 1); done+partial+missing == total; 
 priority_order: [web_app, shared_client, cli, sdk_rust, sdk_npm, sdk_python]
 performance_history: performance-history.yml
 overall:
-  percent: 26.9
+  percent: 27.4
   formula: overall = round(0.4 * web_app + 0.2 * shared_client + 0.25 * cli + 0.15 * sdk, 1), sdk = mean(sdk_rust,
     sdk_npm, sdk_python); each term is the area percent
   weights:
@@ -20,7 +20,7 @@ overall:
   inputs:
     web_app: 7.7
     shared_client: 28.6
-    cli: 65.5
+    cli: 67.5
     sdk: 11.3
 areas:
 - id: web_app
@@ -60,10 +60,10 @@ areas:
   file: cli.yml
   unit: CLI commands
   total: 722
-  done: 473
-  partial: 243
+  done: 487
+  partial: 229
   missing: 6
-  percent: 65.5
+  percent: 67.5
   done_definition: command is differential-verified against the npm CLI
   blockers: [6 unsupported commands without native handler, 713 commands not verified on Linux]
 - id: sdk_rust

@@ -827,6 +827,7 @@
         "cli-native-plans-tasks.spec.ts",
         "cli-native-teams.spec.ts",
         "cli-native-workflows.spec.ts",
+        "cli-native-workflows-extra.spec.ts",
         "cli-native-tasks.spec.ts",
         "a11y-keyboard-nav.spec.ts",
         "a11y-modal-dialogs.spec.ts",
