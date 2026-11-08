@@ -131,7 +131,7 @@ fn result(invocation: &Invocation, value: Value, human: String) -> Result<CliOut
         Ok(CliOutput::text(human))
     }
 }
-fn task_json(task: &Value) -> Value {
+pub(super) fn task_json(task: &Value) -> Value {
     let mut value = json!({});
     for field in [
         "task_id",
@@ -623,7 +623,13 @@ fn execute_command<'a>(
                     "tasks skip" => service.skip(id()?).await?,
                     _ => {
                         codex::guard_release(&mut service, id()?).await?;
-                        service.release(id()?).await?
+                        let current = service.show(id()?).await?;
+                        if current["primary_chat_id"].is_null() && current["external_chat"].is_null() {
+                            // npm returns an unlinked Task unchanged instead of writing a new version.
+                            current
+                        } else {
+                            service.release(id()?).await?
+                        }
                     }
                 };
                 task_result(invocation, task)

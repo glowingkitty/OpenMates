@@ -171,7 +171,14 @@ pub(super) async fn prepare(
 /// value back so the caller renders `{"task": …}` like other Task mutations.
 pub(super) fn render(path: &str, value: Value) -> Result<(Value, String), Value> {
     Ok(match path {
-        "tasks reorder" => (json!({"tasks":value}), "Task reordered.".into()),
+        "tasks reorder" => {
+            // npm prints each moved Task through taskToJson (queue_state "none", blocked_reason null, no timestamps).
+            let tasks = value.as_array().map_or_else(
+                || value.clone(),
+                |rows| Value::Array(rows.iter().map(super::tasks::task_json).collect()),
+            );
+            (json!({"tasks":tasks}), "Task reordered.".into())
+        }
         "tasks restore" => (value, "Task restored.".into()),
         "tasks dependencies add" | "tasks dependencies remove" => {
             (value, "Task dependency saved.".into())

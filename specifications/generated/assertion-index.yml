@@ -187149,7 +187149,7 @@ assertions:
       surface: cli
     - &id23844
       path: frontend/apps/web_app/tests/cli-native-tasks.spec.ts
-      line: 36
+      line: 35
       name: task commands match the npm CLI
       surface: cli
     - &id23845

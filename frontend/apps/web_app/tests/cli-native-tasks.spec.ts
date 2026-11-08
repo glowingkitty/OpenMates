@@ -6,10 +6,9 @@
  * plain reads run against the npm-created Task on both CLIs.
  *
  * Open native gaps (asserted as expectedGap, therefore NOT counted as verified):
- * `tasks reorder` (queue_state/blocked_reason representation), `tasks start` (stderr class),
- * `tasks release` (task.version offset), `tasks history` (entry count).
- * Activity add/search/delete/flush and the not-found class of `tasks delete` / `tasks show`
- * are fixed natively and verified. (Comment keeps the original line count.)
+ * `tasks start` only (stderr class: native sanitizes backend 4xx text; design difference).
+ * Activity add/search/delete/flush, reorder, release, history and the not-found class of
+ * `tasks delete` / `tasks show` are fixed natively and verified.
  *
  * `tasks list --label` is not exercised: the backend label filter needs a separate fix.
  */
@@ -93,16 +92,16 @@ test.describe('CLI native differential: tasks', () => {
 			await mutate('tasks dependencies list (after add)', (id) => ['tasks', 'dependencies', 'list', id], ['tasks dependencies list']);
 			await mutate('tasks dependencies remove', (id, other) => ['tasks', 'dependencies', 'remove', id, '--target', `task:${other}`], ['tasks dependencies remove']);
 			await mutate('tasks remove-from-project', (id, _other, project) => ['tasks', id, 'remove-from-project', project], ['tasks remove-from-project']);
-			await mutate('tasks reorder', (id, other) => ['tasks', 'reorder', id, '--before', other], ['tasks reorder'], { expectedGap: '$.tasks[0].queue_state: npm=' });
+			await mutate('tasks reorder', (id, other) => ['tasks', 'reorder', id, '--before', other], ['tasks reorder']);
 			await mutate('tasks connect', (id) => ['tasks', 'connect', id, '--thread', randomUUID()], ['tasks connect'], { ignoreKeys: [...VOLATILE, 'thread_id', 'threadId', 'external_chat', 'externalChat'] });
-			await mutate('tasks start', (id) => ['tasks', 'start', id], ['tasks start'], { expectedGap: 'stderr class: npm=http-client-error native=validation' });
+			await mutate('tasks start', (id) => ['tasks', 'start', id], ['tasks start'], { expectedGap: 'stderr class: npm=http-client-error native=validation' }); // design difference: native sanitizes backend 4xx text ("The server rejected the requested operation") and omits npm's "HTTP 400" wording
 			await mutate('tasks block', (id) => ['tasks', 'block', id, '--reason-code', 'needs_user_input', '--reason-text', 'differential'], ['tasks block']);
 			await mutate('tasks unblock', (id) => ['tasks', 'unblock', id], ['tasks unblock']);
-			await mutate('tasks release', (id) => ['tasks', 'release', id], ['tasks release'], { expectedGap: '$.task.version: npm=7 native=8' });
+			await mutate('tasks release', (id) => ['tasks', 'release', id], ['tasks release']);
 			await mutate('tasks resume', (id) => ['tasks', 'resume', id], ['tasks resume']);
-			await mutate('tasks skip', (id) => ['tasks', 'skip', id], ['tasks skip'], { ignoreKeys: [...VOLATILE, 'version'] }); // version offset inherited from the release gap above
-			await mutate('tasks done', (id) => ['tasks', 'done', id], ['tasks done'], { ignoreKeys: [...VOLATILE, 'version'] });
-			const history = await mutate('tasks history', (id) => ['tasks', 'history', id, '--limit', '10'], ['tasks history'], { structureOnly: true, expectedGap: '$.entries: array length' });
+			await mutate('tasks skip', (id) => ['tasks', 'skip', id], ['tasks skip'], { ignoreKeys: [...VOLATILE] });
+			await mutate('tasks done', (id) => ['tasks', 'done', id], ['tasks done'], { ignoreKeys: [...VOLATILE] });
+			const history = await mutate('tasks history', (id) => ['tasks', 'history', id, '--limit', '10'], ['tasks history'], { structureOnly: true });
 			const historyEntry = bothIds(history, ['entry_id', 'history_entry_id', 'id']);
 			await diff.check('tasks restore', ['tasks', 'restore', t, '--entry', historyEntry.npm || UNKNOWN, '--state', 'before'], {
 				nativeArgs: ['tasks', 'restore', task.native || UNKNOWN, '--entry', historyEntry.native || UNKNOWN, '--state', 'before'],

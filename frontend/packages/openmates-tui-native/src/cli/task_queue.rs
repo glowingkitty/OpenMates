@@ -266,6 +266,15 @@ pub(super) async fn deliver(
         )
         .await;
     }
+    if invocation.command_path() == "tasks release" {
+        // npm returns the Task unchanged (no write, no version bump) when nothing is linked.
+        let task = service
+            .show(input::positional(invocation, 0, "Task ID")?)
+            .await?;
+        if task["primary_chat_id"].is_null() && task["external_chat"].is_null() {
+            return Ok(task);
+        }
+    }
     let delivery_id = match input::text(invocation, "delivery-id")? {
         Some(id) => id.to_owned(),
         None => {

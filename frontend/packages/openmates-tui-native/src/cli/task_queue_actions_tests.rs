@@ -54,7 +54,9 @@ fn receipts_render_with_npm_json_shapes() {
     let (value, text) = render("tasks reorder", json!([{"task_id":"t"}]))
         .ok()
         .unwrap();
-    assert_eq!(value, json!({"tasks":[{"task_id":"t"}]}));
+    assert_eq!(value["tasks"][0]["task_id"], "t");
+    assert_eq!(value["tasks"][0]["queue_state"], "none");
+    assert!(value["tasks"][0]["blocked_reason"].is_null());
     assert_eq!(text, "Task reordered.");
     let (value, _) = render("tasks activity delete", json!({"entry_id":"e"}))
         .ok()
