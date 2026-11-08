@@ -8,7 +8,9 @@
  * that chat, opens the sidebar search, types a rare query (`pandas`, from the
  * seeded chat) and waits until its message snippet is rendered — this
  * includes the on-demand index warm-up that a first search after a reload
- * pays — then clears the field and types a common query (`the`, matching most
+ * pays (measurement waits for the warm-up to complete: no warming-up indicator and
+ * an unchanged snippet list for 100 ms, identically on both arms, reporting the time
+ * the complete render first appeared) — then clears the field and types a common query (`the`, matching most
  * indexed messages and the public example chats) and waits for its snippets.
  * Samples run on one page in the same counterbalanced pairs as the reload bench
  * (bench-stats.ts pairOrder: ts,rust then rust,ts alternately) after one
@@ -80,13 +82,24 @@ async function openSidebarSearch(page: any): Promise<any> {
 /** In-page: ms from `startMark` until message snippets matching the query are rendered. */
 function waitSnippets({ selector, query, startMark }: { selector: string; query: string; startMark: string }): Promise<{ ms: number | null; snippets: string[] }> {
 	const start = performance.getEntriesByName(startMark).at(-1)?.startTime ?? performance.now();
+	const STABLE_MS = 100;
 	return new Promise((resolve) => {
+		let lastKey = '';
+		let candidateAt = 0;
 		const tick = () => {
 			const nodes = [...document.querySelectorAll(selector)];
 			const texts = nodes.map((node) => (node.textContent ?? '').replace(/\s+/g, ' ').trim());
 			const now = performance.now();
-			if (texts.length > 0 && texts.every((text) => text.toLowerCase().includes(query))) resolve({ ms: now - start, snippets: texts });
-			else if (now - start > 90000) resolve({ ms: null, snippets: texts });
+			// A partial render while the search index is still warming up shows only some chats' snippets.
+			const warmingUp = document.querySelector('[data-testid="search-results"] [data-testid="warming-up"]') !== null;
+			const matching = texts.length > 0 && texts.every((text) => text.toLowerCase().includes(query));
+			if (matching && !warmingUp) {
+				const key = texts.join('\n');
+				if (key !== lastKey) { lastKey = key; candidateAt = now; }
+				// Resolved once the complete render stayed unchanged; the time reported is when it first appeared.
+				if (now - candidateAt >= STABLE_MS) { resolve({ ms: candidateAt - start, snippets: texts }); return; }
+			} else lastKey = '';
+			if (now - start > 90000) resolve({ ms: null, snippets: texts });
 			else setTimeout(tick, 5);
 		};
 		tick();
