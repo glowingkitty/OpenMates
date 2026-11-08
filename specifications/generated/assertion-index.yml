@@ -133532,32 +133532,32 @@ assertions:
       surface: rest_api
     - &id17099
       path: backend/tests/test_pdf_prefetch.py
-      line: 99
+      line: 101
       name: test_pages_are_kept_whole_and_the_budget_is_never_exceeded
       surface: rest_api
     - &id17100
       path: backend/tests/test_pdf_prefetch.py
-      line: 108
+      line: 110
       name: test_best_pages_go_into_the_prompt_as_untrusted_data_ranked_best_first
       surface: rest_api
     - &id17101
       path: backend/tests/test_pdf_prefetch.py
-      line: 123
+      line: 125
       name: test_total_prefetch_stays_within_the_token_budget
       surface: rest_api
     - &id17102
       path: backend/tests/test_pdf_prefetch.py
-      line: 138
+      line: 140
       name: test_nothing_is_added_when_there_is_nothing_good_to_add
       surface: rest_api
     - &id17103
       path: backend/tests/test_pdf_prefetch.py
-      line: 145
+      line: 147
       name: test_a_failed_prefetch_leaves_the_prompt_unchanged
       surface: rest_api
     - &id17104
       path: backend/tests/test_pdf_prefetch.py
-      line: 151
+      line: 153
       name: test_flagged_pages_keep_their_untrusted_notice
       surface: rest_api
     tests:

@@ -74,11 +74,17 @@ def current_message_pdf_refs(content: str, file_path_index: Dict[str, str]) -> L
 
 
 def select_pages(matches: List[Dict[str, Any]]) -> List[int]:
-    """Best pages in rank order: skip unreadable text and pages the decision model found barely relevant."""
+    """Best pages in rank order.
+
+    When the decision model rated the candidates, only rated pages at or above the floor count: the
+    keyword hits beyond the rated head are unrated, not relevant. Without any rating (model
+    unavailable) the keyword order is used as is.
+    """
+    rated = any(m.get("relevance") is not None for m in matches)
     chosen: List[int] = []
     for match in sorted(matches, key=lambda m: m.get("rank") or 0):
         relevance = match.get("relevance")
-        if relevance is not None and relevance < MIN_JEV_RELEVANCE:
+        if rated and (relevance is None or relevance < MIN_JEV_RELEVANCE):
             continue
         page = match.get("page_num")
         if isinstance(page, int) and page not in chosen:

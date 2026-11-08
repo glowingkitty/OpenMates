@@ -93,6 +93,8 @@ def test_best_three_pages_in_rank_order_skipping_barely_relevant_ones():
     assert select_pages(matches) == [41, 40, 7]
     assert select_pages([_match(5, 1), _match(6, 2)]) == [5, 6]  # no decision-model rating: keyword order
     assert select_pages([_match(5, 1, 0.0)]) == []
+    # Rated head, unrated tail: the tail is not "relevant", it was simply never rated.
+    assert select_pages([_match(294, 1, 0.79), _match(41, 25), _match(286, 26)]) == [294]
 
 
 # contract-test: supporting surface=rest_api assertions=pdf-processing.read.prefetch-relevant-pages
