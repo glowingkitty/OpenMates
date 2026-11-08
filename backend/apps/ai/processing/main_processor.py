@@ -5344,6 +5344,17 @@ async def handle_main_processing(
     if task_context_prompt:
         prompt_parts.append(task_context_prompt)
 
+    # Best-matching pages of the PDF(s) attached to this message, so the assistant can usually
+    # answer without its own pdf.search / pdf.read turns (feature.pdf-processing).
+    from backend.apps.ai.processing.pdf_prefetch import build_pdf_prefetch_section
+
+    pdf_prefetch_section = await build_pdf_prefetch_section(
+        request_data=request_data, user_vault_key_id=user_vault_key_id, cache_service=cache_service,
+        encryption_service=encryption_service, secrets_manager=secrets_manager, log_prefix=log_prefix,
+    )
+    if pdf_prefetch_section:
+        prompt_parts.append(pdf_prefetch_section)
+
     # --- Add sub-chats usage instructions for LLM ---
     enable_subchats_results = preprocessing_results.enable_subchats if hasattr(preprocessing_results, 'enable_subchats') else False
     if (request_data.user_preferences or {}).get("apps_enabled") is False:
