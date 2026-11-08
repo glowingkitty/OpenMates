@@ -681,9 +681,11 @@ async fn execute_service(
         "plans delete" => {
             check(invocation, &["confirm"])?;
             if !invocation.boolean("confirm") {
-                return Err(CliError::Invalid(
-                    "Deleting a Plan requires --confirm.".into(),
-                ));
+                // npm throws a plain Error (exit 1), not a usage error.
+                return Err(CliError::Contract {
+                    code: "command_failed",
+                    message: "Deleting a Plan requires --confirm.".into(),
+                });
             }
             let value = service.delete(id()?, true).await?;
             return output(invocation, value, "Plan deleted.".into());

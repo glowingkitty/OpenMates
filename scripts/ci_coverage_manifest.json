@@ -823,6 +823,7 @@
         "cli-native-plans-children-b.spec.ts",
         "cli-native-plans-sections-a.spec.ts",
         "cli-native-plans-sections-b.spec.ts",
+        "cli-native-plans-tasks.spec.ts",
         "cli-native-teams.spec.ts",
         "cli-native-workflows.spec.ts",
         "cli-native-tasks.spec.ts",

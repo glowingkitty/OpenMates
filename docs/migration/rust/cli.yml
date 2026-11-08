@@ -13,10 +13,10 @@ spec_gaps: ['Differential parity with the npm CLI per command is tracked in conf
     in an assertion.']
 summary:
   total: 722
-  done: 421
-  partial: 295
+  done: 446
+  partial: 270
   missing: 6
-  percent: 58.3
+  percent: 61.8
 status_counts:
   implemented: 0
   partial: 716
@@ -33,7 +33,7 @@ groups:
   implemented: 0
   partial: 197
   unsupported: 0
-  differential_verified: 121
+  differential_verified: 146
   linux_verified: 0
   macos_verified: 0
 - group: settings

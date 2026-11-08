@@ -44303,7 +44303,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
+        "Differential-verified against the npm CLI (cli-native-plans-tasks.spec.ts): exit code, normalized JSON stdout and stderr class match. Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -44331,18 +44331,18 @@
           "synopsis": "<plan-id>"
         },
         {
-          "name": "entry-id",
-          "required": true,
-          "variadic": false,
-          "at": 6,
-          "synopsis": "<entry-id>"
-        },
-        {
           "name": "task-id",
           "required": true,
           "variadic": false,
           "at": 6,
           "synopsis": "<task-id|short-id>"
+        },
+        {
+          "name": "entry-id",
+          "required": true,
+          "variadic": false,
+          "at": 7,
+          "synopsis": "<entry-id>"
         }
       ],
       "flags": [
@@ -44371,7 +44371,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
+        "Differential-verified against the npm CLI (cli-native-plans-tasks.spec.ts): exit code, normalized JSON stdout and stderr class match. Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -44433,7 +44433,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
+        "Differential-verified against the npm CLI (cli-native-plans-tasks.spec.ts): exit code, normalized JSON stdout and stderr class match. Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -44497,7 +44497,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
+        "Differential-verified against the npm CLI (cli-native-plans-tasks.spec.ts): exit code, normalized JSON stdout and stderr class match. Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -44560,7 +44560,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
+        "Differential-verified against the npm CLI (cli-native-plans-tasks.spec.ts): exit code, normalized JSON stdout and stderr class match. Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -44615,7 +44615,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
+        "Differential-verified against the npm CLI (cli-native-plans-tasks.spec.ts): exit code, normalized JSON stdout and stderr class match. Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -44861,7 +44861,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
+        "Differential-verified against the npm CLI (cli-native-plans-tasks.spec.ts): exit code, normalized JSON stdout and stderr class match. Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -44919,7 +44919,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
+        "Differential-verified against the npm CLI (cli-native-plans-tasks.spec.ts): exit code, normalized JSON stdout and stderr class match. Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -44980,7 +44980,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
+        "Differential-verified against the npm CLI (cli-native-plans-tasks.spec.ts): exit code, normalized JSON stdout and stderr class match. Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -45040,7 +45040,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
+        "Differential-verified against the npm CLI (cli-native-plans-tasks.spec.ts): exit code, normalized JSON stdout and stderr class match. Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -45104,7 +45104,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
+        "Differential-verified against the npm CLI (cli-native-plans-tasks.spec.ts): exit code, normalized JSON stdout and stderr class match. Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -45165,7 +45165,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
+        "Differential-verified against the npm CLI (cli-native-plans-tasks.spec.ts): exit code, normalized JSON stdout and stderr class match. Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -45289,7 +45289,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
+        "Differential-verified against the npm CLI (cli-native-plans-tasks.spec.ts): exit code, normalized JSON stdout and stderr class match. Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -45447,11 +45447,22 @@
         }
       ],
       "flags": [
+        "add-label",
         "api-key",
         "api-url",
+        "assign",
+        "chat",
+        "description",
+        "external-chat",
+        "external-chat-title",
         "help",
         "json",
-        "profile"
+        "label",
+        "priority",
+        "profile",
+        "remove-label",
+        "status",
+        "title"
       ],
       "source_locations": [
         {
@@ -45467,7 +45478,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
+        "Differential-verified against the npm CLI (cli-native-plans-tasks.spec.ts): exit code, normalized JSON stdout and stderr class match. Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -45528,7 +45539,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
+        "Differential-verified against the npm CLI (cli-native-plans-tasks.spec.ts): exit code, normalized JSON stdout and stderr class match. Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -45583,7 +45594,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
+        "Differential-verified against the npm CLI (cli-native-plans-tasks.spec.ts): exit code, normalized JSON stdout and stderr class match. Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -45643,7 +45654,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
+        "Differential-verified against the npm CLI (cli-native-plans-tasks.spec.ts): exit code, normalized JSON stdout and stderr class match. Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -45698,7 +45709,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
+        "Differential-verified against the npm CLI (cli-native-plans-tasks.spec.ts): exit code, normalized JSON stdout and stderr class match. Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not yet audited."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -45886,7 +45897,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
+        "Differential-verified against the npm CLI (cli-native-plans-tasks.spec.ts): exit code, normalized JSON stdout and stderr class match. Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -45948,7 +45959,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
+        "Differential-verified against the npm CLI (cli-native-plans-tasks.spec.ts): exit code, normalized JSON stdout and stderr class match. Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -46008,7 +46019,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
+        "Differential-verified against the npm CLI (cli-native-plans-tasks.spec.ts): exit code, normalized JSON stdout and stderr class match. Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -46068,7 +46079,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
+        "Differential-verified against the npm CLI (cli-native-plans-tasks.spec.ts): exit code, normalized JSON stdout and stderr class match. Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -46128,7 +46139,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
+        "Differential-verified against the npm CLI (cli-native-plans-tasks.spec.ts): exit code, normalized JSON stdout and stderr class match. Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -46248,7 +46259,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
+        "Differential-verified against the npm CLI (cli-native-plans-tasks.spec.ts): exit code, normalized JSON stdout and stderr class match. Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -46308,7 +46319,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
+        "Differential-verified against the npm CLI (cli-native-plans-tasks.spec.ts): exit code, normalized JSON stdout and stderr class match. Advanced option/output variants and isolated integration validation remain pending. Team scope resolves the Plan through the Team read protocol, then follows the delegated Tasks Team semantics."
       ],
       "platforms": {
         "linux": "not_verified",

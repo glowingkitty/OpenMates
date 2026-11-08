@@ -55,8 +55,8 @@ test.describe('CLI native differential: plans lifecycle', () => {
 			await transition('plans archive', fresh, (id) => ['plans', 'archive', id], ['plans archive']);
 			// The opaque encrypted history snapshot refs are produced per client and cannot match byte for byte.
 			await transition('plans delete', fresh, (id) => ['plans', 'delete', id, '--confirm'], ['plans delete'], { ignoreKeys: [...VOLATILE, 'title', 'slug', 'encrypted_before_ref', 'encrypted_after_ref'] });
-			// npm exits 1 for the missing --confirm, native treats it as a usage error (exit 2).
-			await diff.check('plans delete without --confirm', ['plans', 'delete', base], { mode: 'exit', expectedGap: 'exit: npm=1 native=2' });
+			// Both CLIs refuse a missing --confirm with exit 1.
+			await diff.check('plans delete without --confirm', ['plans', 'delete', base], { mode: 'exit' });
 
 			const second = await npmJson(diff, ['projects', 'create', `Diff plans second ${Date.now()}`, '--write-policy', 'apply_and_show'], 'create second project');
 			const secondId: string = second.projectId ?? second.project_id ?? second.project?.project_id;
