@@ -19,6 +19,7 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
 const { createSignupLogger, createStepScreenshotter, getTestAccount, getE2EDebugUrl } = require('./signup-flow-helpers');
 const { seedCodeEmbedChat } = require('./helpers/embed-ready-metrics');
 const { rustCoreInstances } = require('./helpers/rust-core-instances');
+const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -77,7 +78,7 @@ function draftRow(chatId: string): Promise<{ draftV: number; hasCiphertext: bool
 }
 
 // contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary,drafts.persistence.local-first-encrypted,drafts.sync.version-authoritative
-test('Rust core saves an existing chat draft and the TS restore decrypts it', async ({ page }: { page: any }, testInfo: any) => {
+test('Rust core saves an existing chat draft and the TS restore decrypts it', async ({ page, browser }: { page: any; browser: any }, testInfo: any) => {
 	test.slow();
 	test.setTimeout(300000);
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
@@ -128,9 +129,20 @@ test('Rust core saves an existing chat draft and the TS restore decrypts it', as
 	expect((instances.workers as { name: string }[]).filter((worker) => /draft/i.test(worker.name)).length, 'no dedicated draft Worker').toBe(0);
 	await screenshot(page, 'rust-draft-saved');
 
+	// Sync-inbound slice 2: a second signed-in device receives the server's chat_draft_updated
+	// broadcast (the sender device is excluded) and the Rust sync unit admits that frame.
+	let consecutiveText = draftText;
+	const deviceB = await browser.newContext();
+	const pageB = await deviceB.newPage();
+	try {
+		await loginToTestAccount(pageB, log, screenshot);
+		await pageB.goto(getE2EDebugUrl(`/#chat-id=${chatId}`));
+		await expect.poll(() => pageB.evaluate(() => typeof (window as any).__openmatesRustSyncStats === 'function'),
+			{ message: 'second device loaded the Rust sync unit', timeout: 60000 }).toBe(true);
+
 	// Consecutive edits (the bench types several): each one is a new Rust draft version, never a failure marker.
 	let previousVersion = saved!.draftV;
-	let consecutiveText = draftText;
+	consecutiveText = draftText;
 	for (let edit = 1; edit <= 3; edit += 1) {
 		consecutiveText += ` edit ${edit}`;
 		await page.keyboard.type(` edit ${edit}`);
@@ -139,6 +151,12 @@ test('Rust core saves an existing chat draft and the TS restore decrypts it', as
 		previousVersion = (await page.evaluate(draftRow, chatId))!.draftV;
 		expect(await page.evaluate(() => document.documentElement.dataset.rustCoreDraft ?? null),
 			`consecutive save ${edit} stayed on the Rust writer`).toMatch(/^rust-(local|synced)$/);
+	}
+		await expect.poll(() => pageB.evaluate(() => (window as any).__openmatesRustSyncStats?.()?.ops?.updateFrame ?? 0),
+			{ message: 'second device admitted the draft frame in the Rust sync unit', timeout: 45000 }).toBeGreaterThan(0);
+		expect(await pageB.evaluate(() => (window as any).__openmatesRustSyncStats?.()?.failures ?? 0), 'no sync unit call failed on device B').toBe(0);
+	} finally {
+		await deviceB.close();
 	}
 
 	await page.reload();

@@ -69,6 +69,9 @@ test('message row decisions run on the shared Rust persist unit and stored chats
 				// A reload of an unchanged chat may legitimately make no row decisions,
 				// so the client can stay unloaded; any call that did run must not fail.
 				expect(stats?.failures ?? 0, 'no persist unit call failed').toBe(0);
+				// K3: the reloaded page bulk-loads chat keys from IndexedDB; batch plan decided by Rust.
+				await expect.poll(() => page.evaluate(() => (window as any).__openmatesRustCryptoStats?.()?.calls?.keysBulkBatches ?? 0),
+					{ message: 'bulk chat-key load batch plan decided by Rust (K3)', timeout: 30000 }).toBeGreaterThan(0);
 			} else {
 				expect(stats, 'TS arm never loaded the Rust persist adapter').toBeNull();
 			}

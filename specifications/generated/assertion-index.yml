@@ -8107,7 +8107,7 @@ assertions:
       surface: gui.web
     - &id1025
       path: frontend/apps/web_app/tests/web-rust-core-drafts.spec.ts
-      line: 80
+      line: 81
       name: Rust core saves an existing chat draft and the TS restore decrypts it
       surface: gui.web
     - &id1026
@@ -9356,7 +9356,7 @@ assertions:
       surface: gui.web
     - &id1197
       path: frontend/apps/web_app/tests/web-rust-core-drafts.spec.ts
-      line: 80
+      line: 81
       name: Rust core saves an existing chat draft and the TS restore decrypts it
       surface: gui.web
     - &id1198
@@ -90859,7 +90859,7 @@ assertions:
       surface: gui.web
     - &id11520
       path: frontend/apps/web_app/tests/web-rust-core-chat.spec.ts
-      line: 154
+      line: 157
       name: opens a saved chat in the normal chat UI from Rust-decrypted history
       surface: gui.web
     - &id11521
@@ -100725,7 +100725,7 @@ assertions:
       surface: gui.web
     - &id12831
       path: frontend/apps/web_app/tests/web-rust-core-chat.spec.ts
-      line: 154
+      line: 157
       name: opens a saved chat in the normal chat UI from Rust-decrypted history
       surface: gui.web
     - &id12832
@@ -188948,7 +188948,7 @@ assertions:
       surface: gui.web
     - &id24078
       path: frontend/apps/web_app/tests/web-rust-core-chat.spec.ts
-      line: 154
+      line: 157
       name: opens a saved chat in the normal chat UI from Rust-decrypted history
       surface: gui.web
     - &id24079
@@ -188965,7 +188965,7 @@ assertions:
       surface: gui.web
     - &id24081
       path: frontend/apps/web_app/tests/web-rust-core-drafts.spec.ts
-      line: 80
+      line: 81
       name: Rust core saves an existing chat draft and the TS restore decrypts it
       surface: gui.web
     - &id24082
@@ -190129,7 +190129,7 @@ assertions:
       surface: gui.web
     - &id24238
       path: frontend/apps/web_app/tests/web-rust-core-chat.spec.ts
-      line: 154
+      line: 157
       name: opens a saved chat in the normal chat UI from Rust-decrypted history
       surface: gui.web
     - &id24239

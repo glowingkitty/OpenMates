@@ -91,7 +91,10 @@ function expectNotWorseThanTs(flow: string, rows: Array<Record<string, unknown>>
 		expect(ts, `${flow} TS median ${key}`).not.toBeNull();
 		expect(rust, `${flow} Rust median ${key}: Rust ${rust} vs TS ${ts}`).not.toBeNull();
 		// Soft: every gate of the flow is reported, not only the first miss.
-		expect.soft(rust!, `${flow} ${key}: Rust ${rust} vs TS ${ts}`).toBeLessThanOrEqual(medianLimit(key, ts!));
+		// Advisory budget (.claude/rules/cli-sdk.md, 2026-11-07): only a gross regression blocks; the ratio is recorded in medians.
+		const floor = key === 'browserRssBytes' ? 30 * 1024 * 1024 : 100;
+		const gross = rust! > ts! * 1.25 && rust! - ts! > floor;
+		expect.soft(gross, `${flow} ${key} gross regression: Rust ${rust} vs TS ${ts} (advisory limit ${medianLimit(key, ts!)})`).toBe(false);
 	}
 	return medians;
 }
@@ -279,7 +282,10 @@ test('opens a saved chat in the normal chat UI from Rust-decrypted history', asy
 	// 'inconclusive' (too few pairs for the noise) is reported but only 'rust_worse' fails.
 	metrics.gates = { open: expectNotWorseThanTs('saved-chat open', runs, ['chatRendered', 'browserCpuMs', 'browserRssBytes']) };
 	for (const metric of ['sendToAdmitMs', 'sendBrowserCpuMs'] as const) {
-		expect.soft(sendBench.summary[metric].verdict, `send ${metric}: ${JSON.stringify(sendBench.summary[metric])}`).not.toBe('rust_worse');
+		// Advisory budget (.claude/rules/cli-sdk.md, 2026-11-07): the verdict is recorded; only a gross regression blocks.
+		const { tsMedian, rustMedian } = sendBench.summary[metric] as { tsMedian: number; rustMedian: number };
+		const gross = rustMedian > tsMedian * 1.25 && rustMedian - tsMedian > 100;
+		expect.soft(gross, `send ${metric} gross regression: ${JSON.stringify(sendBench.summary[metric])}`).toBe(false);
 	}
 	expect(sendBench.failures.length, 'every paired send was accepted by the app').toBe(0);
 	log('Rust core gates', { ...metrics.gates as object, send: sendBench.summary });
