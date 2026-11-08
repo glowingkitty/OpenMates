@@ -377,6 +377,7 @@ provider_groups:
         location: EU
         used_for:
           - moderation for every uploaded image and video
+          - PDF files are not sent to Sightengine; PDF page images are checked by the TypeSafe decision model instead
       api_video:
         privacy_policy: https://api.video/privacy-policy/  # verified 2026-04-14
         location: EU (France)
@@ -473,10 +474,12 @@ provider_groups:
           - assistant-message speech synthesis when you choose Speak or enable spoken responses
           - realtime voice-recording transcription via Mistral Voxtral
           - batch transcription of uploaded recordings via Mistral Voxtral
+          - text recognition (OCR) of scanned or image-only PDF pages
         data_shared:
           - Chat messages with PII placeholders substituted client-side
           - Current speakable assistant-message segment and curated voice settings for message playback
           - Realtime audio chunks or the decrypted recording file, plus language and transcription settings
+          - Only the PDF pages that have no usable text layer, as small page-range PDF files, without OpenMates user identifiers; pages with a readable text layer are never sent
           - Note: Voice audio may contain personal or sensitive information and is not protected by typed-message placeholder substitution
           - Note: Mistral states that ordinary API inputs and outputs may be kept for 30 rolling days for abuse monitoring unless zero-data retention is activated; OpenMates does not promise zero-data retention for this path
       aws_bedrock:
@@ -521,12 +524,14 @@ provider_groups:
           - direct optional relevance ranking for supported public search results
           - direct optional shopping visual matching, only when reference images are provided
           - caller-requested ai.decide judgments over supplied state, questions, and optional inline PNG/JPEG images
+          - PDF processing: deciding whether a page's text layer is complete, scoring each page's text for hidden prompt-injection instructions, ranking search results inside a PDF, finding the contents page, and judging whether PDF page images are safe to show
         data_shared:
           - Bounded recent chat context with PII placeholders substituted client-side
           - External text being checked for prompt injection, without OpenMates user identifiers
           - User-stated relevance criteria, search parameters, and minimized public result metadata, without OpenMates user identifiers
           - Caller-supplied ai.decide state, instructions, criteria, and inline image content; send only information needed for the decision, since image bytes and raw API inputs are not protected by typed-message placeholder substitution
           - These inline decisions create no saved chat, embed, or stored upload in OpenMates; transient processing does not promise zero retention by TypeSafe
+          - "PDF processing: text of uploaded PDF pages (in bounded chunks) and PDF page or embedded images prepared as JPEG, without OpenMates user identifiers. Images are shown or used by the assistant only when the decision model rates every unsafe category harmless with at least 95 percent confidence; if the check cannot be completed the image is withheld, never shown. PDF content is not sent to the image-upload safety provider."
           - "For shopping visual matching, only when reference images are provided: up to three authorized user-uploaded or assistant-generated reference images and bounded public product photos, prepared as metadata-stripped JPEG images with a maximum dimension of 336 pixels. Visible image content can contain personal data. These images are not forwarded to OpenRouter."
           - "Data handling: TypeSafe states that it does not train or fine-tune models on submitted input."
           - "Retention: TypeSafe's public processing terms describe retention according to processing purposes and applicable law, without a fixed maximum retention period."
@@ -576,9 +581,11 @@ provider_groups:
         used_for:
           - server-side sanitization of external content (search results) before inclusion in chat responses
           - safety classification of audio.speak text before ElevenLabs text-to-speech generation
+          - extracting the chapter list from the contents pages of an uploaded PDF that has no built-in outline
         data_shared:
           - External content retrieved from search providers (Brave) for processing and sanitization
           - Text requested for audio.speak text-to-speech when that skill is invoked
+          - Text of up to a few contents pages of an uploaded PDF, only when the PDF has no built-in outline
           - No user identifiers; Groq does not know which user requested each piece of content or speech sample
       alibaba:
         privacy_policy: https://www.alibabacloud.com/help/en/legal/latest/alibaba-cloud-international-website-privacy-policy

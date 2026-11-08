@@ -44,6 +44,7 @@
   import { text } from '@repo/ui';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { publicExamplePdfUrl, publicExamplePdfPageImageUrl } from './publicExamplePdf';
+  import { requestPdfPageRender } from './pdfPageRender';
 
   /** Max display length for the filename in the bottom bar title (chars) */
   const MAX_FILENAME_LENGTH = 40;
@@ -109,10 +110,14 @@
   let contentError = $state<string | undefined>(undefined);
 
   /** Derived page numbers sorted numerically */
+  // Pages are rendered on demand (only page 1 exists after processing), so the list is every page
+  // of the document whenever the page count is known.
   let pageNumbers = $derived(
-    Object.keys(screenshotS3Keys)
-      .map(Number)
-      .sort((a, b) => a - b),
+    pageCount && pageCount > 0
+      ? Array.from({ length: pageCount }, (_unused, index) => index + 1)
+      : Object.keys(screenshotS3Keys)
+          .map(Number)
+          .sort((a, b) => a - b),
   );
 
   /** Whether we have screenshots to display.
@@ -223,9 +228,8 @@
   });
 
   async function loadPageImage(pageNum: number): Promise<void> {
-    const s3Key = screenshotS3Keys[String(pageNum)];
     // aesNonce may be "" for new PDFs (nonce embedded per-artefact); check !== undefined
-    if (!s3Key || !aesKey || aesNonce === undefined) return;
+    if (!aesKey || aesNonce === undefined) return;
 
     const state = pageImages[pageNum];
     if (!state || state.url || state.loading) return;
@@ -236,6 +240,28 @@
     };
 
     try {
+      let s3Key = screenshotS3Keys[String(pageNum)];
+      if (!s3Key) {
+        // Not rendered yet: the backend renders, safety-checks and stores it, then returns its key.
+        const render = await requestPdfPageRender(embedId ?? '', pageNum);
+        if (render.status !== 'ok' || !render.s3Key) {
+          pageImages = {
+            ...pageImages,
+            [pageNum]: {
+              url: undefined,
+              loading: false,
+              error:
+                render.status === 'unavailable'
+                  ? 'Page unavailable'
+                  : 'This page image could not be shown because its safety check was not passed',
+              retries: MAX_PAGE_RETRIES,
+            },
+          };
+          return;
+        }
+        s3Key = render.s3Key;
+        screenshotS3Keys = { ...screenshotS3Keys, [String(pageNum)]: s3Key };
+      }
       // s3BaseUrl not needed — fetchAndDecryptImage uses the presigned URL service
       await fetchAndDecryptImage('', s3Key, aesKey, aesNonce);
       const url = getCachedImageUrl(s3Key);

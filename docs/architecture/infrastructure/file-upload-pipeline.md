@@ -176,7 +176,7 @@ Single combined SightEngine call (`nudity-2.0,offensive,gore,genai`). Blocking t
 
 **Fail-closed policy:** SightEngine HTTP error/timeout -> upload rejected with HTTP 503. If credentials not configured (dev/self-hosted), scanning is skipped entirely.
 
-**PDF screenshots:** `app-pdf-worker` scans each rendered page. Service unavailable -> Celery retry. Violation on any page -> entire PDF rejected.
+**PDFs (processing v2):** PDFs are not sent to SightEngine. `app-pdf-worker` triages every page (text layer, OCR or a TypeSafe Jev decision for borderline pages), OCRs only the pages that need it in parallel 20-page chunks, scores each page's text for prompt injection with Jev and judges embedded images, scanned pages and the page-1 preview with the Jev image decision. An image is shown or sent to a vision model only when every unsafe category is rated harmless with at least 0.95 confidence; a clearly unsafe image (at least 0.90) rejects the whole PDF; anything uncertain, or an unavailable decision model, withholds the image (fail closed) while the text stays readable. Other pages are rendered, judged and cached the first time they are viewed (`POST /v1/embeds/{id}/pdf-pages/{n}/render`, first-party session auth). The price is 2 credits per file plus 2 per OCR page, text-layer pages are free, and a failed or rejected PDF is refunded in full. The assistant turn is held in the AI worker until every PDF in the turn is final (`pdf_turn_gate`).
 
 ### Storage Billing
 

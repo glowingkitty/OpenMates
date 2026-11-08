@@ -1436,6 +1436,7 @@ def create_app() -> FastAPI:
     # API routers - explicitly included in schema (support API key authentication)
     from backend.core.api.app.routes import tasks_api
     from backend.core.api.app.routes import embeds_api
+    from backend.core.api.app.routes import pdf_pages
     from backend.core.api.app.routes import profile_api
     app.include_router(settings.router, include_in_schema=False)  # Settings contain sensitive account actions; expose narrow API docs via dedicated routers only
     app.include_router(account_exports.router, include_in_schema=True)  # Account Export V1 - CLI/SDK first, web and Apple later
@@ -1445,6 +1446,7 @@ def create_app() -> FastAPI:
     app.include_router(openai_compat.router, include_in_schema=True)  # OpenAI-compatible models/chat routes for external SDKs
     app.include_router(tasks_api.router, include_in_schema=True)  # Tasks API router - uses API key authentication for polling long-running tasks
     app.include_router(embeds_api.router, include_in_schema=True)  # Embeds API router - uses API key authentication for downloading embed files (images, etc.)
+    app.include_router(pdf_pages.router, include_in_schema=False)  # First-party on-demand PDF page renders (session auth only)
     app.include_router(generated_assets_api.router, include_in_schema=True)  # Short-lived decrypted download URLs for generated media assets
     app.include_router(design_icons.router, include_in_schema=True)  # Design app sanitized Iconify SVG fetch route
     app.include_router(video_remotion.router, include_in_schema=True)  # Remotion videos.create render, stop, and version endpoints

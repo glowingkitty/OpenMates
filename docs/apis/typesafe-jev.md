@@ -106,3 +106,11 @@ Jev selects the initial icon but cannot generate title text. On the healthy path
 - Manual real search-ranking comparison: `backend/scripts/test_search_relevance_ranking.py` (run inside the API container)
 
 Primary references: [TypeSafe API reference](https://docs.typesafe.ai/api), [TypeSafe models](https://docs.typesafe.ai/models), [TypeSafe images](https://docs.typesafe.ai/images), [TypeSafe legal and privacy documents](https://docs.typesafe.ai/legal), and [OpenRouter Jev model page](https://openrouter.ai/typesafe/jev-1.14).
+
+## PDF processing
+
+PDF processing v2 uses Jev for: borderline page routing (text layer complete or OCR), per-page prompt-injection scores,
+contents-page detection, search reranking, and image safety decisions on PDF page and embedded images (PNG/JPEG,
+280-1568 px, at most 4 images and 4 MiB per request, direct TypeSafe only). Image decisions fail closed: an image is
+allowed only when every unsafe category is harmless at 0.95 confidence or higher. See
+`specifications/features/pdf-processing/specification.yml`.
