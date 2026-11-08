@@ -39,9 +39,9 @@ Read from `docs/migration/rust/overview.yml` (machine-readable; sub-files hold t
 
 | Priority | Area | Scope | Done | Partial | Missing | Detail file |
 |---|---|---|---|---|---|---|
-| 1 | `web_app` | Web app (shared Rust core Worker units) | 16 / 16 (100.0%) | 0 | 0 | `web-app.yml` |
+| 1 | `web_app` | Web app (shared Rust core Worker units) | 17 / 17 (100.0%) | 0 | 0 | `web-app.yml` |
 | 1 | `shared_client` | Shared client-side code (Rust, non-operation SDK capabilities) | 8 / 28 (28.6%) | 20 | 0 | `shared-client.yml` |
-| 2 | `cli` | CLI (native Rust, command catalog) | 247 / 722 (34.2%) | 469 | 6 | `cli.yml` |
+| 2 | `cli` | CLI (native Rust, command catalog) | 250 / 722 (34.6%) | 466 | 6 | `cli.yml` |
 | 3 | `sdk_rust` | Rust SDK (operation capabilities) | 4 / 53 (7.5%) | 49 | 0 | `sdk.yml` |
 | 3 | `sdk_npm` | npm SDK (operation capabilities) | 4 / 53 (7.5%) | 47 | 2 | `sdk.yml` |
 | 3 | `sdk_python` | Python SDK (operation capabilities) | 4 / 53 (7.5%) | 47 | 2 | `sdk.yml` |
@@ -247,7 +247,7 @@ Source: `config/cli-command-catalog.json` (TypeScript CLI 0.28.0, 722 command re
 | Status `partial` (native handler exists, parity not complete) | 716 |
 | Status `unsupported` (no native handler) | 6 |
 | With a named native handler | 712 / 722 (99%) |
-| Differential-verified against the npm CLI | 247 / 722 (34%) |
+| Differential-verified against the npm CLI | 250 / 722 (35%) |
 | With recorded real-CI E2E evidence | 9 / 722 (1%) |
 | Linux verified | 9 / 722 (1%) |
 | macOS verified | 0 / 722 (0%) |
@@ -265,7 +265,7 @@ Largest groups first. `Top gap` is the most common first gap text in the group.
 | `server` | 57 | 0 | 57 | 0 | 19 | 0 | Differential-verified against the npm CLI on the isolated CI backend (cli-native-server.spec.ts): exit code... |
 | `teams` | 41 | 0 | 41 | 0 | 34 | 1 | Differential-verified against the npm CLI on the isolated CI backend (cli-native-teams.spec.ts): exit code,... |
 | `projects` | 35 | 0 | 35 | 0 | 28 | 3 | Differential-verified against the npm CLI on the isolated CI backend (cli-native-projects.spec.ts): exit co... |
-| `workflows` | 34 | 0 | 34 | 0 | 0 | 0 | Focused native validation coverage; isolated Workflow CLI integration pending. Delivery-aware --wait now ob... |
+| `workflows` | 34 | 0 | 34 | 0 | 3 | 0 | Focused native validation coverage; isolated Workflow CLI integration pending. Delivery-aware --wait now ob... |
 | `tasks` | 31 | 0 | 31 | 0 | 0 | 4 | Encrypted durable delivery (HMAC-bound intent in the encrypted native task-delivery journal, idempotent --d... |
 | `account` | 29 | 0 | 29 | 0 | 10 | 0 | Differential-verified against the npm CLI on the isolated CI backend (cli-native-account.spec.ts): exit cod... |
 | `chats` | 28 | 0 | 28 | 0 | 0 | 0 | Syntax delegates to the existing typed Tasks/Plans handler, retaining its option, output, scope and platfor... |
@@ -308,33 +308,34 @@ Sources: `frontend/apps/web_app/src/lib/rustCore/shared/sharedWorkerUnits.ts` (i
 
 | Metric | Count |
 |---|---|
-| Namespaces in the allowlist | 16 |
-| Units installed (installer registered) | 16 / 16 (100%) |
-| Units planned (namespace reserved, no installer) | 0 / 16 (0%) |
+| Namespaces in the allowlist | 17 |
+| Units installed (installer registered) | 17 / 17 (100%) |
+| Units planned (namespace reserved, no installer) | 0 / 17 (0%) |
 
 Planned: none. A namespace without an installer is refused as `unit_unavailable`.
 
 | Unit | Pre-bind | What moves to Rust (from the unit header) | TypeScript fallback | Installer | Unit tests |
 |---|---|---|---|---|---|
 | `core` | no | One installer call = one Worker-side core dispatcher (its own Rust client) on the unit port, sharing the realm's single WASM binding with every other unit. Handshake on the unit port, unchanged from the dedicated Worker: the page posts the closed transport bootstrap (validProductionBootstrap, expectedPrincipal must equal the... | not declared in unit sources | `frontend/apps/web_app/src/lib/rustCore/shared/coreUnit.ts` | - |
-| `crypto` | yes | Installed by the shared Worker router on the namespace port (pre-bind allowed: share links open logged out). Serves the WebCryptoBatch protocol of webCryptoClient.ts on ports[0] against the realm's single WASM binding. | none declared (2 files) | `frontend/packages/ui/src/services/rustCore/crypto/cryptoUnitInstaller.ts` | `chatKeyAdmissionVectors.test.ts`, `chatKeyHandles.test.ts`, `cryptoResultMemo.test.ts`, `cryptoUnit.test.ts` |
+| `crypto` | yes | Installed by the shared Worker router on the namespace port (pre-bind allowed: share links open logged out). Serves the WebCryptoBatch protocol of webCryptoClient.ts on ports[0] against the realm's single WASM binding. | none declared (2 files) | `frontend/packages/ui/src/services/rustCore/crypto/cryptoUnitInstaller.ts` | `chatKeyAdmissionVectors.test.ts`, `chatKeyBulkPlanVectors.test.ts`, `chatKeyHandles.test.ts`, `cryptoResultMemo.test.ts`, `cryptoUnit.test.ts`, `guestPromotionVectors.test.ts`, `shareStateVectors.test.ts` |
 | `auth` | yes | Runs login/session/logout policy on the realm's single WASM binding; it performs no Fetch, cookie or storage IO itself (the page executes the requests Rust describes). Pre-bind: the page opens it outside any generation (login runs before a principal exists), so the router never hands it a principal and unbind does not close it. | none declared (1 file) | `frontend/packages/ui/src/services/rustCore/auth/authUnit.ts` | `auth.test.ts`, `authSharedUnit.test.ts`, `flowPush.test.ts`, `webAuthFlow.test.ts` |
 | `embedData` | yes | Decrypts stored embed rows next to the realm's single WASM binding: every requested row is one `embed_open_row_fields` call (Rust `embed_write::read`, its three fields in one batched WebCrypto call). The unit holds no account state, so it is a pre-bind namespace like `crypto`: the embed key arrives per request (as the crypto... | none declared (3 files) | `frontend/packages/ui/src/services/rustCore/embeds/embedDataUnit.ts` | `embedKeyResolution.test.ts`, `embedUnits.test.ts`, `readOps.test.ts` |
 | `embedWrite` | no | One installer call = one Rust embed write session (`BrowserEmbedWriter`) under the bound generation, next to the Worker-side `chats_db` rows it writes. Rust owns key choice, every ciphertext, row/payload shapes and the revision-history decisions (embedWriteAdapter.ts sequences them); this unit persists the prepared rows (embe... | none declared (3 files) | `frontend/packages/ui/src/services/rustCore/embeds/embedWriteUnit.ts` | `embedKeyResolution.test.ts`, `embedUnits.test.ts`, `readOps.test.ts` |
-| `chatState` | yes | Serves the chat-list ordering and grouping policy (chatListProtocol.ts) on the unit port from the realm's single WASM binding. It holds no per-account state and does no IO, so it is a pre-bind namespace. | none declared (6 files) | `frontend/packages/ui/src/services/rustCore/chatState/chatListUnit.ts` | `chatStateAdapter.test.ts`, `chatStateHiddenForkOps.test.ts`, `chatStateSharedUnit.test.ts`, `transitionVectors.test.ts` |
+| `chatState` | yes | Serves the chat-list ordering and grouping policy (chatListProtocol.ts) on the unit port from the realm's single WASM binding. It holds no per-account state and does no IO, so it is a pre-bind namespace. | none declared (9 files) | `frontend/packages/ui/src/services/rustCore/chatState/chatListUnit.ts` | `bookmarkHighlightOps.test.ts`, `chatStateAdapter.test.ts`, `chatStateHiddenForkOps.test.ts`, `chatStateSharedUnit.test.ts`, `transitionVectors.test.ts` |
 | `ws` | yes | Serves the WebSocket lifecycle policy (wsProtocol.ts) on the unit port from the realm's single WASM binding. It holds no per-account state and does no IO, so it is a pre-bind namespace. | none declared (2 files) | `frontend/packages/ui/src/services/rustCore/ws/wsUnit.ts` | `wsSharedUnit.test.ts` |
 | `apps` | yes | Serves the Apps skill execution policy (appsProtocol.ts) on the unit port from the realm's single WASM binding. It holds no per-account state and does no IO, so it is a pre-bind namespace: guests run app skills before any principal exists. | none declared (1 file) | `frontend/packages/ui/src/services/rustCore/apps/appsUnit.ts` | `appsPolicyVectors.test.ts`, `appsRequestUnit.test.ts`, `appsSharedUnit.test.ts` |
 | `search` | yes | Owns the chat message search index in the realm's single WASM binding (`ChatSearchIndex`: packages/openmates-rust/src/web_search_chats.rs and web_search_query.rs). The page transfers each chat's entries once when it (re)indexes the chat from its source (decrypted IndexedDB rows) and keeps no copy; a query runs titles, snippet... | none declared (1 file) | `frontend/packages/ui/src/services/rustCore/search/searchUnit.ts` | `chatSearchVectors.test.ts`, `rustChatSearchPipeline.test.ts`, `searchPiiVectors.test.ts` |
 | `transfer` | yes | Serves chat import routing/parsing (transferProtocol.ts) on the unit port from the realm's single WASM binding. It holds no account state and does no IO, so it is a pre-bind namespace. | none declared (2 files) | `frontend/packages/ui/src/services/rustCore/transfer/transferUnit.ts` | `transferExportVectors.test.ts`, `transferSharedUnit.test.ts`, `transferZipVectors.test.ts` |
 | `sync` | yes | Serves the chat-sync decision policy (syncProtocol.ts) on the unit port from the realm's single WASM binding. It holds no per-account state and does no IO, so it is a pre-bind namespace. | none declared (4 files) | `frontend/packages/ui/src/services/rustCore/sync/syncUnit.ts` | `syncSharedUnit.test.ts` |
 | `drafts` | no | Draft policy (encryption, versioning, closed IndexedDB predicates, durable encrypted sync intent, readback) is shared Rust (`prepare_local_draft_with_preview`, `remote_payload`, `acknowledge_transport`). This unit only marshals: it runs the Rust calls on the ADMITTED client of the bound history `core` lease (borrowed via core... | not declared in unit sources | `frontend/packages/ui/src/services/rustCore/drafts/draftsUnit.ts` | `rustDraftsUnit.test.ts` |
-| `parse` | yes | Serves the render-plan block model (parseProtocol.ts) on the unit port from the realm's single WASM binding. Stateless and IO-free, hence pre-bind. | none declared (3 files) | `frontend/packages/ui/src/services/rustCore/parse/parseUnit.ts` | - |
-| `sendPrep` | yes | Serves the offline-outbox decisions (sendPrepProtocol.ts) on the unit port from the realm's single WASM binding. It holds no account state, so it is a pre-bind namespace. | none declared (2 files) | `frontend/packages/ui/src/services/rustCore/send/sendPrepUnit.ts` | `sendPrepOutboxVectors.test.ts` |
+| `parse` | yes | Serves the render-plan block model (parseProtocol.ts) on the unit port from the realm's single WASM binding. Stateless and IO-free, hence pre-bind. | none declared (4 files) | `frontend/packages/ui/src/services/rustCore/parse/parseUnit.ts` | - |
+| `sendPrep` | yes | Serves the offline-outbox decisions (sendPrepProtocol.ts) on the unit port from the realm's single WASM binding. It holds no account state, so it is a pre-bind namespace. | none declared (4 files) | `frontend/packages/ui/src/services/rustCore/send/sendPrepUnit.ts` | `sendPrepOutboxVectors.test.ts` |
 | `persist` | yes | Serves the IndexedDB row policy (persistProtocol.ts) on the unit port from the realm's single WASM binding. It holds no account state and does no IO (rows are passed in, decisions come back), so it is a pre-bind namespace. | none declared (4 files) | `frontend/packages/ui/src/services/rustCore/persist/persistUnit.ts` | `persistSharedUnit.test.ts` |
 | `settings` | yes | Serves the app settings/memories request policy (settingsProtocol.ts) on the unit port from the realm's single WASM binding. It holds no per-account state and does no IO (the page owns IndexedDB and the decrypted entries), so it is a pre-bind namespace. | none declared (1 file) | `frontend/packages/ui/src/services/rustCore/settings/settingsUnit.ts` | `settingsSharedUnit.test.ts` |
+| `composer` | yes | Serves the composer operations (composerProtocol.ts) on the unit port from the realm's single WASM binding. It holds no account state, so it is a pre-bind namespace. | none declared (1 file) | `frontend/packages/ui/src/services/rustCore/composer/composerUnit.ts` | `composerVectors.test.ts`, `languageUrlVectors.test.ts`, `suggestionVectors.test.ts` |
 
 All units run only in builds with `VITE_OPENMATES_RUST_CORE=1`; with the flag off the original TypeScript path is unchanged.
-Web Rust core E2E specs in `frontend/apps/web_app/tests`: `web-rust-core-apps.spec.ts`, `web-rust-core-auth.spec.ts`, `web-rust-core-bench.spec.ts`, `web-rust-core-chat.spec.ts`, `web-rust-core-chatstate-fork-conversation.spec.ts`, `web-rust-core-chatstate-hidden-chats-flow.spec.ts`, `web-rust-core-chatstate.spec.ts`, `web-rust-core-crypto.spec.ts`, `web-rust-core-drafts.spec.ts`, `web-rust-core-embeds.spec.ts`, `web-rust-core-memory-level.spec.ts`, `web-rust-core-persist.spec.ts`, `web-rust-core-profile.spec.ts`, `web-rust-core-reload-memory.spec.ts`, `web-rust-core-search.spec.ts`, `web-rust-core-send-bench.spec.ts`, `web-rust-core-sync.spec.ts`, `web-rust-core-transfer.spec.ts`, `web-rust-core-ws.spec.ts`.
+Web Rust core E2E specs in `frontend/apps/web_app/tests`: `web-rust-core-apps.spec.ts`, `web-rust-core-auth.spec.ts`, `web-rust-core-bench.spec.ts`, `web-rust-core-chat.spec.ts`, `web-rust-core-chatstate-fork-conversation.spec.ts`, `web-rust-core-chatstate-hidden-chats-flow.spec.ts`, `web-rust-core-chatstate-message-highlights.spec.ts`, `web-rust-core-chatstate.spec.ts`, `web-rust-core-composer.spec.ts`, `web-rust-core-crypto.spec.ts`, `web-rust-core-drafts.spec.ts`, `web-rust-core-embeds.spec.ts`, `web-rust-core-memory-level.spec.ts`, `web-rust-core-persist.spec.ts`, `web-rust-core-profile.spec.ts`, `web-rust-core-reload-memory.spec.ts`, `web-rust-core-search.spec.ts`, `web-rust-core-send-bench.spec.ts`, `web-rust-core-sync.spec.ts`, `web-rust-core-transfer.spec.ts`, `web-rust-core-ws.spec.ts`.
 
 ## Performance verdicts
 
@@ -343,15 +344,14 @@ The measurement log is `docs/migration/rust/performance-history.yml` (append-onl
 | Flow | Date | Value | 95% CI | Pairs | Verdict | Confidence |
 |---|---|---|---|---|---|---|
 | `apps` | 2026-11-06 | ratio 0.985 | [0.92, 1.05] | - | rust_not_worse | uncertain |
-| `chatRendered` | 2026-11-07 | delta_ms -89.0 | - | 12 | rust_not_worse | traced |
-| `chatStateTransitions` | 2026-11-07 | delta_ms 103 | - | 12 | rust_not_worse | traced |
+| `chatRendered` | 2026-11-07 | delta_ms 93 | - | 12 | rust_not_worse | uncertain |
 | `cpu` | 2026-11-07 | ratio - | - | 12 | rust_not_worse | traced |
-| `embedReady` | 2026-11-07 | ratio 1.038 | [1.005, 1.064] | 12 | rust_not_worse | traced |
+| `embedReady` | 2026-11-07 | ratio 1.055 | - | 3 | rust_not_worse | traced |
 | `reloadMemory` | 2026-11-07 | delta_mib_per_reload 0.24 | [-0.43, 0.9] | 20 | rust_not_worse | traced |
 | `rss` | 2026-11-06 | delta_mib_per_reload -0.01 | [-0.34, 0.34] | 16 | rust_not_worse | traced |
-| `search` | 2026-11-07 | ratio 1.132 | [1.02, 1.291] | 30 | rust_worse | traced |
-| `send` | 2026-11-06 | delta_ms -900 | - | 5 | inconclusive | uncertain |
-| `sendToAdmit` | 2026-11-07 | ratio 0.843 | [0.638, 1.495] | 5 | inconclusive | traced |
+| `search` | 2026-11-07 | ratio 1.014 | [1.003, 1.04] | 30 | rust_not_worse | traced |
+| `send` | 2026-11-08 | ratio 1.025 | [0.957, 1.104] | 15 | inconclusive | traced |
+| `sendToAdmit` | 2026-11-08 | ratio 1.073 | [0.881, 1.179] | 15 | inconclusive | traced |
 | `wasmInstances` | 2026-11-07 | count 1 | - | - | rust_not_worse | traced |
 
 - Budget and method: `.claude/rules/cli-sdk.md` (web Rust performance gate; paired, interleaved, at least 12 pairs).

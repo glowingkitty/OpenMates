@@ -61187,6 +61187,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/workflows.rs"
       },
       "gaps": [
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-workflows.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open.",
         "Focused native validation coverage; isolated Workflow CLI integration pending. Delivery-aware --wait now observes the exact accepted run and selected chat acknowledgements; isolated CLI wait coverage remains pending. Team execution remains unavailable. Import into Project/folder requires additional typed linking support."
       ],
       "platforms": {
@@ -61474,6 +61475,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/workflows.rs"
       },
       "gaps": [
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-workflows.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open.",
         "Focused native validation coverage; isolated Workflow CLI integration pending. Delivery-aware --wait now observes the exact accepted run and selected chat acknowledgements; isolated CLI wait coverage remains pending. Team execution remains unavailable. Import into Project/folder requires additional typed linking support."
       ],
       "platforms": {
@@ -61898,6 +61900,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/workflows.rs"
       },
       "gaps": [
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-workflows.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open.",
         "Focused native validation coverage; isolated Workflow CLI integration pending. Delivery-aware --wait now observes the exact accepted run and selected chat acknowledgements; isolated CLI wait coverage remains pending. Team execution remains unavailable. Import into Project/folder requires additional typed linking support."
       ],
       "platforms": {

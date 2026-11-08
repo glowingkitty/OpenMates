@@ -815,6 +815,7 @@
         "cli-native-content.spec.ts",
         "cli-native-projects.spec.ts",
         "cli-native-teams.spec.ts",
+        "cli-native-workflows.spec.ts",
         "a11y-keyboard-nav.spec.ts",
         "a11y-modal-dialogs.spec.ts",
         "a11y-pages.spec.ts",
