@@ -1901,7 +1901,6 @@
             "tests/sdk-conformance/runners/api-key-drafts.mjs"
           ],
           "gaps": [
-            "Matching direct SDK CPU-processing benchmark against TypeScript is absent; Rust must be at least as fast for comparable work. Network/process latency cannot satisfy this blocker.",
             "Complete key, error, race and account parity is unproved."
           ],
           "status": "partial"
@@ -1924,7 +1923,6 @@
             "tests/sdk-conformance/runners/api-key-drafts.py"
           ],
           "gaps": [
-            "Matching direct SDK CPU-processing benchmark against TypeScript is absent; Rust must be at least as fast for comparable work. Network/process latency cannot satisfy this blocker.",
             "Complete key, error, race and account parity is unproved."
           ],
           "status": "partial"
@@ -1959,7 +1957,6 @@
             "packages/openmates-rust/examples/sdk-api-key-drafts-conformance.rs"
           ],
           "gaps": [
-            "Matching direct SDK CPU-processing benchmark against TypeScript is absent; Rust must be at least as fast for comparable work. Network/process latency cannot satisfy this blocker.",
             "Complete key, error, race and account parity is unproved.",
             "Opaque final-output/credential-scope assertions remain Rust platform glue; Cookie operations move to session.drafts.v1. Foreign bindings use the same EssentialGuard authority, but exposing standalone platform admission receipts and durable cache publication remains unfinished."
           ],

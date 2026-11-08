@@ -326,17 +326,17 @@ capabilities:
     status: partial
     api_symbols: 22
     conformance: true
-    gaps: 3
+    gaps: 2
   npm:
     status: partial
     api_symbols: 15
     conformance: true
-    gaps: 2
+    gaps: 1
   python:
     status: partial
     api_symbols: 10
     conformance: true
-    gaps: 2
+    gaps: 1
 - id: sdk.embeds
   domain: operations
   has_fixture: true
