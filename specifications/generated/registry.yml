@@ -601,7 +601,7 @@ specifications:
     version: 7
     status: draft
     path: features/chats
-    fingerprint: 0939127fec6c1c9027b6dd3f09ff95c53aefbdd0b56eb3f35d499c93d72570aa
+    fingerprint: 4a2afaea9965789b099f92cd495f775314509b7ab8ae1f6f29ef9ec46703f8d1
     required_applies_to:
     - cli
     - gui.web
@@ -7577,6 +7577,15 @@ assertions:
     - cli
     - gui.web
     - gui.apple
+  chats.offline-outbox.ordered-replay:
+    specification: feature.chats@7
+    specification_id: feature.chats
+    type: invariant
+    fingerprint: 947403479caf0379cb7e9893248478c990e6177c0487aa561288ce2daef4bc5b
+    required_applies_to:
+    - cli
+    - gui.web
+    - gui.apple
   chats.followups.main-generated-composer:
     specification: feature.chats@7
     specification_id: feature.chats
@@ -7725,7 +7734,7 @@ assertions:
     specification: feature.chats@7
     specification_id: feature.chats
     type: parity
-    fingerprint: be47c280c6c791a05806e98434b87c1ce8ffa7489e96896c586780fcb045a09b
+    fingerprint: 21b7126e556e757a390319bf890ca764d44df788d822c36ec754f3af3b2344d1
     required_applies_to:
     - cli
     - gui.web

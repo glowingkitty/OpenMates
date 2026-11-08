@@ -401,8 +401,11 @@ lanes:
     commit: 676cdeab80
     note: offline outbox replay order and batch receipt decision
   - id: slice-2
-    commit: null
+    commit: 767f8aa96a
     note: per-turn model routing restrictions validation (web_send_prep/routing_restrictions.rs; both async send call sites, flag-on only)
+  - id: slice-3
+    commit: null
+    note: deferred draft deletion replay eligibility (web_send_prep/deferred_delete.rs; sendersSync async loop, flag-on only). Declined as sync-caller or IDB-interleaved - db/offlineChangesAndUpdates.ts queue_order allocation and late-ACK token guard (inside IDB onsuccess callbacks, need a synchronous result), beginOfflineSyncBatch replayRequested check (sync, called under module state), the final fence filter in sendOfflineChangesImpl (must not yield between check and WS call).
   size: L
   wave: B
   deps: [w3-web-send-perf]
@@ -435,7 +438,7 @@ lanes:
   - chat-queued-followups.admission.synced
   - message-input.send.ownership
   spec_gaps:
-  - Offline outbox ordering and replay have no assertion (a proposed chats.offline-outbox.ordered-replay amendment needs user approval).
+  - Draft assertion chats.offline-outbox.ordered-replay added to feature.chats (draft); needs user approval together with the deployed changes.
   - Message preparation, preflight refusals and model choice have no dedicated assertion.
 - rank: 7
   name: ws-unit

@@ -24,3 +24,9 @@ pub fn send_prep_offline_receipt(input: &str) -> Result<String, JsValue> {
 pub fn send_prep_routing_restrictions(input: &str) -> Result<String, JsValue> {
     js(web_send_prep::routing_restrictions::model_routing_restrictions_json(input))
 }
+
+/// Replay eligibility of a deferred draft deletion (`isDeferredDeleteReplayable`).
+#[wasm_bindgen]
+pub fn send_prep_deferred_delete(input: &str) -> Result<String, JsValue> {
+    js(web_send_prep::deferred_delete::deferred_delete_replay_json(input))
+}

@@ -20,6 +20,7 @@ import { resolveDraftChatContext, isDraftChatContextCurrent } from "./drafts/dra
 import { beginOfflineSyncBatch, cancelOfflineSyncBatch, captureOfflineSyncContext,
 	isOfflineSyncContextCurrent, isOfflineSyncWorkspaceCurrent } from "./offlineSyncBatch";
 import { orderOfflineChanges } from "./offlineChangeOrder";
+import { isDeferredDeleteReplayable } from "./deferredDeleteReplay";
 
 /** Opt-in shared Rust core build: replay order is decided in the Worker `sendPrep` unit. */
 const RUST_SEND_PREP_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1";
@@ -388,11 +389,17 @@ export async function sendOfflineChangesImpl(): Promise<void> {
 			if (parseDeferredDraftDeleteId(change.change_id)) {
 				if (!(await mayReplayDeferredDraftDelete(change.change_id, change.chat_id))) continue;
 				const editor = get(draftEditorUIState);
-				if (editor.currentChatId === change.chat_id && editor.hasUnsavedChanges) continue;
 				const local = await chatDB.getRawChat(change.chat_id);
 				// A newer local draft must be accepted before its older delete can be retired.
-				if (!local || local.encrypted_draft_md || local.encrypted_draft_preview ||
-					(local.draft_v ?? 0) !== 0) continue;
+				const facts = {
+					editorOnChat: editor.currentChatId === change.chat_id,
+					editorUnsaved: !!editor.hasUnsavedChanges, localExists: !!local,
+					hasDraft: !!local?.encrypted_draft_md, hasPreview: !!local?.encrypted_draft_preview,
+					draftVersion: local?.draft_v ?? null,
+				};
+				if (!(RUST_SEND_PREP_BUILD
+					? await (await import("./rustCore/send/rustDeferredDelete")).rustIsDeferredDeleteReplayable(facts)
+					: isDeferredDeleteReplayable(facts))) continue;
 			}
 			eligible.push(change);
 		} catch { /* Keep stale-context changes queued until their workspace is active. */ }

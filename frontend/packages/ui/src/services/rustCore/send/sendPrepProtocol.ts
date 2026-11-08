@@ -28,7 +28,14 @@ export interface RoutingRestrictionsAnswer {
 	restrictions?: { disabled_ai_models: string[]; disabled_ai_servers: Record<string, string[]>; server_region_preference: 'eu' | 'global' };
 }
 
+/** Page-read facts that decide whether a queued deferred draft deletion may replay. */
+export interface DeferredDeleteFacts {
+	editorOnChat: boolean; editorUnsaved: boolean; localExists: boolean;
+	hasDraft: boolean; hasPreview: boolean; draftVersion: number | null;
+}
+
 export interface SendPrepUnitProtocol extends UnitProtocol {
+	deferredDeleteReplay: { request: DeferredDeleteFacts; response: { eligible: boolean } };
 	/** `ready`: indices into `rows` in replay order; `retained`: rows with ambiguous order. */
 	orderOffline: { request: { rows: OutboxOrderRow[] }; response: { ready: number[]; retained: number } };
 	routingRestrictions: { request: RoutingProfileFields; response: RoutingRestrictionsAnswer };
@@ -46,9 +53,10 @@ export interface SendPrepBinding {
 	send_prep_order_offline(input: string): string;
 	send_prep_offline_receipt(input: string): string;
 	send_prep_routing_restrictions(input: string): string;
+	send_prep_deferred_delete(input: string): string;
 }
 
-const BINDING_EXPORTS: readonly (keyof SendPrepBinding)[] = ['send_prep_order_offline', 'send_prep_offline_receipt', 'send_prep_routing_restrictions'];
+const BINDING_EXPORTS: readonly (keyof SendPrepBinding)[] = ['send_prep_order_offline', 'send_prep_offline_receipt', 'send_prep_routing_restrictions', 'send_prep_deferred_delete'];
 
 export function isSendPrepBinding(value: unknown): value is SendPrepBinding {
 	if (typeof value !== 'object' || value === null) return false;

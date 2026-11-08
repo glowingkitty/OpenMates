@@ -25,6 +25,7 @@ export function createSendPrepHandlers(binding: SendPrepBinding): UnitHandlers<S
 	return {
 		orderOffline: (payload) => call(payload, (json) => binding.send_prep_order_offline(json)),
 		offlineReceipt: (payload) => call(payload, (json) => binding.send_prep_offline_receipt(json)),
+		deferredDeleteReplay: (payload) => call(payload, (json) => binding.send_prep_deferred_delete(json)),
 		routingRestrictions: (payload) => call(payload, (json) => binding.send_prep_routing_restrictions(json)),
 	};
 }

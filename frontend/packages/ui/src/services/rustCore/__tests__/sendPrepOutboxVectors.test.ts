@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
 import { modelRoutingRestrictionsForTurn } from '../../modelRoutingRestrictions';
 import { orderOfflineChanges } from '../../offlineChangeOrder';
 import { decideOfflineBatchReceipt } from '../../offlineBatchReceipt';
+import { isDeferredDeleteReplayable } from '../../deferredDeleteReplay';
 import { createSendPrepHandlers } from '../send/sendPrepUnit';
 import { isSendPrepBinding, type SendPrepBinding } from '../send/sendPrepProtocol';
 import type { OfflineChange } from '../../../types/chat';
@@ -38,6 +39,15 @@ describe('offline outbox vectors', () => {
 	});
 });
 
+const deleteVectors = JSON.parse(readFileSync(resolve(__dirname, '../../../../../../../packages/openmates-rust/src/web_send_prep/ts_deferred_delete_vectors.json'), 'utf8'));
+
+describe('deferred delete replay vectors', () => {
+	// contract-test: supporting surface=gui.web assertions=chats.offline-outbox.ordered-replay
+	it('equal the TypeScript service', () => {
+		for (const c of deleteVectors) expect(isDeferredDeleteReplayable(c.input), c.name).toBe(c.eligible);
+	});
+});
+
 describe('routing restriction vectors', () => {
 	// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary
 	it('equal the TypeScript service', () => {
@@ -50,6 +60,7 @@ describe('routing restriction vectors', () => {
 
 describe('sendPrep handlers', () => {
 	const binding: SendPrepBinding = {
+		send_prep_deferred_delete: () => JSON.stringify({ eligible: true }),
 		send_prep_routing_restrictions: () => JSON.stringify({ ok: false }),
 		send_prep_order_offline: (input) => JSON.stringify({ ready: [JSON.parse(input).rows.length - 1], retained: 0 }),
 		send_prep_offline_receipt: () => { throw 'protocol'; },
@@ -61,6 +72,7 @@ describe('sendPrep handlers', () => {
 		const handlers = createSendPrepHandlers(binding);
 		const order = await handlers.orderOffline({ rows: [{ chat_id: 'a', type: 'draft' }, { chat_id: 'b', type: 'draft' }] }, undefined as never);
 		expect(order).toEqual({ ready: [1], retained: 0 });
+		expect(await handlers.deferredDeleteReplay({ editorOnChat: false, editorUnsaved: false, localExists: true, hasDraft: false, hasPreview: false, draftVersion: null }, undefined as never)).toEqual({ eligible: true });
 		expect(await handlers.routingRestrictions({}, undefined as never)).toEqual({ ok: false });
 		await expect(Promise.resolve().then(() => handlers.offlineReceipt({ changeIds: [], terminalConflictDeleteIds: [], successfulIds: [], counts: null }, undefined as never)))
 			.rejects.toMatchObject({ code: 'protocol' });

@@ -242,6 +242,10 @@ assertions:
   type: behavior
   must: Eligible personal web and TUI submissions immediately hand off the user snapshot, clear the composer and send the encrypted durable admission with transient inference intent without waiting for its acknowledgement or unrelated context discovery. Saved turn, message, task and billing identities remain idempotent. Required private context may arrive in correlated phases, missing context fails safely, and pending encrypted recovery is retained until admission and required context are acknowledged. Team human-only messages do not start AI.
   depends_on: [examples.immediate_admission]
+- id: chats.offline-outbox.ordered-replay
+  type: invariant
+  must: Changes queued while offline replay in durable insertion order per chat, Team and component (draft or title), never by version counters that reset on deletion. A group whose chronology is ambiguous (several legacy rows, legacy mixed with ordered rows, or invalid or duplicate insertion orders) stays queued instead of being guessed. A deferred draft deletion replays only while the chat has no local draft and the editor has no unsaved changes, so an older delete never overwrites a newer draft. A batch receipt retires only the rows it covers, and a late acknowledgement cannot delete a row that was replaced under the same ID. Replay is idempotent, and web decisions are identical whether made by the TypeScript or the shared Rust implementation.
+  depends_on: [examples.offline_outbox_replay]
 - id: chats.followups.main-generated-composer
   type: privacy
   must: Main inference may emit one optional contextual next-user message as trailing metadata separate from the authored answer and existing postprocessor chips. Split delimiters cannot expose metadata in visible or stored answer text. Only a successful eligible current turn delivers the suggestion; durable storage and device sync retain client ciphertext, never its plaintext, and stale sources cannot replace a newer turn's suggestion.
@@ -505,6 +509,7 @@ examples:
   - independent_metadata
   - encryption_boundary
   - identity_idempotency
+  - offline_outbox_replay
   - recovery_takeover
   - lease_fencing
   - pending_completion
