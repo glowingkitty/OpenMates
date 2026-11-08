@@ -536,6 +536,9 @@ lanes:
   - id: slice-2
     commit: 7ee4459ff5
     note: async assistant render plan wiring behind the flag
+  - id: slice-4
+    commit: b49cddac66
+    note: saved generated-image display recovery decisions (imageRecoveryParents/recoverGeneratedImages)
   size: L
   wave: A
   deps: []
