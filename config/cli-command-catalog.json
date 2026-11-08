@@ -35467,7 +35467,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/group_help.rs"
       },
       "gaps": [
-        "Bare group prints native help and exits 0; subcommands are tracked separately."
+        "Differential-verified against the npm CLI (cli-native-plans.spec.ts): exit code, normalized JSON stdout and stderr class match. Bare group prints native help and exits 0; subcommands are tracked separately."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -35569,7 +35569,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-lifecycle.spec.ts): exit code, normalized JSON stdout and stderr class match. Advanced option/output variants and isolated integration validation remain pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -35664,7 +35664,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-lifecycle.spec.ts): exit code, normalized JSON stdout and stderr class match. Advanced option/output variants and isolated integration validation remain pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -35912,7 +35912,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team scope (--team or the active Team) reads via team_id and decrypts only with the caller's exact Team or own master wrapper, skipping undecryptable Team Plans with the npm warning."
+        "Differential-verified against the npm CLI (cli-native-plans-children.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team scope (--team or the active Team) reads via team_id and decrypts only with the caller's exact Team or own master wrapper, skipping undecryptable Team Plans with the npm warning."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -36208,7 +36208,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-children-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -36440,7 +36440,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-children-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -36674,7 +36674,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-children-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -36906,7 +36906,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-children-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -37066,7 +37066,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-a.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -37122,7 +37122,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-a.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -37178,7 +37178,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-a.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -37234,7 +37234,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-a.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -37290,7 +37290,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-a.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -37346,7 +37346,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-a.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -37402,7 +37402,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-a.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -37458,7 +37458,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-a.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -37514,7 +37514,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -37570,7 +37570,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -37626,7 +37626,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -37682,7 +37682,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -37738,7 +37738,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -37794,7 +37794,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -37850,7 +37850,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -37906,7 +37906,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -37978,7 +37978,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-lifecycle.spec.ts): exit code, normalized JSON stdout and stderr class match. Advanced option/output variants and isolated integration validation remain pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -38163,7 +38163,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-children.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -38288,7 +38288,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-children.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -38539,7 +38539,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-children.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -38664,7 +38664,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-children.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -38786,7 +38786,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -38842,7 +38842,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -38898,7 +38898,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -38954,7 +38954,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39010,7 +39010,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39066,7 +39066,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39122,7 +39122,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39178,7 +39178,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39227,7 +39227,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-lifecycle.spec.ts): exit code, normalized JSON stdout and stderr class match. Advanced option/output variants and isolated integration validation remain pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39284,7 +39284,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39339,7 +39339,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39396,7 +39396,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39494,7 +39494,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans.spec.ts): exit code, normalized JSON stdout and stderr class match. Advanced option/output variants and isolated integration validation remain pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39550,7 +39550,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-a.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39606,7 +39606,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-a.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39662,7 +39662,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-a.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39718,7 +39718,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-a.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39774,7 +39774,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-a.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39830,7 +39830,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-a.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39886,7 +39886,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-a.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39942,7 +39942,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-a.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -39990,7 +39990,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans.spec.ts): exit code, normalized JSON stdout and stderr class match. Advanced option/output variants and isolated integration validation remain pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40050,7 +40050,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-children-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40110,7 +40110,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-children-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40223,7 +40223,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-children-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40281,7 +40281,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-children-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40336,7 +40336,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-children-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40392,7 +40392,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-children-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40448,7 +40448,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-children-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40506,7 +40506,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-children-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40566,7 +40566,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-children-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40626,7 +40626,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-children-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40739,7 +40739,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-children-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40797,7 +40797,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-children-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40852,7 +40852,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-children-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40908,7 +40908,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-children-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -40964,7 +40964,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-children-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -41022,7 +41022,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-children-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -41065,7 +41065,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending. Team scope (--team or the active Team) reads via team_id and decrypts only with the caller's exact Team or own master wrapper, skipping undecryptable Team Plans with the npm warning."
+        "Differential-verified against the npm CLI (cli-native-plans.spec.ts): exit code, normalized JSON stdout and stderr class match. Advanced option/output variants and isolated integration validation remain pending. Team scope (--team or the active Team) reads via team_id and decrypts only with the caller's exact Team or own master wrapper, skipping undecryptable Team Plans with the npm warning."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -41121,7 +41121,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-a.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -41177,7 +41177,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-a.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -41233,7 +41233,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-a.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -41289,7 +41289,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-a.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -41345,7 +41345,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-a.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -41401,7 +41401,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-a.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -41457,7 +41457,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-a.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -41513,7 +41513,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-a.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -41560,7 +41560,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-lifecycle.spec.ts): exit code, normalized JSON stdout and stderr class match. Advanced option/output variants and isolated integration validation remain pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -41616,7 +41616,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -41672,7 +41672,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -41728,7 +41728,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -41784,7 +41784,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -41840,7 +41840,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -41896,7 +41896,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -41952,7 +41952,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -42008,7 +42008,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -42062,7 +42062,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-lifecycle.spec.ts): exit code, normalized JSON stdout and stderr class match. Advanced option/output variants and isolated integration validation remain pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -42220,7 +42220,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Resolves the Plan, then fails like npm (command_failed) pointing at the web review page; no diff is rendered in the CLI by design.",
+        "Differential-verified against the npm CLI (cli-native-plans.spec.ts): exit code, normalized JSON stdout and stderr class match. Resolves the Plan, then fails like npm (command_failed) pointing at the web review page; no diff is rendered in the CLI by design.",
         "Live backend integration and platform verification remain open."
       ],
       "platforms": {
@@ -42276,7 +42276,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -42331,7 +42331,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -42386,7 +42386,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -42442,7 +42442,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -42498,7 +42498,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -42554,7 +42554,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -42610,7 +42610,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -42666,7 +42666,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -42722,7 +42722,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -42778,7 +42778,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -42834,7 +42834,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -42890,7 +42890,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-a.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -42946,7 +42946,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-a.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43002,7 +43002,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-a.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43058,7 +43058,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-a.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43114,7 +43114,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-a.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43170,7 +43170,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-a.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43226,7 +43226,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-a.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43282,7 +43282,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-a.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43338,7 +43338,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-a.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43394,7 +43394,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-a.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43450,7 +43450,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-a.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43506,7 +43506,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-a.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43562,7 +43562,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-a.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43618,7 +43618,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-a.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43674,7 +43674,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-a.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43730,7 +43730,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-sections-a.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43777,7 +43777,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending. Team scope (--team or the active Team) reads via team_id and decrypts only with the caller's exact Team or own master wrapper, skipping undecryptable Team Plans with the npm warning."
+        "Differential-verified against the npm CLI (cli-native-plans.spec.ts): exit code, normalized JSON stdout and stderr class match. Advanced option/output variants and isolated integration validation remain pending. Team scope (--team or the active Team) reads via team_id and decrypts only with the caller's exact Team or own master wrapper, skipping undecryptable Team Plans with the npm warning."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -43863,7 +43863,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending. Team scope (--team or the active Team) reads via team_id and decrypts only with the caller's exact Team or own master wrapper, skipping undecryptable Team Plans with the npm warning."
+        "Differential-verified against the npm CLI (cli-native-plans.spec.ts): exit code, normalized JSON stdout and stderr class match. Advanced option/output variants and isolated integration validation remain pending. Team scope (--team or the active Team) reads via team_id and decrypts only with the caller's exact Team or own master wrapper, skipping undecryptable Team Plans with the npm warning."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -44048,7 +44048,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-children.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -44173,7 +44173,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-children.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -46359,7 +46359,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans.rs"
       },
       "gaps": [
-        "Advanced option/output variants and isolated integration validation remain pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans.spec.ts): exit code, normalized JSON stdout and stderr class match. Advanced option/output variants and isolated integration validation remain pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -46536,7 +46536,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-children-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -46768,7 +46768,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/plans/children.rs"
       },
       "gaps": [
-        "Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
+        "Differential-verified against the npm CLI (cli-native-plans-children-b.spec.ts): exit code, normalized JSON stdout and stderr class match. Isolated CLI integration validation remains pending. Team-scoped use is refused before any request (team_plan_writes_unavailable) because the server accepts it only from the personal owner."
       ],
       "platforms": {
         "linux": "not_verified",
