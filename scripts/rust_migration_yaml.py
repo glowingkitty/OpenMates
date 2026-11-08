@@ -8,8 +8,10 @@ parsers of generate_rust_migration_status.py). No timestamps are written.
   python3 scripts/rust_migration_yaml.py          # rewrite overview.yml and sub-files
   python3 scripts/rust_migration_yaml.py --check  # fail on drift, schema or consistency errors
 
-performance-history.yml, web-lanes.yml and web-app-curated.yml are hand/agent-curated inputs: they
-are validated here, never rewritten.
+performance-history.yml, web-lanes.yml, web-app-curated.yml and web-port-ledger.yml are
+hand/agent-curated inputs: they are validated here, never rewritten. The web_app percent is the
+share of portable TS code lines that route to Rust under the flag (rust_web_port_ledger.py);
+overall and performance roll-ups come from rust_migration_rollup.py.
 
 Architecture: docs/architecture/platforms/rust-migration-status.md
 """
@@ -17,6 +19,7 @@ Architecture: docs/architecture/platforms/rust-migration-status.md
 from __future__ import annotations
 
 import argparse
+import functools
 import re
 import sys
 from collections import Counter, defaultdict
@@ -25,8 +28,10 @@ from pathlib import Path
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import generate_rust_migration_status as legacy  # noqa: E402
-import rust_perf_history as perf  # noqa: E402
+import generate_rust_migration_status as legacy  # noqa: E402 - needs the sys.path entry above
+import rust_migration_rollup as rollup  # noqa: E402 - needs the sys.path entry above
+import rust_perf_history as perf  # noqa: E402 - needs the sys.path entry above
+import rust_web_port_ledger as port_ledger  # noqa: E402 - needs the sys.path entry above
 
 ROOT = legacy.ROOT
 DIR = Path("docs/migration/rust")
@@ -43,12 +48,14 @@ PRIORITY = {"web_app": 1, "shared_client": 1, "cli": 2, "sdk_rust": 3, "sdk_npm"
 ORDER = ("web_app", "shared_client", "cli", "sdk_rust", "sdk_npm", "sdk_python")
 FILES = {"web_app": "web-app.yml", "shared_client": "shared-client.yml", "cli": "cli.yml",
          "sdk_rust": "sdk.yml", "sdk_npm": "sdk.yml", "sdk_python": "sdk.yml"}
-TITLES = {"web_app": "Web app (shared Rust core Worker units)", "shared_client": "Shared client-side code (Rust, non-operation SDK capabilities)",
+TITLES = {"web_app": "Web app (portable TS routed to the shared Rust core Worker)","shared_client": "Shared client-side code (Rust, non-operation SDK capabilities)",
           "cli": "CLI (native Rust, command catalog)", "sdk_rust": "Rust SDK (operation capabilities)",
           "sdk_npm": "npm SDK (operation capabilities)", "sdk_python": "Python SDK (operation capabilities)"}
-UNITS = {"web_app": "Worker namespaces", "shared_client": "capabilities", "cli": "CLI commands",
+UNITS = {"web_app": "TS code lines (portable)","shared_client": "capabilities", "cli": "CLI commands",
          "sdk_rust": "capabilities", "sdk_npm": "capabilities", "sdk_python": "capabilities"}
-DONE = {"web_app": "installer registered for the namespace",
+DONE = {"web_app": ("code line of a portable TS function (services/, utils/, stores/) that routes to the shared Rust core under "
+                    "VITE_OPENMATES_RUST_CORE and is listed in web-port-ledger.yml; functions over 80 code lines count only their "
+                    "flag decision sites"),
         "shared_client": "Rust capability status implemented (domains other than operations)",
         "cli": "command is differential-verified against the npm CLI",
         "sdk_rust": "capability status implemented in Rust (domain operations)",
@@ -227,11 +234,27 @@ def build_web_app() -> dict:
         units.append(item)
     installed = sum(1 for u in units if u["status"] == "installed")
     specs = sorted(p.name for p in (ROOT / legacy.WEB_SPECS).glob("web-rust-core-*.spec.ts"))
+    ledger, _ = ledger_measure()
     return {"schema_version": SCHEMA_VERSION, "area": "web_app",
-            "sources": [str(legacy.UNIT_REGISTRY), str(legacy.UNIT_PROTOCOL), str(CURATED), str(LANES)],
+            "sources": [str(legacy.UNIT_REGISTRY), str(legacy.UNIT_PROTOCOL), str(CURATED), str(LANES), str(port_ledger.LEDGER)],
             "flag": {"env": "VITE_OPENMATES_RUST_CORE", "default": "off", "flag_off_behavior": "original TypeScript path, byte-identical build output (guarded in CI)"},
-            "summary": counts(len(units), installed, 0, len(units) - installed),
+            "summary": web_counts(ledger),
+            "worker_namespaces_installed_not_progress": {"installed": installed, "total": len(units),
+                                                         "note": "Worker namespaces installed (not progress): a namespace can be installed while most of its TS still runs."},
+            "port_ledger": ledger,
             "e2e_specs_in_repo": specs, "lanes": lane_summary(load_lanes()), "units": units}
+
+
+@functools.cache
+def ledger_measure() -> tuple[dict, tuple[str, ...]]:
+    """web-port-ledger.yml summary and errors, computed once per process (it parses ~670 TS files)."""
+    summary, errors = port_ledger.measure(port_ledger.build_model(port_ledger.load_ledger()))
+    return summary, tuple(errors)
+
+
+def web_counts(ledger: dict) -> dict:
+    total, done = ledger["portable_code_lines"], ledger["ported_code_lines"]
+    return counts(total, done, 0, total - done)
 
 
 # --- overview + blockers ------------------------------------------------------------
@@ -245,6 +268,11 @@ def perf_blockers(history: dict) -> list[str]:
             continue
         if entry["verdict"] in BLOCKING_VERDICTS:
             out.append(f"perf gate not cleared: {flow} is {entry['verdict']} ({entry['id']})")
+    # A later entry for another metric of the same flow must not hide a metric whose latest result is rust_worse.
+    named = {line.rsplit("(", 1)[1].rstrip(")") for line in out}
+    for (flow, metric), entry in sorted(rollup.latest_by_metric(history).items()):
+        if entry["verdict"] == "rust_worse" and not flow.startswith("sdk") and entry["id"] not in named:
+            out.append(f"perf gate not cleared: {flow} {metric} is rust_worse ({entry['id']})")
     return out
 
 
@@ -264,12 +292,22 @@ def build_overview(files: dict[str, dict], history: dict) -> dict:
             blockers[key].append(f"{summaries[key]['missing']} capabilities missing")
     areas = []
     for area in ORDER:
-        areas.append({"id": area, "title": TITLES[area], "priority_rank": PRIORITY[area], "file": FILES[area], "unit": UNITS[area],
-                      **summaries[area], "done_definition": DONE[area], "blockers": blockers[area]})
+        row = {"id": area, "title": TITLES[area], "priority_rank": PRIORITY[area], "file": FILES[area], "unit": UNITS[area],
+               **summaries[area], "done_definition": DONE[area], "blockers": blockers[area]}
+        if area == "web_app":
+            row["worker_namespaces_installed_not_progress"] = {k: web["worker_namespaces_installed_not_progress"][k] for k in ("installed", "total")}
+        areas.append(row)
+    perf_block = rollup.performance(history, reference_date(web))
     return {"schema_version": SCHEMA_VERSION,
             "description": "Machine-readable Rust migration status. Priority: 1 web app + shared client code, 2 CLI, 3 SDKs. Sub-files hold the detail; performance-history.yml is the append-only measurement log.",
             "formula": FORMULA, "priority_order": list(ORDER), "performance_history": "performance-history.yml",
-            "areas": areas}
+            "overall": rollup.overall({a: summaries[a]["percent"] for a in ORDER}),
+            "areas": areas, "perf_attention": rollup.perf_attention(perf_block), "performance": perf_block}
+
+
+def reference_date(web: dict) -> str:
+    """Newest web Rust change, as the newest slice date in the port ledger."""
+    return max(s["date"] for s in web["port_ledger"]["slices"])
 
 
 def build_all() -> dict[str, dict]:
@@ -339,10 +377,14 @@ def validate(files: dict[str, dict]) -> list[str]:
         if {k: area[k] for k in keys} != {k: sub[area["id"]][k] for k in keys}:
             errors.append(f"{label}: numbers differ from {area['file']}")
         errors += check_counts(f"{area['file']} {area['id']}", sub[area["id"]])
+    errors += rollup.validate_overall(ov.get("overall", {}), {a["id"]: a["percent"] for a in areas})
     web = files["web-app.yml"]
     installed = sum(1 for u in web["units"] if u["status"] == "installed")
-    if (web["summary"]["done"], web["summary"]["total"]) != (installed, len(web["units"])):
-        errors.append("web-app.yml: summary differs from unit list")
+    if web["worker_namespaces_installed_not_progress"]["installed"] != installed or web["worker_namespaces_installed_not_progress"]["total"] != len(web["units"]):
+        errors.append("web-app.yml: worker_namespaces_installed_not_progress differs from unit list")
+    if web["summary"] != web_counts(web["port_ledger"]):
+        errors.append("web-app.yml: summary differs from port_ledger line counts")
+    errors += list(ledger_measure()[1])
     if any((u["status"] == "installed") != bool(u["installer"]) for u in web["units"]):
         errors.append("web-app.yml: status must match installer presence")
     for unit in web["units"]:

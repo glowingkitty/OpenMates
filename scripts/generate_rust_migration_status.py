@@ -335,6 +335,10 @@ def overview_section() -> list[str]:
         f"Read from `{MIGRATION_DIR}/overview.yml` (machine-readable; sub-files hold the detail). Priority 1 is the web app and shared client code, 2 the CLI, 3 the SDKs. {overview['formula']}",
         "",
         *table(["Priority", "Area", "Scope", "Done", "Partial", "Missing", "Detail file"], rows),
+        "",
+        f"**Overall: {overview['overall']['percent']}%** ({overview['overall']['formula']}; weights decided {overview['overall']['weights_decided']}). "
+        "The web_app row counts portable TypeScript code lines that route to the shared Rust core under the flag "
+        "(`docs/migration/rust/web-port-ledger.yml`), not installed Worker namespaces.",
     ]
 
 

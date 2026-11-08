@@ -7,21 +7,41 @@ formula: percent = round(100 * done / total, 1); done+partial+missing == total; 
   not how much code exists.
 priority_order: [web_app, shared_client, cli, sdk_rust, sdk_npm, sdk_python]
 performance_history: performance-history.yml
+overall:
+  percent: 26.9
+  formula: overall = round(0.4 * web_app + 0.2 * shared_client + 0.25 * cli + 0.15 * sdk, 1), sdk = mean(sdk_rust,
+    sdk_npm, sdk_python); each term is the area percent
+  weights:
+    web_app: 0.4
+    shared_client: 0.2
+    cli: 0.25
+    sdk: 0.15
+  weights_decided: '2026-11-08'
+  inputs:
+    web_app: 7.7
+    shared_client: 28.6
+    cli: 65.5
+    sdk: 11.3
 areas:
 - id: web_app
-  title: Web app (shared Rust core Worker units)
+  title: Web app (portable TS routed to the shared Rust core Worker)
   priority_rank: 1
   file: web-app.yml
-  unit: Worker namespaces
-  total: 17
-  done: 17
+  unit: TS code lines (portable)
+  total: 106311
+  done: 8153
   partial: 0
-  missing: 0
-  percent: 100.0
-  done_definition: installer registered for the namespace
+  missing: 98158
+  percent: 7.7
+  done_definition: code line of a portable TS function (services/, utils/, stores/) that routes to the shared Rust
+    core under VITE_OPENMATES_RUST_CORE and is listed in web-port-ledger.yml; functions over 80 code lines count
+    only their flag decision sites
   blockers: ['perf gate not cleared: chatRendered is inconclusive (2026-11-08-chatRendered-01)', 'perf gate not
       cleared: embedReady is inconclusive (2026-11-08-embedReady-01)', 'perf gate not cleared: rss is inconclusive
-      (2026-11-08-rss-01)']
+      (2026-11-08-rss-01)', 'perf gate not cleared: send draftSaveP95Ms is rust_worse (2026-11-08-send-02)']
+  worker_namespaces_installed_not_progress:
+    installed: 17
+    total: 17
 - id: shared_client
   title: Shared client-side code (Rust, non-operation SDK capabilities)
   priority_rank: 1
@@ -82,3 +102,307 @@ areas:
   percent: 11.3
   done_definition: capability status implemented in Python (domain operations)
   blockers: [2 capabilities missing]
+perf_attention:
+- flow: send
+  metric: draftSaveP95Ms
+  id: 2026-11-08-send-02
+  verdict: rust_worse
+  value: 2.146
+  ci95: [1.292, 7.041]
+  stale: false
+  status: under investigation (draft-save Rust path lane, 2026-11-08)
+- flow: search
+  metric: snippet text
+  verdict: not_recorded
+  note: Rust search snippets differ from the TS snippets in the search bench (functional mismatch); not yet recorded
+    in performance-history.yml.
+performance:
+  source: performance-history.yml
+  reference_date: '2026-11-08'
+  stale_rule: 'age_hours = (reference_date - entry date) * 24, reference_date = newest slice date in web-port-ledger.yml
+    (the newest web Rust change); stale when age_hours > 24. Day granularity: history entries carry dates, not times.'
+  latest_count: 23
+  stale_count: 8
+  by_verdict:
+    rust_not_worse: 13
+    inconclusive: 7
+    rust_worse: 1
+    invalid_measurement: 0
+    unverified: 2
+  latest:
+  - flow: apps
+    metric: appsFlowMs
+    id: 2026-11-06-apps-01
+    value: 0.985
+    value_kind: ratio
+    ci95: [0.92, 1.05]
+    n_pairs: null
+    verdict: rust_not_worse
+    date: '2026-11-06'
+    source_commit: null
+    age_hours: 48
+    stale: true
+  - flow: chatRendered
+    metric: chatListRenderedMs
+    id: 2026-11-07-chatRendered-10
+    value: 93
+    value_kind: delta_ms
+    ci95: null
+    n_pairs: 12
+    verdict: rust_not_worse
+    date: '2026-11-07'
+    source_commit: 13c341c23b
+    age_hours: 24
+    stale: false
+  - flow: chatRendered
+    metric: chatRenderedMs
+    id: 2026-11-08-chatRendered-01
+    value: 1.05
+    value_kind: ratio
+    ci95: [0.952, 1.151]
+    n_pairs: 12
+    verdict: inconclusive
+    date: '2026-11-08'
+    source_commit: c25f900c81f9
+    age_hours: 0
+    stale: false
+  - flow: chatRendered
+    metric: openChatMs
+    id: 2026-11-07-chatRendered-09
+    value: 103
+    value_kind: delta_ms
+    ci95: null
+    n_pairs: 12
+    verdict: rust_not_worse
+    date: '2026-11-07'
+    source_commit: bce302fe1fc5b20cbcc32984baae065f50f80f92
+    age_hours: 24
+    stale: false
+  - flow: chatRendered
+    metric: openChatWallMs
+    id: 2026-11-05-chatRendered-01
+    value: 1.0
+    value_kind: ratio
+    ci95: null
+    n_pairs: null
+    verdict: unverified
+    date: '2026-11-05'
+    source_commit: 8ab883e
+    age_hours: 72
+    stale: true
+  - flow: cpu
+    metric: browserCpuMs
+    id: 2026-11-08-cpu-01
+    value: 1.03
+    value_kind: ratio
+    ci95: [0.902, 1.132]
+    n_pairs: 12
+    verdict: rust_not_worse
+    date: '2026-11-08'
+    source_commit: c25f900c81f9
+    age_hours: 0
+    stale: false
+  - flow: cpu
+    metric: cpuMs
+    id: 2026-11-06-cpu-02
+    value: 1.046
+    value_kind: ratio
+    ci95: [0.965, 1.165]
+    n_pairs: null
+    verdict: inconclusive
+    date: '2026-11-06'
+    source_commit: null
+    age_hours: 48
+    stale: true
+  - flow: cpu
+    metric: searchCpuMs
+    id: 2026-11-07-cpu-01
+    value: null
+    value_kind: ratio
+    ci95: null
+    n_pairs: 12
+    verdict: rust_not_worse
+    date: '2026-11-07'
+    source_commit: 44cf35f
+    age_hours: 24
+    stale: false
+  - flow: embedReady
+    metric: embedReadyMs
+    id: 2026-11-08-embedReady-01
+    value: 1.085
+    value_kind: ratio
+    ci95: [0.947, 1.14]
+    n_pairs: 12
+    verdict: inconclusive
+    date: '2026-11-08'
+    source_commit: c25f900c81f9
+    age_hours: 0
+    stale: false
+  - flow: embedReady
+    metric: embedsBenchCpu
+    id: 2026-11-06-embedReady-02
+    value: 1.07
+    value_kind: ratio
+    ci95: null
+    n_pairs: null
+    verdict: unverified
+    date: '2026-11-06'
+    source_commit: 30472ca
+    age_hours: 48
+    stale: true
+  - flow: reloadMemory
+    metric: retainedBytes
+    id: 2026-11-08-reloadMemory-01
+    value: 0.12
+    value_kind: delta_mib_per_reload
+    ci95: [-0.57, 0.8]
+    n_pairs: 20
+    verdict: rust_not_worse
+    date: '2026-11-08'
+    source_commit: c25f900c81f9
+    age_hours: 0
+    stale: false
+  - flow: reloadMemory
+    metric: retainedBytes slope
+    id: 2026-11-06-reloadMemory-01
+    value: 0.16
+    value_kind: delta_mib_per_reload
+    ci95: [0.02, 0.29]
+    n_pairs: 30
+    verdict: inconclusive
+    date: '2026-11-06'
+    source_commit: c0a439f
+    age_hours: 48
+    stale: true
+  - flow: rss
+    metric: browserRssBytes
+    id: 2026-11-08-rss-01
+    value: 18.6
+    value_kind: delta_mib
+    ci95: [-9.96, 75.7]
+    n_pairs: 11
+    verdict: inconclusive
+    date: '2026-11-08'
+    source_commit: c25f900c81f9
+    age_hours: 0
+    stale: false
+  - flow: rss
+    metric: embedsBenchRss
+    id: 2026-11-06-rss-01
+    value: null
+    value_kind: delta_mib
+    ci95: null
+    n_pairs: null
+    verdict: inconclusive
+    date: '2026-11-06'
+    source_commit: 30472ca
+    age_hours: 48
+    stale: true
+  - flow: rss
+    metric: totalRssBytes
+    id: 2026-11-06-rss-02
+    value: -0.01
+    value_kind: delta_mib_per_reload
+    ci95: [-0.34, 0.34]
+    n_pairs: 16
+    verdict: rust_not_worse
+    date: '2026-11-06'
+    source_commit: 14bc6157939781cd5029c0fd176905df754a8992
+    age_hours: 48
+    stale: true
+  - flow: search
+    metric: searchRenderedMs
+    id: 2026-11-08-search-01
+    value: 1.032
+    value_kind: ratio
+    ci95: [0.974, 1.096]
+    n_pairs: 30
+    verdict: rust_not_worse
+    date: '2026-11-08'
+    source_commit: c25f900c81f9
+    age_hours: 0
+    stale: false
+  - flow: send
+    metric: draftSaveP95Ms
+    id: 2026-11-08-send-02
+    value: 2.146
+    value_kind: ratio
+    ci95: [1.292, 7.041]
+    n_pairs: 12
+    verdict: rust_worse
+    date: '2026-11-08'
+    source_commit: c25f900c81f9
+    age_hours: 0
+    stale: false
+  - flow: send
+    metric: sendBrowserCpuMs
+    id: 2026-11-08-send-03
+    value: 1.015
+    value_kind: ratio
+    ci95: [0.925, 1.109]
+    n_pairs: 15
+    verdict: rust_not_worse
+    date: '2026-11-08'
+    source_commit: c25f900c81f9
+    age_hours: 0
+    stale: false
+  - flow: send
+    metric: sendTotalMs
+    id: 2026-11-06-send-01
+    value: -900
+    value_kind: delta_ms
+    ci95: null
+    n_pairs: 5
+    verdict: inconclusive
+    date: '2026-11-06'
+    source_commit: a777600
+    age_hours: 48
+    stale: true
+  - flow: sendToAdmit
+    metric: sendToAdmitMs
+    id: 2026-11-08-sendToAdmit-02
+    value: 1.058
+    value_kind: ratio
+    ci95: [0.974, 1.074]
+    n_pairs: 15
+    verdict: rust_not_worse
+    date: '2026-11-08'
+    source_commit: c25f900c81f9
+    age_hours: 0
+    stale: false
+  - flow: uiInteractive
+    metric: uiInteractiveMs
+    id: 2026-11-08-uiInteractive-01
+    value: 1.038
+    value_kind: ratio
+    ci95: [0.98, 1.082]
+    n_pairs: 12
+    verdict: rust_not_worse
+    date: '2026-11-08'
+    source_commit: c25f900c81f9
+    age_hours: 0
+    stale: false
+  - flow: wasmInstances
+    metric: wasmInstances
+    id: 2026-11-07-wasmInstances-01
+    value: 1
+    value_kind: count
+    ci95: null
+    n_pairs: null
+    verdict: rust_not_worse
+    date: '2026-11-07'
+    source_commit: 44cf35f
+    age_hours: 24
+    stale: false
+  - flow: wasmInstances
+    metric: wasmInstantiations
+    id: 2026-11-08-wasmInstances-01
+    value: 1
+    value_kind: count
+    ci95: null
+    n_pairs: 12
+    verdict: rust_not_worse
+    date: '2026-11-08'
+    source_commit: c25f900c81f9
+    age_hours: 0
+    stale: false
