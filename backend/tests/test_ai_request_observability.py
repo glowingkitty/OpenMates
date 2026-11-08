@@ -216,3 +216,23 @@ def test_reviewed_lifecycle_gap_phases_are_supported(phase_exporter, phase):
         pass
 
     assert phase_exporter.get_finished_spans()[0].name == f"ai.{phase}"
+
+
+# contract-test: direct surface=rest_api assertions=ai-request-observability.structural-traces.content-free
+def test_every_call_site_purpose_is_a_reviewed_provider_purpose():
+    """An unreviewed purpose raises inside the provider span and aborts the whole AI task."""
+    import re
+    from pathlib import Path
+
+    from backend.shared.python_utils.tracing.ai_observability import AI_PROVIDER_PURPOSES
+
+    root = Path(__file__).resolve().parents[1]
+    used: dict[str, str] = {}
+    for path in root.rglob("*.py"):
+        if "tests" in path.parts or "scripts" in path.parts:
+            continue
+        for match in re.finditer(r'observability_purpose\s*=\s*"([a-z_]+)"', path.read_text(encoding="utf-8")):
+            used.setdefault(match.group(1), str(path.relative_to(root)))
+    assert used, "expected at least one observability_purpose call site"
+    unreviewed = {purpose: where for purpose, where in used.items() if purpose not in AI_PROVIDER_PURPOSES}
+    assert unreviewed == {}
