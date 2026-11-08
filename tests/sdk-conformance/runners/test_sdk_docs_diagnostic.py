@@ -113,8 +113,8 @@ class DocsDiagnosticTests(unittest.TestCase):
     def test_all_vectors_assertions_deadlines_credentials_cleanup_and_library_commands_preserved(
         self,
     ):
-        self.assertEqual(len(SCOPE["DOCS_VECTOR_IDS"]), 31)
-        self.assertEqual(len(set(SCOPE["DOCS_VECTOR_IDS"])), 31)
+        self.assertEqual(len(SCOPE["DOCS_VECTOR_IDS"]), 32)
+        self.assertEqual(len(set(SCOPE["DOCS_VECTOR_IDS"])), 32)
         # Formatting-independent: each statement/expression must still exist.
         assert_python_contains(
             SOURCE,

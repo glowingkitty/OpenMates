@@ -308,17 +308,17 @@ capabilities:
     status: partial
     api_symbols: 28
     conformance: true
-    gaps: 4
+    gaps: 3
   npm:
     status: partial
     api_symbols: 17
     conformance: true
-    gaps: 4
+    gaps: 3
   python:
     status: partial
     api_symbols: 11
     conformance: true
-    gaps: 4
+    gaps: 3
 - id: sdk.drafts
   domain: operations
   has_fixture: true

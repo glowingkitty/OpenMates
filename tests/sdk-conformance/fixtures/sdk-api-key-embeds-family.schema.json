@@ -54,6 +54,34 @@
             "project_key_base64": {
               "type": "string"
             },
+            "selector_projects": {
+              "description": "Plaintext personal Projects the peer encrypts and lists for non-UUID add/unlink selector ranking vectors.",
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "project_id",
+                  "name",
+                  "slug"
+                ],
+                "properties": {
+                  "project_id": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "slug": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            },
             "vectors": {
               "type": "array",
               "minItems": 22,
@@ -142,6 +170,13 @@
                   },
                   "local_timeout": {
                     "type": "boolean"
+                  },
+                  "resolved_project_id": {
+                    "description": "Project ID the selector in project_id must resolve to; null means the selector is refused locally without a Project route.",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
                   }
                 }
               }

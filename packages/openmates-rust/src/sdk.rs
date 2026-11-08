@@ -28,7 +28,17 @@ pub struct ApiKey {
     decryption_secret: Option<Zeroizing<String>>,
 }
 impl ApiKey {
+    /// Parse an explicit `sk-api-<bearer>[.<decryption secret>]` setup credential.
+    ///
+    /// # Errors
+    /// An empty or whitespace-only value is the typed missing-key refusal whose
+    /// [`Error::sdk_code`] is [`crate::error::SDK_API_KEY_REQUIRED_CODE`] (npm and
+    /// Python `OpenMatesApiKeyRequiredError.code`); any other malformed value is
+    /// `Error::Invalid` without that code.
     pub fn new(value: &str) -> Result<Self> {
+        if value.trim().is_empty() {
+            return Err(Error::Invalid(crate::error::SDK_API_KEY_REQUIRED_MESSAGE));
+        }
         let mut parts = value.split('.');
         let bearer = parts.next().ok_or(Error::Authentication)?;
         let secret = parts.next();
@@ -48,6 +58,22 @@ impl ApiKey {
             decryption_secret: secret.map(|s| Zeroizing::new(s.into())),
         })
     }
+    /// Opt-in equivalent of the npm/Python base `OpenMates` convenience: parse
+    /// the caller-configured `OPENMATES_API_KEY` environment variable. Never reads
+    /// CLI state, session files, profiles or keychains, and never falls back to
+    /// anonymous use (that stays the explicit `SdkCredentials::Anonymous`).
+    ///
+    /// # Errors
+    /// A missing, non-UTF-8, empty or whitespace-only variable is the typed
+    /// missing-key refusal ([`crate::error::SDK_API_KEY_REQUIRED_CODE`]); a
+    /// malformed key is `Error::Invalid` as in [`ApiKey::new`].
+    pub fn from_env() -> Result<Self> {
+        match std::env::var("OPENMATES_API_KEY") {
+            Ok(value) => Self::new(&value),
+            Err(_) => Err(Error::Invalid(crate::error::SDK_API_KEY_REQUIRED_MESSAGE)),
+        }
+    }
+    /// Whether the setup credential carries the local decryption suffix.
     pub fn has_decryption_secret(&self) -> bool {
         self.decryption_secret.is_some()
     }

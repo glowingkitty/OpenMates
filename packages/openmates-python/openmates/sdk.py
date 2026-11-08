@@ -1031,8 +1031,13 @@ def _resolve_project_key(client: OpenMates, project_id: str, *, personal: bool =
     return _project_key_from_record(record, _project_wrapping_key(client, context_team_id), context_team_id)
 
 
+_CANONICAL_UUID_RE = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.IGNORECASE)
+
+
 def _resolve_project_id(client: OpenMates, project_id: str, *, personal: bool = True, team_id: str | None = None) -> str:
-    if _is_uuid(project_id):
+    # Like npm (and shared Rust for embeds), only canonical hyphenated UUID text
+    # skips the lookup; braced/URN/hex-only forms are ranked like any selector.
+    if _CANONICAL_UUID_RE.fullmatch(project_id):
         return project_id
     context_team_id = _project_context(personal=personal, team_id=team_id)
     projects = client.projects.list(personal=context_team_id is None, team_id=context_team_id, include_archived=True)

@@ -69,6 +69,7 @@ DOCS_VECTOR_IDS = (
     "slug-backslash-refused-locally",
     "slug-colon-refused-locally",
     "slug-control-refused-locally",
+    "slug-oversize-utf8-bytes-refused-locally",
 )
 DOCS_ERRORS = (
     "assertion",

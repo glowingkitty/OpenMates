@@ -109,13 +109,27 @@ class DocsOracleTests(unittest.TestCase):
         )
         jsonschema.Draft202012Validator.check_schema(schema)
         jsonschema.Draft202012Validator(schema).validate(document)
-        self.assertEqual(len({v["id"] for v in SUITE["vectors"]}), 31)
+        self.assertEqual(len({v["id"] for v in SUITE["vectors"]}), 32)
 
     def test_malformed_slugs_are_refused_before_transport(self):
         local = [v for v in SUITE["vectors"] if v["id"].startswith("slug-")]
+        # 1365 three-byte characters plus two ASCII bytes: 4097 UTF-8 bytes but
+        # only 1367 code points, so a character-counting limit would accept it.
+        oversize = "界" * 1365 + "ab"
+        self.assertEqual(len(oversize.encode("utf-8")), 4097)
         self.assertEqual(
             {v["slug"] for v in local},
-            {"", "a/../b", "/absolute", "guide/", "a//b", "a\\b", "x:y", "a\n"},
+            {
+                "",
+                "a/../b",
+                "/absolute",
+                "guide/",
+                "a//b",
+                "a\\b",
+                "x:y",
+                "a\n",
+                oversize,
+            },
         )
         for v in local:
             with self.subTest(vector=v["id"]):

@@ -1556,7 +1556,7 @@
             "tests/sdk-conformance/test_api_key_foundation_contract.py"
           ],
           "gaps": [
-            "Missing-key refusal is not a shared cross-language vector: npm/Python OpenMatesClient raise the typed OPENMATES_SDK_API_KEY_REQUIRED error at construction, while Rust enforces explicit credentials by type (SdkCredentials::ApiKey; an empty ApiKey::new is Error::Invalid) without that stable code. Base OpenMates in npm/Python keeps documented keyless guest routing and the OPENMATES_API_KEY convenience, which Rust does not offer."
+            "Missing-key refusal is now one shared vector (tests/sdk-conformance/fixtures/sdk-api-key-required.json): npm/Python OpenMatesClient and Rust ApiKey::new/ApiKey::from_env refuse absent, empty and blank keys with the stable OPENMATES_SDK_API_KEY_REQUIRED code (Rust: Error::sdk_code). Open product decision, kept at the non-breaking default: base OpenMates in npm/Python still routes a keyless construction to guest use and reads the OPENMATES_API_KEY convenience, while Rust needs explicit SdkCredentials::Anonymous and an opt-in ApiKey::from_env. sdk.anonymous.execution sanctions keyless guest use, but sdk.auth.api-key-only says explicit anonymous mode is the only keyless mode; whether the base client should refuse a missing key (breaking) is unresolved."
           ],
           "status": "partial"
         },
@@ -1580,7 +1580,7 @@
             "tests/sdk-conformance/test_api_key_foundation_contract.py"
           ],
           "gaps": [
-            "Missing-key refusal is not a shared cross-language vector: npm/Python OpenMatesClient raise the typed OPENMATES_SDK_API_KEY_REQUIRED error at construction, while Rust enforces explicit credentials by type (SdkCredentials::ApiKey; an empty ApiKey::new is Error::Invalid) without that stable code. Base OpenMates in npm/Python keeps documented keyless guest routing and the OPENMATES_API_KEY convenience, which Rust does not offer."
+            "Missing-key refusal is now one shared vector (tests/sdk-conformance/fixtures/sdk-api-key-required.json): npm/Python OpenMatesClient and Rust ApiKey::new/ApiKey::from_env refuse absent, empty and blank keys with the stable OPENMATES_SDK_API_KEY_REQUIRED code (Rust: Error::sdk_code). Open product decision, kept at the non-breaking default: base OpenMates in npm/Python still routes a keyless construction to guest use and reads the OPENMATES_API_KEY convenience, while Rust needs explicit SdkCredentials::Anonymous and an opt-in ApiKey::from_env. sdk.anonymous.execution sanctions keyless guest use, but sdk.auth.api-key-only says explicit anonymous mode is the only keyless mode; whether the base client should refuse a missing key (breaking) is unresolved."
           ],
           "status": "partial"
         },
@@ -1600,6 +1600,9 @@
             "client.ClientOptions.interactive",
             "sdk",
             "sdk.ApiKey",
+            "error.Error.sdk_code",
+            "error.SDK_API_KEY_REQUIRED_CODE",
+            "sdk.ApiKey.from_env",
             "sdk.ApiKey.has_decryption_secret",
             "sdk.ApiKey.new",
             "sdk.OpenMates",
@@ -1621,11 +1624,12 @@
           "conformance": true,
           "evidence": [
             "packages/openmates-rust/tests/sdk_api_key_cli_login_isolation.rs",
+            "packages/openmates-rust/tests/sdk_api_key_required.rs",
             "tests/sdk-conformance/runners/api-key-foundation.py",
             "tests/sdk-conformance/test_api_key_foundation_contract.py"
           ],
           "gaps": [
-            "Missing-key refusal is not a shared cross-language vector: npm/Python OpenMatesClient raise the typed OPENMATES_SDK_API_KEY_REQUIRED error at construction, while Rust enforces explicit credentials by type (SdkCredentials::ApiKey; an empty ApiKey::new is Error::Invalid) without that stable code. Base OpenMates in npm/Python keeps documented keyless guest routing and the OPENMATES_API_KEY convenience, which Rust does not offer."
+            "Missing-key refusal is now one shared vector (tests/sdk-conformance/fixtures/sdk-api-key-required.json): npm/Python OpenMatesClient and Rust ApiKey::new/ApiKey::from_env refuse absent, empty and blank keys with the stable OPENMATES_SDK_API_KEY_REQUIRED code (Rust: Error::sdk_code). Open product decision, kept at the non-breaking default: base OpenMates in npm/Python still routes a keyless construction to guest use and reads the OPENMATES_API_KEY convenience, while Rust needs explicit SdkCredentials::Anonymous and an opt-in ApiKey::from_env. sdk.anonymous.execution sanctions keyless guest use, but sdk.auth.api-key-only says explicit anonymous mode is the only keyless mode; whether the base client should refuse a missing key (breaking) is unresolved."
           ],
           "status": "partial"
         }
@@ -1794,7 +1798,6 @@
           ],
           "gaps": [
             "Existing SDK /v1/sdk/docs route availability/server behavior is not established by synthetic fixture; no server route/protocol added.",
-            "Oversized (>4096-byte) slug refusal mirrors shared Rust in the npm/Python facades but has no shared vector; the other malformed-slug classes are fixture-proved.",
             "Malformed successful JSON, redirect, transport cancellation, oversize response and live error/ACL behavior inherit existing transport policies and are not full cross-language proved by this fixture.",
             "CPU and runtime performance acceptance mandatory and unrun."
           ],
@@ -1820,7 +1823,6 @@
           ],
           "gaps": [
             "Existing SDK /v1/sdk/docs route availability/server behavior is not established by synthetic fixture; no server route/protocol added.",
-            "Oversized (>4096-byte) slug refusal mirrors shared Rust in the npm/Python facades but has no shared vector; the other malformed-slug classes are fixture-proved.",
             "Malformed successful JSON, redirect, transport cancellation, oversize response and live error/ACL behavior inherit existing transport policies and are not full cross-language proved by this fixture.",
             "CPU and runtime performance acceptance mandatory and unrun."
           ],
@@ -1863,7 +1865,6 @@
           ],
           "gaps": [
             "Existing SDK /v1/sdk/docs route availability/server behavior is not established by synthetic fixture; no server route/protocol added.",
-            "Oversized (>4096-byte) slug refusal mirrors shared Rust in the npm/Python facades but has no shared vector; the other malformed-slug classes are fixture-proved.",
             "Malformed successful JSON, redirect, transport cancellation, oversize response and live error/ACL behavior inherit existing transport policies and are not full cross-language proved by this fixture.",
             "CPU and runtime performance acceptance mandatory and unrun."
           ],
@@ -2025,7 +2026,7 @@
           ],
           "gaps": [
             "All Rust typechecks, unit tests, direct-library execution and matching CPU/end-to-end performance remain unproved; measured slowdown blocks acceptance.",
-            "Real Project add/unlink routes are cookie-only and reject API keys; no ambient cookie/session fallback is permitted. npm/Python resolve non-UUID add/unlink selectors with exact-id, case-insensitive id-prefix, slug, then normalized-name precedence, whereas shared Rust accepts a single slug/exact-name/case-sensitive-prefix match and every Uuid::parse_str form; no shared non-UUID selector vector exists.",
+            "Real Project add/unlink routes are cookie-only and reject API keys; no ambient cookie/session fallback is permitted. (Non-UUID add/unlink selector ranking is aligned: all three SDKs use exact-id, case-insensitive id-prefix, slug, then normalized-name precedence and treat only hyphenated canonical UUID text as a direct id, proved by the selector vectors in sdk-api-key-embeds-family.json.)",
             "Read and family synthetic vectors do not establish real backend owner/ACL enforcement, project mutation operability, full transport cancellation/redirect/oversize behavior, account races, or npm/Python public local cancellation parity."
           ],
           "status": "partial"
@@ -2071,7 +2072,7 @@
           ],
           "gaps": [
             "All Rust typechecks, unit tests, direct-library execution and matching CPU/end-to-end performance remain unproved; measured slowdown blocks acceptance.",
-            "Real Project add/unlink routes are cookie-only and reject API keys; no ambient cookie/session fallback is permitted. npm/Python resolve non-UUID add/unlink selectors with exact-id, case-insensitive id-prefix, slug, then normalized-name precedence, whereas shared Rust accepts a single slug/exact-name/case-sensitive-prefix match and every Uuid::parse_str form; no shared non-UUID selector vector exists.",
+            "Real Project add/unlink routes are cookie-only and reject API keys; no ambient cookie/session fallback is permitted. (Non-UUID add/unlink selector ranking is aligned: all three SDKs use exact-id, case-insensitive id-prefix, slug, then normalized-name precedence and treat only hyphenated canonical UUID text as a direct id, proved by the selector vectors in sdk-api-key-embeds-family.json.)",
             "Read and family synthetic vectors do not establish real backend owner/ACL enforcement, project mutation operability, full transport cancellation/redirect/oversize behavior, account races, or npm/Python public local cancellation parity."
           ],
           "status": "partial"
@@ -2111,7 +2112,7 @@
           ],
           "gaps": [
             "All Rust typechecks, unit tests, direct-library execution and matching CPU/end-to-end performance remain unproved; measured slowdown blocks acceptance.",
-            "Real Project add/unlink routes are cookie-only and reject API keys; no ambient cookie/session fallback is permitted. npm/Python resolve non-UUID add/unlink selectors with exact-id, case-insensitive id-prefix, slug, then normalized-name precedence, whereas shared Rust accepts a single slug/exact-name/case-sensitive-prefix match and every Uuid::parse_str form; no shared non-UUID selector vector exists.",
+            "Real Project add/unlink routes are cookie-only and reject API keys; no ambient cookie/session fallback is permitted. (Non-UUID add/unlink selector ranking is aligned: all three SDKs use exact-id, case-insensitive id-prefix, slug, then normalized-name precedence and treat only hyphenated canonical UUID text as a direct id, proved by the selector vectors in sdk-api-key-embeds-family.json.)",
             "Read and family synthetic vectors do not establish real backend owner/ACL enforcement, project mutation operability, full transport cancellation/redirect/oversize behavior, account races, or npm/Python public local cancellation parity."
           ],
           "status": "partial"
@@ -2132,7 +2133,7 @@
           ],
           "gaps": [
             "All Rust typechecks, unit tests, direct-library execution and matching CPU/end-to-end performance remain unproved; measured slowdown blocks acceptance.",
-            "Real Project add/unlink routes are cookie-only and reject API keys; no ambient cookie/session fallback is permitted. npm/Python resolve non-UUID add/unlink selectors with exact-id, case-insensitive id-prefix, slug, then normalized-name precedence, whereas shared Rust accepts a single slug/exact-name/case-sensitive-prefix match and every Uuid::parse_str form; no shared non-UUID selector vector exists.",
+            "Real Project add/unlink routes are cookie-only and reject API keys; no ambient cookie/session fallback is permitted. (Non-UUID add/unlink selector ranking is aligned: all three SDKs use exact-id, case-insensitive id-prefix, slug, then normalized-name precedence and treat only hyphenated canonical UUID text as a direct id, proved by the selector vectors in sdk-api-key-embeds-family.json.)",
             "Read and family synthetic vectors do not establish real backend owner/ACL enforcement, project mutation operability, full transport cancellation/redirect/oversize behavior, account races, or npm/Python public local cancellation parity."
           ],
           "status": "partial"
@@ -2145,7 +2146,7 @@
           ],
           "gaps": [
             "All Rust typechecks, unit tests, direct-library execution and matching CPU/end-to-end performance remain unproved; measured slowdown blocks acceptance.",
-            "Real Project add/unlink routes are cookie-only and reject API keys; no ambient cookie/session fallback is permitted. npm/Python resolve non-UUID add/unlink selectors with exact-id, case-insensitive id-prefix, slug, then normalized-name precedence, whereas shared Rust accepts a single slug/exact-name/case-sensitive-prefix match and every Uuid::parse_str form; no shared non-UUID selector vector exists.",
+            "Real Project add/unlink routes are cookie-only and reject API keys; no ambient cookie/session fallback is permitted. (Non-UUID add/unlink selector ranking is aligned: all three SDKs use exact-id, case-insensitive id-prefix, slug, then normalized-name precedence and treat only hyphenated canonical UUID text as a direct id, proved by the selector vectors in sdk-api-key-embeds-family.json.)",
             "Read and family synthetic vectors do not establish real backend owner/ACL enforcement, project mutation operability, full transport cancellation/redirect/oversize behavior, account races, or npm/Python public local cancellation parity."
           ],
           "status": "partial"
@@ -2158,7 +2159,7 @@
           ],
           "gaps": [
             "All Rust typechecks, unit tests, direct-library execution and matching CPU/end-to-end performance remain unproved; measured slowdown blocks acceptance.",
-            "Real Project add/unlink routes are cookie-only and reject API keys; no ambient cookie/session fallback is permitted. npm/Python resolve non-UUID add/unlink selectors with exact-id, case-insensitive id-prefix, slug, then normalized-name precedence, whereas shared Rust accepts a single slug/exact-name/case-sensitive-prefix match and every Uuid::parse_str form; no shared non-UUID selector vector exists.",
+            "Real Project add/unlink routes are cookie-only and reject API keys; no ambient cookie/session fallback is permitted. (Non-UUID add/unlink selector ranking is aligned: all three SDKs use exact-id, case-insensitive id-prefix, slug, then normalized-name precedence and treat only hyphenated canonical UUID text as a direct id, proved by the selector vectors in sdk-api-key-embeds-family.json.)",
             "Read and family synthetic vectors do not establish real backend owner/ACL enforcement, project mutation operability, full transport cancellation/redirect/oversize behavior, account races, or npm/Python public local cancellation parity."
           ],
           "status": "partial"

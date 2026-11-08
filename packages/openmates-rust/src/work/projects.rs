@@ -71,6 +71,8 @@ pub use remote_command_stop::REMOTE_COMMAND_FOCUS_INACTIVE;
 mod remote_files;
 pub use remote_files::{ProjectFileOperation, ProjectRequesterError, remote_error_message, safe_relative_path, select_source};
 mod items;
+mod selector;
+pub(crate) use selector::is_canonical_uuid;
 mod workflow_files;
 pub use workflow_files::{
     WorkflowAttachOptions, WorkflowAttachResult, WorkflowFileSaveStatus, WorkflowRemoteFileResult,
@@ -225,8 +227,9 @@ impl<'a> Projects<'a> {
             .map(|p| p.public)
             .collect())
     }
+    /// Project id and key for a public SDK embed add/unlink selector, ranked like npm.
     pub(crate) async fn sdk_embed_link_context(&mut self, selector: &str) -> Result<(String, Key)> {
-        let project = self.resolve(selector).await?;
+        let project = self.resolve_sdk_selector(selector).await?;
         Ok((string(&project.raw, "project_id")?.to_owned(), project.key))
     }
     pub async fn show(&mut self, id: &str) -> Result<Value> {
