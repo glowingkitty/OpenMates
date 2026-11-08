@@ -214,3 +214,55 @@ def test_pdf_still_processing_after_maximum_hold_does_not_answer():
 # contract-test: supporting surface=rest_api assertions=pdf-processing.readiness.complete-before-answer
 def test_non_pdf_embeds_never_hold_the_turn():
     assert _run_gate({"img1": _embed("processing", kind="image")}) == []
+
+
+class _RecordingS3:
+    def __init__(self, fail_key: str | None = None):
+        self.fail_key = fail_key
+        self.in_flight = 0
+        self.max_in_flight = 0
+        self.uploaded: dict = {}
+
+    async def upload_file(self, *, bucket_key, file_key, content, content_type):
+        self.in_flight += 1
+        self.max_in_flight = max(self.max_in_flight, self.in_flight)
+        try:
+            await asyncio.sleep(0.01)
+            if file_key == self.fail_key:
+                raise RuntimeError("storage unavailable")
+            self.uploaded[file_key] = content
+        finally:
+            self.in_flight -= 1
+
+
+def _aesgcm():
+    import os
+
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+    return AESGCM(os.urandom(32))
+
+
+# contract-test: supporting surface=rest_api assertions=pdf-processing.privacy.encrypted-artefacts
+def test_artefacts_are_stored_in_parallel_encrypted_and_in_order():
+    from backend.apps.pdf.services.pdf_pipeline import MAX_CONCURRENT_UPLOADS, _encrypt_upload_all
+
+    s3, aesgcm, created = _RecordingS3(), _aesgcm(), []
+    items = [(f"image {i}".encode(), f"k{i}") for i in range(20)]
+    keys = asyncio.run(_encrypt_upload_all(s3, aesgcm, items, created))
+    assert keys == [k for _d, k in items]
+    assert sorted(created) == sorted(keys)
+    assert 1 < s3.max_in_flight <= MAX_CONCURRENT_UPLOADS
+    stored = s3.uploaded["k3"]
+    assert b"image 3" not in stored and aesgcm.decrypt(stored[:12], stored[12:], None) == b"image 3"
+
+
+# contract-test: supporting surface=rest_api assertions=pdf-processing.billing.refund-on-failure
+def test_failed_artefact_upload_fails_the_run_and_every_started_key_is_cleaned_up():
+    from backend.apps.pdf.services.pdf_pipeline import _encrypt_upload_all
+
+    s3, created = _RecordingS3(fail_key="k2"), []
+    items = [(b"x", f"k{i}") for i in range(12)]
+    with pytest.raises(RuntimeError, match="storage unavailable"):
+        asyncio.run(_encrypt_upload_all(s3, _aesgcm(), items, created))
+    assert set(s3.uploaded) <= set(created) and "k2" in created

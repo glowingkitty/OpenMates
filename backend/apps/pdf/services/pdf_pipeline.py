@@ -7,7 +7,7 @@
 #   2. In parallel: text-layer markdown, chunked OCR for scanned pages, unique image extraction.
 #   3. In parallel: Jev prompt-injection scores for every page, Jev image decisions for
 #      extracted images / scanned pages / the page-1 preview, and the table of contents.
-#   4. Encrypt and store allowed artefacts and the page blob.
+#   4. Encrypt and store allowed artefacts (in parallel) and the page blob.
 #
 # The embed is only reported "finished" by the caller after this function returns, i.e. after
 # every page is final. The assistant is held until then (spec: readiness.complete-before-answer).
@@ -54,6 +54,9 @@ logger = logging.getLogger(__name__)
 PDF_S3_BUCKET = "chatfiles"
 WHOLE_DOCUMENT_TOKEN_LIMIT = 30_000
 TOC_TIMEOUT_SECONDS = 40.0
+# Each stored artefact is a put plus a tombstone check and a replication-outbox row in the CMS
+# (~0.4 s); one at a time that was ~21 s for a 55-image manual, so uploads run in parallel.
+MAX_CONCURRENT_UPLOADS = 8
 
 
 class PdfRejectedError(RuntimeError):
@@ -91,14 +94,34 @@ async def _encrypt_upload(
 ) -> str:
     # A fresh 96-bit nonce per artefact, prepended to the ciphertext (see docs/architecture/pdf-encryption.md).
     nonce = os.urandom(12)
+    # Recorded before the write so failure cleanup also covers an upload cancelled mid-flight.
+    created.append(s3_key)
     await s3_service.upload_file(
         bucket_key=PDF_S3_BUCKET,
         file_key=s3_key,
         content=nonce + aesgcm.encrypt(nonce, data, None),
         content_type="application/octet-stream",
     )
-    created.append(s3_key)
     return s3_key
+
+
+async def _encrypt_upload_all(
+    s3_service: Any, aesgcm: AESGCM, items: List[tuple[bytes, str]], created: List[str]
+) -> List[str]:
+    """Store every (data, key) concurrently; returns keys in input order. Any failure cancels the rest."""
+    semaphore = asyncio.Semaphore(MAX_CONCURRENT_UPLOADS)
+
+    async def _one(data: bytes, s3_key: str) -> str:
+        async with semaphore:
+            return await _encrypt_upload(s3_service, aesgcm, data, s3_key, created)
+
+    try:
+        async with asyncio.TaskGroup() as group:
+            tasks = [group.create_task(_one(data, s3_key)) for data, s3_key in items]
+    except* Exception as failure:
+        # Surface the first failure itself so the task's retry/refund handling sees its real type.
+        raise failure.exceptions[0]
+    return [t.result() for t in tasks]
 
 
 async def _table_of_contents(
@@ -218,18 +241,18 @@ async def run_pipeline(
     unique = uuid.uuid4().hex[:8]
     base = f"chatfiles/{user_id}/{timestamp}_{unique}_pdf_{embed_id[:8]}"
 
-    screenshot_keys: Dict[str, str] = {}
+    uploads: List[tuple[bytes, str]] = []
     if preview_png is not None and decisions["preview_page_1"].outcome == "allowed":
-        screenshot_keys["1"] = await _encrypt_upload(
-            s3_service, output_aesgcm, preview_png, f"{base}_p1.png.bin", created_s3_keys
-        )
-
-    image_keys: List[str] = []
+        uploads.append((preview_png, f"{base}_p1.png.bin"))
+    store_preview = bool(uploads)
     for key, (page_number, data) in extracted_images.items():
         if decisions[key].outcome == "allowed":
-            image_keys.append(await _encrypt_upload(
-                s3_service, output_aesgcm, data, f"{base}_p{page_number}_{key.split('_', 1)[1]}.bin", created_s3_keys
-            ))
+            uploads.append((data, f"{base}_p{page_number}_{key.split('_', 1)[1]}.bin"))
+    started = time.monotonic()
+    stored = await _encrypt_upload_all(s3_service, output_aesgcm, uploads, created_s3_keys)
+    logger.info("%s Stored %d artefacts in %.1fs", log_prefix, len(stored), time.monotonic() - started)
+    screenshot_keys: Dict[str, str] = {"1": stored[0]} if store_preview else {}
+    image_keys: List[str] = stored[len(screenshot_keys):]
 
     per_page_tokens: Dict[str, int] = {}
     blob_pages: Dict[str, Any] = {}
