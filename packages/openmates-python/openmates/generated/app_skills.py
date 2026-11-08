@@ -5944,9 +5944,9 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                  'PDF document. Use when the user asks what a PDF says, wants you to summarise '
                  'sections, or requests information that is likely textual (paragraphs, tables, '
                  'headings). The embed TOON content includes a TOC and per-page token estimates — '
-                 'use them to select the most relevant pages. Limits output to 50 000 tokens; call '
-                 'again for remaining pages if needed. Pass the exact embed_ref (original '
-                 'filename) from the toon block —',
+                 'use them to select the most relevant pages. When the embed says '
+                 'whole_document_readable, call without pages to read the whole small document '
+                 '(about 30 000 tokens or less) in one result',
   'description_key': 'pdf.read.description',
   'schema': {'properties': {'file_path': {'description': 'The original filename of the PDF (e.g. '
                                                          '"report.pdf"). Use the exact embed_ref '
@@ -5957,7 +5957,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                           'type': 'string'},
                             'pages': {'description': '1-indexed page numbers to read (e.g. [1, 2, '
                                                      '3]). If omitted, reads from page 1 onwards '
-                                                     'up to the token budget.',
+                                                     'up to the token budget; a small document '
+                                                     '(whole_document_readable) is returned whole.',
                                       'items': {'type': 'integer'},
                                       'type': 'array'}},
              'required': ['file_path'],
@@ -5969,11 +5970,12 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'app_namespace_py': 'pdf',
   'app_namespace_ts': 'pdf',
   'description': 'Search for specific text, keywords, or phrases across all pages of an uploaded '
-                 'PDF. Returns matching text blocks with surrounding context and page numbers. Use '
+                 'PDF. Pages are ranked by BM25 keyword relevance (best first, top pages may be '
+                 're-ranked by a decision model); each result has the page number, rank, score and '
+                 'a context snippet. Exact short strings such as part numbers still match. Use '
                  'when the user asks to find where something is mentioned in the document, or when '
-                 'a targeted keyword search is faster than reading entire sections. No LLM call '
-                 'required — pure text search over the OCR data. Pass the exact embed_ref '
-                 '(original filename) from the toon block as file_path.',
+                 'a targeted keyword search is faster than reading entire sections. Pass the exact '
+                 'embed_ref (original fil',
   'description_key': 'pdf.search.description',
   'schema': {'properties': {'context_chars': {'description': 'Number of characters of surrounding '
                                                              'context to include per match '
@@ -5984,8 +5986,9 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                          'The server resolves all cryptographic '
                                                          'and storage details automatically.\n',
                                           'type': 'string'},
-                            'query': {'description': 'The search query string (case-insensitive '
-                                                     'substring match).',
+                            'query': {'description': 'The search query (keywords or a phrase). '
+                                                     'Pages are ranked by BM25 keyword relevance, '
+                                                     'best first.',
                                       'type': 'string'}},
              'required': ['file_path', 'query'],
              'type': 'object'},
@@ -9665,7 +9668,7 @@ class PdfAppSkills:
         self._run_skill = run_skill
 
     def read(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Load and read the raw text content (markdown) of specific pages from an uploaded PDF document. Use when the user asks what a PDF says, wants you to summarise sections, or requests information that is likely textual (paragraphs, tables, headings). The embed TOON content includes a TOC and per-page token estimates — use them to select the most relevant pages. Limits output to 50 000 tokens; call again for remaining pages if needed. Pass the exact embed_ref (original filename) from the toon block —
+        """Load and read the raw text content (markdown) of specific pages from an uploaded PDF document. Use when the user asks what a PDF says, wants you to summarise sections, or requests information that is likely textual (paragraphs, tables, headings). The embed TOON content includes a TOC and per-page token estimates — use them to select the most relevant pages. When the embed says whole_document_readable, call without pages to read the whole small document (about 30 000 tokens or less) in one result
 
         Description key: pdf.read.description
         Skill: pdf/read
@@ -9673,7 +9676,7 @@ class PdfAppSkills:
         return self._run_skill("pdf", "read", input_data, prompt_injection_protection=prompt_injection_protection)
 
     def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Search for specific text, keywords, or phrases across all pages of an uploaded PDF. Returns matching text blocks with surrounding context and page numbers. Use when the user asks to find where something is mentioned in the document, or when a targeted keyword search is faster than reading entire sections. No LLM call required — pure text search over the OCR data. Pass the exact embed_ref (original filename) from the toon block as file_path.
+        """Search for specific text, keywords, or phrases across all pages of an uploaded PDF. Pages are ranked by BM25 keyword relevance (best first, top pages may be re-ranked by a decision model); each result has the page number, rank, score and a context snippet. Exact short strings such as part numbers still match. Use when the user asks to find where something is mentioned in the document, or when a targeted keyword search is faster than reading entire sections. Pass the exact embed_ref (original fil
 
         Description key: pdf.search.description
         Skill: pdf/search

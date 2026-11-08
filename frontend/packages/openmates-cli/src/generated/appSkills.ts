@@ -6332,7 +6332,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "pdf",
     "skill_method_py": "read",
     "description_key": "pdf.read.description",
-    "description": "Load and read the raw text content (markdown) of specific pages from an uploaded PDF document. Use when the user asks what a PDF says, wants you to summarise sections, or requests information that is likely textual (paragraphs, tables, headings). The embed TOON content includes a TOC and per-page token estimates \u2014 use them to select the most relevant pages. Limits output to 50 000 tokens; call again for remaining pages if needed. Pass the exact embed_ref (original filename) from the toon block \u2014",
+    "description": "Load and read the raw text content (markdown) of specific pages from an uploaded PDF document. Use when the user asks what a PDF says, wants you to summarise sections, or requests information that is likely textual (paragraphs, tables, headings). The embed TOON content includes a TOC and per-page token estimates \u2014 use them to select the most relevant pages. When the embed says whole_document_readable, call without pages to read the whole small document (about 30 000 tokens or less) in one result",
     "schema": {
       "type": "object",
       "properties": {
@@ -6342,7 +6342,7 @@ export const APP_SKILL_METADATA = [
         },
         "pages": {
           "type": "array",
-          "description": "1-indexed page numbers to read (e.g. [1, 2, 3]). If omitted, reads from page 1 onwards up to the token budget.",
+          "description": "1-indexed page numbers to read (e.g. [1, 2, 3]). If omitted, reads from page 1 onwards up to the token budget; a small document (whole_document_readable) is returned whole.",
           "items": {
             "type": "integer"
           }
@@ -6361,7 +6361,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "pdf",
     "skill_method_py": "search",
     "description_key": "pdf.search.description",
-    "description": "Search for specific text, keywords, or phrases across all pages of an uploaded PDF. Returns matching text blocks with surrounding context and page numbers. Use when the user asks to find where something is mentioned in the document, or when a targeted keyword search is faster than reading entire sections. No LLM call required \u2014 pure text search over the OCR data. Pass the exact embed_ref (original filename) from the toon block as file_path.",
+    "description": "Search for specific text, keywords, or phrases across all pages of an uploaded PDF. Pages are ranked by BM25 keyword relevance (best first, top pages may be re-ranked by a decision model); each result has the page number, rank, score and a context snippet. Exact short strings such as part numbers still match. Use when the user asks to find where something is mentioned in the document, or when a targeted keyword search is faster than reading entire sections. Pass the exact embed_ref (original fil",
     "schema": {
       "type": "object",
       "properties": {
@@ -6371,7 +6371,7 @@ export const APP_SKILL_METADATA = [
         },
         "query": {
           "type": "string",
-          "description": "The search query string (case-insensitive substring match)."
+          "description": "The search query (keywords or a phrase). Pages are ranked by BM25 keyword relevance, best first."
         },
         "context_chars": {
           "type": "integer",
@@ -10001,7 +10001,7 @@ export class PdfAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Load and read the raw text content (markdown) of specific pages from an uploaded PDF document. Use when the user asks what a PDF says, wants you to summarise sections, or requests information that is likely textual (paragraphs, tables, headings). The embed TOON content includes a TOC and per-page token estimates — use them to select the most relevant pages. Limits output to 50 000 tokens; call again for remaining pages if needed. Pass the exact embed_ref (original filename) from the toon block —
+   * Load and read the raw text content (markdown) of specific pages from an uploaded PDF document. Use when the user asks what a PDF says, wants you to summarise sections, or requests information that is likely textual (paragraphs, tables, headings). The embed TOON content includes a TOC and per-page token estimates — use them to select the most relevant pages. When the embed says whole_document_readable, call without pages to read the whole small document (about 30 000 tokens or less) in one result
    * Description key: pdf.read.description
    * Skill: pdf/read
    */
@@ -10009,7 +10009,7 @@ export class PdfAppSkills {
     return this.runSkill<T>("pdf", "read", input, options);
   }
   /**
-   * Search for specific text, keywords, or phrases across all pages of an uploaded PDF. Returns matching text blocks with surrounding context and page numbers. Use when the user asks to find where something is mentioned in the document, or when a targeted keyword search is faster than reading entire sections. No LLM call required — pure text search over the OCR data. Pass the exact embed_ref (original filename) from the toon block as file_path.
+   * Search for specific text, keywords, or phrases across all pages of an uploaded PDF. Pages are ranked by BM25 keyword relevance (best first, top pages may be re-ranked by a decision model); each result has the page number, rank, score and a context snippet. Exact short strings such as part numbers still match. Use when the user asks to find where something is mentioned in the document, or when a targeted keyword search is faster than reading entire sections. Pass the exact embed_ref (original fil
    * Description key: pdf.search.description
    * Skill: pdf/search
    */

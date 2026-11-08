@@ -11352,6 +11352,49 @@ def _enforce_embed_registry_validation(files: list[str], *, checkout_root: Path 
     print("Embed registry: PASSED")
 
 
+def _should_check_generated_sdk_app_skills(files: list[str]) -> bool:
+    """Return True when changed files can make generated SDK app skills stale."""
+    return any(
+        (f.startswith("backend/apps/") and f.endswith("/app.yml"))
+        or f in {"scripts/generate_sdk_app_skills.py", "scripts/generate_rust_sdk_apps.py"}
+        for f in files
+    )
+
+
+def _enforce_generated_sdk_app_skills(files: list[str], *, checkout_root: Path | None = None) -> None:
+    """Refuse deploys whose app.yml edits leave npm/Python/Rust SDK outputs stale.
+
+    The strict sdk-conformance gate (check_generated) fails on this drift; this
+    cheap pre-deploy check catches it at the commit that introduces it.
+    """
+    if not _should_check_generated_sdk_app_skills(files):
+        return
+    root = checkout_root or CONTROL_PLANE_ROOT
+    env = dict(os.environ)
+    # The Rust generator formats with rustfmt; rustup installs it in ~/.cargo/bin.
+    env["PATH"] = env.get("PATH", "") + os.pathsep + str(Path.home() / ".cargo" / "bin")
+    print("Checking generated SDK app skills against app.yml metadata...")
+    for script in ("scripts/generate_sdk_app_skills.py", "scripts/generate_rust_sdk_apps.py"):
+        result = subprocess.run(
+            [sys.executable, script, "--check"],
+            cwd=str(root),
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=180,
+        )
+        if result.returncode != 0:
+            print("GENERATED SDK APP SKILLS STALE — aborting deploy:", file=sys.stderr)
+            print((result.stdout + result.stderr).strip(), file=sys.stderr)
+            print(
+                "Regenerate with: python3 scripts/generate_sdk_app_skills.py && "
+                "python3 scripts/generate_rust_sdk_apps.py",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+    print("Generated SDK app skills: PASSED")
+
+
 def _run_sdk_cleartext_audit(
     command: list[str],
     *,
@@ -11538,6 +11581,7 @@ def _run_deploy_gates(
         _run_specification_gate(files, session_id=session_id, checkout_root=checkout_root)
 
     _enforce_embed_registry_validation(files, checkout_root=checkout_root)
+    _enforce_generated_sdk_app_skills(files, checkout_root=checkout_root)
 
     lint_flags = _get_lint_flags(files)
     if lint_flags and not no_verify:
@@ -12967,6 +13011,7 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     _run_specification_gate(to_commit, session_id=sid, checkout_root=PROJECT_ROOT)
 
     _enforce_embed_registry_validation(to_commit)
+    _enforce_generated_sdk_app_skills(to_commit)
 
     # 1. Run linter (with CSS/HTML support and longer timeout)
     no_verify = getattr(args, "no_verify", False)
