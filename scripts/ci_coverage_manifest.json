@@ -941,6 +941,7 @@
         "notification-email-links.spec.ts",
         "chat-sidebar-projects.spec.ts",
         "maps-discovery-sdk.spec.ts",
+        "sdk-live-work-crud.spec.ts",
         "maps-opening-hours.spec.ts",
         "cli-project-focus-settings.spec.ts",
         "jev-project-context-api.spec.ts",

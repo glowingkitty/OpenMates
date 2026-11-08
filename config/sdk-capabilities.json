@@ -2410,7 +2410,8 @@
           ],
           "gaps": [
             "Matching direct SDK CPU-processing benchmark against TypeScript is absent; Rust must be at least as fast for comparable work. Network/process latency cannot satisfy this blocker.",
-            "Numeric input and error-boundary parity remain incomplete; synthetic history does not establish live ACL enforcement, transactional undo safety or full race/cancellation behavior."
+            "Numeric input and error-boundary parity remain incomplete; synthetic history does not establish live ACL enforcement, transactional undo safety or full race/cancellation behavior.",
+            "Live isolated-CI proof (frontend/apps/web_app/tests/sdk-live-work-crud.spec.ts, GitHub run 42467161114): history.list for a Project, Task and Plan with an approved API-key device is refused 403 forbidden identically in Rust, npm and Python, because the backend API-key route policy does not classify /v1/workspace/history (developer_api_access_not_classified). API-key history list/show/undo therefore has no live support until that route is classified and scoped."
           ],
           "status": "partial"
         },
@@ -2431,7 +2432,8 @@
           ],
           "gaps": [
             "Matching direct SDK CPU-processing benchmark against TypeScript is absent; Rust must be at least as fast for comparable work. Network/process latency cannot satisfy this blocker.",
-            "Numeric input and error-boundary parity remain incomplete; synthetic history does not establish live ACL enforcement, transactional undo safety or full race/cancellation behavior."
+            "Numeric input and error-boundary parity remain incomplete; synthetic history does not establish live ACL enforcement, transactional undo safety or full race/cancellation behavior.",
+            "Live isolated-CI proof (frontend/apps/web_app/tests/sdk-live-work-crud.spec.ts, GitHub run 42467161114): history.list for a Project, Task and Plan with an approved API-key device is refused 403 forbidden identically in Rust, npm and Python, because the backend API-key route policy does not classify /v1/workspace/history (developer_api_access_not_classified). API-key history list/show/undo therefore has no live support until that route is classified and scoped."
           ],
           "status": "partial"
         },
@@ -2462,6 +2464,7 @@
           "gaps": [
             "Matching direct SDK CPU-processing benchmark against TypeScript is absent; Rust must be at least as fast for comparable work. Network/process latency cannot satisfy this blocker.",
             "Numeric input and error-boundary parity remain incomplete; synthetic history does not establish live ACL enforcement, transactional undo safety or full race/cancellation behavior.",
+            "Live isolated-CI proof (frontend/apps/web_app/tests/sdk-live-work-crud.spec.ts, GitHub run 42467161114): history.list for a Project, Task and Plan with an approved API-key device is refused 403 forbidden identically in Rust, npm and Python, because the backend API-key route policy does not classify /v1/workspace/history (developer_api_access_not_classified). API-key history list/show/undo therefore has no live support until that route is classified and scoped.",
             "Rust CLI request-local HTTP status compatibility helpers remain partial; shared runtime, error, ACL, undo and performance proof is still required."
           ],
           "status": "partial"
@@ -3623,9 +3626,14 @@
             "OpenMatesPlans.userFlows.set"
           ],
           "conformance": false,
-          "evidence": [],
+          "evidence": [
+            "frontend/apps/web_app/tests/sdk-live-work-crud.spec.ts",
+            "tests/sdk-conformance/runners/sdk-live-work.mjs"
+          ],
           "gaps": [
-            "Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability."
+            "Live isolated-CI proof (frontend/apps/web_app/tests/sdk-live-work-crud.spec.ts, GitHub run 42467161114) covers only personal Plan create/show/list/update/delete with title, goal and a linked Project, decrypted and interoperable across Rust, npm and Python in all three writer, updater and deleter rotations.",
+            "Show of a deleted Plan is refused with different classes: Rust not_found, Python invalid, npm an untyped Error. Not-found error parity is unproved.",
+            "Criteria, checks, assumptions, learnings, approval, activation, completion, user flows, history, Team scope and the rest of the public Plan family are not live-proved across languages."
           ],
           "status": "partial"
         },
@@ -3943,9 +3951,14 @@
             "OpenMatesPlans.user_flows.update"
           ],
           "conformance": false,
-          "evidence": [],
+          "evidence": [
+            "frontend/apps/web_app/tests/sdk-live-work-crud.spec.ts",
+            "tests/sdk-conformance/runners/sdk-live-work.py"
+          ],
           "gaps": [
-            "Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability."
+            "Live isolated-CI proof (frontend/apps/web_app/tests/sdk-live-work-crud.spec.ts, GitHub run 42467161114) covers only personal Plan create/show/list/update/delete with title, goal and a linked Project, decrypted and interoperable across Rust, npm and Python in all three writer, updater and deleter rotations.",
+            "Show of a deleted Plan is refused with different classes: Rust not_found, Python invalid, npm an untyped Error. Not-found error parity is unproved.",
+            "Criteria, checks, assumptions, learnings, approval, activation, completion, user flows, history, Team scope and the rest of the public Plan family are not live-proved across languages."
           ],
           "status": "partial"
         },
@@ -4226,8 +4239,13 @@
             "work.recovery.write_document_atomically"
           ],
           "conformance": false,
-          "evidence": [],
+          "evidence": [
+            "frontend/apps/web_app/tests/sdk-live-work-crud.spec.ts",
+            "packages/openmates-rust/examples/sdk-live-work-conformance.rs"
+          ],
           "gaps": [
+            "Live isolated-CI proof (frontend/apps/web_app/tests/sdk-live-work-crud.spec.ts, GitHub run 42467161114) covers only personal Plan create/show/list/update/delete with title, goal and a linked Project, decrypted and interoperable across Rust, npm and Python in all three writer, updater and deleter rotations.",
+            "Show of a deleted Plan is refused with different classes: Rust not_found, Python invalid, npm an untyped Error. Not-found error parity is unproved.",
             "Shared Rust service APIs exist, but complete equivalent operation coverage, request/state/error semantics and cross-language fixture evidence are not yet established.",
             "Team Plan protocol (backend user_plans routes, npm CLI and web parity): Team-scoped list/show and criteria, verification, assumption and reference-pattern lists send team_id and open only the caller's exact epoch-1 Team wrapper or own master wrapper (TS-generated vectors), skipping undecryptable Team Plans like npm; Team-scoped writes, learnings, revisions, dependencies and history are refused before any request (team_plan_writes_unavailable) because the server accepts them only from the personal owner. Live Team integration evidence remains pending."
           ],
@@ -4334,9 +4352,14 @@
             "SessionProjects.updateSourceCapabilities"
           ],
           "conformance": false,
-          "evidence": [],
+          "evidence": [
+            "frontend/apps/web_app/tests/sdk-live-work-crud.spec.ts",
+            "tests/sdk-conformance/runners/sdk-live-work.mjs"
+          ],
           "gaps": [
-            "Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability."
+            "Live isolated-CI proof (frontend/apps/web_app/tests/sdk-live-work-crud.spec.ts, GitHub run 42467161114) covers only personal Project create/show/list/update/delete with name and description, decrypted and interoperable across Rust, npm and Python in all three writer, updater and deleter rotations; a deleted Project reads as not_found in every language.",
+            "Create-input parity is incomplete: the Rust SDK refuses create without an explicit write_mode, while npm and Python always create with always_ask and ignore an explicit mode.",
+            "Archive, restore, ask, history, sources, watchTasks, settings, Team scope and the rest of the public Project family are not live-proved across languages."
           ],
           "status": "partial"
         },
@@ -4382,9 +4405,14 @@
             "SessionProjects.update_source_capabilities"
           ],
           "conformance": false,
-          "evidence": [],
+          "evidence": [
+            "frontend/apps/web_app/tests/sdk-live-work-crud.spec.ts",
+            "tests/sdk-conformance/runners/sdk-live-work.py"
+          ],
           "gaps": [
-            "Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability."
+            "Live isolated-CI proof (frontend/apps/web_app/tests/sdk-live-work-crud.spec.ts, GitHub run 42467161114) covers only personal Project create/show/list/update/delete with name and description, decrypted and interoperable across Rust, npm and Python in all three writer, updater and deleter rotations; a deleted Project reads as not_found in every language.",
+            "Create-input parity is incomplete: the Rust SDK refuses create without an explicit write_mode, while npm and Python always create with always_ask and ignore an explicit mode.",
+            "Archive, restore, ask, history, sources, watchTasks, settings, Team scope and the rest of the public Project family are not live-proved across languages."
           ],
           "status": "partial"
         },
@@ -4541,8 +4569,13 @@
             "work.projects.task_sync.Projects.task_source"
           ],
           "conformance": false,
-          "evidence": [],
+          "evidence": [
+            "frontend/apps/web_app/tests/sdk-live-work-crud.spec.ts",
+            "packages/openmates-rust/examples/sdk-live-work-conformance.rs"
+          ],
           "gaps": [
+            "Live isolated-CI proof (frontend/apps/web_app/tests/sdk-live-work-crud.spec.ts, GitHub run 42467161114) covers only personal Project create/show/list/update/delete with name and description, decrypted and interoperable across Rust, npm and Python in all three writer, updater and deleter rotations; a deleted Project reads as not_found in every language.",
+            "Create-input parity is incomplete: the Rust SDK refuses create without an explicit write_mode, while npm and Python always create with always_ask and ignore an explicit mode.",
             "Typed Project CRUD/settings/ask and encrypted item listing/confirmed unlinking exist. Item scripting/projection/scope/permission/cancellation/receipt fixtures are focused local coverage; positive unlink with preserved target, live backend behavior and cross-language item parity remain unverified. API-key unlink refuses before network because the backend route is Cookie-only; interactive TTY confirmation remains a CLI gap. Complete public family parity, shared selectors/error/recovery coverage and filesystem/focus execution remain unverified."
           ],
           "status": "partial"
@@ -7585,9 +7618,14 @@
             "OpenMatesTasks.update"
           ],
           "conformance": false,
-          "evidence": [],
+          "evidence": [
+            "frontend/apps/web_app/tests/sdk-live-work-crud.spec.ts",
+            "tests/sdk-conformance/runners/sdk-live-work.mjs"
+          ],
           "gaps": [
-            "Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability."
+            "Live isolated-CI proof (frontend/apps/web_app/tests/sdk-live-work-crud.spec.ts, GitHub run 42467161114) covers only personal Task create/show/list/update/delete with title, description, labels and a linked Project, decrypted and interoperable across Rust, npm and Python in all three writer, updater and deleter rotations.",
+            "Show of a deleted Task is refused with different classes: Rust invalid (selector missing or ambiguous), Python invalid, npm an untyped Error. Not-found error parity is unproved.",
+            "Status transitions, activity, dependencies, ordering, moves, AI start, history, Team scope and the rest of the public Task family are not live-proved across languages."
           ],
           "status": "partial"
         },
@@ -7653,9 +7691,14 @@
             "OpenMatesTasks.update"
           ],
           "conformance": false,
-          "evidence": [],
+          "evidence": [
+            "frontend/apps/web_app/tests/sdk-live-work-crud.spec.ts",
+            "tests/sdk-conformance/runners/sdk-live-work.py"
+          ],
           "gaps": [
-            "Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability."
+            "Live isolated-CI proof (frontend/apps/web_app/tests/sdk-live-work-crud.spec.ts, GitHub run 42467161114) covers only personal Task create/show/list/update/delete with title, description, labels and a linked Project, decrypted and interoperable across Rust, npm and Python in all three writer, updater and deleter rotations.",
+            "Show of a deleted Task is refused with different classes: Rust invalid (selector missing or ambiguous), Python invalid, npm an untyped Error. Not-found error parity is unproved.",
+            "Status transitions, activity, dependencies, ordering, moves, AI start, history, Team scope and the rest of the public Task family are not live-proved across languages."
           ],
           "status": "partial"
         },
@@ -7834,8 +7877,13 @@
             "work.tasks.legacy_delivery.Tasks.adopt_npm_mutation"
           ],
           "conformance": false,
-          "evidence": [],
+          "evidence": [
+            "frontend/apps/web_app/tests/sdk-live-work-crud.spec.ts",
+            "packages/openmates-rust/examples/sdk-live-work-conformance.rs"
+          ],
           "gaps": [
+            "Live isolated-CI proof (frontend/apps/web_app/tests/sdk-live-work-crud.spec.ts, GitHub run 42467161114) covers only personal Task create/show/list/update/delete with title, description, labels and a linked Project, decrypted and interoperable across Rust, npm and Python in all three writer, updater and deleter rotations.",
+            "Show of a deleted Task is refused with different classes: Rust invalid (selector missing or ambiguous), Python invalid, npm an untyped Error. Not-found error parity is unproved.",
             "Shared Rust service APIs exist, but complete equivalent operation coverage, request/state/error semantics and cross-language fixture evidence are not yet established."
           ],
           "status": "partial"

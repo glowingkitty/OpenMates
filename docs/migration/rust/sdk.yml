@@ -434,17 +434,17 @@ capabilities:
     status: partial
     api_symbols: 17
     conformance: true
-    gaps: 3
+    gaps: 4
   npm:
     status: partial
     api_symbols: 12
     conformance: true
-    gaps: 2
+    gaps: 3
   python:
     status: partial
     api_symbols: 8
     conformance: true
-    gaps: 2
+    gaps: 3
 - id: sdk.ideabucket
   domain: operations
   has_fixture: false
@@ -560,17 +560,17 @@ capabilities:
     status: partial
     api_symbols: 273
     conformance: false
-    gaps: 2
+    gaps: 4
   npm:
     status: partial
     api_symbols: 366
     conformance: false
-    gaps: 1
+    gaps: 3
   python:
     status: partial
     api_symbols: 310
     conformance: false
-    gaps: 1
+    gaps: 3
 - id: sdk.projects
   domain: operations
   has_fixture: false
@@ -578,17 +578,17 @@ capabilities:
     status: partial
     api_symbols: 149
     conformance: false
-    gaps: 1
+    gaps: 3
   npm:
     status: partial
     api_symbols: 46
     conformance: false
-    gaps: 1
+    gaps: 3
   python:
     status: partial
     api_symbols: 38
     conformance: false
-    gaps: 1
+    gaps: 3
 - id: sdk.reminders
   domain: operations
   has_fixture: false
@@ -632,17 +632,17 @@ capabilities:
     status: partial
     api_symbols: 171
     conformance: false
-    gaps: 1
+    gaps: 3
   npm:
     status: partial
     api_symbols: 87
     conformance: false
-    gaps: 1
+    gaps: 3
   python:
     status: partial
     api_symbols: 58
     conformance: false
-    gaps: 1
+    gaps: 3
 - id: sdk.teams
   domain: operations
   has_fixture: false

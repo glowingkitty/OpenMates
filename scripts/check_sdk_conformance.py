@@ -496,6 +496,7 @@ def validate_matrix(matrix: dict, inventory: dict, root: Path = ROOT) -> list[st
                     "packages/openmates-rust/examples/sdk-api-key-embeds-family-conformance.rs",
                     "packages/openmates-rust/examples/sdk-embed-version-content-conformance.rs",
                     "packages/openmates-rust/examples/project-create-conformance.rs",
+                    "packages/openmates-rust/examples/sdk-live-work-conformance.rs",
                     "packages/openmates-rust/examples/sdk-api-key-shared-conformance/main.rs",
                     "packages/openmates-session-bindings/examples/sdk-conformance.rs",
                     "packages/openmates-session-bindings/examples/project-remote-crypto-worker.rs",
