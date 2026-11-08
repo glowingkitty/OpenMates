@@ -676,92 +676,12 @@ def _format_write_claim_conflict(filepath: str, session_id: str, session_info: d
     )
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+try:
+    from scripts.sessions_state_merge import merge_concurrent_state as merge_concurrent_session_state
+    from scripts.sessions_state_merge import remember_loaded as remember_loaded_sessions
+except ModuleNotFoundError:
+    from sessions_state_merge import merge_concurrent_state as merge_concurrent_session_state
+    from sessions_state_merge import remember_loaded as remember_loaded_sessions
 
 
 def _load_sessions() -> dict:
@@ -775,7 +695,7 @@ def _load_sessions() -> dict:
         with open(SESSIONS_FILE) as f:
             data = json.load(f)
         _normalize_session_state_paths(data)
-        return data
+        return remember_loaded_sessions(data)
     except (json.JSONDecodeError, OSError):
         # Corrupted file — reinitialize
         data = _default_sessions()
@@ -798,10 +718,8 @@ def _save_sessions(data: dict) -> None:
                 if SESSIONS_FILE.exists():
                     try:
                         with open(SESSIONS_FILE) as current_file:
-                            current = json.load(current_file)
-                        for key in ("locks", "infrastructure", "edit_leases", "deploy_queue"):
-                            if key in current:
-                                data[key] = current[key]
+                            # Keep concurrent writes a stale snapshot cannot know (lifecycle, new sessions).
+                            merge_concurrent_session_state(data, json.load(current_file))
                     except (json.JSONDecodeError, OSError):
                         pass
                 tmp = SESSIONS_FILE.with_suffix(".tmp")
@@ -7481,11 +7399,11 @@ def refresh_worktree_base_after_fast_forward(worktree: dict) -> str:
     return recorded_base if recorded_base != current_head else ""
 
 
-def fast_forward_worktree_to_origin_dev(worktree_path: Path) -> dict:
+def fast_forward_worktree_to_origin_dev(worktree_path: Path, *, merge_overlap: bool = False) -> dict:
     """Fast-forward a lane worktree to origin/dev, keeping its dirty edits.
 
-    See scripts/worktree_fast_forward.py; generated Specification and Rust
-    migration outputs are reset and rebuilt, overlaps return ``blocked``.
+    See scripts/worktree_fast_forward.py; generated outputs are reset and
+    rebuilt; overlaps return ``blocked`` unless ``merge_overlap`` 3-way merges them.
     """
     try:
         from scripts import worktree_fast_forward
@@ -7495,6 +7413,7 @@ def fast_forward_worktree_to_origin_dev(worktree_path: Path) -> dict:
         Path(worktree_path),
         specification=set(SPECIFICATION_GENERATED_ARTIFACTS),
         rust_migration=set(RUST_MIGRATION_GENERATED_ARTIFACTS),
+        merge_overlap=merge_overlap,
     )
 
 
@@ -7502,8 +7421,8 @@ def fast_forward_worktree_to_origin_dev(worktree_path: Path) -> dict:
 def refresh_session_worktree_base(session_id: str, *, rebase: bool = False) -> dict[str, str]:
     """Refresh one session's recorded base after a safe worktree fast-forward.
 
-    With ``rebase`` the worktree is first fast-forwarded to origin/dev (see
-    ``fast_forward_worktree_to_origin_dev``); an overlap or divergence raises.
+    With ``rebase`` the worktree is 3-way rebased onto origin/dev (see
+    scripts/worktree_rebase.py); a true conflict or divergence raises.
     """
     fast_forward: dict = {}
     if rebase:
@@ -7511,13 +7430,13 @@ def refresh_session_worktree_base(session_id: str, *, rebase: bool = False) -> d
         worktree = session.get("worktree") if isinstance(session.get("worktree"), dict) else {}
         if not worktree.get("path"):
             raise RuntimeError(f"Session {session_id} has no managed worktree")
-        fast_forward = fast_forward_worktree_to_origin_dev(Path(str(worktree["path"])))
-        if fast_forward["status"] == "blocked":
-            raise RuntimeError(
-                "Reason: origin/dev changed files this lane also edited: "
-                + ", ".join(fast_forward["overlap"])
-                + ". Next: deploy or reconcile those files first; nothing was changed."
-            )
+        fast_forward = fast_forward_worktree_to_origin_dev(Path(str(worktree["path"])), merge_overlap=True)
+        if fast_forward["status"] == "conflicted":
+            try:
+                from scripts.worktree_rebase import format_conflicts
+            except ModuleNotFoundError:
+                from worktree_rebase import format_conflicts
+            raise RuntimeError(format_conflicts(fast_forward))
         if fast_forward["status"] == "diverged":
             raise RuntimeError(
                 "Reason: worktree HEAD is not an ancestor of origin/dev. "
@@ -7548,14 +7467,11 @@ def refresh_session_worktree_base(session_id: str, *, rebase: bool = False) -> d
         if rebase:
             result["fast_forward"] = str(fast_forward.get("status") or "")
             result["reset_generated"] = ",".join(fast_forward.get("reset") or [])
+            result["merged"] = ",".join(fast_forward.get("merged") or [])
+            result["backup"] = str(fast_forward.get("backup") or "")
         return result
 
     return _mutate_sessions(update)
-
-
-
-
-
 
 def session_for_agent_task(
     data: dict, task_id: str, *, host: str = "", repo_id: str = ""
@@ -11587,7 +11503,7 @@ def _regenerate_specification_artifacts_for_deploy(files: list[str], *, checkout
     rc, stdout, stderr = _run_cmd(
         [sys.executable, str(script), "generate", "--repo-root", str(checkout_root)],
         cwd=str(checkout_root),
-        timeout=120,
+        timeout=900,  # full-repo assertion index; see worktree_fast_forward.GENERATOR_TIMEOUT_SECONDS
     )
     if rc != 0:
         detail = stderr or stdout or "Specification artifact generation failed"

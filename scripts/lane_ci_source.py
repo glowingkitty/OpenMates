@@ -2,7 +2,9 @@
 
 Lanes cannot commit and must not hand-run generators or ``track`` commands:
 
-* ``fresh_generated_artifacts`` rebuilds the Specification artifacts and the
+* ``fresh_generated_artifacts`` rebuilds the Specification artifacts
+  (registry, coverage and the assertion index, whose test line numbers move
+  whenever an edit shifts a ``test()``) and the
   generated Rust migration YAML inside the lane worktree for the duration of
   one ci-source publication, then restores the original bytes, so the
   candidate is never judged on stale generated files and the lane's own
@@ -17,6 +19,7 @@ one definition. See .claude/rules/session-lifecycle.md.
 
 from __future__ import annotations
 
+import sys
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -63,12 +66,24 @@ def fresh_generated_artifacts(root: Path, paths: list[str], *, specification_gov
         snapshot[relative] = target.read_bytes() if target.is_file() else None
     reset = sorted(SPECIFICATION_GENERATED_ARTIFACTS) if rebuild_specifications else sorted(RUST_MIGRATION_GENERATED_ARTIFACTS)
     try:
-        yield worktree_fast_forward.regenerate(
+        warnings = worktree_fast_forward.regenerate(
             root,
             reset,
             specification=set(SPECIFICATION_GENERATED_ARTIFACTS),
             rust_migration=set(RUST_MIGRATION_GENERATED_ARTIFACTS),
         )
+        specification_failures = [w for w in warnings if w.startswith("specifications.py ")]
+        if specification_failures:
+            # Without this the preflight reports a misleading "assertion-index.yml
+            # is stale; regenerate" and lanes are tempted to hand-edit it.
+            raise RuntimeError(
+                "ci-source could not regenerate Specification artifacts for the candidate "
+                "(never hand-edit or stage specifications/generated/*; fix the cause): "
+                + "; ".join(specification_failures)
+            )
+        for warning in warnings:
+            print(f"Warning: {warning}", file=sys.stderr)
+        yield warnings
     finally:
         for relative, data in snapshot.items():
             target = root / relative

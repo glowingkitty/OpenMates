@@ -18,12 +18,18 @@ paths:
   (`specifications/generated/*`, `docs/migration/rust/{overview,web-app,
   shared-client,cli,sdk}.yml`): deploy rebuilds them in the integration
   checkout. To catch up with dev run `sessions.py worktree refresh-base
-  --rebase --session <id>` (fast-forward, rebuilds generated files; refuses
-  when dirty edits overlap). Deploy also auto-fast-forwards a stale lane and
+  --rebase --session <id>`: it 3-way merges lane edits that overlap dev
+  changes, rebuilds generated files, and first pins all lane edits under
+  `refs/openmates/rebase-backups/<worktree>` (restore: `git checkout <ref> --
+  <path>`). On a true conflict it changes nothing and lists files and hunks;
+  make each lane file its intended final content and rerun. Deploy also
+  auto-fast-forwards a stale lane (overlaps stay on the recorded base) and
   recreates empty or stale checkpoints; never delete checkpoint refs by hand.
-- `sessions.py ci-source` rebuilds stale Specification artifacts and generated
-  Rust YAML itself for the candidate (restored in the lane afterwards): never run
-  `specifications.py generate` by hand. Files named in `deploy --only` count as
+- `sessions.py ci-source` rebuilds stale Specification artifacts (including
+  `assertion-index.yml` when an edit moves a test line) and generated Rust YAML
+  itself for the candidate (restored in the lane afterwards); a generator
+  failure refuses with its cause. Never run `specifications.py generate` by
+  hand or hand-edit/stage `specifications/generated/*`. Files named in `deploy --only` count as
   tracked by the session automatically (no `track`/`--allow-untracked`); a file
   another session also tracks only prints an advisory, unrelated dirty files
   still block. Rust YAML regenerates on any generator input (see

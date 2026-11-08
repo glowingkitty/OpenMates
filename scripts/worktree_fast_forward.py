@@ -6,7 +6,9 @@ lane to current origin/dev keeps deploy replays small and avoids stale-base
 conflicts. Generated outputs (Specification artifacts, generated Rust
 migration YAML) are reset to HEAD before the merge and rebuilt afterwards,
 because deploy regenerates them anyway. Used by `sessions.py worktree
-refresh-base --rebase` and by deploy's automatic fast-forward.
+refresh-base --rebase` (``merge_overlap=True``: overlapping lane edits are
+3-way merged by scripts/worktree_rebase.py) and by deploy's automatic
+fast-forward (overlaps stay ``blocked``; deploy's replay decides).
 """
 
 from __future__ import annotations
@@ -14,6 +16,15 @@ from __future__ import annotations
 import subprocess
 import sys
 from pathlib import Path
+
+try:
+    from scripts import worktree_rebase
+except ModuleNotFoundError:
+    import worktree_rebase
+
+# Full-repo Specification generation takes ~40-70 s on an idle host; a loaded
+# host must not turn a slow generator into a misleading "stale artifact" error.
+GENERATOR_TIMEOUT_SECONDS = 900
 
 
 def _run(command: list[str], cwd: Path, timeout: int = 120) -> tuple[int, str, str]:
@@ -61,23 +72,32 @@ def regenerate(worktree: Path, reset: list[str], *, specification: set[str], rus
         script = worktree / "scripts" / script_name
         if not script.exists():
             continue
-        rc, stdout, stderr = _run([sys.executable, str(script), *extra], worktree)
+        try:
+            rc, stdout, stderr = _run([sys.executable, str(script), *extra], worktree, timeout=GENERATOR_TIMEOUT_SECONDS)
+        except subprocess.TimeoutExpired:
+            rc, stdout, stderr = 1, "", f"timed out after {GENERATOR_TIMEOUT_SECONDS}s"
         if rc != 0:
             # Deploy rebuilds these outputs in the integration checkout, so a
             # lane-local failure is reported to the caller rather than fatal.
-            warnings.append(f"{script_name} failed after fast-forward: {(stderr or stdout)[:500]}")
+            warnings.append(f"{script_name} failed during regeneration: {(stderr or stdout)[:500]}")
     return warnings
 
 
-def fast_forward_to_origin_dev(worktree: Path, *, specification: set[str], rust_migration: set[str]) -> dict:
+def fast_forward_to_origin_dev(
+    worktree: Path, *, specification: set[str], rust_migration: set[str], merge_overlap: bool = False
+) -> dict:
     """Fast-forward ``worktree`` to origin/dev, preserving dirty lane edits.
 
     Returns a dict with ``status``: ``current`` (already there), ``diverged``
     (HEAD not an ancestor of origin/dev), ``blocked`` (dirty files overlap
-    incoming changes; ``overlap`` lists them and nothing was changed) or
-    ``fast_forwarded`` (``reset`` lists files reset to HEAD and rebuilt).
-    Dirty files that origin/dev also changed are tolerated only when their
-    bytes already equal origin/dev, e.g. files this lane deployed earlier.
+    incoming changes; ``overlap`` lists them and nothing was changed),
+    ``conflicted`` (``merge_overlap`` only: a 3-way merge of an overlap hit a
+    true conflict; ``conflicts`` lists files and hunks, ``backup`` the ref
+    holding all lane edits, nothing was changed) or ``fast_forwarded``
+    (``reset`` lists generated files reset and rebuilt, ``merged`` the
+    overlapping lane files 3-way merged onto the new HEAD).
+    Without ``merge_overlap``, dirty files that origin/dev also changed are
+    tolerated only when their bytes already equal origin/dev.
     """
     worktree = Path(worktree)
     regenerable = specification | rust_migration
@@ -91,7 +111,7 @@ def fast_forward_to_origin_dev(worktree: Path, *, specification: set[str], rust_
     if rc != 0 or not head:
         raise RuntimeError(f"Could not resolve worktree HEAD: {stderr}")
     result: dict = {"status": "current", "previous_head": head, "head": head, "target": target,
-                    "overlap": [], "reset": [], "warnings": []}
+                    "overlap": [], "reset": [], "merged": [], "conflicts": [], "backup": "", "warnings": []}
     if head == target:
         return result
     if _run(["git", "merge-base", "--is-ancestor", head, target], worktree)[0] != 0:
@@ -106,20 +126,38 @@ def fast_forward_to_origin_dev(worktree: Path, *, specification: set[str], rust_
             reset.append(relative_path)
         else:
             overlap.append(relative_path)
-    if overlap:
+    merged: dict[str, bytes | None] = {}
+    if overlap and not merge_overlap:
         result.update(status="blocked", overlap=overlap)
         return result
+    if overlap:
+        result["overlap"] = overlap
+        result["backup"] = worktree_rebase.save_backup(worktree, head, dirty)
+        plan = worktree_rebase.plan_merge(worktree, head, target, overlap)
+        if plan.conflicts:
+            result.update(status="conflicted", conflicts=plan.conflicts)
+            return result
+        merged = plan.merged
     reset.sort()
-    for relative_path in reset:
-        if _run(["git", "cat-file", "-e", f"HEAD:{relative_path}"], worktree)[0] == 0:
-            rc, _stdout, stderr = _run(["git", "checkout", "HEAD", "--", relative_path], worktree)
-            if rc != 0:
-                raise RuntimeError(f"Could not reset {relative_path} before fast-forward: {stderr}")
-        else:
-            (worktree / relative_path).unlink(missing_ok=True)
-    rc, _stdout, stderr = _run(["git", "merge", "--ff-only", target], worktree, timeout=300)
-    if rc != 0:
-        raise RuntimeError(f"Could not fast-forward worktree to origin/dev: {stderr}")
-    result.update(status="fast_forwarded", head=target, reset=reset)
+    touched = sorted(set(reset) | set(merged))
+    originals = {path: worktree_rebase.local_bytes(worktree, path) for path in touched}
+    try:
+        for relative_path in touched:
+            if _run(["git", "cat-file", "-e", f"HEAD:{relative_path}"], worktree)[0] == 0:
+                rc, _stdout, stderr = _run(["git", "checkout", "HEAD", "--", relative_path], worktree)
+                if rc != 0:
+                    raise RuntimeError(f"Could not reset {relative_path} before fast-forward: {stderr}")
+            else:
+                (worktree / relative_path).unlink(missing_ok=True)
+        rc, _stdout, stderr = _run(["git", "merge", "--ff-only", target], worktree, timeout=300)
+        if rc != 0:
+            raise RuntimeError(f"Could not fast-forward worktree to origin/dev: {stderr}")
+    except (RuntimeError, OSError, subprocess.TimeoutExpired) as exc:
+        if _run(["git", "rev-parse", "HEAD"], worktree)[1] == head:
+            worktree_rebase.restore(worktree, originals)
+        backup = f" Backup of all lane edits: {result['backup']}." if result["backup"] else ""
+        raise RuntimeError(f"{exc}. Lane files were restored where HEAD did not move.{backup}") from exc
+    worktree_rebase.write_merged(worktree, merged)
+    result.update(status="fast_forwarded", head=target, reset=sorted(reset), merged=sorted(merged))
     result["warnings"] = regenerate(worktree, reset, specification=specification, rust_migration=rust_migration)
     return result
