@@ -76,7 +76,7 @@ def test_only_is_exact_and_rejects_non_session_work(monkeypatch):
     try:
         sessions._resolve_deploy_selection(session, exclude=set(), only=["foreign.py"])
     except RuntimeError as exc:
-        assert "not tracked dirty work" in str(exc)
+        assert "not dirty in this session's worktree: foreign.py" in str(exc)
     else:
         raise AssertionError("expected non-session --only selection to fail")
 

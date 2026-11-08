@@ -8382,7 +8382,8 @@ def cmd_ci_source(args: argparse.Namespace) -> None:
     root = _session_checkout_root(session)
     if root == CONTROL_PLANE_ROOT or not is_valid_managed_worktree_path(root):
         raise RuntimeError("CI source publication requires the session's managed worktree")
-    result = publish(root, args.session, session.get("modified_files", []),
+    tracked = _auto_track_lane_untracked_files(args.session, root, list(session.get("modified_files", [])))
+    result = publish(root, args.session, tracked,
                      base=args.base or "", resolved_patch=Path(args.resolved_patch) if args.resolved_patch else None,
                      patch_sha256=args.patch_sha256 or "")
     # Presigned candidate URLs are credentials. The dispatcher reads them from
@@ -12617,6 +12618,11 @@ def _auto_track_only_files(
     newly, advisories = plan_only_tracking(selector, to_commit, modified, file_tracking)
     for line in advisories:
         print(f"Advisory — --only file also tracked by another session:\n{line}", file=sys.stderr)
+    return _record_session_tracked_files(sid, modified, newly, "--only file(s)")
+
+
+def _record_session_tracked_files(sid: str, modified: list[str], newly: list[str], label: str) -> list[str]:
+    """Persist ``newly`` into the session's tracked files; return the merged list."""
     if not newly:
         return modified
 
@@ -12627,8 +12633,18 @@ def _auto_track_only_files(
             known.extend(path for path in newly if path not in known)
 
     _mutate_sessions(record)
-    print(f"Tracked {len(newly)} --only file(s) for session {sid}.", file=sys.stderr)
+    print(f"Tracked {len(newly)} {label} for session {sid}: " + ", ".join(newly), file=sys.stderr)
     return [*modified, *newly]
+
+
+def _auto_track_lane_untracked_files(sid: str, root: Path, modified: list[str]) -> list[str]:
+    """Track new Git-untracked files the lane created in its own managed worktree."""
+    try:
+        from scripts.lane_deploy_scope import new_untracked_files
+    except ModuleNotFoundError:
+        from lane_deploy_scope import new_untracked_files
+    newly = new_untracked_files(root, modified)
+    return _record_session_tracked_files(sid, modified, newly, "new lane worktree file(s)")
 
 
 def _require_tracked_deploy_files(dirty_but_untracked, file_tracking, allow_untracked: bool) -> None:
@@ -12804,6 +12820,16 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             file_tracking[of] = other_sid
 
     modified = _auto_track_only_files(sid, session, selector, to_commit, modified, file_tracking)
+    if selector == "only" and worktree_metadata and is_valid_managed_worktree_path(checkout_root):
+        modified = _auto_track_lane_untracked_files(sid, checkout_root, modified)
+    try:
+        from scripts.lane_deploy_scope import omitted_only_files, omitted_only_message
+    except ModuleNotFoundError:
+        from lane_deploy_scope import omitted_only_files, omitted_only_message
+    omitted = omitted_only_files(selector, to_commit, dirty_files, modified, exclude)
+    if omitted:
+        print(omitted_only_message(sid, omitted), file=sys.stderr)
+        sys.exit(1)
     dirty_but_untracked = [f for f in dirty_files if f not in modified and f not in exclude]
 
     if not is_control_plane_repo:
@@ -15516,7 +15542,8 @@ def main() -> None:
         "--exclude",
         "-e",
         nargs="*",
-        help="File paths to exclude from commit",
+        action="extend",
+        help="File paths to exclude from commit (repeatable)",
     )
     p_prep.add_argument(
         "--use-staged",
@@ -15527,7 +15554,8 @@ def main() -> None:
     p_prep.add_argument(
         "--only",
         nargs="+",
-        help="Use exactly these tracked dirty session files for the deployment plan.",
+        action="extend",
+        help="Use exactly these tracked dirty session files for the deployment plan (repeatable).",
     )
 
     p_verify_prepared = sub.add_parser(
@@ -15541,7 +15569,9 @@ def main() -> None:
         choices=[*sorted(PREPARED_VERIFICATION_PROFILES), "installed-cli-identity"],
         help="Fixed validation command or read-only installed CLI inspection",
     )
-    p_verify_prepared.add_argument("--only", nargs="+", help="Verify exactly these tracked dirty files")
+    p_verify_prepared.add_argument(
+        "--only", nargs="+", action="extend", help="Verify exactly these tracked dirty files (repeatable)"
+    )
     p_verify_prepared.add_argument(
         "--use-staged", action="store_true", help="Verify exactly the staged session file set"
     )
@@ -15578,12 +15608,16 @@ def main() -> None:
         "--exclude",
         "-e",
         nargs="*",
-        help="File paths to exclude",
+        action="extend",
+        help="File paths to leave out on purpose (repeatable)",
     )
     p_deploy.add_argument(
         "--only",
         nargs="+",
-        help="Deploy exactly these tracked dirty session files. Mutually exclusive with --use-staged.",
+        action="extend",
+        help="Deploy exactly these session files; repeat the flag or list several paths. "
+        "Refuses when dirty session files are left out (use --exclude for intended omissions). "
+        "Mutually exclusive with --use-staged.",
     )
     p_deploy.add_argument(
         "--end",

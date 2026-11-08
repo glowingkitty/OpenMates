@@ -29,10 +29,15 @@ paths:
   `assertion-index.yml` when an edit moves a test line) and generated Rust YAML
   itself for the candidate (restored in the lane afterwards); a generator
   failure refuses with its cause. Never run `specifications.py generate` by
-  hand or hand-edit/stage `specifications/generated/*`. Files named in `deploy --only` count as
-  tracked by the session automatically (no `track`/`--allow-untracked`); a file
-  another session also tracks only prints an advisory, unrelated dirty files
-  still block. Rust YAML regenerates on any generator input (see
+  hand or hand-edit/stage `specifications/generated/*`. `ci-source` and
+  `deploy --only` auto-track new (Git-untracked, non-ignored) files in the
+  lane's own worktree, so no manual `track` is needed. `--only` and
+  `--exclude` are repeatable (`--only a --only b` or `--only a b`; exact
+  paths). Files named in `--only` count as tracked (no `track`/
+  `--allow-untracked`); a file another session also tracks only prints an
+  advisory. Deploy refuses when `--only` leaves out dirty session files and
+  lists them: add each with `--only`, or leave it out on purpose with
+  `--exclude <path>`. Rust YAML regenerates on any generator input (see
   `scripts/rust_migration_inputs.py`), e.g. `config/cli-command-catalog.json`.
 - Saved patches: the rtk filter turns `git diff` into a stat summary; use
   `rtk proxy git diff --binary`.
