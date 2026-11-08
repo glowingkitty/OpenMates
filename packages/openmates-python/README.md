@@ -180,8 +180,19 @@ docs = om.docs.search("API keys")
 
 ```python
 overview = om.billing.overview()
-invoices = om.billing.invoices()
+invoices = om.billing.list_invoices()
+pdf = om.billing.download_invoice(invoice_id)  # openmates.RawDownload
+open(pdf.filename or "invoice.pdf", "wb").write(pdf.data)
 ```
+
+`download_invoice`, `download_credit_note` and `usage_export` return a typed,
+immutable `openmates.RawDownload` (`content_type`, `filename`, `data`), matching
+the npm `RawDownload` and Rust `sdk_ops::RawDownload`. `filename` is the last
+path component of the server's `Content-Disposition` name (`filename*` UTF-8
+wins over `filename`); it is `None` for missing, malformed, `.` or `..` names.
+Compatibility: 0.30.0 returned a plain `dict`; `RawDownload` keeps read-only
+mapping access (`download["data"]`, `.get()`, `.keys()`, `dict(download)`), so
+existing callers keep working, but it can no longer be mutated.
 
 ### Work with memories
 
@@ -189,6 +200,10 @@ invoices = om.billing.invoices()
 published = om.memories.published(app_id="web")  # read-only app guidance
 legacy_entries = om.memories.list()  # deprecated: legacy typed entries (read/delete only)
 ```
+
+Each listed entry is decrypted locally; `data` is the decoded JSON or TOON
+plaintext (like npm), the plain text when neither applies, or `None` when the
+entry is empty or cannot be decrypted with this API key.
 
 ### Create reminders
 

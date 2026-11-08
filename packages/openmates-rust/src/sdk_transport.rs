@@ -41,7 +41,13 @@ pub fn filename_from_disposition(header: &str) -> Option<String> {
         let mut i = 0;
         while i < bytes.len() {
             if bytes[i] == b'%' {
-                let hex = std::str::from_utf8(bytes.get(i + 1..i + 3)?).ok()?;
+                let pair = bytes.get(i + 1..i + 3)?;
+                // `from_str_radix` alone would accept a sign ("%+f"), which
+                // `decodeURIComponent` rejects; require two hex digits.
+                if !pair.iter().all(u8::is_ascii_hexdigit) {
+                    return None;
+                }
+                let hex = std::str::from_utf8(pair).ok()?;
                 out.push(u8::from_str_radix(hex, 16).ok()?);
                 i += 3;
             } else {

@@ -1186,8 +1186,9 @@
       }
     },
     {
-      "description": "Reviewed public SDK capability family: sdk.billing; support must be proved by actual library conformance.",
+      "description": "Reviewed public SDK capability family: sdk.billing. Thirty-three shared synthetic API-key wire vectors (sdk-api-key-wire.json) call every family API in all three SDKs against an independent loopback peer: exact routes, query and JSON bodies, bearer-only credentials, refund confirmation, typed errors, and raw downloads (invoices, credit notes, usage export) as a typed RawDownload with the shared filename contract (filename* UTF-8 wins, last path component, dot names and malformed encodings refused). No real payment, purchase or refund is executed.",
       "domain": "operations",
+      "fixture": "tests/sdk-conformance/fixtures/sdk-api-key-wire.json",
       "id": "sdk.billing",
       "languages": {
         "npm": {
@@ -1265,15 +1266,14 @@
             "OpenMatesClient.billing.usageOverview",
             "OpenMatesClient.billing.usageSummaries"
           ],
-          "conformance": false,
+          "conformance": true,
           "evidence": [
+            "tests/sdk-conformance/runners/sdk-api-key-wire.mjs",
             "tests/sdk-conformance/runners/npm.mjs",
             "frontend/packages/openmates-cli/tests/sdk-conformance.test.ts"
           ],
-          "gaps": [
-            "Shared API-key wire vectors (18 of 27 in sdk-api-key-operations.json) pass through the public npm client with fake fetch (npm.mjs capability sdk.api-key-operations.v1, sdk-conformance.test.ts); the Rust and Python suites run the same file in their own tests, not in the conformance gate, so the family stays partial and conformance stays false until all three run in the gate."
-          ],
-          "status": "partial"
+          "gaps": [],
+          "status": "implemented"
         },
         "python": {
           "api": [
@@ -1324,19 +1324,21 @@
             "OpenMatesBilling.usage_details",
             "OpenMatesBilling.usage_export",
             "OpenMatesBilling.usage_overview",
-            "OpenMatesBilling.usage_summaries"
+            "OpenMatesBilling.usage_summaries",
+            "RawDownload",
+            "RawDownload.get",
+            "RawDownload.keys"
           ],
-          "conformance": false,
+          "conformance": true,
           "evidence": [
+            "tests/sdk-conformance/runners/sdk-api-key-wire.py",
             "tests/sdk-conformance/runners/sdk-api-key-operations.py"
           ],
-          "gaps": [
-            "Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability."
-          ],
-          "status": "partial"
+          "gaps": [],
+          "status": "implemented"
         },
         "rust": {
-          "status": "partial",
+          "status": "implemented",
           "api": [
             "sdk.OpenMates.billing",
             "sdk_billing",
@@ -1371,15 +1373,11 @@
             "sdk_ops.RawDownload.filename"
           ],
           "evidence": [
+            "packages/openmates-rust/examples/sdk-api-key-wire-conformance.rs",
             "packages/openmates-rust/tests/sdk_operations_a.rs"
           ],
-          "gaps": [
-            "Shared wire vectors cover the JSON routes; raw download behaviour (invoices, credit notes, usage export) is covered by Rust-only tests, and Python returns a dict where Rust returns RawDownload.",
-            "Rust API-key facade is exercised only against a loopback fixture server; no live backend, purchase, refund or deletion route has been executed.",
-            "The shared wire vectors run in all three languages through gate capabilities sdk.api-key-operations.v1 and sdk.api-key-domains-b.v1, which prove only the vectored routes; the remaining family APIs listed here have no shared vectors, so the family stays partial.",
-            "Matching direct SDK CPU-processing benchmark against TypeScript is absent."
-          ],
-          "conformance": false
+          "gaps": [],
+          "conformance": true
         }
       }
     },
@@ -2951,8 +2949,9 @@
       }
     },
     {
-      "description": "Reviewed public SDK capability family: sdk.memories; support must be proved by actual library conformance.",
+      "description": "Reviewed public SDK capability family: sdk.memories. Eight shared synthetic API-key wire vectors (sdk-api-key-wire.json) prove list (local decryption with the API-key-wrapped master key; JSON, non-strict TOON object/table and text plaintexts; null for empty or foreign-key plaintext; no key fetch without ciphertext), published guidance for all apps or one encoded app id, and confirmed delete with an encoded id, in all three SDKs against an independent loopback peer.",
       "domain": "operations",
+      "fixture": "tests/sdk-conformance/fixtures/sdk-api-key-wire.json",
       "id": "sdk.memories",
       "languages": {
         "npm": {
@@ -2970,13 +2969,14 @@
             "OpenMatesMemories.list",
             "OpenMatesMemories.published"
           ],
-          "conformance": false,
+          "conformance": true,
           "evidence": [
+            "tests/sdk-conformance/runners/sdk-api-key-wire.mjs",
             "tests/sdk-conformance/runners/npm.mjs",
             "frontend/packages/openmates-cli/tests/sdk-conformance.test.ts"
           ],
           "gaps": [
-            "npm generates and decrypts the shared memories crypto fixture (sdk-api-key-memories.json: ciphertexts, item-key hashes, wrapped chat key) via npm.mjs capability sdk.api-key-memories.v1; Rust verifies the same file. Not yet a three-language gate capability."
+            "The family stays partial only because the Rust SDK still exposes Memories.create/update/types, which npm and Python removed on 2026-11-07 (the backend answers 410 for those routes) and which the Rust ideabucket save_settings still calls; list/published/delete are proved in all three SDKs by the shared wire vectors."
           ],
           "status": "partial"
         },
@@ -2991,10 +2991,12 @@
             "OpenMatesMemories.list",
             "OpenMatesMemories.published"
           ],
-          "conformance": false,
-          "evidence": [],
+          "conformance": true,
+          "evidence": [
+            "tests/sdk-conformance/runners/sdk-api-key-wire.py"
+          ],
           "gaps": [
-            "Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability."
+            "Python list/published/delete pass the shared wire vectors; the family stays partial until the Rust-only Memories.create/update/types surface is retired or re-admitted in all three SDKs."
           ],
           "status": "partial"
         },
@@ -3019,14 +3021,14 @@
             "sdk_memories.hash_item_key",
             "sdk_memories.memory_plaintext"
           ],
-          "conformance": false,
+          "conformance": true,
           "evidence": [
+            "packages/openmates-rust/examples/sdk-api-key-wire-conformance.rs",
             "tests/sdk-conformance/generate_sdk_api_key_memories.mjs",
             "packages/openmates-rust/tests/sdk_api_key_domains_b.rs"
           ],
           "gaps": [
-            "Rust API-key facade is covered by Rust unit tests only; a shared cross-language conformance runner executing the actual npm, Python and Rust adapters against one fixture is not yet authored.",
-            "Memory plaintext that is neither JSON nor a bare string (TOON-encoded) is returned as the raw string because the shared TOON decoder is crate-private."
+            "Memories.create/update/types remain Rust-only: npm and Python removed them on 2026-11-07, the backend answers 410 for those routes, and sdk_ideabucket save_settings still calls Memories.create. Retiring them is a public Rust API removal that needs an explicit decision; list/published/delete (now with the shared non-strict TOON decoder) pass the shared wire vectors."
           ],
           "status": "partial"
         }
@@ -10450,7 +10452,6 @@
             "tests/sdk-conformance/test_saved_chat_read_peer.py"
           ],
           "gaps": [
-            "Runner failure 2026-11-02: the bounded saved-read runners fail in both npm and Python against the current shared core and synthetic peer; not yet diagnosed.",
             "Source-only draft: compiled adapters, actual backend and CLI/TUI integration, terminal JSON projection, follow-up suggestions, packaged binaries, platform and E2E acceptance remain pending; no broader capability family is promoted.",
             "Read-message ID source grammar accepts any nonempty opaque string, including controls, spaces, Unicode and reserved characters; empty and nonstring inputs remain refused, while Chat UUID/send/recovery authority stays strict. Source acceptance does not establish safe exact-route encoding or support through actual foreign runtimes, transport/redirect/cancellation/size limits or deployed backend behavior. Genuine direct Rust/npm/Python execution of the expanded shared74 saved-read vectors and exact-route edge cases remains unverified. Source/pure checks establish no compiled/runtime, personal-account, ARM-package, performance, canonical-history or release acceptance.",
             "Reviewed full-read source preserves the exact optional decrypted saved slug and original policy/key/owner/caller/source evidence through native final persistence, explicit ambient-context restoration and opaque foreign final allocation. Eight shared authored full-read vectors extend the existing saved-read family from66to74; all original66 objects and all3 plan identities remain. Matching genuine Rust/npm/Python adapter execution, native and foreign scheduler/cancellation/revocation/successor cases, source-denial and restored-context safety, compiled packaging/platform/product CLI stdout proof and matched CPU/end-to-end/RAM performance remain required and unverified; source/pure registration is no runtime, cache/history/durability or release acceptance. Reviewed arrival-order preservation adds no API or runtime proof and retains metadata/request priority, bounded history and unsupported old/map-only provenance qualifications.",
@@ -10484,7 +10485,6 @@
             "tests/sdk-conformance/test_saved_chat_read_peer.py"
           ],
           "gaps": [
-            "Runner failure 2026-11-02: the bounded saved-read runners fail in both npm and Python against the current shared core and synthetic peer; not yet diagnosed.",
             "Source-only draft: compiled adapters, actual backend and CLI/TUI integration, terminal JSON projection, follow-up suggestions, packaged binaries, platform and E2E acceptance remain pending; no broader capability family is promoted.",
             "Read-message ID source grammar accepts any nonempty opaque string, including controls, spaces, Unicode and reserved characters; empty and nonstring inputs remain refused, while Chat UUID/send/recovery authority stays strict. Source acceptance does not establish safe exact-route encoding or support through actual foreign runtimes, transport/redirect/cancellation/size limits or deployed backend behavior. Genuine direct Rust/npm/Python execution of the expanded shared74 saved-read vectors and exact-route edge cases remains unverified. Source/pure checks establish no compiled/runtime, personal-account, ARM-package, performance, canonical-history or release acceptance.",
             "Reviewed full-read source preserves the exact optional decrypted saved slug and original policy/key/owner/caller/source evidence through native final persistence, explicit ambient-context restoration and opaque foreign final allocation. Eight shared authored full-read vectors extend the existing saved-read family from66to74; all original66 objects and all3 plan identities remain. Matching genuine Rust/npm/Python adapter execution, native and foreign scheduler/cancellation/revocation/successor cases, source-denial and restored-context safety, compiled packaging/platform/product CLI stdout proof and matched CPU/end-to-end/RAM performance remain required and unverified; source/pure registration is no runtime, cache/history/durability or release acceptance. Reviewed arrival-order preservation adds no API or runtime proof and retains metadata/request priority, bounded history and unsupported old/map-only provenance qualifications.",

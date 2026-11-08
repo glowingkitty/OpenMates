@@ -1,0 +1,1454 @@
+{
+  "schema_version": 1,
+  "description": "Synthetic API-key billing and memories wire vectors: exact routes, bodies, credential boundary and decoded results through the public Rust, npm and Python clients against an independent loopback peer. No real backend, purchase, refund or deletion is involved.",
+  "capabilities": {
+    "sdk.billing": {
+      "api_key": "sk-api-wireOwner.localSetupSuffix",
+      "device_id": "synthetic-wire-device",
+      "session": {
+        "key_wrapper": {
+          "salt": "Y2NjY2NjY2NjY2NjY2NjYw==",
+          "key_iv": "ZGRkZGRkZGRkZGRk",
+          "encrypted_key": "kGKDofLQvTWwB0ohP9KAT6ZFB0n2OkvbfehNODT7dbfYJZAXn5ybMB/bPfHiywjT"
+        },
+        "user": {
+          "id": "synthetic-wire-owner"
+        }
+      },
+      "vectors": [
+        {
+          "id": "billing-overview",
+          "operation": "billing.overview",
+          "args": [],
+          "kwargs": {},
+          "session": false,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/billing",
+              "auth": "bearer",
+              "body": null,
+              "status": 200,
+              "response": {
+                "json": {
+                  "synthetic": "billing-overview",
+                  "ok": true
+                }
+              }
+            }
+          ],
+          "expected": {
+            "synthetic": "billing-overview",
+            "ok": true
+          },
+          "expected_error": null
+        },
+        {
+          "id": "billing-buyer-address",
+          "operation": "billing.buyer_address",
+          "args": [],
+          "kwargs": {},
+          "session": false,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/billing/buyer-address",
+              "auth": "bearer",
+              "body": null,
+              "status": 200,
+              "response": {
+                "json": {
+                  "synthetic": "billing-buyer-address",
+                  "ok": true
+                }
+              }
+            }
+          ],
+          "expected": {
+            "synthetic": "billing-buyer-address",
+            "ok": true
+          },
+          "expected_error": null
+        },
+        {
+          "id": "billing-save-buyer-address",
+          "operation": "billing.save_buyer_address",
+          "args": [
+            {
+              "country": "DE"
+            }
+          ],
+          "kwargs": {},
+          "session": false,
+          "routes": [
+            {
+              "method": "PUT",
+              "path": "/v1/sdk/billing/buyer-address",
+              "auth": "bearer",
+              "body": {
+                "buyer_address": {
+                  "country": "DE"
+                }
+              },
+              "status": 200,
+              "response": {
+                "json": {
+                  "synthetic": "billing-save-buyer-address",
+                  "ok": true
+                }
+              }
+            }
+          ],
+          "expected": {
+            "synthetic": "billing-save-buyer-address",
+            "ok": true
+          },
+          "expected_error": null
+        },
+        {
+          "id": "billing-usage-details",
+          "operation": "billing.usage_details",
+          "args": [],
+          "kwargs": {
+            "type": "chat",
+            "identifier": "id/1",
+            "year_month": "2026-10"
+          },
+          "session": false,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/billing/usage/details?type=chat&identifier=id%2F1&year_month=2026-10",
+              "auth": "bearer",
+              "body": null,
+              "status": 200,
+              "response": {
+                "json": {
+                  "synthetic": "billing-usage-details",
+                  "ok": true
+                }
+              }
+            }
+          ],
+          "expected": {
+            "synthetic": "billing-usage-details",
+            "ok": true
+          },
+          "expected_error": null
+        },
+        {
+          "id": "billing-chat-total",
+          "operation": "billing.chat_total",
+          "args": [
+            "chat-1"
+          ],
+          "kwargs": {},
+          "session": false,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/billing/usage/chat-total?chat_id=chat-1",
+              "auth": "bearer",
+              "body": null,
+              "status": 200,
+              "response": {
+                "json": {
+                  "synthetic": "billing-chat-total",
+                  "ok": true
+                }
+              }
+            }
+          ],
+          "expected": {
+            "synthetic": "billing-chat-total",
+            "ok": true
+          },
+          "expected_error": null
+        },
+        {
+          "id": "billing-usage-summaries",
+          "operation": "billing.usage_summaries",
+          "args": [],
+          "kwargs": {},
+          "session": false,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/billing/usage/summaries",
+              "auth": "bearer",
+              "body": null,
+              "status": 200,
+              "response": {
+                "json": {
+                  "synthetic": "billing-usage-summaries",
+                  "ok": true
+                }
+              }
+            }
+          ],
+          "expected": {
+            "synthetic": "billing-usage-summaries",
+            "ok": true
+          },
+          "expected_error": null
+        },
+        {
+          "id": "billing-usage-daily",
+          "operation": "billing.usage_daily",
+          "args": [],
+          "kwargs": {},
+          "session": false,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/billing/usage/daily",
+              "auth": "bearer",
+              "body": null,
+              "status": 200,
+              "response": {
+                "json": {
+                  "synthetic": "billing-usage-daily",
+                  "ok": true
+                }
+              }
+            }
+          ],
+          "expected": {
+            "synthetic": "billing-usage-daily",
+            "ok": true
+          },
+          "expected_error": null
+        },
+        {
+          "id": "billing-bank-transfer-order",
+          "operation": "billing.create_bank_transfer_order",
+          "args": [
+            1000
+          ],
+          "kwargs": {},
+          "session": false,
+          "routes": [
+            {
+              "method": "POST",
+              "path": "/v1/sdk/billing/bank-transfer-orders",
+              "auth": "bearer",
+              "body": {
+                "credits_amount": 1000,
+                "currency": "eur",
+                "email_encryption_key": null
+              },
+              "status": 200,
+              "response": {
+                "json": {
+                  "synthetic": "billing-bank-transfer-order",
+                  "ok": true
+                }
+              }
+            }
+          ],
+          "expected": {
+            "synthetic": "billing-bank-transfer-order",
+            "ok": true
+          },
+          "expected_error": null
+        },
+        {
+          "id": "billing-bank-transfer-status-encodes-id",
+          "operation": "billing.bank_transfer_status",
+          "args": [
+            "a/b c"
+          ],
+          "kwargs": {},
+          "session": false,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/billing/bank-transfer-orders/a%2Fb%20c",
+              "auth": "bearer",
+              "body": null,
+              "status": 200,
+              "response": {
+                "json": {
+                  "synthetic": "billing-bank-transfer-status-encodes-id",
+                  "ok": true
+                }
+              }
+            }
+          ],
+          "expected": {
+            "synthetic": "billing-bank-transfer-status-encodes-id",
+            "ok": true
+          },
+          "expected_error": null
+        },
+        {
+          "id": "billing-list-bank-transfer-orders",
+          "operation": "billing.list_bank_transfer_orders",
+          "args": [],
+          "kwargs": {},
+          "session": false,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/billing/bank-transfer-orders",
+              "auth": "bearer",
+              "body": null,
+              "status": 200,
+              "response": {
+                "json": {
+                  "synthetic": "billing-list-bank-transfer-orders",
+                  "ok": true
+                }
+              }
+            }
+          ],
+          "expected": {
+            "synthetic": "billing-list-bank-transfer-orders",
+            "ok": true
+          },
+          "expected_error": null
+        },
+        {
+          "id": "billing-list-invoices",
+          "operation": "billing.list_invoices",
+          "args": [],
+          "kwargs": {},
+          "session": false,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/billing/invoices",
+              "auth": "bearer",
+              "body": null,
+              "status": 200,
+              "response": {
+                "json": {
+                  "synthetic": "billing-list-invoices",
+                  "ok": true
+                }
+              }
+            }
+          ],
+          "expected": {
+            "synthetic": "billing-list-invoices",
+            "ok": true
+          },
+          "expected_error": null
+        },
+        {
+          "id": "billing-refund-confirmed",
+          "operation": "billing.request_refund",
+          "args": [
+            "inv-1"
+          ],
+          "kwargs": {},
+          "session": false,
+          "routes": [
+            {
+              "method": "POST",
+              "path": "/v1/sdk/billing/refund",
+              "auth": "bearer",
+              "body": {
+                "invoice_id": "inv-1",
+                "email_encryption_key": null
+              },
+              "status": 200,
+              "response": {
+                "json": {
+                  "synthetic": "billing-refund-confirmed",
+                  "ok": true
+                }
+              }
+            }
+          ],
+          "expected": {
+            "synthetic": "billing-refund-confirmed",
+            "ok": true
+          },
+          "expected_error": null,
+          "confirmed": true
+        },
+        {
+          "id": "billing-redeem-gift-card",
+          "operation": "billing.redeem_gift_card",
+          "args": [
+            "GIFT-CODE"
+          ],
+          "kwargs": {},
+          "session": false,
+          "routes": [
+            {
+              "method": "POST",
+              "path": "/v1/sdk/billing/gift-cards/redeem",
+              "auth": "bearer",
+              "body": {
+                "code": "GIFT-CODE"
+              },
+              "status": 200,
+              "response": {
+                "json": {
+                  "synthetic": "billing-redeem-gift-card",
+                  "ok": true
+                }
+              }
+            }
+          ],
+          "expected": {
+            "synthetic": "billing-redeem-gift-card",
+            "ok": true
+          },
+          "expected_error": null
+        },
+        {
+          "id": "billing-list-redeemed-gift-cards",
+          "operation": "billing.list_redeemed_gift_cards",
+          "args": [],
+          "kwargs": {},
+          "session": false,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/billing/gift-cards/redeemed",
+              "auth": "bearer",
+              "body": null,
+              "status": 200,
+              "response": {
+                "json": {
+                  "synthetic": "billing-list-redeemed-gift-cards",
+                  "ok": true
+                }
+              }
+            }
+          ],
+          "expected": {
+            "synthetic": "billing-list-redeemed-gift-cards",
+            "ok": true
+          },
+          "expected_error": null
+        },
+        {
+          "id": "billing-gift-card-purchase-status",
+          "operation": "billing.gift_card_purchase_status",
+          "args": [
+            "o1"
+          ],
+          "kwargs": {},
+          "session": false,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/billing/gift-cards/purchases/o1",
+              "auth": "bearer",
+              "body": null,
+              "status": 200,
+              "response": {
+                "json": {
+                  "synthetic": "billing-gift-card-purchase-status",
+                  "ok": true
+                }
+              }
+            }
+          ],
+          "expected": {
+            "synthetic": "billing-gift-card-purchase-status",
+            "ok": true
+          },
+          "expected_error": null
+        },
+        {
+          "id": "billing-list-purchased-gift-cards",
+          "operation": "billing.list_purchased_gift_cards",
+          "args": [],
+          "kwargs": {},
+          "session": false,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/billing/gift-cards/purchased",
+              "auth": "bearer",
+              "body": null,
+              "status": 200,
+              "response": {
+                "json": {
+                  "synthetic": "billing-list-purchased-gift-cards",
+                  "ok": true
+                }
+              }
+            }
+          ],
+          "expected": {
+            "synthetic": "billing-list-purchased-gift-cards",
+            "ok": true
+          },
+          "expected_error": null
+        },
+        {
+          "id": "billing-auto-topup",
+          "operation": "billing.set_low_balance_auto_topup",
+          "args": [
+            {
+              "enabled": false
+            }
+          ],
+          "kwargs": {},
+          "session": false,
+          "routes": [
+            {
+              "method": "POST",
+              "path": "/v1/sdk/billing/auto-topup/low-balance",
+              "auth": "bearer",
+              "body": {
+                "enabled": false
+              },
+              "status": 200,
+              "response": {
+                "json": {
+                  "synthetic": "billing-auto-topup",
+                  "ok": true
+                }
+              }
+            }
+          ],
+          "expected": {
+            "synthetic": "billing-auto-topup",
+            "ok": true
+          },
+          "expected_error": null
+        },
+        {
+          "id": "billing-usage-query",
+          "operation": "billing.usage",
+          "args": [],
+          "kwargs": {},
+          "session": false,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/billing/usage?month=2026-10&scope=a+b%2Fc",
+              "auth": "bearer",
+              "body": null,
+              "status": 200,
+              "response": {
+                "json": {
+                  "synthetic": "billing-usage-query",
+                  "ok": true
+                }
+              }
+            }
+          ],
+          "expected": {
+            "synthetic": "billing-usage-query",
+            "ok": true
+          },
+          "expected_error": null,
+          "query": [
+            [
+              "month",
+              "2026-10"
+            ],
+            [
+              "scope",
+              "a b/c"
+            ]
+          ]
+        },
+        {
+          "id": "billing-usage-no-query",
+          "operation": "billing.usage",
+          "args": [],
+          "kwargs": {},
+          "session": false,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/billing/usage",
+              "auth": "bearer",
+              "body": null,
+              "status": 200,
+              "response": {
+                "json": {
+                  "synthetic": "billing-usage-no-query",
+                  "ok": true
+                }
+              }
+            }
+          ],
+          "expected": {
+            "synthetic": "billing-usage-no-query",
+            "ok": true
+          },
+          "expected_error": null,
+          "query": []
+        },
+        {
+          "id": "billing-usage-overview-query",
+          "operation": "billing.usage_overview",
+          "args": [],
+          "kwargs": {},
+          "session": false,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/billing/usage/overview?granularity=monthly&months=2",
+              "auth": "bearer",
+              "body": null,
+              "status": 200,
+              "response": {
+                "json": {
+                  "synthetic": "billing-usage-overview-query",
+                  "ok": true
+                }
+              }
+            }
+          ],
+          "expected": {
+            "synthetic": "billing-usage-overview-query",
+            "ok": true
+          },
+          "expected_error": null,
+          "query": [
+            [
+              "granularity",
+              "monthly"
+            ],
+            [
+              "months",
+              "2"
+            ]
+          ]
+        },
+        {
+          "id": "billing-usage-overview-no-query",
+          "operation": "billing.usage_overview",
+          "args": [],
+          "kwargs": {},
+          "session": false,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/billing/usage/overview",
+              "auth": "bearer",
+              "body": null,
+              "status": 200,
+              "response": {
+                "json": {
+                  "synthetic": "billing-usage-overview-no-query",
+                  "ok": true
+                }
+              }
+            }
+          ],
+          "expected": {
+            "synthetic": "billing-usage-overview-no-query",
+            "ok": true
+          },
+          "expected_error": null,
+          "query": []
+        },
+        {
+          "id": "billing-gift-card-bank-transfer-order",
+          "operation": "billing.create_gift_card_bank_transfer_order",
+          "args": [
+            120000
+          ],
+          "kwargs": {
+            "email_encryption_key": "synthetic-email-key",
+            "buyer_address": {
+              "city": "Berlin",
+              "country": "DE"
+            }
+          },
+          "session": false,
+          "routes": [
+            {
+              "method": "POST",
+              "path": "/v1/sdk/billing/gift-cards/bank-transfer-orders",
+              "auth": "bearer",
+              "body": {
+                "credits_amount": 120000,
+                "currency": "eur",
+                "email_encryption_key": "synthetic-email-key",
+                "buyer_address": {
+                  "city": "Berlin",
+                  "country": "DE"
+                }
+              },
+              "status": 200,
+              "response": {
+                "json": {
+                  "synthetic": "billing-gift-card-bank-transfer-order",
+                  "ok": true
+                }
+              }
+            }
+          ],
+          "expected": {
+            "synthetic": "billing-gift-card-bank-transfer-order",
+            "ok": true
+          },
+          "expected_error": null
+        },
+        {
+          "id": "billing-gift-card-bank-transfer-order-minimal",
+          "operation": "billing.create_gift_card_bank_transfer_order",
+          "args": [
+            5000
+          ],
+          "kwargs": {},
+          "session": false,
+          "routes": [
+            {
+              "method": "POST",
+              "path": "/v1/sdk/billing/gift-cards/bank-transfer-orders",
+              "auth": "bearer",
+              "body": {
+                "credits_amount": 5000,
+                "currency": "eur",
+                "email_encryption_key": null
+              },
+              "status": 200,
+              "response": {
+                "json": {
+                  "synthetic": "billing-gift-card-bank-transfer-order-minimal",
+                  "ok": true
+                }
+              }
+            }
+          ],
+          "expected": {
+            "synthetic": "billing-gift-card-bank-transfer-order-minimal",
+            "ok": true
+          },
+          "expected_error": null
+        },
+        {
+          "id": "billing-refund-requires-confirmation",
+          "operation": "billing.request_refund",
+          "args": [
+            "inv-1"
+          ],
+          "kwargs": {},
+          "session": false,
+          "routes": [],
+          "expected": null,
+          "expected_error": "invalid",
+          "confirmed": false
+        },
+        {
+          "id": "billing-download-invoice-keeps-last-path-component",
+          "operation": "billing.download_invoice",
+          "args": [
+            "inv/2 a"
+          ],
+          "kwargs": {},
+          "session": false,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/billing/invoices/inv%2F2%20a/download",
+              "auth": "bearer",
+              "body": null,
+              "status": 200,
+              "response": {
+                "raw_b64": "JVBERi0xLjcgc3ludGhldGljAP8Q",
+                "headers": {
+                  "Content-Type": "application/pdf",
+                  "Content-Disposition": "attachment; filename=\"../../invoice-2.pdf\""
+                }
+              }
+            }
+          ],
+          "expected": {
+            "content_type": "application/pdf",
+            "filename": "invoice-2.pdf",
+            "data_b64": "JVBERi0xLjcgc3ludGhldGljAP8Q"
+          },
+          "expected_error": null
+        },
+        {
+          "id": "billing-download-credit-note-prefers-utf8-name",
+          "operation": "billing.download_credit_note",
+          "args": [
+            "inv-1"
+          ],
+          "kwargs": {},
+          "session": false,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/billing/invoices/inv-1/credit-note/download",
+              "auth": "bearer",
+              "body": null,
+              "status": 200,
+              "response": {
+                "raw_b64": "JVBERi0xLjcgc3ludGhldGljAP8Q",
+                "headers": {
+                  "Content-Type": "application/pdf",
+                  "Content-Disposition": "attachment; filename=\"fallback.pdf\"; filename*=UTF-8''Gutschrift%20%E2%82%AC.pdf"
+                }
+              }
+            }
+          ],
+          "expected": {
+            "content_type": "application/pdf",
+            "filename": "Gutschrift €.pdf",
+            "data_b64": "JVBERi0xLjcgc3ludGhldGljAP8Q"
+          },
+          "expected_error": null
+        },
+        {
+          "id": "billing-download-invoice-windows-path-name",
+          "operation": "billing.download_invoice",
+          "args": [
+            "inv-3"
+          ],
+          "kwargs": {},
+          "session": false,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/billing/invoices/inv-3/download",
+              "auth": "bearer",
+              "body": null,
+              "status": 200,
+              "response": {
+                "raw_b64": "JVBERi0xLjcgc3ludGhldGljAP8Q",
+                "headers": {
+                  "Content-Type": "application/pdf",
+                  "Content-Disposition": "attachment; filename=\"C:\\exports\\inv-3.pdf\""
+                }
+              }
+            }
+          ],
+          "expected": {
+            "content_type": "application/pdf",
+            "filename": "inv-3.pdf",
+            "data_b64": "JVBERi0xLjcgc3ludGhldGljAP8Q"
+          },
+          "expected_error": null
+        },
+        {
+          "id": "billing-download-invoice-refuses-dot-name",
+          "operation": "billing.download_invoice",
+          "args": [
+            "inv-4"
+          ],
+          "kwargs": {},
+          "session": false,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/billing/invoices/inv-4/download",
+              "auth": "bearer",
+              "body": null,
+              "status": 200,
+              "response": {
+                "raw_b64": "JVBERi0xLjcgc3ludGhldGljAP8Q",
+                "headers": {
+                  "Content-Type": "application/pdf",
+                  "Content-Disposition": "attachment; filename=\"..\""
+                }
+              }
+            }
+          ],
+          "expected": {
+            "content_type": "application/pdf",
+            "filename": null,
+            "data_b64": "JVBERi0xLjcgc3ludGhldGljAP8Q"
+          },
+          "expected_error": null
+        },
+        {
+          "id": "billing-download-invoice-malformed-utf8-name",
+          "operation": "billing.download_invoice",
+          "args": [
+            "inv-5"
+          ],
+          "kwargs": {},
+          "session": false,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/billing/invoices/inv-5/download",
+              "auth": "bearer",
+              "body": null,
+              "status": 200,
+              "response": {
+                "raw_b64": "JVBERi0xLjcgc3ludGhldGljAP8Q",
+                "headers": {
+                  "Content-Type": "application/pdf",
+                  "Content-Disposition": "attachment; filename*=UTF-8''bad%zz.pdf; filename=\"ok.pdf\""
+                }
+              }
+            }
+          ],
+          "expected": {
+            "content_type": "application/pdf",
+            "filename": null,
+            "data_b64": "JVBERi0xLjcgc3ludGhldGljAP8Q"
+          },
+          "expected_error": null
+        },
+        {
+          "id": "billing-usage-export-months",
+          "operation": "billing.usage_export",
+          "args": [],
+          "kwargs": {
+            "months": 3
+          },
+          "session": false,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/billing/usage/export?months=3",
+              "auth": "bearer",
+              "body": null,
+              "status": 200,
+              "response": {
+                "raw_b64": "bW9udGgsY3JlZGl0cwoyMDI2LTEwLDEyMDAK",
+                "headers": {
+                  "Content-Type": "text/csv"
+                }
+              }
+            }
+          ],
+          "expected": {
+            "content_type": "text/csv",
+            "filename": null,
+            "data_b64": "bW9udGgsY3JlZGl0cwoyMDI2LTEwLDEyMDAK"
+          },
+          "expected_error": null
+        },
+        {
+          "id": "billing-usage-export-default-content-type",
+          "operation": "billing.usage_export",
+          "args": [],
+          "kwargs": {},
+          "session": false,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/billing/usage/export",
+              "auth": "bearer",
+              "body": null,
+              "status": 200,
+              "response": {
+                "raw_b64": "AAFiaW5hcnk=",
+                "headers": {}
+              }
+            }
+          ],
+          "expected": {
+            "content_type": "application/octet-stream",
+            "filename": null,
+            "data_b64": "AAFiaW5hcnk="
+          },
+          "expected_error": null
+        },
+        {
+          "id": "billing-download-invoice-forbidden",
+          "operation": "billing.download_invoice",
+          "args": [
+            "inv-6"
+          ],
+          "kwargs": {},
+          "session": false,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/billing/invoices/inv-6/download",
+              "auth": "bearer",
+              "body": null,
+              "status": 403,
+              "response": {
+                "json": {
+                  "detail": "synthetic forbidden"
+                }
+              }
+            }
+          ],
+          "expected": null,
+          "expected_error": "forbidden"
+        },
+        {
+          "id": "billing-download-credit-note-missing-non-json",
+          "operation": "billing.download_credit_note",
+          "args": [
+            "inv-7"
+          ],
+          "kwargs": {},
+          "session": false,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/billing/invoices/inv-7/credit-note/download",
+              "auth": "bearer",
+              "body": null,
+              "status": 404,
+              "response": {
+                "raw_b64": "bm90IGZvdW5k",
+                "headers": {
+                  "Content-Type": "text/plain"
+                }
+              }
+            }
+          ],
+          "expected": null,
+          "expected_error": "invalid"
+        }
+      ]
+    },
+    "sdk.memories": {
+      "api_key": "sk-api-wireOwner.localSetupSuffix",
+      "device_id": "synthetic-wire-device",
+      "session": {
+        "key_wrapper": {
+          "salt": "Y2NjY2NjY2NjY2NjY2NjYw==",
+          "key_iv": "ZGRkZGRkZGRkZGRk",
+          "encrypted_key": "kGKDofLQvTWwB0ohP9KAT6ZFB0n2OkvbfehNODT7dbfYJZAXn5ybMB/bPfHiywjT"
+        },
+        "user": {
+          "id": "synthetic-wire-owner"
+        }
+      },
+      "vectors": [
+        {
+          "id": "memories-list-decodes-json-toon-and-text",
+          "operation": "memories.list",
+          "args": [],
+          "kwargs": {},
+          "session": true,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/memories?app_id=books&item_type=favorite_books",
+              "auth": "bearer",
+              "body": null,
+              "status": 200,
+              "response": {
+                "json": {
+                  "memories": [
+                    {
+                      "id": "m-json",
+                      "app_id": "books",
+                      "item_type": "favorite_books",
+                      "item_key": "synthetic-hash",
+                      "item_version": 2,
+                      "created_at": 1700000000,
+                      "updated_at": 1700000100,
+                      "encrypted_item_json": "T01NUEwlAAAAAAAAAAAAAAABemKOWY33hXQITLKrvXwC6wdsktojlPsgmmEh8tpMiqsquW9/xeE+NCjNiJ8soK/13ujL0Muz78vlfHZDg+dIEw=="
+                    },
+                    {
+                      "id": "m-toon",
+                      "app_id": "books",
+                      "item_type": "favorite_books",
+                      "item_key": "synthetic-hash",
+                      "item_version": 2,
+                      "created_at": 1700000000,
+                      "updated_at": 1700000100,
+                      "encrypted_item_json": "T01NUEwlAAAAAAAAAAAAAAACWywYXYfhY0moqGVPwuS/CKD7dmIBEb8AR7zkKvJ/ivhwSL+qfsdTrMydXXk8G1etJjtfpH2X2UpxQn3WkhXVCfyumK43zBDfMcyAH57wKPFXd9u5G+cs/0s="
+                    },
+                    {
+                      "id": "m-toon-table",
+                      "app_id": "books",
+                      "item_type": "favorite_books",
+                      "item_key": "synthetic-hash",
+                      "item_version": 2,
+                      "created_at": 1700000000,
+                      "updated_at": 1700000100,
+                      "encrypted_item_json": "T01NUEwlAAAAAAAAAAAAAAADKGdWh7ix46x/h1jv9R952eoJZkyF6zkyeLxKXsjQfct3igt4tMWm/bxTPFuPsj8vUhrnjutqltE="
+                    },
+                    {
+                      "id": "m-text",
+                      "app_id": "books",
+                      "item_type": "favorite_books",
+                      "item_key": "synthetic-hash",
+                      "item_version": 2,
+                      "created_at": 1700000000,
+                      "updated_at": 1700000100,
+                      "encrypted_item_json": "T01NUEwlAAAAAAAAAAAAAAAEJPqplAZfJgOpdRXFg4W0u5HR/RB9HGyNEQp8nO8qsA=="
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "expected": {
+            "memories": [
+              {
+                "id": "m-json",
+                "app_id": "books",
+                "item_type": "favorite_books",
+                "item_key": "synthetic-hash",
+                "item_version": 2,
+                "created_at": 1700000000,
+                "updated_at": 1700000100,
+                "encrypted_item_json": "T01NUEwlAAAAAAAAAAAAAAABemKOWY33hXQITLKrvXwC6wdsktojlPsgmmEh8tpMiqsquW9/xeE+NCjNiJ8soK/13ujL0Muz78vlfHZDg+dIEw==",
+                "data": {
+                  "title": "Dune 界",
+                  "settings_group": "books"
+                }
+              },
+              {
+                "id": "m-toon",
+                "app_id": "books",
+                "item_type": "favorite_books",
+                "item_key": "synthetic-hash",
+                "item_version": 2,
+                "created_at": 1700000000,
+                "updated_at": 1700000100,
+                "encrypted_item_json": "T01NUEwlAAAAAAAAAAAAAAACWywYXYfhY0moqGVPwuS/CKD7dmIBEb8AR7zkKvJ/ivhwSL+qfsdTrMydXXk8G1etJjtfpH2X2UpxQn3WkhXVCfyumK43zBDfMcyAH57wKPFXd9u5G+cs/0s=",
+                "data": {
+                  "title": "Dune 界",
+                  "settings_group": "books",
+                  "tags": [
+                    "sci-fi",
+                    "classic"
+                  ],
+                  "rating": 4.5
+                }
+              },
+              {
+                "id": "m-toon-table",
+                "app_id": "books",
+                "item_type": "favorite_books",
+                "item_key": "synthetic-hash",
+                "item_version": 2,
+                "created_at": 1700000000,
+                "updated_at": 1700000100,
+                "encrypted_item_json": "T01NUEwlAAAAAAAAAAAAAAADKGdWh7ix46x/h1jv9R952eoJZkyF6zkyeLxKXsjQfct3igt4tMWm/bxTPFuPsj8vUhrnjutqltE=",
+                "data": {
+                  "items": [
+                    {
+                      "id": 1,
+                      "label": "first"
+                    },
+                    {
+                      "id": 2,
+                      "label": "second"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "m-text",
+                "app_id": "books",
+                "item_type": "favorite_books",
+                "item_key": "synthetic-hash",
+                "item_version": 2,
+                "created_at": 1700000000,
+                "updated_at": 1700000100,
+                "encrypted_item_json": "T01NUEwlAAAAAAAAAAAAAAAEJPqplAZfJgOpdRXFg4W0u5HR/RB9HGyNEQp8nO8qsA==",
+                "data": "not json at all"
+              }
+            ]
+          },
+          "expected_error": null,
+          "query": [
+            [
+              "app_id",
+              "books"
+            ],
+            [
+              "item_type",
+              "favorite_books"
+            ]
+          ]
+        },
+        {
+          "id": "memories-list-null-for-empty-and-foreign-plaintext",
+          "operation": "memories.list",
+          "args": [],
+          "kwargs": {},
+          "session": true,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/memories",
+              "auth": "bearer",
+              "body": null,
+              "status": 200,
+              "response": {
+                "json": {
+                  "memories": [
+                    {
+                      "id": "m-empty",
+                      "app_id": "books",
+                      "item_type": "favorite_books",
+                      "item_key": "synthetic-hash",
+                      "item_version": 2,
+                      "created_at": 1700000000,
+                      "updated_at": 1700000100,
+                      "encrypted_item_json": "T01NUEwlAAAAAAAAAAAAAAAFYy+jtdOrPlCvTBQ4353aBg=="
+                    },
+                    {
+                      "id": "m-foreign-key",
+                      "app_id": "books",
+                      "item_type": "favorite_books",
+                      "item_key": "synthetic-hash",
+                      "item_version": 2,
+                      "created_at": 1700000000,
+                      "updated_at": 1700000100,
+                      "encrypted_item_json": "T02b6znFAAAAAAAAAAAAAAAGOQcq7TgUOP1LwOemHyWkNa3vv8n7+BZhCCQQmkuedRUx9X8o9uE3zPYr"
+                    },
+                    {
+                      "id": "m-plain",
+                      "app_id": "books",
+                      "item_type": "favorite_books",
+                      "item_key": "synthetic-hash",
+                      "item_version": 2,
+                      "created_at": 1700000000,
+                      "updated_at": 1700000100
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "expected": {
+            "memories": [
+              {
+                "id": "m-empty",
+                "app_id": "books",
+                "item_type": "favorite_books",
+                "item_key": "synthetic-hash",
+                "item_version": 2,
+                "created_at": 1700000000,
+                "updated_at": 1700000100,
+                "encrypted_item_json": "T01NUEwlAAAAAAAAAAAAAAAFYy+jtdOrPlCvTBQ4353aBg==",
+                "data": null
+              },
+              {
+                "id": "m-foreign-key",
+                "app_id": "books",
+                "item_type": "favorite_books",
+                "item_key": "synthetic-hash",
+                "item_version": 2,
+                "created_at": 1700000000,
+                "updated_at": 1700000100,
+                "encrypted_item_json": "T02b6znFAAAAAAAAAAAAAAAGOQcq7TgUOP1LwOemHyWkNa3vv8n7+BZhCCQQmkuedRUx9X8o9uE3zPYr",
+                "data": null
+              },
+              {
+                "id": "m-plain",
+                "app_id": "books",
+                "item_type": "favorite_books",
+                "item_key": "synthetic-hash",
+                "item_version": 2,
+                "created_at": 1700000000,
+                "updated_at": 1700000100
+              }
+            ]
+          },
+          "expected_error": null,
+          "query": []
+        },
+        {
+          "id": "memories-list-without-ciphertext-needs-no-key",
+          "operation": "memories.list",
+          "args": [],
+          "kwargs": {},
+          "session": false,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/sdk/memories?app_id=books",
+              "auth": "bearer",
+              "body": null,
+              "status": 200,
+              "response": {
+                "json": {
+                  "memories": [
+                    {
+                      "id": "m-plain",
+                      "app_id": "books",
+                      "item_type": "favorite_books",
+                      "item_key": "synthetic-hash",
+                      "item_version": 2,
+                      "created_at": 1700000000,
+                      "updated_at": 1700000100
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "expected": {
+            "memories": [
+              {
+                "id": "m-plain",
+                "app_id": "books",
+                "item_type": "favorite_books",
+                "item_key": "synthetic-hash",
+                "item_version": 2,
+                "created_at": 1700000000,
+                "updated_at": 1700000100
+              }
+            ]
+          },
+          "expected_error": null,
+          "query": [
+            [
+              "app_id",
+              "books"
+            ]
+          ]
+        },
+        {
+          "id": "memories-published-all-apps",
+          "operation": "memories.published",
+          "args": [],
+          "kwargs": {},
+          "session": false,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/apps/metadata?include_unavailable=true",
+              "auth": "public",
+              "body": null,
+              "status": 200,
+              "response": {
+                "json": {
+                  "apps": {
+                    "books": {
+                      "memories": [
+                        {
+                          "id": "guide-b"
+                        }
+                      ]
+                    },
+                    "web": {
+                      "memories": [
+                        {
+                          "id": "guide-w"
+                        }
+                      ]
+                    },
+                    "zeta": {}
+                  }
+                }
+              }
+            }
+          ],
+          "expected": {
+            "memories": [
+              {
+                "id": "guide-b"
+              },
+              {
+                "id": "guide-w"
+              }
+            ]
+          },
+          "expected_error": null
+        },
+        {
+          "id": "memories-published-one-app",
+          "operation": "memories.published",
+          "args": [],
+          "kwargs": {
+            "app_id": "web app"
+          },
+          "session": false,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/apps/web%20app/metadata?include_unavailable=true",
+              "auth": "public",
+              "body": null,
+              "status": 200,
+              "response": {
+                "json": {
+                  "id": "web app",
+                  "memories": [
+                    {
+                      "id": "guide-w"
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "expected": {
+            "memories": [
+              {
+                "id": "guide-w"
+              }
+            ]
+          },
+          "expected_error": null
+        },
+        {
+          "id": "memories-published-app-without-guidance",
+          "operation": "memories.published",
+          "args": [],
+          "kwargs": {
+            "app_id": "books"
+          },
+          "session": false,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/v1/apps/books/metadata?include_unavailable=true",
+              "auth": "public",
+              "body": null,
+              "status": 200,
+              "response": {
+                "json": {
+                  "id": "books"
+                }
+              }
+            }
+          ],
+          "expected": {
+            "memories": []
+          },
+          "expected_error": null
+        },
+        {
+          "id": "memories-delete-confirmed",
+          "operation": "memories.delete",
+          "args": [
+            "mem 1/a"
+          ],
+          "kwargs": {},
+          "session": false,
+          "routes": [
+            {
+              "method": "DELETE",
+              "path": "/v1/sdk/memories/mem%201%2Fa",
+              "auth": "bearer",
+              "body": null,
+              "status": 200,
+              "response": {
+                "json": {
+                  "success": true,
+                  "id": "mem 1/a"
+                }
+              }
+            }
+          ],
+          "expected": {
+            "success": true,
+            "id": "mem 1/a"
+          },
+          "expected_error": null,
+          "confirmed": true
+        },
+        {
+          "id": "memories-delete-requires-confirmation",
+          "operation": "memories.delete",
+          "args": [
+            "mem-1"
+          ],
+          "kwargs": {},
+          "session": false,
+          "routes": [],
+          "expected": null,
+          "expected_error": "invalid",
+          "confirmed": false
+        }
+      ]
+    }
+  }
+}

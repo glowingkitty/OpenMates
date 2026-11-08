@@ -49,13 +49,14 @@ pub(crate) fn require_confirmed(confirmed: bool) -> Result<()> {
         ))
     }
 }
-/// Same `filename=` extraction as the Python SDK, reduced to a bare file name.
+/// Shared download filename contract for [`RawDownload`] (npm `extractFilename`,
+/// Python `raw_download.filename_from_disposition`; proved by the `sdk.billing`
+/// vectors in `tests/sdk-conformance/fixtures/sdk-api-key-wire.json`):
+/// `filename*=UTF-8''` (percent-decoded) wins over `filename=`, a malformed encoded
+/// name yields `None`, and only the last path component is kept so a server
+/// cannot steer a caller that saves by filename outside its directory.
 pub(crate) fn filename(content_disposition: Option<&str>) -> Option<String> {
-    let value = content_disposition?
-        .split(';')
-        .map(str::trim)
-        .find_map(|part| part.strip_prefix("filename="))?
-        .trim_matches('"');
+    let value = crate::sdk_transport::filename_from_disposition(content_disposition?)?;
     let name = value.rsplit(['/', '\\']).next().unwrap_or_default();
     (!name.is_empty() && name != "." && name != "..").then(|| name.to_owned())
 }

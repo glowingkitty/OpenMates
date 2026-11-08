@@ -42,6 +42,7 @@ from .direct_chats import (
     recover_identity, seal_direct_chat_key, validate_public_chat_key,
 )
 from .chat_completion_recovery import derive_recovery_keypair, open_recovery_envelope
+from .raw_download import RawDownload, filename_from_disposition
 from .work_control import WorkDependenciesFacade as _WorkDependenciesFacade
 
 
@@ -603,6 +604,10 @@ class OpenMates:
         return {**first, "results": grouped_results}
 
     def _get_raw(self, path: str) -> dict[str, Any]:
+        """Legacy dict projection of ``_get_raw_download`` for non-billing callers."""
+        return dict(self._get_raw_download(path))
+
+    def _get_raw_download(self, path: str) -> RawDownload:
         if not self._api_key:
             raise OpenMatesConfigError("OpenMates API key is required")
 
@@ -612,12 +617,17 @@ class OpenMates:
             timeout=DEFAULT_TIMEOUT_SECONDS,
         )
         if response.status_code >= 400:
-            return self._parse_response(response)
-        return {
-            "content_type": response.headers.get("content-type", "application/octet-stream"),
-            "filename": _extract_filename(response.headers.get("content-disposition")),
-            "data": response.content,
-        }
+            # Like npm getRaw: a non-JSON error body still raises the typed API error.
+            try:
+                detail = response.json()
+            except ValueError:
+                detail = {}
+            raise OpenMatesApiError(response.status_code, detail)
+        return RawDownload(
+            content_type=response.headers.get("content-type", "application/octet-stream"),
+            filename=filename_from_disposition(response.headers.get("content-disposition")),
+            data=response.content,
+        )
 
     def _headers(self, *, has_body: bool = True) -> dict[str, str]:
         parsed_api_url = urlparse(self._api_url)
@@ -1231,15 +1241,6 @@ def _delete_project_item_by_target(
 def _unsupported_sdk_feature(feature: str) -> Any:
     raise OpenMatesConfigError(f"{feature} is not available through the API-key SDK yet")
 
-
-def _extract_filename(content_disposition: str | None) -> str | None:
-    if not content_disposition:
-        return None
-    for part in content_disposition.split(";"):
-        part = part.strip()
-        if part.startswith("filename="):
-            return part.removeprefix("filename=").strip('"')
-    return None
 
 
 def _resolve_design_icon_svg_path(*, svg_path: str | None = None, prefix: str | None = None, name: str | None = None) -> str:
@@ -3047,6 +3048,25 @@ def _parse_maybe_json(value: str | None) -> Any:
     try:
         return json.loads(value)
     except json.JSONDecodeError:
+        return value
+
+
+def _parse_memory_data(value: str | None) -> Any:
+    """Decrypted memory plaintext exactly like npm ``memories.list``.
+
+    Undecryptable or empty plaintext is None; JSON wins, then non-strict TOON
+    (the shared Rust ``toon_decode`` / ``@toon-format/toon`` strict=false
+    reading), and only text neither can read stays the raw string.
+    """
+    if not value:
+        return None
+    try:
+        return json.loads(value)
+    except json.JSONDecodeError:
+        pass
+    try:
+        return decode_toon(value, strict=False)
+    except ToonDecodeError:
         return value
 
 
@@ -6206,7 +6226,7 @@ class OpenMatesMemories:
             encrypted_item_json = memory.get("encrypted_item_json")
             if isinstance(encrypted_item_json, str):
                 raw = _decrypt_aes_gcm_text(encrypted_item_json, self._client._get_master_key())
-                decrypted["data"] = _parse_maybe_json(raw)
+                decrypted["data"] = _parse_memory_data(raw)
             memories.append(decrypted)
         return {"memories": memories}
 
@@ -6231,13 +6251,13 @@ class OpenMatesBilling:
     def chat_total(self, chat_id: str) -> dict[str, Any]: return self._client._get(_with_query("/v1/sdk/billing/usage/chat-total", chat_id=chat_id))
     def usage_summaries(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/usage/summaries")
     def usage_daily(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/usage/daily")
-    def usage_export(self, *, months: int | None = None) -> dict[str, Any]: return self._client._get_raw(_with_query("/v1/sdk/billing/usage/export", months=months))
+    def usage_export(self, *, months: int | None = None) -> RawDownload: return self._client._get_raw_download(_with_query("/v1/sdk/billing/usage/export", months=months))
     def create_bank_transfer_order(self, credits: int, *, email_encryption_key: str | None = None, buyer_address: dict[str, Any] | None = None) -> dict[str, Any]: return self._client._post("/v1/sdk/billing/bank-transfer-orders", {"credits_amount": credits, "currency": "eur", "email_encryption_key": email_encryption_key, **({"buyer_address": buyer_address} if buyer_address is not None else {})})
     def bank_transfer_status(self, order_id: str) -> dict[str, Any]: return self._client._get(f"/v1/sdk/billing/bank-transfer-orders/{_quote(order_id)}")
     def list_bank_transfer_orders(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/bank-transfer-orders")
     def list_invoices(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/invoices")
-    def download_invoice(self, invoice_id: str) -> dict[str, Any]: return self._client._get_raw(f"/v1/sdk/billing/invoices/{_quote(invoice_id)}/download")
-    def download_credit_note(self, invoice_id: str) -> dict[str, Any]: return self._client._get_raw(f"/v1/sdk/billing/invoices/{_quote(invoice_id)}/credit-note/download")
+    def download_invoice(self, invoice_id: str) -> RawDownload: return self._client._get_raw_download(f"/v1/sdk/billing/invoices/{_quote(invoice_id)}/download")
+    def download_credit_note(self, invoice_id: str) -> RawDownload: return self._client._get_raw_download(f"/v1/sdk/billing/invoices/{_quote(invoice_id)}/credit-note/download")
     def request_refund(self, invoice_id: str, *, confirmed: bool = False, email_encryption_key: str | None = None) -> dict[str, Any]:
         _require_confirmed(confirmed, "Requesting an invoice refund")
         return self._client._post("/v1/sdk/billing/refund", {"invoice_id": invoice_id, "email_encryption_key": email_encryption_key})

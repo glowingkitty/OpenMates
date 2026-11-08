@@ -128,6 +128,7 @@ export type {
   IdeaBucketSettings,
   IdeaBucketSettingsInput,
   OpenMatesOptions,
+  RawDownload,
   AnonymousUsageStatus,
   TaskListFilters,
   PlanPlainCreateOptions,

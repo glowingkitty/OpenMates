@@ -242,6 +242,15 @@ for _identity, _stem, _npm in (
         sys.executable, "tests/sdk-conformance/runners/" + _npm + ".py",
     ]
 
+# API-key billing + memories wire vectors (raw downloads, TOON decoding): one
+# independent driver per vector; fixed adapters, never matrix-supplied commands.
+for _identity in ("sdk.billing", "sdk.memories"):
+    ADAPTER_OVERRIDES[("rust", _identity)] = [
+        *RUNNERS["rust"][:-2], "sdk-api-key-wire-conformance", "--",
+    ]
+    ADAPTER_OVERRIDES[("npm", _identity)] = ["node", "tests/sdk-conformance/runners/sdk-api-key-wire.mjs"]
+    ADAPTER_OVERRIDES[("python", _identity)] = [sys.executable, "tests/sdk-conformance/runners/sdk-api-key-wire.py"]
+
 # Shared API-key wire, public-helper, key-management and model fixtures: one
 # fixed Rust example, the npm runner (source facades; WASM for keys/models) and
 # fixed Python runners. Matrix metadata never supplies commands.
@@ -479,6 +488,7 @@ def validate_matrix(matrix: dict, inventory: dict, root: Path = ROOT) -> list[st
                     "frontend/packages/openmates-tui-native/src/runtime_store.rs",
                     "packages/openmates-rust/examples/sdk-api-key-history-conformance.rs",
                     "packages/openmates-rust/examples/sdk-api-key-chats-conformance.rs",
+                    "packages/openmates-rust/examples/sdk-api-key-wire-conformance.rs",
                     "packages/openmates-rust/examples/sdk-api-key-drafts-conformance.rs",
                     "packages/openmates-rust/examples/sdk-api-key-docs-conformance.rs",
                     "packages/openmates-rust/examples/sdk-api-key-wikipedia-conformance.rs",

@@ -68,6 +68,7 @@ from .key_management import KeyManagementError, random_key, encode_key, decode_k
 from .models import Workspace, Item, Message, Chat, StreamUpdate, Mutation
 from .public_utilities import (SUPPORT_URL, ASSISTANT_FEEDBACK_THANKS, ASSISTANT_FEEDBACK_REPORT_TITLE, render_support_info, default_clone_branch_for_version, derive_app_url, get_ext_for_lang, build_assistant_feedback_decision, classify_images_ai_detection, format_images_ai_detection_label, build_images_ai_detection_summary)
 from .calendar_event import CalendarEvent, CalendarEventDocument, build_calendar_event_file
+from .raw_download import RawDownload
 from .session_client import SessionAccount, SessionSettingsReadError
 from .remote_crypto import RemoteHandshake,RemoteSession,RemoteCryptoError,RemoteIdentity,RemoteRole,RemoteHandshakeWire,RemoteEnvelope
 from .metadata_ephemeral import MetadataAuthentication,EphemeralMetadataClient,EphemeralMetadataStartup,EphemeralMetadataSnapshot,MetadataEphemeralError,MetadataCookieCredentials,MetadataAuthenticationOptions
@@ -148,6 +149,7 @@ __all__ = [
     "CalendarEvent",
     "CalendarEventDocument",
     "build_calendar_event_file",
+    "RawDownload",
     "SessionProjectSourcesDecodedNames",
     "SessionAccount",
     "SessionSettingsReadError",

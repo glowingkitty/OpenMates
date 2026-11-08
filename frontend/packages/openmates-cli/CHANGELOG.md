@@ -3,6 +3,18 @@
 Only SDK-relevant compatibility notes are recorded here. Release versions follow
 the product line (`0.29.x` alpha prereleases from `dev`, stable from `main`).
 
+## Unreleased
+
+### Changed
+
+- `billing.downloadInvoice`, `billing.downloadCreditNote` and
+  `billing.usageExport` now declare the exported `RawDownload` type
+  (`contentType`, optional `filename`, `data: ArrayBuffer`); the runtime shape is
+  unchanged. `filename` is now always the last path component of the
+  `Content-Disposition` name, and is omitted for `.`/`..` names or a malformed
+  `filename*` encoding (previously such a header threw a `URIError`). Rust and
+  Python follow the same filename contract.
+
 ## 0.30.0
 
 ### Breaking

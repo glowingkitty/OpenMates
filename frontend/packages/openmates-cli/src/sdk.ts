@@ -219,6 +219,18 @@ function normalizeOptionalGoal(value: string | undefined): string | null {
   return trimmed;
 }
 
+/**
+ * Raw file response (invoice PDFs, credit notes, usage exports); the body is never
+ * interpreted. Same fields as Rust `sdk_ops::RawDownload` and Python `RawDownload`
+ * (`content_type`, `filename`, `data`). Structurally identical to the previous
+ * inline return shape, so existing callers are unaffected.
+ */
+export interface RawDownload {
+  contentType: string;
+  filename?: string;
+  data: ArrayBuffer;
+}
+
 export interface OpenMatesOptions {
   apiKey?: string;
   /** Ignore environment credentials and use only the free anonymous allowance. */
@@ -887,7 +899,7 @@ export class OpenMates {
     return this.parseResponse<T>(response);
   }
 
-  async getRaw(path: string): Promise<{ contentType: string; filename?: string; data: ArrayBuffer }> {
+  async getRaw(path: string): Promise<RawDownload> {
     if (!this.apiKey) {
       throw new OpenMatesConfigError("OpenMates API key is required");
     }
@@ -2092,11 +2104,29 @@ function unsupportedSdkFeature(feature: string): never {
   throw new OpenMatesConfigError(`${feature} is not available through the API-key SDK yet`);
 }
 
+/**
+ * Shared download filename contract (Rust `sdk_ops::filename`, Python
+ * `raw_download.filename_from_disposition`; vectors in sdk-api-key-wire.json):
+ * `filename*=UTF-8''` (percent-decoded) wins over `filename=`, a malformed encoded
+ * name yields no filename, and only the last path component is kept so a server
+ * cannot steer a caller that saves by filename outside its directory.
+ */
 function extractFilename(contentDisposition: string | null): string | undefined {
   if (!contentDisposition) return undefined;
   const encoded = contentDisposition.match(/filename\*=UTF-8''([^;]+)/)?.[1];
-  if (encoded) return decodeURIComponent(encoded);
-  return contentDisposition.match(/filename="?([^";]+)"?/)?.[1];
+  let name: string | undefined;
+  if (encoded !== undefined) {
+    try {
+      name = decodeURIComponent(encoded);
+    } catch (error) {
+      if (!(error instanceof URIError)) throw error;
+      return undefined;
+    }
+  } else {
+    name = contentDisposition.match(/filename="?([^";]+)"?/)?.[1];
+  }
+  const base = name?.split(/[/\\]/).pop();
+  return base === undefined || base === "" || base === "." || base === ".." ? undefined : base;
 }
 
 function normalizeHistory(history: ChatSendOptions["history"]): Array<Record<string, unknown>> {
@@ -3581,13 +3611,13 @@ export class OpenMatesBilling {
   async chatTotal(chatId: string): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(withQuery("/v1/sdk/billing/usage/chat-total", { chat_id: chatId })); }
   async usageSummaries(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing/usage/summaries"); }
   async usageDaily(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing/usage/daily"); }
-  async usageExport(options: { months?: number } = {}): Promise<{ contentType: string; filename?: string; data: ArrayBuffer }> { return this.client.getRaw(withQuery("/v1/sdk/billing/usage/export", { months: options.months })); }
+  async usageExport(options: { months?: number } = {}): Promise<RawDownload> { return this.client.getRaw(withQuery("/v1/sdk/billing/usage/export", { months: options.months })); }
   async createBankTransferOrder(credits: number, options: BankTransferOrderOptions = {}): Promise<Record<string, unknown>> { return this.client.request<Record<string, unknown>>("/v1/sdk/billing/bank-transfer-orders", { credits_amount: credits, currency: "eur", email_encryption_key: options.emailEncryptionKey ?? null, ...(options.buyerAddress ? { buyer_address: options.buyerAddress } : {}) }); }
   async bankTransferStatus(orderId: string): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(`/v1/sdk/billing/bank-transfer-orders/${encodeURIComponent(orderId)}`); }
   async listBankTransferOrders(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing/bank-transfer-orders"); }
   async listInvoices(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing/invoices"); }
-  async downloadInvoice(invoiceId: string): Promise<{ contentType: string; filename?: string; data: ArrayBuffer }> { return this.client.getRaw(`/v1/sdk/billing/invoices/${encodeURIComponent(invoiceId)}/download`); }
-  async downloadCreditNote(invoiceId: string): Promise<{ contentType: string; filename?: string; data: ArrayBuffer }> { return this.client.getRaw(`/v1/sdk/billing/invoices/${encodeURIComponent(invoiceId)}/credit-note/download`); }
+  async downloadInvoice(invoiceId: string): Promise<RawDownload> { return this.client.getRaw(`/v1/sdk/billing/invoices/${encodeURIComponent(invoiceId)}/download`); }
+  async downloadCreditNote(invoiceId: string): Promise<RawDownload> { return this.client.getRaw(`/v1/sdk/billing/invoices/${encodeURIComponent(invoiceId)}/credit-note/download`); }
   async requestRefund(invoiceId: string, options: ConfirmedMutationOptions & { emailEncryptionKey?: string }): Promise<Record<string, unknown>> { requireConfirmed(options, "Requesting an invoice refund"); return this.client.request<Record<string, unknown>>("/v1/sdk/billing/refund", { invoice_id: invoiceId, email_encryption_key: options.emailEncryptionKey ?? null }); }
   async redeemGiftCard(code: string): Promise<Record<string, unknown>> { return this.client.request<Record<string, unknown>>("/v1/sdk/billing/gift-cards/redeem", { code }); }
   async listRedeemedGiftCards(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing/gift-cards/redeemed"); }

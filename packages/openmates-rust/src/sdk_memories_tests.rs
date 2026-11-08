@@ -54,6 +54,19 @@ fn npm_generated_ciphertexts_decrypt_with_the_shared_master_key() {
 }
 
 #[test]
+fn memory_plaintext_decodes_like_npm_parse_maybe_json() {
+    assert_eq!(memory_data(""), Value::Null);
+    assert_eq!(memory_data(r#"{"a":1}"#), json!({"a": 1}));
+    assert_eq!(
+        memory_data("title: Dune\ntags[2]: sci-fi,classic\nrating: 4.5"),
+        json!({"title": "Dune", "tags": ["sci-fi", "classic"], "rating": 4.5})
+    );
+    assert_eq!(
+        memory_data("items[2]{id,label}:\n  1,first\n  2,second"),
+        json!({"items": [{"id": 1, "label": "first"}, {"id": 2, "label": "second"}]})
+    );
+}
+#[test]
 fn item_key_hash_and_plaintext_match_npm() {
     let f = fixture();
     for case in f["hashes"].as_array().unwrap() {

@@ -12,42 +12,42 @@ spec_gaps: []
 summaries:
   sdk_rust:
     total: 53
-    done: 4
-    partial: 49
+    done: 5
+    partial: 48
     missing: 0
-    percent: 7.5
+    percent: 9.4
   sdk_npm:
     total: 53
-    done: 4
-    partial: 47
+    done: 5
+    partial: 46
     missing: 2
-    percent: 7.5
+    percent: 9.4
   sdk_python:
     total: 53
-    done: 4
-    partial: 47
+    done: 5
+    partial: 46
     missing: 2
-    percent: 7.5
+    percent: 9.4
 domains:
 - domain: operations
   rust:
     total: 53
-    done: 4
-    partial: 49
+    done: 5
+    partial: 48
     missing: 0
-    percent: 7.5
+    percent: 9.4
   npm:
     total: 53
-    done: 4
-    partial: 47
+    done: 5
+    partial: 46
     missing: 2
-    percent: 7.5
+    percent: 9.4
   python:
     total: 53
-    done: 4
-    partial: 47
+    done: 5
+    partial: 46
     missing: 2
-    percent: 7.5
+    percent: 9.4
 capabilities:
 - id: cli.native-personal-embed-share.v1
   domain: operations
@@ -249,22 +249,22 @@ capabilities:
     gaps: 1
 - id: sdk.billing
   domain: operations
-  has_fixture: false
+  has_fixture: true
   rust:
-    status: partial
+    status: implemented
     api_symbols: 31
-    conformance: false
-    gaps: 4
+    conformance: true
+    gaps: 0
   npm:
-    status: partial
+    status: implemented
     api_symbols: 72
-    conformance: false
-    gaps: 1
+    conformance: true
+    gaps: 0
   python:
-    status: partial
-    api_symbols: 48
-    conformance: false
-    gaps: 1
+    status: implemented
+    api_symbols: 51
+    conformance: true
+    gaps: 0
 - id: sdk.connected-accounts
   domain: operations
   has_fixture: false
@@ -501,21 +501,21 @@ capabilities:
     gaps: 1
 - id: sdk.memories
   domain: operations
-  has_fixture: false
+  has_fixture: true
   rust:
     status: partial
     api_symbols: 18
-    conformance: false
-    gaps: 2
+    conformance: true
+    gaps: 1
   npm:
     status: partial
     api_symbols: 12
-    conformance: false
+    conformance: true
     gaps: 1
   python:
     status: partial
     api_symbols: 8
-    conformance: false
+    conformance: true
     gaps: 1
 - id: sdk.new-chat-suggestions
   domain: operations
@@ -925,12 +925,12 @@ capabilities:
     status: partial
     api_symbols: 3
     conformance: true
-    gaps: 5
+    gaps: 4
   python:
     status: partial
     api_symbols: 17
     conformance: true
-    gaps: 5
+    gaps: 4
 - id: session.settings-reminders-read
   domain: operations
   has_fixture: true
