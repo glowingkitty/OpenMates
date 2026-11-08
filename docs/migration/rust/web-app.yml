@@ -247,7 +247,7 @@ units:
   installer: frontend/packages/ui/src/services/rustCore/parse/parseUnit.ts
   what_moved: Serves the render-plan block model (parseProtocol.ts) on the unit port from the realm's single WASM
     binding. Stateless and IO-free, hence pre-bind.
-  typescript_fallback: none declared (3 files)
+  typescript_fallback: none declared (4 files)
   unit_tests: []
   e2e_specs: []
   vectors: []

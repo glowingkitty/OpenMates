@@ -1,0 +1,1164 @@
+{
+ "cases": [
+  {
+   "name": "two children",
+   "source": {
+    "type": "doc",
+    "content": [
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "embed",
+        "attrs": {
+         "type": "app-skill-use",
+         "app_id": "images",
+         "skill_id": "generate",
+         "id": "11111111-1111-4111-8111-111111111111"
+        }
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "!\n!"
+       }
+      ]
+     }
+    ]
+   },
+   "resolved": {
+    "11111111-1111-4111-8111-111111111111": {
+     "app_id": "images",
+     "skill_id": "generate",
+     "status": "finished",
+     "embed_ids": [
+      "22222222-2222-4222-8222-222222222222",
+      "33333333-3333-4333-8333-333333333333"
+     ]
+    }
+   },
+   "parents": [
+    "11111111-1111-4111-8111-111111111111"
+   ],
+   "document": {
+    "type": "doc",
+    "content": [
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "embed",
+        "attrs": {
+         "type": "app-skill-use",
+         "app_id": "images",
+         "skill_id": "generate",
+         "id": "11111111-1111-4111-8111-111111111111"
+        }
+       }
+      ]
+     },
+     {
+      "type": "embedPreviewLarge",
+      "attrs": {
+       "embedId": "22222222-2222-4222-8222-222222222222",
+       "embedRef": "generated-images-222222222222",
+       "appId": "images",
+       "carouselIndex": 0,
+       "carouselTotal": 2,
+       "runRef": "generated-images-222222222222"
+      }
+     },
+     {
+      "type": "embedPreviewLarge",
+      "attrs": {
+       "embedId": "33333333-3333-4333-8333-333333333333",
+       "embedRef": "generated-images-333333333333",
+       "appId": "images",
+       "carouselIndex": 1,
+       "carouselTotal": 2,
+       "runRef": "generated-images-222222222222"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "draft skill and contentRef",
+   "source": {
+    "type": "doc",
+    "content": [
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "embed",
+        "attrs": {
+         "type": "app-skill-use",
+         "app_id": "images",
+         "skill_id": "generate_draft",
+         "contentRef": "embed:11111111-1111-4111-8111-111111111111"
+        }
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": " ! "
+       }
+      ]
+     }
+    ]
+   },
+   "resolved": {
+    "11111111-1111-4111-8111-111111111111": {
+     "app_id": "images",
+     "skill_id": "generate_draft",
+     "status": "finished",
+     "embed_ids": [
+      "22222222-2222-4222-8222-222222222222",
+      "33333333-3333-4333-8333-333333333333"
+     ]
+    }
+   },
+   "parents": [
+    "11111111-1111-4111-8111-111111111111"
+   ],
+   "document": {
+    "type": "doc",
+    "content": [
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "embed",
+        "attrs": {
+         "type": "app-skill-use",
+         "app_id": "images",
+         "skill_id": "generate_draft",
+         "contentRef": "embed:11111111-1111-4111-8111-111111111111"
+        }
+       }
+      ]
+     },
+     {
+      "type": "embedPreviewLarge",
+      "attrs": {
+       "embedId": "22222222-2222-4222-8222-222222222222",
+       "embedRef": "generated-images-222222222222",
+       "appId": "images",
+       "carouselIndex": 0,
+       "carouselTotal": 2,
+       "runRef": "generated-images-222222222222"
+      }
+     },
+     {
+      "type": "embedPreviewLarge",
+      "attrs": {
+       "embedId": "33333333-3333-4333-8333-333333333333",
+       "embedRef": "generated-images-333333333333",
+       "appId": "images",
+       "carouselIndex": 1,
+       "carouselTotal": 2,
+       "runRef": "generated-images-222222222222"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "visible sibling kept",
+   "source": {
+    "type": "doc",
+    "content": [
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "embed",
+        "attrs": {
+         "type": "app-skill-use",
+         "app_id": "images",
+         "skill_id": "generate",
+         "id": "11111111-1111-4111-8111-111111111111"
+        }
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "!\n!"
+       }
+      ]
+     },
+     {
+      "type": "embedPreviewLarge",
+      "attrs": {
+       "embedRef": "generated-images-222222222222"
+      }
+     }
+    ]
+   },
+   "resolved": {
+    "11111111-1111-4111-8111-111111111111": {
+     "app_id": "images",
+     "skill_id": "generate",
+     "status": "finished",
+     "embed_ids": [
+      "22222222-2222-4222-8222-222222222222",
+      "33333333-3333-4333-8333-333333333333"
+     ]
+    }
+   },
+   "parents": [
+    "11111111-1111-4111-8111-111111111111"
+   ],
+   "document": {
+    "type": "doc",
+    "content": [
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "embed",
+        "attrs": {
+         "type": "app-skill-use",
+         "app_id": "images",
+         "skill_id": "generate",
+         "id": "11111111-1111-4111-8111-111111111111"
+        }
+       }
+      ]
+     },
+     {
+      "type": "embedPreviewLarge",
+      "attrs": {
+       "embedRef": "generated-images-222222222222"
+      }
+     },
+     {
+      "type": "embedPreviewLarge",
+      "attrs": {
+       "embedId": "33333333-3333-4333-8333-333333333333",
+       "embedRef": "generated-images-333333333333",
+       "appId": "images",
+       "carouselIndex": 0,
+       "carouselTotal": 1,
+       "runRef": "generated-images-333333333333"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "all visible",
+   "source": {
+    "type": "doc",
+    "content": [
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "embed",
+        "attrs": {
+         "type": "app-skill-use",
+         "app_id": "images",
+         "skill_id": "generate",
+         "id": "11111111-1111-4111-8111-111111111111"
+        }
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "!\n!"
+       }
+      ]
+     },
+     {
+      "type": "embedPreviewLarge",
+      "attrs": {
+       "embedId": "22222222-2222-4222-8222-222222222222"
+      }
+     },
+     {
+      "type": "embedPreviewLarge",
+      "attrs": {
+       "embedRef": "embed:33333333-3333-4333-8333-333333333333"
+      }
+     }
+    ]
+   },
+   "resolved": {
+    "11111111-1111-4111-8111-111111111111": {
+     "app_id": "images",
+     "skill_id": "generate",
+     "status": "finished",
+     "embed_ids": [
+      "22222222-2222-4222-8222-222222222222",
+      "33333333-3333-4333-8333-333333333333"
+     ]
+    }
+   },
+   "parents": [
+    "11111111-1111-4111-8111-111111111111"
+   ],
+   "document": null
+  },
+  {
+   "name": "ordinary exclamation",
+   "source": {
+    "type": "doc",
+    "content": [
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "embed",
+        "attrs": {
+         "type": "app-skill-use",
+         "app_id": "images",
+         "skill_id": "generate",
+         "id": "11111111-1111-4111-8111-111111111111"
+        }
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "Looks great!"
+       }
+      ]
+     }
+    ]
+   },
+   "resolved": {
+    "11111111-1111-4111-8111-111111111111": {
+     "app_id": "images",
+     "skill_id": "generate",
+     "status": "finished",
+     "embed_ids": [
+      "22222222-2222-4222-8222-222222222222",
+      "33333333-3333-4333-8333-333333333333"
+     ]
+    }
+   },
+   "parents": [],
+   "document": null
+  },
+  {
+   "name": "no placeholder",
+   "source": {
+    "type": "doc",
+    "content": [
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "embed",
+        "attrs": {
+         "type": "app-skill-use",
+         "app_id": "images",
+         "skill_id": "generate",
+         "id": "11111111-1111-4111-8111-111111111111"
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "resolved": {
+    "11111111-1111-4111-8111-111111111111": {
+     "app_id": "images",
+     "skill_id": "generate",
+     "status": "finished",
+     "embed_ids": [
+      "22222222-2222-4222-8222-222222222222",
+      "33333333-3333-4333-8333-333333333333"
+     ]
+    }
+   },
+   "parents": [],
+   "document": null
+  },
+  {
+   "name": "unresolved parent",
+   "source": {
+    "type": "doc",
+    "content": [
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "embed",
+        "attrs": {
+         "type": "app-skill-use",
+         "app_id": "images",
+         "skill_id": "generate",
+         "id": "11111111-1111-4111-8111-111111111111"
+        }
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "!\n!"
+       }
+      ]
+     }
+    ]
+   },
+   "resolved": {},
+   "parents": [
+    "11111111-1111-4111-8111-111111111111"
+   ],
+   "document": null
+  },
+  {
+   "name": "processing parent",
+   "source": {
+    "type": "doc",
+    "content": [
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "embed",
+        "attrs": {
+         "type": "app-skill-use",
+         "app_id": "images",
+         "skill_id": "generate",
+         "id": "11111111-1111-4111-8111-111111111111"
+        }
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "!\n!"
+       }
+      ]
+     }
+    ]
+   },
+   "resolved": {
+    "11111111-1111-4111-8111-111111111111": {
+     "app_id": "images",
+     "skill_id": "generate",
+     "status": "processing",
+     "embed_ids": [
+      "22222222-2222-4222-8222-222222222222",
+      "33333333-3333-4333-8333-333333333333"
+     ]
+    }
+   },
+   "parents": [
+    "11111111-1111-4111-8111-111111111111"
+   ],
+   "document": null
+  },
+  {
+   "name": "wrong app",
+   "source": {
+    "type": "doc",
+    "content": [
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "embed",
+        "attrs": {
+         "type": "app-skill-use",
+         "app_id": "images",
+         "skill_id": "generate",
+         "id": "11111111-1111-4111-8111-111111111111"
+        }
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "!\n!"
+       }
+      ]
+     }
+    ]
+   },
+   "resolved": {
+    "11111111-1111-4111-8111-111111111111": {
+     "app_id": "web",
+     "skill_id": "generate",
+     "status": "finished",
+     "embed_ids": [
+      "22222222-2222-4222-8222-222222222222",
+      "33333333-3333-4333-8333-333333333333"
+     ]
+    }
+   },
+   "parents": [
+    "11111111-1111-4111-8111-111111111111"
+   ],
+   "document": null
+  },
+  {
+   "name": "invented child id",
+   "source": {
+    "type": "doc",
+    "content": [
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "embed",
+        "attrs": {
+         "type": "app-skill-use",
+         "app_id": "images",
+         "skill_id": "generate",
+         "id": "11111111-1111-4111-8111-111111111111"
+        }
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "!\n!"
+       }
+      ]
+     }
+    ]
+   },
+   "resolved": {
+    "11111111-1111-4111-8111-111111111111": {
+     "app_id": "images",
+     "skill_id": "generate",
+     "status": "finished",
+     "embed_ids": [
+      "invented",
+      "",
+      4,
+      null
+     ]
+    }
+   },
+   "parents": [
+    "11111111-1111-4111-8111-111111111111"
+   ],
+   "document": null
+  },
+  {
+   "name": "no embed_ids",
+   "source": {
+    "type": "doc",
+    "content": [
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "embed",
+        "attrs": {
+         "type": "app-skill-use",
+         "app_id": "images",
+         "skill_id": "generate",
+         "id": "11111111-1111-4111-8111-111111111111"
+        }
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "!\n!"
+       }
+      ]
+     }
+    ]
+   },
+   "resolved": {
+    "11111111-1111-4111-8111-111111111111": {
+     "app_id": "images",
+     "skill_id": "generate",
+     "status": "finished"
+    }
+   },
+   "parents": [
+    "11111111-1111-4111-8111-111111111111"
+   ],
+   "document": null
+  },
+  {
+   "name": "other app skill ignored",
+   "source": {
+    "type": "doc",
+    "content": [
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "embed",
+        "attrs": {
+         "type": "app-skill-use",
+         "app_id": "web",
+         "skill_id": "generate",
+         "id": "11111111-1111-4111-8111-111111111111"
+        }
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "!\n!"
+       }
+      ]
+     }
+    ]
+   },
+   "resolved": {
+    "11111111-1111-4111-8111-111111111111": {
+     "app_id": "images",
+     "skill_id": "generate",
+     "status": "finished",
+     "embed_ids": [
+      "22222222-2222-4222-8222-222222222222",
+      "33333333-3333-4333-8333-333333333333"
+     ]
+    }
+   },
+   "parents": [],
+   "document": null
+  },
+  {
+   "name": "non uuid id",
+   "source": {
+    "type": "doc",
+    "content": [
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "embed",
+        "attrs": {
+         "type": "app-skill-use",
+         "app_id": "images",
+         "skill_id": "generate",
+         "id": "not-a-uuid"
+        }
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "!\n!"
+       }
+      ]
+     }
+    ]
+   },
+   "resolved": {},
+   "parents": [],
+   "document": null
+  },
+  {
+   "name": "duplicate and second parent",
+   "source": {
+    "type": "doc",
+    "content": [
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "embed",
+        "attrs": {
+         "type": "app-skill-use",
+         "app_id": "images",
+         "skill_id": "generate",
+         "id": "11111111-1111-4111-8111-111111111111"
+        }
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "embed",
+        "attrs": {
+         "type": "app-skill-use",
+         "app_id": "images",
+         "skill_id": "generate",
+         "id": "11111111-1111-4111-8111-111111111111"
+        }
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "embed",
+        "attrs": {
+         "type": "app-skill-use",
+         "app_id": "images",
+         "skill_id": "generate",
+         "id": "AAAAAAAA-bbbb-4ccc-8ddd-eeeeeeeeeeee"
+        }
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "!\n!"
+       }
+      ]
+     }
+    ]
+   },
+   "resolved": {
+    "11111111-1111-4111-8111-111111111111": {
+     "app_id": "images",
+     "skill_id": "generate",
+     "status": "finished",
+     "embed_ids": [
+      "22222222-2222-4222-8222-222222222222",
+      "33333333-3333-4333-8333-333333333333"
+     ]
+    },
+    "AAAAAAAA-bbbb-4ccc-8ddd-eeeeeeeeeeee": {
+     "app_id": "images",
+     "skill_id": "generate",
+     "status": "finished",
+     "embed_ids": [
+      "33333333-3333-4333-8333-333333333333",
+      "44444444-4444-4444-8444-444444444444"
+     ]
+    }
+   },
+   "parents": [
+    "11111111-1111-4111-8111-111111111111",
+    "AAAAAAAA-bbbb-4ccc-8ddd-eeeeeeeeeeee"
+   ],
+   "document": {
+    "type": "doc",
+    "content": [
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "embed",
+        "attrs": {
+         "type": "app-skill-use",
+         "app_id": "images",
+         "skill_id": "generate",
+         "id": "11111111-1111-4111-8111-111111111111"
+        }
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "embed",
+        "attrs": {
+         "type": "app-skill-use",
+         "app_id": "images",
+         "skill_id": "generate",
+         "id": "11111111-1111-4111-8111-111111111111"
+        }
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "embed",
+        "attrs": {
+         "type": "app-skill-use",
+         "app_id": "images",
+         "skill_id": "generate",
+         "id": "AAAAAAAA-bbbb-4ccc-8ddd-eeeeeeeeeeee"
+        }
+       }
+      ]
+     },
+     {
+      "type": "embedPreviewLarge",
+      "attrs": {
+       "embedId": "22222222-2222-4222-8222-222222222222",
+       "embedRef": "generated-images-222222222222",
+       "appId": "images",
+       "carouselIndex": 0,
+       "carouselTotal": 3,
+       "runRef": "generated-images-222222222222"
+      }
+     },
+     {
+      "type": "embedPreviewLarge",
+      "attrs": {
+       "embedId": "33333333-3333-4333-8333-333333333333",
+       "embedRef": "generated-images-333333333333",
+       "appId": "images",
+       "carouselIndex": 1,
+       "carouselTotal": 3,
+       "runRef": "generated-images-222222222222"
+      }
+     },
+     {
+      "type": "embedPreviewLarge",
+      "attrs": {
+       "embedId": "44444444-4444-4444-8444-444444444444",
+       "embedRef": "generated-images-444444444444",
+       "appId": "images",
+       "carouselIndex": 2,
+       "carouselTotal": 3,
+       "runRef": "generated-images-222222222222"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "grouped items",
+   "source": {
+    "type": "doc",
+    "content": [
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "embed",
+        "attrs": {
+         "type": "app-skill-use-group",
+         "groupedItems": [
+          {
+           "app_id": "images",
+           "skill_id": "generate",
+           "id": "11111111-1111-4111-8111-111111111111"
+          },
+          {
+           "app_id": "web",
+           "skill_id": "search",
+           "id": "AAAAAAAA-bbbb-4ccc-8ddd-eeeeeeeeeeee"
+          }
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "!\n!"
+       }
+      ]
+     }
+    ]
+   },
+   "resolved": {
+    "11111111-1111-4111-8111-111111111111": {
+     "app_id": "images",
+     "skill_id": "generate",
+     "status": "finished",
+     "embed_ids": [
+      "22222222-2222-4222-8222-222222222222",
+      "33333333-3333-4333-8333-333333333333"
+     ]
+    }
+   },
+   "parents": [
+    "11111111-1111-4111-8111-111111111111"
+   ],
+   "document": {
+    "type": "doc",
+    "content": [
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "embed",
+        "attrs": {
+         "type": "app-skill-use-group",
+         "groupedItems": [
+          {
+           "app_id": "images",
+           "skill_id": "generate",
+           "id": "11111111-1111-4111-8111-111111111111"
+          },
+          {
+           "app_id": "web",
+           "skill_id": "search",
+           "id": "AAAAAAAA-bbbb-4ccc-8ddd-eeeeeeeeeeee"
+          }
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "type": "embedPreviewLarge",
+      "attrs": {
+       "embedId": "22222222-2222-4222-8222-222222222222",
+       "embedRef": "generated-images-222222222222",
+       "appId": "images",
+       "carouselIndex": 0,
+       "carouselTotal": 2,
+       "runRef": "generated-images-222222222222"
+      }
+     },
+     {
+      "type": "embedPreviewLarge",
+      "attrs": {
+       "embedId": "33333333-3333-4333-8333-333333333333",
+       "embedRef": "generated-images-333333333333",
+       "appId": "images",
+       "carouselIndex": 1,
+       "carouselTotal": 2,
+       "runRef": "generated-images-222222222222"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "non doc",
+   "source": {
+    "type": "paragraph",
+    "content": []
+   },
+   "resolved": {},
+   "parents": [],
+   "document": null
+  },
+  {
+   "name": "unicode whitespace bang",
+   "source": {
+    "type": "doc",
+    "content": [
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "embed",
+        "attrs": {
+         "type": "app-skill-use",
+         "app_id": "images",
+         "skill_id": "generate",
+         "id": "11111111-1111-4111-8111-111111111111"
+        }
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "! !　"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "!"
+       },
+       {
+        "type": "text",
+        "text": "\t"
+       }
+      ]
+     }
+    ]
+   },
+   "resolved": {
+    "11111111-1111-4111-8111-111111111111": {
+     "app_id": "images",
+     "skill_id": "generate",
+     "status": "finished",
+     "embed_ids": [
+      "22222222-2222-4222-8222-222222222222",
+      "33333333-3333-4333-8333-333333333333"
+     ]
+    }
+   },
+   "parents": [
+    "11111111-1111-4111-8111-111111111111"
+   ],
+   "document": {
+    "type": "doc",
+    "content": [
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "embed",
+        "attrs": {
+         "type": "app-skill-use",
+         "app_id": "images",
+         "skill_id": "generate",
+         "id": "11111111-1111-4111-8111-111111111111"
+        }
+       }
+      ]
+     },
+     {
+      "type": "embedPreviewLarge",
+      "attrs": {
+       "embedId": "22222222-2222-4222-8222-222222222222",
+       "embedRef": "generated-images-222222222222",
+       "appId": "images",
+       "carouselIndex": 0,
+       "carouselTotal": 2,
+       "runRef": "generated-images-222222222222"
+      }
+     },
+     {
+      "type": "embedPreviewLarge",
+      "attrs": {
+       "embedId": "33333333-3333-4333-8333-333333333333",
+       "embedRef": "generated-images-333333333333",
+       "appId": "images",
+       "carouselIndex": 1,
+       "carouselTotal": 2,
+       "runRef": "generated-images-222222222222"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "extra source fields preserved",
+   "source": {
+    "type": "doc",
+    "content": [
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "embed",
+        "attrs": {
+         "type": "app-skill-use",
+         "app_id": "images",
+         "skill_id": "generate",
+         "id": "11111111-1111-4111-8111-111111111111"
+        }
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "!\n!"
+       }
+      ]
+     }
+    ],
+    "meta": {
+     "a": 1
+    }
+   },
+   "resolved": {
+    "11111111-1111-4111-8111-111111111111": {
+     "app_id": "images",
+     "skill_id": "generate",
+     "status": "finished",
+     "embed_ids": [
+      "22222222-2222-4222-8222-222222222222",
+      "33333333-3333-4333-8333-333333333333"
+     ]
+    }
+   },
+   "parents": [
+    "11111111-1111-4111-8111-111111111111"
+   ],
+   "document": {
+    "type": "doc",
+    "content": [
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "embed",
+        "attrs": {
+         "type": "app-skill-use",
+         "app_id": "images",
+         "skill_id": "generate",
+         "id": "11111111-1111-4111-8111-111111111111"
+        }
+       }
+      ]
+     },
+     {
+      "type": "embedPreviewLarge",
+      "attrs": {
+       "embedId": "22222222-2222-4222-8222-222222222222",
+       "embedRef": "generated-images-222222222222",
+       "appId": "images",
+       "carouselIndex": 0,
+       "carouselTotal": 2,
+       "runRef": "generated-images-222222222222"
+      }
+     },
+     {
+      "type": "embedPreviewLarge",
+      "attrs": {
+       "embedId": "33333333-3333-4333-8333-333333333333",
+       "embedRef": "generated-images-333333333333",
+       "appId": "images",
+       "carouselIndex": 1,
+       "carouselTotal": 2,
+       "runRef": "generated-images-222222222222"
+      }
+     }
+    ],
+    "meta": {
+     "a": 1
+    }
+   }
+  }
+ ]
+}

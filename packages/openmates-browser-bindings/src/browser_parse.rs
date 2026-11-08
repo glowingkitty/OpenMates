@@ -2,7 +2,19 @@
 //! Marshals JSON text only; the `parse` unit of the shared Worker calls these.
 use wasm_bindgen::prelude::*;
 
-use openmates_sdk::web_parse::{blocks, voice_cues};
+use openmates_sdk::web_parse::{blocks, image_recovery, voice_cues};
+
+/// Parent embed ids a saved image answer needs read (`image_recovery::lost_image_parents_json`).
+#[wasm_bindgen]
+pub fn parse_image_recovery_parents(source_json: &str) -> Result<String, JsValue> {
+    image_recovery::lost_image_parents_json(source_json).map_err(|e| JsValue::from_str(&e))
+}
+
+/// Recovered saved image answer or `null` (`image_recovery::recover_generated_images_json`).
+#[wasm_bindgen]
+pub fn parse_recover_generated_images(source_json: &str, parents_json: &str) -> Result<String, JsValue> {
+    image_recovery::recover_generated_images_json(source_json, parents_json).map_err(|e| JsValue::from_str(&e))
+}
 
 /// Block plan of one assistant message (`blocks::plan_blocks_json`).
 #[wasm_bindgen]

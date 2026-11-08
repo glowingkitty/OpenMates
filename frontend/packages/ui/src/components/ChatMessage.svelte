@@ -10,7 +10,8 @@
   import AssistantActivityGroup from './AssistantActivityGroup.svelte';
   import type { AppliedMemory } from '../utils/loadedMemoryReceipt';
   import { assistantActivityItems, splitAssistantActivityRuns } from '../message_parsing/assistantActivityRuns';
-  import { lostImageParents, recoverGeneratedImageDocument } from '../message_parsing/generatedImageRecovery';
+  import { lostImageParents } from '../message_parsing/generatedImageRecovery';
+  import { recoverGeneratedImages } from '../services/rustCore/parse/imageRecoveryBranch';
   import type { AssistantDocument } from '../message_parsing/assistantActivityRuns';
   import { activeTeamId } from '../stores/teamStore';
   import { classifyAssistantSkillPhase } from '../message_parsing/assistantActivityStatus';
@@ -265,7 +266,7 @@
     async function recover() {
       const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
       if (cancelled) return;
-      const recovered = await recoverGeneratedImageDocument(source as AssistantDocument, async (id) => {
+      const recovered = await recoverGeneratedImages(source as AssistantDocument, async (id) => {
         if (cancelled) return null;
         const parent = await resolveEmbed(id, { chatId });
         return parent ? decodeToonContent(parent.content) : null;

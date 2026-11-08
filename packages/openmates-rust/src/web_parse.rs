@@ -15,10 +15,15 @@
 /// Pure block partitioning, id assignment, operations and normalization.
 pub mod blocks;
 
+/// Display recovery of saved image-generation answers with erased inline refs.
+pub mod image_recovery;
+
 /// Voice-delivery cue stripping of the assistant read projection.
 pub mod voice_cues;
 
 #[cfg(test)]
 mod blocks_tests;
+#[cfg(test)]
+mod image_recovery_tests;
 #[cfg(test)]
 mod voice_cues_tests;

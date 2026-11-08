@@ -33,6 +33,10 @@ export interface ParseUnitProtocol extends UnitProtocol {
 	normalizePlan: { request: { plan: string }; response: ParseNormalized };
 	/** Read projection without voice-delivery cues (voiceDeliveryCues.ts semantics). */
 	stripVoiceCues: { request: { markdown: string }; response: string };
+	/** Parent embed ids a saved image answer needs read (generatedImageRecovery.ts lostImageParents). */
+	imageRecoveryParents: { request: { source: string }; response: string[] };
+	/** Recovered document (or null) from the resolved parents aligned with imageRecoveryParents (JSON array text). */
+	recoverGeneratedImages: { request: { source: string; parents: string }; response: Record<string, unknown> | null };
 }
 
 /** Worker module exports (snake_case, JSON strings) of browser_parse.rs. */
@@ -40,9 +44,14 @@ export interface ParseBinding {
 	parse_plan_blocks(markdown: string, phase: string, previousJson: string): string;
 	parse_normalize_plan(planJson: string): string;
 	parse_strip_voice_cues(markdown: string): string;
+	parse_image_recovery_parents(sourceJson: string): string;
+	parse_recover_generated_images(sourceJson: string, parentsJson: string): string;
 }
 
-const BINDING_EXPORTS: readonly (keyof ParseBinding)[] = ['parse_plan_blocks', 'parse_normalize_plan', 'parse_strip_voice_cues'];
+const BINDING_EXPORTS: readonly (keyof ParseBinding)[] = [
+	'parse_plan_blocks', 'parse_normalize_plan', 'parse_strip_voice_cues',
+	'parse_image_recovery_parents', 'parse_recover_generated_images',
+];
 
 export function isParseBinding(value: unknown): value is ParseBinding {
 	if (typeof value !== 'object' || value === null) return false;
