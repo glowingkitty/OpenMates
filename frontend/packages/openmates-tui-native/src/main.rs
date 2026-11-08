@@ -115,13 +115,12 @@ fn main() {
         let invocation = parsed.invocation.expect("command mode");
         let path = invocation.command_path();
         let chat_id = invocation.positionals.first().cloned();
+        let chat_flag = invocation.text("chat").map(str::to_owned);
         let result = runtime.block_on(command_runtime::run(parsed.globals, invocation));
-        // npm says "Chat '<id>' not found" for unknown ids; keep that wording in text mode.
-        if json {
-            result
-        } else {
-            result.map_err(|error| cli::npm_wording::chat_not_found(&path, chat_id.as_deref(), error))
-        }
+        // npm names the missing object ("Chat '<id>' not found"); the SDK's error is generic.
+        result.map_err(|error| {
+            cli::npm_wording::unknown_id(&path, chat_id.as_deref(), chat_flag.as_deref(), json, error)
+        })
     };
     // A stuck OS keyring call must not prevent returning the restored terminal.
     // In-flight filesystem publication remains atomic even if shutdown times out.

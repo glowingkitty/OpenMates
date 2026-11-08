@@ -72,7 +72,7 @@ test.describe('CLI native differential: projects', () => {
 			await mutate('projects update', (id) => ['projects', 'update', id, '--description', 'updated by differential', '--pin'], ['projects update'], { ignoreKeys: ['slug', 'short_id', 'version'] });
 			// Documented gap: native prints the decrypted settings instead of npm's raw ciphertext (see show above).
 			await mutate('projects settings write-policy', (id) => ['projects', 'settings', id, '--write-policy', 'apply_and_show', '--auto-selection', 'off'], ['projects settings'], { ignoreKeys: ['default_focus_id_hash'], expectedGap: '$.settings.encrypted_settings: only in npm' });
-			await mutate('projects settings focus activate (unknown chat)', (id) => ['projects', 'settings', id, 'focus', 'activate', '--chat', UNKNOWN], ['projects settings focus activate'], { expectedGap: 'stderr class: npm=http-not-found native=validation' });
+			await mutate('projects settings focus activate (unknown chat)', (id) => ['projects', 'settings', id, 'focus', 'activate', '--chat', UNKNOWN], ['projects settings focus activate']);
 			await mutate('projects settings focus deactivate (unknown chat)', (id) => ['projects', 'settings', id, 'focus', 'deactivate', '--chat', UNKNOWN], ['projects settings focus deactivate'], { expectedGap: 'exit: npm=1 native=0' });
 			await mutate('projects settings command stop (unknown execution)', (id) => ['projects', 'settings', id, 'command', 'stop', UNKNOWN, '--chat', UNKNOWN], ['projects settings command stop'], { expectedGap: 'stderr class: npm=http-not-found native=other' });
 			for (const action of ['enable', 'disable']) {
@@ -82,7 +82,7 @@ test.describe('CLI native differential: projects', () => {
 				}
 			}
 			await mutate('projects items remove (unknown target)', (id) => ['projects', 'items', 'remove', id, '--type', 'chat', '--target', UNKNOWN, '--confirm'], ['projects items remove']);
-			await mutate('projects sources remove (unknown source)', (id) => ['projects', 'sources', 'remove', id, '--source', UNKNOWN, '--confirm', UNKNOWN], ['projects sources remove'], { expectedGap: 'stderr class: npm=http-not-found native=validation' });
+			await mutate('projects sources remove (unknown source)', (id) => ['projects', 'sources', 'remove', id, '--source', UNKNOWN, '--confirm', UNKNOWN], ['projects sources remove']);
 			await mutate('projects archive', (id) => ['projects', 'archive', id], ['projects archive'], { ignoreKeys: ['slug', 'short_id', 'version'] });
 			await mutate('projects unarchive', (id) => ['projects', 'unarchive', id], ['projects unarchive'], { ignoreKeys: ['slug', 'short_id', 'version'] });
 			await diff.check('projects ask (missing name)', ['projects', 'ask'], { mode: 'exit', catalog: ['projects ask'] });
@@ -132,7 +132,7 @@ test.describe('CLI native differential: projects', () => {
 			// Delete (each CLI its own Project).
 			await mutate('projects delete', (id) => ['projects', 'delete', id, '--confirm', id], ['projects delete']);
 			cleanup.length = 0;
-			await diff.check('projects show (deleted)', ['projects', 'show', p], { nativeArgs: ['projects', 'show', n], catalog: ['projects show'], expectedGap: 'stderr class: npm=http-not-found native=validation' });
+			await diff.check('projects show (deleted)', ['projects', 'show', p], { nativeArgs: ['projects', 'show', n], catalog: ['projects show'] });
 		} finally {
 			for (const undo of cleanup) await undo();
 			await finishDifferential(diff);
