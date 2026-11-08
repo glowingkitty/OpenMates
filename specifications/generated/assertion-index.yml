@@ -139349,13 +139349,13 @@ assertions:
       surface: sdks.npm
     - &id17853
       path: frontend/packages/ui/src/services/__tests__/browserProjectFileExecutor.test.ts
-      line: 133
+      line: 135
       name: routes a selected remote source with fresh focus, Team context, and no
         plaintext persistence
       surface: gui.web
     - &id17854
       path: frontend/packages/ui/src/services/__tests__/browserProjectFileExecutor.test.ts
-      line: 166
+      line: 168
       name: routes an omitted source to the sole remote source but rejects ambiguous
         sources
       surface: gui.web
@@ -141720,13 +141720,13 @@ assertions:
       surface: gui.web
     - &id18116
       path: frontend/packages/ui/src/services/__tests__/browserProjectFileExecutor.test.ts
-      line: 133
+      line: 135
       name: routes a selected remote source with fresh focus, Team context, and no
         plaintext persistence
       surface: gui.web
     - &id18117
       path: frontend/packages/ui/src/services/__tests__/browserProjectFileExecutor.test.ts
-      line: 166
+      line: 168
       name: routes an omitted source to the sole remote source but rejects ambiguous
         sources
       surface: gui.web

@@ -359,15 +359,18 @@ test.describe('Projects remote sources', () => {
       await expect(importedFile.getByTestId('project-remote-cloud-badge')).toHaveCount(0);
       const importedPreview = importedFile.locator('.unified-embed-preview');
       await expect(importedPreview).toBeVisible({ timeout: 30_000 });
-      await importedPreview.click();
+      // Stored code files render the shared result preview shell (role=group with
+      // Copy/More/Details tools); its Details control opens fullscreen.
+      const importedExpand = importedFile.getByTestId('result-preview-expand');
+      await importedExpand.click();
       const storedFullscreen = page.getByTestId('embed-fullscreen-overlay');
       await expect(storedFullscreen).toBeVisible({ timeout: 30000 });
       await expect(storedFullscreen).toContainText('OpenMates live remote preview');
       await expect(storedFullscreen.getByTestId('embed-header-provenance')).toHaveCount(0);
       await expectDesktopProjectSplit(page);
       await closeFullscreen(page, storedFullscreen);
-      await importedPreview.focus();
-      await importedPreview.press('Enter');
+      await importedExpand.focus();
+      await importedExpand.press('Enter');
       await expect(storedFullscreen).toBeVisible();
       await closeFullscreen(page, storedFullscreen);
 

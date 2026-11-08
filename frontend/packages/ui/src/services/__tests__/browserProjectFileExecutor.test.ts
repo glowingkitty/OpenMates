@@ -125,7 +125,9 @@ describe("browser Project file executor", () => {
     expect(mocks.readHead).not.toHaveBeenCalled();
     expect(send).toHaveBeenCalledWith("project_file_operation_result", expect.objectContaining({
       status: "completed",
-      result: { entries: [{ path: "src/allowed.ts", kind: "file" }], truncated: false },
+      // Completed results carry the resolver-selected source (null for hosted files)
+      // so a chat can reopen the original file without uploading its contents.
+      result: { entries: [{ path: "src/allowed.ts", kind: "file" }], truncated: false, source_id: null },
     }));
   });
 
@@ -158,7 +160,7 @@ describe("browser Project file executor", () => {
     );
     expect(send).toHaveBeenCalledWith("project_file_operation_result", expect.objectContaining({
       status: "completed",
-      result: { entries: [{ path: "src", kind: "directory" }] },
+      result: { entries: [{ path: "src", kind: "directory" }], source_id: "source-1" },
     }));
   });
 

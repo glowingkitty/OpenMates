@@ -350,9 +350,13 @@ test.describe('Projects v1 flow', () => {
 			await expect(page).toHaveURL(new RegExp(`workflow-id=${failedLinkWorkflowId}`));
 			await expect(page.getByTestId('workflow-management')).toBeVisible({ timeout: 30000 });
 			await expect(page.getByTestId('workflow-blank-creator')).toHaveCount(0);
-			await expect(page.getByTestId('workflows-error')).toContainText(
-				`Workflow created, but it could not be added to ${projectName}.`
-			);
+			// Workflow failures are presented by the notification stack (the old inline
+			// workflows-error banner was removed).
+			await expect(
+				page
+					.getByTestId('notification')
+					.filter({ hasText: `Workflow created, but it could not be added to ${projectName}.` })
+			).toBeVisible();
 			expect(failedLinkWorkflowCreates).toBe(1);
 			page.off('request', recordFailedLinkWorkflowCreate);
 			await page.unroute(`**/v1/projects/${projectId}/items*`);
