@@ -185,9 +185,9 @@ shared_vector_files: [packages/openmates-rust/src/chat_state/bookmark_highlight_
   packages/openmates-rust/src/web_transfer_ts_vectors.json, packages/openmates-rust/src/web_transfer_zip_ts_vectors.json,
   packages/openmates-rust/src/web_work/billing_ts_vectors.json, packages/openmates-rust/src/web_work/plans_ts_vectors.json,
   packages/openmates-rust/src/web_work/tasks_ts_vectors.json, packages/openmates-rust/src/web_work/teams_ts_vectors.json,
-  packages/openmates-rust/src/web_ws/ts_vectors.json, packages/openmates-rust/src/work/plans/team_plan_ts_vectors.json,
-  packages/openmates-rust/src/ws_link/envelope_vectors.json, packages/openmates-rust/tests/crypto_fixtures/chat_completion_recovery_vectors.json,
-  packages/openmates-rust/tests/fixtures/remote_access_vectors.json]
+  packages/openmates-rust/src/web_work/workflows_ts_vectors.json, packages/openmates-rust/src/web_ws/ts_vectors.json,
+  packages/openmates-rust/src/work/plans/team_plan_ts_vectors.json, packages/openmates-rust/src/ws_link/envelope_vectors.json,
+  packages/openmates-rust/tests/crypto_fixtures/chat_completion_recovery_vectors.json, packages/openmates-rust/tests/fixtures/remote_access_vectors.json]
 capabilities:
 - id: sdk.session-client
   domain: auth

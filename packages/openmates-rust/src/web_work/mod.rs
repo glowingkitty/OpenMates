@@ -23,11 +23,17 @@ mod plan_flows;
 mod plans;
 mod task_bodies;
 mod tasks;
+mod workflow_bodies;
+mod workflow_json;
+mod workflow_template;
+mod workflows;
 
 #[cfg(test)]
 mod billing_tests;
 #[cfg(test)]
 mod teams_tests;
+#[cfg(test)]
+mod workflows_tests;
 #[cfg(test)]
 mod plans_tests;
 #[cfg(test)]
@@ -44,6 +50,10 @@ pub(crate) type Decision = Result<Value, String>;
 /// Returns `unknown_op:<name>` for an unregistered op and `missing_field:<name>`
 /// or `bad_field:<name>` for a malformed input document (never a silent default).
 pub fn run_json(op: &str, input: &str) -> Result<String, String> {
+    // Workflows slice (workflow*.ts): key-ordered JSON in and out, vectors workflows_ts_vectors.json.
+    if op.starts_with("workflow") {
+        return workflows::run_json(op, input);
+    }
     let input: Value = serde_json::from_str(input).map_err(|e| e.to_string())?;
     let output = match op {
         // Teams slice (teamService.ts): spec specifications/features/teams, vectors teams_ts_vectors.json.

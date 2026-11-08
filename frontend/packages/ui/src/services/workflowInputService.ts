@@ -1,4 +1,33 @@
 import { workflowApiFetch, workflowApiRequest, type WorkflowDetail, type WorkflowGraph, type WorkflowNode } from '../stores/workflowWorkspaceStore';
+import { buildWorkBody, workClient, workDecide, type WorkRequest } from './work/workRust';
+import type { WorkClient } from './rustCore/crypto/workOps';
+
+// Flag-on builds decide session paths, the instruction body and the session
+// normalization of request replies in the shared Rust core Worker (`work` op,
+// web_work/workflows.rs + workflow_bodies.rs); the constant folds to false
+// otherwise. SSE parsing (and the per-event normalization inside it, which is
+// synchronous) stays here.
+const RUST_WORK = import.meta.env.VITE_OPENMATES_RUST_CORE === '1';
+
+/** Flag on: the Worker's `normalizeSession` (answered in the reply's own key order). */
+async function normalizedWork(work: WorkClient, session: WorkflowInputSession): Promise<WorkflowInputSession> {
+  return (await workDecide<{ session: WorkflowInputSession }>(work, 'workflowInputSession', { session })).session;
+}
+
+/** Flag on: an instruction request (path and ordered body) decided in the Worker. */
+async function instructionWork(work: WorkClient, route: 'input' | 'stream', text: string, selectedWorkflowId?: string, idempotencyKey?: string): Promise<{ path: string; body: string }> {
+  const request = await workDecide<WorkRequest>(work, 'workflowInputBody', {
+    route, text, selected_workflow_id: selectedWorkflowId, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, idempotency_key: idempotencyKey,
+  });
+  return { path: request.path, body: JSON.stringify(await buildWorkBody(request.steps, {}, {})) };
+}
+
+/** Flag on: one session request (`get`, `stop`, `undo`) with its Worker path and normalized reply. */
+async function sessionWork(work: WorkClient, route: 'get' | 'stop' | 'undo', sessionId: string): Promise<WorkflowInputSession> {
+  const path = await workDecide<string>(work, 'workflowInputPath', { route, session_id: sessionId });
+  const result = await workflowApiRequest<{ session: WorkflowInputSession }>(path, route === 'get' ? undefined : { method: 'POST', body: '{}' });
+  return normalizedWork(work, result.session);
+}
 
 export type WorkflowInputChange = {
   workflow_id: string;
@@ -58,7 +87,7 @@ function normalizeSession(session: WorkflowInputSession): WorkflowInputSession {
         edited_node_ids: change.edited_node_ids ?? change.changed_node_ids ?? [],
         removed_nodes: change.removed_nodes ?? (change.removed_node_ids ?? []).map(id => {
           const node = before.find(item => item.id === id);
-          return { id, title: node?.title || node?.type.replaceAll('_', ' ') || id };
+          return { id, title: node?.title || node?.type.replace(/_/g, ' ') || id };
         })
       };
     })
@@ -78,8 +107,12 @@ export async function streamWorkflowInstruction(
   signal?: AbortSignal,
   idempotencyKey?: string,
 ): Promise<WorkflowInputSession> {
-  const response = await workflowApiFetch('/v1/workflows/input/stream', {
-    method: 'POST', body: instructionBody(text, selectedWorkflowId, idempotencyKey)
+  const work = RUST_WORK ? workClient() : null;
+  const request = work
+    ? await instructionWork(work, 'stream', text, selectedWorkflowId, idempotencyKey)
+    : { path: '/v1/workflows/input/stream', body: instructionBody(text, selectedWorkflowId, idempotencyKey) };
+  const response = await workflowApiFetch(request.path, {
+    method: 'POST', body: request.body
   }, 'text/event-stream', signal);
   if (!response.body) throw new Error('Workflow stream is unavailable.');
   const reader = response.body.getReader();
@@ -133,6 +166,8 @@ export function committedWorkflows(session: WorkflowInputSession): WorkflowDetai
 }
 
 export async function stopWorkflowInstruction(sessionId: string): Promise<WorkflowInputSession> {
+  const work = RUST_WORK ? workClient() : null;
+  if (work) return sessionWork(work, 'stop', sessionId);
   const result = await workflowApiRequest<{ session: WorkflowInputSession }>(`/v1/workflows/input/${encodeURIComponent(sessionId)}/stop`, {
     method: 'POST', body: '{}'
   });
@@ -148,11 +183,17 @@ export function workflowNodeChanges(before: WorkflowNode[], after: WorkflowNode[
       const old = previous.get(node.id);
       return old !== undefined && JSON.stringify(old) !== JSON.stringify(node);
     }).map(node => node.id),
-    removed_nodes: before.filter(node => !current.has(node.id)).map(node => ({ id: node.id, title: node.title || node.type.replaceAll('_', ' ') }))
+    removed_nodes: before.filter(node => !current.has(node.id)).map(node => ({ id: node.id, title: node.title || node.type.replace(/_/g, ' ') }))
   };
 }
 
 export async function submitWorkflowInstruction(text: string, selectedWorkflowId?: string): Promise<WorkflowInputSession> {
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    const request = await instructionWork(work, 'input', text, selectedWorkflowId);
+    const decided = await workflowApiRequest<{ session: WorkflowInputSession }>(request.path, { method: 'POST', body: request.body });
+    return normalizedWork(work, decided.session);
+  }
   const result = await workflowApiRequest<{ session: WorkflowInputSession }>('/v1/workflows/input', {
     method: 'POST',
     body: instructionBody(text, selectedWorkflowId)
@@ -161,6 +202,8 @@ export async function submitWorkflowInstruction(text: string, selectedWorkflowId
 }
 
 export async function undoWorkflowInstruction(sessionId: string): Promise<WorkflowInputSession> {
+  const work = RUST_WORK ? workClient() : null;
+  if (work) return sessionWork(work, 'undo', sessionId);
   const result = await workflowApiRequest<{ session: WorkflowInputSession }>(`/v1/workflows/input/${encodeURIComponent(sessionId)}/undo`, {
     method: 'POST', body: '{}'
   });
@@ -168,6 +211,8 @@ export async function undoWorkflowInstruction(sessionId: string): Promise<Workfl
 }
 
 export async function getWorkflowInstruction(sessionId: string): Promise<WorkflowInputSession> {
+  const work = RUST_WORK ? workClient() : null;
+  if (work) return sessionWork(work, 'get', sessionId);
   const result = await workflowApiRequest<{ session: WorkflowInputSession }>(`/v1/workflows/input/${encodeURIComponent(sessionId)}`);
   return normalizeSession(result.session);
 }
