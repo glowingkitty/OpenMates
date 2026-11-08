@@ -210,7 +210,52 @@ class Coordinator(CoordinatorState):
                 )
             except (ValueError, TypeError, KeyError):
                 report["error"] = "Worktree cleanup did not return a valid structured report"
+            if result.returncode == 0 and "error" not in report:
+                report.update(self._reconcile_integrated_worktrees(repository, environment))
         return report
+
+    def _reconcile_integrated_worktrees(self, repository, environment):
+        """Reclaim integrated, clean, idle worktrees after hard expiry.
+
+        Runs as the elected owner (inherited lock fd), so sessions.py executes
+        the reconcile in-process instead of queueing this job again. Only the
+        integrated and disposable-integration classes are eligible; worktrees
+        with unintegrated changes or recent activity are always retained.
+        """
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(Path(repository) / "scripts/sessions.py"),
+                "worktree",
+                "reconcile",
+                "--apply-safe",
+                "--only-class",
+                "integrated",
+                "--only-class",
+                "disposable_integration",
+                "--format",
+                "json",
+            ],
+            cwd=repository,
+            env=environment,
+            pass_fds=(self._leader.fileno(),),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=1200,
+        )
+        if result.returncode != 0:
+            return {"reconcile_returncode": result.returncode,
+                    "reconcile_error": (result.stderr or "")[-300:]}
+        try:
+            if len(result.stdout) > 2 * 1024 * 1024:
+                raise ValueError("Worktree reconcile report exceeds diagnostic limit")
+            detail = json.loads(result.stdout)
+            return {"reconcile_returncode": 0, "reconciled_deleted": len(detail["deleted"]),
+                    "reconcile_queued": bool(detail.get("queued"))}
+        except (ValueError, TypeError, KeyError):
+            return {"reconcile_returncode": 0,
+                    "reconcile_error": "Worktree reconcile did not return a valid structured report"}
 
     def _execute_cleanup(self, repository, kind, cleaner):
         """Record maintenance only after the elected worker actually finishes."""

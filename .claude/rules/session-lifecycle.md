@@ -14,6 +14,13 @@ paths:
   in that worktree only) and gives each agent its `session=` and `worktree=`.
   Lane agents `cd` into the worktree, pass `--session <id>` and never run
   `start`/`end`. `start` refuses a stale or ended binding; use `start --new`.
+- Lanes never hand-regenerate or stage generated outputs
+  (`specifications/generated/*`, `docs/migration/rust/{overview,web-app,
+  shared-client,cli,sdk}.yml`): deploy rebuilds them in the integration
+  checkout. To catch up with dev run `sessions.py worktree refresh-base
+  --rebase --session <id>` (fast-forward, rebuilds generated files; refuses
+  when dirty edits overlap). Deploy also auto-fast-forwards a stale lane and
+  recreates empty or stale checkpoints; never delete checkpoint refs by hand.
 - Saved patches: the rtk filter turns `git diff` into a stat summary; use
   `rtk proxy git diff --binary`.
 - Other running Claude chats (task, workspace, recent files) are injected at

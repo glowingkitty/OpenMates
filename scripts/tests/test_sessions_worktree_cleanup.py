@@ -830,7 +830,15 @@ def test_worktree_capacity_does_not_count_reserved_blocks_as_used(monkeypatch, t
 def test_checkpoint_ref_refuses_unverified_session_id_reuse(monkeypatch):
     sessions = load_sessions_module()
     checkpoint_ref = sessions._worktree_checkpoint_ref("abcd")
-    monkeypatch.setattr(sessions, "_run_cmd", lambda *_args, **_kwargs: (0, "old-checkpoint", ""))
+
+    def run_command(command, **_kwargs):
+        if command[:3] == ["git", "merge-base", "--is-ancestor"]:
+            return 1, "", ""  # the foreign commit is not on origin/dev
+        if command[:2] == ["git", "rev-parse"] and "--verify" not in command:
+            return 0, "tree-new\ntree-parent", ""  # and it carries unique work
+        return 0, "old-checkpoint", ""
+
+    monkeypatch.setattr(sessions, "_run_cmd", run_command)
     monkeypatch.setattr(
         sessions,
         "_load_sessions",

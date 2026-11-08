@@ -245,6 +245,17 @@ SPECIFICATION_GENERATED_ARTIFACTS = {
     "specifications/generated/coverage.yml",
     "specifications/generated/registry.yml",
 }
+# Outputs of scripts/rust_migration_yaml.py (its GENERATED tuple). Like the
+# Specification outputs they are rebuilt in the integration checkout and never
+# replayed from a lane's diff, so parallel lanes cannot conflict on them.
+RUST_MIGRATION_GENERATED_ARTIFACTS = {
+    "docs/migration/rust/overview.yml",
+    "docs/migration/rust/web-app.yml",
+    "docs/migration/rust/shared-client.yml",
+    "docs/migration/rust/cli.yml",
+    "docs/migration/rust/sdk.yml",
+}
+REGENERABLE_GENERATED_ARTIFACTS = SPECIFICATION_GENERATED_ARTIFACTS | RUST_MIGRATION_GENERATED_ARTIFACTS
 WORKTREE_BOOTSTRAP_TIMEOUT_SECONDS = 300
 WORKTREE_SHARED_RUNTIME_PATHS = (Path(".env"), Path("logs/nightly-reports"))
 WORKTREE_BINDING_MODES = {"pending", "native", "pilot_fallback", "legacy_grandfathered", "worktree_routed", "repo_routed"}
@@ -3278,6 +3289,51 @@ def _split_specification_generated_artifacts(files: list[str]) -> tuple[list[str
     return source, generated
 
 
+def _split_rust_migration_generated_artifacts(files: list[str]) -> tuple[list[str], list[str]]:
+    """Separate generated Rust migration YAML outputs from source patches."""
+    generated = [relative_path for relative_path in files if relative_path in RUST_MIGRATION_GENERATED_ARTIFACTS]
+    source = [relative_path for relative_path in files if relative_path not in RUST_MIGRATION_GENERATED_ARTIFACTS]
+    return source, generated
+
+
+def _should_regenerate_rust_migration_artifacts(files: list[str]) -> bool:
+    """Return True when deploy inputs can change the generated Rust migration YAML."""
+    return any(
+        relative_path.startswith(RUST_MIGRATION_YAML_PREFIXES)
+        or relative_path in RUST_MIGRATION_GENERATED_ARTIFACTS
+        for relative_path in files
+    )
+
+
+def _regenerate_rust_migration_artifacts(checkout_root: Path, files: list[str]) -> list[str]:
+    """Rebuild and stage the generated Rust migration YAML in one checkout.
+
+    Runs the checkout's own generator so outputs match exactly the sources that
+    will be committed. Returns the generated paths that differ from HEAD.
+    """
+    if not _should_regenerate_rust_migration_artifacts(files):
+        return []
+    script = checkout_root / "scripts" / "rust_migration_yaml.py"
+    if not script.exists():
+        raise RuntimeError("Rust migration YAML generation unavailable: scripts/rust_migration_yaml.py is missing")
+    rc, stdout, stderr = _run_cmd([sys.executable, str(script)], cwd=str(checkout_root), timeout=120)
+    if rc != 0:
+        raise RuntimeError(f"Rust migration YAML generation failed: {stderr or stdout}")
+    generated = sorted(RUST_MIGRATION_GENERATED_ARTIFACTS)
+    existing = [relative_path for relative_path in generated if (checkout_root / relative_path).exists()]
+    if existing:
+        rc, _stdout, stderr = _run_cmd(["git", "add", "--", *existing], cwd=str(checkout_root))
+        if rc != 0:
+            raise RuntimeError(f"Could not stage regenerated Rust migration YAML: {stderr}")
+    rc, stdout, stderr = _run_cmd(
+        ["git", "diff", "--cached", "--name-only", "HEAD", "--", *generated],
+        cwd=str(checkout_root),
+    )
+    if rc != 0:
+        raise RuntimeError(f"Could not inspect regenerated Rust migration YAML: {stderr}")
+    return sorted(line.strip() for line in stdout.splitlines() if line.strip())
+
+
 def _numstat_deletions(
     checkout_root: Path,
     base_ref: str,
@@ -3430,6 +3486,10 @@ def _apply_worktree_diff_to_checkout(
     if not source_path.is_dir() or not source_base:
         raise RuntimeError("Session source worktree metadata is incomplete")
     patch_files, specification_generated_files = _split_specification_generated_artifacts(files)
+    patch_files, rust_migration_generated_files = _split_rust_migration_generated_artifacts(patch_files)
+    if checkpoint_commit and checkpoint_commit == source_base:
+        # An empty-diff checkpoint is the base itself: it carries no patch.
+        checkpoint_commit = ""
     if checkpoint_commit:
         rc, checkpoint_parent, stderr = _run_cmd(
             ["git", "rev-parse", f"{checkpoint_commit}^"],
@@ -3437,12 +3497,22 @@ def _apply_worktree_diff_to_checkout(
         )
         checkpoint_parent = checkpoint_parent.strip()
         if rc != 0 or checkpoint_parent != source_base:
-            raise IntegrationConflict(
-                stderr or "Checkpoint parent no longer matches the recorded source base",
-                patch_id=patch_id,
-                source_base=source_base,
-                final_base=prepared_base,
-            )
+            if not _checkpoint_has_unique_work(checkpoint_commit, source_metadata):
+                # Nothing to preserve: reproduce the patch from the live worktree.
+                checkpoint_commit = ""
+            else:
+                raise IntegrationConflict(
+                    stderr
+                    or (
+                        f"Checkpoint {checkpoint_commit[:9]} holds unique work on base "
+                        f"{checkpoint_parent[:9]}, not the recorded source base {source_base[:9]}; "
+                        "inspect the session checkpoint ref before redeploying"
+                    ),
+                    patch_id=patch_id,
+                    source_base=source_base,
+                    final_base=prepared_base,
+                )
+    if checkpoint_commit:
         diff_result = subprocess.run(
             ["git", "diff", "--binary", source_base, checkpoint_commit, "--", *patch_files],
             cwd=str(CONTROL_PLANE_ROOT),
@@ -3472,6 +3542,7 @@ def _apply_worktree_diff_to_checkout(
                     final_base=prepared_base,
                 )
         _regenerate_specification_artifacts(checkout_root, specification_generated_files)
+        _regenerate_rust_migration_artifacts(checkout_root, files)
         _enforce_no_integration_deletion_amplification(
             source_metadata,
             patch_files,
@@ -3562,6 +3633,7 @@ def _apply_worktree_diff_to_checkout(
             raise RuntimeError(f"Could not stage untracked deploy path {relative_path}: {stderr}")
 
     _regenerate_specification_artifacts(checkout_root, specification_generated_files)
+    _regenerate_rust_migration_artifacts(checkout_root, files)
     _enforce_no_integration_deletion_amplification(
         source_metadata,
         patch_files,
@@ -3688,6 +3760,36 @@ def _worktree_checkpoint_ref(session_id: str) -> str:
     return f"refs/openmates/checkpoints/{safe_session_id}"
 
 
+def _checkpoint_has_unique_work(commit: str, metadata: dict | None = None) -> bool:
+    """Return whether a checkpoint commit preserves anything not already on dev.
+
+    A checkpoint without unique work is the session's own recorded base, any
+    commit reachable from origin/dev, or a commit whose tree equals its
+    parent's (an empty checkpoint). Such a commit can be discarded and
+    recreated; anything else must be preserved for manual inspection.
+    """
+    if not commit:
+        return False
+    metadata = metadata or {}
+    recorded = {str(metadata.get("base_commit") or ""), str(metadata.get("merged_commit") or "")}
+    if commit in recorded - {""}:
+        return False
+    rc, _stdout, _stderr = _run_cmd(
+        ["git", "merge-base", "--is-ancestor", commit, "refs/remotes/origin/dev"],
+        cwd=str(CONTROL_PLANE_ROOT),
+    )
+    if rc == 0:
+        return False
+    rc, trees, _stderr = _run_cmd(
+        ["git", "rev-parse", f"{commit}^{{tree}}", f"{commit}^^{{tree}}"],
+        cwd=str(CONTROL_PLANE_ROOT),
+    )
+    tree_lines = trees.split() if rc == 0 else []
+    if len(tree_lines) == 2 and tree_lines[0] == tree_lines[1]:
+        return False
+    return True
+
+
 def _checkpoint_ref_expected_commit(session_id: str, checkpoint_ref: str, new_commit: str) -> str:
     """Return the compare-and-swap value without overwriting unrelated recovery state."""
     rc, previous_commit, _stderr = _run_cmd(
@@ -3717,6 +3819,11 @@ def _checkpoint_ref_expected_commit(session_id: str, checkpoint_ref: str, new_co
     )
     if rc == 0 and subject.strip() == f"checkpoint: preserve session {session_id}":
         return previous_commit
+    worktree = session.get("worktree") if isinstance(session.get("worktree"), dict) else {}
+    if not _checkpoint_has_unique_work(previous_commit, worktree):
+        # Stale ref pointing at the recorded base or at integrated history
+        # (for example an earlier empty-diff checkpoint): safe to replace.
+        return previous_commit
     raise RuntimeError(f"Refusing to overwrite checkpoint ref with unverified provenance: {checkpoint_ref}")
 
 
@@ -3733,6 +3840,46 @@ def _delete_worktree_checkpoint_ref(session_id: str, *, expected_commit: str = "
         cwd=str(CONTROL_PLANE_ROOT),
     )
     return verify_rc != 0
+
+
+def _discard_stale_worktree_checkpoint_ref(session_id: str, metadata: dict) -> bool:
+    """Delete the session checkpoint ref only when it holds no unique work."""
+    checkpoint_ref = _worktree_checkpoint_ref(session_id)
+    rc, previous_commit, _stderr = _run_cmd(
+        ["git", "rev-parse", "--verify", checkpoint_ref],
+        cwd=str(CONTROL_PLANE_ROOT),
+    )
+    if rc != 0:
+        return False
+    previous_commit = previous_commit.strip()
+    if _checkpoint_has_unique_work(previous_commit, metadata):
+        return False
+    return _delete_worktree_checkpoint_ref(session_id, expected_commit=previous_commit)
+
+
+def _usable_supplied_checkpoint(checkpoint_commit: str, metadata: dict) -> str:
+    """Return a supplied checkpoint, or "" when it must be recreated.
+
+    A checkpoint equal to the source base is an empty checkpoint. A checkpoint
+    whose parent is no longer the recorded source base (the lane was rebased or
+    refreshed) is recreated when it has no unique work; one holding unique work
+    is returned unchanged so integration hard-fails instead of dropping it.
+    """
+    if not checkpoint_commit:
+        return ""
+    source_base = str(metadata.get("merged_commit") or metadata.get("base_commit") or "")
+    if checkpoint_commit == source_base:
+        return ""
+    rc, parent, _stderr = _run_cmd(["git", "rev-parse", f"{checkpoint_commit}^"], cwd=str(CONTROL_PLANE_ROOT))
+    if rc == 0 and parent.strip() == source_base:
+        return checkpoint_commit
+    if not _checkpoint_has_unique_work(checkpoint_commit, metadata):
+        print(
+            f"Discarding stale checkpoint {checkpoint_commit[:9]} (no unique work; parent "
+            f"is not source base {source_base[:9]}); recreating."
+        )
+        return ""
+    return checkpoint_commit
 
 
 @contextmanager
@@ -3811,7 +3958,11 @@ def _create_worktree_checkpoint_commit(
             )
             if diff_rc != 0:
                 raise RuntimeError(f"Could not create worktree checkpoint commit: {stderr or _stdout or diff_stderr}")
-            commit_hash = source_base
+            # Empty diff: there is nothing to preserve, so no ref is written.
+            # Drop a stale ref that carries no unique work so it cannot block
+            # a later deploy; keep compare-and-swap for anything else.
+            _discard_stale_worktree_checkpoint_ref(session_id, metadata)
+            return ""
         else:
             rc, commit_hash, stderr = _run_cmd(["git", "rev-parse", "HEAD"], cwd=str(checkout_root))
             commit_hash = commit_hash.strip()
@@ -4327,8 +4478,17 @@ def _queue_coordinated_worktree_cleanup() -> bool:
     disk_owner = configured(CONTROL_PLANE_ROOT)
     if disk_owner is None or owner_check(disk_owner):
         return False
+    if os.environ.get("OPENMATES_DISK_OWNER_FD"):
+        # Invoked by the coordinator itself: re-queueing would only schedule
+        # this same job again, so fail visibly instead of looping.
+        raise RuntimeError("Coordinator-invoked worktree reconcile lost disk ownership; not re-queueing")
     disk_owner.enqueue_maintenance(CONTROL_PLANE_ROOT, "worktrees")
     return True
+
+
+# Classes a lifecycle-managed session may still be reclaimed under: the work is
+# provably on dev (or reproducible) and the worktree has no changed files.
+LIFECYCLE_RECLAIMABLE_CLASSES = frozenset({"integrated", "disposable_integration"})
 
 
 def reconcile_session_worktrees(
@@ -4338,9 +4498,16 @@ def reconcile_session_worktrees(
     apply_safe: bool = False,
     approved_obsolete: set[str] | None = None,
     only_session_ids: set[str] | None = None,
+    only_classes: set[str] | None = None,
+    coordinated: bool = True,
 ) -> dict:
-    """Report or safely apply reconciliation for all known agent worktrees."""
-    if apply_safe and _queue_coordinated_worktree_cleanup():
+    """Report or safely apply reconciliation for all known agent worktrees.
+
+    ``only_classes`` narrows which safe classifications may be deleted.
+    ``coordinated=False`` runs in-process instead of queueing on the disk
+    coordinator; callers use it only with integrated/disposable classes.
+    """
+    if apply_safe and coordinated and _queue_coordinated_worktree_cleanup():
         return {"target_ref": target_ref, "target_commit": "", "apply_safe": True,
                 "items": [], "deleted": [], "unresolved": [], "queued": True}
     approved = set(approved_obsolete or set())
@@ -4382,6 +4549,8 @@ def reconcile_session_worktrees(
         "missing_worktree",
         "orphaned_git_metadata",
     }
+    if only_classes is not None:
+        safe_classes &= set(only_classes)
     deletable = [
         item for item in items
         if item.get("classification") in safe_classes and float(item.get("idle_hours", float("inf"))) >= idle_hours
@@ -4396,7 +4565,11 @@ def reconcile_session_worktrees(
             queue = data.setdefault("deploy_queue", [])
             manifests = data.setdefault("worktree_deletion_manifests", [])
             for item in deletable:
-                if (sessions.get(str(item.get("session_id")), {}).get("lifecycle") or {}).get("version") == WORKSPACE_LIFECYCLE_VERSION:
+                lifecycle_managed = (
+                    (sessions.get(str(item.get("session_id")), {}).get("lifecycle") or {}).get("version")
+                    == WORKSPACE_LIFECYCLE_VERSION
+                )
+                if lifecycle_managed and item.get("classification") not in LIFECYCLE_RECLAIMABLE_CLASSES:
                     continue
                 fresh = _refresh_reconciliation_candidate(item, data, target_commit, idle_hours, approved)
                 session_id = str(fresh["session_id"])
@@ -4405,6 +4578,17 @@ def reconcile_session_worktrees(
                     fresh.get("classification") not in safe_classes
                     or float(fresh.get("idle_hours", float("inf"))) < idle_hours
                 ):
+                    continue
+                if lifecycle_managed and (
+                    fresh.get("classification") not in LIFECYCLE_RECLAIMABLE_CLASSES
+                    or fresh.get("inspection_error")
+                    or (
+                        fresh.get("changed_files")
+                        and not _worktree_target_files_match(fresh, target_commit)
+                    )
+                ):
+                    # Lifecycle sessions are reclaimed only when integrated,
+                    # clean (no file differs from dev) and idle.
                     continue
                 try:
                     recovery_path = ""
@@ -5354,6 +5538,31 @@ def _enforce_worktree_creation_capacity() -> None:
         from disk_coordinator import configured
     if configured(CONTROL_PLANE_ROOT) is None:
         expire_managed_worktrees(max_age_hours=WORKTREE_HARD_MAX_AGE_HOURS)
+    breaches = _worktree_capacity_breaches()
+    if breaches:
+        # Reclaim provably integrated, clean, idle worktrees once before
+        # refusing, so a full cap never needs a human to clear it.
+        try:
+            reclaimed = reconcile_session_worktrees(
+                apply_safe=True,
+                only_classes=set(LIFECYCLE_RECLAIMABLE_CLASSES),
+                coordinated=False,
+            )["deleted"]
+        except RuntimeError as exc:
+            print(f"Worktree capacity reconcile failed: {exc}", file=sys.stderr)
+            reclaimed = []
+        if reclaimed:
+            print(f"Reclaimed {len(reclaimed)} integrated idle worktree(s) to restore capacity.", file=sys.stderr)
+            breaches = _worktree_capacity_breaches()
+    if breaches:
+        raise RuntimeError(
+            "; ".join(breaches)
+            + f". Run: python3 scripts/sessions.py worktree expire --max-age-hours {WORKTREE_HARD_MAX_AGE_HOURS}"
+        )
+
+
+def _worktree_capacity_breaches() -> list[str]:
+    """Return human-readable reasons why a new worktree may not be created."""
     worktree_count = sum(1 for path in AGENT_WORKTREES_DIR.iterdir() if path.is_dir()) if AGENT_WORKTREES_DIR.is_dir() else 0
     usage = shutil.disk_usage(CONTROL_PLANE_ROOT)
     # free excludes reserved blocks, while used does not include them. Using
@@ -5368,11 +5577,7 @@ def _enforce_worktree_creation_capacity() -> None:
         )
     if used_percent >= WORKTREE_MAX_DISK_PERCENT:
         breaches.append(f"filesystem use limit reached ({used_percent:.1f}% >= {WORKTREE_MAX_DISK_PERCENT}%)")
-    if breaches:
-        raise RuntimeError(
-            "; ".join(breaches)
-            + f". Run: python3 scripts/sessions.py worktree expire --max-age-hours {WORKTREE_HARD_MAX_AGE_HOURS}"
-        )
+    return breaches
 
 
 def cmd_disk(args: argparse.Namespace) -> None:
@@ -7284,9 +7489,51 @@ def refresh_worktree_base_after_fast_forward(worktree: dict) -> str:
     return recorded_base if recorded_base != current_head else ""
 
 
+def fast_forward_worktree_to_origin_dev(worktree_path: Path) -> dict:
+    """Fast-forward a lane worktree to origin/dev, keeping its dirty edits.
+
+    See scripts/worktree_fast_forward.py; generated Specification and Rust
+    migration outputs are reset and rebuilt, overlaps return ``blocked``.
+    """
+    try:
+        from scripts import worktree_fast_forward
+    except ModuleNotFoundError:
+        import worktree_fast_forward
+    return worktree_fast_forward.fast_forward_to_origin_dev(
+        Path(worktree_path),
+        specification=set(SPECIFICATION_GENERATED_ARTIFACTS),
+        rust_migration=set(RUST_MIGRATION_GENERATED_ARTIFACTS),
+    )
+
+
 @_workspace_transition("refresh-base")
-def refresh_session_worktree_base(session_id: str) -> dict[str, str]:
-    """Refresh one session's recorded base after a safe worktree fast-forward."""
+def refresh_session_worktree_base(session_id: str, *, rebase: bool = False) -> dict[str, str]:
+    """Refresh one session's recorded base after a safe worktree fast-forward.
+
+    With ``rebase`` the worktree is first fast-forwarded to origin/dev (see
+    ``fast_forward_worktree_to_origin_dev``); an overlap or divergence raises.
+    """
+    fast_forward: dict = {}
+    if rebase:
+        session = _load_sessions().get("sessions", {}).get(session_id, {})
+        worktree = session.get("worktree") if isinstance(session.get("worktree"), dict) else {}
+        if not worktree.get("path"):
+            raise RuntimeError(f"Session {session_id} has no managed worktree")
+        fast_forward = fast_forward_worktree_to_origin_dev(Path(str(worktree["path"])))
+        if fast_forward["status"] == "blocked":
+            raise RuntimeError(
+                "Reason: origin/dev changed files this lane also edited: "
+                + ", ".join(fast_forward["overlap"])
+                + ". Next: deploy or reconcile those files first; nothing was changed."
+            )
+        if fast_forward["status"] == "diverged":
+            raise RuntimeError(
+                "Reason: worktree HEAD is not an ancestor of origin/dev. "
+                "Next: preserve the worktree and inspect its commits; nothing was changed."
+            )
+        for warning in fast_forward["warnings"]:
+            print(f"Warning: {warning}", file=sys.stderr)
+
     def update(data: dict) -> dict[str, str]:
         resolved_session_id = _resolve_session_id(data, session_id=session_id)
         session = data["sessions"][resolved_session_id]
@@ -7299,13 +7546,17 @@ def refresh_session_worktree_base(session_id: str) -> dict[str, str]:
         if previous_base or session.get("binding_mode") == "worktree_routed":
             session["last_active"] = _now_iso()
             worktree["last_active"] = session["last_active"]
-        return {
+        result = {
             "session_id": resolved_session_id,
             "previous_base": previous_base,
             "base_commit": str(worktree.get("base_commit") or ""),
             "binding_mode": str(session.get("binding_mode") or ""),
             "worktree_path": str(worktree.get("path") or ""),
         }
+        if rebase:
+            result["fast_forward"] = str(fast_forward.get("status") or "")
+            result["reset_generated"] = ",".join(fast_forward.get("reset") or [])
+        return result
 
     return _mutate_sessions(update)
 
@@ -12076,7 +12327,10 @@ def _deploy_native_worktree(
             patch_id,
             prepared_base,
         )
-        checkpoint_commit = review["candidate"] if review else str(getattr(args, "expected_checkpoint_commit", "") or "")
+        checkpoint_commit = review["candidate"] if review else _usable_supplied_checkpoint(
+            str(getattr(args, "expected_checkpoint_commit", "") or ""),
+            worktree_metadata,
+        )
         if not checkpoint_commit:
             checkpoint_commit = _create_worktree_checkpoint_commit(
                 sid,
@@ -12094,7 +12348,10 @@ def _deploy_native_worktree(
                 to_commit,
                 checkout_root=checkout_root,
             )
-            commit_files = sorted(set(to_commit).union(generated_specification_files))
+            generated_rust_migration_files = _regenerate_rust_migration_artifacts(checkout_root, to_commit)
+            commit_files = sorted(
+                set(to_commit).union(generated_specification_files, generated_rust_migration_files)
+            )
             _run_deploy_gates(
                 commit_files,
                 checkout_root=checkout_root,
@@ -12459,6 +12716,51 @@ def _require_tracked_deploy_files(dirty_but_untracked, file_tracking, allow_untr
     print("--allow-untracked: leaving them out of this deploy.", file=sys.stderr)
 
 
+def _auto_fast_forward_worktree_for_deploy(sid: str, args: argparse.Namespace, worktree_metadata: dict) -> dict | None:
+    """Fast-forward a stale lane before its checkpoint; return the refreshed session.
+
+    Skipped when the caller pinned an exact patch, checkpoint or manifest, since
+    moving the base would invalidate that pin. On overlap the worktree is left
+    unchanged and deploy continues on its recorded base, where the existing
+    3-way replay and deletion-amplification gates decide.
+    """
+    if any(
+        getattr(args, name, None)
+        for name in ("expected_patch_id", "expected_checkpoint_commit", "expected_manifest_id")
+    ):
+        return None
+    worktree_path = Path(str(worktree_metadata.get("path") or ""))
+    if not worktree_path.is_dir():
+        return None
+    try:
+        outcome = fast_forward_worktree_to_origin_dev(worktree_path)
+    except RuntimeError as exc:
+        print(f"Auto fast-forward skipped: {exc}", file=sys.stderr)
+        return None
+    if outcome["status"] == "blocked":
+        print(
+            "Auto fast-forward skipped: origin/dev also changed "
+            + ", ".join(outcome["overlap"])
+            + ". Deploying on the recorded base; if integration blocks, reconcile those files "
+            "against origin/dev and run `sessions.py worktree refresh-base --rebase`.",
+            file=sys.stderr,
+        )
+        return None
+    if outcome["status"] != "fast_forwarded":
+        return None
+    for warning in outcome["warnings"]:
+        print(f"Warning: {warning}", file=sys.stderr)
+    print(f"Auto fast-forwarded lane worktree {outcome['previous_head'][:9]} -> {outcome['head'][:9]}.")
+    try:
+        refresh_session_worktree_base(sid)
+    except RuntimeError as exc:
+        # The worktree already moved; deploying against the old recorded base
+        # would misread upstream changes as lane edits, so stop here.
+        print(f"WORKTREE DEPLOY FAILED — fast-forward succeeded but base refresh failed: {exc}", file=sys.stderr)
+        sys.exit(1)
+    return _load_sessions().get("sessions", {}).get(sid)
+
+
 def cmd_deploy(args: argparse.Namespace) -> None:
     """Execute deployment: lint, git add, commit, push."""
     data = _load_sessions()
@@ -12500,6 +12802,12 @@ def cmd_deploy(args: argparse.Namespace) -> None:
         return
 
     use_staged = bool(getattr(args, "use_staged", False))
+    if worktree_metadata and not use_staged:
+        refreshed = _auto_fast_forward_worktree_for_deploy(sid, args, worktree_metadata)
+        if refreshed is not None:
+            session = refreshed
+            modified = session.get("modified_files", [])
+            worktree_metadata = session.get("worktree") if isinstance(session.get("worktree"), dict) else None
     dirty_files = _get_dirty_files(checkout_root=checkout_root)
     try:
         to_commit, selector = _resolve_deploy_selection(
@@ -13027,7 +13335,10 @@ def cmd_worktree(args: argparse.Namespace) -> None:
         return
     if args.worktree_action == "refresh-base":
         try:
-            result = refresh_session_worktree_base(args.session)
+            if getattr(args, "rebase", False):
+                result = refresh_session_worktree_base(args.session, rebase=True)
+            else:
+                result = refresh_session_worktree_base(args.session)
         except (RuntimeError, ValueError) as exc:
             print(f"Error: {exc}", file=sys.stderr)
             sys.exit(2)
@@ -13093,6 +13404,7 @@ def cmd_worktree(args: argparse.Namespace) -> None:
                 apply_safe=args.apply_safe,
                 approved_obsolete=approved_obsolete,
                 only_session_ids=only_session_ids,
+                only_classes=set(args.only_class) if getattr(args, "only_class", None) else None,
             )
             if persist_scheduler_health:
                 _write_worktree_reconciliation_report(report)
@@ -15067,6 +15379,14 @@ def main() -> None:
         help="Refresh recorded base after a managed worktree was safely fast-forwarded to origin/dev",
     )
     p_worktree_refresh_base.add_argument("--session", "-s", help="Session ID")
+    p_worktree_refresh_base.add_argument(
+        "--rebase",
+        action="store_true",
+        help=(
+            "Fetch and fast-forward the worktree to origin/dev first, resetting and rebuilding "
+            "generated Specification/Rust-migration files; refuses when dirty edits overlap"
+        ),
+    )
     p_worktree_expire = p_worktree_sub.add_parser(
         "expire", help="Unconditionally delete managed worktrees at the hard maximum age"
     )
@@ -15087,6 +15407,12 @@ def main() -> None:
     p_worktree_reconcile = p_worktree_sub.add_parser("reconcile", help="Report or safely reconcile all worktrees")
     p_worktree_reconcile.add_argument("--target", default="origin/dev", help="Exact integration ref (default: origin/dev)")
     p_worktree_reconcile.add_argument("--idle-hours", type=int, default=WORKTREE_CLEANUP_IDLE_HOURS)
+    p_worktree_reconcile.add_argument(
+        "--only-class",
+        action="append",
+        choices=sorted(LIFECYCLE_RECLAIMABLE_CLASSES),
+        help="With --apply-safe, delete only these classifications (repeatable)",
+    )
     p_worktree_reconcile.add_argument("--apply-safe", action="store_true", help="Delete only eligible safe classifications")
     p_worktree_reconcile.add_argument(
         "--approve-obsolete",
