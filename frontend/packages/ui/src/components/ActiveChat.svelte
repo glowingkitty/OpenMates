@@ -233,6 +233,11 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         type ContinuePriority,
         type SavedEmbedContinueCandidate,
     } from '../services/continueCarouselService';
+    import {
+        CONTINUE_RUST_CORE,
+        getReminderByTargetChatIdRust,
+        sortContinuePriorityItemsRust,
+    } from '../services/continueCarouselRust';
     import type {
         WebSearchSkillPreviewData,
         VideoTranscriptSkillPreviewData,
@@ -3546,7 +3551,10 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         try {
             const nowMs = Date.now();
             const reminders = await fetchContinueReminders();
-            const remindersByChatId = getReminderByTargetChatId(reminders, nowMs);
+            // Flag-off keeps the synchronous TS rule (no new await window).
+            const remindersByChatId = CONTINUE_RUST_CORE
+                ? await getReminderByTargetChatIdRust(reminders, nowMs)
+                : getReminderByTargetChatId(reminders, nowMs);
 
             const chatItems: PriorityChatContinueItem[] = [];
             await chatDB.init();
@@ -3564,7 +3572,10 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             const embedItems = contextTeamId
                 ? []
                 : getSavedFlagContinueCandidates(await (await import('../services/savedEmbedService')).listSavedEmbeds(), nowMs);
-            priorityContinueItems = sortContinuePriorityItems([...chatItems, ...embedItems], nowMs).slice(0, RECENT_CHATS_TOTAL);
+            const priorityItems: PriorityContinueItem[] = [...chatItems, ...embedItems];
+            priorityContinueItems = (CONTINUE_RUST_CORE
+                ? await sortContinuePriorityItemsRust(priorityItems, nowMs)
+                : sortContinuePriorityItems(priorityItems, nowMs)).slice(0, RECENT_CHATS_TOTAL);
         } catch (err) {
             console.warn('[ActiveChat] Failed to load priority continue items:', err);
         }

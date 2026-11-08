@@ -11,6 +11,7 @@ import type { UnitProtocol } from '../host/unitPort';
 import type { HiddenForkUnitProtocol } from './hiddenForkProtocol';
 import type { BookmarkHighlightUnitProtocol } from './bookmarkHighlightProtocol';
 import type { ProjectStateUnitProtocol } from './projectStateOps';
+import type { ContinueCarouselUnitProtocol } from './continueCarouselOps';
 import { TRANSITION_OPS, type TransitionBinding, type TransitionUnitProtocol } from './transitionProtocol';
 import type { GroupChatsInput, SortChatsInput } from '../../../components/chats/utils/chatListInput';
 import { CHAT_VIEW_OPS, type ChatViewBinding, type ChatViewOps } from './chatViewProtocol';
@@ -21,9 +22,10 @@ export interface ChatListUnitProtocol extends UnitProtocol, ChatViewOps, Transit
 	group: { request: GroupChatsInput; response: [string, number[]][] };
 }
 
-/** Every operation of the `chatState` unit: list policy, hidden chats, forks, bookmarks, highlights and Project decisions. */
+/** Every operation of the `chatState` unit: list policy, hidden chats, forks, bookmarks, highlights, Project and continue-carousel decisions. */
 export interface ChatStateUnitProtocol
-	extends ChatListUnitProtocol, HiddenForkUnitProtocol, BookmarkHighlightUnitProtocol, ProjectStateUnitProtocol {}
+	extends ChatListUnitProtocol, HiddenForkUnitProtocol, BookmarkHighlightUnitProtocol, ProjectStateUnitProtocol,
+		ContinueCarouselUnitProtocol {}
 
 /** Worker module exports (JSON text in, JSON text out) of browser_chat_state_list.rs. */
 export interface ChatListBinding extends ChatViewBinding, TransitionBinding {

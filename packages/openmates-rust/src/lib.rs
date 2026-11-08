@@ -53,6 +53,10 @@ mod web_projects_tests;
 pub mod web_guest;
 #[cfg(test)]
 mod web_guest_tests;
+/// Continue-carousel reminder index and priority order of the web `continueDecide` op.
+pub mod web_continue;
+#[cfg(test)]
+mod web_continue_tests;
 pub mod web_share_state;
 #[cfg(test)]
 mod web_share_state_tests;

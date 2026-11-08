@@ -669,7 +669,8 @@
         "web-rust-core-chatstate-message-highlights.spec.ts",
         "web-rust-core-composer.spec.ts",
         "web-rust-core-projects-flow.spec.ts",
-        "web-rust-core-projects-remote-sources.spec.ts"
+        "web-rust-core-projects-remote-sources.spec.ts",
+        "web-rust-core-continue-carousel.spec.ts"
       ]
     },
     "external_integration": {
