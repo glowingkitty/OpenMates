@@ -27,12 +27,16 @@ from backend.apps.ai.processing.skill_executor import execute_skill
 logger = logging.getLogger(__name__)
 
 MAX_PREFETCH_PDFS = 2            # PDFs referenced in the message that get pages prefetched
+MAX_CANDIDATE_REFS = 3           # references tried; a non-PDF one just fails its search
 MAX_PREFETCH_PAGES = 3           # best pages per PDF
 MAX_PREFETCH_CHARS = 24_000      # about 6,000 tokens in total across all PDFs
 MIN_JEV_RELEVANCE = 0.5          # "somewhat relevant" or better when the decision model rated the page
 MIN_QUERY_CHARS = 3
 SKILL_TIMEOUT_SECONDS = 20.0
 
+# CLI uploads are referenced by a slug of the file name plus a 6-character digest (same format
+# pdf.read accepts), not by the file name, so a ".pdf" suffix alone does not identify a PDF there.
+_CLI_UPLOAD_REF = re.compile(r"^[a-z0-9-]{1,40}-[a-f0-9]{6}$")
 _FENCED_BLOCK = re.compile(r"```.*?```", re.DOTALL)
 _PAGE_SEPARATOR = re.compile(r"\n\n---\n\n(?=### Page \d+\n)")
 
@@ -55,11 +59,17 @@ def question_from_message(content: str, refs: List[str]) -> str:
 
 
 def current_message_pdf_refs(content: str, file_path_index: Dict[str, str]) -> List[str]:
-    """PDF references (exact embed_ref values) present in the current user message."""
-    return [
-        ref for ref in file_path_index
-        if ref.casefold().strip().endswith(".pdf") and ref in content
-    ][:MAX_PREFETCH_PDFS]
+    """References in the current user message that can be PDFs, in message order.
+
+    Web and app uploads use the file name; CLI uploads use a slug. A reference that turns out not
+    to be a PDF (an image slug) fails its search and is skipped.
+    """
+    found = [
+        (content.index(ref), ref) for ref in file_path_index
+        if isinstance(ref, str) and ref in content
+        and (ref.casefold().strip().endswith(".pdf") or _CLI_UPLOAD_REF.fullmatch(ref))
+    ]
+    return [ref for _position, ref in sorted(found)][:MAX_CANDIDATE_REFS]
 
 
 def select_pages(matches: List[Dict[str, Any]]) -> List[int]:
@@ -139,6 +149,7 @@ async def build_pdf_prefetch_section(
     """The prompt section with the best-matching pages, or None when there is nothing to add."""
     file_path_index = getattr(request_data, "embed_file_path_index", None)
     if not file_path_index or not user_vault_key_id:
+        logger.info("%s PDF prefetch skipped: no attached files or no vault key", log_prefix)
         return None
     last_user = next(
         (m.content for m in reversed(request_data.message_history) if m.role == "user"), None
@@ -148,6 +159,8 @@ async def build_pdf_prefetch_section(
     refs = current_message_pdf_refs(last_user, file_path_index)
     question = question_from_message(last_user, refs) if refs else ""
     if len(question) < MIN_QUERY_CHARS:
+        logger.info("%s PDF prefetch skipped: %d PDF reference(s) in the message, question of %d chars",
+                    log_prefix, len(refs), len(question))
         return None
 
     skill_arguments = {"_file_path_index": file_path_index, "_user_vault_key_id": user_vault_key_id}
@@ -170,7 +183,7 @@ async def build_pdf_prefetch_section(
     parts: List[str] = []
     remaining = MAX_PREFETCH_CHARS
     for result in results:
-        if not result:
+        if not result or len(parts) == MAX_PREFETCH_PDFS:
             continue
         title, sections = result[0], fit_to_budget(result[1:], remaining)
         if not sections:

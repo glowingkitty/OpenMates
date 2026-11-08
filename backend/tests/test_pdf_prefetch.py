@@ -80,9 +80,11 @@ def test_question_is_the_users_words_without_embed_blocks_or_file_names():
 
 # contract-test: supporting surface=rest_api assertions=pdf-processing.read.prefetch-relevant-pages
 def test_only_pdfs_named_in_the_current_message_are_used():
-    index = {MANUAL: "e1", "old.pdf": "e2", "photo.png": "e3"}
-    assert current_message_pdf_refs(f"see {MANUAL} and photo.png", index) == [MANUAL]
+    cli_ref = "juki-mo654de-manual-pdf-a3a4a0d3-f56a-49-85afed"
+    index = {MANUAL: "e1", "old.pdf": "e2", "photo.png": "e3", cli_ref: "e4"}
+    assert current_message_pdf_refs(f"see {cli_ref} and then {MANUAL} and photo.png", index) == [cli_ref, MANUAL]
     assert current_message_pdf_refs("no attachment here", index) == []
+    assert current_message_pdf_refs("photo.png only", index) == []
 
 
 # contract-test: supporting surface=rest_api assertions=pdf-processing.read.prefetch-relevant-pages
