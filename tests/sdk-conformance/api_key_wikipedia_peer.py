@@ -49,11 +49,9 @@ class WikipediaPeer:
                 and not u.fragment
                 and u.path == "/v1/wikipedia/" + step["operation"]
             )
-            language = (
-                self.vector["language"] if self.vector["language"] is not None else "en"
-            )
-            if self.language == "python":
-                language = self.vector.get("python_expected_language", language)
+            # Contract: an omitted or empty language is sent as "en" by every SDK;
+            # the backend proxy rejects an empty language (min_length=2).
+            language = self.vector["language"] or "en"
             query = {"language": [language]}
             if step["operation"] == "search":
                 query["query"] = [self.vector["query"]]

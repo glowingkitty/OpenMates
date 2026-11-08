@@ -441,12 +441,20 @@ mod tests {
         }
     }
 
-    // Known unfinished parity gap; this diagnostic is not semantic-parity proof or release acceptance.
+    // npm/Python share these record vectors; the fallback slices Unicode scalars.
     // contract-test: supporting surface=sdks.rust assertions=sdk.parity.executable-release-gate
     #[tokio::test]
-    async fn astral_preview_limit_is_explicit_and_preserves_current_scalar_slice() {
+    async fn astral_fallback_preview_slices_unicode_scalars_like_every_sdk() {
         let fixture = fixture();
-        for limit in fixture["open_parity_limits"].as_array().unwrap() {
+        assert!(fixture.get("open_parity_limits").is_none());
+        let astral = fixture["vectors"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|v| v["id"] == "astral-preview-fallback")
+            .collect::<Vec<_>>();
+        assert_eq!(astral.len(), 1);
+        for limit in astral {
             let raw = &limit["draft"];
             let id = raw["chat_id"].as_str().unwrap();
             let (api, peer) = crate::sdk::tests::server(vec![
@@ -456,10 +464,10 @@ mod tests {
             .await;
             let mut client = direct_client(api, &fixture);
             let draft = client.drafts().get(id).await.unwrap().unwrap();
-            assert_eq!(draft.preview.as_deref(), limit["previews"]["rust"].as_str());
-            assert_eq!(draft.preview.unwrap().chars().count(), 160);
-            // npm's separate expected UTF-16 units expose the existing difference.
-            assert_eq!(limit["npm_preview_utf16"][159], 0xd83d);
+            assert_eq!(draft.preview.as_deref(), limit["preview"].as_str());
+            let preview = draft.preview.unwrap();
+            assert_eq!(preview.chars().count(), 160);
+            assert!(preview.ends_with('\u{1F600}'));
             assert_eq!(peer.await.unwrap().len(), 2);
         }
     }

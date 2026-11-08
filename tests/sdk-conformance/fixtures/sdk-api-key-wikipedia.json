@@ -163,7 +163,7 @@
           }
         },
         {
-          "id": "search-empty-language-divergence",
+          "id": "search-empty-language-defaults-en",
           "operation": "search",
           "query": "Topic",
           "title": null,
@@ -212,8 +212,33 @@
               null,
               true
             ]
-          },
-          "python_expected_language": "en"
+          }
+        },
+        {
+          "id": "summary-empty-language-defaults-en",
+          "operation": "summary",
+          "query": null,
+          "title": "Input topic",
+          "language": "",
+          "limit": null,
+          "anonymous": false,
+          "steps": [
+            {
+              "operation": "summary",
+              "http_status": 200,
+              "response": {
+                "title": "Canonical topic",
+                "extract": "Synthetic summary"
+              },
+              "expected_title": "Input topic"
+            }
+          ],
+          "expected_request_count": 1,
+          "expected_error": null,
+          "expected": {
+            "title": "Canonical topic",
+            "extract": "Synthetic summary"
+          }
         },
         {
           "id": "search-limit-zero-server-owned",

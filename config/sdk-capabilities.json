@@ -1448,9 +1448,7 @@
           "gaps": [
             "Send, streaming, cancellation, recovery, message pagination (messages/messagePages), export, fork, share, delete, retry, rewind, follow-ups, incognito and Project link/unlink have no cross-SDK conformance vectors yet.",
             "Direct (two-participant) chats and TOON-encoded embed content are not covered by the shared vectors.",
-            "List/search/load decryption still runs in language-local code rather than the shared Rust core (npm WASM, Python PyO3).",
-            "Loaded message and embed output names differ: npm uses senderName/modelName/textPreview while Python and Rust use sender_name/model_name/text_preview."
-          ],
+            "List/search/load decryption still runs in language-local code rather than the shared Rust core (npm WASM, Python PyO3)."          ],
           "status": "partial"
         },
         "python": {
@@ -1497,9 +1495,7 @@
           "gaps": [
             "Send, streaming, cancellation, recovery, message pagination (messages/messagePages), export, fork, share, delete, retry, rewind, follow-ups, incognito and Project link/unlink have no cross-SDK conformance vectors yet.",
             "Direct (two-participant) chats and TOON-encoded embed content are not covered by the shared vectors.",
-            "List/search/load decryption still runs in language-local code rather than the shared Rust core (npm WASM, Python PyO3).",
-            "Loaded message and embed output names differ: npm uses senderName/modelName/textPreview while Python and Rust use sender_name/model_name/text_preview."
-          ],
+            "List/search/load decryption still runs in language-local code rather than the shared Rust core (npm WASM, Python PyO3)."          ],
           "status": "partial"
         },
         "rust": {
@@ -1560,26 +1556,31 @@
             "tests/sdk-conformance/test_api_key_foundation_contract.py"
           ],
           "gaps": [
-            "Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability."
+            "Missing-key refusal is not a shared cross-language vector: npm/Python OpenMatesClient raise the typed OPENMATES_SDK_API_KEY_REQUIRED error at construction, while Rust enforces explicit credentials by type (SdkCredentials::ApiKey; an empty ApiKey::new is Error::Invalid) without that stable code. Base OpenMates in npm/Python keeps documented keyless guest routing and the OPENMATES_API_KEY convenience, which Rust does not offer."
           ],
           "status": "partial"
         },
         "python": {
           "api": [
             "OpenMates",
+            "OpenMatesApiKeyRequiredError",
+            "OpenMatesClient",
+            "OpenMatesClient.load",
             "RustApiKeyClient",
             "RustApiKeyClient.cancel",
-            "RustApiKeyClient.close"
+            "RustApiKeyClient.close",
+            "SDK_API_KEY_REQUIRED_CODE"
           ],
           "conformance": true,
           "evidence": [
+            "packages/openmates-python/tests/test_root_client_api_key_only.py",
             "packages/openmates-python/tests/test_root_credential_boundary.py",
             "packages/openmates-python/tests/test_sdk_cli_login_isolation.py",
             "tests/sdk-conformance/runners/api-key-foundation.py",
             "tests/sdk-conformance/test_api_key_foundation_contract.py"
           ],
           "gaps": [
-            "Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability."
+            "Missing-key refusal is not a shared cross-language vector: npm/Python OpenMatesClient raise the typed OPENMATES_SDK_API_KEY_REQUIRED error at construction, while Rust enforces explicit credentials by type (SdkCredentials::ApiKey; an empty ApiKey::new is Error::Invalid) without that stable code. Base OpenMates in npm/Python keeps documented keyless guest routing and the OPENMATES_API_KEY convenience, which Rust does not offer."
           ],
           "status": "partial"
         },
@@ -1624,7 +1625,7 @@
             "tests/sdk-conformance/test_api_key_foundation_contract.py"
           ],
           "gaps": [
-            "Native public APIs exist, but complete cross-language behavioral conformance is not established for this family."
+            "Missing-key refusal is not a shared cross-language vector: npm/Python OpenMatesClient raise the typed OPENMATES_SDK_API_KEY_REQUIRED error at construction, while Rust enforces explicit credentials by type (SdkCredentials::ApiKey; an empty ApiKey::new is Error::Invalid) without that stable code. Base OpenMates in npm/Python keeps documented keyless guest routing and the OPENMATES_API_KEY convenience, which Rust does not offer."
           ],
           "status": "partial"
         }
@@ -1783,7 +1784,9 @@
             "OpenMatesDocs.download",
             "OpenMatesDocs.list",
             "OpenMatesDocs.search",
-            "OpenMatesDocs.show"
+            "OpenMatesDocs.show",
+            "OpenMatesInvalidInputError",
+            "OpenMatesInvalidInputError.code"
           ],
           "conformance": true,
           "evidence": [
@@ -1791,7 +1794,7 @@
           ],
           "gaps": [
             "Existing SDK /v1/sdk/docs route availability/server behavior is not established by synthetic fixture; no server route/protocol added.",
-            "Shared Rust slug safety rejects traversal/control/colon/oversized slugs before transport whereas existing npm/Python facade passes those inputs; complete malformed-input parity unproved.",
+            "Oversized (>4096-byte) slug refusal mirrors shared Rust in the npm/Python facades but has no shared vector; the other malformed-slug classes are fixture-proved.",
             "Malformed successful JSON, redirect, transport cancellation, oversize response and live error/ACL behavior inherit existing transport policies and are not full cross-language proved by this fixture.",
             "CPU and runtime performance acceptance mandatory and unrun."
           ],
@@ -1808,7 +1811,8 @@
             "OpenMatesDocs.download",
             "OpenMatesDocs.list",
             "OpenMatesDocs.search",
-            "OpenMatesDocs.show"
+            "OpenMatesDocs.show",
+            "OpenMatesInvalidInputError"
           ],
           "conformance": true,
           "evidence": [
@@ -1816,7 +1820,7 @@
           ],
           "gaps": [
             "Existing SDK /v1/sdk/docs route availability/server behavior is not established by synthetic fixture; no server route/protocol added.",
-            "Shared Rust slug safety rejects traversal/control/colon/oversized slugs before transport whereas existing npm/Python facade passes those inputs; complete malformed-input parity unproved.",
+            "Oversized (>4096-byte) slug refusal mirrors shared Rust in the npm/Python facades but has no shared vector; the other malformed-slug classes are fixture-proved.",
             "Malformed successful JSON, redirect, transport cancellation, oversize response and live error/ACL behavior inherit existing transport policies and are not full cross-language proved by this fixture.",
             "CPU and runtime performance acceptance mandatory and unrun."
           ],
@@ -1859,7 +1863,7 @@
           ],
           "gaps": [
             "Existing SDK /v1/sdk/docs route availability/server behavior is not established by synthetic fixture; no server route/protocol added.",
-            "Shared Rust slug safety rejects traversal/control/colon/oversized slugs before transport whereas existing npm/Python facade passes those inputs; complete malformed-input parity unproved.",
+            "Oversized (>4096-byte) slug refusal mirrors shared Rust in the npm/Python facades but has no shared vector; the other malformed-slug classes are fixture-proved.",
             "Malformed successful JSON, redirect, transport cancellation, oversize response and live error/ACL behavior inherit existing transport policies and are not full cross-language proved by this fixture.",
             "CPU and runtime performance acceptance mandatory and unrun."
           ],
@@ -1897,7 +1901,7 @@
           ],
           "gaps": [
             "Matching direct SDK CPU-processing benchmark against TypeScript is absent; Rust must be at least as fast for comparable work. Network/process latency cannot satisfy this blocker.",
-            "Astral fallback-preview and empty encrypted-preview divergences remain open; complete key, error, race and account parity is unproved."
+            "Complete key, error, race and account parity is unproved."
           ],
           "status": "partial"
         },
@@ -1920,7 +1924,7 @@
           ],
           "gaps": [
             "Matching direct SDK CPU-processing benchmark against TypeScript is absent; Rust must be at least as fast for comparable work. Network/process latency cannot satisfy this blocker.",
-            "Astral fallback-preview and empty encrypted-preview divergences remain open; complete key, error, race and account parity is unproved."
+            "Complete key, error, race and account parity is unproved."
           ],
           "status": "partial"
         },
@@ -1955,7 +1959,7 @@
           ],
           "gaps": [
             "Matching direct SDK CPU-processing benchmark against TypeScript is absent; Rust must be at least as fast for comparable work. Network/process latency cannot satisfy this blocker.",
-            "Astral fallback-preview and empty encrypted-preview divergences remain open; complete key, error, race and account parity is unproved.",
+            "Complete key, error, race and account parity is unproved.",
             "Opaque final-output/credential-scope assertions remain Rust platform glue; Cookie operations move to session.drafts.v1. Foreign bindings use the same EssentialGuard authority, but exposing standalone platform admission receipts and durable cache publication remains unfinished."
           ],
           "status": "partial"
@@ -2021,7 +2025,7 @@
           ],
           "gaps": [
             "All Rust typechecks, unit tests, direct-library execution and matching CPU/end-to-end performance remain unproved; measured slowdown blocks acceptance.",
-            "Real Project add/unlink routes are cookie-only and reject API keys; no ambient cookie/session fallback is permitted. Python non-UUID add selector behavior differs from npm; canonical UUID fixture coverage does not prove selector parity.",
+            "Real Project add/unlink routes are cookie-only and reject API keys; no ambient cookie/session fallback is permitted. npm/Python resolve non-UUID add/unlink selectors with exact-id, case-insensitive id-prefix, slug, then normalized-name precedence, whereas shared Rust accepts a single slug/exact-name/case-sensitive-prefix match and every Uuid::parse_str form; no shared non-UUID selector vector exists.",
             "Read and family synthetic vectors do not establish real backend owner/ACL enforcement, project mutation operability, full transport cancellation/redirect/oversize behavior, account races, or npm/Python public local cancellation parity."
           ],
           "status": "partial"
@@ -2062,11 +2066,12 @@
           ],
           "conformance": true,
           "evidence": [
+            "packages/openmates-python/tests/test_embeds_project_selector.py",
             "tests/sdk-conformance/runners/sdk-api-key-embeds.py"
           ],
           "gaps": [
             "All Rust typechecks, unit tests, direct-library execution and matching CPU/end-to-end performance remain unproved; measured slowdown blocks acceptance.",
-            "Real Project add/unlink routes are cookie-only and reject API keys; no ambient cookie/session fallback is permitted. Python non-UUID add selector behavior differs from npm; canonical UUID fixture coverage does not prove selector parity.",
+            "Real Project add/unlink routes are cookie-only and reject API keys; no ambient cookie/session fallback is permitted. npm/Python resolve non-UUID add/unlink selectors with exact-id, case-insensitive id-prefix, slug, then normalized-name precedence, whereas shared Rust accepts a single slug/exact-name/case-sensitive-prefix match and every Uuid::parse_str form; no shared non-UUID selector vector exists.",
             "Read and family synthetic vectors do not establish real backend owner/ACL enforcement, project mutation operability, full transport cancellation/redirect/oversize behavior, account races, or npm/Python public local cancellation parity."
           ],
           "status": "partial"
@@ -2106,7 +2111,7 @@
           ],
           "gaps": [
             "All Rust typechecks, unit tests, direct-library execution and matching CPU/end-to-end performance remain unproved; measured slowdown blocks acceptance.",
-            "Real Project add/unlink routes are cookie-only and reject API keys; no ambient cookie/session fallback is permitted. Python non-UUID add selector behavior differs from npm; canonical UUID fixture coverage does not prove selector parity.",
+            "Real Project add/unlink routes are cookie-only and reject API keys; no ambient cookie/session fallback is permitted. npm/Python resolve non-UUID add/unlink selectors with exact-id, case-insensitive id-prefix, slug, then normalized-name precedence, whereas shared Rust accepts a single slug/exact-name/case-sensitive-prefix match and every Uuid::parse_str form; no shared non-UUID selector vector exists.",
             "Read and family synthetic vectors do not establish real backend owner/ACL enforcement, project mutation operability, full transport cancellation/redirect/oversize behavior, account races, or npm/Python public local cancellation parity."
           ],
           "status": "partial"
@@ -2127,7 +2132,7 @@
           ],
           "gaps": [
             "All Rust typechecks, unit tests, direct-library execution and matching CPU/end-to-end performance remain unproved; measured slowdown blocks acceptance.",
-            "Real Project add/unlink routes are cookie-only and reject API keys; no ambient cookie/session fallback is permitted. Python non-UUID add selector behavior differs from npm; canonical UUID fixture coverage does not prove selector parity.",
+            "Real Project add/unlink routes are cookie-only and reject API keys; no ambient cookie/session fallback is permitted. npm/Python resolve non-UUID add/unlink selectors with exact-id, case-insensitive id-prefix, slug, then normalized-name precedence, whereas shared Rust accepts a single slug/exact-name/case-sensitive-prefix match and every Uuid::parse_str form; no shared non-UUID selector vector exists.",
             "Read and family synthetic vectors do not establish real backend owner/ACL enforcement, project mutation operability, full transport cancellation/redirect/oversize behavior, account races, or npm/Python public local cancellation parity."
           ],
           "status": "partial"
@@ -2140,7 +2145,7 @@
           ],
           "gaps": [
             "All Rust typechecks, unit tests, direct-library execution and matching CPU/end-to-end performance remain unproved; measured slowdown blocks acceptance.",
-            "Real Project add/unlink routes are cookie-only and reject API keys; no ambient cookie/session fallback is permitted. Python non-UUID add selector behavior differs from npm; canonical UUID fixture coverage does not prove selector parity.",
+            "Real Project add/unlink routes are cookie-only and reject API keys; no ambient cookie/session fallback is permitted. npm/Python resolve non-UUID add/unlink selectors with exact-id, case-insensitive id-prefix, slug, then normalized-name precedence, whereas shared Rust accepts a single slug/exact-name/case-sensitive-prefix match and every Uuid::parse_str form; no shared non-UUID selector vector exists.",
             "Read and family synthetic vectors do not establish real backend owner/ACL enforcement, project mutation operability, full transport cancellation/redirect/oversize behavior, account races, or npm/Python public local cancellation parity."
           ],
           "status": "partial"
@@ -2153,7 +2158,7 @@
           ],
           "gaps": [
             "All Rust typechecks, unit tests, direct-library execution and matching CPU/end-to-end performance remain unproved; measured slowdown blocks acceptance.",
-            "Real Project add/unlink routes are cookie-only and reject API keys; no ambient cookie/session fallback is permitted. Python non-UUID add selector behavior differs from npm; canonical UUID fixture coverage does not prove selector parity.",
+            "Real Project add/unlink routes are cookie-only and reject API keys; no ambient cookie/session fallback is permitted. npm/Python resolve non-UUID add/unlink selectors with exact-id, case-insensitive id-prefix, slug, then normalized-name precedence, whereas shared Rust accepts a single slug/exact-name/case-sensitive-prefix match and every Uuid::parse_str form; no shared non-UUID selector vector exists.",
             "Read and family synthetic vectors do not establish real backend owner/ACL enforcement, project mutation operability, full transport cancellation/redirect/oversize behavior, account races, or npm/Python public local cancellation parity."
           ],
           "status": "partial"
@@ -8235,7 +8240,6 @@
           ],
           "gaps": [
             "All Rust/npm real direct-library runtime and matched CPU/performance proof remain unrun.",
-            "Empty language differs in existing Python(en fallback) vs npm/Rust(empty retained); explicit fixture records this divergence instead of claiming equivalence.",
             "Fractional/non-string dynamic inputs, truthy non-string summary-title coercion and malformed guide response/error types remain incomplete cross-language parity.",
             "Rust article cancellation propagates instead of readable-summary fallback, preserving native shared policy. Inflight transport cancellation/redirect/oversize/real HTTP error integration not fully proved.",
             "Learning invokes shared Rust private-operation gate and never accepts provider/model overrides; backendlearning/inference is not executed by author or fixtures.",
@@ -8263,7 +8267,6 @@
           ],
           "gaps": [
             "All Rust/npm real direct-library runtime and matched CPU/performance proof remain unrun.",
-            "Empty language differs in existing Python(en fallback) vs npm/Rust(empty retained); explicit fixture records this divergence instead of claiming equivalence.",
             "Fractional/non-string dynamic inputs, truthy non-string summary-title coercion and malformed guide response/error types remain incomplete cross-language parity.",
             "Rust article cancellation propagates instead of readable-summary fallback, preserving native shared policy. Inflight transport cancellation/redirect/oversize/real HTTP error integration not fully proved.",
             "Learning invokes shared Rust private-operation gate and never accepts provider/model overrides; backendlearning/inference is not executed by author or fixtures.",
@@ -8317,7 +8320,6 @@
           ],
           "gaps": [
             "All Rust/npm real direct-library runtime and matched CPU/performance proof remain unrun.",
-            "Empty language differs in existing Python(en fallback) vs npm/Rust(empty retained); explicit fixture records this divergence instead of claiming equivalence.",
             "Fractional/non-string dynamic inputs, truthy non-string summary-title coercion and malformed guide response/error types remain incomplete cross-language parity.",
             "Rust article cancellation propagates instead of readable-summary fallback, preserving native shared policy. Inflight transport cancellation/redirect/oversize/real HTTP error integration not fully proved.",
             "Learning invokes shared Rust private-operation gate and never accepts provider/model overrides; backendlearning/inference is not executed by author or fixtures.",
@@ -10691,7 +10693,7 @@
             "Direct Rust, NAPI and PyO3 adapters and twenty shared draft vectors are authored; compiled execution, managed isolated E2E and native package acceptance remain required. Wrapper mock and pure peer tests do not prove native conformance.",
             "Personal Cookie reads only: Team scope is explicitly refused. Targeted per-draft cache TTL, complete backend discovery guarantees, caller durable cache publication, key/owner race coverage and broader account parity remain unfinished.",
             "Comparable CPU-processing and end-to-end performance against preserved TypeScript baseline remain unmeasured; no slower Rust floor, request/byte counts, memory and failed/partial samples must be proved before publication.",
-            "Astral fallback-preview and empty encrypted-preview legacy divergences remain explicit; JS numeric version precision beyond safe integers is not proved."
+            "JS numeric version precision beyond safe integers is not proved."
           ],
           "status": "partial"
         },
@@ -10718,7 +10720,7 @@
             "Direct Rust, NAPI and PyO3 adapters and twenty shared draft vectors are authored; compiled execution, managed isolated E2E and native package acceptance remain required. Wrapper mock and pure peer tests do not prove native conformance.",
             "Personal Cookie reads only: Team scope is explicitly refused. Targeted per-draft cache TTL, complete backend discovery guarantees, caller durable cache publication, key/owner race coverage and broader account parity remain unfinished.",
             "Comparable CPU-processing and end-to-end performance against preserved TypeScript baseline remain unmeasured; no slower Rust floor, request/byte counts, memory and failed/partial samples must be proved before publication.",
-            "Astral fallback-preview and empty encrypted-preview legacy divergences remain explicit; JS numeric version precision beyond safe integers is not proved."
+            "JS numeric version precision beyond safe integers is not proved."
           ],
           "status": "partial"
         },
@@ -10738,7 +10740,7 @@
             "Direct Rust, NAPI and PyO3 adapters and twenty shared draft vectors are authored; compiled execution, managed isolated E2E and native package acceptance remain required. Wrapper mock and pure peer tests do not prove native conformance.",
             "Personal Cookie reads only: Team scope is explicitly refused. Targeted per-draft cache TTL, complete backend discovery guarantees, caller durable cache publication, key/owner race coverage and broader account parity remain unfinished.",
             "Comparable CPU-processing and end-to-end performance against preserved TypeScript baseline remain unmeasured; no slower Rust floor, request/byte counts, memory and failed/partial samples must be proved before publication.",
-            "Astral fallback-preview and empty encrypted-preview legacy divergences remain explicit; JS numeric version precision beyond safe integers is not proved."
+            "JS numeric version precision beyond safe integers is not proved."
           ],
           "status": "partial"
         }

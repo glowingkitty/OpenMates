@@ -751,6 +751,41 @@ export class OpenMatesUnavailableError extends Error {
   }
 }
 
+/**
+ * Typed local refusal of malformed input before any request is sent. Mirrors the
+ * shared Rust `Error::Invalid` (same message); never an HTTP error.
+ */
+export class OpenMatesInvalidInputError extends Error {
+  readonly code = "OPENMATES_SDK_INVALID_INPUT";
+
+  constructor(message: string) {
+    super(message);
+    this.name = "OpenMatesInvalidInputError";
+  }
+}
+
+/**
+ * Same document-slug policy as shared Rust `validate_doc_slug`
+ * (packages/openmates-rust/src/client/docs.rs): refuse empty, >4096 UTF-8 bytes,
+ * `..`, backslash, colon, NUL, leading/trailing `/`, empty or `.` segments and
+ * control characters before transport.
+ */
+function validateDocSlug(slug: string): void {
+  if (
+    typeof slug !== "string"
+    || slug === ""
+    || Buffer.byteLength(slug, "utf8") > 4096
+    || slug.includes("..")
+    || /[\\:\0]/.test(slug)
+    || slug.startsWith("/")
+    || slug.endsWith("/")
+    || /\p{Cc}/u.test(slug)
+    || slug.split("/").some((part) => part === "" || part === ".")
+  ) {
+    throw new OpenMatesInvalidInputError("Invalid document slug.");
+  }
+}
+
 export class OpenMates {
   readonly apps: GeneratedAppSkills;
   readonly anonymous: OpenMatesAnonymous;
@@ -3113,9 +3148,11 @@ export class OpenMatesDrafts {
     const masterKey = await this.client.masterKey();
     const markdown = await decryptWithAesGcmCombined(draft.encryptedDraftMd, masterKey);
     if (markdown === null) throw new OpenMatesConfigError("Unable to decrypt draft markdown");
-    const preview = draft.encryptedDraftPreview
+    // Python/Rust parity: any supplied preview (even "") is decrypted or absent,
+    // never replaced; the markdown fallback counts Unicode scalars, not UTF-16 units.
+    const preview = draft.encryptedDraftPreview !== null
       ? await decryptWithAesGcmCombined(draft.encryptedDraftPreview, masterKey)
-      : markdown.slice(0, 160);
+      : Array.from(markdown).slice(0, 160).join("");
     return { ...draft, markdown, preview };
   }
 }
@@ -5330,8 +5367,10 @@ export class OpenMatesDocs {
 
   async list(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/docs"); }
   async search(query: string): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(withQuery("/v1/sdk/docs/search", { q: query })); }
-  async show(slug: string): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(`/v1/sdk/docs/${encodeURIComponent(slug)}`); }
-  async download(slug: string): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(`/v1/sdk/docs/${encodeURIComponent(slug)}/download`); }
+  /** @throws OpenMatesInvalidInputError for a malformed slug, before any request. */
+  async show(slug: string): Promise<Record<string, unknown>> { validateDocSlug(slug); return this.client.get<Record<string, unknown>>(`/v1/sdk/docs/${encodeURIComponent(slug)}`); }
+  /** @throws OpenMatesInvalidInputError for a malformed slug, before any request. */
+  async download(slug: string): Promise<Record<string, unknown>> { validateDocSlug(slug); return this.client.get<Record<string, unknown>>(`/v1/sdk/docs/${encodeURIComponent(slug)}/download`); }
 }
 
 export class OpenMatesWikipedia {
@@ -5341,17 +5380,19 @@ export class OpenMatesWikipedia {
     this.client = client;
   }
 
+  // An omitted or empty language means "en" in every SDK: the backend proxy
+  // rejects an empty language (min_length=2), matching Python and Rust.
   async search(query: string, options: { language?: string; limit?: number } = {}): Promise<Record<string, unknown>> {
     return this.client.get<Record<string, unknown>>(withQuery("/v1/wikipedia/search", {
       query,
-      language: options.language ?? "en",
+      language: options.language || "en",
       limit: options.limit,
     }));
   }
 
   async learning(title: string, options: { language?: string } = {}): Promise<WikipediaLearningBundle> {
     return this.client.get<WikipediaLearningBundle>(withQuery("/v1/wikipedia/learning", {
-      title, language: options.language ?? "en",
+      title, language: options.language || "en",
     }));
   }
 
@@ -5369,7 +5410,7 @@ export class OpenMatesWikipedia {
   async summary(title: string, options: { language?: string } = {}): Promise<Record<string, unknown>> {
     return this.client.get<Record<string, unknown>>(withQuery("/v1/wikipedia/summary", {
       title,
-      language: options.language ?? "en",
+      language: options.language || "en",
     }));
   }
 }

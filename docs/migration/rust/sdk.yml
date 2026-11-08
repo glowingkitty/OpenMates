@@ -311,12 +311,12 @@ capabilities:
     gaps: 4
   npm:
     status: partial
-    api_symbols: 15
+    api_symbols: 17
     conformance: true
     gaps: 4
   python:
     status: partial
-    api_symbols: 10
+    api_symbols: 11
     conformance: true
     gaps: 4
 - id: sdk.drafts
@@ -686,17 +686,17 @@ capabilities:
     status: partial
     api_symbols: 36
     conformance: true
-    gaps: 7
+    gaps: 6
   npm:
     status: partial
     api_symbols: 15
     conformance: true
-    gaps: 7
+    gaps: 6
   python:
     status: partial
     api_symbols: 10
     conformance: true
-    gaps: 7
+    gaps: 6
 - id: sdk.workflows
   domain: operations
   has_fixture: false

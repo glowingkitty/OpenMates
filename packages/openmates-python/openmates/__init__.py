@@ -18,7 +18,9 @@ from .sdk import (
     OpenMatesSignupRequiredError,
     OpenMatesUnavailableError,
     OpenMatesProjectTaskWatchUnavailableError,
+    OpenMatesInvalidInputError,
 )
+from .root_client import OpenMatesClient, OpenMatesApiKeyRequiredError, SDK_API_KEY_REQUIRED_CODE
 from .task_order import TaskOrderRow, sort_tasks
 from .privacy import PreparedPrivacy, prepare_privacy, restore_privacy
 from .session_client import (
@@ -86,6 +88,10 @@ __all__ = [
     "OpenMatesUnavailableError",
     "OpenMatesProjectTaskWatchUnavailableError",
     "OpenMatesSignupRequiredError",
+    "OpenMatesInvalidInputError",
+    "OpenMatesClient",
+    "OpenMatesApiKeyRequiredError",
+    "SDK_API_KEY_REQUIRED_CODE",
     "SessionClient",
     "SessionClientError",
     "SessionDrafts",

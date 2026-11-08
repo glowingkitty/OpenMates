@@ -87,9 +87,6 @@
                       "null"
                     ]
                   },
-                  "python_expected_language": {
-                    "type": "string"
-                  },
                   "limit": {
                     "type": [
                       "integer",

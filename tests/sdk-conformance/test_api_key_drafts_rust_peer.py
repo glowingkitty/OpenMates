@@ -32,7 +32,7 @@ def test_shared_fixture_schema_and_exact_case_ids():
     jsonschema.Draft202012Validator.check_schema(schema)
     jsonschema.validate(DOCUMENT, schema)
     ids = {v["id"] for v in SUITE["vectors"]}
-    assert len(ids) == len(SUITE["vectors"]) == 15
+    assert len(ids) == len(SUITE["vectors"]) == 17
     assert {v["kind"] for v in SUITE["vectors"]} == {
         "record",
         "wrong-account-key",
@@ -50,15 +50,22 @@ def test_shared_fixture_schema_and_exact_case_ids():
         429,
         503,
     }
-    assert SUITE["open_parity_limits"][0]["status"] == "open-existing-sdk-divergence"
+    assert "open_parity_limits" not in SUITE
 
 
-@pytest.mark.parametrize(
-    "vector",
-    SUITE["vectors"]
-    + [dict(v, kind="open-parity-limit") for v in SUITE["open_parity_limits"]],
-    ids=lambda v: v["id"],
-)
+def test_legacy_preview_quirks_are_shared_record_vectors():
+    by_id = {v["id"]: v for v in SUITE["vectors"]}
+    astral = by_id["astral-preview-fallback"]
+    assert astral["kind"] == "record" and astral["draft"]["encrypted_draft_preview"] is None
+    # Unicode scalar slice: 159 ASCII plus one astral emoji, never a lone surrogate.
+    assert len(astral["preview"]) == 160 and astral["preview"][-1] == "\U0001f600"
+    assert astral["preview"] == astral["markdown"][:160]
+    empty = by_id["empty-encrypted-preview"]
+    assert empty["kind"] == "record" and empty["draft"]["encrypted_draft_preview"] == ""
+    assert empty["preview"] is None, "a supplied empty preview is absent, not markdown"
+
+
+@pytest.mark.parametrize("vector", SUITE["vectors"], ids=lambda v: v["id"])
 def test_oracle_accepts_only_declared_sequence_and_payload(vector):
     peer = peer_module.Peer(SUITE, vector)
     for method, path, status, payload in peer.expected:

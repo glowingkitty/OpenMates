@@ -61,6 +61,14 @@ DOCS_VECTOR_IDS = (
     "anonymous-search",
     "anonymous-show",
     "anonymous-download",
+    "slug-empty-refused-locally",
+    "slug-traversal-refused-locally",
+    "slug-absolute-refused-locally",
+    "slug-trailing-slash-refused-locally",
+    "slug-empty-segment-refused-locally",
+    "slug-backslash-refused-locally",
+    "slug-colon-refused-locally",
+    "slug-control-refused-locally",
 )
 DOCS_ERRORS = (
     "assertion",
@@ -244,7 +252,12 @@ def validate_case(c):
 
 def python_case(c):
     sys.path.insert(0, str(ROOT / "packages/openmates-python"))
-    from openmates import OpenMates, OpenMatesApiError, OpenMatesConfigError
+    from openmates import (
+        OpenMates,
+        OpenMatesApiError,
+        OpenMatesConfigError,
+        OpenMatesInvalidInputError,
+    )
 
     v = c["vector"]
     client = OpenMates(
@@ -279,6 +292,9 @@ def python_case(c):
                 "wallMs": elapsed,
             }
         return result
+    except OpenMatesInvalidInputError:
+        # Shared Rust slug policy refusal before transport (Rust Error::Invalid).
+        return {"ok": False, "error": "invalid"}
     except OpenMatesConfigError:
         return {"ok": False, "error": "authentication"}
     except OpenMatesApiError as e:
@@ -375,7 +391,8 @@ def with_peer(suite, vector, language, binary, iterations=1, measurements=None):
                 observed["ok"] is False
                 and observed["error"] == vector["expected_error"]
             )
-            if language != "rust" and not vector["anonymous"]:
+            # Anonymous and local slug refusals never reach transport.
+            if language != "rust" and vector["expected_request_count"]:
                 assert observed["http_status"] == vector["http_status"]
         else:
             assert observed["ok"] is True and observed["value"] == vector["response"], (

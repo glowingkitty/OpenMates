@@ -42,7 +42,7 @@ class DocsOracleTests(unittest.TestCase):
     def test_all_common_vectors_wire_shape_and_opaque_output(self):
         for language in ("rust", "npm", "python"):
             for v in SUITE["vectors"]:
-                if v["anonymous"]:
+                if v["anonymous"] or v["expected_request_count"] == 0:
                     continue
                 with self.subTest(language=language, vector=v["id"]):
                     peer = M.DocsPeer(SUITE, v, language)
@@ -109,7 +109,24 @@ class DocsOracleTests(unittest.TestCase):
         )
         jsonschema.Draft202012Validator.check_schema(schema)
         jsonschema.Draft202012Validator(schema).validate(document)
-        self.assertEqual(len({v["id"] for v in SUITE["vectors"]}), 23)
+        self.assertEqual(len({v["id"] for v in SUITE["vectors"]}), 31)
+
+    def test_malformed_slugs_are_refused_before_transport(self):
+        local = [v for v in SUITE["vectors"] if v["id"].startswith("slug-")]
+        self.assertEqual(
+            {v["slug"] for v in local},
+            {"", "a/../b", "/absolute", "guide/", "a//b", "a\\b", "x:y", "a\n"},
+        )
+        for v in local:
+            with self.subTest(vector=v["id"]):
+                self.assertEqual(v["expected_error"], "invalid")
+                self.assertEqual(v["expected_request_count"], 0)
+                self.assertFalse(v["anonymous"])
+                peer = M.DocsPeer(SUITE, v, "rust")
+                self.assertEqual(
+                    peer.dispatch("GET", path(v), headers(), None)[0], 400
+                )
+                self.assertIsNotNone(peer.failure)
         self.assertEqual(
             {v["operation"] for v in SUITE["vectors"]},
             {"list", "search", "show", "download"},

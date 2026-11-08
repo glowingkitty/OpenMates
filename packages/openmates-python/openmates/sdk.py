@@ -181,6 +181,28 @@ class OpenMatesUnavailableError(RuntimeError):
         super().__init__(f"API key {action} requires verified web Settings or an authenticated CLI session")
 
 
+class OpenMatesInvalidInputError(ValueError):
+    """Typed local refusal of malformed input before any request (shared Rust ``Error::Invalid``)."""
+
+    code = "OPENMATES_SDK_INVALID_INPUT"
+
+
+def _validate_doc_slug(slug: Any) -> None:
+    """Same policy as shared Rust ``validate_doc_slug`` (packages/openmates-rust/src/client/docs.rs)."""
+    if (
+        not isinstance(slug, str)
+        or not slug
+        or len(slug.encode("utf-8", "surrogatepass")) > 4096
+        or ".." in slug
+        or any(c in slug for c in ("\\", ":", "\0"))
+        or slug.startswith("/")
+        or slug.endswith("/")
+        or any(unicodedata.category(c) == "Cc" for c in slug)
+        or any(part in ("", ".") for part in slug.split("/"))
+    ):
+        raise OpenMatesInvalidInputError("Invalid document slug.")
+
+
 @dataclass(frozen=True)
 class ChatResponse:
     """Simple response wrapper for chat messages."""
@@ -6334,8 +6356,14 @@ class OpenMatesDocs:
     def __init__(self, client: OpenMates): self._client = client
     def list(self) -> dict[str, Any]: return self._client._get("/v1/sdk/docs")
     def search(self, query: str) -> dict[str, Any]: return self._client._get(_with_query("/v1/sdk/docs/search", q=query))
-    def show(self, slug: str) -> dict[str, Any]: return self._client._get(f"/v1/sdk/docs/{_quote(slug)}")
-    def download(self, slug: str) -> dict[str, Any]: return self._client._get(f"/v1/sdk/docs/{_quote(slug)}/download")
+    def show(self, slug: str) -> dict[str, Any]:
+        """Raises ``OpenMatesInvalidInputError`` for a malformed slug before any request."""
+        _validate_doc_slug(slug)
+        return self._client._get(f"/v1/sdk/docs/{_quote(slug)}")
+    def download(self, slug: str) -> dict[str, Any]:
+        """Raises ``OpenMatesInvalidInputError`` for a malformed slug before any request."""
+        _validate_doc_slug(slug)
+        return self._client._get(f"/v1/sdk/docs/{_quote(slug)}/download")
 
 
 class OpenMatesWikipedia:
@@ -6362,10 +6390,13 @@ class OpenMatesEmbeds:
         self.preview = OpenMatesEmbedPreview(client)
     def show(self, embed_id: str) -> dict[str, Any]: return self._client._get(f"/v1/sdk/embeds/{_quote(embed_id)}")
     def add_to_project(self, embed_id: str, project_id: str, *, folder: str | None = None) -> dict[str, Any]:
-        project_key = _resolve_project_key(self._client, project_id)
+        # Like npm and Rust, a name/slug/prefix selector is resolved once and the
+        # item route uses the resolved Project ID, never the raw selector.
+        resolved_project_id = _resolve_project_id(self._client, project_id)
+        project_key = _resolve_project_key(self._client, resolved_project_id)
         return _create_encrypted_project_item(
             self._client,
-            project_id,
+            resolved_project_id,
             project_key,
             item_type="embed",
             target_id=embed_id,
@@ -6377,7 +6408,7 @@ class OpenMatesEmbeds:
             },
         )
     def remove_from_project(self, embed_id: str, project_id: str) -> dict[str, Any]:
-        return _delete_project_item_by_target(self._client, project_id, "embed", embed_id)
+        return _delete_project_item_by_target(self._client, _resolve_project_id(self._client, project_id), "embed", embed_id)
     def share(self, embed_id: str, *, expires: int | None = None, password: str | None = None) -> dict[str, Any]:
         shown = self.show(embed_id)
         embed_keys = shown.get("embed_keys") if isinstance(shown.get("embed_keys"), list) else []

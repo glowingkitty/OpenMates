@@ -30,10 +30,7 @@ def headers(language="rust"):
 
 
 def path(v, step, lang="rust"):
-    language = v["language"] if v["language"] is not None else "en"
-    if lang == "python":
-        language = v.get("python_expected_language", language)
-    q = {"language": language}
+    q = {"language": v["language"] or "en"}
     if step["operation"] == "search":
         q["query"] = v["query"]
         if v["limit"] is not None:
@@ -99,7 +96,7 @@ class WikipediaOracleTests(unittest.TestCase):
             peer.dispatch("GET", path(v, v["steps"][0]), headers(), None)[0], 400
         )
 
-    def test_fixture_schema_and_known_language_divergence(self):
+    def test_fixture_schema_and_empty_language_defaults_en_everywhere(self):
         import jsonschema
 
         doc = json.loads((HERE / "fixtures/sdk-api-key-wikipedia.json").read_text())
@@ -108,17 +105,25 @@ class WikipediaOracleTests(unittest.TestCase):
         )
         jsonschema.Draft202012Validator.check_schema(schema)
         jsonschema.Draft202012Validator(schema).validate(doc)
-        self.assertEqual(len({v["id"] for v in SUITE["vectors"]}), 27)
-        v = next(
-            v for v in SUITE["vectors"] if v["id"] == "search-empty-language-divergence"
-        )
-        self.assertNotEqual(
-            path(v, v["steps"][0], "rust"), path(v, v["steps"][0], "python")
-        )
+        self.assertEqual(len({v["id"] for v in SUITE["vectors"]}), 28)
+        for vector_id in (
+            "search-empty-language-defaults-en",
+            "summary-empty-language-defaults-en",
+        ):
+            v = next(v for v in SUITE["vectors"] if v["id"] == vector_id)
+            self.assertEqual(v["language"], "")
+            self.assertIn("language=en", path(v, v["steps"][0]))
+            # An empty wire language is refused by the oracle for every SDK.
+            empty = path(v, v["steps"][0]).replace("language=en", "language=")
+            for language in ("rust", "npm", "python"):
+                peer = M.WikipediaPeer(SUITE, v, language)
+                self.assertEqual(
+                    peer.dispatch("GET", empty, headers(language), None)[0], 400
+                )
 
 
 class PythonSdkOfflineTests(unittest.TestCase):
-    def test_actual_direct_python_sdk_27_vectors_no_sockets_or_session_bootstrap(self):
+    def test_actual_direct_python_sdk_28_vectors_no_sockets_or_session_bootstrap(self):
         root = Path(
             os.environ.get("OPENMATES_SDK_TEST_SOURCE_ROOT", str(HERE.parents[1]))
         ).resolve()
@@ -205,7 +210,7 @@ class PythonSdkOfflineTests(unittest.TestCase):
                         self.assertEqual(code, v["expected_error"])
                 self.assertIsNone(peer.failure)
                 self.assertEqual(peer.requests, v["expected_request_count"])
-        self.assertEqual(total, 29)
+        self.assertEqual(total, 30)
 
 
 if __name__ == "__main__":

@@ -276,7 +276,7 @@ capabilities:
     gaps: 1
   python:
     status: partial
-    api_symbols: 4
+    api_symbols: 8
     conformance: true
     gaps: 1
   spec_assertions: *id002
@@ -691,12 +691,12 @@ capabilities:
     status: partial
     api_symbols: 51
     conformance: true
-    gaps: 4
+    gaps: 3
   python:
     status: partial
     api_symbols: 34
     conformance: true
-    gaps: 4
+    gaps: 3
   spec_assertions: *id006
 - id: session.anonymous-stream.v1
   domain: streaming

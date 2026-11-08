@@ -102,13 +102,7 @@ try {
     assert.equal(peer.calls.length, 1);
     results.push({ id: test.id, status: 'passed' });
   }
-  const limits = [];
-  for (const limit of fixture.open_parity_limits) {
-    const c = client();
-    const decoded = await runIO(io(limit.draft), () => c.drafts.get(limit.draft.chat_id));
-    assert.deepEqual(Array.from({ length: decoded.preview.length }, (_, i) => decoded.preview.charCodeAt(i)), limit.npm_preview_utf16);
-    limits.push({ id: limit.id, status: 'open-existing-sdk-divergence', observed: 'legacy UTF16 slice ends in lone surrogate' });
-  }
+  assert.equal((fixture.open_parity_limits ?? []).length, 0, 'drafts parity limits are retired');
   assert.deepEqual(results.map(v => v.id).sort(), fixture.vectors.map(v => v.id).sort());
-  console.log(JSON.stringify({ capability, language: 'npm', status: 'passed', fixtureSha256: createHash('sha256').update(bytes).digest('hex'), results, openParityLimits: limits }));
+  console.log(JSON.stringify({ capability, language: 'npm', status: 'passed', fixtureSha256: createHash('sha256').update(bytes).digest('hex'), results }));
 } finally { globalThis.fetch = originalFetch; }

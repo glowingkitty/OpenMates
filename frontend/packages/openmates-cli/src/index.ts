@@ -41,7 +41,7 @@ export {
 } from "./cli.js";
 export { defaultCloneBranchForVersion } from "./server.js";
 export { SUPPORT_URL, renderSupportInfo } from "./support.js";
-export { OpenMates, OpenMatesSignupRequiredError, OpenMatesApiError, OpenMatesConfigError, OpenMatesUnavailableError } from "./sdk.js";
+export { OpenMates, OpenMatesSignupRequiredError, OpenMatesApiError, OpenMatesConfigError, OpenMatesInvalidInputError, OpenMatesUnavailableError } from "./sdk.js";
 export { APP_SKILL_METADATA } from "./generated/appSkills.js";
 export { SessionClient, SessionClientError, SessionTasks, SessionProjects } from "./sdkSession.js";
 export type { SessionSavedChatReadMetadata, SessionSavedChatMessageMetadata, SessionSavedChatReadOptions, SessionSavedChatRead, SessionSavedChatExactOptions, SessionSavedChatExactMessage, SessionMessageWindowCursor, SessionMessageWindowOptions, SessionMessageWindow, SessionClientOptions, SessionChatWithMetadata, SessionChat, SessionStreamEvent, SessionWorkScope, SessionTaskFilters, SessionProjectFilters, SessionExternalChat, SessionTaskCreate, SessionTaskPatch, SessionProjectCreate, SessionProjectPatch, SessionProjectUnlinkInput, SessionAnonymousOptions, SessionAnonymousOutcome, SessionAnonymousStreamEvent } from "./sdkSession.js";
