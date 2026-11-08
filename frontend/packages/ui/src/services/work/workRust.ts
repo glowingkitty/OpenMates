@@ -18,6 +18,7 @@ export type WorkBodyStep =
   | { value: unknown }
   | { encrypt: string; key: string; aad?: string }
   | { encrypt_input: string; key: string }
+  | { object: Array<[string, unknown]> }
   | { slot: string };
 
 /** A request document answered by a `*Body` op (plus op-specific facts such as wrapper targets). */
@@ -83,6 +84,9 @@ export async function buildWorkBody(
     else if ("encrypt_input" in step) {
       const member = (source as Record<string, unknown>)[step.encrypt_input];
       body[name] = await encryptWithEmbedKey(JSON.stringify(member ?? []), sealWith(step.key));
+    } else if ("object" in step) {
+      // Ordered pairs keep the TS literal key order on the wire (Rust maps are sorted).
+      body[name] = Object.fromEntries(step.object);
     } else {
       const build = slots[step.slot];
       if (!build) throw new Error(`rust_work: no builder for slot ${step.slot}`);

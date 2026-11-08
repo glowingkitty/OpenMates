@@ -15,12 +15,16 @@
 //! `{"error": "<same message>"}`. Parity: `plans_ts_vectors.json`
 //! (`workPlanVectors.test.ts` regenerates it from the real flag-off service).
 
+mod team_bodies;
+mod teams;
 mod plan_bodies;
 mod plan_flows;
 mod plans;
 mod task_bodies;
 mod tasks;
 
+#[cfg(test)]
+mod teams_tests;
 #[cfg(test)]
 mod plans_tests;
 #[cfg(test)]
@@ -39,6 +43,8 @@ pub(crate) type Decision = Result<Value, String>;
 pub fn run_json(op: &str, input: &str) -> Result<String, String> {
     let input: Value = serde_json::from_str(input).map_err(|e| e.to_string())?;
     let output = match op {
+        // Teams slice (teamService.ts): spec specifications/features/teams, vectors teams_ts_vectors.json.
+        o if o.starts_with("team") => teams::run(o, &input),
         o if o.starts_with("plan") && o.ends_with("View") => plans::run(o, &input),
         o if o.starts_with("plan") => plan_bodies::run(o, &input),
         o if o.starts_with("task") => tasks::run(o, &input),

@@ -97,7 +97,7 @@ fn request_bodies_equal_typescript() {
 #[test]
 fn unknown_ops_and_malformed_inputs_are_refused() {
     assert_eq!(run_json("planNothing", "{}").unwrap_err(), "unknown_op:planNothing");
-    assert_eq!(run_json("teamView", "{}").unwrap_err(), "unknown_op:teamView");
+    assert_eq!(run_json("teamNothing", "{}").unwrap_err(), "unknown_op:teamNothing");
     assert_eq!(run_json("planView", "{}").unwrap_err(), "missing_field:record");
     assert!(run_json("planView", "not json").is_err());
     let missing_plaintext = json!({ "record": { "encrypted_title": "c" }, "fields": {} });
