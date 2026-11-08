@@ -370,117 +370,12 @@ MODE_ALIASES = {
     "plan": "question",
 }
 
-# Keywords in task descriptions that auto-infer tags
-TAG_KEYWORDS: dict[str, list[str]] = {
-    "frontend": [
-        "svelte", "component", "css", "style", "button", "page", "layout",
-        "ui", "ux", "nav", "sidebar", "modal", "toast", "settings page",
-        "frontend", "front-end", "front end", "sveltekit", "vite",
-    ],
-    "backend": [
-        "python", "fastapi", "api endpoint", "api route", "pydantic",
-        "docker", "worker", "celery", "backend", "back-end", "back end",
-        "skill", "directus", "database", "db", "sql", "migration",
-    ],
-    "debug": [
-        "fix", "bug", "broken", "error", "crash", "fail", "issue",
-        "debug", "investigate", "troubleshoot", "not working", "500",
-        "404", "timeout", "undefined", "null", "missing",
-    ],
-    "test": [
-        "test", "spec", "e2e", "playwright", "pytest", "vitest",
-        "coverage", "assertion",
-    ],
-    "i18n": [
-        "translat", "i18n", "locale", "language", "localization",
-    ],
-    "figma": [
-        "figma", "design", "mockup", "wireframe",
-    ],
-    "embed": [
-        "embed", "preview card", "fullscreen preview",
-    ],
-    "api": [
-        "api integration", "third-party", "external api", "provider",
-        "api key", "webhook",
-    ],
-    "feature": [
-        "implement", "new feature", "add feature", "build feature",
-    ],
-    "logging": [
-        "logging", "log level", "log format",
-    ],
-    "security": [
-        "security", "encryption", "auth", "passkey", "csrf", "xss",
-        "injection", "vulnerability",
-    ],
-    "cli": [
-        "cli", "openmates-cli", "openmates cli", "terminal", "command line",
-        "command-line", "npm package", "crypto.ts", "client.ts", "ws.ts",
-        "storage.ts", "embedRenderers", "pair auth", "pair-auth", "whoami",
-        "memory_type_registry", "MEMORY_TYPE_REGISTRY",
-    ],
-}
-
-# Architecture doc descriptions (for the compact index)
-ARCH_DOC_DESCRIPTIONS: dict[str, str] = {
-    "account-backup": "User account export/backup functionality",
-    "account-recovery": "Recovery flow for users who lose login access",
-    "admin-console-log-forwarding": "Client log forwarding to admin console",
-    "ai-model-selection": "AI model routing and selection logic",
-    "app-skills": "Skill architecture: request/response, execution model",
-    "daily-inspiration": "Daily inspiration generation and delivery pipeline",
-    "developer-settings": "Developer API access and device management",
-    "device-sessions": "Device authorization and session management",
-    "docs-web-app": "Documentation system at /docs",
-    "email-privacy": "Client-side email encryption for privacy",
-    "embeds": "Embed type system, storage, and rendering pipeline",
-    "file-upload-pipeline": "File upload processing (images, PDFs)",
-    "followup-suggestions": "Follow-up suggestion generation",
-    "hallucination-mitigation": "Measures to reduce LLM hallucinations",
-    "health-checks": "Service health check endpoints and monitoring",
-    "logging": "Logging standards and configuration",
-    "mates": "Digital team mate system architecture",
-    "message-input-field": "Message input field component architecture",
-    "message-parsing": "Message content parsing and rendering",
-    "message-previews-grouping": "Message preview cards and grouping",
-    "message-processing": "Message pipeline: preprocessing to postprocessing",
-    "passkeys": "WebAuthn/passkey authentication flow",
-    "payment-processing": "Payment processing via Stripe",
-    "pii-protection": "PII detection and protection measures",
-    "preprocessing-model-comparison": "Preprocessing model benchmarks",
-    "prompt-injection": "Prompt injection prevention measures",
-    "rest-api": "REST API documentation and standards",
-    "security": "Zero-knowledge architecture and security model",
-    "sensitive-data-redaction": "Sensitive data redaction pipeline",
-    "servers": "Server infrastructure and deployment",
-    "signup-and-auth": "Signup and authentication flows",
-    "status-page": "Public status page architecture",
-    "sync": "Cross-device synchronization protocol",
-    "thinking-models": "Thinking/reasoning model integration",
-    "translations": "Translation system and i18n pipeline",
-    "vector-personalization": "Vector-based personalization system",
-    "web-app": "Web application architecture overview",
-    "zero-knowledge-storage": "Client-side encryption for all storage",
-}
-
-# Maps tags to keywords for filtering architecture docs at session start.
-TAG_TO_ARCH_KEYWORDS: dict[str, list[str]] = {
-    "frontend": ["web-app", "svelte", "component", "message-input", "message-parsing",
-                 "message-previews", "embed", "sync", "passkey", "signup", "payment",
-                 "translations", "status-page", "docs-web"],
-    "backend": ["api", "skill", "processing", "worker", "celery", "health", "server",
-                "logging", "model", "file-upload", "daily", "vector", "mates",
-                "hallucination", "pii", "prompt-injection", "sensitive-data"],
-    "debug": ["logging", "health", "admin-console", "device-session", "sync"],
-    "test": ["health"],
-    "embed": ["embed", "message-preview"],
-    "i18n": ["translation"],
-    "security": ["security", "zero-knowledge", "encryption", "passkey", "pii",
-                 "prompt-injection", "email-privacy", "sensitive-data"],
-    "api": ["rest-api", "api", "developer"],
-    "cli": ["sync", "zero-knowledge", "security", "passkey", "signup", "web-app"],
-}
+# Tag keyword tables (TAG_KEYWORDS, ARCH_DOC_DESCRIPTIONS, TAG_TO_ARCH_KEYWORDS)
+# live in sessions_tags.py to keep this file smaller.
+try:
+    from scripts.sessions_tags import ARCH_DOC_DESCRIPTIONS, TAG_KEYWORDS
+except ModuleNotFoundError:
+    from sessions_tags import ARCH_DOC_DESCRIPTIONS, TAG_KEYWORDS
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -8695,6 +8590,23 @@ def cmd_lane_open(args: argparse.Namespace) -> None:
     print(f"Session {sid} lane edit {'closed' if args.close else 'opened'}.")
 
 
+def cmd_cleanup_orphans(args: argparse.Namespace) -> None:
+    """End half-created sessions that have no worktree, changes or write claim."""
+    try:
+        from scripts.sessions_orphans import find_orphans, remove_orphans
+    except ModuleNotFoundError:
+        from sessions_orphans import find_orphans, remove_orphans
+    min_age = args.min_age_seconds
+    if args.dry_run:
+        found = find_orphans(_load_sessions(), session_id=args.session, min_age_seconds=min_age)
+        print(f"Orphan sessions (dry run): {', '.join(found) or 'none'}")
+        return
+    removed = _mutate_sessions(
+        lambda state: remove_orphans(state, session_id=args.session, min_age_seconds=min_age)
+    )
+    print(f"Removed orphan sessions: {', '.join(removed) or 'none'}")
+
+
 def cmd_untrack(args: argparse.Namespace) -> None:
     """Remove file(s) from a session's modified_files list.
 
@@ -15228,6 +15140,15 @@ def main() -> None:
     p_lane_open.add_argument("--session", "-s", required=True, help="Pre-created session ID")
     p_lane_open.add_argument("--close", action="store_true", help="Revoke the lane flag")
 
+    p_orphans = sub.add_parser(
+        "cleanup-orphans",
+        help="Remove sessions with no worktree, modified files or write claim",
+    )
+    p_orphans.add_argument("--session", "-s", help="Only consider this session")
+    p_orphans.add_argument("--min-age-seconds", type=float, default=300,
+                           help="Skip sessions active more recently than this (default 300)")
+    p_orphans.add_argument("--dry-run", action="store_true", help="List without removing")
+
     # untrack — remove files from a session's modified_files list
     p_untrack = sub.add_parser(
         "untrack",
@@ -15940,6 +15861,7 @@ def main() -> None:
         "track-stdin": cmd_track_stdin,
         "untrack": cmd_untrack,
         "lane-open": cmd_lane_open,
+        "cleanup-orphans": cmd_cleanup_orphans,
         "check-write": cmd_check_write,
         "edit-lease": cmd_edit_lease,
         "decision": cmd_decision,

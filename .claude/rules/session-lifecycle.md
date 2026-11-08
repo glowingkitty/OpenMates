@@ -14,6 +14,11 @@ paths:
   in that worktree only) and gives each agent its `session=` and `worktree=`.
   Lane agents `cd` into the worktree, pass `--session <id>` and never run
   `start`/`end`. `start` refuses a stale or ended binding; use `start --new`.
+  `lane_start.py` retries up to 3 times and rolls back each failed attempt's
+  half-created session; it then exits with the last error. Leftover orphans
+  (no worktree, no modified files, no write claim) are removed by
+  `sessions.py cleanup-orphans [--session <id>] [--dry-run]
+  [--min-age-seconds N]`; sessions with a worktree or changes are never touched.
 - Lanes never hand-regenerate or stage generated outputs
   (`specifications/generated/*`, `docs/migration/rust/{overview,web-app,
   shared-client,cli,sdk}.yml`): deploy rebuilds them in the integration

@@ -14,6 +14,7 @@ the on-disk state and keeps what a stale snapshot cannot know about:
 * top-level coordination keys owned by lock-holding writers;
 * each session's ``lifecycle`` record, which only ``_mutate_sessions``
   transactions write, so the on-disk copy is always the newest;
+* a session's ``worktree`` and ``lane_edit`` when the snapshot lacks them;
 * sessions created on disk after this snapshot was loaded (a session the
   snapshot loaded and then removed stays removed).
 """
@@ -63,3 +64,9 @@ def merge_concurrent_state(data: dict, current: dict) -> None:
             continue
         if isinstance(mine, dict) and "lifecycle" in disk_session:
             mine["lifecycle"] = disk_session["lifecycle"]
+        # A stale snapshot taken between session creation and worktree/lane
+        # registration must not drop them ("has no worktree to open as a lane").
+        if isinstance(mine, dict):
+            for key in ("worktree", "lane_edit"):
+                if key in disk_session and key not in mine:
+                    mine[key] = disk_session[key]
