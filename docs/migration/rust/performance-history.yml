@@ -718,3 +718,193 @@ measurements:
     notes: Send flow has no total-time metric in the bench; browser CPU ratio CI upper 1.104 is within the
       15% limit.
     ts_value: 7740.0
+  - id: 2026-11-08-chatRendered-01
+    date: '2026-11-08'
+    flow: chatRendered
+    metric: chatRenderedMs
+    value_kind: ratio
+    value: 1.05
+    ci95: [0.952, 1.151]
+    n_pairs: 12
+    verdict: inconclusive
+    verdict_basis: reported
+    ci_job: a5b50744
+    source_commit: c25f900c81f9
+    evidence: web-rust-core-bench.spec.ts reload bench, 12 paired ABBA pairs, CI a5b50744 (reload test passed)
+    confidence: traced
+    notes: TS median 1622 ms vs Rust 1707 ms (+85 ms, +5%); p95 diff +14 ms. Not gross under the 2026-11-07
+      advisory policy.
+    ts_value: 1621.85
+  - id: 2026-11-08-embedReady-01
+    date: '2026-11-08'
+    flow: embedReady
+    metric: embedReadyMs
+    value_kind: ratio
+    value: 1.085
+    ci95: [0.947, 1.14]
+    n_pairs: 12
+    verdict: inconclusive
+    verdict_basis: reported
+    ci_job: a5b50744
+    source_commit: c25f900c81f9
+    evidence: web-rust-core-bench.spec.ts reload bench, 12 paired pairs, CI a5b50744
+    confidence: traced
+    notes: TS median 1705 ms vs Rust 1790 ms (+85 ms, +8.5%); p95 diff +202 ms. The bench's own legacy strict
+      gate labelled it rust_worse; not gross under the advisory policy (below +25%).
+    ts_value: 1704.95
+  - id: 2026-11-08-uiInteractive-01
+    date: '2026-11-08'
+    flow: uiInteractive
+    metric: uiInteractiveMs
+    value_kind: ratio
+    value: 1.038
+    ci95: [0.98, 1.082]
+    n_pairs: 12
+    verdict: rust_not_worse
+    verdict_basis: reported
+    ci_job: a5b50744
+    source_commit: c25f900c81f9
+    evidence: web-rust-core-bench.spec.ts reload bench, 12 paired pairs, CI a5b50744
+    confidence: traced
+    notes: TS median 866 ms vs Rust 875 ms (+9 ms); p95 diff +107 ms.
+    ts_value: 865.65
+  - id: 2026-11-08-cpu-01
+    date: '2026-11-08'
+    flow: cpu
+    metric: browserCpuMs
+    value_kind: ratio
+    value: 1.03
+    ci95: [0.902, 1.132]
+    n_pairs: 12
+    verdict: rust_not_worse
+    verdict_basis: reported
+    ci_job: a5b50744
+    source_commit: c25f900c81f9
+    evidence: web-rust-core-bench.spec.ts reload bench, 12 paired pairs, CI a5b50744
+    confidence: traced
+    notes: TS median 4100 ms vs Rust 4115 ms per reload.
+    ts_value: 4100.0
+  - id: 2026-11-08-rss-01
+    date: '2026-11-08'
+    flow: rss
+    metric: browserRssBytes
+    value_kind: delta_mib
+    value: 18.6
+    ci95: [-9.96, 75.7]
+    n_pairs: 11
+    verdict: inconclusive
+    verdict_basis: reported
+    ci_job: a5b50744
+    source_commit: c25f900c81f9
+    evidence: web-rust-core-bench.spec.ts reload bench, 11 usable pairs, CI a5b50744
+    confidence: traced
+    notes: Summed browser RSS median Rust 1154 MiB vs TS 1146 MiB (+18.6 MiB median paired diff, within
+      the +30 MiB budget). Adjacent-pair diff +25.0 MiB [5.9, 75.2] (reported only).
+    ts_value: 1146.0
+  - id: 2026-11-08-wasmInstances-01
+    date: '2026-11-08'
+    flow: wasmInstances
+    metric: wasmInstantiations
+    value_kind: count
+    value: 1
+    ci95: null
+    n_pairs: 12
+    verdict: rust_not_worse
+    verdict_basis: reported
+    ci_job: a5b50744
+    source_commit: c25f900c81f9
+    evidence: web-rust-core-bench.spec.ts reload and search benches, CI a5b50744
+    confidence: traced
+    notes: 1 WASM instantiation and 1 dedicated worker per reload in both benches (diff 0).
+  - id: 2026-11-08-send-02
+    date: '2026-11-08'
+    flow: send
+    metric: draftSaveP95Ms
+    value_kind: ratio
+    value: 2.146
+    ci95: [1.292, 7.041]
+    n_pairs: 12
+    verdict: rust_worse
+    verdict_basis: reported
+    ci_job: a5b50744
+    source_commit: c25f900c81f9
+    evidence: web-rust-core-bench.spec.ts reload bench, 12 pairs, CI a5b50744; draftSaveP95Ms row
+    confidence: traced
+    notes: 'Draft-save p95 TS 215 ms vs Rust 441 ms (+226 ms, 2.15x): exceeds the gross threshold (>25%
+      and >100 ms) if draft save counts as a user-visible flow. Flow mapping to ''send'' is an assumption
+      (composer draft save). Needs confirmation/investigation; not blocked by this recorder.'
+    ts_value: 215.15
+  - id: 2026-11-08-search-01
+    date: '2026-11-08'
+    flow: search
+    metric: searchRenderedMs
+    value_kind: ratio
+    value: 1.032
+    ci95: [0.974, 1.096]
+    n_pairs: 30
+    verdict: rust_not_worse
+    verdict_basis: reported
+    ci_job: a5b50744
+    source_commit: c25f900c81f9
+    evidence: 'web-rust-core-bench.spec.ts search bench, 30 pairs, CI a5b50744 (search test FAILED: see
+      notes)'
+    confidence: traced
+    notes: 'TS median 568 ms vs Rust 591 ms (+23 ms); p95 diff +123 ms (legacy gate labelled rust_worse;
+      ratio upper 1.096 and +4% are not gross). commonSearchMs 1.048 [0.977,1.104] inconclusive; searchCpuMs
+      1.06 [1.0,1.133] rust_not_worse; RSS diff -2.7 MiB. The spec failed on a functional assertion: Rust
+      rare-query (''pandas'') snippets did not equal TS snippets (Rust returned 6 fewer snippet lines than
+      TS), on both attempt and retry. Candidate functional break, uninvestigated.'
+    ts_value: 567.9
+  - id: 2026-11-08-sendToAdmit-02
+    date: '2026-11-08'
+    flow: sendToAdmit
+    metric: sendToAdmitMs
+    value_kind: ratio
+    value: 1.058
+    ci95: [0.974, 1.074]
+    n_pairs: 15
+    verdict: rust_not_worse
+    verdict_basis: reported
+    ci_job: 741bd9fa
+    source_commit: c25f900c81f9
+    evidence: web-rust-core-send-bench.spec.ts CI jobs 741bd9fa, 76b8cad3, 0462bf4c (attempts 1-3, 3x5 pooled
+      pairs); pooled median of paired ratios with 10000-resample bootstrap computed from the attached samples
+    confidence: traced
+    notes: 'Pooled TS median 1088 ms vs Rust 1211 ms (+123 ms, +11%): above +100 ms but below +25%, so not
+      gross. Per-job medians vary 0.66-3.67 s with account chat count; per-job CIs: [0.737,1.925], [0.808,1.103],
+      [1.055,1.217].'
+    ts_value: 1087.9
+  - id: 2026-11-08-send-03
+    date: '2026-11-08'
+    flow: send
+    metric: sendBrowserCpuMs
+    value_kind: ratio
+    value: 1.015
+    ci95: [0.925, 1.109]
+    n_pairs: 15
+    verdict: rust_not_worse
+    verdict_basis: reported
+    ci_job: 741bd9fa
+    source_commit: c25f900c81f9
+    evidence: web-rust-core-send-bench.spec.ts CI jobs 741bd9fa, 76b8cad3, 0462bf4c (3x5 pooled pairs);
+      pooled bootstrap from attached samples
+    confidence: traced
+    notes: Pooled browser CPU during send, TS median 7330 ms vs Rust 7360 ms.
+    ts_value: 7330.0
+  - id: 2026-11-08-reloadMemory-01
+    date: '2026-11-08'
+    flow: reloadMemory
+    metric: retainedBytes
+    value_kind: delta_mib_per_reload
+    value: 0.12
+    ci95: [-0.57, 0.8]
+    n_pairs: 20
+    verdict: rust_not_worse
+    verdict_basis: reported
+    ci_job: bee913f7
+    source_commit: c25f900c81f9
+    evidence: web-rust-core-reload-memory.spec.ts CI bee913f7 (passed), ABBA blocks
+    confidence: traced
+    notes: Rust retained-heap slope +0.12 MiB/reload [-0.57,0.80] vs TS -0.83 [-1.55,-0.11]; total RSS (GC)
+      Rust 0.04 [-0.34,0.39] vs TS 0.04 [-0.35,0.42] (n=16). No per-reload growth.
+    ts_value: -0.83
