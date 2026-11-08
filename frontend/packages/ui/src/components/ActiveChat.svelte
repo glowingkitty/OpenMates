@@ -17927,12 +17927,14 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         overflow: hidden;
         opacity: 0;
         pointer-events: none;
-        transition: width 0.25s ease-in-out, opacity 0.15s ease-in-out;
+        /* Fully collapsed: remove it from focus order and the accessibility tree too. */
+        visibility: hidden;
+        transition: width 0.25s ease-in-out, opacity 0.15s ease-in-out, visibility 0s linear 0.25s;
     }
 
     /* Default visible state needs explicit transition for smooth return */
     .input-new-chat-wrapper {
-        transition: width 0.25s ease-in-out, opacity 0.2s ease-in-out;
+        transition: width 0.25s ease-in-out, opacity 0.2s ease-in-out, visibility 0s;
     }
 
     /* Cancel / Save draft pill: rounded grey container below the input.

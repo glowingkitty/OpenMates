@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.video-call
-version: 12
-status: approved
+version: 13
+status: draft
 title: Chat-bound Voice And Video Calls
 summary: Voxtral transcription and Eleven v4 Turbo speech connect authenticated web and supported Apple calls to the existing encrypted chat pre/main/post
   pipeline. Normal automatic model and thinking-level routing, app skills and rich embeds are preserved; the old Gemini
@@ -410,12 +410,15 @@ assertions:
   - examples.migration_metadata_recovery
 - id: video-call.audio.intentional-interruption
   type: invariant
-  must: Brief listener cues such as hmm, okay or right during an explanation leave speech and generation uninterrupted
-    and do not become a new request or unrelated consent. A clear stop or intentional correction yields promptly, cancels
-    further answer/speech work through existing cancellation, and rejects stale packets. Keep listening after an initial
-    acknowledgement so okay but show Berlin instead becomes a correction. Use bounded intent classification and preserve
-    substantive finalized requests on classifier failure; never discard them silently. Already committed actions are
-    neither undone nor automatically repeated.
+  must: The first recognized words of real user speech over the assistant stop playback and generation immediately,
+    without waiting for the endpoint or a model verdict. Brief listener cues, including stretched or hyphenated variants
+    such as hmm, hmmmm, mhm, mhmm, mm-hmm, uh-huh, okay, yeahhh or right, leave speech and generation uninterrupted
+    and do not become a new request or unrelated consent; a cue that answers a pending assistant question is an answer.
+    A clear stop or intentional correction yields promptly, cancels further answer/speech work through existing cancellation,
+    and rejects stale packets. A long verbatim run of the assistant's own speech picked up by the microphone is recapture
+    and never interrupts. Keep listening after an initial acknowledgement so okay but show Berlin instead becomes a
+    correction. Use bounded intent classification and preserve substantive finalized requests on classifier failure;
+    never discard them silently. Already committed actions are neither undone nor automatically repeated.
   depends_on:
   - examples.interruption_intent
 - id: video-call.audio.spoken-rich-response
@@ -440,12 +443,27 @@ assertions:
   - examples.spoken_rich_response
 - id: video-call.audio.localized-waiting
   type: behavior
-  must: When useful spoken output is delayed, including Mercury reasoning or app-skill waits, the call may play one brief
-    acknowledgement in the request language using the current Mate voice. It must not overlap or delay useful speech,
-    repeat as a loop, falsely claim an action finished or silently use English for another language. Cancel pending acknowledgement
-    on interruption or hangup; the acknowledgement is not a second assistant answer.
+  must: Every call turn plays one brief pre-recorded acknowledgement, picked at random from several variants, in the
+    current Mate voice as soon as processing of the user's audio turn starts, so there is no silent gap. Its language
+    follows the spoken turn, then the previous turn of the same call, then the interface language; when none of these
+    is known or no recorded clip exists for it, the call stays silent and never defaults to English. When app skills
+    start, one pre-recorded announcement says that apps are being used, and after the skills finish a short recap names
+    the skills used before the regular answer. These clips are never loops, never overlap or delay useful speech, never
+    falsely claim an action finished, are not stored in the transcript or chat, and are cancelled on interruption or
+    hangup. None of them is a second assistant answer.
   depends_on:
   - examples.localized_waiting
+- id: video-call.audio.background-resume
+  type: behavior
+  must: Sending the browser to the background, switching apps or locking the screen never ends a live call by itself.
+    While the page is away the call keeps an inaudible audio session and lock-screen controls where the platform allows
+    it, microphone upload pauses without marking the call failed, and the call shows a paused state. On return it restores
+    microphone capture, reconnects a lost call connection to the same chat without a second consent or duplicate chat,
+    waits for the server to release the previous connection, preserves the conversation and unsent turn writes, and
+    resumes listening. If the platform kept the call alive nothing is interrupted. When the platform cannot restore it,
+    the call ends with an explicit retryable message, never silently, and platform limits are never presented as success.
+  depends_on:
+  - examples.background_resume
 - id: video-call.audio.complete-turn-admission
   type: invariant
   must: Realtime endpointing separates speech activity from semantic completion and interruption intent. Eager-end preparation
@@ -502,6 +520,7 @@ examples:
   - project_context
   - billing
   - background_detection
+  - background_resume
   - automatic_idle
   - startup_audio
   - call_activity

@@ -59,7 +59,7 @@ interface GateCallbacks {
   onState: (state: { inputIdle: boolean; userSpeaking: boolean }) => void;
   onError: () => void;
 }
-const capture = vi.hoisted(() => ({ unlock:vi.fn(), audioTime:10, start: vi.fn(async () => {}), stop: vi.fn(),
+const capture = vi.hoisted(() => ({ unlock:vi.fn(), interruption:vi.fn(), recover:vi.fn(async () => true), audioTime:10, start: vi.fn(async () => {}), stop: vi.fn(),
   mic: vi.fn(), frames: [] as Array<(data: string) => void>, playback: [] as Array<(user: boolean, assistant: boolean) => void> }));
 const gates = vi.hoisted(() => ({ instances: [] as Array<{
   callbacks: GateCallbacks; start: ReturnType<typeof vi.fn>; push: ReturnType<typeof vi.fn>;
@@ -81,6 +81,9 @@ vi.mock('../../components/videocall/callAudio', () => ({ CallAudio: class {
   start = capture.start;
   stop = capture.stop;
   setMicEnabled = capture.mic;
+  setInterruptionListener = capture.interruption;
+  recover = capture.recover;
+  captureInterrupted = false;
   private nextStart = 0;
   get playbackAudioTime() { return capture.audioTime; }
   playPcm16(data:string,sampleRate=24_000) {
@@ -90,6 +93,10 @@ vi.mock('../../components/videocall/callAudio', () => ({ CallAudio: class {
     return {startTime,duration,sampleRate};
   }
   interrupt() {}
+} }));
+vi.mock('../voiceCallBackground', () => ({ VOICE_CALL_AWAY_GRACE_MS: 90_000, VoiceCallBackground: class {
+  away = false; awayRecently = false;
+  prime = vi.fn(); start = vi.fn(); stop = vi.fn();
 } }));
 vi.mock('../voiceCallLifecycle', () => ({ recordCallLifecycle:persistence.lifecycle }));
 vi.mock('../voiceCallMessages', () => ({

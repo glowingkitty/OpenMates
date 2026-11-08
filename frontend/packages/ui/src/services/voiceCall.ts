@@ -13,6 +13,7 @@ import { assistantSpeechController } from './assistantSpeechController';
 import { supportsAssistantSpeechStream } from './assistantSpeechStream';
 import { prepareVoiceCallChat, VoiceCallContextError } from './voiceCallMessages';
 import { reportVoiceCallTurnDelivery, sendVoiceCallTurn } from './voiceCallTurns';
+import { VoiceCallBackground } from './voiceCallBackground';
 import { setActiveVoiceCallId } from './voiceCallOwnership';
 import { callArtifactReferencesInText, type VoiceArtifactReference } from './voiceCallArtifactReferences';
 import { CallAudio } from '../components/videocall/callAudio';
@@ -74,6 +75,8 @@ export interface VoiceCallState {
    * its task is still generating. Drives spoken-progress text emphasis. */
   assistantMessageId?: string | null;
   assistantGenerating?: boolean;
+  /** The call is intact but input is interrupted (page away) or its connection is being restored. */
+  connection?: 'paused' | 'reconnecting' | null;
 }
 export interface VoiceCallLiveTranscript {
   messageId: string;
@@ -187,6 +190,11 @@ interface NewCallCleanupAttempt {
 
 /** Mic audio left unanswered this long ends the call as lost. */
 export const VOICE_CALL_SERVER_SILENCE_MS = 15_000;
+/** How long a call that lost its connection while away keeps trying to resume. */
+export const VOICE_CALL_RESUME_WINDOW_MS = 90_000;
+const RESUME_RETRY_DELAYS_MS = [500, 1_000, 2_000, 3_000, 5_000];
+const RESUME_ATTEMPT_TIMEOUT_MS = 15_000;
+const TURN_WRITE_RETRY_DELAYS_MS = [1_500, 4_000, 8_000];
 
 export class VoiceCallController implements VoiceCallControllerLike {
   private cleanupAttempt: NewCallCleanupAttempt | null = null;
@@ -201,6 +209,9 @@ export class VoiceCallController implements VoiceCallControllerLike {
   private ticker: ReturnType<typeof setInterval> | null = null;
   /** First microphone chunk sent since the server last answered, or null. */
   private unansweredAudioSince: number | null = null;
+  private background: VoiceCallBackground | null = null;
+  private resumeWaiter: ((outcome: 'ready' | 'retry') => void) | null = null;
+  private reconnecting = false;
   private startedAt = 0;
   private clockUpdatedAt = 0;
   private activeMillis = 0;
@@ -275,7 +286,8 @@ export class VoiceCallController implements VoiceCallControllerLike {
     // The server answers every forwarded audio chunk with a usage update. A
     // socket that stays open but goes silent (e.g. a stalled host) must not
     // look like a working call while the caller keeps talking.
-    if (this.unansweredAudioSince !== null && now - this.unansweredAudioSince > VOICE_CALL_SERVER_SILENCE_MS) {
+    const inputPaused = this.background?.away === true || this.state.connection != null;
+    if (!inputPaused && this.unansweredAudioSince !== null && now - this.unansweredAudioSince > VOICE_CALL_SERVER_SILENCE_MS) {
       this.unansweredAudioSince = null;
       this.fail('connection_lost');
       return;
@@ -401,13 +413,13 @@ export class VoiceCallController implements VoiceCallControllerLike {
     const current = () => generation === this.generation;
     const gate = new VoiceCallAudioGate({
       onAudio: (data) => {
-        if (current() && this.state.status === 'live' && !this.state.muted &&
-            !this.send({ type: 'mic_audio', data })) this.fail('connection_lost');
+        if (current() && this.state.status === 'live' && !this.state.muted && !this.reconnecting &&
+            !this.send({ type: 'mic_audio', data })) this.socketLost(generation);
         else if (current() && this.state.status === 'live' && !this.state.muted) this.unansweredAudioSince ??= performance.now();
       },
       onAudioEnd: () => {
-        if (current() && this.state.status === 'live' &&
-            !this.send({ type: 'audio_stream_end' })) this.fail('connection_lost');
+        if (current() && this.state.status === 'live' && !this.reconnecting &&
+            !this.send({ type: 'audio_stream_end' })) this.socketLost(generation);
       },
       onState: (state) => { if (current()) this.update(state); },
       onError: () => { if (current()) this.fail('connection_failed'); },
@@ -431,6 +443,9 @@ export class VoiceCallController implements VoiceCallControllerLike {
       // permission. Capture and provider connection require the saved profile ack.
       audio.unlock();
       assistantSpeechController.primeForAutoplay();
+      this.background = this.createBackground();
+      this.background.prime();
+      audio.setInterruptionListener((interrupted) => this.onCaptureInterruption(generation, interrupted));
       const privacyRequest = new AbortController();
       this.privacyRequest = privacyRequest;
       const accepted = await ensureVoiceCallPrivacyAcknowledgement(privacyRequest.signal, () => {
@@ -482,28 +497,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
       }
       if (!token || websocketTokenNeedsRefresh(token)) throw new VoiceCallStartError('session_expired');
       if (generation !== this.generation) return;
-      const url = new URL(`${getApiUrl().replace(/^http/, 'ws')}/v1/voice-call`);
-      url.searchParams.set('sessionId', getSessionId());
-      url.searchParams.set('token', token);
-      const socket = new WebSocket(url);
-      this.socket = socket;
-      socket.onopen = () => {
-        if (generation !== this.generation) return;
-        this.send({ type: 'start', chat_id: prepared.chatId, startup_audio_allowance_ms: 10_000,
-          ...(prepared.cleanupAttemptId ? { cleanup_attempt_id: prepared.cleanupAttemptId } : {}),
-          speech_output_transport: SPEECH_OUTPUT_TRANSPORT });
-      };
-      socket.onmessage = (event: MessageEvent<string>) => {
-        if (generation !== this.generation) return;
-        this.unansweredAudioSince = null;
-        try { this.handleMessage(JSON.parse(event.data) as Record<string, unknown>); }
-        catch { this.fail('invalid_response'); }
-      };
-      socket.onerror = () => { if (generation === this.generation) this.fail('connection_lost'); };
-      socket.onclose = () => {
-        if (generation !== this.generation) return;
-        this.fail(this.state.status === 'connecting' ? 'connection_failed' : 'connection_lost');
-      };
+      this.openSocket(generation, token, prepared.chatId, prepared.cleanupAttemptId);
     } catch (error) {
       if (generation !== this.generation) return;
       const key = error instanceof VoiceCallStartError ? error.key : 'call_unavailable';
@@ -511,7 +505,150 @@ export class VoiceCallController implements VoiceCallControllerLike {
     }
   }
 
+  private openSocket(generation: number, token: string, chatId: string, cleanupAttemptId?: string): WebSocket {
+    const url = new URL(`${getApiUrl().replace(/^http/, 'ws')}/v1/voice-call`);
+    url.searchParams.set('sessionId', getSessionId());
+    url.searchParams.set('token', token);
+    const socket = new WebSocket(url);
+    this.socket = socket;
+    socket.onopen = () => {
+      if (generation !== this.generation || this.socket !== socket) return;
+      // A resumed call omits the cleanup attempt: the server then never treats
+      // the chat as an empty shell it may retire.
+      this.send({ type: 'start', chat_id: chatId, startup_audio_allowance_ms: 10_000,
+        ...(cleanupAttemptId ? { cleanup_attempt_id: cleanupAttemptId } : {}),
+        speech_output_transport: SPEECH_OUTPUT_TRANSPORT });
+    };
+    socket.onmessage = (event: MessageEvent<string>) => {
+      if (generation !== this.generation || this.socket !== socket) return;
+      this.unansweredAudioSince = null;
+      try { this.handleMessage(JSON.parse(event.data) as Record<string, unknown>); }
+      catch { this.fail('invalid_response'); }
+    };
+    socket.onerror = () => { if (this.socket === socket) this.socketLost(generation); };
+    socket.onclose = () => { if (this.socket === socket) this.socketLost(generation); };
+    return socket;
+  }
+
+  private createBackground(): VoiceCallBackground {
+    return new VoiceCallBackground({
+      title: get(text)('voicecall.title'),
+      onAway: () => { this.unansweredAudioSince = null; },
+      onReturn: () => this.onReturnFromBackground(),
+      onHangup: () => this.hangup(),
+    });
+  }
+
+  /** The OS stopped or restored microphone capture; never a call failure by itself. */
+  private onCaptureInterruption(generation: number, interrupted: boolean): void {
+    if (generation !== this.generation || this.state.status !== 'live' || this.reconnecting) return;
+    this.unansweredAudioSince = null;
+    if (interrupted) this.update({ connection: 'paused' });
+    else if (this.state.connection === 'paused') this.update({ connection: null });
+  }
+
+  private onReturnFromBackground(): void {
+    const generation = this.generation;
+    if (this.state.status !== 'live') return;
+    this.unansweredAudioSince = null;
+    this.clockUpdatedAt = performance.now();
+    const attemptRecovery = async (attempt: number): Promise<void> => {
+      if (generation !== this.generation || this.reconnecting || !this.audio) return;
+      try {
+        if (await this.audio.recover()) return;
+      } catch { /* A refused microphone is retried below, then reported. */ }
+      if (attempt >= 2) { if (generation === this.generation) this.fail('microphone_failed'); return; }
+      await new Promise(resolve => setTimeout(resolve, 2_000 * (attempt + 1)));
+      await attemptRecovery(attempt + 1);
+    };
+    void attemptRecovery(0);
+    // iOS may have dropped the socket while the page was suspended without a close event.
+    if (this.socket && this.socket.readyState > WebSocket.OPEN) this.socketLost(generation);
+  }
+
+  /** A dead socket right after being away is resumed instead of ending the call. */
+  private socketLost(generation: number): void {
+    if (generation !== this.generation || this.reconnecting) return;
+    if (this.state.status === 'live' && this.background?.awayRecently) {
+      void this.reconnect(generation);
+      return;
+    }
+    this.fail(this.state.status === 'connecting' ? 'connection_failed' : 'connection_lost');
+  }
+
+  /**
+   * Re-open the call socket on the same chat. The server releases its single
+   * active-call lock when it notices the old socket is gone, so a busy answer
+   * is retried until it does or the resume window closes.
+   */
+  private async reconnect(generation: number): Promise<void> {
+    const chatId = this.state.chatId;
+    if (!chatId) { this.fail('connection_lost'); return; }
+    this.reconnecting = true;
+    this.unansweredAudioSince = null;
+    this.update({ connection: 'reconnecting' });
+    this.audioGate?.setLive(false);
+    const stale = this.socket;
+    this.socket = null;
+    if (stale) { stale.onopen = stale.onmessage = stale.onerror = stale.onclose = null; if (stale.readyState < WebSocket.CLOSING) stale.close(); }
+    const deadline = performance.now() + VOICE_CALL_RESUME_WINDOW_MS;
+    for (let attempt = 0; performance.now() < deadline; attempt++) {
+      if (generation !== this.generation) return;
+      let token = getWebSocketToken();
+      if (websocketTokenNeedsRefresh(token)) {
+        if (!await checkAuth(undefined, true)) break;
+        token = getWebSocketToken();
+      }
+      if (generation !== this.generation) return;
+      if (!token || websocketTokenNeedsRefresh(token)) break;
+      const outcome = await new Promise<'ready' | 'retry'>((resolve) => {
+        const timer = setTimeout(() => resolve('retry'), RESUME_ATTEMPT_TIMEOUT_MS);
+        this.resumeWaiter = (result) => { clearTimeout(timer); resolve(result); };
+        this.openSocket(generation, token as string, chatId);
+        const attemptSocket = this.socket;
+        if (attemptSocket) {
+          const lost = () => { if (this.resumeWaiter) this.resumeWaiter('retry'); };
+          attemptSocket.addEventListener('close', lost);
+          attemptSocket.addEventListener('error', lost);
+        }
+      });
+      this.resumeWaiter = null;
+      if (generation !== this.generation) return;
+      if (outcome === 'ready') { this.reconnecting = false; return; }
+      const failed = this.socket;
+      this.socket = null;
+      if (failed) { failed.onopen = failed.onmessage = failed.onerror = failed.onclose = null; if (failed.readyState < WebSocket.CLOSING) failed.close(); }
+      await new Promise(resolve => setTimeout(resolve, RESUME_RETRY_DELAYS_MS[Math.min(attempt, RESUME_RETRY_DELAYS_MS.length - 1)]));
+    }
+    if (generation !== this.generation) return;
+    this.reconnecting = false;
+    this.fail('connection_lost');
+  }
+
+  private adoptResumedCall(callId: string): void {
+    setActiveVoiceCallId(callId);
+    this.clockUpdatedAt = performance.now();
+    this.update({ callId, connection: this.audio?.captureInterrupted ? 'paused' : null, error: null });
+    if (this.state.chatId) assistantSpeechController.setCallOwner(this.state.chatId, callId);
+    this.audioGate?.setLive(true);
+  }
+
   private handleMessage(message: Record<string, unknown>): void {
+    if (this.resumeWaiter) {
+      // Until the resumed call is ready, only its readiness or refusal matters.
+      if (message.type === 'ready' && typeof message.call_id === 'string' &&
+          message.speech_output_transport === SPEECH_OUTPUT_TRANSPORT) {
+        this.adoptResumedCall(message.call_id);
+        this.resumeWaiter('ready');
+      } else if (message.type === 'error') {
+        const waiter = this.resumeWaiter;
+        // Money or session problems end the call; a busy lock is retried.
+        if (message.stage === 'credits') this.fail('insufficient_credits');
+        else if (message.stage === 'session') this.fail('session_expired');
+        waiter('retry');
+      }
+      return;
+    }
     if (this.cleanupAttempt && this.state.status === 'live' && message.call_id === this.state.callId &&
         ((message.type === 'transcript' && typeof message.text === 'string' && !!message.text.trim()) ||
           message.type === 'voice_source_frame')) this.cleanupAttempt.contentAttempted = true;
@@ -539,6 +676,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
         this.recordLifecycle('started');
         this.cues.play('connected');
         this.audioGate?.setLive(true);
+        this.background?.start();
         // Model loading and warmup run in the background after a normal start.
         this.audioGate?.start();
         if (get(this.store).status !== 'live') return;
@@ -629,12 +767,19 @@ export class VoiceCallController implements VoiceCallControllerLike {
           if (generation !== this.generation || this.state.status !== 'live') return false;
           reportVoiceCallTurnDelivery({ callId, chatId, turnId: id }, 'started');
           const heardBoundary = this.pendingHeardBoundary;
-          const accepted = await sendVoiceCallTurn({ callId, chatId, turnId: id, text: message.text as string,
+          const writeTurn = () => sendVoiceCallTurn({ callId, chatId, turnId: id, text: message.text as string,
             createdAt: typeof message.created_at === 'number' ? message.created_at : undefined,
             embedReferences: this.sourceReferences.get(id),
             ...(heardBoundary ? { heardBoundary } : {}),
             onVisible: clearLive,
             isCurrent: () => generation === this.generation && this.state.status === 'live' });
+          let accepted = await writeTurn();
+          // The chat sync socket needs a moment to reconnect after the page returns.
+          for (const delay of TURN_WRITE_RETRY_DELAYS_MS) {
+            if (accepted || !this.background?.awayRecently || generation !== this.generation) break;
+            await new Promise(resolve => setTimeout(resolve, delay));
+            accepted = await writeTurn();
+          }
           if (accepted && generation === this.generation && this.pendingHeardBoundary === heardBoundary) this.pendingHeardBoundary = null;
           return accepted;
         }).then(accepted => {
@@ -973,6 +1118,10 @@ export class VoiceCallController implements VoiceCallControllerLike {
     this.ticker = null;
     this.audioGate?.stop();
     this.audioGate = null;
+    this.background?.stop();
+    this.background = null;
+    this.resumeWaiter = null;
+    this.reconnecting = false;
     this.audio?.stop();
     this.audio = null;
     const socket = this.socket;

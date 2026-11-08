@@ -33,18 +33,26 @@ _ACKS = frozenset({
 })
 
 
+def _squeeze(text: str) -> str:
+    """Collapse stretched letters so "mhmm", "mmhmm" and "hmmmm" match one cue."""
+    return re.sub(r"(\w)\1+", r"\1", text)
+
+
+_ACKS_SQUEEZED = frozenset(_squeeze(cue) for cue in _ACKS) | {"ah", "oh", "ooh", "uh"}
+
+
 def is_explicit_voice_stop(text: str) -> bool:
     """Whole-utterance controls only: never match 'stop by the station'."""
     return _words(text) in _STOPS
 
 
 def is_listener_acknowledgement(text: str) -> bool:
-    normalized = _words(text)
-    if normalized in _ACKS:
+    normalized = _squeeze(_words(text))
+    if normalized in _ACKS_SQUEEZED:
         return True
     # Common repeated listening cues; never discard the rest of a correction.
     tokens = normalized.split()
-    return bool(tokens) and len(tokens) <= 4 and all(token in _ACKS for token in tokens)
+    return bool(tokens) and len(tokens) <= 4 and all(token in _ACKS_SQUEEZED for token in tokens)
 
 
 def assistant_question_pending(text: str) -> bool:

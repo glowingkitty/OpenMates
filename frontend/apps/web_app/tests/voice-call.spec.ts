@@ -168,6 +168,7 @@ interface CallEvidence {
   mainSocket?: WebSocket;
   mainSocketId?: number;
   voiceSocketCount?: number;
+  voiceSocket?: WebSocket;
   reconnectOnText?: boolean;
   reconnectInjected?: boolean;
   hangupOnCommittedAction?: { callId: string; socketId: number };
@@ -434,7 +435,7 @@ async function observeRealTransport(page: Page, deferReady = false, bootstrapCon
       const socketId=++nextSocketId;
       const path=new URL(String(args[0]),location.href).pathname;
       if(path==='/v1/ws') { evidence.mainSocket=socket; evidence.mainSocketId=socketId; }
-      if(path==='/v1/voice-call')evidence.voiceSocketCount=(evidence.voiceSocketCount??0)+1;
+      if(path==='/v1/voice-call'){evidence.voiceSocketCount=(evidence.voiceSocketCount??0)+1;evidence.voiceSocket=socket;}
       let privacyHoldRequestId:string|null=null;
       const recoveryRequests=new Map<string,{operation:string;jobId?:string;recordId?:string}>();
       const observe=(data:unknown,sent:boolean)=>{
@@ -1628,21 +1629,32 @@ test.describe('Voice mode through ordinary chat', () => {
       await expect(page.getByTestId('message-editor')).toBeVisible();
       // Only focus the existing Project draft; do not type or inject a turn.
       await page.getByTestId('message-field').click();
-      // Click immediately after actual editor focus, before slow storage reads
-      // or readiness polling can conceal the prop-to-draft-store handoff.
+      // Focusing the welcome composer deliberately hides the handset, so the
+      // draft is blurred (not cleared) before starting the call from it.
+      await expect(page.locator('[data-testid="voice-call-start"]:visible')).toHaveCount(0);
+      // The focused editor shows the Project mention; once blurred the composer
+      // collapses to its placeholder, so the mention is proven here and the
+      // retained draft is proven below through IndexedDB and the protocol.
+      await expect(page.getByTestId('message-editor').locator('[data-type="generic-mention"].mention-project'))
+        .toHaveAttribute('data-mention-syntax',`@project:${projectId}:read`);
+      await page.getByTestId('message-editor').locator('[contenteditable="true"]').blur();
+      // Click immediately after the blur, before slow storage reads or readiness
+      // polling can conceal the prop-to-draft-store handoff.
       await page.locator('[data-testid="voice-call-start"]:visible').click();
       await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now',{timeout:45_000});
       const before=await page.evaluate(()=>(window as unknown as {__voiceProjectDraftBeforeStart:{chatId:string;focused:boolean;projectMentionMatches:boolean;
         userRows:number;assistantRows:number;starts:number;canonicalSends:number}}).__voiceProjectDraftBeforeStart);
       const chatId=before.chatId;
       expect(chatId).toMatch(/^[0-9a-f-]{36}$/i);
-      expect(before).toMatchObject({focused:true,projectMentionMatches:true,userRows:0,assistantRows:0,starts:0,canonicalSends:0});
+      expect(before).toMatchObject({focused:false,userRows:0,assistantRows:0,starts:0,canonicalSends:0});
       await testInfo.attach('voice-project-draft-identity',{body:JSON.stringify({draftChatId:chatId}),contentType:'application/json'});
       // Same-draft startup must retain its real destination instead of clearing
       // it as an outgoing navigation draft. No turn has been submitted yet.
+      await testInfo.attach('voice-project-composer-id-after-start',{body:JSON.stringify({clickChatId:chatId,
+        composerChatId:await page.locator('[data-action="message-input"]:visible').getAttribute('data-current-chat-id'),
+        startChatIds:voiceFrames(await evidence(page),'start').map(frame=>frame.chatId),
+        prepareChatIds:(await evidence(page)).sent.filter(frame=>frame.type==='voice_call_chat_prepare').map(frame=>frame.chatId)}),contentType:'application/json'});
       await expect(page.locator('[data-action="message-input"]:visible')).toHaveAttribute('data-current-chat-id',chatId!);
-      await expect(page.getByTestId('message-editor').locator('[data-type="generic-mention"].mention-project'))
-        .toHaveAttribute('data-mention-syntax',`@project:${projectId}:read`);
       const retainedDraft=await page.evaluate(()=>(window as unknown as {__voiceCallEvidence:CallEvidence})
         .__voiceCallEvidence.inspectDraftAfterReady?.());
       expect(retainedDraft).toEqual({exists:true,wrappedKeyPresent:true,wrappedKeyUnchanged:true,
@@ -1728,7 +1740,7 @@ test.describe('Voice mode through ordinary chat', () => {
         .toHaveAttribute('data-mention-syntax',`@project:${projectId}:read`);
       const composer=page.locator('[data-action="message-input"]:visible');
       await expect(composer).toHaveAttribute('data-current-chat-id',/^[0-9a-f-]{36}$/i);
-      const chatId=await composer.getAttribute('data-current-chat-id');
+      let chatId=await composer.getAttribute('data-current-chat-id');
       // The actual Project draft exists in the welcome composer; no chat has
       // been selected or turn submitted to make controls appear artificially.
       expect(new URL(page.url()).hash).not.toContain('chat-id=');
@@ -1745,14 +1757,28 @@ test.describe('Voice mode through ordinary chat', () => {
         Object.defineProperty(window, 'MediaSource', { configurable: true, writable: true, value: undefined });
         return !browser.MediaSource && browser.ManagedMediaSource?.isTypeSupported('audio/mpeg') === true;
       })).toBe(true);
-      // Start the exact live draft without dismissing/parking its composer.
+      // Start the exact live draft without dismissing/parking its composer. The
+      // focused welcome composer hides the handset, so blur it first (draft kept).
+      await page.getByTestId('message-editor').locator('[contenteditable="true"]').blur();
       await expect(page.getByTestId('voice-call-start')).toBeVisible();
+      const draftIdBeforeBlur=chatId;
+      // The welcome composer can re-key its reserved draft id while sync settles;
+      // start only once the id has held still for a full second.
+      let stableId=await composer.getAttribute('data-current-chat-id');let stableSince=Date.now();
+      await expect.poll(async()=>{
+        const current=await composer.getAttribute('data-current-chat-id');
+        if(current!==stableId){stableId=current;stableSince=Date.now();}
+        return Date.now()-stableSince>=1_000;
+      },{timeout:20_000,intervals:[200]}).toBe(true);
+      chatId=stableId;
+      await testInfo.attach('voice-project-draft-id-across-blur',{body:JSON.stringify({draftIdBeforeBlur,draftIdAfterBlur:chatId}),contentType:'application/json'});
       await page.locator('[data-testid="voice-call-start"]:visible').click();
       await expect.poll(()=>page.evaluate(()=>(window as unknown as {__voiceCallEvidence:CallEvidence})
         .__voiceCallEvidence.bootstrapHeld===true),{timeout:30_000}).toBe(true);
       await expect.poll(async()=>(await nativeVoiceInput(page)).captureRequests).toBe(1);
       const pending=await evidence(page);
-      expect(pending.received.some(frame=>frame.type==='encrypted_metadata_stored'&&frame.chatId===chatId&&frame.voiceCallBootstrap)).toBe(true);
+      expect(pending.received.some(frame=>frame.type==='encrypted_metadata_stored'&&frame.chatId===chatId&&frame.voiceCallBootstrap),
+        `bootstrap receipt for ${chatId}; received ${JSON.stringify(pending.received.filter(frame=>frame.type==='encrypted_metadata_stored').map(frame=>frame.chatId))}`).toBe(true);
       expect(voiceFrames(pending,'start')).toHaveLength(0);
       const bar=page.getByTestId('voice-call-bar');const cancel=page.getByTestId('voice-call-hangup');
       await expect(bar).toBeVisible();await expect(bar).toHaveAttribute('aria-busy','true');
@@ -2053,6 +2079,43 @@ test.describe('Voice mode through ordinary chat', () => {
     await assertVoiceInputCleanup(page);
   });
 
+
+  // contract-test: direct surface=gui.web assertions=video-call.audio.background-resume
+  test('resumes the same call on a new connection after the page was in the background', async ({ page }) => {
+    test.setTimeout(100_000);
+    await installNativeVoiceInput(page);
+    await observeRealTransport(page);
+    await loginToTestAccount(page, () => {}, async () => {}, { waitForEditor: false });
+    await page.locator('[data-testid="voice-call-start"]:visible').click();
+    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
+    const chatBefore = await page.evaluate(() => location.hash || location.pathname);
+    // Safari in the background: the page becomes hidden and the OS drops the socket.
+    await page.evaluate(() => {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+      document.dispatchEvent(new Event('visibilitychange'));
+      const state = (window as unknown as { __voiceCallEvidence: { voiceSocket?: WebSocket } }).__voiceCallEvidence;
+      state.voiceSocket?.close();
+    });
+    await page.evaluate(() => {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await expect.poll(async () => (await evidence(page)).received.filter(
+      (frame) => frame.type === 'ready' && frame.path === '/v1/voice-call').length, { timeout: 45_000 }).toBe(2);
+    const resumed = await evidence(page);
+    // The server may still hold the previous call's lock for a moment, so the
+    // resume retries `start` on fresh sockets until one is accepted; exactly one is.
+    const starts = voiceFrames(resumed, 'start');
+    expect(starts.length).toBeGreaterThanOrEqual(2);
+    expect(await page.evaluate(() => (window as unknown as { __voiceCallEvidence: CallEvidence }).__voiceCallEvidence.voiceSocketCount)).toBe(starts.length);
+    expect(new Set(starts.map((frame) => frame.chatId)).size, 'every attempt resumes the same chat').toBe(1);
+    expect(resumed.received.filter((frame) => frame.type === 'ready' && frame.path === '/v1/voice-call')).toHaveLength(2);
+    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
+    await expect(page.getByTestId('voice-call-bar')).toBeVisible();
+    expect(await page.evaluate(() => location.hash || location.pathname)).toBe(chatBefore);
+    await page.getByTestId('voice-call-hangup').click();
+    await expect(page.getByTestId('voice-call-bar')).toHaveCount(0);
+  });
 
   // contract-test: direct surface=gui.web assertions=video-call.privacy,video-call.usage.provider-metering
   test('refuses an unauthenticated call before opening speech processing', async ({ page }) => {

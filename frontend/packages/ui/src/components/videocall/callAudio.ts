@@ -71,6 +71,9 @@ export class CallAudio {
   private stopped = false;
   private micEnabled = true;
   private speakingTimeout: ReturnType<typeof setTimeout> | null = null;
+  private interrupted = false;
+  private interruptionListener: ((interrupted: boolean) => void) | null = null;
+  private trackCleanup: (() => void) | null = null;
 
   constructor(private onMicAudio: (data: string) => void, private onSpeaking: (user: boolean, model: boolean) => void) {}
 
@@ -80,10 +83,66 @@ export class CallAudio {
     if (!enabled) this.onSpeaking(false, this.playback.size > 0);
   }
 
+  /** Notified when capture stops producing audio (OS interruption) and when it works again. */
+  setInterruptionListener(listener: ((interrupted: boolean) => void) | null): void {
+    this.interruptionListener = listener;
+  }
+
+  get captureInterrupted(): boolean { return this.interrupted; }
+
+  /** Capture is interrupted when the context is not running or the track is muted/ended. */
+  private evaluateInterruption(): void {
+    if (this.stopped) return;
+    const track = this.stream?.getAudioTracks()[0];
+    const interrupted = this.context?.state !== 'running' || !track || track.muted || track.readyState === 'ended';
+    if (interrupted === this.interrupted) return;
+    this.interrupted = interrupted;
+    this.interruptionListener?.(interrupted);
+  }
+
+  /**
+   * Bring capture back after the OS interrupted it (page returned from the
+   * background): resume the context and, if the track ended, capture again.
+   * Resolves true only when audio can flow; rejects if the microphone is refused.
+   */
+  async recover(): Promise<boolean> {
+    if (this.stopped || !this.context) return false;
+    const generation = this.generation;
+    const context = this.context;
+    if (context.state !== 'running') {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([
+          this.requestResume(context),
+          new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('Audio could not resume')), 3000); }),
+        ]);
+      } catch { /* The state check below decides whether capture can continue. */ }
+      finally { clearTimeout(timer); }
+    }
+    if (this.stopped || generation !== this.generation) return false;
+    const track = this.stream?.getAudioTracks()[0];
+    if (!track || track.readyState === 'ended') {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        video: false,
+      });
+      if (this.stopped || generation !== this.generation) {
+        stream.getTracks().forEach((candidate) => candidate.stop());
+        return false;
+      }
+      this.disconnectCapture();
+      this.stream = stream;
+      this.connectStream(stream);
+    }
+    this.evaluateInterruption();
+    return !this.interrupted;
+  }
+
   // Called synchronously by the Start button, while its activation is still available.
   unlock(): void {
     if (this.stopped) return;
     const context = this.context ?? new AudioContext();
+    if (!this.context) context.addEventListener('statechange', () => this.evaluateInterruption());
     this.context = context;
     if (context.state !== 'running' && context.state !== 'closed' && !this.resumePending) {
       void this.requestResume(context).catch(() => {});
@@ -147,6 +206,11 @@ export class CallAudio {
       this.stop();
       throw error;
     }
+    this.connectStream(stream);
+  }
+
+  private connectStream(stream: MediaStream): void {
+    const context = this.context!;
     this.source = context.createMediaStreamSource(stream);
     this.processor = context.createScriptProcessor(2048, 1, 1);
     this.silentGain = context.createGain();
@@ -161,6 +225,25 @@ export class CallAudio {
       this.onSpeaking(this.micEnabled && rms > 0.045, this.playback.size > 0);
       if (this.micEnabled) this.onMicAudio(pcm16Base64(downsample(input, event.inputBuffer.sampleRate)));
     };
+    const track = stream.getAudioTracks()[0];
+    const check = () => this.evaluateInterruption();
+    for (const type of ['mute', 'unmute', 'ended'] as const) track?.addEventListener(type, check);
+    this.trackCleanup = () => { for (const type of ['mute', 'unmute', 'ended'] as const) track?.removeEventListener(type, check); };
+    this.evaluateInterruption();
+  }
+
+  private disconnectCapture(): void {
+    this.trackCleanup?.();
+    this.trackCleanup = null;
+    if (this.processor) this.processor.onaudioprocess = null;
+    this.source?.disconnect();
+    this.processor?.disconnect();
+    this.silentGain?.disconnect();
+    this.stream?.getTracks().forEach((track) => track.stop());
+    this.source = null;
+    this.processor = null;
+    this.silentGain = null;
+    this.stream = null;
   }
 
   setVideoElement(video: HTMLVideoElement | null): void {
@@ -271,10 +354,7 @@ export class CallAudio {
     this.generation += 1;
     this.interrupt();
     if (this.speakingTimeout) clearTimeout(this.speakingTimeout);
-    if (this.processor) this.processor.onaudioprocess = null;
-    this.source?.disconnect();
-    this.processor?.disconnect();
-    this.silentGain?.disconnect();
+    this.disconnectCapture();
     this.videoGeneration += 1;
     this.videoFetch?.abort();
     this.videoFetch = null;
@@ -286,8 +366,6 @@ export class CallAudio {
     this.videoBuffer = null;
     this.videoGain = null;
     this.videoElement = null;
-    this.stream?.getTracks().forEach((track) => track.stop());
-    this.stream = null;
     const context = this.context;
     this.context = null;
     if (context && context.state !== 'closed') void context.close();

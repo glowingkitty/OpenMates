@@ -10,7 +10,10 @@ from backend.shared.providers.typesafe.models import ChoiceAnswer, DecisionRespo
 
 
 # contract-test: direct surface=rest_api assertions=video-call.audio.intentional-interruption
-@pytest.mark.parametrize("text", ["hmm", "Okay!", "mhm, okay", "Alles klar", "d’accord", "嗯嗯"])
+@pytest.mark.parametrize("text", [
+    "hmm", "Okay!", "mhm, okay", "Alles klar", "d’accord", "嗯嗯",
+    "mhmm", "Mmhmm.", "Hmmmm", "mm-hmm", "uh-huh", "yeahhh", "okayyy", "aha", "ohh",
+])
 def test_listening_cues(text):
     assert is_listener_acknowledgement(text)
 
@@ -144,3 +147,16 @@ def test_listener_cues_and_microphone_recapture_do_not_interrupt():
     assert not is_immediate_barge_in("", spoken, assistant_speaking=True)
     # A cue answering an assistant question is an answer, not a listening cue.
     assert is_immediate_barge_in("yes", "Should I book it?", assistant_speaking=True)
+
+
+# contract-test: direct surface=rest_api assertions=video-call.audio.intentional-interruption
+@pytest.mark.parametrize("text", ["mhmm", "Mmhmm.", "hmmmm", "mm-hmm", "uh-huh", "yeahhh", "okayyy"])
+def test_stretched_listening_cues_never_interrupt_speech(text):
+    spoken = "First we compare the three hotels near the station and then pick one."
+    assert not is_immediate_barge_in(text, spoken, assistant_speaking=True)
+
+
+# contract-test: direct surface=rest_api assertions=video-call.audio.intentional-interruption
+@pytest.mark.parametrize("text", ["mhmm but show Berlin", "hmmm what about prices", "yeahhh no wait"])
+def test_a_cue_followed_by_content_still_takes_the_floor(text):
+    assert is_immediate_barge_in(text, "Here is how the plan works for Paris.", assistant_speaking=True)

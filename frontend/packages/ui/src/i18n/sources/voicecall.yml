@@ -23,6 +23,16 @@ live:
   en: Listening · You can speak now
   de: Hört zu · Du kannst jetzt sprechen
   verified_by_human: []
+paused:
+  context: Voice call is still connected but the microphone is interrupted because the app or browser was in the background
+  en: Call paused. Return to this screen to keep talking.
+  de: Anruf pausiert. Kehre zu diesem Bildschirm zurück, um weiterzusprechen.
+  verified_by_human: []
+reconnecting:
+  context: Voice call lost its connection while the app was in the background and is being restored
+  en: Reconnecting…
+  de: Verbindung wird wiederhergestellt…
+  verified_by_human: []
 muted:
   context: Local microphone is muted
   en: Microphone muted

@@ -538,9 +538,10 @@
 }
 
 .content-wrapper:has(.composer-ghost-suggestion) { display: grid; }
-.content-wrapper:has(.call-live-transcript.overlay) { display: grid; }
-.content-wrapper:has(.call-live-transcript.overlay) .editor-content { grid-area: 1 / 1; }
-.content-wrapper:has(.call-live-transcript.overlay) :global(.ProseMirror p.is-editor-empty:first-child::before) { opacity: 0; }
+/* The transcript renders in a child component, so Svelte cannot see it from here. */
+.content-wrapper:has(:global(.call-live-transcript.overlay)) { display: grid; }
+.content-wrapper:has(:global(.call-live-transcript.overlay)) .editor-content { grid-area: 1 / 1; }
+.content-wrapper:has(:global(.call-live-transcript.overlay)) :global(.ProseMirror p.is-editor-empty:first-child::before) { opacity: 0; }
 .content-wrapper:has(.composer-ghost-suggestion) .editor-content { grid-area: 1 / 1; }
 
 .composer-ghost-suggestion {
