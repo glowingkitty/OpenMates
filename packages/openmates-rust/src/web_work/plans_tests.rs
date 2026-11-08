@@ -103,3 +103,22 @@ fn unknown_ops_and_malformed_inputs_are_refused() {
     let missing_plaintext = json!({ "record": { "encrypted_title": "c" }, "fields": {} });
     assert_eq!(run_json("planView", &missing_plaintext.to_string()).unwrap_err(), "missing_field:fields.encrypted_title");
 }
+
+#[test]
+fn child_collection_paths_and_wrapper_body_equal_typescript() {
+    let doc: Value = serde_json::from_str(include_str!("plan_children_ts_vectors.json")).expect("child vectors parse");
+    let paths = doc["paths"].as_array().expect("paths");
+    assert_eq!(paths.len(), 10, "every collection is recorded for both ids");
+    for case in paths {
+        assert_eq!(run("planChildPath", &case["input"], &case["name"]), case["expected"], "{}", case["name"]);
+    }
+    for case in doc["bodies"].as_array().expect("bodies") {
+        let request = run("planKeyWrappersAddBody", &case["input"], &case["name"]);
+        assert_eq!(request["path"], case["expected"]["path"], "path: {}", case["name"]);
+        assert_eq!(request["method"], case["expected"]["method"], "method: {}", case["name"]);
+        assert_eq!(request["steps"], json!([["key_wrappers", { "value": case["input"]["key_wrappers"] }]]), "steps: {}", case["name"]);
+        assert_eq!(case["expected"]["body"], json!({ "key_wrappers": case["input"]["key_wrappers"] }));
+    }
+    let bad = json!({ "plan_id": "p", "collection": "complete" });
+    assert_eq!(run_json("planChildPath", &bad.to_string()).unwrap_err(), "bad_field:collection");
+}

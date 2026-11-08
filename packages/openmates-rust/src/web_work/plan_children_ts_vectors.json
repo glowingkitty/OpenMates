@@ -1,0 +1,174 @@
+{
+ "paths": [
+  {
+   "name": "criteria of plan-1",
+   "op": "planChildPath",
+   "input": {
+    "plan_id": "plan-1",
+    "collection": "criteria"
+   },
+   "expected": "/v1/user-plans/plan-1/criteria"
+  },
+  {
+   "name": "criteria of plan/1 ü",
+   "op": "planChildPath",
+   "input": {
+    "plan_id": "plan/1 ü",
+    "collection": "criteria"
+   },
+   "expected": "/v1/user-plans/plan/1 ü/criteria"
+  },
+  {
+   "name": "verification of plan-1",
+   "op": "planChildPath",
+   "input": {
+    "plan_id": "plan-1",
+    "collection": "verification"
+   },
+   "expected": "/v1/user-plans/plan-1/verification"
+  },
+  {
+   "name": "verification of plan/1 ü",
+   "op": "planChildPath",
+   "input": {
+    "plan_id": "plan/1 ü",
+    "collection": "verification"
+   },
+   "expected": "/v1/user-plans/plan/1 ü/verification"
+  },
+  {
+   "name": "assumptions of plan-1",
+   "op": "planChildPath",
+   "input": {
+    "plan_id": "plan-1",
+    "collection": "assumptions"
+   },
+   "expected": "/v1/user-plans/plan-1/assumptions"
+  },
+  {
+   "name": "assumptions of plan/1 ü",
+   "op": "planChildPath",
+   "input": {
+    "plan_id": "plan/1 ü",
+    "collection": "assumptions"
+   },
+   "expected": "/v1/user-plans/plan/1 ü/assumptions"
+  },
+  {
+   "name": "reference-patterns of plan-1",
+   "op": "planChildPath",
+   "input": {
+    "plan_id": "plan-1",
+    "collection": "reference-patterns"
+   },
+   "expected": "/v1/user-plans/plan-1/reference-patterns"
+  },
+  {
+   "name": "reference-patterns of plan/1 ü",
+   "op": "planChildPath",
+   "input": {
+    "plan_id": "plan/1 ü",
+    "collection": "reference-patterns"
+   },
+   "expected": "/v1/user-plans/plan/1 ü/reference-patterns"
+  },
+  {
+   "name": "key-wrappers of plan-1",
+   "op": "planChildPath",
+   "input": {
+    "plan_id": "plan-1",
+    "collection": "key-wrappers"
+   },
+   "expected": "/v1/user-plans/plan-1/key-wrappers"
+  },
+  {
+   "name": "key-wrappers of plan/1 ü",
+   "op": "planChildPath",
+   "input": {
+    "plan_id": "plan/1 ü",
+    "collection": "key-wrappers"
+   },
+   "expected": "/v1/user-plans/plan/1 ü/key-wrappers"
+  }
+ ],
+ "bodies": [
+  {
+   "name": "add wrappers to plan-1",
+   "op": "planKeyWrappersAddBody",
+   "input": {
+    "plan_id": "plan-1",
+    "key_wrappers": [
+     {
+      "key_type": "master",
+      "encrypted_plan_key": "wrapped-key",
+      "created_at": 1
+     },
+     {
+      "key_type": "chat",
+      "hashed_chat_id": "h",
+      "encrypted_plan_key": "w",
+      "created_at": 2
+     }
+    ]
+   },
+   "expected": {
+    "path": "/v1/user-plans/plan-1/key-wrappers",
+    "method": "POST",
+    "body": {
+     "key_wrappers": [
+      {
+       "key_type": "master",
+       "encrypted_plan_key": "wrapped-key",
+       "created_at": 1
+      },
+      {
+       "key_type": "chat",
+       "hashed_chat_id": "h",
+       "encrypted_plan_key": "w",
+       "created_at": 2
+      }
+     ]
+    }
+   }
+  },
+  {
+   "name": "add wrappers to plan/1 ü",
+   "op": "planKeyWrappersAddBody",
+   "input": {
+    "plan_id": "plan/1 ü",
+    "key_wrappers": [
+     {
+      "key_type": "master",
+      "encrypted_plan_key": "wrapped-key",
+      "created_at": 1
+     },
+     {
+      "key_type": "chat",
+      "hashed_chat_id": "h",
+      "encrypted_plan_key": "w",
+      "created_at": 2
+     }
+    ]
+   },
+   "expected": {
+    "path": "/v1/user-plans/plan/1 ü/key-wrappers",
+    "method": "POST",
+    "body": {
+     "key_wrappers": [
+      {
+       "key_type": "master",
+       "encrypted_plan_key": "wrapped-key",
+       "created_at": 1
+      },
+      {
+       "key_type": "chat",
+       "hashed_chat_id": "h",
+       "encrypted_plan_key": "w",
+       "created_at": 2
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

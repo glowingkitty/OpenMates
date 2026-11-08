@@ -949,12 +949,25 @@ export async function createUserPlan(input: CreateUserPlanInput): Promise<UserPl
   return rememberPlan(decrypted, cacheScope);
 }
 
+/** Flag on: `/v1/user-plans/<id>/<collection>` decided by the Worker (`planChildPath`). */
+function planChildPathRust(planId: string, collection: string): Promise<string> {
+  const work = workClient();
+  if (!work) throw new Error("Rust core Worker is unavailable for Plan paths");
+  return workDecide<string>(work, "planChildPath", { plan_id: planId, collection });
+}
+
 export async function listUserPlanKeyWrappers(planId: string): Promise<UserPlanKeyWrapperRecord[]> {
-  const data = await requestJson<{ key_wrappers: UserPlanKeyWrapperRecord[] }>(`/v1/user-plans/${planId}/key-wrappers`);
+  const data = await requestJson<{ key_wrappers: UserPlanKeyWrapperRecord[] }>(RUST_WORK ? await planChildPathRust(planId, "key-wrappers") : `/v1/user-plans/${planId}/key-wrappers`);
   return data.key_wrappers;
 }
 
 export async function addUserPlanKeyWrappers(planId: string, keyWrappers: UserPlanKeyWrapperRecord[]): Promise<UserPlanKeyWrapperRecord[]> {
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    const added = await sendPlanWork<{ key_wrappers: UserPlanKeyWrapperRecord[] }>(work, "planKeyWrappersAddBody",
+      { plan_id: planId, key_wrappers: keyWrappers }, {}, {});
+    return added.key_wrappers;
+  }
   const data = await requestJson<{ key_wrappers: UserPlanKeyWrapperRecord[] }>(`/v1/user-plans/${planId}/key-wrappers`, {
     method: "POST",
     body: JSON.stringify({ key_wrappers: keyWrappers }),
@@ -1043,25 +1056,25 @@ export async function completeUserPlan(plan: UserPlanViewModel, completionNote?:
 
 export async function listPlanCriteria(plan: UserPlanViewModel): Promise<UserPlanCriterionViewModel[]> {
   const planKey = await decryptPlanKey(plan);
-  const data = await requestJson<{ criteria: EncryptedUserPlanCriterionRecord[] }>(`/v1/user-plans/${plan.plan_id}/criteria`);
+  const data = await requestJson<{ criteria: EncryptedUserPlanCriterionRecord[] }>(RUST_WORK ? await planChildPathRust(plan.plan_id, "criteria") : `/v1/user-plans/${plan.plan_id}/criteria`);
   return Promise.all(data.criteria.map((record) => decryptCriterion(record, planKey)));
 }
 
 export async function listPlanVerifications(plan: UserPlanViewModel): Promise<UserPlanVerificationViewModel[]> {
   const planKey = await decryptPlanKey(plan);
-  const data = await requestJson<{ verifications: EncryptedUserPlanVerificationRecord[] }>(`/v1/user-plans/${plan.plan_id}/verification`);
+  const data = await requestJson<{ verifications: EncryptedUserPlanVerificationRecord[] }>(RUST_WORK ? await planChildPathRust(plan.plan_id, "verification") : `/v1/user-plans/${plan.plan_id}/verification`);
   return Promise.all(data.verifications.map((record) => decryptVerification(record, planKey)));
 }
 
 export async function listPlanAssumptions(plan: UserPlanViewModel): Promise<UserPlanAssumptionViewModel[]> {
   const planKey = await decryptPlanKey(plan);
-  const data = await requestJson<{ assumptions: EncryptedUserPlanAssumptionRecord[] }>(`/v1/user-plans/${plan.plan_id}/assumptions`);
+  const data = await requestJson<{ assumptions: EncryptedUserPlanAssumptionRecord[] }>(RUST_WORK ? await planChildPathRust(plan.plan_id, "assumptions") : `/v1/user-plans/${plan.plan_id}/assumptions`);
   return Promise.all(data.assumptions.map((record) => decryptAssumption(record, planKey)));
 }
 
 export async function listPlanReferencePatterns(plan: UserPlanViewModel): Promise<UserPlanReferencePatternViewModel[]> {
   const planKey = await decryptPlanKey(plan);
-  const data = await requestJson<{ reference_patterns: EncryptedUserPlanReferencePatternRecord[] }>(`/v1/user-plans/${plan.plan_id}/reference-patterns`);
+  const data = await requestJson<{ reference_patterns: EncryptedUserPlanReferencePatternRecord[] }>(RUST_WORK ? await planChildPathRust(plan.plan_id, "reference-patterns") : `/v1/user-plans/${plan.plan_id}/reference-patterns`);
   return Promise.all(data.reference_patterns.map((record) => decryptReferencePattern(record, planKey)));
 }
 

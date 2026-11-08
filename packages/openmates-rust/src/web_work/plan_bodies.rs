@@ -24,6 +24,8 @@ pub(crate) fn run(op: &str, input: &Value) -> Decision {
     match op {
         "planListPath" => list_path(input),
         "planItemPath" => item_path(input),
+        "planChildPath" => child_path(input),
+        "planKeyWrappersAddBody" => key_wrappers_add(input),
         "planCreateBody" => create(input),
         "planUpdateBody" => update(input),
         "planActivateBody" => activate(input),
@@ -77,6 +79,23 @@ fn item_path(input: &Value) -> Decision {
     let id = template(Some(member(input, "plan_id")?));
     let path = format!("/v1/user-plans/{}", encode_uri_component(&id));
     Ok(json!(context_route(path, input.get("team_id"))))
+}
+
+/// `/v1/user-plans/${plan.plan_id}/<collection>` of the Plan detail lists and
+/// the key-wrapper list (the TS templates, unencoded, no Team context).
+fn child_path(input: &Value) -> Decision {
+    let collection = member(input, "collection")?.as_str().ok_or("bad_field:collection")?;
+    if !["criteria", "verification", "assumptions", "reference-patterns", "key-wrappers"].contains(&collection) {
+        return Err("bad_field:collection".to_owned());
+    }
+    Ok(json!(plan_path(input, &format!("/{collection}"))?))
+}
+
+/// `addUserPlanKeyWrappers`: `{key_wrappers}` POSTed to the Plan's wrapper collection.
+fn key_wrappers_add(input: &Value) -> Decision {
+    let mut body = Body::default();
+    body.value("key_wrappers", member(input, "key_wrappers")?.clone());
+    Ok(body.request(plan_path(input, "/key-wrappers")?, "POST", Map::new()))
 }
 
 /// `/v1/user-plans/${planId}<suffix>` (the TS template, unencoded).

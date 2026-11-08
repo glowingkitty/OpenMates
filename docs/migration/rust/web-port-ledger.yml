@@ -773,3 +773,14 @@ slices:
   ts:
   - file: frontend/packages/ui/src/services/chatSyncVersionPlans.ts
     functions: [draftDeletedPlanRust, messagesVersionRust, metadataVersionPlanRust]
+- id: plan-child-collection-paths-and-wrapper-body-in-plans3
+  commit: null
+  date: '2026-11-08'
+  title: 'feat(rust): Plan child-collection paths and key-wrapper body in shared Rust core Worker (work lane Plans slice 3)'
+  rust: [packages/openmates-rust/src/web_work/plan_bodies.rs, packages/openmates-rust/src/web_work/plans_tests.rs]
+  vectors: [frontend/packages/ui/src/services/rustCore/__tests__/workPlanChildVectors.test.ts]
+  e2e: []
+  ts:
+  - file: frontend/packages/ui/src/services/userPlanService.ts
+    functions: [addUserPlanKeyWrappers, listPlanAssumptions, listPlanCriteria, listPlanReferencePatterns, listPlanVerifications, listUserPlanKeyWrappers,
+      planChildPathRust]
