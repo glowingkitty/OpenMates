@@ -30825,6 +30825,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/group_help.rs"
       },
       "gaps": [
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-chats.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open.",
         "Bare group prints native help and exits 0; subcommands are tracked separately."
       ],
       "platforms": {
@@ -30996,6 +30997,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/handlers.rs"
       },
       "gaps": [
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-chats.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open.",
         "Formatting, option variants, and complete protocol parity require validation."
       ],
       "platforms": {
@@ -31045,6 +31047,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/handlers.rs"
       },
       "gaps": [
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-chats.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open.",
         "Formatting, option variants, and complete protocol parity require validation."
       ],
       "platforms": {
@@ -31890,6 +31893,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/handlers.rs"
       },
       "gaps": [
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-chats.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open.",
         "Cookie Personal/Team saved metadata search uses the native headless Rust client and returns legacy ChatListItem JSON arrays; queries match title/summary/category/mate/ID, not message bodies, slugs or draft previews.",
         "API-key Chat search and logged-out example search remain unported; no Cookie fallback is used for API keys.",
         "Human output uses the legacy uncolored table structure with explicitly labeled UTC timestamps; host-local dates and ANSI category colors remain a presentation gap.",
@@ -33106,6 +33110,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/drafts.rs"
       },
       "gaps": [
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-chats.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open.",
         "Reviewed native Cookie Personal draft help/list/get/version-sync and explicit-key list/get are authored; API-key sync and Team drafts remain explicit gaps.",
         "Complete binding, CLI flags/error/owner/race, isolated product runtime and performance parity remain required; no completion or runtime acceptance is claimed by this catalog disposition."
       ],
@@ -33154,6 +33159,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/handlers.rs"
       },
       "gaps": [
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-chats.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open.",
         "Personal Cookie-session draft clearing only. Team/direct and API-key draft clearing remain unavailable; isolated CLI integration and platform validation pending."
       ],
       "platforms": {
@@ -33203,6 +33209,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/handlers.rs"
       },
       "gaps": [
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-chats.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open.",
         "Preview, synchronized draft listing/get/clear, text rendering and parity validation remain pending."
       ],
       "platforms": {
@@ -33251,6 +33258,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/drafts.rs"
       },
       "gaps": [
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-chats.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open.",
         "Reviewed native Cookie Personal draft help/list/get/version-sync and explicit-key list/get are authored; API-key sync and Team drafts remain explicit gaps.",
         "Complete binding, CLI flags/error/owner/race, isolated product runtime and performance parity remain required; no completion or runtime acceptance is claimed by this catalog disposition."
       ],
@@ -33332,6 +33340,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/drafts.rs"
       },
       "gaps": [
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-chats.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open.",
         "Reviewed native Cookie Personal draft help/list/get/version-sync and explicit-key list/get are authored; API-key sync and Team drafts remain explicit gaps.",
         "Complete binding, CLI flags/error/owner/race, isolated product runtime and performance parity remain required; no completion or runtime acceptance is claimed by this catalog disposition."
       ],
@@ -33388,6 +33397,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/handlers.rs"
       },
       "gaps": [
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-chats.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open.",
         "Preview, synchronized draft listing/get/clear, text rendering and parity validation remain pending."
       ],
       "platforms": {
@@ -33519,6 +33529,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/group_help.rs"
       },
       "gaps": [
+        "Differential-verified against the npm CLI on the isolated CI backend (cli-native-chats.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open.",
         "Bare group prints native help and exits 0; subcommands are tracked separately."
       ],
       "platforms": {

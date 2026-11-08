@@ -807,6 +807,7 @@
         "cli-privacy.spec.ts",
         "cli-native-account.spec.ts",
         "cli-native-billing.spec.ts",
+        "cli-native-chats.spec.ts",
         "cli-native-notifications.spec.ts",
         "cli-native-apps.spec.ts",
         "cli-native-misc.spec.ts",
