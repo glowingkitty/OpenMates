@@ -118,9 +118,18 @@ const VOLATILE_KEY_RE = /(^|_)(at|time|timestamp|date|expires|expiry|created|upd
 // eslint-disable-next-line no-control-regex -- matching terminal escape sequences requires control characters
 const ANSI_RE = /\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))/g;
 
+/**
+ * The native CLI prints one informational `Task delivery: <64-hex>` line on captured (non-terminal)
+ * stderr for durable Task writes so a recoverable operation id survives a runtime deadline
+ * (task_queue.rs). npm has no such journal; the line is additive and never part of the error class.
+ */
+function stripTaskDeliveryNote(stderr: string): string {
+	return stderr.replace(/^Task delivery: [0-9a-f]{64}\r?\n?/gm, '');
+}
+
 /** Coarse stderr categories so wording differences do not mask or fake a mismatch. */
 function classifyStderr(stderr: string): string {
-	const text = stderr.replace(ANSI_RE, '').trim();
+	const text = stripTaskDeliveryNote(stderr).replace(ANSI_RE, '').trim();
 	if (!text) return 'none';
 	const rules: Array<[RegExp, string]> = [
 		[/authentication_required|not logged in|log in first|openmates login/i, 'auth-required'],
@@ -189,7 +198,7 @@ function toOutcome(result: RunResult, mode: Mode, homes: string[], options: Chec
 	const base = {
 		exit: result.code,
 		stderrClass: classifyStderr(result.stderr),
-		stderrExcerpt: normalizeString(result.stderr, homes).trim().slice(0, 200)
+		stderrExcerpt: normalizeString(stripTaskDeliveryNote(result.stderr), homes).trim().slice(0, 200)
 	};
 	if (mode === 'exit') return { ...base, stdout: null };
 	if (mode === 'text') return { ...base, stdout: normalizeString(result.stdout, homes).split('\n').map((line) => line.trimEnd()).join('\n').trim() };
