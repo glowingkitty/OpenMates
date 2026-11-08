@@ -16,6 +16,7 @@ vi.mock('../../chatSyncService', () => ({ chatSyncService: {} }));
 import { planUrlUpdate } from '../../../stores/activeChatUrlPlan';
 import { planGlobalSelected, skipDraftActivation } from '../../../components/chats/utils/chatSelectionPlan';
 import { sharedSubChatToChat } from '../../../components/chats/utils/sharedSubChatChat';
+import { chatsOrganizable, planPlacement } from '../../../utils/chatProjectPlacement';
 import { readGateAllows } from '../../readGate';
 import { unreadMessagesStore as store } from '../../../stores/unreadMessagesStore';
 import { hasUnread } from '../../chatReadState';
@@ -29,7 +30,7 @@ describe('chat view parity vectors (TypeScript side)', () => {
 	it('the TypeScript selection, unread, read-gate and metadata code matches the committed vectors', () => {
 		const fresh = buildChatViewVectors({
 			cases,
-			planUrlUpdate, planGlobalSelected, skipDraftActivation, readGateAllows, sharedSubChatToChat,
+			planUrlUpdate, planGlobalSelected, skipDraftActivation, readGateAllows, sharedSubChatToChat, chatsOrganizable, planPlacement,
 			unread: {
 				apply: (e) => {
 					if (e.type === 'increment') store.incrementUnread(e.chat, e.messageId);

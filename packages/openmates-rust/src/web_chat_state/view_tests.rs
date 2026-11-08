@@ -2,7 +2,7 @@
 //! guards, unread bookkeeping, read gate, shared sub-chat metadata) against Rust.
 use serde_json::{json, Value};
 
-use super::{metadata, selection, unread, PROTOCOL};
+use super::{metadata, placement, selection, unread, PROTOCOL};
 
 fn vectors() -> Value {
     serde_json::from_str(include_str!("view_ts_vectors.json")).expect("committed vectors are valid JSON")
@@ -44,6 +44,16 @@ fn read_gate_matches_typescript_for_every_vector() {
 #[test]
 fn shared_sub_chat_matches_typescript_for_every_vector() {
     replay("sharedSubChat", metadata::shared_sub_chat_json);
+}
+
+#[test]
+fn organizable_matches_typescript_for_every_vector() {
+    replay("placementOrganizable", placement::organizable_json);
+}
+
+#[test]
+fn placement_plan_matches_typescript_for_every_vector() {
+    replay("placementPlan", placement::plan_json);
 }
 
 #[test]

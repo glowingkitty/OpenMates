@@ -83,3 +83,34 @@ export const SHARED_SUB_CHAT_CASES = [
 	}, parent: { chat_id: 'p', share_pii: null, share_highlights: null } },
 	{ name: 'edit time falls back to updated time', row: { id: 's4', parent_id: 'p', is_sub_chat: true, created_at: 10, updated_at: 20 }, parent: { chat_id: 'p2', share_highlights: true } },
 ] as const;
+
+const fact = (over: Record<string, unknown> = {}) => ({ incognito: false, sharedByOthers: false, demo: false, legal: false, public: false, teamId: null, ...over });
+export const ORGANIZABLE_CASES = [
+	{ chats: [fact()], teamId: null },
+	{ chats: [], teamId: null },
+	{ chats: [fact(), fact({ incognito: true })], teamId: null },
+	{ chats: [fact({ sharedByOthers: true })], teamId: null },
+	{ chats: [fact({ demo: true })], teamId: null },
+	{ chats: [fact({ legal: true })], teamId: null },
+	{ chats: [fact({ public: true })], teamId: null },
+	{ chats: [fact({ teamId: 't1' })], teamId: 't1' },
+	{ chats: [fact({ teamId: 't1' })], teamId: null },
+	{ chats: [fact()], teamId: 't1' },
+];
+
+const project = (id: string, chats: [string, string, string | null][], folders: [string, string, string | null][] = []) => ({
+	id, name: id, folders: folders.map(([fid, hash, parentHash]) => ({ id: fid, hash, parentHash, name: fid })),
+	chats: chats.map(([itemId, chatId, folderHash]) => ({ id: itemId, chatId, folderHash })),
+});
+const PA = project('pa', [['i1', 'c1', null], ['i2', 'c2', 'h-docs']], [['docs', 'h-docs', null], ['sub', 'h-sub', 'h-docs']]);
+const PB = project('pb', [['i3', 'c3', null], ['i4', 'c1', null]]);
+export const PLACEMENT_CASES = [
+	{ chatIds: ['c1'], location: { projectId: 'zz', folderId: null }, mode: 'add', index: [PA, PB] },
+	{ chatIds: ['c1'], location: { projectId: 'pa', folderId: 'gone' }, mode: 'add', index: [PA, PB] },
+	{ chatIds: ['c1', 'c2', 'c9'], location: { projectId: 'pa', folderId: null }, mode: 'add', index: [PA, PB] },
+	{ chatIds: ['c1', 'c2', 'c9'], location: { projectId: 'pa', folderId: 'docs' }, mode: 'add', index: [PA, PB] },
+	{ chatIds: ['c1', 'c3'], location: { projectId: 'pa', folderId: 'sub' }, mode: 'move', index: [PA, PB] },
+	{ chatIds: ['c1', 'c3', 'c9'], location: { projectId: 'pb', folderId: null }, mode: 'move', index: [PA, PB, project('pc', [['i5', 'c9', null]])] },
+	{ chatIds: [], location: { projectId: 'pa', folderId: null }, mode: 'move', index: [PA, PB] },
+	{ chatIds: ['c2'], location: { projectId: 'pa', folderId: 'docs' }, mode: 'move', index: [PA, PB] },
+];

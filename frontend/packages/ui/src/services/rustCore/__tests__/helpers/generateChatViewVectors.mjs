@@ -18,6 +18,7 @@ const src = (path) => pathToFileURL(join(ui, 'src', path)).href;
 const { planUrlUpdate } = await import(src('stores/activeChatUrlPlan.ts'));
 const { planGlobalSelected, skipDraftActivation } = await import(src('components/chats/utils/chatSelectionPlan.ts'));
 const { sharedSubChatToChat } = await import(src('components/chats/utils/sharedSubChatChat.ts'));
+const { chatsOrganizable, planPlacement } = await import(src('utils/chatProjectPlacement.ts'));
 const { readGateAllows } = await import(src('services/readGate.ts'));
 
 const tmp = mkdtempSync(join(tmpdir(), 'unread-vectors-'));
@@ -35,7 +36,7 @@ try {
 	const cases = await import(pathToFileURL(join(import.meta.dirname, 'chatViewCases.ts')).href);
 	const vectors = buildChatViewVectors({
 		cases,
-		planUrlUpdate, planGlobalSelected, skipDraftActivation, readGateAllows, sharedSubChatToChat,
+		planUrlUpdate, planGlobalSelected, skipDraftActivation, readGateAllows, sharedSubChatToChat, chatsOrganizable, planPlacement,
 		unread: {
 			apply: (e) => {
 				if (e.type === 'increment') s.incrementUnread(e.chat, e.messageId);

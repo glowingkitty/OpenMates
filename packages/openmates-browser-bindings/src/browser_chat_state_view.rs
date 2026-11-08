@@ -5,7 +5,7 @@
 //! spec: specifications/architecture/sync/specification.yml#sync.client.shared-rust-policy
 use wasm_bindgen::prelude::*;
 
-use openmates_sdk::web_chat_state::{metadata, selection, unread};
+use openmates_sdk::web_chat_state::{metadata, placement, selection, unread};
 
 fn js(result: Result<String, String>) -> Result<String, JsValue> {
     result.map_err(|e| JsValue::from_str(&e))
@@ -51,4 +51,16 @@ pub fn chat_state_unread_read_gate(input_json: &str) -> Result<String, JsValue> 
 #[wasm_bindgen]
 pub fn chat_state_metadata_shared_sub_chat(input_json: &str) -> Result<String, JsValue> {
     js(metadata::shared_sub_chat_json(input_json))
+}
+
+/// Whether the chats may be organised in the active workspace.
+#[wasm_bindgen]
+pub fn chat_state_placement_organizable(input_json: &str) -> Result<String, JsValue> {
+    js(placement::organizable_json(input_json))
+}
+
+/// Ordered move/add/remove steps for placing chats in a project location.
+#[wasm_bindgen]
+pub fn chat_state_placement_plan(input_json: &str) -> Result<String, JsValue> {
+    js(placement::plan_json(input_json))
 }

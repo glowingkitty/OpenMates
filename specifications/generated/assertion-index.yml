@@ -24266,7 +24266,7 @@ assertions:
       surface: gui.web
     - &id3141
       path: frontend/packages/ui/src/services/rustCore/__tests__/chatStateSharedUnit.test.ts
-      line: 118
+      line: 120
       name: prepares the unit ahead of the first decision and records the phase marks
       surface: gui.web
     - &id3142
@@ -189248,28 +189248,28 @@ assertions:
       surface: gui.web
     - &id24134
       path: frontend/packages/ui/src/services/rustCore/__tests__/chatStateSharedUnit.test.ts
-      line: 82
+      line: 84
       name: refuses a binding without the chat-state exports
       surface: gui.web
     - &id24135
       path: frontend/packages/ui/src/services/rustCore/__tests__/chatStateSharedUnit.test.ts
-      line: 89
+      line: 91
       name: orders every vector chat list exactly like the TypeScript sort
       surface: gui.web
     - &id24136
       path: frontend/packages/ui/src/services/rustCore/__tests__/chatStateSharedUnit.test.ts
-      line: 99
+      line: 101
       name: groups every vector chat list like the TypeScript grouping, key order
         included
       surface: gui.web
     - &id24137
       path: frontend/packages/ui/src/services/rustCore/__tests__/chatStateSharedUnit.test.ts
-      line: 111
+      line: 113
       name: rejects with the fixed protocol code instead of falling back to TypeScript
       surface: gui.web
     - &id24138
       path: frontend/packages/ui/src/services/rustCore/__tests__/chatViewVectors.test.ts
-      line: 29
+      line: 30
       name: the TypeScript selection, unread, read-gate and metadata code matches
         the committed vectors
       surface: gui.web

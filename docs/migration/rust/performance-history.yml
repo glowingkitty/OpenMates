@@ -680,3 +680,41 @@ measurements:
     confidence: traced
     notes: embeds-3 slice 4 (admission); no CI on n=3; advisory, below the gross-regression threshold.
     ts_value: 1817.0
+  - id: 2026-11-08-sendToAdmit-01
+    date: '2026-11-08'
+    flow: sendToAdmit
+    metric: sendToAdmitMs
+    value_kind: ratio
+    value: 1.073
+    ci95: [0.881, 1.179]
+    n_pairs: 15
+    verdict: inconclusive
+    verdict_basis: derived
+    ci_job: d41107c8
+    source_commit: 1f02722452
+    evidence: web-rust-core-send-bench.spec.ts CI jobs d41107c8, 74a97072, e8498276 (attempts 1-3, 3x5 pooled
+      pairs); TS median 1981 ms vs Rust median 1931 ms; paired median delta +187 ms [-376, 322]; ratio CI
+      is a paired bootstrap
+    confidence: traced
+    notes: Not gross under the 2026-11-07 advisory policy (upper bound 1.179 is below +25%, and the median-of-medians
+      ratio is 0.975). Per-job medians vary 1.4-3.6 s with account chat count; pairs are within-job.
+    ts_value: 1981.0
+  - id: 2026-11-08-send-01
+    date: '2026-11-08'
+    flow: send
+    metric: sendBrowserCpuMs
+    value_kind: ratio
+    value: 1.025
+    ci95: [0.957, 1.104]
+    n_pairs: 15
+    verdict: inconclusive
+    verdict_basis: derived
+    ci_job: d41107c8
+    source_commit: 1f02722452
+    evidence: web-rust-core-send-bench.spec.ts CI jobs d41107c8, 74a97072, e8498276 (3x5 pooled pairs);
+      browser CPU during send, TS median 7740 ms vs Rust 8830 ms (median-of-medians 1.14), paired ratio
+      CI via bootstrap
+    confidence: traced
+    notes: Send flow has no total-time metric in the bench; browser CPU ratio CI upper 1.104 is within the
+      15% limit.
+    ts_value: 7740.0

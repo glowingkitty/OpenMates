@@ -6269,6 +6269,773 @@
    ]
   }
  ],
+ "placementOrganizable": [
+  {
+   "input": {
+    "chats": [
+     {
+      "incognito": false,
+      "sharedByOthers": false,
+      "demo": false,
+      "legal": false,
+      "public": false,
+      "teamId": null
+     }
+    ],
+    "teamId": null
+   },
+   "out": {
+    "ok": true
+   }
+  },
+  {
+   "input": {
+    "chats": [],
+    "teamId": null
+   },
+   "out": {
+    "ok": false
+   }
+  },
+  {
+   "input": {
+    "chats": [
+     {
+      "incognito": false,
+      "sharedByOthers": false,
+      "demo": false,
+      "legal": false,
+      "public": false,
+      "teamId": null
+     },
+     {
+      "incognito": true,
+      "sharedByOthers": false,
+      "demo": false,
+      "legal": false,
+      "public": false,
+      "teamId": null
+     }
+    ],
+    "teamId": null
+   },
+   "out": {
+    "ok": false
+   }
+  },
+  {
+   "input": {
+    "chats": [
+     {
+      "incognito": false,
+      "sharedByOthers": true,
+      "demo": false,
+      "legal": false,
+      "public": false,
+      "teamId": null
+     }
+    ],
+    "teamId": null
+   },
+   "out": {
+    "ok": false
+   }
+  },
+  {
+   "input": {
+    "chats": [
+     {
+      "incognito": false,
+      "sharedByOthers": false,
+      "demo": true,
+      "legal": false,
+      "public": false,
+      "teamId": null
+     }
+    ],
+    "teamId": null
+   },
+   "out": {
+    "ok": false
+   }
+  },
+  {
+   "input": {
+    "chats": [
+     {
+      "incognito": false,
+      "sharedByOthers": false,
+      "demo": false,
+      "legal": true,
+      "public": false,
+      "teamId": null
+     }
+    ],
+    "teamId": null
+   },
+   "out": {
+    "ok": false
+   }
+  },
+  {
+   "input": {
+    "chats": [
+     {
+      "incognito": false,
+      "sharedByOthers": false,
+      "demo": false,
+      "legal": false,
+      "public": true,
+      "teamId": null
+     }
+    ],
+    "teamId": null
+   },
+   "out": {
+    "ok": false
+   }
+  },
+  {
+   "input": {
+    "chats": [
+     {
+      "incognito": false,
+      "sharedByOthers": false,
+      "demo": false,
+      "legal": false,
+      "public": false,
+      "teamId": "t1"
+     }
+    ],
+    "teamId": "t1"
+   },
+   "out": {
+    "ok": true
+   }
+  },
+  {
+   "input": {
+    "chats": [
+     {
+      "incognito": false,
+      "sharedByOthers": false,
+      "demo": false,
+      "legal": false,
+      "public": false,
+      "teamId": "t1"
+     }
+    ],
+    "teamId": null
+   },
+   "out": {
+    "ok": false
+   }
+  },
+  {
+   "input": {
+    "chats": [
+     {
+      "incognito": false,
+      "sharedByOthers": false,
+      "demo": false,
+      "legal": false,
+      "public": false,
+      "teamId": null
+     }
+    ],
+    "teamId": "t1"
+   },
+   "out": {
+    "ok": false
+   }
+  }
+ ],
+ "placementPlan": [
+  {
+   "input": {
+    "chatIds": [
+     "c1"
+    ],
+    "location": {
+     "projectId": "zz",
+     "folderId": null
+    },
+    "mode": "add",
+    "index": [
+     {
+      "id": "pa",
+      "name": "pa",
+      "folders": [
+       {
+        "id": "docs",
+        "hash": "h-docs",
+        "parentHash": null,
+        "name": "docs"
+       },
+       {
+        "id": "sub",
+        "hash": "h-sub",
+        "parentHash": "h-docs",
+        "name": "sub"
+       }
+      ],
+      "chats": [
+       {
+        "id": "i1",
+        "chatId": "c1",
+        "folderHash": null
+       },
+       {
+        "id": "i2",
+        "chatId": "c2",
+        "folderHash": "h-docs"
+       }
+      ]
+     },
+     {
+      "id": "pb",
+      "name": "pb",
+      "folders": [],
+      "chats": [
+       {
+        "id": "i3",
+        "chatId": "c3",
+        "folderHash": null
+       },
+       {
+        "id": "i4",
+        "chatId": "c1",
+        "folderHash": null
+       }
+      ]
+     }
+    ]
+   },
+   "out": {
+    "error": "project_unavailable"
+   }
+  },
+  {
+   "input": {
+    "chatIds": [
+     "c1"
+    ],
+    "location": {
+     "projectId": "pa",
+     "folderId": "gone"
+    },
+    "mode": "add",
+    "index": [
+     {
+      "id": "pa",
+      "name": "pa",
+      "folders": [
+       {
+        "id": "docs",
+        "hash": "h-docs",
+        "parentHash": null,
+        "name": "docs"
+       },
+       {
+        "id": "sub",
+        "hash": "h-sub",
+        "parentHash": "h-docs",
+        "name": "sub"
+       }
+      ],
+      "chats": [
+       {
+        "id": "i1",
+        "chatId": "c1",
+        "folderHash": null
+       },
+       {
+        "id": "i2",
+        "chatId": "c2",
+        "folderHash": "h-docs"
+       }
+      ]
+     },
+     {
+      "id": "pb",
+      "name": "pb",
+      "folders": [],
+      "chats": [
+       {
+        "id": "i3",
+        "chatId": "c3",
+        "folderHash": null
+       },
+       {
+        "id": "i4",
+        "chatId": "c1",
+        "folderHash": null
+       }
+      ]
+     }
+    ]
+   },
+   "out": {
+    "error": "folder_unavailable"
+   }
+  },
+  {
+   "input": {
+    "chatIds": [
+     "c1",
+     "c2",
+     "c9"
+    ],
+    "location": {
+     "projectId": "pa",
+     "folderId": null
+    },
+    "mode": "add",
+    "index": [
+     {
+      "id": "pa",
+      "name": "pa",
+      "folders": [
+       {
+        "id": "docs",
+        "hash": "h-docs",
+        "parentHash": null,
+        "name": "docs"
+       },
+       {
+        "id": "sub",
+        "hash": "h-sub",
+        "parentHash": "h-docs",
+        "name": "sub"
+       }
+      ],
+      "chats": [
+       {
+        "id": "i1",
+        "chatId": "c1",
+        "folderHash": null
+       },
+       {
+        "id": "i2",
+        "chatId": "c2",
+        "folderHash": "h-docs"
+       }
+      ]
+     },
+     {
+      "id": "pb",
+      "name": "pb",
+      "folders": [],
+      "chats": [
+       {
+        "id": "i3",
+        "chatId": "c3",
+        "folderHash": null
+       },
+       {
+        "id": "i4",
+        "chatId": "c1",
+        "folderHash": null
+       }
+      ]
+     }
+    ]
+   },
+   "out": {
+    "steps": [
+     {
+      "kind": "move",
+      "itemId": "i2",
+      "chatId": "c2"
+     },
+     {
+      "kind": "add",
+      "chatId": "c9"
+     }
+    ]
+   }
+  },
+  {
+   "input": {
+    "chatIds": [
+     "c1",
+     "c2",
+     "c9"
+    ],
+    "location": {
+     "projectId": "pa",
+     "folderId": "docs"
+    },
+    "mode": "add",
+    "index": [
+     {
+      "id": "pa",
+      "name": "pa",
+      "folders": [
+       {
+        "id": "docs",
+        "hash": "h-docs",
+        "parentHash": null,
+        "name": "docs"
+       },
+       {
+        "id": "sub",
+        "hash": "h-sub",
+        "parentHash": "h-docs",
+        "name": "sub"
+       }
+      ],
+      "chats": [
+       {
+        "id": "i1",
+        "chatId": "c1",
+        "folderHash": null
+       },
+       {
+        "id": "i2",
+        "chatId": "c2",
+        "folderHash": "h-docs"
+       }
+      ]
+     },
+     {
+      "id": "pb",
+      "name": "pb",
+      "folders": [],
+      "chats": [
+       {
+        "id": "i3",
+        "chatId": "c3",
+        "folderHash": null
+       },
+       {
+        "id": "i4",
+        "chatId": "c1",
+        "folderHash": null
+       }
+      ]
+     }
+    ]
+   },
+   "out": {
+    "steps": [
+     {
+      "kind": "move",
+      "itemId": "i1",
+      "chatId": "c1"
+     },
+     {
+      "kind": "add",
+      "chatId": "c9"
+     }
+    ]
+   }
+  },
+  {
+   "input": {
+    "chatIds": [
+     "c1",
+     "c3"
+    ],
+    "location": {
+     "projectId": "pa",
+     "folderId": "sub"
+    },
+    "mode": "move",
+    "index": [
+     {
+      "id": "pa",
+      "name": "pa",
+      "folders": [
+       {
+        "id": "docs",
+        "hash": "h-docs",
+        "parentHash": null,
+        "name": "docs"
+       },
+       {
+        "id": "sub",
+        "hash": "h-sub",
+        "parentHash": "h-docs",
+        "name": "sub"
+       }
+      ],
+      "chats": [
+       {
+        "id": "i1",
+        "chatId": "c1",
+        "folderHash": null
+       },
+       {
+        "id": "i2",
+        "chatId": "c2",
+        "folderHash": "h-docs"
+       }
+      ]
+     },
+     {
+      "id": "pb",
+      "name": "pb",
+      "folders": [],
+      "chats": [
+       {
+        "id": "i3",
+        "chatId": "c3",
+        "folderHash": null
+       },
+       {
+        "id": "i4",
+        "chatId": "c1",
+        "folderHash": null
+       }
+      ]
+     }
+    ]
+   },
+   "out": {
+    "steps": [
+     {
+      "kind": "move",
+      "itemId": "i1",
+      "chatId": "c1"
+     },
+     {
+      "kind": "add",
+      "chatId": "c3"
+     },
+     {
+      "kind": "remove",
+      "sourceId": "pb",
+      "chatId": "c1"
+     },
+     {
+      "kind": "remove",
+      "sourceId": "pb",
+      "chatId": "c3"
+     }
+    ]
+   }
+  },
+  {
+   "input": {
+    "chatIds": [
+     "c1",
+     "c3",
+     "c9"
+    ],
+    "location": {
+     "projectId": "pb",
+     "folderId": null
+    },
+    "mode": "move",
+    "index": [
+     {
+      "id": "pa",
+      "name": "pa",
+      "folders": [
+       {
+        "id": "docs",
+        "hash": "h-docs",
+        "parentHash": null,
+        "name": "docs"
+       },
+       {
+        "id": "sub",
+        "hash": "h-sub",
+        "parentHash": "h-docs",
+        "name": "sub"
+       }
+      ],
+      "chats": [
+       {
+        "id": "i1",
+        "chatId": "c1",
+        "folderHash": null
+       },
+       {
+        "id": "i2",
+        "chatId": "c2",
+        "folderHash": "h-docs"
+       }
+      ]
+     },
+     {
+      "id": "pb",
+      "name": "pb",
+      "folders": [],
+      "chats": [
+       {
+        "id": "i3",
+        "chatId": "c3",
+        "folderHash": null
+       },
+       {
+        "id": "i4",
+        "chatId": "c1",
+        "folderHash": null
+       }
+      ]
+     },
+     {
+      "id": "pc",
+      "name": "pc",
+      "folders": [],
+      "chats": [
+       {
+        "id": "i5",
+        "chatId": "c9",
+        "folderHash": null
+       }
+      ]
+     }
+    ]
+   },
+   "out": {
+    "steps": [
+     {
+      "kind": "add",
+      "chatId": "c9"
+     },
+     {
+      "kind": "remove",
+      "sourceId": "pa",
+      "chatId": "c1"
+     },
+     {
+      "kind": "remove",
+      "sourceId": "pc",
+      "chatId": "c9"
+     }
+    ]
+   }
+  },
+  {
+   "input": {
+    "chatIds": [],
+    "location": {
+     "projectId": "pa",
+     "folderId": null
+    },
+    "mode": "move",
+    "index": [
+     {
+      "id": "pa",
+      "name": "pa",
+      "folders": [
+       {
+        "id": "docs",
+        "hash": "h-docs",
+        "parentHash": null,
+        "name": "docs"
+       },
+       {
+        "id": "sub",
+        "hash": "h-sub",
+        "parentHash": "h-docs",
+        "name": "sub"
+       }
+      ],
+      "chats": [
+       {
+        "id": "i1",
+        "chatId": "c1",
+        "folderHash": null
+       },
+       {
+        "id": "i2",
+        "chatId": "c2",
+        "folderHash": "h-docs"
+       }
+      ]
+     },
+     {
+      "id": "pb",
+      "name": "pb",
+      "folders": [],
+      "chats": [
+       {
+        "id": "i3",
+        "chatId": "c3",
+        "folderHash": null
+       },
+       {
+        "id": "i4",
+        "chatId": "c1",
+        "folderHash": null
+       }
+      ]
+     }
+    ]
+   },
+   "out": {
+    "steps": []
+   }
+  },
+  {
+   "input": {
+    "chatIds": [
+     "c2"
+    ],
+    "location": {
+     "projectId": "pa",
+     "folderId": "docs"
+    },
+    "mode": "move",
+    "index": [
+     {
+      "id": "pa",
+      "name": "pa",
+      "folders": [
+       {
+        "id": "docs",
+        "hash": "h-docs",
+        "parentHash": null,
+        "name": "docs"
+       },
+       {
+        "id": "sub",
+        "hash": "h-sub",
+        "parentHash": "h-docs",
+        "name": "sub"
+       }
+      ],
+      "chats": [
+       {
+        "id": "i1",
+        "chatId": "c1",
+        "folderHash": null
+       },
+       {
+        "id": "i2",
+        "chatId": "c2",
+        "folderHash": "h-docs"
+       }
+      ]
+     },
+     {
+      "id": "pb",
+      "name": "pb",
+      "folders": [],
+      "chats": [
+       {
+        "id": "i3",
+        "chatId": "c3",
+        "folderHash": null
+       },
+       {
+        "id": "i4",
+        "chatId": "c1",
+        "folderHash": null
+       }
+      ]
+     }
+    ]
+   },
+   "out": {
+    "steps": []
+   }
+  }
+ ],
  "sharedSubChat": [
   {
    "name": "minimal row",

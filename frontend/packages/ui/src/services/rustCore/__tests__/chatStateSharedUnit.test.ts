@@ -37,6 +37,8 @@ const binding: ChatListBinding = {
 	chat_state_unread_query: unusedView,
 	chat_state_unread_read_gate: unusedView,
 	chat_state_metadata_shared_sub_chat: unusedView,
+	chat_state_placement_organizable: unusedView,
+	chat_state_placement_plan: unusedView,
 	chat_state_sort: (input) => {
 		ops.push('sort');
 		const out = sortOut.get(key(JSON.parse(input)));

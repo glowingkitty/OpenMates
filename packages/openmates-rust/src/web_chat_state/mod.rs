@@ -15,6 +15,7 @@ mod args;
 pub mod indicators;
 pub mod list;
 pub mod metadata;
+pub mod placement;
 pub mod selection;
 pub mod unread;
 pub mod timeline;

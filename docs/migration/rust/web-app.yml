@@ -127,7 +127,7 @@ units:
   installer: frontend/packages/ui/src/services/rustCore/chatState/chatListUnit.ts
   what_moved: Serves the chat-list ordering and grouping policy (chatListProtocol.ts) on the unit port from the
     realm's single WASM binding. It holds no per-account state and does no IO, so it is a pre-bind namespace.
-  typescript_fallback: none declared (8 files)
+  typescript_fallback: none declared (9 files)
   unit_tests: [bookmarkHighlightOps.test.ts, chatStateAdapter.test.ts, chatStateHiddenForkOps.test.ts, chatStateSharedUnit.test.ts,
     transitionVectors.test.ts]
   e2e_specs: [web-rust-core-chatstate.spec.ts]

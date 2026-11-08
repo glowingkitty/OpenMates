@@ -14,6 +14,8 @@ export interface ChatViewDeps {
 	skipDraftActivation: (selected: string | null, persisted: string) => boolean;
 	readGateAllows: (facts: never) => boolean;
 	sharedSubChatToChat: (row: never, parent: never) => unknown;
+	chatsOrganizable: (input: never) => unknown;
+	planPlacement: (input: never) => unknown;
 	unread: {
 		apply: (event: UnreadEvent) => void;
 		counts: () => [string, number][];
@@ -27,7 +29,7 @@ export interface ChatViewDeps {
 const json = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 
 export function buildChatViewVectors(d: ChatViewDeps) {
-	const { SHARED_SUB_CHAT_CASES, UNREAD_CASES, draftActivationCases, globalSelectedCases, readGateCases, urlPlanCases } = d.cases;
+	const { ORGANIZABLE_CASES, PLACEMENT_CASES, SHARED_SUB_CHAT_CASES, UNREAD_CASES, draftActivationCases, globalSelectedCases, readGateCases, urlPlanCases } = d.cases;
 	const runUnread = (events: UnreadEvent[]) => {
 		d.unread.apply({ type: 'clear_all' });
 		const chats = new Set<string>();
@@ -49,6 +51,8 @@ export function buildChatViewVectors(d: ChatViewDeps) {
 		draftActivation: draftActivationCases().map((input) => ({ input, out: { skip: d.skipDraftActivation(input.selected, input.persisted) } })),
 		readGate: readGateCases().map((input) => ({ input, out: { proceed: d.readGateAllows(input as never) } })),
 		unread: UNREAD_CASES.map((c) => ({ name: c.name, events: c.events, steps: runUnread(c.events) })),
+		placementOrganizable: ORGANIZABLE_CASES.map((input) => ({ input, out: d.chatsOrganizable(input as never) })),
+		placementPlan: PLACEMENT_CASES.map((input) => ({ input, out: d.planPlacement(input as never) })),
 		sharedSubChat: SHARED_SUB_CHAT_CASES.map((c) => ({
 			name: c.name,
 			input: { row: c.row, parent: { chatId: c.parent.chat_id, ...('share_pii' in c.parent ? { sharePii: c.parent.share_pii } : {}), ...('share_highlights' in c.parent ? { shareHighlights: c.parent.share_highlights } : {}) } },

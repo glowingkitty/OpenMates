@@ -8,6 +8,7 @@ import type { UrlPlan, UrlPlanFacts } from '../../../stores/activeChatUrlPlan';
 import type { GlobalSelectedFacts, GlobalSelectedPlan } from '../../../components/chats/utils/chatSelectionPlan';
 import type { UnreadEvent, UnreadState, UnreadQuery } from '../../../stores/unreadReducer';
 import type { ReadGateFacts } from '../../readGate';
+import type { OrganizableInput, PlacementInput, PlacementPlan } from '../../../utils/chatProjectPlacement';
 
 export interface ChatViewOps {
 	selectionUrlPlan: { request: UrlPlanFacts; response: UrlPlan };
@@ -16,6 +17,8 @@ export interface ChatViewOps {
 	unreadReduce: { request: { state: UnreadState; event: UnreadEvent }; response: UnreadState };
 	unreadQuery: { request: { state: UnreadState; chat: string; persisted: number | null }; response: UnreadQuery };
 	unreadReadGate: { request: ReadGateFacts; response: { proceed: boolean } };
+	placementOrganizable: { request: OrganizableInput; response: { ok: boolean } };
+	placementPlan: { request: PlacementInput; response: PlacementPlan };
 	metadataSharedSubChat: { request: { row: Record<string, unknown>; parent: { chatId: string; sharePii?: boolean; shareHighlights?: boolean } }; response: Record<string, unknown> };
 }
 
@@ -28,6 +31,8 @@ export interface ChatViewBinding {
 	chat_state_unread_query(input: string): string;
 	chat_state_unread_read_gate(input: string): string;
 	chat_state_metadata_shared_sub_chat(input: string): string;
+	chat_state_placement_organizable(input: string): string;
+	chat_state_placement_plan(input: string): string;
 }
 
 /** Operation to binding export. */
@@ -39,4 +44,6 @@ export const CHAT_VIEW_OPS: Readonly<Record<keyof ChatViewOps & string, keyof Ch
 	unreadQuery: 'chat_state_unread_query',
 	unreadReadGate: 'chat_state_unread_read_gate',
 	metadataSharedSubChat: 'chat_state_metadata_shared_sub_chat',
+	placementOrganizable: 'chat_state_placement_organizable',
+	placementPlan: 'chat_state_placement_plan',
 });

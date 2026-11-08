@@ -6689,6 +6689,8 @@
             "web_chat_state.list.group_json",
             "web_chat_state.list.sort_json",
             "web_chat_state.metadata.shared_sub_chat_json",
+            "web_chat_state.placement.organizable_json",
+            "web_chat_state.placement.plan_json",
             "web_chat_state.selection.draft_activation_json",
             "web_chat_state.selection.global_selected_json",
             "web_chat_state.selection.url_plan_json",
