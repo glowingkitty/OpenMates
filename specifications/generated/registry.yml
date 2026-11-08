@@ -725,7 +725,7 @@ specifications:
     version: 1
     status: draft
     path: features/pdf-processing
-    fingerprint: 33796e42a6a990e7c103cb96ae4448c261db933bfaaed7ba1dfe6ff654a6b638
+    fingerprint: 130cda67ffe3d8c77e3fb48170598a4370bf657b8b55f9079830d0abe79cb4c3
     required_applies_to:
     - rest_api
     - cli
@@ -9322,6 +9322,18 @@ assertions:
     specification_id: feature.pdf-processing
     type: behavior
     fingerprint: c8982cdf3aeb6458d0f82c7821d9f787265df03425d80d51650aea33fc616649
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  pdf-processing.read.prefetch-relevant-pages:
+    specification: feature.pdf-processing@1
+    specification_id: feature.pdf-processing
+    type: behavior
+    fingerprint: 2b24b5cd92ae6551d1418159f0adfe5a242f2d2370a10b58db2cb6763ad6d129
     required_applies_to:
     - rest_api
     - cli

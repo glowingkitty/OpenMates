@@ -139,6 +139,16 @@ assertions:
       For a PDF whose full text fits within about 30,000 tokens, the assistant is told it can read the whole
       document and pdf.read returns all pages in one result instead of requiring page-by-page retrieval.
     depends_on: [examples.small_document]
+  - id: pdf-processing.read.prefetch-relevant-pages
+    type: behavior
+    must: >
+      When a message attaches a PDF and asks a question, the pages ranked best for that question (at most three
+      per PDF, about 6,000 tokens in total, none the decision model rated as barely relevant) are already in the
+      assistant's first prompt as quoted document data, with the same warnings on flagged pages as pdf.read. The
+      assistant can answer from them without calling pdf.search or pdf.read, and still can when they are not
+      enough. PDFs from earlier messages are not prefetched. If the pages cannot be prefetched the assistant
+      searches by itself; nothing is added to the prompt and the answer is never blocked.
+    depends_on: [examples.read_prefetch]
   - id: pdf-processing.billing.exact-price
     type: invariant
     must: >

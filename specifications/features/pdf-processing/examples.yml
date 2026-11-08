@@ -101,6 +101,16 @@ small_document:
     when: The assistant answers a question about it.
     then: It is told it can read the whole document and pdf.read returns all 6 pages in one result.
 
+read_prefetch:
+  - id: question-answered-from-prefetched-pages
+    given: A 44-page sewing machine manual is attached and the user asks for its maximum sewing speed.
+    when: The assistant starts its answer.
+    then: Pages 41 and 40, the best matches, are already in its first prompt, so it answers and cites page 41 without a search or read call.
+  - id: prefetch-skipped-for-older-pdf
+    given: The manual was attached three messages ago and the new message only says "and the weight?".
+    when: The assistant starts its answer.
+    then: No pages are added to the prompt and it searches the manual itself as before.
+
 pricing:
   - id: digital-report-price
     given: A 120-page digital report with no pages needing OCR.
