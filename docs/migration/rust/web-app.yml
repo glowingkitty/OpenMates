@@ -9,10 +9,10 @@ flag:
   default: 'off'
   flag_off_behavior: original TypeScript path, byte-identical build output (guarded in CI)
 summary:
-  total: 106311
-  done: 8153
+  total: 106360
+  done: 8162
   partial: 0
-  missing: 98158
+  missing: 98198
   percent: 7.7
 worker_namespaces_installed_not_progress:
   installed: 17
@@ -20,23 +20,23 @@ worker_namespaces_installed_not_progress:
   note: 'Worker namespaces installed (not progress): a namespace can be installed while most of its TS still runs.'
 port_ledger:
   unit: TS code lines
-  portable_files: 444
-  portable_code_lines: 106311
-  ported_code_lines: 8153
+  portable_files: 445
+  portable_code_lines: 106360
+  ported_code_lines: 8162
   percent: 7.7
   ported_by_proof:
-    e2e-flag-on: 4005
+    e2e-flag-on: 4014
     vectors: 3911
     none: 237
-  files_with_ported_code: 90
-  routing_functions: 347
+  files_with_ported_code: 91
+  routing_functions: 350
   functions_counted_at_decision_sites_only: 44
   non_portable:
     files: 55
     code_lines: 9558
   bridge_excluded:
-    files: 203
-    code_lines: 18148
+    files: 204
+    code_lines: 18197
   slices:
   - id: rust-web-auth-session-lane-behind-vite-openmates-cd767f7
     commit: cd767f7058
@@ -356,6 +356,12 @@ port_ledger:
     proof: e2e-flag-on
     functions: 0
     ts_code_lines: 0
+  - id: version-wins-plans-of-chat-updates-sync-inbound-slice-4
+    commit: null
+    date: '2026-11-08'
+    proof: e2e-flag-on
+    functions: 3
+    ts_code_lines: 9
 e2e_specs_in_repo: [web-rust-core-apps.spec.ts, web-rust-core-auth.spec.ts, web-rust-core-bench.spec.ts, web-rust-core-chat.spec.ts,
   web-rust-core-chatstate-fork-conversation.spec.ts, web-rust-core-chatstate-hidden-chats-flow.spec.ts, web-rust-core-chatstate-message-highlights.spec.ts,
   web-rust-core-chatstate.spec.ts, web-rust-core-composer.spec.ts, web-rust-core-continue-carousel.spec.ts, web-rust-core-crypto.spec.ts,

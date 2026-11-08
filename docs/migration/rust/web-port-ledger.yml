@@ -760,3 +760,16 @@ slices:
   e2e: [frontend/apps/web_app/tests/web-rust-core-continue-carousel.spec.ts]
   notes: Routes from ActiveChat.svelte (a component, outside the portable TS scope), so it adds 0 portable lines.
   ts: []
+- id: version-wins-plans-of-chat-updates-sync-inbound-slice-4
+  commit: null
+  date: '2026-11-08'
+  title: 'feat(rust): version-wins plans of chat updates on the shared Rust sync unit (sync-inbound slice 4)'
+  rust: [packages/openmates-rust/src/web_sync/versions.rs, packages/openmates-rust/src/web_sync/versions_tests.rs]
+  vectors: [frontend/packages/ui/src/services/__tests__/chatSyncVersionPlansVectors.test.ts, frontend/packages/ui/src/services/rustCore/__tests__/syncSharedUnit.test.ts]
+  e2e: [frontend/apps/web_app/tests/web-rust-core-sync.spec.ts]
+  notes: The handler decision sites (handleEncryptedChatMetadataImpl, handleDraftDeletedImpl, handleChatMessageConfirmedImpl,
+    Phase 1b and chat_content_batch_response messages_v) read VERSION_PLANS_IN_RUST from chatSyncVersionPlans.ts, not a bridge
+    module, so only the routing wrappers count.
+  ts:
+  - file: frontend/packages/ui/src/services/chatSyncVersionPlans.ts
+    functions: [draftDeletedPlanRust, messagesVersionRust, metadataVersionPlanRust]

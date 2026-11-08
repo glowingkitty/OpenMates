@@ -61,6 +61,9 @@ export interface SyncBinding extends RecoveryBinding {
 	sync_update_frame(input: string): string;
 	sync_draft_apply(input: string): string;
 	sync_message_prep(input: string): string;
+	sync_metadata_versions(input: string): string;
+	sync_draft_deleted(input: string): string;
+	sync_messages_version(input: string): string;
 }
 
 /** Operation to binding export. */

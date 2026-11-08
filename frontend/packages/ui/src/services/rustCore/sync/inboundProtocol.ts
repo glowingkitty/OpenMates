@@ -12,7 +12,13 @@ export const INBOUND_OPS = {
 	updateFrame: 'sync_update_frame',
 	draftApply: 'sync_draft_apply',
 	messagePrep: 'sync_message_prep',
+	metadataVersions: 'sync_metadata_versions',
+	draftDeleted: 'sync_draft_deleted',
+	messagesVersion: 'sync_messages_version',
 } as const;
+
+/** Version counters of a version-wins plan (web_sync/versions.rs); absent = `undefined`. */
+type VersionRecord = Partial<Record<'messages_v' | 'metadata_v' | 'title_v' | 'draft_v' | 'cleared_draft_v', unknown>>;
 
 /** Decision fields of one synced message (absent = `undefined`); `null` marks a failed JSON parse. */
 export interface MessagePrepEntry {
@@ -48,5 +54,17 @@ export interface InboundProtocol {
 	messagePrep: {
 		request: { mode: 'phased' | 'batch'; messages: (MessagePrepEntry | null)[] };
 		response: { plans: MessagePrepPlan[] };
+	};
+	metadataVersions: {
+		request: { local: VersionRecord; versions?: VersionRecord };
+		response: { acceptsRevision: boolean; apply: ('messages_v' | 'metadata_v' | 'title_v' | 'draft_v')[] };
+	};
+	draftDeleted: {
+		request: { local: VersionRecord; draftV?: number };
+		response: { ignore: 'versionless' | 'stale' | null; clearedDraftV: number | null };
+	};
+	messagesVersion: {
+		request: { local?: number | null; candidates: number[] };
+		response: { messagesV: number; advanced: boolean };
 	};
 }

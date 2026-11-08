@@ -3,7 +3,7 @@
 //! The browser keeps WebSocket IO, IndexedDB IO, chat-key unwrapping, stores
 //! and the DOM; this module makes the sync decisions with exactly the semantics
 //! of the web TypeScript it replaces (`chatSyncMerge.ts`, `chatSyncPhasedRetry.ts`,
-//! `chatSyncUpdatesLogic.ts`, the key-admission helpers of
+//! `chatSyncUpdatesLogic.ts`, `chatSyncVersionPlans.ts`, the key-admission helpers of
 //! `chatSyncServiceHandlersPhasedSync.ts` and `chatSyncMessageKeyGuard.ts`), proven
 //! by `ts_vectors.json` and `updates_ts_vectors.json`. Every entry point
 //! takes and returns JSON text so the wasm boundary carries one string per call.
@@ -17,6 +17,7 @@ pub mod message_keys;
 pub mod message_prep;
 pub mod phased;
 pub mod updates;
+pub mod versions;
 
 /// Stable error code of every malformed-input refusal (the unit's only code).
 pub const PROTOCOL: &str = "protocol";

@@ -8,6 +8,7 @@ import {
   prepareBatchMessagesForStorage,
   preparePhase1bMessages,
 } from "./chatSyncMessagePrep";
+import { messagesVersionRust, messagesVersionTs, VERSION_PLANS_IN_RUST } from "./chatSyncVersionPlans";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { decryptWithChatKey } from "./encryption/MessageEncryptor";
 
@@ -751,12 +752,11 @@ export async function handlePhase1bChatContentImpl(
       if (chatData.server_message_count > 0) {
         const existingChat = await chatDB.getChat(chatData.chat_id);
         if (existingChat) {
-          const updatedV = Math.max(
-            existingChat.messages_v || 0,
-            chatData.server_message_count,
-          );
-          if (updatedV > (existingChat.messages_v || 0)) {
-            await chatDB.addChat({ ...existingChat, messages_v: updatedV }, undefined, { isFromSync: true });
+          const advance = VERSION_PLANS_IN_RUST
+            ? await messagesVersionRust(existingChat.messages_v, [chatData.server_message_count])
+            : messagesVersionTs(existingChat.messages_v, [chatData.server_message_count]);
+          if (advance.advanced) {
+            await chatDB.addChat({ ...existingChat, messages_v: advance.messagesV }, undefined, { isFromSync: true });
           }
         }
       }
@@ -1106,11 +1106,9 @@ export async function handleChatContentBatchResponseImpl(
         const versionInfo = payload.versions_by_chat_id?.[chatId];
         if (versionInfo && versionInfo.messages_v !== undefined) {
           const localMessageCount = await chatDB.getMessageCountForChat(chatId);
-          const updatedMessagesV = Math.max(
-            chat.messages_v || 0,
-            versionInfo.messages_v,
-            localMessageCount,
-          );
+          const updatedMessagesV = (VERSION_PLANS_IN_RUST
+            ? await messagesVersionRust(chat.messages_v, [versionInfo.messages_v, localMessageCount])
+            : messagesVersionTs(chat.messages_v, [versionInfo.messages_v, localMessageCount])).messagesV;
           console.info(
             `[ChatSyncService:CoreSync] Batch response: Updating messages_v for chat ${chatId}: ` +
               `${chat.messages_v} → ${updatedMessagesV} (server_message_count: ${versionInfo.server_message_count})`,

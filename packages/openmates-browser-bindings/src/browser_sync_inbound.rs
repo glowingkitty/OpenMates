@@ -3,7 +3,25 @@
 //! spec: specifications/architecture/sync#sync.client.shared-rust-policy
 use wasm_bindgen::prelude::*;
 
-use openmates_sdk::web_sync::{inbound, message_prep};
+use openmates_sdk::web_sync::{inbound, message_prep, versions};
+
+/// Version plan of an `encrypted_chat_metadata` broadcast (`metadataVersionPlanTs`).
+#[wasm_bindgen]
+pub fn sync_metadata_versions(input_json: &str) -> Result<String, JsValue> {
+    versions::metadata_versions_json(input_json).map_err(|e| JsValue::from_str(&e))
+}
+
+/// Versionless / stale / cleared-version plan of a `draft_deleted` frame (`draftDeletedPlanTs`).
+#[wasm_bindgen]
+pub fn sync_draft_deleted(input_json: &str) -> Result<String, JsValue> {
+    versions::draft_deleted_json(input_json).map_err(|e| JsValue::from_str(&e))
+}
+
+/// Forward-only `messages_v` advance (`messagesVersionTs`).
+#[wasm_bindgen]
+pub fn sync_messages_version(input_json: &str) -> Result<String, JsValue> {
+    versions::messages_version_json(input_json).map_err(|e| JsValue::from_str(&e))
+}
 
 /// Storage preparation plan of synced messages (`chatSyncMessagePrep.ts`).
 #[wasm_bindgen]

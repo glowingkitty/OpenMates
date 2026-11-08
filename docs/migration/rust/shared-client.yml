@@ -183,20 +183,21 @@ shared_vector_files: [packages/openmates-rust/src/chat_state/bookmark_highlight_
   packages/openmates-rust/src/web_stream/ts_vectors.json, packages/openmates-rust/src/web_stream/ts_vectors_stream.json,
   packages/openmates-rust/src/web_sync/inbound_vectors.json, packages/openmates-rust/src/web_sync/message_prep_vectors.json,
   packages/openmates-rust/src/web_sync/ts_vectors.json, packages/openmates-rust/src/web_sync/updates_ts_vectors.json,
-  packages/openmates-rust/src/web_transfer_export_ts_vectors.json, packages/openmates-rust/src/web_transfer_ts_vectors.json,
-  packages/openmates-rust/src/web_transfer_zip_ts_vectors.json, packages/openmates-rust/src/web_work/billing_ts_vectors.json,
-  packages/openmates-rust/src/web_work/plans_ts_vectors.json, packages/openmates-rust/src/web_work/reminders_ts_vectors.json,
-  packages/openmates-rust/src/web_work/tasks_ts_vectors.json, packages/openmates-rust/src/web_work/teams_ts_vectors.json,
-  packages/openmates-rust/src/web_work/workflows_ts_vectors.json, packages/openmates-rust/src/web_ws/ts_vectors.json,
-  packages/openmates-rust/src/work/plans/team_plan_ts_vectors.json, packages/openmates-rust/src/ws_link/envelope_vectors.json,
-  packages/openmates-rust/tests/crypto_fixtures/chat_completion_recovery_vectors.json, packages/openmates-rust/tests/fixtures/remote_access_vectors.json]
+  packages/openmates-rust/src/web_sync/versions_vectors.json, packages/openmates-rust/src/web_transfer_export_ts_vectors.json,
+  packages/openmates-rust/src/web_transfer_ts_vectors.json, packages/openmates-rust/src/web_transfer_zip_ts_vectors.json,
+  packages/openmates-rust/src/web_work/billing_ts_vectors.json, packages/openmates-rust/src/web_work/plans_ts_vectors.json,
+  packages/openmates-rust/src/web_work/reminders_ts_vectors.json, packages/openmates-rust/src/web_work/tasks_ts_vectors.json,
+  packages/openmates-rust/src/web_work/teams_ts_vectors.json, packages/openmates-rust/src/web_work/workflows_ts_vectors.json,
+  packages/openmates-rust/src/web_ws/ts_vectors.json, packages/openmates-rust/src/work/plans/team_plan_ts_vectors.json,
+  packages/openmates-rust/src/ws_link/envelope_vectors.json, packages/openmates-rust/tests/crypto_fixtures/chat_completion_recovery_vectors.json,
+  packages/openmates-rust/tests/fixtures/remote_access_vectors.json]
 capabilities:
 - id: sdk.session-client
   domain: auth
   has_fixture: false
   rust:
     status: partial
-    api_symbols: 2560
+    api_symbols: 2563
     conformance: false
     gaps: 16
   npm:

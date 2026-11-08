@@ -13,7 +13,8 @@
  * page; the TS arm must never load the adapter. Records reload -> rendered chat
  * latency per arm (paired medians, approved not-noticeable budget, soft gate).
  * Finally a fresh second device signs in: the Rust unit plans the storage of
- * the synced encrypted messages (messagePrep) and the user message renders there.
+ * the synced encrypted messages (messagePrep) and their messages_v advance
+ * (messagesVersion), and the user message renders there.
  * Runs only in the CI lane that builds the Rust core package (web-rust-core-* specs).
  */
 export {};
@@ -107,6 +108,9 @@ test('phased sync decisions run on the shared Rust sync unit and existing chats 
 				.not.toBeEmpty({ timeout: 90000 });
 			await expect.poll(() => pageB.evaluate(() => (window as any).__openmatesRustSyncStats?.()?.ops?.messagePrep ?? 0),
 				{ message: 'synced message storage plan decided by the Rust sync unit on the fresh device', timeout: 45000 }).toBeGreaterThan(0);
+			// Version-wins plans: the synced content's forward-only messages_v advance is decided by the unit.
+			await expect.poll(() => pageB.evaluate(() => (window as any).__openmatesRustSyncStats?.()?.ops?.messagesVersion ?? 0),
+				{ message: 'messages_v advance of synced content decided by the Rust sync unit on the fresh device', timeout: 45000 }).toBeGreaterThan(0);
 			expect(await pageB.evaluate(() => (window as any).__openmatesRustSyncStats?.()?.failures ?? 0), 'no sync unit call failed on device B').toBe(0);
 			await screenshot(pageB, 'sync-device-b-rendered');
 		} finally {
