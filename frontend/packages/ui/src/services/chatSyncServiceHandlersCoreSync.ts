@@ -2,7 +2,12 @@
 import { messagePreview, RUST_UPDATES_POLICY, rustUpdatesPolicy } from "./chatSyncUpdatesPolicy";
 import type { ChatSynchronizationService } from "./chatSyncService";
 import { chatDB } from "./db";
-import { clearQueuedProcessingForMessage, hasQueuedProcessing } from "./queuedMessageLifecycle";
+import {
+  MESSAGE_PREP_IN_RUST,
+  messagePrepOps,
+  prepareBatchMessagesForStorage,
+  preparePhase1bMessages,
+} from "./chatSyncMessagePrep";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { decryptWithChatKey } from "./encryption/MessageEncryptor";
 
@@ -42,7 +47,6 @@ import type {
   OfflineSyncCompletePayload,
   Chat,
   Message,
-  MessageStatus,
 } from "../types/chat";
 import type { EmbedType } from "../message_parsing/types";
 
@@ -722,39 +726,9 @@ export async function handlePhase1bChatContentImpl(
 
       if (!chatData.messages || chatData.messages.length === 0) continue;
 
-      const preparedMessages: Message[] = [];
-      for (const msgData of chatData.messages) {
-        let msg = msgData;
-        if (typeof msgData === "string") {
-          try {
-            msg = JSON.parse(msgData);
-          } catch {
-            continue;
-          }
-        }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const msgObj = msg as any;
-        if (!msgObj.message_id && msgObj.id) {
-          msgObj.message_id = msgObj.id;
-        }
-        if (!msgObj.message_id) continue;
-        if (!msgObj.chat_id) msgObj.chat_id = chatData.chat_id;
-        if (msgObj.queue_dispatch_status === "paused") {
-          clearQueuedProcessingForMessage(chatData.chat_id, msgObj.message_id);
-          msgObj.status = "delivered";
-          msgObj.queue_mode = undefined;
-        } else if (hasQueuedProcessing(chatData.chat_id, msgObj.message_id) ||
-            msgObj.queue_dispatch_status === "processing") {
-          msgObj.status = "delivered";
-          msgObj.queue_mode = undefined;
-          msgObj.queue_dispatch_status = "processing";
-        } else if (msgObj.queue_dispatch_status === "queued" &&
-            (msgObj.queue_dispatch_mode === "follow_up" || msgObj.queue_dispatch_mode === "steer")) {
-          msgObj.status = "queued";
-          msgObj.queue_mode = msgObj.queue_dispatch_mode;
-        } else if (!msgObj.status) msgObj.status = "delivered";
-        preparedMessages.push(msgObj as Message);
-      }
+      const preparedMessages: Message[] = MESSAGE_PREP_IN_RUST
+        ? await (await messagePrepOps()).preparePhase1bMessages(chatData.messages, chatData.chat_id)
+        : preparePhase1bMessages(chatData.messages, chatData.chat_id);
 
       if (preparedMessages.length > 0) {
         const messageFilter = await filterPersistableSyncedMessagesWithSkipped(
@@ -1096,93 +1070,9 @@ export async function handleChatContentBatchResponseImpl(
 
     try {
       // Parse messages — server sends JSON-serialized strings from sync cache/Directus
-      // Same pattern as prepareMessagesForStorage in phased sync
-      const preparedMessages: Message[] = [];
-      for (const messageData of rawMessages) {
-        let message: Record<string, unknown>;
-
-        // Parse JSON string if needed (server sends JSON strings from sync cache)
-        if (typeof messageData === "string") {
-          try {
-            message = JSON.parse(messageData);
-          } catch (e) {
-            console.error(
-              `[ChatSyncService:CoreSync] Failed to parse message JSON for chat ${chatId}:`,
-              e,
-            );
-            continue;
-          }
-        } else {
-          message = messageData as unknown as Record<string, unknown>;
-        }
-
-        // Normalize message_id: use 'id' field as fallback (Directus UUID)
-        const messageId = (message.message_id ||
-          message.client_message_id ||
-          message.id) as string | undefined;
-        if (!messageId) {
-          console.error(
-            `[ChatSyncService:CoreSync] Message missing message_id after parsing, skipping:`,
-            message,
-          );
-          continue;
-        }
-
-        if (message.queue_dispatch_status === "paused") {
-          clearQueuedProcessingForMessage(chatId, messageId);
-        }
-        const hasProcessingFence = message.queue_dispatch_status !== "paused" &&
-          hasQueuedProcessing(chatId, messageId);
-
-        const messageToSave: Message = {
-          message_id: messageId,
-          chat_id: (message.chat_id as string) || chatId,
-          role: (message.role as Message["role"]) || "user",
-          hashed_user_id: message.hashed_user_id as string | undefined,
-          created_at: message.created_at as number,
-          status: hasProcessingFence ||
-            message.queue_dispatch_status === "processing" || message.queue_dispatch_status === "paused"
-            ? "delivered"
-            : message.queue_dispatch_status === "queued" &&
-            (message.queue_dispatch_mode === "follow_up" || message.queue_dispatch_mode === "steer")
-              ? "queued"
-                : (message.status as MessageStatus) || "delivered",
-          client_message_id: message.client_message_id as string | undefined,
-          user_message_id: message.user_message_id as string | undefined,
-          queue_revision: message.queue_revision as number | undefined,
-          queue_mode: !hasProcessingFence && message.queue_dispatch_status === "queued" &&
-            (message.queue_dispatch_mode === "follow_up" || message.queue_dispatch_mode === "steer")
-              ? message.queue_dispatch_mode : undefined,
-          queue_dispatch_status: hasProcessingFence
-            ? "processing" : message.queue_dispatch_status as "queued" | "processing" | "paused" | null | undefined,
-          queue_dispatch_mode: message.queue_dispatch_mode as "follow_up" | "steer" | null | undefined,
-          queue_dispatch_task_id: message.queue_dispatch_task_id as string | null | undefined,
-          // Encrypted fields (zero-knowledge architecture)
-          encrypted_content: message.encrypted_content as string,
-          encrypted_sender_name: message.encrypted_sender_name as
-            | string
-            | undefined,
-          encrypted_category: message.encrypted_category as string | undefined,
-          encrypted_model_name: message.encrypted_model_name as
-            | string
-            | undefined,
-          encrypted_thinking_content: message.encrypted_thinking_content as
-            | string
-            | undefined,
-          encrypted_thinking_signature: message.encrypted_thinking_signature as
-            | string
-            | undefined,
-          has_thinking: message.has_thinking as boolean | undefined,
-          thinking_token_count: message.thinking_token_count as
-            | number
-            | undefined,
-          // PII mappings for client-side restoration of anonymized data
-          encrypted_pii_mappings: message.encrypted_pii_mappings as
-            | string
-            | undefined,
-        };
-        preparedMessages.push(messageToSave);
-      }
+      const preparedMessages: Message[] = MESSAGE_PREP_IN_RUST
+        ? await (await messagePrepOps()).prepareBatchMessagesForStorage(rawMessages, chatId)
+        : prepareBatchMessagesForStorage(rawMessages, chatId);
 
       if (preparedMessages.length === 0) {
         console.debug(

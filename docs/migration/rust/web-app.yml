@@ -215,7 +215,7 @@ units:
   installer: frontend/packages/ui/src/services/rustCore/sync/syncUnit.ts
   what_moved: Serves the chat-sync decision policy (syncProtocol.ts) on the unit port from the realm's single WASM
     binding. It holds no per-account state and does no IO, so it is a pre-bind namespace.
-  typescript_fallback: none declared (4 files)
+  typescript_fallback: none declared (5 files)
   unit_tests: [syncSharedUnit.test.ts]
   e2e_specs: [web-rust-core-sync.spec.ts]
   vectors: [packages/openmates-rust/src/web_sync/ts_vectors.json]

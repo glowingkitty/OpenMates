@@ -12,6 +12,8 @@
  * through the unit with zero failures, one shared Worker and no WASM on the
  * page; the TS arm must never load the adapter. Records reload -> rendered chat
  * latency per arm (paired medians, approved not-noticeable budget, soft gate).
+ * Finally a fresh second device signs in: the Rust unit plans the storage of
+ * the synced encrypted messages (messagePrep) and the user message renders there.
  * Runs only in the CI lane that builds the Rust core package (web-rust-core-* specs).
  */
 export {};
@@ -37,7 +39,7 @@ async function reloadAndRender(page: any, chatId: string): Promise<number> {
 }
 
 // contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary,chats.persistence.client-encrypted,sdk.web.before-after-performance
-test('phased sync decisions run on the shared Rust sync unit and existing chats still sync and decrypt', async ({ page }: { page: any }, testInfo: any) => {
+test('phased sync decisions run on the shared Rust sync unit and existing chats still sync and decrypt', async ({ page, browser }: { page: any; browser: any }, testInfo: any) => {
 	test.slow();
 	test.setTimeout(420000);
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
@@ -89,6 +91,27 @@ test('phased sync decisions run on the shared Rust sync unit and existing chats 
 			samples[path].push({ renderMs, stats, ...instances });
 		}
 		expect(syncErrors, 'no chat-sync errors in either arm').toEqual([]);
+
+		// Synced-message storage plans: a fresh device (empty IndexedDB) receives the chat's encrypted
+		// messages through startup/on-demand sync; the Rust unit plans their normalization and the
+		// chat still renders decrypted on that device.
+		// Only the user message is asserted: on a fresh device the mocked assistant reply is not reliably
+		// restored in either arm (the same reload-render gap this spec's TS arm hits on device A).
+		const deviceB = await browser.newContext();
+		const pageB = await deviceB.newPage();
+		try {
+			await pageB.goto(getE2EDebugUrl('/'));
+			await loginToTestAccount(pageB, log, screenshot);
+			await pageB.goto(getE2EDebugUrl(`/#chat-id=${chatId}`));
+			await expect(pageB.getByTestId('message-user').first().getByTestId('message-content'), 'device B renders the synced user message')
+				.not.toBeEmpty({ timeout: 90000 });
+			await expect.poll(() => pageB.evaluate(() => (window as any).__openmatesRustSyncStats?.()?.ops?.messagePrep ?? 0),
+				{ message: 'synced message storage plan decided by the Rust sync unit on the fresh device', timeout: 45000 }).toBeGreaterThan(0);
+			expect(await pageB.evaluate(() => (window as any).__openmatesRustSyncStats?.()?.failures ?? 0), 'no sync unit call failed on device B').toBe(0);
+			await screenshot(pageB, 'sync-device-b-rendered');
+		} finally {
+			await deviceB.close();
+		}
 	} finally {
 		await page.evaluate((key: string) => localStorage.removeItem(key), SYNC_OPT_OUT_KEY);
 		await deleteActiveChat(page, log, screenshot, 'sync-cleanup');

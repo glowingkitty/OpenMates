@@ -19,7 +19,12 @@ import type {
 import type { EmbedKeyEntry } from "./embedStore";
 import type { EmbedType } from "../message_parsing/types";
 import { chatDB } from "./db";
-import { clearQueuedProcessingForMessage, hasQueuedProcessing } from "./queuedMessageLifecycle";
+import {
+  MESSAGE_PREP_IN_RUST,
+  messagePrepOps,
+  prepareBackgroundMessages,
+  prepareMessagesForStorage,
+} from "./chatSyncMessagePrep";
 import { userDB } from "./userDB";
 import { chatListCache } from "./chatListCache";
 import { chatMetadataCache } from "./chatMetadataCache";
@@ -603,26 +608,9 @@ export async function handleBackgroundMessageSyncImpl(
       if (!chatData.messages || chatData.messages.length === 0) continue;
 
       // Parse JSON strings and normalize message_id
-      const preparedMessages: Message[] = [];
-      for (const msgData of chatData.messages) {
-        let msg = msgData;
-        if (typeof msgData === "string") {
-          try {
-            msg = JSON.parse(msgData);
-          } catch {
-            continue;
-          }
-        }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const msgObj = msg as any;
-        if (!msgObj.message_id && msgObj.id) {
-          msgObj.message_id = msgObj.id;
-        }
-        if (!msgObj.message_id) continue;
-        if (!msgObj.chat_id) msgObj.chat_id = chatData.chat_id;
-        if (!msgObj.status) msgObj.status = "delivered";
-        preparedMessages.push(msgObj as Message);
-      }
+      const preparedMessages: Message[] = MESSAGE_PREP_IN_RUST
+        ? await (await messagePrepOps()).prepareBackgroundMessages(chatData.messages, chatData.chat_id)
+        : prepareBackgroundMessages(chatData.messages, chatData.chat_id);
 
       if (preparedMessages.length > 0) {
         const messageFilter = await filterPersistableSyncedMessagesWithSkipped(
@@ -994,7 +982,9 @@ async function storeRecentChats(
       }
 
       // Prepare all messages before saving
-      const preparedMessages = prepareMessagesForStorage(
+      const preparedMessages = MESSAGE_PREP_IN_RUST
+        ? await (await messagePrepOps()).prepareMessagesForStorage(messages, chatId, "Phase 2")
+        : prepareMessagesForStorage(
         messages,
         chatId,
         "Phase 2",
@@ -1260,7 +1250,9 @@ async function storeAllChats(
 
       let persistableMessages: Message[] = [];
       if (shouldSyncMessages && messages && messages.length > 0) {
-        const preparedMessages = prepareMessagesForStorage(
+        const preparedMessages = MESSAGE_PREP_IN_RUST
+          ? await (await messagePrepOps()).prepareMessagesForStorage(messages, chatId, "Phase 3")
+          : prepareMessagesForStorage(
           messages,
           chatId,
           "Phase 3",
@@ -1304,83 +1296,8 @@ async function storeAllChats(
   }
 }
 
-/**
- * Prepare messages for storage - parses JSON strings and validates required fields
- */
-export function prepareMessagesForStorage(
-  messages: Message[],
-  chatId: string,
-  phaseName: string,
-): Message[] {
-  const preparedMessages: Message[] = [];
-
-  if (!messages || !Array.isArray(messages)) {
-    return preparedMessages;
-  }
-
-  for (const messageData of messages) {
-    let message = messageData;
-
-    // Parse JSON string if needed
-    if (typeof messageData === "string") {
-      try {
-        message = JSON.parse(messageData);
-        const messageId =
-          message.message_id || (message as Message & { id?: string }).id;
-        console.debug(
-          `[ChatSyncService] ${phaseName} - Parsed message JSON string for message: ${messageId}`,
-        );
-      } catch (e) {
-        console.error(
-          `[ChatSyncService] ${phaseName} - Failed to parse message JSON for chat ${chatId}:`,
-          e,
-        );
-        continue;
-      }
-    }
-
-    // Use 'id' field as message_id if message_id is missing
-    if (!message.message_id && (message as Message & { id?: string }).id) {
-      message.message_id = (message as Message & { id?: string }).id;
-    }
-
-    // Skip messages without message_id
-    if (!message.message_id) {
-      console.error(
-        `[ChatSyncService] ${phaseName} - Message missing message_id after parsing, skipping:`,
-        message,
-      );
-      continue;
-    }
-
-    // Ensure chat_id is set
-    if (!message.chat_id) {
-      message.chat_id = chatId;
-    }
-
-    // Directus queue receipt is authoritative after reconnect or Redis loss.
-    if (message.queue_dispatch_status === "paused") {
-      clearQueuedProcessingForMessage(message.chat_id, message.message_id);
-      message.status = "delivered";
-      message.queue_mode = undefined;
-    } else if (hasQueuedProcessing(message.chat_id, message.message_id) ||
-        message.queue_dispatch_status === "processing") {
-      message.status = "delivered";
-      message.queue_mode = undefined;
-      message.queue_dispatch_status = "processing";
-    } else if (message.queue_dispatch_status === "queued" &&
-        (message.queue_dispatch_mode === "follow_up" || message.queue_dispatch_mode === "steer")) {
-      message.status = "queued";
-      message.queue_mode = message.queue_dispatch_mode;
-    } else if (!message.status) {
-      message.status = "delivered";
-    }
-
-    preparedMessages.push(message);
-  }
-
-  return preparedMessages;
-}
+/** Moved to chatSyncMessagePrep.ts (Rust twin web_sync/message_prep.rs); kept exported here for callers. */
+export { prepareMessagesForStorage };
 
 /**
  * Store embeds from a flat array (new format from backend with cross-phase deduplication)

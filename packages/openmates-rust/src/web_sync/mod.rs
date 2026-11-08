@@ -14,6 +14,7 @@ use serde_json::Value;
 pub mod inbound;
 pub mod merge;
 pub mod message_keys;
+pub mod message_prep;
 pub mod phased;
 pub mod updates;
 

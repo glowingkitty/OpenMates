@@ -3,7 +3,13 @@
 //! spec: specifications/architecture/sync#sync.client.shared-rust-policy
 use wasm_bindgen::prelude::*;
 
-use openmates_sdk::web_sync::inbound;
+use openmates_sdk::web_sync::{inbound, message_prep};
+
+/// Storage preparation plan of synced messages (`chatSyncMessagePrep.ts`).
+#[wasm_bindgen]
+pub fn sync_message_prep(input_json: &str) -> Result<String, JsValue> {
+    message_prep::message_prep_json(input_json).map_err(|e| JsValue::from_str(&e))
+}
 
 /// Draft-only shell clearing decision (`clearDraftOnlyShellForMessages`).
 #[wasm_bindgen]
