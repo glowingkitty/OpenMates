@@ -29,7 +29,8 @@ export type DecryptConnectedAccountField = (encryptedValue: string, fieldName: s
 
 const MALFORMED = 'Connected account data is malformed';
 
-function failure(outcome: Pick<ConnectedAccountsFailure, 'code'> & { message?: string }): Error {
+/** The TypeScript error a Rust failure outcome stands for. */
+export function failure(outcome: Pick<ConnectedAccountsFailure, 'code'> & { message?: string }): Error {
 	if (outcome.code === 'malformed') return new TypeError(MALFORMED);
 	if (outcome.code === 'missing_refs') return new Error('Token broker response did not include refs');
 	return new Error(outcome.message);

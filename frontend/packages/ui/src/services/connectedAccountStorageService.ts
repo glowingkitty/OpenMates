@@ -13,8 +13,8 @@ import type { ConnectedAccountSendContext } from './connectedAccountTokenBrokerS
 import { assertNoConnectedAccountSecretLeak } from './connectedAccountTokenBrokerService';
 
 // Flag switch: default builds run the TypeScript logic below unchanged; with
-// VITE_OPENMATES_RUST_CORE=1 the shared Rust Worker `connectedAccounts` unit
-// decides (no TypeScript fallback). The const-false branch is dead-code
+// VITE_OPENMATES_RUST_CORE=1 the shared Rust Worker decides through the
+// connected-account ops of its `settings` unit (no TypeScript fallback). The const-false branch is dead-code
 // eliminated from flag-off builds, so no Rust adapter ships there.
 const RUST_CONNECTED_ACCOUNTS_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === '1';
 type RustConnectedAccounts = typeof import('./rustCore/connectedAccounts/rustConnectedAccounts');

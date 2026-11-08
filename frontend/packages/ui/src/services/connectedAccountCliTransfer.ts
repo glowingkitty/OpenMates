@@ -11,6 +11,16 @@
 import { decryptWithMasterKey } from './cryptoService';
 import type { EncryptedConnectedAccountRow } from './connectedAccountStorageService';
 
+// Flag switch: default builds run the TypeScript logic below unchanged; with
+// VITE_OPENMATES_RUST_CORE=1 the shared Rust Worker decides the payload plan and
+// command (no TypeScript fallback). The const-false branch is dead-code
+// eliminated from flag-off builds, so no Rust adapter ships there.
+const RUST_CONNECTED_ACCOUNTS_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === '1';
+type RustConnectedAccountWrites = typeof import('./rustCore/connectedAccounts/rustConnectedAccountWrites');
+function rustConnectedAccountWrites(): Promise<RustConnectedAccountWrites> | null {
+	return RUST_CONNECTED_ACCOUNTS_BUILD ? import('./rustCore/connectedAccounts/rustConnectedAccountWrites') : null;
+}
+
 const TRANSFER_PREFIX = 'OMCA1.';
 const KDF_ITERATIONS = 100_000;
 const SALT_BYTES = 16;
@@ -59,6 +69,10 @@ export async function buildConnectedAccountCliImportCommand(params: {
 	row: EncryptedConnectedAccountRow;
 	passcode: string;
 }): Promise<string> {
+	const rust = rustConnectedAccountWrites();
+	if (rust) {
+		return (await rust).rustBuildConnectedAccountCliImportCommand(params, decryptConnectedAccountValue, encryptTransferPayload);
+	}
 	const payload = await buildTransferPayload(params.row);
 	const encryptedPayload = await encryptTransferPayload(payload, params.passcode);
 	if (encryptedPayload.includes('refresh_token')) {

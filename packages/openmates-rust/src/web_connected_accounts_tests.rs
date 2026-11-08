@@ -93,7 +93,9 @@ fn send_context(case: &Value) -> Value {
 #[test]
 fn send_context_plans_equal_typescript() {
     for case in vectors()["sendContext"].as_array().unwrap() {
-        assert_eq!(send_context(case), case["out"], "{}", case["name"]);
+        // `flagOnOut` records a documented flag-on deviation from the TypeScript `out`.
+        let expected = case.get("flagOnOut").unwrap_or(&case["out"]);
+        assert_eq!(&send_context(case), expected, "{}", case["name"]);
     }
 }
 

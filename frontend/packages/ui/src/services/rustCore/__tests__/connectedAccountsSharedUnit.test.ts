@@ -17,6 +17,10 @@ import {
 import type { ConnectedAccountsBinding } from '../connectedAccounts/connectedAccountsProtocol';
 import type { SettingsBinding } from '../settings/settingsProtocol';
 import type { EncryptedConnectedAccountRow } from '../../connectedAccountStorageService';
+import {
+	rustBuildConnectedAccountCliImportCommand,
+	rustBuildEncryptedConnectedAccountRow
+} from '../connectedAccounts/rustConnectedAccountWrites';
 
 const calls: string[] = [];
 let next: Record<string, unknown> = {};
@@ -37,7 +41,11 @@ const binding: SettingsBinding & ConnectedAccountsBinding = {
 	connected_accounts_select_send_rows: (_rows, ids) => (calls.push(`select ${ids}`), JSON.stringify(next.select)),
 	connected_accounts_send_context_plan: (input) => (calls.push(`plan ${input}`), JSON.stringify(next.plan)),
 	connected_accounts_summary_plan: (input) => (calls.push(`summary ${input}`), JSON.stringify(next.summary)),
-	connected_accounts_merge_token_refs: (inputs) => (calls.push(`merge ${inputs}`), JSON.stringify(next.merge))
+	connected_accounts_merge_token_refs: (inputs) => (calls.push(`merge ${inputs}`), JSON.stringify(next.merge)),
+	connected_accounts_oauth_row_plan: (input) => (calls.push(`oauth ${input}`), JSON.stringify(next.oauth)),
+	connected_accounts_storage_guard: (serialized) => (calls.push(`guard ${serialized}`), JSON.stringify(next.guard ?? { kind: 'ok' })),
+	connected_accounts_transfer_plan: (input) => (calls.push(`transfer ${input}`), JSON.stringify(next.transfer)),
+	connected_accounts_transfer_command: (payload) => (calls.push(`command ${payload}`), JSON.stringify(next.command))
 };
 
 function fakeWorker() {
@@ -150,5 +158,69 @@ describe('connected-account ops on the shared settings unit', () => {
 		expect(refs[0].turn_token_ref).toBe('ttr');
 		expect(calls[0]).not.toContain('placeholder-secret');
 		expect(calls[0]).not.toContain('refresh_token_envelope');
+	});
+
+	// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary
+	it('runs the OAuth row steps in order and fills the bundle the Worker never sees', async () => {
+		next.oauth = {
+			kind: 'ok',
+			malformed: false,
+			steps: [
+				{ field: 'encrypted_provider_type', encrypt: 'p', failure: 'f:provider_id' },
+				{ field: 'provider_type_hash', hash: 'p' },
+				{ field: 'encrypted_refresh_token_bundle', bundle: true, failure: 'f:refresh_token_bundle' }
+			]
+		};
+		const encrypted: string[] = [];
+		const row = await rustBuildEncryptedConnectedAccountRow(
+			{
+				connectedAccountId: 'acct',
+				handoff: { provider_id: 'p', refresh_token_bundle: { refresh_token: 'placeholder-secret', scopes: ['s'] }, account_hint: {}, expires_at: 1 }
+			},
+			async (value) => (encrypted.push(value), `enc:${value}`),
+			async (value) => `sha:${value}`
+		);
+		expect(Object.keys(row)).toEqual(['id', 'encrypted_provider_type', 'provider_type_hash', 'encrypted_refresh_token_bundle']);
+		expect(encrypted).toEqual(['p', '{"refresh_token":"placeholder-secret","scopes":["s"]}']);
+		expect(calls[0]).toContain('"bundleScopes":"[\\"s\\"]"');
+		expect(calls[0]).not.toContain('placeholder-secret');
+		// The guard sees only ciphertext (here the mock's `enc:` text) and the plan's fields.
+		expect(calls[1].startsWith('guard {"id":"acct"')).toBe(true);
+		next.oauth = { kind: 'ok', malformed: false, steps: [{ field: 'encrypted_provider_type', encrypt: 'p', failure: 'f:provider_id' }] };
+		await expect(
+			rustBuildEncryptedConnectedAccountRow(
+				{ connectedAccountId: 'acct', handoff: { provider_id: 'p', refresh_token_bundle: {}, account_hint: {}, expires_at: 1 } },
+				async () => null,
+				async (value) => value
+			)
+		).rejects.toThrow('f:provider_id');
+	});
+
+	// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary
+	it('assembles the CLI transfer payload in TypeScript key order without sending the bundle', async () => {
+		next.transfer = {
+			kind: 'ok',
+			app_id: { from: 'provider' },
+			label: 'row',
+			account_ref: false,
+			capabilities: ['read'],
+			runtime_modes: [['read', 'allow_automatically']]
+		};
+		next.command = { kind: 'ok', command: 'openmates connected-accounts import --payload "OMCA1.x"' };
+		let seen: Record<string, unknown> = {};
+		const command = await rustBuildConnectedAccountCliImportCommand(
+			{ row: { ...row('a'), encrypted_refresh_token_bundle: 'enc:{"refresh_token":"placeholder-secret"}' }, passcode: 'pc' },
+			decrypt,
+			async (payload) => ((seen = payload as unknown as Record<string, unknown>), 'OMCA1.x')
+		);
+		expect(command).toBe('openmates connected-accounts import --payload "OMCA1.x"');
+		expect(Object.keys(seen)).toEqual(['version', 'provider_id', 'app_id', 'label', 'capabilities', 'runtime_modes', 'refresh_token_bundle', 'created_at']);
+		expect(seen.app_id).toBe('p-a');
+		expect(seen.refresh_token_bundle).toEqual({ refresh_token: 'placeholder-secret' });
+		expect(calls.join('\n')).not.toContain('placeholder-secret');
+		expect(calls[0]).toContain('"refreshTokenPresent":true');
+		next.transfer = { kind: 'error', code: 'missing_token', message: 'Connected account refresh token bundle is missing a refresh token' };
+		await expect(rustBuildConnectedAccountCliImportCommand({ row: row('a'), passcode: 'pc' }, decrypt, async () => 'unused'))
+			.rejects.toThrow('missing a refresh token');
 	});
 });

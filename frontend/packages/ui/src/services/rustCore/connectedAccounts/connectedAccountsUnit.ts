@@ -59,6 +59,26 @@ export function createConnectedAccountsHandlers(value: unknown): UnitHandlers<Co
 			const body = text(p.payload);
 			const exports = binding();
 			return call(() => exports.connected_accounts_merge_token_refs(inputs, body));
+		},
+		oauthRowPlan: (payload) => {
+			const input = text(record(payload).input);
+			const exports = binding();
+			return call(() => exports.connected_accounts_oauth_row_plan(input));
+		},
+		storageGuard: (payload) => {
+			const serialized = text(record(payload).serialized);
+			const exports = binding();
+			return call(() => exports.connected_accounts_storage_guard(serialized));
+		},
+		transferPlan: (payload) => {
+			const input = text(record(payload).input);
+			const exports = binding();
+			return call(() => exports.connected_accounts_transfer_plan(input));
+		},
+		transferCommand: (payload) => {
+			const encrypted = text(record(payload).payload);
+			const exports = binding();
+			return call(() => exports.connected_accounts_transfer_command(encrypted));
 		}
 	};
 }

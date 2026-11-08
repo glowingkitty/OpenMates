@@ -9,7 +9,7 @@
 import { getApiUrl } from '../config/api';
 
 // Flag switch (see connectedAccountStorageService.ts): VITE_OPENMATES_RUST_CORE=1
-// merges broker refs in the shared Rust Worker `connectedAccounts` unit; the
+// merges broker refs in the shared Rust Worker (`settings` unit ops); the
 // const-false branch is dead-code eliminated from default builds.
 const RUST_CONNECTED_ACCOUNTS_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === '1';
 type RustConnectedAccounts = typeof import('./rustCore/connectedAccounts/rustConnectedAccounts');

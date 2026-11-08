@@ -1,0 +1,128 @@
+{
+  "_conventions": "Mocked crypto: encryptWithMasterKey(v) is 'enc:' + v (null when v contains FAILENC), computeSHA256(v) is 'sha:' + v, decryptWithMasterKey('enc:<plain>') is <plain> (anything else fails). Transfer payloads use created_at 2026-01-02T03:04:05.000Z. Placeholders only; no real tokens.",
+  "oauthRows": [
+    {
+      "name": "google calendar handoff with hint label, ref, provider account and scopes",
+      "params": {"connectedAccountId": "acct-1", "handoff": {"provider_id": "google_calendar", "refresh_token_bundle": {"refresh_token": "placeholder-refresh-1", "scopes": ["b"]}, "account_hint": {"label": "Work", "account_ref": "ref-1", "provider_account_id": "pa-1", "capabilities": ["read", "write"], "scopes": ["s1"]}, "expires_at": 1}},
+      "out": {"kind": "ok",
+        "keys": ["id", "encrypted_provider_type", "provider_type_hash", "encrypted_account_label", "encrypted_refresh_token_bundle", "encrypted_capabilities", "encrypted_app_permissions", "encrypted_account_directory_hint", "provider_account_id_hash", "encrypted_provider_account_display"],
+        "row": {
+          "id": "acct-1",
+          "encrypted_provider_type": "enc:google_calendar",
+          "provider_type_hash": "sha:google_calendar",
+          "encrypted_account_label": "enc:Work",
+          "encrypted_refresh_token_bundle": "enc:{\"refresh_token\":\"placeholder-refresh-1\",\"scopes\":[\"b\"]}",
+          "encrypted_capabilities": "enc:[\"read\",\"write\"]",
+          "encrypted_app_permissions": "enc:{\"app_id\":\"calendar\",\"allowed_actions\":[\"read\",\"write\",\"update\"],\"scopes\":[\"s1\"]}",
+          "encrypted_account_directory_hint": "enc:{\"account_ref\":\"ref-1\",\"label\":\"Work\",\"capabilities\":[\"read\",\"write\"],\"runtime_modes\":{\"read\":\"allow_automatically\",\"write\":\"always_ask\",\"update\":\"always_ask\"}}",
+          "provider_account_id_hash": "sha:pa-1",
+          "encrypted_provider_account_display": "enc:pa-1"
+        }}
+    },
+    {
+      "name": "unknown provider: default label, non-array capabilities read, bundle scopes fallback",
+      "params": {"connectedAccountId": "acct-2", "handoff": {"provider_id": "acme_mail", "refresh_token_bundle": {"refresh_token": "placeholder-refresh-2", "scopes": ["mail.read"]}, "account_hint": {"capabilities": "read"}, "expires_at": 1}},
+      "out": {"kind": "ok",
+        "keys": ["id", "encrypted_provider_type", "provider_type_hash", "encrypted_account_label", "encrypted_refresh_token_bundle", "encrypted_capabilities", "encrypted_app_permissions", "encrypted_account_directory_hint"],
+        "row": {
+          "id": "acct-2",
+          "encrypted_provider_type": "enc:acme_mail",
+          "provider_type_hash": "sha:acme_mail",
+          "encrypted_account_label": "enc:Connected account",
+          "encrypted_refresh_token_bundle": "enc:{\"refresh_token\":\"placeholder-refresh-2\",\"scopes\":[\"mail.read\"]}",
+          "encrypted_capabilities": "enc:[\"read\"]",
+          "encrypted_app_permissions": "enc:{\"app_id\":\"acme_mail\",\"allowed_actions\":[\"read\"],\"scopes\":[\"mail.read\"]}",
+          "encrypted_account_directory_hint": "enc:{\"account_ref\":\"acct-2\",\"label\":\"Connected account\",\"capabilities\":[\"read\"],\"runtime_modes\":{\"read\":\"allow_automatically\"}}"
+        }}
+    },
+    {
+      "name": "capabilities override keeps duplicates, escapes the label, null hint scopes and no bundle scopes give []",
+      "params": {"connectedAccountId": "acct-3", "capabilitiesOverride": ["delete", "write", 7, "write"], "handoff": {"provider_id": "google_calendar", "refresh_token_bundle": {"refresh_token": "placeholder-refresh-3"}, "account_hint": {"label": "Cal \"Q\"\n", "scopes": null, "provider_account_id": ""}, "expires_at": 1}},
+      "out": {"kind": "ok",
+        "keys": ["id", "encrypted_provider_type", "provider_type_hash", "encrypted_account_label", "encrypted_refresh_token_bundle", "encrypted_capabilities", "encrypted_app_permissions", "encrypted_account_directory_hint"],
+        "row": {
+          "id": "acct-3",
+          "encrypted_provider_type": "enc:google_calendar",
+          "provider_type_hash": "sha:google_calendar",
+          "encrypted_account_label": "enc:Cal \"Q\"\n",
+          "encrypted_refresh_token_bundle": "enc:{\"refresh_token\":\"placeholder-refresh-3\"}",
+          "encrypted_capabilities": "enc:[\"delete\",\"write\",\"write\"]",
+          "encrypted_app_permissions": "enc:{\"app_id\":\"calendar\",\"allowed_actions\":[\"delete\",\"write\",\"update\"],\"scopes\":[]}",
+          "encrypted_account_directory_hint": "enc:{\"account_ref\":\"acct-3\",\"label\":\"Cal \\\"Q\\\"\\n\",\"capabilities\":[\"delete\",\"write\",\"write\"],\"runtime_modes\":{\"delete\":\"always_ask\",\"write\":\"always_ask\",\"update\":\"always_ask\"}}"
+        }}
+    },
+    {
+      "name": "null account hint is malformed before any encryption",
+      "params": {"connectedAccountId": "acct-4", "handoff": {"provider_id": "google_calendar", "refresh_token_bundle": {"refresh_token": "placeholder-refresh-4"}, "account_hint": null, "expires_at": 1}},
+      "out": {"kind": "error", "code": "malformed"},
+      "encrypted": []
+    },
+    {
+      "name": "null bundle without hint scopes is malformed after the capabilities step",
+      "params": {"connectedAccountId": "acct-5", "handoff": {"provider_id": "p", "refresh_token_bundle": null, "account_hint": {"label": "L"}, "expires_at": 1}},
+      "out": {"kind": "error", "code": "malformed"},
+      "encrypted": ["p", "L", "null", "[\"read\"]"]
+    },
+    {
+      "name": "a failed encryption names the field and stops",
+      "params": {"connectedAccountId": "acct-6", "handoff": {"provider_id": "p", "refresh_token_bundle": {"refresh_token": "placeholder-refresh-6"}, "account_hint": {"label": "FAILENC"}, "expires_at": 1}},
+      "out": {"kind": "error", "code": "encrypt", "message": "Failed to encrypt connected account OAuth field: account_label"},
+      "encrypted": ["p", "FAILENC"]
+    },
+    {
+      "name": "storage guard runs over the finished row",
+      "params": {"connectedAccountId": "acct-7", "handoff": {"provider_id": "p", "refresh_token_bundle": {"refresh_token": "placeholder-refresh-7"}, "account_hint": {"label": "x\"scopes"}, "expires_at": 1}},
+      "out": {"kind": "error", "code": "forbidden", "message": "Connected account storage payload contains forbidden field: scopes"}
+    }
+  ],
+  "transfers": [
+    {
+      "name": "directory hint supplies label, ref, capabilities and runtime modes",
+      "passcode": "placeholder-passcode",
+      "row": {"id": "acct-1", "encrypted_provider_type": "enc:google_calendar", "encrypted_account_label": "enc:Row", "encrypted_capabilities": "enc:[\"read\"]", "encrypted_app_permissions": "enc:{\"app_id\":\"google_calendar\",\"allowed_actions\":[\"read\"]}", "encrypted_account_directory_hint": "enc:{\"account_ref\":\"ref-1\",\"label\":\"Hinted\",\"capabilities\":[\"read\",\"write\"],\"runtime_modes\":{\"read\":\"allow_automatically\",\"write\":\"always_ask\"}}", "encrypted_refresh_token_bundle": "enc:{\"refresh_token\":\"placeholder-refresh-1\"}"},
+      "out": {"kind": "ok", "payload": {"version": 1, "provider_id": "google_calendar", "app_id": "calendar", "label": "Hinted", "account_ref": "ref-1", "capabilities": ["read", "write"], "runtime_modes": {"read": "allow_automatically", "write": "always_ask"}, "refresh_token_bundle": {"refresh_token": "placeholder-refresh-1"}, "created_at": "2026-01-02T03:04:05.000Z"}}
+    },
+    {
+      "name": "no hint: row label, wrapped capabilities, provider app id, modes from allowed actions",
+      "passcode": "placeholder-passcode",
+      "row": {"id": "acct-2", "encrypted_provider_type": "enc:acme_mail", "encrypted_account_label": "enc:Mail", "encrypted_capabilities": "enc:{\"capabilities\":[\"read\",5,\"delete\"]}", "encrypted_app_permissions": "enc:{\"allowed_actions\":[\"read\",\"delete\",true]}", "encrypted_refresh_token_bundle": "enc:{\"refresh_token\":\"placeholder-refresh-2\",\"scopes\":[\"x\"]}"},
+      "out": {"kind": "ok", "payload": {"version": 1, "provider_id": "acme_mail", "app_id": "acme_mail", "label": "Mail", "capabilities": ["read", "delete"], "runtime_modes": {"read": "allow_automatically", "delete": "always_ask", "true": "always_ask"}, "refresh_token_bundle": {"refresh_token": "placeholder-refresh-2", "scopes": ["x"]}, "created_at": "2026-01-02T03:04:05.000Z"}}
+    },
+    {
+      "name": "empty hint capabilities fall back to the row, falsy ref is omitted, null hint label uses the row label",
+      "passcode": "placeholder-passcode",
+      "row": {"id": "acct-8", "encrypted_provider_type": "enc:google_calendar", "encrypted_account_label": "enc:Row8", "encrypted_capabilities": "enc:[\"write\"]", "encrypted_app_permissions": "enc:{\"app_id\":\"calendar\",\"allowed_actions\":[\"write\"]}", "encrypted_account_directory_hint": "enc:{\"account_ref\":\"\",\"label\":null,\"capabilities\":[]}", "encrypted_refresh_token_bundle": "enc:{\"refresh_token\":\"placeholder-refresh-8\"}"},
+      "out": {"kind": "ok", "payload": {"version": 1, "provider_id": "google_calendar", "app_id": "calendar", "label": "Row8", "capabilities": ["write"], "runtime_modes": {"write": "always_ask"}, "refresh_token_bundle": {"refresh_token": "placeholder-refresh-8"}, "created_at": "2026-01-02T03:04:05.000Z"}}
+    },
+    {
+      "name": "empty refresh token is refused",
+      "passcode": "placeholder-passcode",
+      "row": {"id": "acct-3", "encrypted_provider_type": "enc:p", "encrypted_account_label": "enc:L", "encrypted_capabilities": "enc:[]", "encrypted_app_permissions": "enc:{}", "encrypted_refresh_token_bundle": "enc:{\"refresh_token\":\"\"}"},
+      "out": {"kind": "error", "code": "missing_token", "message": "Connected account refresh token bundle is missing a refresh token"}
+    },
+    {
+      "name": "null permissions envelope is malformed",
+      "passcode": "placeholder-passcode",
+      "row": {"id": "acct-4", "encrypted_provider_type": "enc:p", "encrypted_account_label": "enc:L", "encrypted_capabilities": "enc:[]", "encrypted_app_permissions": "enc:null", "encrypted_refresh_token_bundle": "enc:{\"refresh_token\":\"placeholder-refresh-4\"}"},
+      "out": {"kind": "error", "code": "malformed"}
+    },
+    {
+      "name": "non-array allowed actions are malformed",
+      "passcode": "placeholder-passcode",
+      "row": {"id": "acct-5", "encrypted_provider_type": "enc:p", "encrypted_account_label": "enc:L", "encrypted_capabilities": "enc:[]", "encrypted_app_permissions": "enc:{\"app_id\":\"calendar\",\"allowed_actions\":\"read\"}", "encrypted_refresh_token_bundle": "enc:{\"refresh_token\":\"placeholder-refresh-5\"}"},
+      "out": {"kind": "error", "code": "malformed"}
+    },
+    {
+      "name": "a failed decrypt is the decrypt error",
+      "passcode": "placeholder-passcode",
+      "row": {"id": "acct-6", "encrypted_provider_type": "enc:p", "encrypted_account_label": "fail", "encrypted_capabilities": "enc:[]", "encrypted_app_permissions": "enc:{}", "encrypted_refresh_token_bundle": "enc:{\"refresh_token\":\"placeholder-refresh-6\"}"},
+      "out": {"kind": "error", "code": "decrypt"}
+    },
+    {
+      "name": "a blank passcode is refused after the payload plan",
+      "passcode": "   ",
+      "row": {"id": "acct-7", "encrypted_provider_type": "enc:p", "encrypted_account_label": "enc:L", "encrypted_capabilities": "enc:[]", "encrypted_app_permissions": "enc:{}", "encrypted_refresh_token_bundle": "enc:{\"refresh_token\":\"placeholder-refresh-7\"}"},
+      "out": {"kind": "error", "code": "passcode"}
+    }
+  ]
+}

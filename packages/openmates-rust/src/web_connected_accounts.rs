@@ -1,20 +1,26 @@
-//! Connected-account decisions of the web app (the shared Rust core Worker
-//! `connectedAccounts` unit).
+//! Connected-account decisions of the web app (served by the shared Rust core
+//! Worker's pre-bind `settings` unit).
 //!
 //! spec: specifications/architecture/connected-accounts#connected-accounts.connection.private-reusable
 //!
 //! Mirrors the pure logic of `connectedAccountStorageService.ts` (plaintext-field
 //! guards, send-context row selection, directory and token-ref plans, account
-//! summaries) and `connectedAccountTokenBrokerService.ts` (turn-token ref merge)
-//! with JavaScript value semantics, proven by
-//! `web_connected_accounts_ts_vectors.json`. The page keeps fetch, master-key
-//! decryption and the refresh-token envelopes: credential material never
-//! enters this module. Every function takes and returns JSON text; a malformed
-//! envelope is the stable code `protocol`.
+//! summaries), `connectedAccountTokenBrokerService.ts` (turn-token ref merge),
+//! `connectedAccountOAuthService.ts` (OAuth row plan, [`oauth`]) and
+//! `connectedAccountCliTransfer.ts` (CLI transfer plan, [`transfer`]) with
+//! JavaScript value semantics, proven by `web_connected_accounts_ts_vectors.json`
+//! and `web_connected_accounts_write_ts_vectors.json`. The page keeps fetch,
+//! master-key crypto, the passcode and the refresh-token envelopes: credential
+//! material never enters this module. Every function takes and returns JSON
+//! text; a malformed envelope is the stable code `protocol`.
 #[path = "web_connected_accounts_js.rs"]
 mod js;
+#[path = "web_connected_accounts_oauth.rs"]
+pub mod oauth;
 #[path = "web_connected_accounts_tokens.rs"]
 pub mod tokens;
+#[path = "web_connected_accounts_transfer.rs"]
+pub mod transfer;
 
 use serde::Serialize;
 use serde_json::{json, Map, Value};
@@ -619,3 +625,6 @@ pub fn summary_plan_json(input_json: &str) -> Result<String, String> {
 #[cfg(test)]
 #[path = "web_connected_accounts_tests.rs"]
 mod web_connected_accounts_tests;
+#[cfg(test)]
+#[path = "web_connected_accounts_write_tests.rs"]
+mod web_connected_accounts_write_tests;

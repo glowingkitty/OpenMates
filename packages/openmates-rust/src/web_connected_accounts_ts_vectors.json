@@ -103,6 +103,17 @@
         {"id": "acct-10", "encrypted_provider_type": "enc:google_calendar", "provider_type_hash": "hash:x", "encrypted_account_label": "enc:Cal", "encrypted_refresh_token_bundle": "fail", "encrypted_capabilities": "enc:[\"read\"]", "encrypted_app_permissions": "enc:{\"app_id\":\"calendar\",\"allowed_actions\":5}"}
       ],
       "out": {"kind": "error", "code": "malformed"}
+    },
+    {
+      "name": "documented flag-on deviation: a later row's plaintext guard precedes an earlier row's decrypt error",
+      "note": "TypeScript guards and decrypts row by row, so row 0's decrypt failure surfaces first (out). The Rust selection guards every selected row before the page decrypts any (flagOnOut). Both refuse the send; only the error differs.",
+      "params": {"appId": "calendar"},
+      "rows": [
+        {"id": "acct-11", "encrypted_provider_type": "fail", "provider_type_hash": "hash:x", "encrypted_account_label": "enc:Cal", "encrypted_refresh_token_bundle": "enc:{\"ref\":\"placeholder-envelope-11\"}", "encrypted_capabilities": "enc:[\"read\"]", "encrypted_app_permissions": "enc:{\"app_id\":\"calendar\"}"},
+        {"id": "acct-12", "email": "placeholder@example.invalid", "encrypted_provider_type": "enc:google_calendar", "provider_type_hash": "hash:x", "encrypted_account_label": "enc:Cal", "encrypted_refresh_token_bundle": "enc:{\"ref\":\"placeholder-envelope-12\"}", "encrypted_capabilities": "enc:[\"read\"]", "encrypted_app_permissions": "enc:{\"app_id\":\"calendar\"}"}
+      ],
+      "out": {"kind": "error", "code": "decrypt"},
+      "flagOnOut": {"kind": "error", "code": "forbidden", "message": "Connected account storage payload contains forbidden field: email"}
     }
   ],
   "summaries": [
