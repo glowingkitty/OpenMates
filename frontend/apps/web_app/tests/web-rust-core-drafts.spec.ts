@@ -155,6 +155,19 @@ test('Rust core saves an existing chat draft and the TS restore decrypts it', as
 		await expect.poll(() => pageB.evaluate(() => (window as any).__openmatesRustSyncStats?.()?.ops?.updateFrame ?? 0),
 			{ message: 'second device admitted the draft frame in the Rust sync unit', timeout: 45000 }).toBeGreaterThan(0);
 		expect(await pageB.evaluate(() => (window as any).__openmatesRustSyncStats?.()?.failures ?? 0), 'no sync unit call failed on device B').toBe(0);
+
+		// Sync-inbound title frame: renaming the chat on device A broadcasts chat_title_updated; device B
+		// shows the new title and its Rust sync unit admits one more update frame.
+		const framesBefore: number = await pageB.evaluate(() => (window as any).__openmatesRustSyncStats?.()?.ops?.updateFrame ?? 0);
+		const renamed = `Rust synced title ${chatId.slice(0, 8)}`;
+		await page.getByTestId('chat-header-title').click();
+		await page.getByTestId('workspace-detail-title-input').fill(renamed);
+		await page.getByTestId('workspace-detail-title-save').click();
+		await expect(page.getByTestId('chat-header-title')).toHaveText(renamed, { timeout: 30000 });
+		await expect(pageB.getByTestId('chat-header-title'), 'device B received the renamed title').toHaveText(renamed, { timeout: 45000 });
+		await expect.poll(() => pageB.evaluate(() => (window as any).__openmatesRustSyncStats?.()?.ops?.updateFrame ?? 0),
+			{ message: 'device B admitted the chat_title_updated frame in the Rust sync unit', timeout: 30000 }).toBeGreaterThan(framesBefore);
+		expect(await pageB.evaluate(() => (window as any).__openmatesRustSyncStats?.()?.failures ?? 0), 'no sync unit call failed on device B after the title frame').toBe(0);
 	} finally {
 		await deviceB.close();
 	}

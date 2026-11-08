@@ -39,11 +39,15 @@ async function reloadAndRenderSidebar(page: any, chatId: string): Promise<number
 	return Date.now() - started;
 }
 
+const readStatsOnce = (): Promise<any> => pageRef.current.evaluate(() => (window as any).__openmatesRustChatStateStats?.() ?? null);
+const pageRef: { current: any } = { current: null };
+
 // contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary,sdk.web.before-after-performance
 test('chat list ordering and grouping run on the shared Rust chatState unit and the sidebar renders the same chats', async ({ page }: { page: any }, testInfo: any) => {
 	test.slow();
 	test.setTimeout(1500000);
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+	pageRef.current = page;
 	const log = createSignupLogger('WEB_RUST_CORE_CHATSTATE');
 	const screenshot = createStepScreenshotter(log);
 	const unitErrors: string[] = [];
@@ -106,6 +110,26 @@ test('chat list ordering and grouping run on the shared Rust chatState unit and 
 		await expect.poll(async () => (await page.evaluate(() => (window as any).__openmatesRustChatStateStats?.() ?? null))?.ops?.selectionUrlPlan ?? 0,
 			{ message: 'Rust arm planned the active-chat URL update through the unit', timeout: 20000 }).toBeGreaterThan(0);
 		await page.goto(getE2EDebugUrl(`/#chat-id=${chatId}`));
+		// Slice 5: moving the chat into a new project runs the organizable verdict and the move/add/remove
+		// step plan on the unit (the page keeps the HTTP calls). The project name comes from a stubbed plan endpoint.
+		await setChatSidebarOpen(page, true);
+		const projectName = `Rust placement ${chatId.slice(0, 8)}`;
+		await page.route('**/v1/projects/ask/plan', (route: any) => route.fulfill({
+			status: 200, contentType: 'application/json', body: JSON.stringify({ proposed_project: { name: projectName } }),
+		}));
+		const chatRow = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${chatId}"]`);
+		await expect(chatRow).toBeVisible({ timeout: 30000 });
+		await chatRow.click({ button: 'right' });
+		await page.getByTestId('chat-context-create-project').click();
+		await expect(page.getByTestId('workspace-detail-title')).toHaveText(projectName, { timeout: 60000 });
+		for (const op of ['placementOrganizable', 'placementPlan']) {
+			await expect.poll(async () => (await readStatsOnce())?.ops?.[op] ?? 0, { message: `Rust arm decided ${op} through the unit`, timeout: 30000 }).toBeGreaterThan(0);
+		}
+		expect((await readStatsOnce()).failures, 'no chatState unit call failed during project placement').toBe(0);
+		page.once('dialog', (dialog: any) => dialog.accept());
+		await page.getByTestId('project-more-button').click();
+		await page.getByTestId('project-delete-button').click();
+		await expect(page.getByTestId('workspace-detail-title')).toHaveCount(0, { timeout: 30000 });
 		expect(unitErrors, 'no chatState unit errors in either arm').toEqual([]);
 	} finally {
 		await page.evaluate((key: string) => localStorage.removeItem(key), CHATSTATE_OPT_OUT_KEY);

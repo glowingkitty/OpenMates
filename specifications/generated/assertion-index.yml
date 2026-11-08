@@ -188999,7 +188999,7 @@ assertions:
       surface: gui.web
     - &id24084
       path: frontend/apps/web_app/tests/web-rust-core-chatstate.spec.ts
-      line: 43
+      line: 46
       name: chat list ordering and grouping run on the shared Rust chatState unit
         and the sidebar renders the same chats
       surface: gui.web
@@ -190187,7 +190187,7 @@ assertions:
       surface: gui.web
     - &id24245
       path: frontend/apps/web_app/tests/web-rust-core-chatstate.spec.ts
-      line: 43
+      line: 46
       name: chat list ordering and grouping run on the shared Rust chatState unit
         and the sidebar renders the same chats
       surface: gui.web

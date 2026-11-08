@@ -56,6 +56,11 @@ test('phased sync decisions run on the shared Rust sync unit and existing chats 
 	const chatId: string = chatIdOf()!;
 	await expect(page.getByTestId('message-assistant').first().getByTestId('message-content')).not.toBeEmpty({ timeout: 90000 });
 
+	// Slice 2 recovery: the first (flag-on) send journals its admission context phases; the retained
+	// frame check runs on the sync unit.
+	await expect.poll(() => page.evaluate(() => (window as any).__openmatesRustSyncStats?.()?.ops?.recoveryContextFrame ?? 0),
+		{ message: 'admission context frame check decided by the Rust sync unit', timeout: 30000 }).toBeGreaterThan(0);
+
 	const samples: Record<'ts' | 'rust', Record<string, unknown>[]> = { ts: [], rust: [] };
 	try {
 		for (let i = 0; i < PAIRS * 2; i++) {
@@ -95,5 +100,6 @@ test('phased sync decisions run on the shared Rust sync unit and existing chats 
 	const metrics = { pairs: PAIRS, rustMedianMs: rust, tsMedianMs: ts, verdict: rust <= limit ? 'rust_not_worse' : 'rust_worse', samples };
 	console.log(`[web-rust-core-sync] ${JSON.stringify({ rustMedianMs: rust, tsMedianMs: ts, verdict: metrics.verdict })}`);
 	await testInfo.attach('sync-reload-latency.json', { body: JSON.stringify(metrics, null, 2), contentType: 'application/json' });
-	expect.soft(rust, `reload-to-rendered chat: Rust ${rust} ms vs TS ${ts} ms`).toBeLessThanOrEqual(limit);
+	// Advisory budget (.claude/rules/cli-sdk.md, 2026-11-07): the verdict is recorded; only a gross regression blocks.
+	expect.soft(rust > ts * 1.25 && rust - ts > 100, `reload-to-rendered chat gross regression: Rust ${rust} ms vs TS ${ts} ms (advisory limit ${limit})`).toBe(false);
 });

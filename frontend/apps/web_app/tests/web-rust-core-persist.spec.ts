@@ -69,6 +69,9 @@ test('message row decisions run on the shared Rust persist unit and stored chats
 				// A reload of an unchanged chat may legitimately make no row decisions,
 				// so the client can stay unloaded; any call that did run must not fail.
 				expect(stats?.failures ?? 0, 'no persist unit call failed').toBe(0);
+				// ChatDatabase init plans duplicate cleanup over the stored rows on the unit.
+				await expect.poll(() => page.evaluate(() => (window as any).__openmatesRustPersistStats?.()?.ops?.duplicateCleanup ?? 0),
+					{ message: 'duplicate-message cleanup plan decided by Rust on database init', timeout: 30000 }).toBeGreaterThan(0);
 				// K3: the reloaded page bulk-loads chat keys from IndexedDB; batch plan decided by Rust.
 				await expect.poll(() => page.evaluate(() => (window as any).__openmatesRustCryptoStats?.()?.calls?.keysBulkBatches ?? 0),
 					{ message: 'bulk chat-key load batch plan decided by Rust (K3)', timeout: 30000 }).toBeGreaterThan(0);
@@ -80,6 +83,23 @@ test('message row decisions run on the shared Rust persist unit and stored chats
 			expect(instances.workers.filter((worker: { name: string }) => worker.name === 'shared.worker').length, `${path}: one shared Rust core Worker`).toBe(1);
 			expect(instances.sharedWorkerWasm, `${path}: one WASM instance in the shared Worker`).toBe(1);
 		}
+		// Settings slice: opening Hide personal data hydrates the account's encrypted privacy entries; each
+		// entry's defaults are planned by the settings unit. The CI account is fresh: persist one encrypted PII
+		// settings entry by flipping the master toggle, then cold-load so hydration reads that stored entry.
+		await page.goto(getE2EDebugUrl('/#settings/privacy/hide-personal-data'), { waitUntil: 'domcontentloaded' });
+		await expect(page.getByTestId('settings-menu')).toHaveAttribute('data-active-view', 'privacy/hide-personal-data', { timeout: 30000 });
+		const masterRow = page.getByTestId('personal-data-master-protection');
+		const masterInput = masterRow.getByRole('checkbox');
+		await expect(masterInput).toBeEnabled({ timeout: 30000 });
+		const wasChecked: boolean = await masterInput.isChecked();
+		await masterRow.getByTestId('personal-data-master-protection-toggle').click();
+		await expect(masterInput).toBeChecked({ checked: !wasChecked });
+		await page.waitForTimeout(3000);
+		await page.reload({ waitUntil: 'domcontentloaded' });
+		await expect(page.getByTestId('settings-menu')).toHaveAttribute('data-active-view', 'privacy/hide-personal-data', { timeout: 30000 });
+		await expect.poll(() => page.evaluate(() => (window as any).__openmatesRustSettingsStats?.()?.ops?.planPrivacyEntry ?? 0),
+			{ message: 'privacy entry hydration planned by the Rust settings unit', timeout: 30000 }).toBeGreaterThan(0);
+		expect(await page.evaluate(() => (window as any).__openmatesRustSettingsStats?.()?.failures ?? 0), 'no settings unit call failed').toBe(0);
 		expect(persistErrors, 'no ChatDatabase errors in either arm').toEqual([]);
 	} finally {
 		await page.evaluate((key: string) => localStorage.removeItem(key), PERSIST_OPT_OUT_KEY);

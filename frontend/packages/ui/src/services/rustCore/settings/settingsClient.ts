@@ -12,11 +12,11 @@ import { createUnitPort, type UnitPort } from '../host/unitPort';
 import type { SettingsUnitProtocol } from './settingsProtocol';
 
 /** Read-only diagnostics (E2E asserts the unit served the flow). */
-export const rustSettingsStats = { calls: 0, failures: 0, opens: 0 };
+export const rustSettingsStats = { calls: 0, failures: 0, opens: 0, ops: {} as Record<string, number> };
 // Test-only read hook: installed only under browser automation (Playwright sets
 // navigator.webdriver), so user sessions never expose it.
 if (typeof navigator !== 'undefined' && navigator.webdriver) {
-	(globalThis as { __openmatesRustSettingsStats?: () => typeof rustSettingsStats }).__openmatesRustSettingsStats = () => ({ ...rustSettingsStats });
+	(globalThis as { __openmatesRustSettingsStats?: () => typeof rustSettingsStats }).__openmatesRustSettingsStats = () => ({ ...rustSettingsStats, ops: { ...rustSettingsStats.ops } });
 }
 
 let port: UnitPort<SettingsUnitProtocol> | null = null;
@@ -47,6 +47,7 @@ export async function settingsCall<K extends keyof SettingsUnitProtocol & string
 	const core = await whenSharedRustCore();
 	const release = core.hold();
 	rustSettingsStats.calls++;
+	rustSettingsStats.ops[op] = (rustSettingsStats.ops[op] ?? 0) + 1;
 	try {
 		return await (await unit(core)).request(op, payload);
 	} catch (error) {
