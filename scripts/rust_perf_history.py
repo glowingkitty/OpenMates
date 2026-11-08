@@ -24,6 +24,8 @@ SCHEMA_VERSION = 1
 FLOWS = (
     "chatRendered", "embedReady", "uiInteractive", "send", "sendToAdmit",
     "search", "apps", "cpu", "rss", "reloadMemory", "wasmInstances",
+    # Cross-SDK API-key operations (tests/sdk-conformance/benchmark_sdk_speed.py).
+    "sdkWall", "sdkCpu",
 )
 VALUE_KINDS = ("ratio", "delta_ms", "delta_mib", "delta_mib_per_reload", "count")
 VERDICTS = ("rust_not_worse", "rust_worse", "inconclusive", "unverified", "invalid_measurement")
@@ -31,7 +33,7 @@ VERDICT_BASES = ("reported", "derived", "none")
 CONFIDENCE = ("traced", "uncertain")
 # Upper CI bound (ratio) at or below which a ratio is within the gate without
 # needing absolute milliseconds: wall max(+10%, +50 ms), CPU +15%.
-RATIO_LIMIT = {"cpu": 1.15}
+RATIO_LIMIT = {"cpu": 1.15, "sdkCpu": 1.15}
 DEFAULT_RATIO_LIMIT = 1.10
 REQUIRED = (
     "id", "date", "flow", "metric", "value_kind", "value", "ci95", "n_pairs",

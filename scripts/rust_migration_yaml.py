@@ -240,6 +240,9 @@ def build_web_app() -> dict:
 def perf_blockers(history: dict) -> list[str]:
     out = []
     for flow, entry in sorted(perf.latest_by_flow(history).items()):
+        # SDK flows are not web-app flows; their advisory results live in the history only.
+        if flow.startswith("sdk"):
+            continue
         if entry["verdict"] in BLOCKING_VERDICTS:
             out.append(f"perf gate not cleared: {flow} is {entry['verdict']} ({entry['id']})")
     return out
