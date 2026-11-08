@@ -389,10 +389,13 @@ export async function sendOfflineChangesImpl(): Promise<void> {
 			if (parseDeferredDraftDeleteId(change.change_id)) {
 				if (!(await mayReplayDeferredDraftDelete(change.change_id, change.chat_id))) continue;
 				const editor = get(draftEditorUIState);
+				const editorOnChat = editor.currentChatId === change.chat_id;
+				// Flag-off: an editor-blocked delete never reads the local row (unchanged behaviour).
+				if (!RUST_SEND_PREP_BUILD && editorOnChat && editor.hasUnsavedChanges) continue;
 				const local = await chatDB.getRawChat(change.chat_id);
 				// A newer local draft must be accepted before its older delete can be retired.
 				const facts = {
-					editorOnChat: editor.currentChatId === change.chat_id,
+					editorOnChat,
 					editorUnsaved: !!editor.hasUnsavedChanges, localExists: !!local,
 					hasDraft: !!local?.encrypted_draft_md, hasPreview: !!local?.encrypted_draft_preview,
 					draftVersion: local?.draft_v ?? null,
