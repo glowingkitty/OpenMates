@@ -7,7 +7,8 @@
  * Personal chat on the admitted history client). Every refusal decided before
  * any Rust write returns `legacy` with its code, and the caller runs the
  * existing TS writer for that save. A failure after Rust started writing is
- * `failed`: the editor stays unsaved and no TS rewrite happens.
+ * `failed`: the editor stays unsaved and no TS rewrite happens. The one
+ * exception retried (once, through Rust) is a post-commit readback conflict.
  *
  * Marker: `document.documentElement.dataset.rustCoreDraft` is `rust-local`,
  * `rust-synced`, `rust-ack-failed-<code>`, `ts-<code>` or `rust-failed-<code>`
@@ -37,6 +38,17 @@ export interface RustDraftSaveInput {
 	send(payload: DraftRemotePayload): Promise<void>;
 }
 
+/**
+ * Post-commit readback refusal: Rust's store transaction committed, then the row
+ * or its queued intent no longer matched (a concurrent chats_db writer, e.g. a TS
+ * read-modify-write of the chat row during reconnect, replaced it). One fresh Rust
+ * save re-captures the current row and writes the same editor content again;
+ * any intent the first write left stays durable and the server version check
+ * settles it on replay, as for any queued draft.
+ */
+const READBACK_CONFLICT = 'draft_effect_readback_draft';
+const MAX_SAVE_ATTEMPTS = 2;
+
 interface OpenedUnit { core: SharedRustCore; generation: number; port: UnitPort<DraftsProtocol>; stopCrash: () => void }
 let opened: OpenedUnit | null = null;
 let opening: Promise<OpenedUnit> | null = null;
@@ -45,6 +57,16 @@ function mark(value: string): void {
 	if (typeof document !== 'undefined') document.documentElement.dataset.rustCoreDraft = value;
 	// Timing evidence next to the history session marks (openmates:rust:*).
 	if (typeof performance !== 'undefined') performance.mark(`openmates:rust:draft-${value}`);
+}
+
+/**
+ * Stage durations of one Rust save as `openmates:rust:draft-timing` (startTime =
+ * route entry; detail: first save on this unit port, unit open, save round trip
+ * and the Worker's DraftSaveTiming). Numbers only; the bench reads them.
+ */
+function timingMark(entered: number, detail: Record<string, unknown>): void {
+	if (typeof performance === 'undefined' || typeof performance.mark !== 'function') return;
+	performance.mark('openmates:rust:draft-timing', { startTime: entered, detail });
 }
 
 function drop(unit: OpenedUnit): void {
@@ -77,6 +99,25 @@ function legacy(code: string): RustDraftSaveOutcome {
 	return { kind: 'legacy', code };
 }
 
+type SaveAttempt =
+	| { kind: 'saved'; reply: DraftsProtocol['save']['response']; requestMs: number }
+	| { kind: 'refused'; code: string };
+
+/** One `save` request on the unit (the markdown buffer is transferred, so each attempt encodes afresh). */
+async function requestSave(drafts: OpenedUnit, input: RustDraftSaveInput, scope: DraftsProtocol['save']['request']['scope']): Promise<SaveAttempt> {
+	const markdown = new TextEncoder().encode(input.markdown);
+	const requested = performance.now();
+	try {
+		const reply = await drafts.port.request('save', {
+			chatId: input.chatId, markdown, preview: input.preview, scope, nowSeconds: Math.floor(Date.now() / 1000)
+		}, { transfer: [markdown.buffer] });
+		if (!validDraftSaveResponse(reply, input.chatId)) throw new UnitPortError('unit_bad_reply');
+		return { kind: 'saved', reply, requestMs: performance.now() - requested };
+	} catch (error) {
+		return { kind: 'refused', code: errorCode(error) };
+	}
+}
+
 /** Saves one editor draft through Rust, or names why this save stays on the TS writer. */
 export async function saveDraftWithRustCore(input: RustDraftSaveInput): Promise<RustDraftSaveOutcome> {
 	if (!isSharedRustCoreRegistered()) return legacy('rust_core_not_enabled');
@@ -89,28 +130,35 @@ export async function saveDraftWithRustCore(input: RustDraftSaveInput): Promise<
 	} catch {
 		return legacy('profile_mutation');
 	}
+	const entered = performance.now();
+	const firstOnUnit = !opened || opened.core !== core || opened.generation !== generation || opened.port.closed;
 	let drafts: OpenedUnit;
 	try {
 		drafts = await unit(core, generation);
 	} catch (error) {
 		return legacy(`open_${errorCode(error)}`);
 	}
+	const unitOpenMs = performance.now() - entered;
 	const release = core.hold();
 	let saved: DraftsProtocol['save']['response'];
 	try {
-		const markdown = new TextEncoder().encode(input.markdown);
-		const reply = await drafts.port.request('save', {
-			chatId: input.chatId, markdown, preview: input.preview,
-			scope: { lifecycleGeneration, workspaceEpoch: input.workspaceEpoch }, nowSeconds: Math.floor(Date.now() / 1000)
-		}, { transfer: [markdown.buffer] });
-		if (!validDraftSaveResponse(reply, input.chatId)) throw new UnitPortError('unit_bad_reply');
-		saved = reply;
-	} catch (error) {
-		const code = errorCode(error);
-		if (isDraftRoutingCode(code)) return legacy(code);
-		mark(`rust-failed-${code}`);
-		console.warn(`[DraftService] Rust draft save failed (${code}); the draft stays unsaved.`);
-		return { kind: 'failed', code };
+		const scope = { lifecycleGeneration, workspaceEpoch: input.workspaceEpoch };
+		let attempt = 1;
+		let outcome = await requestSave(drafts, input, scope);
+		while (outcome.kind === 'refused' && outcome.code === READBACK_CONFLICT && attempt < MAX_SAVE_ATTEMPTS) {
+			console.warn(`[DraftService] Rust draft row changed right after its write (${outcome.code}); saving it once more.`);
+			attempt += 1;
+			outcome = await requestSave(drafts, input, scope);
+		}
+		if (outcome.kind === 'refused') {
+			// Only the first attempt may route to TS: a retry follows a committed Rust write.
+			if (attempt === 1 && isDraftRoutingCode(outcome.code)) return legacy(outcome.code);
+			mark(`rust-failed-${outcome.code}`);
+			console.warn(`[DraftService] Rust draft save failed (${outcome.code}); the draft stays unsaved.`);
+			return { kind: 'failed', code: outcome.code };
+		}
+		saved = outcome.reply;
+		timingMark(entered, { firstOnUnit, unitOpenMs, attempts: attempt, requestMs: outcome.requestMs, ...saved.timing });
 	} finally {
 		release();
 	}

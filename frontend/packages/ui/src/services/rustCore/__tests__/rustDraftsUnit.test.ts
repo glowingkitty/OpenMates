@@ -110,7 +110,10 @@ describe('core client borrow', () => {
 	it('waits a bounded time for a busy dispatcher', async () => {
 		const rt = fakeRuntime(fakeClient(), { busy: true });
 		cleanups.push(registerCoreClientBorrows(rt));
-		await expect(borrowCoreClient(PRINCIPAL, new AbortController().signal, 30)).resolves.toBe('busy');
+		const reasons: string[] = [];
+		await expect(borrowCoreClient(PRINCIPAL, new AbortController().signal, 30, (reason) => reasons.push(reason))).resolves.toBe('busy');
+		expect(reasons.length).toBeGreaterThan(0);
+		expect(new Set(reasons), 'each refused attempt names the busy dispatcher state').toEqual(new Set(['request']));
 		setTimeout(() => { (rt as unknown as { busy: boolean }).busy = false; }, 10);
 		const borrow = await borrowCoreClient(PRINCIPAL, new AbortController().signal, 500);
 		expect(typeof borrow).toBe('object');
@@ -119,7 +122,8 @@ describe('core client borrow', () => {
 });
 
 interface FakeWrite { freed: boolean; acked: boolean }
-function draftsHarness(options: { prepare?: (effect: (plan: string) => Promise<string>) => Promise<void>; refuse?: string; borrow?: 'none' | 'local' | 'busy'; missingRow?: boolean; ackFails?: boolean } = {}) {
+function draftsHarness(options: { prepare?: (effect: (plan: string) => Promise<string>) => Promise<void>; refuse?: string; borrow?: 'none' | 'local' | 'busy'; missingRow?: boolean; ackFails?: boolean; readbackFailures?: number } = {}) {
+	let readbackFailures = options.readbackFailures ?? 0;
 	const writes: FakeWrite[] = [];
 	const plans: string[] = [];
 	let released = 0;
@@ -151,6 +155,7 @@ function draftsHarness(options: { prepare?: (effect: (plan: string) => Promise<s
 				const kind = JSON.parse(plan).kind as string;
 				plans.push(kind);
 				if (kind === 'capture_draft' && options.missingRow) throw new Error('existing_chat_required');
+				if (kind === 'readback_draft' && readbackFailures > 0) { readbackFailures -= 1; throw new Error('draft_conflict'); }
 				return '{}';
 			},
 			async close() {}
@@ -183,7 +188,8 @@ describe('drafts unit', () => {
 		const h = draftsHarness();
 		const { port, dispose } = installUnit(h.deps);
 		const saved = await port.request('save', saveRequest());
-		expect(saved).toEqual({ resourceId: RESOURCE, version: 7, payload: { chat_id: CHAT, encrypted_draft_md: 'ct-md', encrypted_draft_preview: 'ct-preview', draft_v: 7 } });
+		expect(saved).toEqual({ resourceId: RESOURCE, version: 7, payload: { chat_id: CHAT, encrypted_draft_md: 'ct-md', encrypted_draft_preview: 'ct-preview', draft_v: 7 },
+			timing: { borrowWaitMs: expect.any(Number), borrowBusy: {}, prepareMs: expect.any(Number), effectMs: {} } });
 		expect(JSON.stringify(saved)).not.toContain('Hello');
 		expect(h.released()).toBe(1);
 		await expect(port.request('acknowledge', { resourceId: RESOURCE })).resolves.toEqual({ version: 7, remoteSynced: true });
@@ -218,6 +224,17 @@ describe('drafts unit', () => {
 		await expect(busy.port.request('save', { ...saveRequest(), preview: '  ' })).rejects.toMatchObject({ code: 'invalid_request' });
 		await expect(busy.port.request('save', { ...saveRequest(), chatId: 'x' })).rejects.toMatchObject({ code: 'invalid_request' });
 		none.dispose(); busy.dispose();
+	});
+
+	// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary,drafts.persistence.local-first-encrypted
+	it('reports stage durations per plan kind, numbers only', async () => {
+		const h = draftsHarness({ prepare: async (effect) => { await effect(plan('capture_draft')); await effect(plan('store_draft')); } });
+		const { port, dispose } = installUnit(h.deps);
+		const saved = await port.request('save', saveRequest());
+		expect(Object.keys(saved.timing.effectMs).sort()).toEqual(['capture_draft', 'store_draft']);
+		expect(saved.timing.prepareMs).toBeGreaterThanOrEqual(saved.timing.effectMs.capture_draft);
+		expect(JSON.stringify(saved.timing)).not.toMatch(/Hello|ct-|[a-f0-9]{8}-/);
+		dispose();
 	});
 
 	// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary,drafts.persistence.local-first-encrypted,drafts.sync.version-authoritative
@@ -275,6 +292,8 @@ describe('rust draft route', () => {
 		expect(h.writes[0].acked).toBe(true);
 		expect(document.documentElement.dataset.rustCoreDraft).toBe('rust-synced');
 		expect(core.busy).toBe(false);
+		const timing = performance.getEntriesByName('openmates:rust:draft-timing').pop() as PerformanceMark;
+		expect(timing.detail).toEqual(expect.objectContaining({ firstOnUnit: true, unitOpenMs: expect.any(Number), requestMs: expect.any(Number), borrowWaitMs: expect.any(Number) }));
 	});
 
 	// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary,drafts.persistence.local-first-encrypted,drafts.sync.version-authoritative
@@ -305,6 +324,30 @@ describe('rust draft route', () => {
 		deps = draftsHarness({ refuse: 'unavailable', prepare: async (effect) => { await effect(plan('store_draft')); } }).deps;
 		await expect(saveDraftWithRustCore(input(async () => {}))).resolves.toEqual({ kind: 'failed', code: 'draft_prepare_unavailable_after_store_draft' });
 		expect(document.documentElement.dataset.rustCoreDraft).toBe('rust-failed-draft_prepare_unavailable_after_store_draft');
+	});
+
+	// contract-test: supporting surface=gui.web assertions=drafts.persistence.local-first-encrypted,drafts.sync.version-authoritative
+	it('saves once more through Rust when the row changed right after its committed write, and fails if it changes again', async () => {
+		const writeThenReadback = async (effect: (plan: string) => Promise<string>) => { await effect(plan('capture_draft')); await effect(plan('store_draft')); await effect(plan('readback_draft')); };
+		let h = draftsHarness({ readbackFailures: 1, prepare: writeThenReadback });
+		const core = createSharedCoreClient(() => fakeWorker({ drafts: (context) => installDraftsUnit(context, h.deps) }));
+		unregister = registerSharedRustCore(core);
+		await core.bind(PRINCIPAL);
+		const sent: unknown[] = [];
+		const outcome = await saveDraftWithRustCore(input(async () => { sent.push('sent'); }));
+		expect(outcome.kind, 'a post-commit readback conflict is retried by Rust, never routed to TS').toBe('saved');
+		if (outcome.kind !== 'saved') return;
+		await outcome.synced;
+		expect(h.plans.filter((kind) => kind === 'store_draft')).toHaveLength(2);
+		expect(sent).toEqual(['sent']);
+		expect(document.documentElement.dataset.rustCoreDraft).toBe('rust-synced');
+		const timing = performance.getEntriesByName('openmates:rust:draft-timing').pop() as PerformanceMark;
+		expect((timing.detail as { attempts: number }).attempts).toBe(2);
+		resetRustDraftRouteForTests();
+		h = draftsHarness({ readbackFailures: 2, prepare: writeThenReadback });
+		await expect(saveDraftWithRustCore(input(async () => {}))).resolves.toEqual({ kind: 'failed', code: 'draft_effect_readback_draft' });
+		expect(h.plans.filter((kind) => kind === 'store_draft'), 'bounded: one retry only').toHaveLength(2);
+		expect(core.busy).toBe(false);
 	});
 });
 

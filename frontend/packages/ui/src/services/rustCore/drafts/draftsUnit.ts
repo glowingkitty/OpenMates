@@ -24,7 +24,7 @@ import type { BrowserDraftEffectHandler } from '../browserDraftProtocol';
 import { borrowCoreClient } from './coreClientBorrow';
 import type { CoreBorrowRefusal, CoreClientBorrow } from './coreClientBorrow';
 import { isDraftRoutingCode, validDraftRemotePayload, validDraftResourceRequest, validDraftSaveRequest } from './draftsProtocol';
-import type { DraftsProtocol } from './draftsProtocol';
+import type { DraftSaveTiming, DraftsProtocol } from './draftsProtocol';
 
 /** Bounded wait for the history dispatcher to become idle before routing TS. */
 export const DRAFT_BORROW_TIMEOUT_MS = 3_000;
@@ -45,13 +45,13 @@ interface DraftsClient {
 }
 
 export interface DraftsUnitDeps {
-	borrow(principal: string, signal: AbortSignal): Promise<CoreClientBorrow | CoreBorrowRefusal>;
+	borrow(principal: string, signal: AbortSignal, observeBusy: (reason: string) => void): Promise<CoreClientBorrow | CoreBorrowRefusal>;
 	effects(current: () => void): BrowserDraftEffectHandler;
 	resourceId(): string;
 }
 
 const defaultDeps: DraftsUnitDeps = {
-	borrow: (principal, signal) => borrowCoreClient(principal, signal, DRAFT_BORROW_TIMEOUT_MS),
+	borrow: (principal, signal, observeBusy) => borrowCoreClient(principal, signal, DRAFT_BORROW_TIMEOUT_MS, observeBusy),
 	effects: (current) => createDraftEffectHandler({
 		current() {},
 		open: () => indexedDB.open(CHATS_DB),
@@ -84,9 +84,12 @@ export function installDraftsUnit(context: UnitInstallContext, deps: DraftsUnitD
 
 	/** Runs `work` on a borrowed admitted client with a fresh plan executor; always releases and drains. */
 	async function withClient<T>(signal: AbortSignal, work: (client: DraftsClient, borrow: CoreClientBorrow,
-		effect: (plan: string) => Promise<string>, ran: Set<string>) => Promise<T>): Promise<T> {
+		effect: (plan: string) => Promise<string>, ran: Set<string>, timing: DraftSaveTiming) => Promise<T>): Promise<T> {
 		current();
-		const borrow = await deps.borrow(principal!, signal);
+		const borrowStarted = performance.now();
+		const borrowBusy: Record<string, number> = {};
+		const borrow = await deps.borrow(principal!, signal, (reason) => { borrowBusy[reason] = (borrowBusy[reason] ?? 0) + 1; });
+		const timing: DraftSaveTiming = { borrowWaitMs: performance.now() - borrowStarted, borrowBusy, prepareMs: 0, effectMs: {} };
 		if (borrow === 'none') throw new UnitRefusal('not_admitted');
 		if (borrow === 'busy') throw new UnitRefusal('core_busy');
 		if (borrow === 'local') throw new UnitRefusal('local_session');
@@ -95,6 +98,7 @@ export function installDraftsUnit(context: UnitInstallContext, deps: DraftsUnitD
 		const effect = async (plan: string) => {
 			const kind = parseBrowserDraftPlan(plan).kind;
 			ran.add(kind);
+			const started = performance.now();
 			try {
 				return await handler.execute(plan, signal);
 			} catch (error) {
@@ -103,10 +107,12 @@ export function installDraftsUnit(context: UnitInstallContext, deps: DraftsUnitD
 				// incognito chat) is a shape refusal, not a write failure.
 				if (kind === 'capture_draft' && error instanceof Error && error.message === 'existing_chat_required') ran.add('missing_row');
 				throw error;
+			} finally {
+				timing.effectMs[kind] = (timing.effectMs[kind] ?? 0) + performance.now() - started;
 			}
 		};
 		try {
-			return await work(borrow.client as unknown as DraftsClient, borrow, effect, ran);
+			return await work(borrow.client as unknown as DraftsClient, borrow, effect, ran, timing);
 		} finally {
 			borrow.release();
 			await handler.close();
@@ -118,12 +124,14 @@ export function installDraftsUnit(context: UnitInstallContext, deps: DraftsUnitD
 			if (!validDraftSaveRequest(request)) throw new UnitRefusal('invalid_request');
 			const markdown = new TextDecoder('utf-8', { fatal: true }).decode(request.markdown);
 			request.markdown.fill(0);
-			return withClient(signal, async (client, borrow, effect, ran) => {
+			return withClient(signal, async (client, borrow, effect, ran, timing) => {
 				let write: DraftsWrite;
+				const prepareStarted = performance.now();
 				try {
 					write = await client.prepare_local_draft_with_preview(borrow.status.handle, borrow.status.generation,
 						borrow.status.principal, request.chatId, markdown, request.preview, JSON.stringify(request.scope),
 						request.nowSeconds, effect);
+					timing.prepareMs = performance.now() - prepareStarted;
 				} catch (error) {
 					const code = ran.has('missing_row') ? 'existing_chat_required' : wasmCode(error);
 					// Routing to the TS writer is only sound when Rust refused before any write.
@@ -154,7 +162,7 @@ export function installDraftsUnit(context: UnitInstallContext, deps: DraftsUnitD
 					}
 					const resourceId = deps.resourceId();
 					prepared.set(resourceId, { chatId: request.chatId, write });
-					return { resourceId, version: local.version, payload };
+					return { resourceId, version: local.version, payload, timing };
 				} catch (error) {
 					write.free();
 					if (error instanceof UnitRefusal) throw error;

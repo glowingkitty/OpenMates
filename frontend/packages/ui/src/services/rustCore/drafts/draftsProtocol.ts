@@ -27,10 +27,19 @@ export interface DraftScope { lifecycleGeneration: number; workspaceEpoch: numbe
 /** Exact ciphertext payload of the server `update_draft` message. */
 export interface DraftRemotePayload { chat_id: string; encrypted_draft_md: string; encrypted_draft_preview: string; draft_v: number }
 
+/**
+ * Worker-side stage durations of one save (ms, performance.now()), for the page's
+ * `openmates:rust:draft-timing` mark. Numbers only: no content, ids or keys.
+ * `effectMs` sums the IndexedDB plan executions by plan kind; `prepareMs` is the
+ * whole Rust prepare call including them. `borrowBusy` counts the refused borrow
+ * attempts (20 ms apart) by the history dispatcher state that was busy.
+ */
+export interface DraftSaveTiming { borrowWaitMs: number; borrowBusy: Record<string, number>; prepareMs: number; effectMs: Record<string, number> }
+
 export type DraftsProtocol = {
 	save: {
 		request: { chatId: string; markdown: Uint8Array; preview: string; scope: DraftScope; nowSeconds: number };
-		response: { resourceId: string; version: number; payload: DraftRemotePayload };
+		response: { resourceId: string; version: number; payload: DraftRemotePayload; timing: DraftSaveTiming };
 	};
 	acknowledge: { request: { resourceId: string }; response: { version: number; remoteSynced: true } };
 	release: { request: { resourceId: string }; response: { released: boolean } };
@@ -68,7 +77,18 @@ export function validDraftRemotePayload(v: unknown, chatId: string): v is DraftR
 		&& typeof v.encrypted_draft_preview === 'string' && v.encrypted_draft_preview !== '' && counter(v.draft_v, 1);
 }
 
+const duration = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v >= 0;
+const PLAN_KIND = /^[a-z_]{1,32}$/;
+
+function validDraftSaveTiming(v: unknown): v is DraftSaveTiming {
+	if (!record(v) || !exact(v, ['borrowWaitMs', 'borrowBusy', 'prepareMs', 'effectMs']) || !duration(v.borrowWaitMs) || !duration(v.prepareMs)) return false;
+	const named = (counts: unknown) => record(counts) && Object.keys(counts).length <= 12
+		&& Object.entries(counts).every(([name, value]) => PLAN_KIND.test(name) && duration(value));
+	return named(v.effectMs) && named(v.borrowBusy);
+}
+
 export function validDraftSaveResponse(v: unknown, chatId: string): v is DraftsProtocol['save']['response'] {
-	return record(v) && exact(v, ['resourceId', 'version', 'payload']) && typeof v.resourceId === 'string' && UUID.test(v.resourceId)
+	return record(v) && exact(v, ['resourceId', 'version', 'payload', 'timing']) && validDraftSaveTiming(v.timing)
+		&& typeof v.resourceId === 'string' && UUID.test(v.resourceId)
 		&& counter(v.version, 1) && validDraftRemotePayload(v.payload, chatId) && v.payload.draft_v === v.version;
 }

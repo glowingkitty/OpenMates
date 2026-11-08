@@ -177,6 +177,10 @@ async function runWebRustCoreBench(page: any, testInfo: any, options: { pairs: n
 	summary.browserRssBytesAdjacentPair = summarizePaired(column('browserRssBytes'), { mode: 'difference', gate: false });
 	for (const metric of REPORTED_METRICS) summary[metric] = summarizePaired(column(metric), { mode: 'difference', gate: false });
 	summary.draftSaveP95Ms = summarizePaired(column('draftSaveP95Ms'), { mode: 'ratio', margin: MARGIN });
+	// Draft-save attribution (draft-save-metrics.ts): first save after the reload vs the steady saves, and queue size.
+	summary.draftSaveFirstMs = summarizePaired(column('draftSaveFirstMs'), { mode: 'ratio', gate: false });
+	summary.draftSaveRestMedianMs = summarizePaired(column('draftSaveRestMedianMs'), { mode: 'ratio', gate: false });
+	summary.draftQueueEntriesAfter = summarizePaired(column('draftQueueEntriesAfter'), { mode: 'difference', gate: false });
 	// More than one WASM instance in a Rust load is an automatic failure, whatever the statistics say.
 	const maxRustWasm = Math.max(...pairs.map((pair) => Number(pair.rust.wasmInstantiations)));
 	summary.wasmInstantiations = { ...summarizePaired(column('wasmInstantiations'), { mode: 'difference' }), verdict: maxRustWasm > 1 ? 'rust_worse' : 'rust_not_worse', maxRustInstances: maxRustWasm };

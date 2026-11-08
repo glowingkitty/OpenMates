@@ -74,11 +74,20 @@ function flushDeferred(rt: WorkerRuntimeState): void {
  * Owned cache reads drive Rust operations on the client without setting
  * `reading`; a draft operation entering between their awaits would unwind the
  * client's active-operation lease out of order, so any in-flight read is busy.
+ * Returns the first dispatcher state that keeps the client from being lent
+ * (diagnostic name only), or null when the dispatcher is idle.
  */
-function idle(rt: WorkerRuntimeState): boolean {
-	return !rt.busy && rt.reading === null && rt.sending === null && rt.initialSync === null
-		&& rt.firstSessionTask === null && rt.passwordAdmission === null
-		&& rt.cacheRead === null && rt.localRead === null && rt.ownedCacheReads.size === 0;
+function busyReason(rt: WorkerRuntimeState): string | null {
+	if (rt.initialSync !== null) return 'initial_sync';
+	if (rt.firstSessionTask !== null) return 'first_session';
+	if (rt.passwordAdmission !== null) return 'password_admission';
+	if (rt.sending !== null) return 'sending';
+	if (rt.ownedCacheReads.size > 0) return 'owned_cache_read';
+	if (rt.cacheRead !== null) return 'cache_read';
+	if (rt.localRead !== null) return 'local_read';
+	if (rt.reading !== null) return 'reading';
+	if (rt.busy) return 'request';
+	return null;
 }
 
 function lend(rt: WorkerRuntimeState, client: RustClient): () => void {
@@ -99,13 +108,14 @@ function lend(rt: WorkerRuntimeState, client: RustClient): () => void {
 }
 
 /** One attempt. Local-only (cache-read) admissions confer no server authority and are skipped. */
-export function tryBorrowCoreClient(principal: string): CoreClientBorrow | CoreBorrowRefusal {
+export function tryBorrowCoreClient(principal: string, observeBusy?: (reason: string) => void): CoreClientBorrow | CoreBorrowRefusal {
 	let busy = false, local = false;
 	for (const rt of sources) {
 		const client = rt.client, expected = rt.configuration.expectedPrincipal;
 		if (rt.disposed || !client || rt.configuration.admission !== 'existing_key' || !expected
 			|| expected.toLowerCase() !== principal.toLowerCase()) continue;
-		if (!idle(rt)) { busy = true; continue; }
+		const reason = busyReason(rt);
+		if (reason !== null) { busy = true; observeBusy?.(reason); continue; }
 		const release = lend(rt, client);
 		const status = client.admitted_status();
 		let snapshot: BorrowedCoreStatus | null = null, statusLocal = false;
@@ -123,12 +133,16 @@ export function tryBorrowCoreClient(principal: string): CoreClientBorrow | CoreB
 
 const RETRY_MS = 20;
 
-/** Waits (bounded) for an idle admitted client. Never borrows past `signal`. */
-export async function borrowCoreClient(principal: string, signal: AbortSignal, timeoutMs: number): Promise<CoreClientBorrow | CoreBorrowRefusal> {
+/**
+ * Waits (bounded) for an idle admitted client. Never borrows past `signal`.
+ * `observeBusy` is told, per refused attempt, which dispatcher state was busy.
+ */
+export async function borrowCoreClient(principal: string, signal: AbortSignal, timeoutMs: number,
+	observeBusy?: (reason: string) => void): Promise<CoreClientBorrow | CoreBorrowRefusal> {
 	const deadline = Date.now() + timeoutMs;
 	for (;;) {
 		if (signal.aborted) throw new Error('cancelled');
-		const outcome = tryBorrowCoreClient(principal);
+		const outcome = tryBorrowCoreClient(principal, observeBusy);
 		if (outcome !== 'busy' || Date.now() >= deadline) return outcome;
 		await new Promise((resolve) => setTimeout(resolve, RETRY_MS));
 	}
