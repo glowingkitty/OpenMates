@@ -12,6 +12,7 @@ import type { UnitInstallContext } from '../host/sharedWorkerProtocol';
 import { createHiddenHandlers } from './hiddenOps';
 import { createForkHandlers } from './forkOps';
 import { createBookmarkHighlightHandlers } from './bookmarkHighlightOps';
+import { createProjectStateHandlers } from './projectStateOps';
 import { CHAT_STATE_OPS, isChatListBinding, type ChatListBinding, type ChatStateUnitProtocol } from './chatListProtocol';
 
 export function createChatStateHandlers(binding: ChatListBinding): UnitHandlers<ChatStateUnitProtocol> {
@@ -28,7 +29,7 @@ export function createChatStateHandlers(binding: ChatListBinding): UnitHandlers<
 			return JSON.parse(json);
 		};
 	}
-	return { ...handlers, ...createHiddenHandlers(binding), ...createForkHandlers(binding), ...createBookmarkHighlightHandlers(binding) } as unknown as UnitHandlers<ChatStateUnitProtocol>;
+	return { ...handlers, ...createHiddenHandlers(binding), ...createForkHandlers(binding), ...createBookmarkHighlightHandlers(binding), ...createProjectStateHandlers(binding) } as unknown as UnitHandlers<ChatStateUnitProtocol>;
 }
 
 export function installChatStateUnit(context: UnitInstallContext): () => void {

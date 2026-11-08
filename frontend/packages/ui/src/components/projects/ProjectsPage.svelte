@@ -70,6 +70,7 @@
     type ProjectRemoteSearchResult,
     type ProjectRemoteTextResult,
   } from '../../services/projectService';
+  import { PROJECT_RUST_CORE, decideProject } from '../../services/projectState/decide';
   import {
     buildRemoteFileUploadCandidate,
     buildVirtualRemoteFullscreenDetail,
@@ -1029,7 +1030,11 @@
       const candidate = buildRemoteFileUploadCandidate({
         preview: entry.preview,
         readResult,
-      });
+      }, PROJECT_RUST_CORE
+        ? await decideProject('projectRemoteUploadPlan', {
+            preview: entry.preview, readResult: { truncated: readResult.truncated, expectedBase: readResult.expectedBase },
+          })
+        : undefined);
       await uploadFileToProject(project, candidate.file, candidate.metadata, { folderId: currentFolder?.folder_id ?? null });
       await refreshSelectedProject();
       notificationStore.success('Remote file uploaded to OpenMates');

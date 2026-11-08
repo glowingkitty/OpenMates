@@ -46,6 +46,10 @@ pub mod web_key_state;
 mod web_key_state_tests;
 #[cfg(test)]
 mod web_keys_tests;
+/// Project decisions of the web `projectDecide` op (projectState policy twin).
+pub mod web_projects;
+#[cfg(test)]
+mod web_projects_tests;
 pub mod web_guest;
 #[cfg(test)]
 mod web_guest_tests;

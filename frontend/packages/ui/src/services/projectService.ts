@@ -23,13 +23,12 @@ import {
   unwrapEmbedKeyWithEmbedKey,
 } from "./cryptoService";
 import { embedStore } from "./embedStore";
-import { uploadFileToServer, type UploadFileResponse } from "../components/enter_message/services/uploadService";
+import { uploadFileToServer } from "../components/enter_message/services/uploadService";
 import { classifyMindMapUploadSource } from "../components/enter_message/services/mindMapUploadDetection";
 import { normalizeMindMapSource } from "../components/embeds/mindmaps/mindMapContent";
 import { generateDirectEmbedRef } from "../utils/embedFragmentUtils";
 import {
   buildProjectSourceCreatePayload,
-  buildDefaultProjectFocus,
   type ProjectSourceCapability,
   type ProjectSourceCreatePayload,
   type ProjectSourceStatus,
@@ -38,6 +37,13 @@ import {
   type ProjectRemoteAccessOperation as ProjectRemoteSourceOperation,
 } from "./projectRemoteSources";
 import type { HostedProjectFileHead } from "./hostedProjectFileExecutor";
+import { PROJECT_RUST_CORE, decideProject, projectRule, type ProjectStateOutput } from "./projectState/decide";
+import {
+  PROJECT_BROWSER_REMOTE_READ_MAX_BYTES,
+  PROJECT_BROWSER_REMOTE_READ_MAX_LINES,
+  PROJECT_REMOTE_CHECKED_OPERATIONS,
+  type RemoteRefusal,
+} from "./projectState/remoteAccessPolicy";
 import {
   isProjectFileMutationOperation,
   projectFileMutationDigest,
@@ -296,57 +302,11 @@ export interface ProjectViewModel {
   encrypted: EncryptedProjectRecord;
 }
 
-const REMOTE_CODE_UPLOAD_EXTENSIONS = new Set([
-  "c",
-  "cpp",
-  "css",
-  "go",
-  "h",
-  "html",
-  "java",
-  "js",
-  "json",
-  "jsx",
-  "md",
-  "py",
-  "rs",
-  "svelte",
-  "swift",
-  "ts",
-  "tsx",
-  "txt",
-  "yaml",
-  "yml",
-]);
-
-const REMOTE_CODE_LANGUAGE_BY_EXTENSION: Record<string, string> = {
-  c: "c",
-  cpp: "cpp",
-  css: "css",
-  go: "go",
-  h: "c",
-  html: "html",
-  java: "java",
-  js: "javascript",
-  json: "json",
-  jsx: "javascript",
-  md: "markdown",
-  py: "python",
-  rs: "rust",
-  svelte: "svelte",
-  swift: "swift",
-  ts: "typescript",
-  tsx: "typescript",
-  txt: "text",
-  yaml: "yaml",
-  yml: "yaml",
-};
 const REMOTE_ACCESS_POLL_INTERVAL_MS = 250;
 const REMOTE_ACCESS_TIMEOUT_MS = 45_000;
 // The source trims escaped JSON against the exact 200KiB encrypted-envelope
 // budget. This leaves headroom for ordinary text result metadata.
-export const PROJECT_BROWSER_REMOTE_READ_MAX_BYTES = 180 * 1024;
-export const PROJECT_BROWSER_REMOTE_READ_MAX_LINES = 4_000;
+export { PROJECT_BROWSER_REMOTE_READ_MAX_BYTES, PROJECT_BROWSER_REMOTE_READ_MAX_LINES };
 
 interface ProjectRemoteRoutingIdentity {
   context_type: "team";
@@ -396,15 +356,19 @@ async function decryptOptional(value: string | null | undefined, key: Uint8Array
 
 export async function decryptProject(record: EncryptedProjectRecord, teamId = getActiveTeamContextSnapshot().teamId): Promise<ProjectViewModel | null> {
   const teamHash = teamId ? await computeSHA256(teamId) : null;
-  const teamWrapper = teamHash ? record.key_wrappers?.find(wrapper => wrapper.key_type === 'team' && wrapper.hashed_team_id === teamHash) : undefined;
-  if (teamId && !teamWrapper) return null;
-  const projectKey = teamWrapper && teamId
-    ? await unwrapEmbedKeyWithEmbedKey(teamWrapper.encrypted_project_key, await getTeamKey(teamId))
-    : record.encrypted_project_key ? await decryptChatKeyWithMasterKey(record.encrypted_project_key) : null;
+  const wrapperInput = {
+    teamId: teamId ?? null, teamHash, encryptedProjectKey: record.encrypted_project_key, keyWrappers: record.key_wrappers,
+  };
+  const selected = PROJECT_RUST_CORE
+    ? await decideProject("projectWrapperSelect", wrapperInput) : projectRule("projectWrapperSelect", wrapperInput);
+  if (selected.mode === "none") return null;
+  const projectKey = selected.mode === "team" && teamId
+    ? await unwrapEmbedKeyWithEmbedKey(selected.wrapper, await getTeamKey(teamId))
+    : selected.mode === "master" ? await decryptChatKeyWithMasterKey(selected.encryptedProjectKey) : null;
   if (!projectKey) return null;
   return {
     project_id: record.project_id,
-    teamId: teamWrapper && teamId ? teamId : null,
+    teamId: selected.mode === "team" && teamId ? teamId : null,
     name: await decryptOptional(record.encrypted_name, projectKey),
     description: await decryptOptional(record.encrypted_description, projectKey),
     icon: await decryptOptional(record.encrypted_icon, projectKey),
@@ -472,20 +436,50 @@ export async function getProject(projectId: string, context: ProjectApiContext =
   });
 }
 
-function publishProject(project: ProjectViewModel, isNew = false): ProjectViewModel {
+function publishMergeInput(project: ProjectViewModel, isNew: boolean) {
   const cached = peekProjects();
   const current = projectEntityCache.peek(projectEntityKey(project.project_id, { teamId: project.teamId }))
     ?? cached?.find((item) => item.project_id === project.project_id);
-  if (current && (current.encrypted.version ?? 0) > (project.encrypted.version ?? 0)) return current;
+  return {
+    cached, current,
+    input: {
+      projectId: project.project_id, incomingVersion: project.encrypted.version ?? null,
+      current: current ? { version: current.encrypted.version ?? null } : null,
+      cachedIds: cached ? cached.map((item) => item.project_id) : null, isNew,
+    },
+  };
+}
+
+function applyPublishMerge(
+  project: ProjectViewModel, cached: ProjectViewModel[] | undefined, current: ProjectViewModel | undefined,
+  merge: ProjectStateOutput<"projectPublishMerge">,
+): ProjectViewModel {
+  if (merge.keepCurrent && current) return current;
   // Fence a concurrent list read even when no list has been loaded yet.
-  if (cached) {
-    const present = cached.some((item) => item.project_id === project.project_id);
-    projectListCache.set(activeProjectListKey(), present
+  if (!merge.keepCurrent && merge.list !== "invalidate" && cached) {
+    projectListCache.set(activeProjectListKey(), merge.list === "replace"
       ? cached.map((item) => item.project_id === project.project_id ? project : item)
-      : isNew ? [project, ...cached] : cached);
+      : merge.list === "prepend" ? [project, ...cached] : cached);
   } else projectListCache.invalidate();
   projectEntityCache.set(projectEntityKey(project.project_id, { teamId: project.teamId }), project);
   return project;
+}
+
+/** Synchronous flag-off publish (the original TypeScript merge rule). */
+function publishProjectSync(project: ProjectViewModel, isNew = false): ProjectViewModel {
+  const { cached, current, input } = publishMergeInput(project, isNew);
+  return applyPublishMerge(project, cached, current, projectRule("projectPublishMerge", input));
+}
+
+/** Flag-on publish: the shared Rust core decides the merge (callers use publishProjectSync flag-off). */
+async function publishProjectRust(project: ProjectViewModel, isNew = false): Promise<ProjectViewModel> {
+  const identity = getWorkspaceCacheIdentity();
+  const { input } = publishMergeInput(project, isNew);
+  const merge = await decideProject("projectPublishMerge", input);
+  if (identity !== getWorkspaceCacheIdentity()) throw new WorkspaceCacheDiscardedError();
+  // Re-read the caches after the decision so the merge applies to their current values.
+  const fresh = publishMergeInput(project, isNew);
+  return applyPublishMerge(project, fresh.cached, fresh.current, merge);
 }
 
 // File/source events do not change summaries. Metadata mutations publish their
@@ -505,11 +499,16 @@ export async function updateProjectMetadata(
 ): Promise<ProjectViewModel> {
   assertCurrentProjectContext(project.teamId);
   const identity = getWorkspaceCacheIdentity();
-  const body: Record<string, unknown> = {
-    version: project.encrypted.version ?? 1,
+  const patchInput = {
+    version: project.encrypted.version ?? null, name: patch.name !== undefined, description: patch.description !== undefined,
   };
-  if (patch.name !== undefined) body.encrypted_name = await encryptWithEmbedKey(patch.name, project.projectKey);
-  if (patch.description !== undefined) body.encrypted_description = await encryptWithEmbedKey(patch.description, project.projectKey);
+  const plan = PROJECT_RUST_CORE
+    ? await decideProject("projectMetadataPatch", patchInput) : projectRule("projectMetadataPatch", patchInput);
+  const body: Record<string, unknown> = {
+    version: plan.version,
+  };
+  if (plan.encryptName && patch.name !== undefined) body.encrypted_name = await encryptWithEmbedKey(patch.name, project.projectKey);
+  if (plan.encryptDescription && patch.description !== undefined) body.encrypted_description = await encryptWithEmbedKey(patch.description, project.projectKey);
   if (identity !== getWorkspaceCacheIdentity()) throw new WorkspaceCacheDiscardedError();
   const data = await requestJson<{ project: EncryptedProjectRecord }>(withProjectRemoteQuery(`/v1/projects/${encodeURIComponent(project.project_id)}`, { team_id: project.teamId }), {
     method: "PATCH",
@@ -518,7 +517,7 @@ export async function updateProjectMetadata(
   const updated = await decryptProject(data.project, project.teamId);
   if (!updated) throw new Error("Updated project could not be decrypted");
   if (identity !== getWorkspaceCacheIdentity()) throw new WorkspaceCacheDiscardedError();
-  return publishProject(updated);
+  return PROJECT_RUST_CORE ? publishProjectRust(updated) : publishProjectSync(updated);
 }
 
 export async function createProject(name: string, writeMode: ProjectWriteMode | null, context: ProjectApiContext = {}): Promise<ProjectViewModel> {
@@ -529,27 +528,28 @@ export async function createProject(name: string, writeMode: ProjectWriteMode | 
   if (!encryptedProjectKey) throw new Error("Could not wrap project key with master key");
   const timestamp = nowSeconds();
   const projectId = crypto.randomUUID();
-  const defaultFocus = buildDefaultProjectFocus(name);
+  const planInput = { name, writeMode, focusId: crypto.randomUUID(), timestamp };
+  const plan = PROJECT_RUST_CORE ? await decideProject("projectCreatePlan", planInput) : projectRule("projectCreatePlan", planInput);
   const teamWrapper = teamId ? {
-    key_type: 'team', hashed_team_id: await computeSHA256(teamId), team_key_epoch: 1,
+    key_type: 'team', hashed_team_id: await computeSHA256(teamId), team_key_epoch: plan.teamKeyEpoch,
     encrypted_project_key: await wrapEmbedKeyWithChatKey(projectKey, await getTeamKey(teamId)),
   } : null;
   const body = {
     project_id: projectId,
     encrypted_project_key: encryptedProjectKey,
     ...(teamWrapper ? { key_wrappers: [teamWrapper] } : {}),
-    encrypted_name: await encryptWithEmbedKey(name, projectKey),
-    encrypted_description: await encryptWithEmbedKey("", projectKey),
-    encrypted_icon: await encryptWithEmbedKey("folder", projectKey),
-    encrypted_color: await encryptWithEmbedKey("default", projectKey),
-    pinned: false,
-    created_at: timestamp,
-    updated_at: timestamp,
-    last_opened_at: timestamp,
-    write_mode: writeMode,
-    ...(writeMode === null ? { chat_organization_only: true } : {}),
-    default_focus_id: defaultFocus.focus_id,
-    encrypted_settings: await encryptWithEmbedKey(JSON.stringify({ default_focus: defaultFocus }), projectKey),
+    encrypted_name: await encryptWithEmbedKey(plan.plaintext.name, projectKey),
+    encrypted_description: await encryptWithEmbedKey(plan.plaintext.description, projectKey),
+    encrypted_icon: await encryptWithEmbedKey(plan.plaintext.icon, projectKey),
+    encrypted_color: await encryptWithEmbedKey(plan.plaintext.color, projectKey),
+    pinned: plan.fields.pinned,
+    created_at: plan.fields.created_at,
+    updated_at: plan.fields.updated_at,
+    last_opened_at: plan.fields.last_opened_at,
+    write_mode: plan.fields.write_mode,
+    ...(plan.fields.chat_organization_only ? { chat_organization_only: true } : {}),
+    default_focus_id: plan.fields.default_focus_id,
+    encrypted_settings: await encryptWithEmbedKey(plan.plaintext.settings, projectKey),
   };
   if (identity !== getWorkspaceCacheIdentity()) throw new WorkspaceCacheDiscardedError();
   const data = await requestJson<{ project: EncryptedProjectRecord }>(withProjectRemoteQuery("/v1/projects", { team_id: teamId }), {
@@ -568,7 +568,7 @@ export async function createProject(name: string, writeMode: ProjectWriteMode | 
     }
   );
   if (identity !== getWorkspaceCacheIdentity()) throw new WorkspaceCacheDiscardedError();
-  return publishProject(created, true);
+  return PROJECT_RUST_CORE ? publishProjectRust(created, true) : publishProjectSync(created, true);
 }
 
 export async function listProjectSources(project: ProjectViewModel, context: ProjectApiContext = {}): Promise<ProjectSourceViewModel[]> {
@@ -584,7 +584,7 @@ export async function createProjectSource(project: ProjectViewModel, input: Proj
   assertCurrentProjectContext(project.teamId);
   const timestamp = nowSeconds();
   const metadata = JSON.stringify(input.metadata ?? {});
-  const payload = buildProjectSourceCreatePayload({
+  const payloadInput = {
     sourceId: input.sourceId ?? crypto.randomUUID(),
     sourceType: input.sourceType,
     encryptedDisplayName: await encryptWithEmbedKey(input.displayName, project.projectKey),
@@ -592,12 +592,29 @@ export async function createProjectSource(project: ProjectViewModel, input: Proj
     capabilities: input.capabilities,
     status: input.status,
     timestamp,
-  });
+  };
+  const payload = PROJECT_RUST_CORE ? await sourcePayloadRust(payloadInput) : buildProjectSourceCreatePayload(payloadInput);
   const data = await requestJson<{ source: ProjectSourceRecord }>(withProjectRemoteQuery(`/v1/projects/${project.project_id}/sources`, { team_id: project.teamId }), {
     method: "POST",
     body: JSON.stringify(payload),
   });
   return decryptProjectSource(data.source, project.projectKey);
+}
+
+/** Flag-on source create body: Rust filters and defaults, the page keeps the wire key order. */
+async function sourcePayloadRust(input: Parameters<typeof buildProjectSourceCreatePayload>[0]) {
+  const answer = await decideProject("projectSourceCreate", input) as Record<string, unknown>;
+  return {
+    source_id: answer.source_id,
+    source_type: answer.source_type,
+    encrypted_display_name: answer.encrypted_display_name,
+    encrypted_metadata: answer.encrypted_metadata,
+    capabilities: answer.capabilities,
+    status: answer.status,
+    created_at: answer.created_at,
+    updated_at: answer.updated_at,
+    ...("last_indexed_at" in answer ? { last_indexed_at: answer.last_indexed_at } : {}),
+  };
 }
 
 export async function requestProjectRemoteAccess<T>(
@@ -613,18 +630,14 @@ export async function requestProjectRemoteAccess<T>(
     ownerId: context.ownerId,
     teamId: context.teamId ?? null,
   };
-  if (source.status !== "connected") {
-    throw new ProjectRemoteAccessError("source_offline", "This Project source is offline");
-  }
-  if (operation === "search" && args.include_content === true && !source.capabilities.includes("read")) {
-    throw new ProjectRemoteAccessError("source_capability_denied", "This Project source does not allow file reads");
-  }
-  if (!requestContext.ownerId)
-    throw new ProjectRemoteAccessError("requester_identity_unavailable", "Authenticated user identity is unavailable");
-  const isUserFileTransfer = operation === "copy_entries" || operation === "move_entries";
-  if (isUserFileTransfer && (args.user_initiated !== true || !source.capabilities.includes("write_request"))) {
-    throw new ProjectRemoteAccessError("source_capability_denied", "This source does not allow file changes");
-  }
+  const preflightInput = {
+    status: source.status, capabilities: source.capabilities, operation, hasOwner: Boolean(requestContext.ownerId),
+    // Only the argument fields the preflight reads cross into Rust.
+    args: { include_content: args.include_content, user_initiated: args.user_initiated },
+  };
+  const preflight = remoteAnswer(PROJECT_RUST_CORE
+    ? await decideProject("projectRemotePreflight", preflightInput) : projectRule("projectRemotePreflight", preflightInput));
+  const isUserFileTransfer = preflight.userFileTransfer;
 
   let sourceSessionId = source.sourceSessionId;
   let keyEpoch = source.keyEpoch;
@@ -641,14 +654,9 @@ export async function requestProjectRemoteAccess<T>(
   const requestingClientId = crypto.randomUUID();
   let ignoredReadGrant: Awaited<ReturnType<typeof createProjectIgnoredReadGrant>> | undefined;
   if (approvedIgnoredRead) {
-    if (
-      operation !== "read_text" ||
-      args.path !== approvedIgnoredRead.path ||
-      !approvedIgnoredRead.chatId ||
-      !approvedIgnoredRead.operationId
-    ) {
-      throw new Error("The ignored-file approval does not match this exact read");
-    }
+    const ignoredInput = { operation, path: args.path, approved: approvedIgnoredRead };
+    if (PROJECT_RUST_CORE) await decideProject("projectIgnoredRead", ignoredInput);
+    else projectRule("projectIgnoredRead", ignoredInput);
     ignoredReadGrant = await createProjectIgnoredReadGrant(project.projectKey, {
       projectId: project.project_id,
       sourceId: source.source_id,
@@ -695,14 +703,13 @@ export async function requestProjectRemoteAccess<T>(
         keyEpoch,
       };
   const requester = await createProjectRemoteAccessHandshake(project.projectKey, identity, "requester");
-  const operationArguments =
-    operation === "read_text"
-      ? {
-          ...args,
-          max_bytes: PROJECT_BROWSER_REMOTE_READ_MAX_BYTES,
-          max_lines: PROJECT_BROWSER_REMOTE_READ_MAX_LINES,
-        }
-      : args;
+  const operationArguments = preflight.readLimits
+    ? {
+        ...args,
+        max_bytes: preflight.readLimits.max_bytes,
+        max_lines: preflight.readLimits.max_lines,
+      }
+    : args;
   const encryptedEnvelope = await encryptWithEmbedKey(
     JSON.stringify({
       requesting_client_id: requestingClientId,
@@ -737,12 +744,11 @@ export async function requestProjectRemoteAccess<T>(
       signal,
     },
   );
-  if (
-    (created.source_session_id && created.source_session_id !== sourceSessionId) ||
-    (created.key_epoch && created.key_epoch !== keyEpoch)
-  ) {
-    throw new ProjectRemoteAccessError("source_session_changed", "The Project source session changed. Retry the request");
-  }
+  const createdInput = {
+    created: { source_session_id: created.source_session_id, key_epoch: created.key_epoch }, sourceSessionId, keyEpoch,
+  };
+  remoteAnswer(PROJECT_RUST_CORE
+    ? await decideProject("projectRemoteCreated", createdInput) : projectRule("projectRemoteCreated", createdInput));
 
   const result = await pollProjectRemoteResult(
     project.project_id,
@@ -762,9 +768,18 @@ export async function requestProjectRemoteAccess<T>(
     requester.handshake,
   );
   throwIfRemoteAccessAborted(signal);
-  return (operation === "read_text" ? normalizeProjectRemoteTextResult(opened)
-    : operation === "read_image_chunk" ? normalizeProjectRemoteImageChunkResult(opened)
-    : operation === "read_file_chunk" ? normalizeProjectRemoteFileChunkResult(opened) : opened) as T;
+  if (!PROJECT_REMOTE_CHECKED_OPERATIONS.includes(operation)) return opened as T;
+  const normalizeInput = { operation, value: opened };
+  const normalized = PROJECT_RUST_CORE
+    ? await decideProject("projectRemoteNormalize", normalizeInput) : projectRule("projectRemoteNormalize", normalizeInput);
+  if (PROJECT_RUST_CORE) throwIfRemoteAccessAborted(signal);
+  return normalized.result as T;
+}
+
+/** The answer of a remote-access rule, or its refusal rethrown as the typed error. */
+function remoteAnswer<A extends object>(answer: A | RemoteRefusal): A {
+  if ("remoteError" in answer) throw remoteRefusalError(answer as RemoteRefusal);
+  return answer as A;
 }
 
 /** Execute a user-confirmed copy or move entirely on the connected source host. */
@@ -775,15 +790,9 @@ export async function transferProjectRemoteEntries(
   input: { operation: ProjectRemoteTransferOperation; paths: string[]; destinationPath: string },
   signal?: AbortSignal,
 ): Promise<ProjectRemoteTransferResult> {
-  const strictPath = (value: string) => typeof value === "string" && value.length > 0 && value.length <= 4096
-    && !value.startsWith("/") && !value.includes("\\")
-    && value.split("/").every((part) => part.length > 0 && part !== "." && part !== ".." && !part.startsWith("."))
-    && ![...value].some((character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127);
-  if (!Array.isArray(input.paths) || input.paths.length < 1 || input.paths.length > 20
-    || new Set(input.paths).size !== input.paths.length || !input.paths.every(strictPath)
-    || (input.destinationPath !== "." && !strictPath(input.destinationPath))) {
-    throw new ProjectRemoteAccessError("invalid_path", "Select up to 20 files or folders within this Project");
-  }
+  const transferInput = { paths: input.paths, destinationPath: input.destinationPath };
+  remoteAnswer(PROJECT_RUST_CORE
+    ? await decideProject("projectRemoteTransfer", transferInput) : projectRule("projectRemoteTransfer", transferInput));
   return requestProjectRemoteAccess<ProjectRemoteTransferResult>(project, source, context, input.operation, {
     paths: input.paths,
     destination_path: input.destinationPath,
@@ -827,20 +836,24 @@ async function discoverProjectRemoteRouting(
     },
   );
   const routingIdentity = created.routing_identity;
-  if (!created.source_session_id || !created.key_epoch || routingIdentity?.context_type !== "team") {
-    throw new ProjectRemoteAccessError("routing_identity_unavailable", "The Team source routing identity is unavailable");
-  }
+  const routingInput = {
+    created: {
+      source_session_id: created.source_session_id, key_epoch: created.key_epoch,
+      routing_identity: routingIdentity ? { context_type: routingIdentity.context_type } : undefined,
+    },
+  };
+  remoteAnswer(PROJECT_RUST_CORE
+    ? await decideProject("projectRoutingCreated", routingInput) : projectRule("projectRoutingCreated", routingInput));
   const result = await pollProjectRemoteResult(project.project_id, source.source_id, requestId, requestingClientId, context.teamId, signal);
   const discoveryText = await decryptWithEmbedKey(result.encrypted_envelope, project.projectKey);
   throwIfRemoteAccessAborted(signal);
-  const discovery = parseRemoteObject(discoveryText, "The Team source routing response is invalid");
-  if (discovery.type !== "routing_discovery_result" || discovery.nonce !== nonce) {
-    throw new ProjectRemoteAccessError("routing_identity_invalid", "The Team source routing response is invalid");
-  }
+  const discoveryInput = { discovery: discoveryText, nonce };
+  remoteAnswer(PROJECT_RUST_CORE
+    ? await decideProject("projectRoutingResult", discoveryInput) : projectRule("projectRoutingResult", discoveryInput));
   return {
-    sourceSessionId: created.source_session_id,
-    keyEpoch: created.key_epoch,
-    routingIdentity,
+    sourceSessionId: created.source_session_id as string,
+    keyEpoch: created.key_epoch as number,
+    routingIdentity: routingIdentity as ProjectRemoteRoutingIdentity,
   };
 }
 
@@ -881,7 +894,11 @@ async function pollProjectRemoteResult(
         throw new ProjectRemoteAccessError("invalid_remote_payload", "The Project source returned an invalid response");
       }
     }
-    if (response.status !== 404) throw remoteAccessHttpError(response.status);
+    if (response.status !== 404) {
+      const httpInput = { status: response.status };
+      throw remoteRefusalError(PROJECT_RUST_CORE
+        ? await decideProject("projectRemoteHttpError", httpInput) : projectRule("projectRemoteHttpError", httpInput));
+    }
     await waitForRemoteAccessPoll(signal);
   }
   throw new ProjectRemoteAccessError("protocol_timeout", "Remote access request timed out");
@@ -920,14 +937,9 @@ async function openProjectRemoteAccessResult<T>(
     payload.envelope,
     new ProjectRemoteAccessReplayGuard(),
   );
-  const response = parseRemoteObject(
-    new TextDecoder("utf-8", { fatal: true }).decode(plaintext),
-    "The Project source returned an invalid encrypted response",
-  ) as { ok?: boolean; result?: T; error?: string };
-  if (response.ok !== true) {
-    const code = typeof response.error === "string" && /^[a-z][a-z0-9_]{0,63}$/.test(response.error) ? response.error : "operation_failed";
-    throw new ProjectRemoteAccessError(code, remoteAccessErrorMessage(code));
-  }
+  const responseInput = { plaintext: new TextDecoder("utf-8", { fatal: true }).decode(plaintext) };
+  const response = remoteAnswer(PROJECT_RUST_CORE
+    ? await decideProject("projectRemoteResponse", responseInput) : projectRule("projectRemoteResponse", responseInput));
   return response.result as T;
 }
 
@@ -985,18 +997,13 @@ async function requestRemoteJson<T>(path: string, init: RequestInit): Promise<T>
     throw new ProjectRemoteAccessError("source_offline", "The Project source request could not be sent");
   }
   if (!response.ok) {
-    if (response.status === 409) {
-      // A valid login can outlive its server-side per-session device binding.
-      // Only this exact backend code should ask the user to establish a new login.
-      const body = await response.json().catch(() => null) as { detail?: unknown } | null;
-      if (body?.detail === "REQUESTER_DEVICE_IDENTITY_UNAVAILABLE") {
-        throw new ProjectRemoteAccessError(
-          "requester_device_identity_unavailable",
-          "Sign out and sign in again to reconnect this Project source",
-        );
-      }
-    }
-    throw remoteAccessHttpError(response.status);
+    // A 409 body may carry the device-binding detail the status mapping checks.
+    const body = response.status === 409
+      ? await response.json().catch(() => null) as { detail?: unknown } | null
+      : null;
+    const httpInput = { status: response.status, detail: body?.detail };
+    throw remoteRefusalError(PROJECT_RUST_CORE
+      ? await decideProject("projectRemoteHttpError", httpInput) : projectRule("projectRemoteHttpError", httpInput));
   }
   try {
     return (await response.json()) as T;
@@ -1005,103 +1012,10 @@ async function requestRemoteJson<T>(path: string, init: RequestInit): Promise<T>
   }
 }
 
-function remoteAccessHttpError(status: number): ProjectRemoteAccessError {
-  if (status === 401 || status === 403)
-    return new ProjectRemoteAccessError("access_revoked", "You no longer have access to this Project source");
-  if (status === 404) return new ProjectRemoteAccessError("source_offline", "This Project source is unavailable");
-  if (status === 409)
-    return new ProjectRemoteAccessError("source_offline", "This Project source changed or disconnected. Refresh and try again");
-  if (status === 429) return new ProjectRemoteAccessError("rate_limited", "Too many Project source requests. Try again shortly");
-  return new ProjectRemoteAccessError("operation_failed", "The Project source request failed");
+function remoteRefusalError(refusal: RemoteRefusal): ProjectRemoteAccessError {
+  return new ProjectRemoteAccessError(refusal.remoteError.code, refusal.remoteError.message);
 }
 
-function parseRemoteObject(value: unknown, errorMessage: string): Record<string, unknown> {
-  try {
-    const parsed = typeof value === "string" ? (JSON.parse(value) as unknown) : value;
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed as Record<string, unknown>;
-  } catch {
-    // Stable caller-facing error below.
-  }
-  throw new Error(errorMessage);
-}
-
-function normalizeProjectRemoteTextResult(value: unknown): ProjectRemoteTextResult {
-  const result = parseRemoteObject(value, "The Project source returned an invalid text result");
-  const expectedBase = result.expected_base;
-  if (
-    typeof result.content !== "string" ||
-    typeof result.truncated !== "boolean" ||
-    typeof result.sizeBytes !== "number" ||
-    !Number.isSafeInteger(result.sizeBytes) ||
-    result.sizeBytes < 0 ||
-    typeof result.lineCount !== "number" ||
-    !Number.isSafeInteger(result.lineCount) ||
-    result.lineCount < 0 ||
-    !(expectedBase === null || (typeof expectedBase === "string" && /^[a-f0-9]{64}$/.test(expectedBase)))
-  ) {
-    throw new Error("The Project source returned an invalid text result");
-  }
-  if (result.truncated && expectedBase !== null) {
-    throw new Error("The Project source returned an invalid text result");
-  }
-  return {
-    content: result.content,
-    truncated: result.truncated,
-    sizeBytes: result.sizeBytes,
-    lineCount: result.lineCount,
-    expectedBase: expectedBase as string | null,
-  };
-}
-
-function normalizeProjectRemoteImageChunkResult(value: unknown): ProjectRemoteImageChunkResult {
-  const result = parseRemoteObject(value, "The Project source returned an invalid image chunk");
-  if (typeof result.content_base64 !== "string" || result.content_base64.length > 175_000
-    || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(result.content_base64)
-    || !["image/png", "image/jpeg", "image/gif", "image/webp", "image/avif"].includes(String(result.mime_type))
-    || typeof result.size_bytes !== "number" || !Number.isSafeInteger(result.size_bytes)
-    || result.size_bytes <= 0 || result.size_bytes > 2 * 1024 * 1024
-    || typeof result.offset !== "number" || !Number.isSafeInteger(result.offset)
-    || result.offset < 0 || result.offset >= result.size_bytes || result.offset % (128 * 1024) !== 0
-    || typeof result.content_hash !== "string" || !/^[a-f0-9]{64}$/.test(result.content_hash)) {
-    throw new Error("The Project source returned an invalid image chunk");
-  }
-  return result as unknown as ProjectRemoteImageChunkResult;
-}
-
-function normalizeProjectRemoteFileChunkResult(value: unknown): ProjectRemoteFileChunkResult {
-  const result = parseRemoteObject(value, "The Project source returned an invalid file chunk");
-  if (typeof result.content_base64 !== "string" || result.content_base64.length > 175_000
-    || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(result.content_base64)
-    || typeof result.size_bytes !== "number" || !Number.isSafeInteger(result.size_bytes)
-    || result.size_bytes < 0
-    || typeof result.offset !== "number" || !Number.isSafeInteger(result.offset)
-    || result.offset < 0 || (result.size_bytes > 0 && result.offset >= result.size_bytes)
-    || result.offset % (128 * 1024) !== 0
-    || typeof result.file_identity !== "string" || !/^[a-f0-9]{64}$/.test(result.file_identity)
-    || typeof result.chunk_hash !== "string" || !/^[a-f0-9]{64}$/.test(result.chunk_hash)) {
-    throw new Error("The Project source returned an invalid file chunk");
-  }
-  return result as unknown as ProjectRemoteFileChunkResult;
-}
-
-function remoteAccessErrorMessage(code: string | undefined): string {
-  const messages: Record<string, string> = {
-    protected_path: "This file is protected or ignored",
-    unsupported_file: "This file is binary or unsupported",
-    invalid_path: "This source path is unavailable",
-    search_query_required: "Enter a search query",
-    operation_failed: "The remote source could not complete this request",
-    file_changed: "The file changed. Read its current content and rebuild the edit",
-    target_exists: "The create target already exists; its content was preserved",
-    source_missing: "The source is gone. Check the destination before trying again",
-    invalid_patch: "The patch does not exactly match the current file",
-    operation_conflict: "This operation identity was already used for different changes",
-    operation_unconfirmed: "A previous file operation may be incomplete. Inspect the destination before retrying",
-    write_authorization_denied: "The originating chat no longer has permission to write this Project",
-    ignored_path_requires_approval: "This ignored file requires explicit approval",
-  };
-  return messages[code ?? ""] ?? "The remote source rejected this request";
-}
 
 export async function getProjectSettings(project: ProjectViewModel, context: ProjectApiContext = {}): Promise<ProjectSettingsViewModel> {
   const data = await requestJson<{ settings: ProjectSettingsRecord }>(
@@ -1109,9 +1023,13 @@ export async function getProjectSettings(project: ProjectViewModel, context: Pro
       team_id: context.teamId ?? project.teamId,
     }),
   );
-  if (!data.settings.encrypted_settings) {
-    const defaultFocus = buildDefaultProjectFocus(project.name);
-    const writeMode = normalizeProjectWriteMode(data.settings.write_mode) ?? "apply_and_show";
+  const initInput = {
+    settings: { encrypted_settings: data.settings.encrypted_settings, write_mode: data.settings.write_mode },
+    // A focus id is drawn only when the settings still need their default focus.
+    projectName: project.name, focusId: data.settings.encrypted_settings ? "" : crypto.randomUUID(), timestamp: nowSeconds(),
+  };
+  const init = PROJECT_RUST_CORE ? await decideProject("projectSettingsInit", initInput) : projectRule("projectSettingsInit", initInput);
+  if (init.init) {
     const initialized = await requestJson<{ settings: ProjectSettingsRecord }>(
       withProjectRemoteQuery(`/v1/projects/${project.project_id}/settings`, {
         team_id: context.teamId ?? project.teamId,
@@ -1119,10 +1037,10 @@ export async function getProjectSettings(project: ProjectViewModel, context: Pro
       {
         method: "PATCH",
         body: JSON.stringify({
-          write_mode: writeMode,
-          default_focus_id: defaultFocus.focus_id,
-          encrypted_settings: await encryptWithEmbedKey(JSON.stringify({ default_focus: defaultFocus }), project.projectKey),
-          updated_at: nowSeconds(),
+          write_mode: init.writeMode,
+          default_focus_id: init.defaultFocusId,
+          encrypted_settings: await encryptWithEmbedKey(init.settingsPlaintext, project.projectKey),
+          updated_at: init.updatedAt,
         }),
       },
     );
@@ -1138,21 +1056,28 @@ export async function updateProjectSettings(
   autoSelection?: boolean,
   focusActivationPolicy?: ProjectFocusActivationPolicy,
 ): Promise<ProjectSettingsViewModel> {
+  const patchInput = { writeMode, autoSelection, focusActivationPolicy, timestamp: nowSeconds() };
   const data = await requestJson<{ settings: ProjectSettingsRecord }>(
     withProjectRemoteQuery(`/v1/projects/${project.project_id}/settings`, {
       team_id: context.teamId ?? project.teamId,
     }),
     {
       method: "PATCH",
-      body: JSON.stringify({
-        ...(writeMode ? { write_mode: writeMode } : {}),
-        ...(autoSelection === undefined ? {} : { auto_selection: autoSelection }),
-        ...(focusActivationPolicy === undefined ? {} : { focus_activation_policy: focusActivationPolicy }),
-        updated_at: nowSeconds(),
-      }),
+      body: JSON.stringify(PROJECT_RUST_CORE ? await settingsPatchRust() : projectRule("projectSettingsPatch", patchInput)),
     },
   );
   return decryptProjectSettings(data.settings, project.projectKey);
+
+  async function settingsPatchRust() {
+    // Rust answers a key-sorted object; rebuild the wire body in its original key order.
+    const answer = await decideProject("projectSettingsPatch", patchInput) as Record<string, unknown>;
+    return {
+      ...("write_mode" in answer ? { write_mode: answer.write_mode } : {}),
+      ...("auto_selection" in answer ? { auto_selection: answer.auto_selection } : {}),
+      ...("focus_activation_policy" in answer ? { focus_activation_policy: answer.focus_activation_policy } : {}),
+      updated_at: answer.updated_at,
+    };
+  }
 }
 
 export async function confirmProjectFocusCountdown(
@@ -1218,8 +1143,9 @@ export async function readEncryptedProjectFile(
     embed_keys?: Array<Record<string, unknown>>;
     has_initial_history?: boolean;
   }>(path);
-  const wrapper = data.embed_keys?.find((item) => item.key_type === "project" && typeof item.encrypted_embed_key === "string");
-  let embedKey = wrapper ? await unwrapEmbedKeyWithEmbedKey(String(wrapper.encrypted_embed_key), project.projectKey) : null;
+  const headInput = { embedKeys: data.embed_keys ?? null, versionNumber: data.embed?.version_number };
+  const head = PROJECT_RUST_CORE ? await decideProject("projectFileHead", headInput) : projectRule("projectFileHead", headInput);
+  let embedKey = head.wrapper ? await unwrapEmbedKeyWithEmbedKey(head.wrapper, project.projectKey) : null;
   if (!embedKey) embedKey = await embedStore.getEmbedKey(embedId);
   if (!embedKey || typeof data.embed?.encrypted_content !== "string") {
     throw Object.assign(new Error("Project file key unavailable"), {
@@ -1236,8 +1162,8 @@ export async function readEncryptedProjectFile(
     });
   }
   const content = await decodeHostedProjectFileContent(plaintext);
-  const revision = Number(data.embed.version_number ?? 1);
-  if (!Number.isSafeInteger(revision) || revision < 1) throw new Error("Invalid Project file revision");
+  const revision = head.revision;
+  if (revision === null) throw new Error("Invalid Project file revision");
   // History uses this same client key. Keep it only in the existing ephemeral
   // cache after current Project authorization and decryption have succeeded.
   embedStore.setEmbedKeyInCache(embedId, embedKey);
@@ -1302,45 +1228,43 @@ export async function deleteProject(projectId: string, context: ProjectApiContex
   if (teamId) confirmation.set('team_id', teamId);
   await requestJson<{ deleted: boolean }>(`/v1/projects/${projectId}?${confirmation.toString()}`, { method: "DELETE" });
   if (identity !== getWorkspaceCacheIdentity()) throw new WorkspaceCacheDiscardedError();
+  const mergeInput = { cachedIds: peekProjects()?.map((project) => project.project_id) ?? null };
+  const merge = PROJECT_RUST_CORE ? await decideProject("projectDeleteMerge", mergeInput) : projectRule("projectDeleteMerge", mergeInput);
+  if (PROJECT_RUST_CORE && identity !== getWorkspaceCacheIdentity()) throw new WorkspaceCacheDiscardedError();
   const cached = peekProjects();
-  if (cached) projectListCache.set(activeProjectListKey(), cached.filter((project) => project.project_id !== projectId));
+  if (merge.list === "filter" && cached) projectListCache.set(activeProjectListKey(), cached.filter((project) => project.project_id !== projectId));
   else projectListCache.invalidate();
   projectEntityCache.invalidate();
 }
 
 async function decryptProjectSource(source: ProjectSourceRecord, projectKey: Uint8Array): Promise<ProjectSourceViewModel> {
   const metadataText = await decryptOptional(source.encrypted_metadata, projectKey);
-  const metadata = parseProjectMetadata(metadataText, `source:${source.source_id}`);
-  return {
-    source_id: source.source_id,
-    source_type: source.source_type,
+  const viewInput = {
+    source: source as unknown as Record<string, unknown>, metadataText,
     displayName: await decryptOptional(source.encrypted_display_name, projectKey),
-    metadata,
-    capabilities: source.capabilities ?? [],
-    status: source.status ?? "connected",
-    sourceSessionId: source.source_session_id ?? null,
-    keyEpoch: source.key_epoch ?? null,
-    encrypted: source,
   };
+  const { warnings, ...view } = PROJECT_RUST_CORE
+    ? await decideProject("projectSourceView", viewInput) : projectRule("projectSourceView", viewInput);
+  logMetadataWarnings(warnings);
+  // The stored record stays the page's own object (the Rust answer is a key-sorted copy).
+  return { ...view, encrypted: source } as unknown as ProjectSourceViewModel;
 }
 
 async function decryptProjectSettings(settings: ProjectSettingsRecord, projectKey: Uint8Array): Promise<ProjectSettingsViewModel> {
   const settingsText = await decryptOptional(settings.encrypted_settings, projectKey);
-  return {
-    autoSelection: settings.auto_selection !== false,
-    focusActivationPolicy: settings.focus_activation_policy === "immediate" || settings.focus_activation_policy === "approval" ? settings.focus_activation_policy : "delayed",
-    writeMode: normalizeProjectWriteMode(settings.write_mode),
-    selectionRequired: settings.selection_required === true || normalizeProjectWriteMode(settings.write_mode) === null,
-    settings: parseProjectMetadata(settingsText, "settings"),
-    encrypted: {
-      ...settings,
-      write_mode: normalizeProjectWriteMode(settings.write_mode),
-    },
-  };
+  const viewInput = { settings: settings as unknown as Record<string, unknown>, settingsText };
+  const { warnings, ...view } = PROJECT_RUST_CORE
+    ? await decideProject("projectSettingsView", viewInput) : projectRule("projectSettingsView", viewInput);
+  logMetadataWarnings(warnings);
+  return view as unknown as ProjectSettingsViewModel;
 }
 
-function normalizeProjectWriteMode(writeMode: unknown): ProjectWriteMode | null {
-  return writeMode === "apply_and_show" || writeMode === "always_ask" ? writeMode : null;
+function logMetadataWarnings(warnings: Array<{ kind: "non_object" | "parse_error"; context: string }>): void {
+  for (const warning of warnings) {
+    console.warn(warning.kind === "non_object"
+      ? `[ProjectService] Ignoring non-object Project metadata for ${warning.context}`
+      : `[ProjectService] Failed to parse Project metadata for ${warning.context}`);
+  }
 }
 
 export async function getProjectContents(
@@ -1360,45 +1284,30 @@ export async function getProjectContents(
       ...(chatOnly ? { chat_only: "true" } : {}),
     }),
   );
-  const folders = await Promise.all(
+  const folderInputs = await Promise.all(
     data.folders.map(async (folder) => ({
-      folder_id: folder.folder_id,
+      record: folder as unknown as Record<string, unknown>,
       name: await decryptOptional(folder.encrypted_name, project.projectKey),
-      parentHash: folder.hashed_parent_folder_id ?? null,
-      encrypted: folder,
     })),
   );
-  const items = await Promise.all(
-    data.items.map(async (item) => {
-      const metadataText = await decryptOptional(item.encrypted_metadata, project.projectKey);
-      const metadata = parseProjectMetadata(metadataText, `item:${item.project_item_id}`);
-      return {
-        project_item_id: item.project_item_id,
-        item_type: item.item_type,
-        target_id: await decryptOptional(item.target_id_encrypted, project.projectKey),
-        displayName: await decryptOptional(item.encrypted_display_name, project.projectKey),
-        metadata,
-        encrypted: item,
-      };
-    }),
+  const itemInputs = await Promise.all(
+    data.items.map(async (item) => ({
+      record: item as unknown as Record<string, unknown>,
+      metadataText: await decryptOptional(item.encrypted_metadata, project.projectKey),
+      targetId: await decryptOptional(item.target_id_encrypted, project.projectKey),
+      displayName: await decryptOptional(item.encrypted_display_name, project.projectKey),
+    })),
   );
-  return { folders, items };
+  const viewInput = { folders: folderInputs, items: itemInputs };
+  const view = PROJECT_RUST_CORE ? await decideProject("projectContentsView", viewInput) : projectRule("projectContentsView", viewInput);
+  logMetadataWarnings(view.warnings);
+  // Stored records stay the page's own objects (the Rust answer carries key-sorted copies).
+  return {
+    folders: view.folders.map((folder, index) => ({ ...folder, encrypted: data.folders[index] })) as unknown as ProjectFolderViewModel[],
+    items: view.items.map((item, index) => ({ ...item, encrypted: data.items[index] })) as unknown as ProjectItemViewModel[],
+  };
 }
 
-function parseProjectMetadata(metadataText: string, context: string): Record<string, unknown> {
-  if (!metadataText) return {};
-  try {
-    const parsed = JSON.parse(metadataText) as unknown;
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-      return parsed as Record<string, unknown>;
-    }
-    console.warn(`[ProjectService] Ignoring non-object Project metadata for ${context}`);
-    return {};
-  } catch (error) {
-    console.warn(`[ProjectService] Failed to parse Project metadata for ${context}:`, error);
-    return {};
-  }
-}
 
 export async function createFolder(project: ProjectViewModel, name: string, parentFolderId?: string, context: ProjectApiContext = {}): Promise<void> {
   const timestamp = nowSeconds();
@@ -1484,44 +1393,6 @@ export async function removeEmbedFromProject(projectId: string, embedId: string,
   await requestJson(withProjectRemoteQuery(`/v1/projects/${encodeURIComponent(projectId)}/items`, {
     item_type: 'embed', target_id: embedId, team_id: context.teamId,
   }), { method: 'DELETE' });
-}
-
-function embedTypeForUpload(upload: UploadFileResponse): string {
-  const contentType = upload.content_type || "";
-  const filename = upload.filename.toLowerCase();
-  if (contentType === "application/pdf" || filename.endsWith(".pdf")) return "pdf";
-  if (contentType.startsWith("image/")) return "images-image";
-  if (contentType.startsWith("video/")) return "video";
-  if (contentType.startsWith("audio/")) return "audio";
-  if (filename.endsWith(".csv") || filename.endsWith(".tsv") || filename.endsWith(".xlsx")) return "sheet";
-  if (filename.endsWith(".eml") || filename.endsWith(".msg")) return "mail";
-  if (/\.(ts|tsx|js|jsx|py|swift|go|rs|java|c|cpp|h|css|html|svelte|json|yml|yaml|md)$/.test(filename)) return "code-code";
-  return "file";
-}
-
-function getFilenameExtension(filename: string): string {
-  const basename = filename.toLowerCase().replace(/\\/g, "/").split("/").filter(Boolean).pop() ?? "";
-  const extensionIndex = basename.lastIndexOf(".");
-  return extensionIndex > 0 ? basename.slice(extensionIndex + 1) : "";
-}
-
-function shouldCreateInlineCodeEmbed(file: File, metadata: ProjectUploadMetadata): boolean {
-  // The Overview reads the encrypted code payload directly. A normal root README
-  // upload must take this path too: generic file uploads only store media keys.
-  if (file.name.toLowerCase() === "readme.md") return true;
-  if (metadata.imported_from_remote_source !== true) return false;
-  const extension = getFilenameExtension(file.name);
-  return REMOTE_CODE_UPLOAD_EXTENSIONS.has(extension) || file.type.startsWith("text/");
-}
-
-function languageForCodeUpload(file: File): string {
-  const extension = getFilenameExtension(file.name);
-  return REMOTE_CODE_LANGUAGE_BY_EXTENSION[extension] ?? "text";
-}
-
-function isMindMapUploadFilename(filename: string): boolean {
-  const lower = filename.toLowerCase();
-  return lower.endsWith(".ommindmap") || lower.endsWith(".openmates-mindmap.json");
 }
 
 async function uploadMindMapToProject(
@@ -1632,13 +1503,16 @@ async function uploadMindMapToProject(
   embedStore.registerEmbedRef(embedRef, embedId, "mindmap");
 }
 
-async function uploadRemoteCodeFileToProject(project: ProjectViewModel, file: File, metadata: ProjectUploadMetadata, location: ProjectUploadLocation): Promise<void> {
+async function uploadRemoteCodeFileToProject(
+  project: ProjectViewModel, file: File, metadata: ProjectUploadMetadata, location: ProjectUploadLocation,
+  route: { language: string; readme: boolean },
+): Promise<void> {
   const source = await file.text();
   const timestampMs = Date.now();
   const timestamp = Math.floor(timestampMs / 1000);
   const embedId = crypto.randomUUID();
   const embedType = "code-code";
-  const storedMetadata = file.name.toLowerCase() === "readme.md"
+  const storedMetadata = route.readme
     ? { ...metadata, embed_type: embedType, readme_uploaded_at_ms: timestampMs }
     : { ...metadata, embed_type: embedType };
   const embedKey = generateEmbedKey();
@@ -1650,7 +1524,7 @@ async function uploadRemoteCodeFileToProject(project: ProjectViewModel, file: Fi
     type: "code",
     app_id: "code",
     skill_id: "code",
-    language: languageForCodeUpload(file),
+    language: route.language,
     code: source,
     filename: file.name,
     embed_ref: embedRef,
@@ -1728,12 +1602,14 @@ async function uploadRemoteCodeFileToProject(project: ProjectViewModel, file: Fi
 }
 
 export async function uploadFileToProject(project: ProjectViewModel, file: File, metadata: ProjectUploadMetadata = {}, location: ProjectUploadLocation = {}): Promise<void> {
-  if (shouldCreateInlineCodeEmbed(file, metadata)) {
-    await uploadRemoteCodeFileToProject(project, file, metadata, location);
+  const routeInput = { fileName: file.name, fileType: file.type, importedFromRemote: metadata.imported_from_remote_source === true };
+  const route = PROJECT_RUST_CORE ? await decideProject("projectUploadRoute", routeInput) : projectRule("projectUploadRoute", routeInput);
+  if (route.route === "code") {
+    await uploadRemoteCodeFileToProject(project, file, metadata, location, route);
     return;
   }
 
-  if (isMindMapUploadFilename(file.name)) {
+  if (route.route === "mindmap") {
     const source = await file.text();
     const classification = classifyMindMapUploadSource(file.name, source, file.size);
     if (classification.accepted === false) {
@@ -1747,9 +1623,11 @@ export async function uploadFileToProject(project: ProjectViewModel, file: File,
   const timestampMs = Date.now();
   const timestamp = Math.floor(timestampMs / 1000);
   const embedKey = generateEmbedKey();
-  const embedType = embedTypeForUpload(upload);
+  const typeInput = { filename: upload.filename, contentType: upload.content_type };
+  const { embedType, appId } = PROJECT_RUST_CORE
+    ? await decideProject("projectUploadEmbedType", typeInput) : projectRule("projectUploadEmbedType", typeInput);
   const embedContent = JSON.stringify({
-    app_id: embedType.split("-")[0] || "files",
+    app_id: appId,
     skill_id: "upload",
     type: embedType,
     status: "finished",

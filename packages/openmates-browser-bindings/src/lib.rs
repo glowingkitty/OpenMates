@@ -27,6 +27,7 @@ mod browser_crypto;
 #[cfg(target_arch = "wasm32")] pub mod browser_chat_state_list;
 #[cfg(target_arch = "wasm32")] pub mod browser_chat_state_view;
 #[cfg(target_arch = "wasm32")] pub mod browser_chat_state_transitions;
+#[cfg(target_arch = "wasm32")] pub mod browser_chat_state_projects;
 #[cfg(target_arch = "wasm32")]
 mod browser_web_crypto;
 #[cfg(target_arch = "wasm32")]

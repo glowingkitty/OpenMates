@@ -9,6 +9,7 @@
   import { userProfile } from '../../../stores/userProfile';
   import { getProject, listProjectSources, readEncryptedProjectFile, requestProjectRemoteAccess, type ProjectRemoteTextResult } from '../../../services/projectService';
   import { buildVirtualRemoteFullscreenDetail, classifyRemotePreviewPath, normalizeRemoteFilePreview, type VirtualRemoteFullscreenDetail } from '../../../services/projectRemoteSources';
+  import { PROJECT_RUST_CORE, decideProject } from '../../../services/projectState/decide';
   import { hasFullscreenComponent, loadFullscreenComponent, resolveRegistryKey } from '../../../services/embedFullscreenResolver';
   import { projectFileReferences, stringField, type ProjectFileReference } from './projectReferenceData';
   import { connectedReferenceSource, hostedReferenceContentHash, referenceRevisionStatus } from './projectReferenceRevision';
@@ -70,7 +71,8 @@
         if (!source) throw new Error($text('embeds.projects.references.source_unavailable'));
         const ownerId = get(userProfile).user_id;
         if (!ownerId) throw new Error($text('embeds.projects.references.source_unavailable'));
-        const classification = classifyRemotePreviewPath(ref.path);
+        const classification = PROJECT_RUST_CORE
+          ? await decideProject('projectRemoteClassify', { path: ref.path }) : classifyRemotePreviewPath(ref.path);
         if (classification.kind === 'unsupported') throw new Error($text('embeds.projects.references.preview_unavailable'));
         // The connected source is read only when the user opens this row. No
         // copy of its text is persisted as an embed or uploaded to the server.
@@ -78,15 +80,22 @@
           project, source, { ownerId, teamId: ref.team_id }, 'read_text', { path: ref.path }, controller.signal);
         if (generation !== openGeneration) return;
         revisionStatus = referenceRevisionStatus(ref.expected_base, result.expectedBase);
-        const preview = normalizeRemoteFilePreview({
+        const previewInput = {
           sourceId: ref.source_id, path: ref.path, displayName: ref.path.split('/').pop() || ref.path,
           language: classification.language, snippet: result.content.slice(0, 20_000),
           snippetTruncated: result.truncated || result.content.length > 20_000,
           baseHash: result.expectedBase ?? undefined, sizeBytes: result.sizeBytes,
           lineCount: result.lineCount, previewPolicy: result.truncated ? 'bounded_truncated_text' : 'bounded_full_text',
           safetyFlags: result.truncated ? ['truncated'] : [],
-        });
-        remote = buildVirtualRemoteFullscreenDetail(preview, result.content);
+        };
+        if (PROJECT_RUST_CORE) {
+          const preview = await decideProject('projectRemotePreview', previewInput);
+          const detail = await decideProject('projectRemoteFullscreen', { preview, fullContent: result.content });
+          if (generation !== openGeneration) return;
+          remote = detail;
+        } else {
+          remote = buildVirtualRemoteFullscreenDetail(normalizeRemoteFilePreview(previewInput), result.content);
+        }
       } else if (ref.embed_id) {
         const file = await readEncryptedProjectFile(project, ref.embed_id, { teamId: ref.team_id });
         if (generation !== openGeneration) return;

@@ -8,24 +8,8 @@ import {
   type ProjectSettingsViewModel,
   type ProjectViewModel,
 } from "./projectService";
-
-const PROJECT_MENTION_TYPES = new Set([
-  "project",
-  "project_folder",
-  "project_file",
-]);
-
-const PROJECT_MENTION_PREFIXES: Record<string, string> = {
-  project: "@project:",
-  project_folder: "@project-folder:",
-  project_file: "@project-file:",
-};
-
-interface ComposerNode {
-  type?: string;
-  attrs?: Record<string, unknown>;
-  content?: ComposerNode[];
-}
+import { PROJECT_RUST_CORE, decideProject, projectRule, type ProjectStateOutput } from "./projectState/decide";
+import { projectFocusIntent } from "./projectState/projectFocusPolicy";
 
 interface ProjectDefaultFocus {
   focus_id: string;
@@ -91,61 +75,27 @@ export class ProjectFocusSendPreflightError extends Error {
 /**
  * Capture current composer consent for one Project. Only structured mention nodes
  * qualify; plaintext copied from message history cannot recreate this intent.
+ * Stays synchronous TypeScript in every build: `handleSend` captures the composer
+ * document before its first await (the Rust twin serves vectors and other clients).
  */
 export function extractProjectFocusSendIntent(document: unknown): ProjectFocusSendIntent | null {
-  const projectIds = new Set<string>();
-
-  const visit = (node: ComposerNode): void => {
-    if (
-      node.type === "genericMention"
-      && PROJECT_MENTION_TYPES.has(String(node.attrs?.mentionType ?? ""))
-    ) {
-      const directProjectId = node.attrs?.projectId;
-      if (typeof directProjectId === "string" && directProjectId.trim()) {
-        projectIds.add(directProjectId.trim());
-      } else {
-        // Draft HTML rehydration can retain the structured Project mention and
-        // canonical syntax while losing optional node-only attributes. Recover
-        // only from that structured node; ordinary plaintext remains untrusted.
-        const mentionType = String(node.attrs?.mentionType ?? "");
-        const prefix = PROJECT_MENTION_PREFIXES[mentionType];
-        const mentionSyntax = node.attrs?.mentionSyntax;
-        if (prefix && typeof mentionSyntax === "string" && mentionSyntax.startsWith(prefix)) {
-          const projectId = mentionSyntax.slice(prefix.length).split(":", 1)[0]?.trim();
-          if (projectId) projectIds.add(projectId);
-        }
-      }
-    }
-    for (const child of node.content ?? []) visit(child);
-  };
-
-  if (document && typeof document === "object") visit(document as ComposerNode);
-  if (projectIds.size === 0) return null;
-  if (projectIds.size > 1) {
-    throw new ProjectFocusSendPreflightError("MULTIPLE_PROJECTS");
-  }
-  return {
-    projectId: Array.from(projectIds)[0],
-    source: "composer_project_mention",
-  };
+  const answer = projectFocusIntent({ document });
+  if ("focusError" in answer) throw new ProjectFocusSendPreflightError(answer.focusError);
+  return answer.intent;
 }
 
-function readDefaultFocus(settings: ProjectSettingsViewModel): ProjectDefaultFocus {
-  const candidate = settings.settings.default_focus;
-  if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
-    throw new ProjectFocusSendPreflightError("PROJECT_FOCUS_UNAVAILABLE");
-  }
-  const focusId = (candidate as Record<string, unknown>).focus_id;
-  const instructions = (candidate as Record<string, unknown>).instructions;
-  if (
-    typeof focusId !== "string"
-    || !focusId.trim()
-    || typeof instructions !== "string"
-    || !instructions.trim()
-  ) {
-    throw new ProjectFocusSendPreflightError("PROJECT_FOCUS_UNAVAILABLE");
-  }
-  return { focus_id: focusId.trim(), instructions: instructions.trim() };
+function defaultFocusAnswer(answer: ProjectStateOutput<"projectDefaultFocusRead">): ProjectDefaultFocus {
+  if ("focusError" in answer) throw new ProjectFocusSendPreflightError(answer.focusError);
+  return answer.focus;
+}
+
+/** Flag-on: the shared Rust core reads the default focus. */
+async function readDefaultFocus(settings: ProjectSettingsViewModel): Promise<ProjectDefaultFocus> {
+  return defaultFocusAnswer(await decideProject("projectDefaultFocusRead", { settings: settings.settings }));
+}
+
+function readDefaultFocusSync(settings: ProjectSettingsViewModel): ProjectDefaultFocus {
+  return defaultFocusAnswer(projectRule("projectDefaultFocusRead", { settings: settings.settings }));
 }
 
 /**
@@ -187,7 +137,7 @@ async function activateProjectDefaultFocus(
   }
   const project = await dependencies.getProject(projectId, context);
   const settings = await dependencies.getProjectSettings(project, context);
-  const focus = readDefaultFocus(settings);
+  const focus = PROJECT_RUST_CORE ? await readDefaultFocus(settings) : readDefaultFocusSync(settings);
   const activation = await dependencies.activateProjectFocus(
     projectId,
     {

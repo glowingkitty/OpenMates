@@ -667,7 +667,9 @@
         "web-rust-core-chatstate-hidden-chats-flow.spec.ts",
         "web-rust-core-chatstate-fork-conversation.spec.ts",
         "web-rust-core-chatstate-message-highlights.spec.ts",
-        "web-rust-core-composer.spec.ts"
+        "web-rust-core-composer.spec.ts",
+        "web-rust-core-projects-flow.spec.ts",
+        "web-rust-core-projects-remote-sources.spec.ts"
       ]
     },
     "external_integration": {

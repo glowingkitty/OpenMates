@@ -18,6 +18,14 @@ import {
   type ProjectSourceViewModel,
   type ProjectViewModel,
 } from "./projectService";
+import { PROJECT_RUST_CORE, decideProject, projectRule } from "./projectState/decide";
+import {
+  projectReadmeFind,
+  projectReadmeText as projectReadmeTextRule,
+  readmeImageSources,
+  readmePublicImageHref,
+  type ReadmeItem,
+} from "./projectState/projectReadmePolicy";
 
 export interface ProjectReadmeDocument {
   content: string;
@@ -44,118 +52,48 @@ interface LoadProjectReadmeInput {
 }
 
 const README_PATH = "README.md" as const;
-const CONTENT_FIELDS = ["code", "content", "markdown", "text"] as const;
+// Read stride of connected-source image chunks (the chunk check enforces each length).
 const REMOTE_IMAGE_CHUNK_BYTES = 128 * 1024;
-const MAX_REMOTE_IMAGE_BYTES = 2 * 1024 * 1024;
-const MAX_REMOTE_README_IMAGES = 8;
 
-function basename(path: string): string {
-  const parts = path.replace(/\\/g, "/").split("/").filter(Boolean);
-  return parts[parts.length - 1] ?? "";
-}
-
-function storedReadmePath(item: ProjectItemViewModel): string | null {
-  const metadataPath = typeof item.metadata.path === "string" ? item.metadata.path : "";
-  const remotePath = typeof item.metadata.remote_path === "string" ? item.metadata.remote_path : "";
-  const candidate = metadataPath || remotePath || item.displayName;
-  if (!candidate || candidate.startsWith("/") || candidate.includes("\\")) return null;
-  if (candidate.includes("/")) return null;
-  return basename(candidate).toLowerCase() === README_PATH.toLowerCase() ? README_PATH : null;
+/** The item fields the README rules read (keeps the Rust input small). */
+function readmeItems(items: readonly ProjectItemViewModel[]): ReadmeItem[] {
+  return items.map((item) => ({
+    item_type: item.item_type,
+    displayName: item.displayName,
+    metadata: {
+      path: item.metadata.path, remote_path: item.metadata.remote_path, readme_uploaded_at_ms: item.metadata.readme_uploaded_at_ms,
+    },
+    encrypted: {
+      hashed_folder_id: item.encrypted.hashed_folder_id, updated_at: item.encrypted.updated_at, created_at: item.encrypted.created_at,
+    },
+  }));
 }
 
 export function findStoredProjectReadme(items: readonly ProjectItemViewModel[]): ProjectItemViewModel | null {
-  const readmes = items.filter((item) =>
-    item.item_type === "embed" && !item.encrypted.hashed_folder_id && storedReadmePath(item),
-  );
-  return readmes.sort((a, b) =>
-    readmeUploadTime(b) - readmeUploadTime(a) ||
-    b.encrypted.updated_at - a.encrypted.updated_at ||
-    b.encrypted.created_at - a.encrypted.created_at,
-  )[0] ?? null;
+  const { index } = projectReadmeFind({ items: readmeItems(items) });
+  return index === null ? null : items[index];
 }
 
-function readmeUploadTime(item: ProjectItemViewModel): number {
-  const value = item.metadata.readme_uploaded_at_ms;
-  return typeof value === "number" && Number.isSafeInteger(value) && value > 0 ? value : 0;
+async function findStoredReadmeRust(items: readonly ProjectItemViewModel[]): Promise<ProjectItemViewModel | null> {
+  const { index } = await decideProject("projectReadmeFind", { items: readmeItems(items) });
+  return index === null ? null : items[index];
 }
 
 export function projectReadmeText(content: Record<string, unknown>): string | null {
-  for (const field of CONTENT_FIELDS) {
-    const value = content[field];
-    if (typeof value === "string") return value;
-  }
-  return null;
+  return projectReadmeTextRule({ content }).text;
 }
 
-/** External images always pass through the privacy-preserving image proxy. */
+/**
+ * External images always pass through the privacy-preserving image proxy. Stays
+ * synchronous TypeScript: ProjectReadme.svelte calls it while rendering.
+ */
 export function safeProjectReadmeImageUrl(value: string): string | null {
-  try {
-    const url = new URL(value.startsWith("//") ? `https:${value}` : value);
-    if ((url.protocol !== "https:" && url.protocol !== "http:") || url.username || url.password) return null;
-    const hostname = url.hostname.toLowerCase();
-    if (hostname === "localhost" || hostname.endsWith(".localhost")
-      || hostname.startsWith("[") || /^(?:\d{1,3}\.){3}\d{1,3}$/.test(hostname)) return null;
-    return proxyImage(url.href, MAX_WIDTH_CONTENT_IMAGE);
-  } catch {
-    return null;
-  }
-}
-
-function projectItemPath(item: ProjectItemViewModel): string | null {
-  const raw = typeof item.metadata.path === "string"
-    ? item.metadata.path
-    : typeof item.metadata.remote_path === "string" ? item.metadata.remote_path : item.displayName;
-  if (!raw || raw.startsWith("/") || raw.includes("\\")) return null;
-  const parts = raw.split("/");
-  if (parts.some((part) => !part || part === "." || part === "..")) return null;
-  return parts.join("/");
-}
-
-function relativeImagePath(value: string): string | null {
-  if (!value || value.startsWith("/") || value.startsWith("\\") || value.startsWith("#")) return null;
-  const withoutSuffix = value.split(/[?#]/, 1)[0];
-  let decoded: string;
-  try {
-    decoded = decodeURIComponent(withoutSuffix).replace(/^\.\//, "");
-  } catch {
-    return null;
-  }
-  if (!decoded || decoded.includes("\\")) return null;
-  const parts: string[] = [];
-  for (const part of decoded.split("/")) {
-    if (!part || part === ".") continue;
-    if (part === "..") {
-      if (!parts.pop()) return null;
-      continue;
-    }
-    parts.push(part);
-  }
-  return parts.length ? parts.join("/") : null;
+  const href = readmePublicImageHref(value);
+  return href === null ? null : proxyImage(href, MAX_WIDTH_CONTENT_IMAGE);
 }
 
 export function projectReadmeImageSources(markdown: string): string[] {
-  const sources = new Set<string>();
-  const pattern = /!\[[^\]]*\]\(\s*(?:<([^>]+)>|([^\s)]+))(?:\s+(?:"[^"]*"|'[^']*'|\([^)]*\)))?\s*\)/g;
-  let match: RegExpExecArray | null;
-  while ((match = pattern.exec(markdown)) !== null) {
-    const source = (match[1] || match[2] || "").trim();
-    if (source) sources.add(source);
-  }
-
-  const normalizeLabel = (label: string): string => label.trim().replace(/\s+/g, " ").toLowerCase();
-  const definitions = new Map<string, string>();
-  const definitionPattern = /^\s{0,3}\[([^\]]+)\]:\s*(?:<([^>]+)>|([^\s]+))(?:\s+(?:"[^"]*"|'[^']*'|\([^)]*\)))?\s*$/gm;
-  while ((match = definitionPattern.exec(markdown)) !== null) {
-    const source = (match[2] || match[3] || "").trim();
-    if (source) definitions.set(normalizeLabel(match[1]), source);
-  }
-  const referencePattern = /!\[([^\]]+)\]\s*\[([^\]]*)\]/g;
-  while ((match = referencePattern.exec(markdown)) !== null) {
-    const label = normalizeLabel(match[2] || match[1]);
-    const source = definitions.get(label);
-    if (source) sources.add(source);
-  }
-  return Array.from(sources);
+  return readmeImageSources(markdown);
 }
 
 function imageVariant(content: Record<string, unknown>): Record<string, unknown> | null {
@@ -197,21 +135,21 @@ async function resolveReadmeImages(
   remote?: { source: ProjectSourceViewModel; context: ProjectRemoteAccessContext; signal?: AbortSignal },
 ): Promise<Record<string, string>> {
   const urls: Record<string, string> = {};
-  let remoteImages = 0;
+  // The rules decide every image up front (pure); the reads below keep their order.
+  const planInput = { markdown, items: readmeItems(items), remote: Boolean(remote) };
+  const { images } = PROJECT_RUST_CORE
+    ? await decideProject("projectReadmeImages", planInput) : projectRule("projectReadmeImages", planInput);
   try {
-    for (const source of projectReadmeImageSources(markdown)) {
-      const external = safeProjectReadmeImageUrl(source);
-      if (external) {
-        urls[source] = external;
+    for (const image of images) {
+      const source = image.source;
+      if (image.kind === "external") {
+        urls[source] = proxyImage(image.href, MAX_WIDTH_CONTENT_IMAGE);
         continue;
       }
-      const path = relativeImagePath(source);
-      if (!path) continue;
-      if (remote) {
-        if (remoteImages >= MAX_REMOTE_README_IMAGES) continue;
-        remoteImages += 1;
+      if (image.kind === "remote") {
+        if (!remote) continue;
         try {
-          const url = await readConnectedProjectImage(project, remote.source, remote.context, path, remote.signal);
+          const url = await readConnectedProjectImage(project, remote.source, remote.context, image.path, remote.signal);
           if (url) urls[source] = url;
         } catch (error) {
           if (error instanceof DOMException && error.name === "AbortError") throw error;
@@ -219,9 +157,7 @@ async function resolveReadmeImages(
         }
         continue;
       }
-      const item = items.find((candidate) =>
-        candidate.item_type === "embed" && !candidate.encrypted.hashed_folder_id && projectItemPath(candidate) === path,
-      );
+      const item = items[image.index];
       if (item) {
         try {
           const head = await readEncryptedProjectFile(project, item.target_id, { teamId });
@@ -256,16 +192,19 @@ export async function readConnectedProjectImage(
     const result = await requestProjectRemoteAccess<ProjectRemoteImageChunkResult>(
       project, source, context, "read_image_chunk", { path, offset }, signal,
     );
-    if (result.offset !== offset || result.size_bytes <= 0 || result.size_bytes > MAX_REMOTE_IMAGE_BYTES
-      || (offset > 0 && (result.size_bytes !== size || result.mime_type !== mime || result.content_hash !== hash))) {
-      return null;
-    }
+    const checkInput = {
+      offset, size, mime, hash,
+      result: { offset: result.offset, size_bytes: result.size_bytes, mime_type: result.mime_type, content_hash: result.content_hash },
+    };
+    const check = PROJECT_RUST_CORE
+      ? await decideProject("projectImageChunkCheck", checkInput) : projectRule("projectImageChunkCheck", checkInput);
+    if (!check.ok) return null;
     size = result.size_bytes;
     mime = result.mime_type;
     hash = result.content_hash;
     const binary = atob(result.content_base64);
     const chunk = Uint8Array.from(binary, (character) => character.charCodeAt(0));
-    if (chunk.length !== Math.min(REMOTE_IMAGE_CHUNK_BYTES, size - offset)) return null;
+    if (chunk.length !== check.expectedLength) return null;
     chunks.push(chunk);
   }
   const bytes = new Uint8Array(size);
@@ -285,13 +224,15 @@ export function releaseProjectReadmeImages(document: ProjectReadmeDocument): voi
 }
 
 export async function loadProjectReadme(input: LoadProjectReadmeInput): Promise<ProjectReadmeState> {
-  const stored = findStoredProjectReadme(input.items);
+  const stored = PROJECT_RUST_CORE ? await findStoredReadmeRust(input.items) : findStoredProjectReadme(input.items);
   if (stored) {
     try {
       const head = await readEncryptedProjectFile(input.project, stored.target_id, {
         teamId: input.remoteContext.teamId,
       });
-      const content = projectReadmeText(head.content);
+      const content = PROJECT_RUST_CORE
+        ? (await decideProject("projectReadmeText", { content: head.content })).text
+        : projectReadmeText(head.content);
       if (content !== null) {
         const imageUrls = await resolveReadmeImages(content, input.project, input.items, input.remoteContext.teamId);
         return { status: "ready", document: { content, path: README_PATH, origin: "stored", imageUrls } };
@@ -315,11 +256,13 @@ export async function loadProjectReadme(input: LoadProjectReadmeInput): Promise<
         { path: "." },
         input.signal,
       );
-      const readme = directory.entries.find((entry) =>
-        entry.kind === "file" && entry.path.replace(/^\.\//, "").toLowerCase() === README_PATH.toLowerCase(),
-      );
-      if (!readme) {
-        if (directory.omitted > 0) couldNotCheckSource = true;
+      const pickInput = {
+        entries: directory.entries.map((entry) => ({ path: entry.path, kind: entry.kind })), omitted: directory.omitted,
+      };
+      const readme = PROJECT_RUST_CORE
+        ? await decideProject("projectReadmeRemotePick", pickInput) : projectRule("projectReadmeRemotePick", pickInput);
+      if (readme.path === null) {
+        if (readme.incomplete) couldNotCheckSource = true;
         continue;
       }
       const result = await requestProjectRemoteAccess<ProjectRemoteTextResult>(
