@@ -8,6 +8,15 @@
 
 import { getApiUrl } from '../config/api';
 
+// Flag switch (see connectedAccountStorageService.ts): VITE_OPENMATES_RUST_CORE=1
+// merges broker refs in the shared Rust Worker `connectedAccounts` unit; the
+// const-false branch is dead-code eliminated from default builds.
+const RUST_CONNECTED_ACCOUNTS_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === '1';
+type RustConnectedAccounts = typeof import('./rustCore/connectedAccounts/rustConnectedAccounts');
+function rustConnectedAccounts(): Promise<RustConnectedAccounts> | null {
+	return RUST_CONNECTED_ACCOUNTS_BUILD ? import('./rustCore/connectedAccounts/rustConnectedAccounts') : null;
+}
+
 export interface ConnectedAccountDirectoryEntry {
 	connected_account_id: string;
 	app_id: string;
@@ -99,6 +108,8 @@ export async function createConnectedAccountTurnTokenRefs(params: {
 			expires_at: number;
 		}>;
 	};
+	const rust = rustConnectedAccounts();
+	if (rust) return (await rust).rustMergeTurnTokenRefs(params.refs, payload);
 	if (!Array.isArray(payload.refs)) {
 		throw new Error('Token broker response did not include refs');
 	}

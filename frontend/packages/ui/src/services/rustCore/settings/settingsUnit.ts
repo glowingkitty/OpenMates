@@ -10,6 +10,7 @@
 import { serveUnitPort, UnitRefusal, type UnitHandlers } from '../host/unitPort';
 import type { UnitInstallContext } from '../host/sharedWorkerProtocol';
 import { isSettingsBinding, type SettingsBinding, type SettingsUnitProtocol } from './settingsProtocol';
+import { createConnectedAccountsHandlers } from '../connectedAccounts/connectedAccountsUnit';
 
 function record(payload: unknown): Record<string, unknown> {
 	if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) throw new UnitRefusal('protocol');
@@ -32,6 +33,8 @@ function call<T>(run: () => string): T {
 
 export function createSettingsHandlers(binding: SettingsBinding): UnitHandlers<SettingsUnitProtocol> {
 	return {
+		// Connected-account decisions share this stateless pre-bind unit.
+		...createConnectedAccountsHandlers(binding),
 		categoryPlan: (payload) => {
 			const p = record(payload);
 			return call(() => binding.settings_category_plan(text(p.requestedKeys), text(p.counts)));

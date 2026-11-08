@@ -8,6 +8,7 @@
  * and the persisted request system message. Structured values travel as JSON text.
  */
 import type { UnitProtocol } from '../host/unitPort';
+import type { ConnectedAccountsUnitProtocol } from '../connectedAccounts/connectedAccountsProtocol';
 import type { RequestCategory } from '../../appSettingsRequestPolicy';
 import type { PrivacyEntryPlan } from '../../privacyEntryPolicy';
 import type { ConfirmOutcome, ResponseCategory, ResponseKeyPlan } from '../../appSettingsResponsePolicy';
@@ -17,7 +18,8 @@ export type SettingsRequestMessageOutcome =
 	| { kind: 'ok'; message: { message_id: string; role: 'system'; content: string; created_at: number; user_message_id: string } }
 	| { kind: 'error'; message: string };
 
-export interface SettingsUnitProtocol extends UnitProtocol {
+/** Settings policy ops plus the connected-account ops (connectedAccountsProtocol.ts) served on the same unit. */
+export interface SettingsUnitProtocol extends UnitProtocol, ConnectedAccountsUnitProtocol {
 	categoryPlan: { request: { requestedKeys: string; counts: string }; response: SettingsCategoryPlan };
 	requestAnswered: { request: { systemContents: string; userMessageId: string }; response: boolean };
 	buildRequestMessage: {

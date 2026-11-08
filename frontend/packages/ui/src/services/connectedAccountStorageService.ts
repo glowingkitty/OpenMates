@@ -12,6 +12,16 @@ import { decryptWithMasterKey } from './cryptoService';
 import type { ConnectedAccountSendContext } from './connectedAccountTokenBrokerService';
 import { assertNoConnectedAccountSecretLeak } from './connectedAccountTokenBrokerService';
 
+// Flag switch: default builds run the TypeScript logic below unchanged; with
+// VITE_OPENMATES_RUST_CORE=1 the shared Rust Worker `connectedAccounts` unit
+// decides (no TypeScript fallback). The const-false branch is dead-code
+// eliminated from flag-off builds, so no Rust adapter ships there.
+const RUST_CONNECTED_ACCOUNTS_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === '1';
+type RustConnectedAccounts = typeof import('./rustCore/connectedAccounts/rustConnectedAccounts');
+function rustConnectedAccounts(): Promise<RustConnectedAccounts> | null {
+	return RUST_CONNECTED_ACCOUNTS_BUILD ? import('./rustCore/connectedAccounts/rustConnectedAccounts') : null;
+}
+
 const CONNECTED_ACCOUNTS_ENDPOINT = '/v1/connected-accounts';
 const CONNECTED_ACCOUNTS_LIST_TIMEOUT_MS = 8000;
 let connectedAccountMutationEpoch = 0;
@@ -193,6 +203,8 @@ export async function buildConnectedAccountSendContext(params: {
 	actionScopesOverride?: Record<string, unknown>[];
 	includeActionScope?: boolean;
 }): Promise<ConnectedAccountSendContext | undefined> {
+	const rust = rustConnectedAccounts();
+	if (rust) return (await rust).rustBuildConnectedAccountSendContext(params, decryptConnectedAccountValue);
 	const selectedIds = new Set(params.accountIds ?? []);
 	const rows = params.accountIds?.length
 		? params.rows.filter((row) => selectedIds.has(row.id))
@@ -286,6 +298,8 @@ export async function buildConnectedAccountSendContext(params: {
 export async function summarizeConnectedAccountRows(
 	rows: EncryptedConnectedAccountRow[]
 ): Promise<ConnectedAccountSummary[]> {
+	const rust = rustConnectedAccounts();
+	if (rust) return (await rust).rustSummarizeConnectedAccountRows(rows, decryptConnectedAccountValue);
 	const summaries: ConnectedAccountSummary[] = [];
 	for (const row of rows) {
 		assertNoPlaintextConnectedAccountFields(row);

@@ -290,7 +290,7 @@ units:
     single WASM binding. It holds no per-account state and does no IO (the page owns IndexedDB and the decrypted
     entries), so it is a pre-bind namespace.
   typescript_fallback: none declared (1 file)
-  unit_tests: [settingsSharedUnit.test.ts]
+  unit_tests: [connectedAccountsSharedUnit.test.ts, settingsSharedUnit.test.ts]
   e2e_specs: []
   vectors: []
   open_gaps: [No flag-on e2e spec exists for the settings unit yet.]
