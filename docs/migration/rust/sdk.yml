@@ -979,12 +979,12 @@ capabilities:
     status: partial
     api_symbols: 24
     conformance: true
-    gaps: 3
+    gaps: 2
   python:
     status: partial
     api_symbols: 31
     conformance: true
-    gaps: 3
+    gaps: 2
 - id: work.project-workflow-file-sync.v1
   domain: operations
   has_fixture: true
