@@ -115,7 +115,10 @@ async def _prefetch_one(
     if not search.get("success"):
         logger.info("%s pdf.search for %r unavailable: %s", log_prefix, ref, search.get("error"))
         return None
-    pages = select_pages(search.get("matches") or [])
+    matches = search.get("matches") or []
+    pages = select_pages(matches)
+    logger.info("%s Prefetch %r: %d matching pages, chose %s (relevance %s)", log_prefix, ref, len(matches), pages,
+                [m.get("relevance") for m in matches[:MAX_PREFETCH_PAGES]])
     if not pages:
         logger.info("%s No page of %r matches the question well enough to prefetch", log_prefix, ref)
         return None
