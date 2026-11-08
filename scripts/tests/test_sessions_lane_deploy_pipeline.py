@@ -311,3 +311,91 @@ def test_capacity_runs_safe_reconcile_once_before_refusing(monkeypatch):
     assert len(calls) == 1
     assert calls[0]["coordinated"] is False
     assert calls[0]["only_classes"] == {"integrated", "disposable_integration"}
+
+
+# --- ci-source regeneration, --only auto-tracking, Rust migration input set ---
+
+CLI_GENERATOR_STUB = """\
+from pathlib import Path
+root = Path(__file__).resolve().parents[1]
+catalog = (root / "config/cli-command-catalog.json").read_text(encoding="utf-8")
+(root / "docs/migration/rust/cli.yml").write_text("# GENERATED\\ncatalog: " + catalog, encoding="utf-8")
+"""
+
+SPEC_GENERATOR_STUB = """\
+import sys
+from pathlib import Path
+root = Path(sys.argv[sys.argv.index("--repo-root") + 1])
+source = (root / "specifications/source.txt").read_text(encoding="utf-8")
+(root / "specifications/generated").mkdir(parents=True, exist_ok=True)
+(root / "specifications/generated/registry.yml").write_text("registry: " + source, encoding="utf-8")
+"""
+
+
+def test_catalog_only_change_regenerates_cli_yml(lane_env):
+    sessions, _root, lane, _base, _metadata = lane_env
+    (lane / "scripts" / "rust_migration_yaml.py").write_text(CLI_GENERATOR_STUB, encoding="utf-8")
+    (lane / "config").mkdir()
+    (lane / "config/cli-command-catalog.json").write_text('{"verified": 266}\n', encoding="utf-8")
+    files = ["config/cli-command-catalog.json"]
+
+    assert sessions._should_regenerate_rust_migration_artifacts(files)
+    assert sessions._regenerate_rust_migration_artifacts(lane, files) == ["docs/migration/rust/cli.yml"]
+    assert "266" in (lane / "docs/migration/rust/cli.yml").read_text(encoding="utf-8")
+
+
+def test_rust_generator_inputs_are_all_trigger_paths():
+    from scripts import rust_migration_inputs as inputs
+
+    sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
+    try:
+        import rust_migration_yaml as generator
+    finally:
+        sys.path.remove(str(PROJECT_ROOT / "scripts"))
+    read_by_generator = [
+        generator.legacy.CLI_CATALOG, generator.legacy.SDK_CAPABILITIES, generator.legacy.UNIT_REGISTRY,
+        generator.legacy.UNIT_PROTOCOL, generator.CURATED, generator.LANES, generator.SPEC_LINKS,
+        generator.ASSERTION_INDEX, generator.perf.HISTORY,
+    ]
+    for path in read_by_generator:
+        assert inputs.is_rust_migration_input(path.as_posix()), path
+
+
+def test_stale_specification_artifacts_are_rebuilt_for_publication_then_restored(lane_env):
+    sessions, _root, lane, _base, _metadata = lane_env
+    from scripts import lane_ci_source
+
+    (lane / "scripts" / "specifications.py").write_text(SPEC_GENERATOR_STUB, encoding="utf-8")
+    (lane / "specifications" / "generated").mkdir(parents=True)
+    (lane / "specifications/source.txt").write_text("new\n", encoding="utf-8")
+    registry = lane / "specifications/generated/registry.yml"
+    registry.write_text("registry: stale\n", encoding="utf-8")
+
+    with lane_ci_source.fresh_generated_artifacts(
+        lane, ["specifications/source.txt"], specification_governed=True
+    ) as warnings:
+        assert warnings == []
+        assert registry.read_text(encoding="utf-8") == "registry: new\n"
+    assert registry.read_text(encoding="utf-8") == "registry: stale\n"
+
+    with lane_ci_source.fresh_generated_artifacts(lane, ["changed.txt"], specification_governed=False):
+        assert registry.read_text(encoding="utf-8") == "registry: stale\n"
+
+
+def test_only_files_are_tracked_automatically_and_other_session_stays_advisory(monkeypatch, capsys):
+    sessions = load_sessions_module()
+    stored = {"sessions": {"abcd": {"modified_files": ["old.py"]}}}
+    monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(stored))
+
+    modified = sessions._auto_track_only_files(
+        "abcd", stored["sessions"]["abcd"], "only", ["new.py", "shared.py"], ["old.py"], {"shared.py": "efgh"}
+    )
+
+    assert modified == ["old.py", "new.py", "shared.py"]
+    assert stored["sessions"]["abcd"]["modified_files"] == ["old.py", "new.py", "shared.py"]
+    err = capsys.readouterr().err
+    assert "shared.py [also tracked by: efgh; advisory]" in err
+    assert "new.py [also" not in err
+    # Unrelated dirty files are not tracked: only the --only selection is.
+    assert "unrelated.py" not in modified
+    assert sessions._auto_track_only_files("abcd", {}, "default", ["x.py"], ["old.py"], {}) == ["old.py"]

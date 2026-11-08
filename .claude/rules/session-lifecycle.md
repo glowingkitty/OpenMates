@@ -21,6 +21,13 @@ paths:
   --rebase --session <id>` (fast-forward, rebuilds generated files; refuses
   when dirty edits overlap). Deploy also auto-fast-forwards a stale lane and
   recreates empty or stale checkpoints; never delete checkpoint refs by hand.
+- `sessions.py ci-source` rebuilds stale Specification artifacts and generated
+  Rust YAML itself for the candidate (restored in the lane afterwards): never run
+  `specifications.py generate` by hand. Files named in `deploy --only` count as
+  tracked by the session automatically (no `track`/`--allow-untracked`); a file
+  another session also tracks only prints an advisory, unrelated dirty files
+  still block. Rust YAML regenerates on any generator input (see
+  `scripts/rust_migration_inputs.py`), e.g. `config/cli-command-catalog.json`.
 - Saved patches: the rtk filter turns `git diff` into a stat summary; use
   `rtk proxy git diff --binary`.
 - Other running Claude chats (task, workspace, recent files) are injected at

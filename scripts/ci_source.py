@@ -21,8 +21,10 @@ import subprocess
 import tempfile
 
 try:
+    from scripts import lane_ci_source
     from scripts.ci_candidate_artifact import upload_patch
 except ModuleNotFoundError:
+    import lane_ci_source
     from ci_candidate_artifact import upload_patch
 
 DISK_RESERVE = 30 * 1024**3
@@ -232,6 +234,19 @@ def publish(
     with reserve(common_dir.resolve().parent, MAX_CHANGED_BYTES,
                  operation=f"ci-source:{session_id}",
                  min_free=DISK_RESERVE, max_used_percent=100):
+        # Stale generated Specification/Rust YAML is rebuilt for the duration of
+        # this publication (as deploy does) and restored afterwards.
+        if resolved_patch is None:
+            initial_paths = reviewed_paths(root, session_files)
+            with lane_ci_source.fresh_generated_artifacts(
+                root,
+                initial_paths,
+                specification_governed=_specification_governed(initial_paths),
+            ):
+                return _publish_reserved(root, session_id, session_files, base=base,
+                                         resolved_patch=resolved_patch,
+                                         patch_sha256=patch_sha256,
+                                         artifact_uploader=artifact_uploader)
         return _publish_reserved(root, session_id, session_files, base=base,
                                  resolved_patch=resolved_patch,
                                  patch_sha256=patch_sha256,

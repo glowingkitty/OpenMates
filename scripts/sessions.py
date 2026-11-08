@@ -240,22 +240,16 @@ REPO_ALIASES = {
     "openmates-cloud": OPENMATESCLOUD_REPO_ID,
     "cloud": OPENMATESCLOUD_REPO_ID,
 }
-SPECIFICATION_GENERATED_ARTIFACTS = {
-    "specifications/generated/assertion-index.yml",
-    "specifications/generated/coverage.yml",
-    "specifications/generated/registry.yml",
-}
-# Outputs of scripts/rust_migration_yaml.py (its GENERATED tuple). Like the
-# Specification outputs they are rebuilt in the integration checkout and never
-# replayed from a lane's diff, so parallel lanes cannot conflict on them.
-RUST_MIGRATION_GENERATED_ARTIFACTS = {
-    "docs/migration/rust/overview.yml",
-    "docs/migration/rust/web-app.yml",
-    "docs/migration/rust/shared-client.yml",
-    "docs/migration/rust/cli.yml",
-    "docs/migration/rust/sdk.yml",
-}
-REGENERABLE_GENERATED_ARTIFACTS = SPECIFICATION_GENERATED_ARTIFACTS | RUST_MIGRATION_GENERATED_ARTIFACTS
+try:
+    from scripts.lane_ci_source import (
+        RUST_MIGRATION_GENERATED_ARTIFACTS,
+        SPECIFICATION_GENERATED_ARTIFACTS,
+    )
+except ModuleNotFoundError:
+    from lane_ci_source import (
+        RUST_MIGRATION_GENERATED_ARTIFACTS,
+        SPECIFICATION_GENERATED_ARTIFACTS,
+    )
 WORKTREE_BOOTSTRAP_TIMEOUT_SECONDS = 300
 WORKTREE_SHARED_RUNTIME_PATHS = (Path(".env"), Path("logs/nightly-reports"))
 WORKTREE_BINDING_MODES = {"pending", "native", "pilot_fallback", "legacy_grandfathered", "worktree_routed", "repo_routed"}
@@ -3298,10 +3292,8 @@ def _split_rust_migration_generated_artifacts(files: list[str]) -> tuple[list[st
 
 def _should_regenerate_rust_migration_artifacts(files: list[str]) -> bool:
     """Return True when deploy inputs can change the generated Rust migration YAML."""
-    return any(
-        relative_path.startswith(RUST_MIGRATION_YAML_PREFIXES)
-        or relative_path in RUST_MIGRATION_GENERATED_ARTIFACTS
-        for relative_path in files
+    return _touches_rust_migration_inputs(files) or any(
+        relative_path in RUST_MIGRATION_GENERATED_ARTIFACTS for relative_path in files
     )
 
 
@@ -10915,17 +10907,18 @@ def _get_lint_flags(files: list[str]) -> list[str]:
     return flags
 
 
-RUST_MIGRATION_YAML_PREFIXES = (
-    "docs/migration/rust/",
-    "packages/openmates-rust/",
-    "config/sdk-capabilities.json",
-    "frontend/packages/ui/src/services/rustCore/",
-)
+def _touches_rust_migration_inputs(files: list[str]) -> bool:
+    """Return True when any path is an input of scripts/rust_migration_yaml.py."""
+    try:
+        from scripts.rust_migration_inputs import is_rust_migration_input
+    except ModuleNotFoundError:
+        from rust_migration_inputs import is_rust_migration_input
+    return any(is_rust_migration_input(f) for f in files)
 
 
 def _rust_migration_yaml_check(files: list[str], *, checkout_root: Path | None = None) -> tuple[int, str, str]:
     """Validate docs/migration/rust YAML (incl. performance-history) when Rust-migration inputs change."""
-    if not any(f.startswith(RUST_MIGRATION_YAML_PREFIXES) for f in files):
+    if not _touches_rust_migration_inputs(files):
         return 0, "", ""
     root = checkout_root or CONTROL_PLANE_ROOT
     rc, out, err = _run_cmd(
@@ -12693,6 +12686,35 @@ def _deploy_external_repo_locked(
     print(f"Branch: {branch}")
 
 
+def _auto_track_only_files(
+    sid: str, session: dict, selector: str, to_commit: list[str], modified: list[str], file_tracking: dict[str, str]
+) -> list[str]:
+    """Record files named in ``--only`` as tracked by the deploying session.
+
+    Returns the updated tracked list. Files other sessions also track keep a
+    non-blocking advisory; unrelated dirty files are still checked by the caller.
+    """
+    try:
+        from scripts.lane_ci_source import plan_only_tracking
+    except ModuleNotFoundError:
+        from lane_ci_source import plan_only_tracking
+    newly, advisories = plan_only_tracking(selector, to_commit, modified, file_tracking)
+    for line in advisories:
+        print(f"Advisory — --only file also tracked by another session:\n{line}", file=sys.stderr)
+    if not newly:
+        return modified
+
+    def record(data: dict) -> None:
+        stored = data.get("sessions", {}).get(sid)
+        if stored is not None:
+            known = stored.setdefault("modified_files", [])
+            known.extend(path for path in newly if path not in known)
+
+    _mutate_sessions(record)
+    print(f"Tracked {len(newly)} --only file(s) for session {sid}.", file=sys.stderr)
+    return [*modified, *newly]
+
+
 def _require_tracked_deploy_files(dirty_but_untracked, file_tracking, allow_untracked: bool) -> None:
     """Stop a deploy that would silently leave dirty files out of the commit.
 
@@ -12839,7 +12861,6 @@ def cmd_deploy(args: argparse.Namespace) -> None:
         )
         sys.exit(1)
     print(f"Deploy manifest: {manifest['manifest_id']} ({selector}, {len(to_commit)} source file(s))")
-    dirty_but_untracked = [f for f in dirty_files if f not in modified and f not in exclude]
     worktree_patch_id = _worktree_patch_id(worktree_metadata, to_commit) if worktree_metadata and to_commit else ""
     expected_patch_id = str(getattr(args, "expected_patch_id", "") or "")
     if expected_patch_id and worktree_patch_id != expected_patch_id:
@@ -12865,6 +12886,9 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             continue
         for of in other_info.get("modified_files", []):
             file_tracking[of] = other_sid
+
+    modified = _auto_track_only_files(sid, session, selector, to_commit, modified, file_tracking)
+    dirty_but_untracked = [f for f in dirty_files if f not in modified and f not in exclude]
 
     if not is_control_plane_repo:
         try:
