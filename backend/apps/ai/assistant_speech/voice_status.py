@@ -56,7 +56,7 @@ _RECAP_GENERIC = {
 _AND = {"en": "and", "de": "und", "es": "y", "fr": "et"}
 
 
-def _base_language(language: str) -> str:
+def _base_language(language: str | None) -> str:
     return (language or "").lower().replace("_", "-").split("-")[0]
 
 
@@ -76,10 +76,23 @@ _STOPWORDS: dict[str, frozenset[str]] = {
 }
 
 
-def detect_turn_language(text: str, fallback: str) -> str:
-    """Return the clearly dominant supported language of ``text``, else ``fallback``."""
-    words = [word.strip(".,!?;:\"()").lower() for word in (text or "").split()]
-    scores = {code: sum(word in vocabulary for word in words) for code, vocabulary in _STOPWORDS.items()}
+# Characters that appear (almost) only in one supported language.
+_CHARACTER_CUES: dict[str, str] = {"de": "äöüß", "es": "ñ¿¡áíóú", "fr": "çœàâêèéëîïôùûÿ"}
+
+
+def detect_turn_language(text: str, fallback: str | None) -> str | None:
+    """Return the clearly dominant supported language of ``text``, else ``fallback``.
+
+    One function word is enough when no other language matches, so short
+    phrases ("Wie spät ist es") are recognised; a tie keeps the fallback.
+    """
+    lowered = (text or "").lower()
+    words = [word.strip(".,!?;:\"()¿¡") for word in lowered.split()]
+    scores = {
+        code: sum(word in vocabulary for word in words) * 2
+        + sum(lowered.count(char) for char in _CHARACTER_CUES.get(code, ""))
+        for code, vocabulary in _STOPWORDS.items()
+    }
     ranked = sorted(scores.items(), key=lambda item: item[1], reverse=True)
     (best, best_score), (_, runner_up) = ranked[0], ranked[1]
     return best if best_score >= 2 and best_score > runner_up else fallback
@@ -100,7 +113,7 @@ def select_instant_acknowledgement(
     return choice if choice and choice.get("asset_url") else None
 
 
-def build_voice_app_use_announcement(language: str, seed: str) -> str | None:
+def build_voice_app_use_announcement(language: str | None, seed: str) -> str | None:
     options = APP_USE_ANNOUNCEMENTS.get(_base_language(language))
     return _pick(options, seed) if options else None
 
@@ -109,7 +122,7 @@ def skill_key(app_id: str, skill_id: str) -> str:
     return f"{app_id}.{skill_id}"
 
 
-def build_skill_recap(skills: Iterable[tuple[str, str]], language: str) -> str | None:
+def build_skill_recap(skills: Iterable[tuple[str, str]], language: str | None) -> str | None:
     """Name the skills that ran, once each in first-use order; generic if any is unnamed."""
     base = _base_language(language)
     template = _RECAP_ONE.get(base)

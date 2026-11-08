@@ -320,14 +320,24 @@ async def publish_instant_voice_acknowledgement(
         return False
     language = getattr(preprocessing_result, "output_language", None)
     if not language:
-        # Before preprocessing only the turn text and the preference are known.
+        # Before preprocessing only the turn text, the language of the previous
+        # turn in this call and the interface preference are known. No guess is
+        # hard-coded: with none of them the call stays silent.
         from backend.apps.ai.assistant_speech.voice_status import detect_turn_language
 
         turn_text = request_data.current_user_content or next(
             (str(item.get("content") or "") for item in reversed(request_data.message_history or [])
              if isinstance(item, dict) and item.get("role") == "user"), "",
         )
-        language = detect_turn_language(turn_text, (request_data.user_preferences or {}).get("language", "en"))
+        remembered = None
+        if cache_service is not None and request_data.voice_call_id:
+            cached_language = await cache_service.get(f"voice_call_last_language:{request_data.voice_call_id}")
+            remembered = cached_language if isinstance(cached_language, str) else None
+        language = detect_turn_language(
+            turn_text, remembered or (request_data.user_preferences or {}).get("language") or None,
+        )
+    if not language:
+        return False
     message_id = _assistant_message_id(task_id, request_data)
     acknowledgement = select_instant_acknowledgement(
         voice_profile_id=mate.voice_profile.key,
@@ -6565,7 +6575,7 @@ async def _consume_main_processing_stream(
     speech_tracker: Optional[ImmutableSpeechBoundaryTracker] = None
     voice_waiting = None
     realtime_speech_turn = None
-    voice_status_language = "en"
+    voice_status_language: str | None = None
     voice_app_use_announced = False
     if _should_prepare_assistant_speech(request_data, preprocessing_result, user_overrides):
         selected_mate = next(
@@ -6605,9 +6615,14 @@ async def _consume_main_processing_stream(
             }
             speech_language = (
                 preprocessing_result.output_language
-                or (request_data.user_preferences or {}).get("language", "en")
+                or (request_data.user_preferences or {}).get("language")
+                or ""
             )
             voice_status_language = speech_language
+            if speech_language and request_data.voice_mode and request_data.voice_call_id and cache_service is not None:
+                await cache_service.set(
+                    f"voice_call_last_language:{request_data.voice_call_id}", speech_language, ttl=6 * 3600,
+                )
             if request_data.voice_mode and request_data.voice_call_id and cache_service is not None:
                 await cache_service.set(
                     f"voice_call_last_mate:{request_data.voice_call_id}", selected_mate.id, ttl=6 * 3600,
