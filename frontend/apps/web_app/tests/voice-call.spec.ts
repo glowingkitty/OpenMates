@@ -2117,6 +2117,36 @@ test.describe('Voice mode through ordinary chat', () => {
     await expect(page.getByTestId('voice-call-bar')).toHaveCount(0);
   });
 
+  // contract-test: direct surface=gui.web assertions=video-call.audio.background-resume
+  test('ends the call with a notice when the platform mutes the microphone of a hidden page', async ({ page }) => {
+    test.setTimeout(100_000);
+    await installNativeVoiceInput(page);
+    await observeRealTransport(page);
+    await loginToTestAccount(page, () => {}, async () => {}, { waitForEditor: false });
+    await page.locator('[data-testid="voice-call-start"]:visible').click();
+    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
+    // Safari on iOS: the microphone track mutes and the page becomes hidden.
+    await page.evaluate(() => {
+      // The call captures the fixture's output stream, so that is the track iOS would mute.
+      const track = (window as unknown as { __nativeVoiceInput: { outputTracks: MediaStreamTrack[] } }).__nativeVoiceInput.outputTracks[0];
+      Object.defineProperty(track, 'muted', { configurable: true, get: () => true });
+      track.dispatchEvent(new Event('mute'));
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await expect(page.getByTestId('voice-call-bar')).toHaveCount(0);
+    const hungUp = await evidence(page);
+    expect(voiceFrames(hungUp, 'hangup')).toHaveLength(1);
+    await page.evaluate(() => {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await expect(page.getByText('Call ended because OpenMates left the screen. Tap the call button to call again.')).toBeVisible();
+    await assertVoiceInputCleanup(page);
+    // The same chat can be called again with one tap; nothing stays billed or half-open.
+    expect(voiceFrames(await evidence(page), 'start')).toHaveLength(1);
+  });
+
   // contract-test: direct surface=gui.web assertions=video-call.privacy,video-call.usage.provider-metering
   test('refuses an unauthenticated call before opening speech processing', async ({ page }) => {
     const apiUrl=process.env.PLAYWRIGHT_TEST_API_URL;

@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.video-call@13
+specification: feature.video-call@14
 launch:
 - id: start-in-existing-chat
   given: Maya is signed in with enough credits and her ramen chat open.
@@ -357,11 +357,16 @@ localized_waiting:
     the regular answer, and none of these clips appears in the transcript.
 background_resume:
 - id: safari-in-background
-  given: Maya is in a live call on an iPhone and switches to another app for a minute.
-  when: She returns to the page.
-  then: The call showed a paused state while she was away, then reconnects to the same chat without a second consent or
-    duplicate chat, restores the microphone and shows listening again; if iOS could not restore it, a retryable
-    message is shown instead of a silent failure.
+  given: Maya is in a live call on an iPhone in Safari and switches to another app or locks the screen.
+  when: iOS mutes the microphone because the page is no longer in front.
+  then: The call ends cleanly with a disconnect sound where audio is allowed, her transcript is kept and billing stops;
+    when she comes back a notice says the call ended because OpenMates left the screen and she can call again in the
+    same chat.
+- id: desktop-tab-in-background
+  given: Maya is in a live call in a desktop browser and switches to another tab or window.
+  when: The browser keeps microphone capture running.
+  then: The call is not interrupted; if the connection drops it reconnects to the same chat when she returns, or shows
+    a retryable message.
 complete_turn:
 - id: trailing-negation
   given: Voxtral signals a likely end while Maya is saying book the expensive option, actually do not book it.

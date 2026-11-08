@@ -195,6 +195,18 @@ export const VOICE_CALL_RESUME_WINDOW_MS = 90_000;
 const RESUME_RETRY_DELAYS_MS = [500, 1_000, 2_000, 3_000, 5_000];
 const RESUME_ATTEMPT_TIMEOUT_MS = 15_000;
 const TURN_WRITE_RETRY_DELAYS_MS = [1_500, 4_000, 8_000];
+/** How long a hidden page may keep a working microphone before the call is judged unrecoverable. */
+const BACKGROUND_MICROPHONE_CHECK_MS = 1_500;
+
+function whenPageVisible(action: () => void): void {
+  if (typeof document === 'undefined' || document.visibilityState !== 'hidden') { action(); return; }
+  const onVisible = () => {
+    if (document.visibilityState === 'hidden') return;
+    document.removeEventListener('visibilitychange', onVisible);
+    action();
+  };
+  document.addEventListener('visibilitychange', onVisible);
+}
 
 export class VoiceCallController implements VoiceCallControllerLike {
   private cleanupAttempt: NewCallCleanupAttempt | null = null;
@@ -533,9 +545,41 @@ export class VoiceCallController implements VoiceCallControllerLike {
   private createBackground(): VoiceCallBackground {
     return new VoiceCallBackground({
       title: get(text)('voicecall.title'),
-      onAway: () => { this.unansweredAudioSince = null; },
+      onAway: () => this.onAwayFromScreen(),
       onReturn: () => this.onReturnFromBackground(),
       onHangup: () => this.hangup(),
+    });
+  }
+
+  /**
+   * The page left the screen. Platforms that keep capturing (desktop browsers)
+   * keep the call; where the OS mutes the microphone for a hidden page (iOS
+   * Safari) the user can no longer speak, so the call ends instead of idling.
+   */
+  private onAwayFromScreen(): void {
+    this.unansweredAudioSince = null;
+    const generation = this.generation;
+    if (this.audio?.captureInterrupted) { this.endBecauseMicrophoneLost(generation); return; }
+    // iOS reports the mute within about a second of hiding the page, before or after the hide event.
+    setTimeout(() => {
+      if (generation === this.generation && this.background?.away && this.audio?.captureInterrupted) {
+        this.endBecauseMicrophoneLost(generation);
+      }
+    }, BACKGROUND_MICROPHONE_CHECK_MS);
+  }
+
+  private endBecauseMicrophoneLost(generation: number): void {
+    if (generation !== this.generation || this.state.status !== 'live') return;
+    this.send({ type: 'hangup' });
+    this.finish('ended', null);
+    // A hidden page can neither be heard nor seen: repeat the cue and explain once it is back.
+    whenPageVisible(() => {
+      this.cues.play('ended');
+      notificationStore.addNotificationWithOptions('info', {
+        message: get(text)('voicecall.ended_in_background'),
+        duration: 10_000,
+        dedupeKey: 'voice-call-ended-in-background',
+      });
     });
   }
 
@@ -543,6 +587,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
   private onCaptureInterruption(generation: number, interrupted: boolean): void {
     if (generation !== this.generation || this.state.status !== 'live' || this.reconnecting) return;
     this.unansweredAudioSince = null;
+    if (interrupted && this.background?.away) { this.endBecauseMicrophoneLost(generation); return; }
     if (interrupted) this.update({ connection: 'paused' });
     else if (this.state.connection === 'paused') this.update({ connection: null });
   }

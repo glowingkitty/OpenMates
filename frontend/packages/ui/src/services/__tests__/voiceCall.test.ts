@@ -94,9 +94,11 @@ vi.mock('../../components/videocall/callAudio', () => ({ CallAudio: class {
   }
   interrupt() {}
 } }));
+const backgrounds = vi.hoisted(() => ({ instances: [] as Array<{ away: boolean; options: { onAway: () => void; onReturn: (awayMs: number) => void } }> }));
 vi.mock('../voiceCallBackground', () => ({ VOICE_CALL_AWAY_GRACE_MS: 90_000, VoiceCallBackground: class {
   away = false; awayRecently = false;
   prime = vi.fn(); start = vi.fn(); stop = vi.fn();
+  constructor(readonly options: { onAway: () => void; onReturn: (awayMs: number) => void }) { backgrounds.instances.push(this); }
 } }));
 vi.mock('../voiceCallLifecycle', () => ({ recordCallLifecycle:persistence.lifecycle }));
 vi.mock('../voiceCallMessages', () => ({
@@ -186,6 +188,8 @@ describe('integrated voice call typed turns', () => {
     capture.audioTime=10;
     capture.frames.length = 0;
     capture.playback.length = 0;
+    capture.interruption.mockClear();
+    backgrounds.instances.length = 0;
     gates.instances.length = 0;
     visual.cameras.length = 0;
     visual.listeners.clear();
@@ -339,6 +343,83 @@ describe('integrated voice call typed turns', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  async function liveBackgroundCall() {
+    const started = startingController();
+    await started.controller.start('chat-1');
+    const socket = started.sockets[0];
+    socket.onopen!();
+    socket.onmessage!({ data: JSON.stringify({ type: 'ready', call_id: 'call-1', speech_output_transport: 'mp3_turn_stream_v2' }) });
+    const background = backgrounds.instances[0]!;
+    const audio = (started.controller as unknown as { audio: { captureInterrupted: boolean } }).audio;
+    const interrupt = capture.interruption.mock.calls[0][0] as (interrupted: boolean) => void;
+    return { ...started, socket, background, audio, interrupt };
+  }
+
+  function setVisibility(state: 'visible' | 'hidden') {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state });
+    document.dispatchEvent(new Event('visibilitychange'));
+  }
+
+  // contract-test: direct surface=gui.web assertions=video-call.audio.background-resume
+  it('ends the call with a disconnect cue and a notice when the platform mutes the microphone of a hidden page', async () => {
+    vi.useFakeTimers();
+    const { controller, socket, background, audio, interrupt } = await liveBackgroundCall();
+    // iOS mutes capture shortly before the page reports being hidden.
+    audio.captureInterrupted = true;
+    interrupt(true);
+    expect(get(controller).status).toBe('live');
+    setVisibility('hidden');
+    background.away = true;
+    background.options.onAway();
+    expect(get(controller)).toMatchObject({ status: 'ended', error: null });
+    expect(JSON.parse(socket.send.mock.calls.at(-1)![0] as string)).toEqual({ type: 'hangup' });
+    expect(cues.play).toHaveBeenCalledWith('ended');
+    expect(get(notificationStore).notifications).toHaveLength(0);
+    cues.play.mockClear();
+    setVisibility('visible');
+    expect(cues.play).toHaveBeenCalledWith('ended');
+    expect(get(notificationStore).notifications).toMatchObject([
+      { type: 'info', message: 'voicecall.ended_in_background', dedupeKey: 'voice-call-ended-in-background' }]);
+  });
+
+  // contract-test: direct surface=gui.web assertions=video-call.audio.background-resume
+  it('ends the call when the microphone mutes after the page was already hidden', async () => {
+    vi.useFakeTimers();
+    const { controller, background, audio, interrupt } = await liveBackgroundCall();
+    background.away = true;
+    background.options.onAway();
+    vi.advanceTimersByTime(500);
+    expect(get(controller).status).toBe('live');
+    audio.captureInterrupted = true;
+    interrupt(true);
+    expect(get(controller).status).toBe('ended');
+    setVisibility('visible');
+  });
+
+  // contract-test: direct surface=gui.web assertions=video-call.audio.background-resume
+  it('keeps the call on platforms whose microphone keeps working while the page is hidden', async () => {
+    vi.useFakeTimers();
+    const { controller, background } = await liveBackgroundCall();
+    setVisibility('hidden');
+    background.away = true;
+    background.options.onAway();
+    vi.advanceTimersByTime(10_000);
+    expect(get(controller).status).toBe('live');
+    expect(get(controller).connection ?? null).toBeNull();
+    expect(get(notificationStore).notifications).toHaveLength(0);
+    setVisibility('visible');
+  });
+
+  // contract-test: direct surface=gui.web assertions=video-call.audio.background-resume
+  it('only pauses the call when the microphone is interrupted while the page is visible', async () => {
+    vi.useFakeTimers();
+    const { controller, audio, interrupt } = await liveBackgroundCall();
+    audio.captureInterrupted = true;
+    interrupt(true);
+    vi.advanceTimersByTime(10_000);
+    expect(get(controller)).toMatchObject({ status: 'live', connection: 'paused' });
   });
 
   // contract-test: direct surface=gui.web assertions=video-call.privacy.first-call-warning,video-call.audio.single-owner

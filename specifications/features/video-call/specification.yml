@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.video-call
-version: 13
+version: 14
 status: draft
 title: Chat-bound Voice And Video Calls
 summary: Voxtral transcription and Eleven v4 Turbo speech connect authenticated web and supported Apple calls to the existing encrypted chat pre/main/post
@@ -455,13 +455,17 @@ assertions:
   - examples.localized_waiting
 - id: video-call.audio.background-resume
   type: behavior
-  must: Sending the browser to the background, switching apps or locking the screen never ends a live call by itself.
-    While the page is away the call keeps an inaudible audio session and lock-screen controls where the platform allows
-    it, microphone upload pauses without marking the call failed, and the call shows a paused state. On return it restores
-    microphone capture, reconnects a lost call connection to the same chat without a second consent or duplicate chat,
+  must: A web call ends cleanly only where the platform stops microphone capture for a page that is not in front (iOS and
+    iPadOS Safari and home-screen web apps, detected from the microphone being muted or interrupted while the page is
+    hidden), because the user can no longer speak. It then sends hangup, closes capture and speech, keeps the saved
+    transcript, stops billing, plays the disconnect cue where audio is allowed and, when the page is visible again, shows
+    a notice that the call ended because the app left the screen so the user can call again in the same chat. Browsers
+    that keep capturing for a hidden page keep the call alive without interruption; microphone upload pauses without
+    marking it failed, an inaudible audio session and lock-screen controls keep the page running, and on return it
+    restores capture and reconnects a lost call connection to the same chat without a second consent or duplicate chat,
     waits for the server to release the previous connection, preserves the conversation and unsent turn writes, and
-    resumes listening. If the platform kept the call alive nothing is interrupted. When the platform cannot restore it,
-    the call ends with an explicit retryable message, never silently, and platform limits are never presented as success.
+    resumes listening. When a kept call cannot be restored it ends with an explicit retryable message, never silently.
+    The supported native Apple apps keep the call running in the background. Platform limits are never presented as success.
   depends_on:
   - examples.background_resume
 - id: video-call.audio.complete-turn-admission

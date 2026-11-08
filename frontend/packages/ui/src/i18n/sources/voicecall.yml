@@ -28,6 +28,11 @@ paused:
   en: Call paused. Return to this screen to keep talking.
   de: Anruf pausiert. Kehre zu diesem Bildschirm zurück, um weiterzusprechen.
   verified_by_human: []
+ended_in_background:
+  context: Notice shown when a voice call was ended because the browser muted the microphone while the page was in the background
+  en: Call ended because OpenMates left the screen. Tap the call button to call again.
+  de: Anruf beendet, weil OpenMates den Bildschirm verlassen hat. Tippe auf den Anrufknopf, um erneut anzurufen.
+  verified_by_human: []
 reconnecting:
   context: Voice call lost its connection while the app was in the background and is being restored
   en: Reconnecting…
