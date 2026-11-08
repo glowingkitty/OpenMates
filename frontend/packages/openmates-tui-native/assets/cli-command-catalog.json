@@ -21776,7 +21776,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/handlers.rs"
       },
       "gaps": [
-        "Formatting, option variants, and complete protocol parity require validation."
+        "Differential-verified against the npm CLI (cli-native-apps.spec.ts): exit code, normalized JSON stdout and stderr class match. Formatting, option variants, and complete protocol parity require validation."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -21987,7 +21987,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/handlers.rs"
       },
       "gaps": [
-        "Formatting, option variants, and complete protocol parity require validation."
+        "Differential-verified against the npm CLI (cli-native-apps.spec.ts): exit code, normalized JSON stdout and stderr class match. Formatting, option variants, and complete protocol parity require validation."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -22128,7 +22128,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/handlers.rs"
       },
       "gaps": [
-        "Formatting, option variants, and complete protocol parity require validation.",
+        "Differential-verified against the npm CLI (cli-native-apps.spec.ts): exit code, normalized JSON stdout and stderr class match. Formatting, option variants, and complete protocol parity require validation.",
         "Explicit-key JSON code/get_docs uses existing shared generated SDK; positional library plus joined question and --input object input are authored. Existing Cookie route is preserved separately and full auth/input/output equivalence remains required.",
         "Human output, generated artifact downloads/output flags, injection-disable option, complete error/stream/async-task semantics and per-skill conformance remain required; no generated namespace completeness or runtime/performance acceptance is claimed."
       ],
@@ -22190,7 +22190,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/handlers.rs"
       },
       "gaps": [
-        "Formatting, option variants, and complete protocol parity require validation."
+        "Differential-verified against the npm CLI (cli-native-apps.spec.ts): exit code, normalized JSON stdout and stderr class match. Formatting, option variants, and complete protocol parity require validation."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -22250,7 +22250,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/handlers.rs"
       },
       "gaps": [
-        "Formatting, option variants, and complete protocol parity require validation."
+        "Differential-verified against the npm CLI (cli-native-apps.spec.ts): exit code, normalized JSON stdout and stderr class match. Formatting, option variants, and complete protocol parity require validation."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -22416,7 +22416,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/handlers.rs"
       },
       "gaps": [
-        "Formatting, option variants, and complete protocol parity require validation."
+        "Differential-verified against the npm CLI (cli-native-apps.spec.ts): exit code, normalized JSON stdout and stderr class match. Formatting, option variants, and complete protocol parity require validation."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -22721,7 +22721,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/handlers.rs"
       },
       "gaps": [
-        "Formatting, option variants, and complete protocol parity require validation."
+        "Differential-verified against the npm CLI (cli-native-apps.spec.ts): exit code, normalized JSON stdout and stderr class match. Formatting, option variants, and complete protocol parity require validation."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -23374,7 +23374,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/handlers.rs"
       },
       "gaps": [
-        "Formatting, option variants, and complete protocol parity require validation."
+        "Differential-verified against the npm CLI (cli-native-apps.spec.ts): exit code, normalized JSON stdout and stderr class match. Formatting, option variants, and complete protocol parity require validation."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -23659,7 +23659,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/handlers.rs"
       },
       "gaps": [
-        "Formatting, option variants, and complete protocol parity require validation."
+        "Differential-verified against the npm CLI (cli-native-apps.spec.ts): exit code, normalized JSON stdout and stderr class match. Formatting, option variants, and complete protocol parity require validation."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -23825,7 +23825,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/handlers.rs"
       },
       "gaps": [
-        "Formatting, option variants, and complete protocol parity require validation."
+        "Differential-verified against the npm CLI (cli-native-apps.spec.ts): exit code, normalized JSON stdout and stderr class match. Formatting, option variants, and complete protocol parity require validation."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -25170,7 +25170,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/handlers.rs"
       },
       "gaps": [
-        "Formatting, option variants, and complete protocol parity require validation."
+        "Differential-verified against the npm CLI (cli-native-apps.spec.ts): exit code, normalized JSON stdout and stderr class match. Formatting, option variants, and complete protocol parity require validation."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -25713,7 +25713,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/handlers.rs"
       },
       "gaps": [
-        "Formatting, option variants, and complete protocol parity require validation."
+        "Differential-verified against the npm CLI (cli-native-apps.spec.ts): exit code, normalized JSON stdout and stderr class match. Formatting, option variants, and complete protocol parity require validation."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -26381,7 +26381,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/handlers.rs"
       },
       "gaps": [
-        "Formatting, option variants, and complete protocol parity require validation."
+        "Differential-verified against the npm CLI (cli-native-apps.spec.ts): exit code, normalized JSON stdout and stderr class match. Formatting, option variants, and complete protocol parity require validation."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -26567,7 +26567,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/handlers.rs"
       },
       "gaps": [
-        "Formatting, option variants, and complete protocol parity require validation."
+        "Differential-verified against the npm CLI (cli-native-apps.spec.ts): exit code, normalized JSON stdout and stderr class match. Formatting, option variants, and complete protocol parity require validation."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -26639,7 +26639,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/handlers.rs"
       },
       "gaps": [
-        "Formatting, option variants, and complete protocol parity require validation."
+        "Differential-verified against the npm CLI (cli-native-apps.spec.ts): exit code, normalized JSON stdout and stderr class match. Formatting, option variants, and complete protocol parity require validation."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -26877,7 +26877,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/handlers.rs"
       },
       "gaps": [
-        "Formatting, option variants, and complete protocol parity require validation."
+        "Differential-verified against the npm CLI (cli-native-apps.spec.ts): exit code, normalized JSON stdout and stderr class match. Formatting, option variants, and complete protocol parity require validation."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -28076,7 +28076,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/handlers.rs"
       },
       "gaps": [
-        "Formatting, option variants, and complete protocol parity require validation."
+        "Differential-verified against the npm CLI (cli-native-apps.spec.ts): exit code, normalized JSON stdout and stderr class match. Formatting, option variants, and complete protocol parity require validation."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -28327,7 +28327,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/handlers.rs"
       },
       "gaps": [
-        "Formatting, option variants, and complete protocol parity require validation."
+        "Differential-verified against the npm CLI (cli-native-apps.spec.ts): exit code, normalized JSON stdout and stderr class match. Formatting, option variants, and complete protocol parity require validation."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -29610,7 +29610,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/handlers.rs"
       },
       "gaps": [
-        "Formatting, option variants, and complete protocol parity require validation."
+        "Differential-verified against the npm CLI (cli-native-apps.spec.ts): exit code, normalized JSON stdout and stderr class match. Formatting, option variants, and complete protocol parity require validation."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -29827,7 +29827,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/handlers.rs"
       },
       "gaps": [
-        "Formatting, option variants, and complete protocol parity require validation."
+        "Differential-verified against the npm CLI (cli-native-apps.spec.ts): exit code, normalized JSON stdout and stderr class match. Formatting, option variants, and complete protocol parity require validation."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -29973,7 +29973,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/handlers.rs"
       },
       "gaps": [
-        "Formatting, option variants, and complete protocol parity require validation."
+        "Differential-verified against the npm CLI (cli-native-apps.spec.ts): exit code, normalized JSON stdout and stderr class match. Formatting, option variants, and complete protocol parity require validation."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -30080,7 +30080,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/handlers.rs"
       },
       "gaps": [
-        "Formatting, option variants, and complete protocol parity require validation."
+        "Differential-verified against the npm CLI (cli-native-apps.spec.ts): exit code, normalized JSON stdout and stderr class match. Formatting, option variants, and complete protocol parity require validation."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -30218,7 +30218,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/handlers.rs"
       },
       "gaps": [
-        "Formatting, option variants, and complete protocol parity require validation."
+        "Differential-verified against the npm CLI (cli-native-apps.spec.ts): exit code, normalized JSON stdout and stderr class match. Formatting, option variants, and complete protocol parity require validation."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -30444,7 +30444,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/handlers.rs"
       },
       "gaps": [
-        "Formatting, option variants, and complete protocol parity require validation."
+        "Differential-verified against the npm CLI (cli-native-apps.spec.ts): exit code, normalized JSON stdout and stderr class match. Formatting, option variants, and complete protocol parity require validation."
       ],
       "platforms": {
         "linux": "not_verified",

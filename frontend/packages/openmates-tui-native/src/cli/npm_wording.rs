@@ -1,7 +1,8 @@
 //! Unknown-id wording shared with the npm CLI (CLI adapter: chats, projects).
 //! The shared SDK maps HTTP 404/410/403 to generic errors; npm names the missing object.
 //! Mirrors the not-found messages in `frontend/packages/openmates-cli/src/` and is verified by
-//! the differential specs `cli-native-chats.spec.ts` and `cli-native-projects.spec.ts`.
+//! the differential specs `cli-native-chats.spec.ts`, `cli-native-projects.spec.ts` and
+//! `cli-native-apps.spec.ts` (app skill not-found).
 
 use super::CliError;
 use crate::error::Error;
@@ -20,7 +21,26 @@ fn not_found(code: &'static str, message: String) -> CliError {
     CliError::Contract { code, message }
 }
 
+/// Split a three-word `apps <app> <skill>` command path into app and skill.
+///
+/// `apps travel booking-link` and `apps design export-icon` are token/local routes
+/// rather than backend skill runs, so they are excluded.
+fn app_skill(command_path: &str) -> Option<(&str, &str)> {
+    let parts: Vec<&str> = command_path.split_whitespace().collect();
+    match parts[..] {
+        ["apps", app, skill]
+            if !matches!(command_path, "apps travel booking-link" | "apps design export-icon") =>
+        {
+            Some((app, skill))
+        }
+        _ => None,
+    }
+}
+
 /// Rewrite a generic unavailable error into npm's not-found wording for known commands.
+///
+/// `apps <app> <skill>` says "<app>/<skill> failed: Skill execution failed: Not Found"
+/// (keeps npm's stderr class).
 ///
 /// `chats show|messages|download` (text mode only) say "Chat '<id>' not found";
 /// `projects show` says "Project '<id>' not found"; `projects settings focus activate`
@@ -50,6 +70,10 @@ pub fn unknown_id(
             "source_not_found",
             "Project source delete failed: Source not found".to_owned(),
         ),
+        (path, _) if app_skill(path).is_some() && is_unavailable(&error, false) => {
+            let (app, skill) = app_skill(path).expect("guard checked app_skill is Some");
+            not_found("not_found", format!("{app}/{skill} failed: Skill execution failed: Not Found"))
+        }
         _ => error,
     }
 }

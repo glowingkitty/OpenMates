@@ -41,7 +41,7 @@ test.describe('CLI native differential: apps', () => {
 			// Documented native gaps (not verified): openmates get-docs maps a backend 404 to invalid_argument instead of
 			// http-not-found; plans/tasks/workflows search report "skill currently unavailable" (exit 1) where npm returns a
 			// pending client search result. pdf view/read need an uploaded chat embed and are not covered here.
-			await diff.check('apps openmates get-docs', ['apps', 'openmates', 'get-docs', '--url', 'architecture/chats'], { expectedGap: 'stderr class: npm=http-not-found', structureOnly: true, catalog: ['apps openmates get-docs'], timeoutMs: 120_000 });
+			await diff.check('apps openmates get-docs', ['apps', 'openmates', 'get-docs', '--url', 'architecture/chats'], { structureOnly: true, catalog: ['apps openmates get-docs'], timeoutMs: 120_000 });
 			await diff.check('apps design search_icons', ['apps', 'design', 'search_icons', '--query', 'home', '--count', '5'], { structureOnly: true, catalog: ['apps design search_icons'], timeoutMs: 120_000 });
 			await diff.check('apps plans search', ['apps', 'plans', 'search', '--query', 'differential'], { expectedGap: 'exit: npm=0 native=1', structureOnly: true, catalog: ['apps plans search'], timeoutMs: 120_000 });
 			await diff.check('apps tasks search', ['apps', 'tasks', 'search', '--query', 'differential'], { expectedGap: 'exit: npm=0 native=1', structureOnly: true, catalog: ['apps tasks search'], timeoutMs: 120_000 });
@@ -57,6 +57,28 @@ test.describe('CLI native differential: apps', () => {
 				timeoutMs: 120_000,
 				expectedGap: 'This App skill is currently unavailable.'
 			});
+
+			// Missing-required-input refusals: no provider call and no credits, so the exit code and stderr class
+			// of both CLIs must agree before any skill runs.
+			const refusals: string[][] = [
+				['business', 'company_financials'], ['code', 'get_docs'],
+				['code', 'search_repos'], ['events', 'search'],
+				['fitness', 'search_classes'], ['fitness', 'search_locations'], 
+				['jobs', 'search'], 
+				['maps', 'search'], ['news', 'search'], ['nutrition', 'search_recipes'],
+				['social_media', 'search'], ['social_media', 'get-posts'],
+				
+				['videos', 'search'], ['videos', 'get_transcript'], ['weather', 'forecast'], ['weather', 'rain_radar'],
+				['web', 'read'], ['web', 'search'], ['pdf', 'search'], ['code', 'get_issues'], ['code', 'add_issue'],
+				['code', 'get_project_overview'], ['code', 'remove_secrets']
+			];
+			for (const [app, skill] of refusals) {
+				await diff.check(`apps ${app} ${skill} (missing input)`, ['apps', app, skill], {
+					mode: 'exit',
+					catalog: [`apps ${app} ${skill}`],
+					timeoutMs: 120_000
+				});
+			}
 		} finally {
 			fs.rmSync(work, { recursive: true, force: true });
 			await finishDifferential(diff);
