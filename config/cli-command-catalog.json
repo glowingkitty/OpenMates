@@ -56846,6 +56846,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
+        "Differential-verified against the npm CLI (cli-native-tasks.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open.",
         "Encrypted durable delivery (HMAC-bound intent in the encrypted native task-delivery journal, idempotent --delivery-id replay) is implemented natively.",
         "Pending npm CLI task-mutation and task-activity outbox records for the session's account/Team are adopted byte-for-byte into the native encrypted journal (npm records marked migrated) on the next cookie Task command; Codex creator/assignee records and the Codex-hook task-command-delivery outbox are not migrated.",
         "Remaining option variants, protocol/output parity and live integration validation are still required."
@@ -56903,6 +56904,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
+        "Differential-verified against the npm CLI (cli-native-tasks.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open.",
         "Encrypted durable delivery (HMAC-bound intent in the encrypted native task-delivery journal, idempotent --delivery-id replay with read-before-retry reconciliation) is implemented natively.",
         "Pending npm CLI task-mutation and task-activity outbox records for the session's account/Team are adopted byte-for-byte into the native encrypted journal (npm records marked migrated) on the next cookie Task command; Codex creator/assignee records and the Codex-hook task-command-delivery outbox are not migrated.",
         "Remaining option variants, protocol/output parity and live integration validation are still required."
@@ -56954,6 +56956,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/task_queue.rs"
       },
       "gaps": [
+        "Differential-verified against the npm CLI (cli-native-tasks.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open.",
         "Processes the native encrypted journal; matching npm outbox records are adopted into it first. Codex creator/assignee npm records remain in the npm outbox."
       ],
       "platforms": {
@@ -57057,6 +57060,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
+        "Differential-verified against the npm CLI (cli-native-tasks.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open.",
         "Read-only command: no durable delivery applies.",
         "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],
@@ -57487,6 +57491,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
+        "Differential-verified against the npm CLI (cli-native-tasks.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open.",
         "Encrypted durable delivery (HMAC-bound intent in the encrypted native task-delivery journal, idempotent --delivery-id replay) is implemented natively.",
         "Pending npm CLI task-mutation and task-activity outbox records for the session's account/Team are adopted byte-for-byte into the native encrypted journal (npm records marked migrated) on the next cookie Task command; Codex creator/assignee records and the Codex-hook task-command-delivery outbox are not migrated.",
         "Remaining option variants, protocol/output parity and live integration validation are still required."
@@ -58201,6 +58206,7 @@
         "module": "frontend/packages/openmates-tui-native/src/cli/tasks.rs"
       },
       "gaps": [
+        "Differential-verified against the npm CLI (cli-native-tasks.spec.ts): exit code, normalized JSON stdout and stderr class match. Linux dev and macOS platform verification remains open.",
         "Read-only command: no durable delivery applies.",
         "Remaining option variants, protocol/output parity and live integration validation are still required."
       ],

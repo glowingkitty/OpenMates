@@ -8,6 +8,31 @@ use openmates_sdk::work::{
 use rand::RngCore;
 use serde_json::{Value, json};
 use tokio_util::sync::CancellationToken;
+/// Activity entry id derived deterministically from the 64-hex delivery id.
+///
+/// npm entry ids are UUIDs; reusing the first 128 bits (with v4 version and
+/// variant bits set) keeps the id stable across journal replays while matching
+/// the npm shape.
+pub(super) fn activity_entry_id(delivery_id: &str) -> String {
+    let mut bytes = [0u8; 16];
+    for (index, byte) in bytes.iter_mut().enumerate() {
+        *byte = delivery_id
+            .get(index * 2..index * 2 + 2)
+            .and_then(|pair| u8::from_str_radix(pair, 16).ok())
+            .unwrap_or(0);
+    }
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    let hex: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
+    format!(
+        "{}-{}-{}-{}-{}",
+        &hex[0..8],
+        &hex[8..12],
+        &hex[12..16],
+        &hex[16..20],
+        &hex[20..32]
+    )
+}
 pub(super) fn supported(invocation: &Invocation) -> bool {
     matches!(
         invocation.command_path().as_str(),
@@ -361,7 +386,7 @@ async fn prepare(
                     id()?,
                     TaskActivityInput {
                         message,
-                        entry_id: Some(delivery_id.into()),
+                        entry_id: Some(activity_entry_id(delivery_id)),
                         ..Default::default()
                     },
                     delivery_id,

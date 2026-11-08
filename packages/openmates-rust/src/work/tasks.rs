@@ -327,7 +327,13 @@ impl<'a> Tasks<'a> {
         {
             let (master, wrapping) = self.keys().await?;
             let p = self.scoped(&format!("/v1/user-tasks/{id}"), &[]);
-            let data = self.backend.request(Method::GET, &p, None, None).await?;
+            let data = match self.backend.request(Method::GET, &p, None, None).await {
+                // Backend 404/410 reaches here as the generic transport message; npm reports "Task not found".
+                Err(Error::Invalid("The requested item is unavailable.")) => {
+                    return Err(Error::Invalid("Task not found."));
+                }
+                other => other?,
+            };
             let row = data.get("task").ok_or(Error::Protocol)?;
             if string(row, "task_id")? != id {
                 return Err(Error::Forbidden);
@@ -366,6 +372,10 @@ impl<'a> Tasks<'a> {
         } else {
             matches
         };
+        if matches.is_empty() && uuid::Uuid::parse_str(id).is_ok() {
+            // A full Task ID that resolves to nothing is a missing Task (npm: HTTP 404), not a bad selector.
+            return Err(Error::Invalid("Task not found."));
+        }
         if matches.len() != 1 {
             return Err(Error::Invalid(
                 "Task selector is missing or ambiguous; use its full ID.",

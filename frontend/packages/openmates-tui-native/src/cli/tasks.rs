@@ -500,6 +500,13 @@ async fn execute_service(
                 json!({"entry":value})
             } else if path != "tasks delete" && !path.starts_with("tasks activity") {
                 json!({"task":task_json(&value)})
+            } else if path == "tasks activity flush" {
+                // npm reports only pending/attempted/rejected; `delivered` stays in the human text.
+                let mut value = value;
+                if let Some(object) = value.as_object_mut() {
+                    object.remove("delivered");
+                }
+                value
             } else {
                 value
             };

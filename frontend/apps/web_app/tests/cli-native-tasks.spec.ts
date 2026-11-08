@@ -6,11 +6,11 @@
  * plain reads run against the npm-created Task on both CLIs.
  *
  * Open native gaps (asserted as expectedGap, therefore NOT counted as verified):
- * `tasks activity add|search|delete` (native entry_id is a 64-hex value, npm a UUID),
- * `tasks activity flush` (native adds `delivered`), `tasks reorder` (queue_state/blocked_reason
- * representation), `tasks start` (stderr class), `tasks release` (task.version offset),
- * `tasks history` (entry count), and the not-found stderr class of `tasks delete` / `tasks show`
- * (native reports invalid_argument where npm reports http-not-found).
+ * `tasks reorder` (queue_state/blocked_reason representation), `tasks start` (stderr class),
+ * `tasks release` (task.version offset), `tasks history` (entry count).
+ * Activity add/search/delete/flush and the not-found class of `tasks delete` / `tasks show`
+ * are fixed natively and verified. (Comment keeps the original line count.)
+ *
  * `tasks list --label` is not exercised: the backend label filter needs a separate fix.
  */
 export {};
@@ -77,15 +77,14 @@ test.describe('CLI native differential: tasks', () => {
 					...extra
 				});
 			await mutate('tasks edit', (id) => ['tasks', 'edit', id, '--description', 'edited by differential', '--add-label', 'edited'], ['tasks edit']);
-			const added = await mutate('tasks activity add', (id) => ['tasks', 'activity', 'add', id, '--message', 'Differential activity note'], ['tasks activity add'], { expectedGap: '$.entry.entry_id: npm=' });
+			const added = await mutate('tasks activity add', (id) => ['tasks', 'activity', 'add', id, '--message', 'Differential activity note'], ['tasks activity add'], { ignoreKeys: [...VOLATILE, ...HISTORY_IDS] });
 			const entry = bothIds(added, ['entry_id', 'entryId', 'id']);
-			await mutate('tasks activity search', (id) => ['tasks', 'activity', 'search', id, '--query', 'Differential'], ['tasks activity search'], { expectedGap: '$.entries[0].entry_id: npm=' });
+			await mutate('tasks activity search', (id) => ['tasks', 'activity', 'search', id, '--query', 'Differential'], ['tasks activity search']);
 			await diff.check('tasks activity delete', ['tasks', 'activity', 'delete', t, entry.npm || UNKNOWN], {
 				nativeArgs: ['tasks', 'activity', 'delete', task.native || UNKNOWN, entry.native || UNKNOWN],
-				expectedGap: '$.entry.entry_id: npm=',
 				catalog: ['tasks activity delete']
 			});
-			await mutate('tasks activity flush', (id) => ['tasks', 'activity', 'flush', id], ['tasks activity flush'], { expectedGap: '$.delivered: only in native' });
+			await mutate('tasks activity flush', (id) => ['tasks', 'activity', 'flush', id], ['tasks activity flush']);
 			await mutate('tasks add-to-project', (id, _other, project) => ['tasks', id, 'add-to-project', project], ['tasks add-to-project']);
 			// Backend dependencies must share a Project, so the dependency target joins it too (unchecked setup).
 			await diff.npm(['tasks', second.npm || UNKNOWN, 'add-to-project', projectNpm || UNKNOWN, '--json']);
@@ -112,9 +111,9 @@ test.describe('CLI native differential: tasks', () => {
 			});
 
 			// Delete (each CLI its own Tasks).
-			await mutate('tasks delete', (id) => ['tasks', 'delete', id, '--confirm'], ['tasks delete'], { expectedGap: 'stderr class: npm=http-not-found native=validation' });
+			await mutate('tasks delete', (id) => ['tasks', 'delete', id, '--confirm'], ['tasks delete']);
 			await mutate('tasks delete (dependency target)', (_id, other) => ['tasks', 'delete', other, '--confirm'], ['tasks delete'], { ignoreKeys: [...VOLATILE, ...HISTORY_IDS] });
-			await mutate('tasks show (deleted)', (id) => ['tasks', 'show', id], ['tasks show'], { expectedGap: 'stderr class: npm=http-not-found native=validation' });
+			await mutate('tasks show (deleted)', (id) => ['tasks', 'show', id], ['tasks show']);
 		} finally {
 			for (const undo of cleanup) await undo();
 			await finishDifferential(diff);
