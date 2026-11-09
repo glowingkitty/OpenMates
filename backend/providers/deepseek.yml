@@ -53,7 +53,7 @@ models:
         country: "FR"
         reasoning_control:
           parameter: reasoning_effort
-          levels: {LOW: "low", MEDIUM: "high", HIGH: "high", EXTRA_HIGH: "xhigh"}
+          levels: {LOW: "none", MEDIUM: "high", HIGH: "high", EXTRA_HIGH: "high"}
           source_url: https://docs.mistral.ai/studio/conversations/reasoning
       - id: "together"
         name: "Together AI"
