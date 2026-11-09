@@ -87,7 +87,10 @@ when a skill or this file points to it.
   cheapest proving check (component spec, lint, the one affected spec); submit
   the full E2E set once, after that is green. Wait in the background and act on
   the first failed job instead of waiting for the whole set. Sub-agents never
-  wait on CI or deploys: they submit, hand back the job ids and end.
+  wait on CI or deploys: they submit, hand back the job ids and end. The one
+  exception is the Haiku `ci-runner` agent: hand it job ids (or exact checks to
+  submit) in the background and it returns pass/fail with the failing test and
+  error lines, keeping logs out of the main context.
 - Overloaded host (`scripts/host_load_guard.py`): new sessions/sub-agents are
   refused; run `host_load_guard.py wait` once instead of polling.
 - Existing logs/screenshots/failures are enough to start a fix. After two
