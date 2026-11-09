@@ -59,7 +59,12 @@ def core_plan(root: Path, results: Path) -> list[Step]:
         "ARCHS": "arm64",
         "DERIVED_FILE_DIR": str(results / "derived"),
     }
-    toolchain = {"RUSTUP_TOOLCHAIN": RUST_TOOLCHAIN}
+    # macOS temp roots sit behind the /var -> /private/var symlink; the SDK's
+    # destination checks (correctly) refuse symlinked paths, so tests get the real path.
+    toolchain = {
+        "RUSTUP_TOOLCHAIN": RUST_TOOLCHAIN,
+        "TMPDIR": os.path.realpath(os.environ.get("RUNNER_TEMP", "/tmp")),
+    }
     has_package = (root / "apple" / "OpenMatesCore" / "Package.swift").is_file()
     return [
         (
