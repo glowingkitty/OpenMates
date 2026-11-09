@@ -1,7 +1,38 @@
 {
   "env": {
     "CLAUDE_CODE_SUBAGENT_MODEL": "sonnet",
-    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "300000"
+    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "300000",
+    "CLAUDE_CODE_SUBAGENT_PROMPT_CACHE_TTL": "1h"
+  },
+  "permissions": {
+    "deny": [
+      "Workflow",
+      "EnterWorktree",
+      "ExitWorktree",
+      "mcp__claude-code-remote__add_repo",
+      "mcp__claude-code-remote__register_repo_root",
+      "mcp__claude-code-remote__list_repos",
+      "mcp__claude-code-remote__confirm_repository_trust",
+      "mcp__claude-code-remote__get_environment",
+      "mcp__claude-code-remote__list_environments",
+      "mcp__claude-code-remote__create_environment",
+      "mcp__claude-code-remote__update_environment",
+      "mcp__claude-code-remote__switch_environment",
+      "mcp__claude-code-remote__list_computer_folders",
+      "mcp__claude-code-remote__request_computer_folder",
+      "mcp__claude-code-remote__report_preview_port",
+      "mcp__claude-code-remote__subscribe_pr_activity",
+      "mcp__claude-code-remote__unsubscribe_pr_activity",
+      "mcp__claude-code-remote__watch_url",
+      "mcp__claude-code-remote__unwatch_url",
+      "mcp__claude-code-remote__set_session_tags",
+      "mcp__claude-code-remote__set_session_title",
+      "mcp__claude-code-remote__get_event",
+      "mcp__claude-code-remote__interrupt_session",
+      "mcp__claude-code-remote__unarchive_session",
+      "mcp__claude-code-remote__fire_trigger",
+      "mcp__claude-code-remote__get_trigger"
+    ]
   },
   "hooks": {
     "PreToolUse": [

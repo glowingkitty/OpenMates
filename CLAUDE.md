@@ -83,6 +83,11 @@ when a skill or this file points to it.
   ci-source` → `ci_coordinator.py submit --mode <rust-check|vitest|pytest|e2e|…>`
   → `ci_coordinator.py wait <id>`. Direct: lint/typecheck, `cargo fmt`, light
   script pytest.
+- CI cost: for a UI-only or otherwise narrow change, first run only the
+  cheapest proving check (component spec, lint, the one affected spec); submit
+  the full E2E set once, after that is green. Wait in the background and act on
+  the first failed job instead of waiting for the whole set. Sub-agents never
+  wait on CI or deploys: they submit, hand back the job ids and end.
 - Overloaded host (`scripts/host_load_guard.py`): new sessions/sub-agents are
   refused; run `host_load_guard.py wait` once instead of polling.
 - Existing logs/screenshots/failures are enough to start a fix. After two
@@ -133,7 +138,9 @@ when a skill or this file points to it.
   `test-failure-triager`, `e2e-test-investigator`.
   Debug tooling reference: `.claude/rules/debugging.md`.
 - Skills, agents and hooks live in `.claude/`; edit them there directly.
-- Sub-agent budget: sub-agents default to Sonnet (settings `env`); pass
+- Sub-agent budget: use the lean `lane-worker` agent for implementation lanes
+  (`general-purpose` only when the lane needs web access, skills or its own
+  sub-agents). Sub-agents default to Sonnet (settings `env`); pass
   `model: "opus"` only for hard implementation or architecture work. Give each
   one a single bounded deliverable; split long lanes into fresh agents with a
   short handoff instead of one agent running for hundreds of turns. Ask for
