@@ -428,6 +428,11 @@ class BaseApp:
             secrets_manager = request_body.get("_secrets_manager")
             cache_service = request_body.get("_cache_service")
             encryption_service = request_body.get("_encryption_service")
+            # In-process callers (the PDF prefetch) may ask pdf.search to rate more keyword hits.
+            # Requests from outside never choose it; the skill also clamps the number.
+            rerank_candidates = request_body.get("_rerank_candidates")
+            if external_request or not isinstance(rerank_candidates, int) or isinstance(rerank_candidates, bool):
+                rerank_candidates = None
 
             # Initialize skill instance. Server-side AI processing may inject a
             # validated model override for user-configurable app skill defaults.
@@ -493,6 +498,7 @@ class BaseApp:
                 "secrets_manager": secrets_manager,
                 "cache_service": cache_service,
                 "encryption_service": encryption_service,
+                "rerank_candidates": rerank_candidates,
             }
             # Remove None values
             skill_kwargs = {k: v for k, v in skill_kwargs.items() if v is not None}
