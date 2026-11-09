@@ -68,6 +68,10 @@ COPY backend/shared/python_utils/media_encryption.py /app/backend/shared/python_
 COPY backend/shared/python_utils/object_storage_regions.py /app/backend/shared/python_utils/object_storage_regions.py
 COPY backend/shared/python_utils/storage_availability.py /app/backend/shared/python_utils/storage_availability.py
 COPY backend/upload/ /app/backend/upload/
+# PDF uploads are triaged and priced at upload time (lazy import in upload_route._handle_pdf_upload).
+# The module only needs the standard library and pymupdf, so only it is copied, not the PDF app.
+RUN mkdir -p /app/backend/apps/pdf/services && touch /app/backend/apps/__init__.py /app/backend/apps/pdf/__init__.py /app/backend/apps/pdf/services/__init__.py
+COPY backend/apps/pdf/services/pdf_triage.py /app/backend/apps/pdf/services/pdf_triage.py
 RUN mkdir -p /app/backend/scripts /app/backend/core/api/app/utils
 COPY backend/scripts/runtime_health_verifier.py /app/backend/scripts/runtime_health_verifier.py
 COPY backend/core/api/app/utils/server_mode.py /app/backend/core/api/app/utils/server_mode.py
@@ -85,7 +89,9 @@ ENV PYTHONPATH="/app"
 
 # Import the actual entry point in the built filesystem before publishing.
 # Missing shared modules must fail the image build rather than production boot.
-RUN python -c "import backend.upload.main; import backend.scripts.runtime_health_verifier"
+# The PDF triage import is lazy in the route, so exercise it here with a real one-page PDF.
+RUN python -c "import backend.upload.main; import backend.scripts.runtime_health_verifier" && \
+    python -c "import fitz; from backend.apps.pdf.services.pdf_triage import price_for, triage_pages_sync; d = fitz.open(); d.new_page().insert_text((72, 100), 'hello'); r = triage_pages_sync(d.tobytes()); assert r.page_count == 1 and price_for(0).credits == 2"
 
 EXPOSE 8000
 
