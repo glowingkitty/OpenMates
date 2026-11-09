@@ -4,6 +4,23 @@ Machine-readable status of the Rust migration. Generated files carry a `GENERATE
 rewritten by `python3 scripts/rust_migration_yaml.py` (deploy and `ci-source` run `--check`).
 Human report: `docs/architecture/platforms/rust-migration-status.md`.
 
+## Progress metric: capabilities at rust-only (current)
+
+The migration follows "one Rust client core, three thin shells"
+(`specifications/architecture/client-core/`, plan
+`docs/plans/client-core-one-core-three-shells/plan.yml`, rule `.claude/rules/client-core.md`).
+Progress is counted per capability and per shell (web, Apple, TUI/CLI) with the status
+`ts-only | swift-only | rust-twin | rust-default | rust-only | stays-shell`. A cell is done
+at `rust-only` (old shell implementation deleted, that shell's existing suite green on the
+exact deployed commit) or `stays-shell` (legitimate UI/platform/credential-storage work).
+Progress = done cells / all cells. The inventory lives in the plan until plan TASK-2 adds
+the curated `capabilities.yml` here and switches the generated rollup to it.
+
+The sections below describe the **deprecated** TS-lines metric. Its numbers in the
+generated files are not migration progress any more, but `rust_migration_yaml.py --check`
+still enforces the ledger until TASK-2 removes it, so lanes keep adding the ledger slice
+the check asks for.
+
 | File | Kind | Content |
 |---|---|---|
 | `overview.yml` | generated | Area percents, `overall` weighted percent, `performance` (latest per flow/metric, stale flags), `perf_attention` |
@@ -12,7 +29,7 @@ Human report: `docs/architecture/platforms/rust-migration-status.md`.
 | `performance-history.yml` | curated, append-only | Bench results (`scripts/record_perf_measurement.py`) |
 | `web-lanes.yml`, `web-app-curated.yml`, `spec-links.yml` | curated | Lane plan, per-namespace evidence, spec links |
 
-## Web app percent
+## Web app percent (deprecated)
 
 `web_app.percent` = ported / portable TS code lines, measured by `scripts/rust_web_port_ledger.py`:
 
@@ -26,7 +43,7 @@ Human report: `docs/architecture/platforms/rust-migration-status.md`.
   listed) or `none`. A listed spec means coverage exists, not that its latest run was green.
 - Installed Worker namespaces are kept as `worker_namespaces_installed_not_progress`; they are not progress.
 
-## Lane procedure: append a ledger slice
+## Lane procedure: append a ledger slice (deprecated, still enforced until TASK-2)
 
 Every web slice that routes TS to Rust appends one entry to `web-port-ledger.yml` in the same deploy:
 

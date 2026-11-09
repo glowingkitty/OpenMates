@@ -13,7 +13,10 @@ The approved architecture is recorded in `docs/architecture/platforms/cli-packag
 `specifications/surfaces/cli/` and `specifications/surfaces/sdk/`. Keep these existing
 contracts authoritative rather than creating another architecture source. Shared
 sync and persistence policy also follows `specifications/architecture/sync/` and
-`specifications/architecture/storage-lifecycle/`.
+`specifications/architecture/storage-lifecycle/`. The client architecture (one
+Rust core, three thin shells: TUI/CLI, web, Apple), the shell boundary, the
+capability status model and lane shape are in `.claude/rules/client-core.md` and
+`specifications/architecture/client-core/`; read them before touching client logic.
 
 - One native Rust application implements the entire CLI and TUI. Do not delegate
   application behavior to Node, TypeScript or Python, sidecars or hidden fallbacks.
@@ -31,9 +34,11 @@ sync and persistence policy also follows `specifications/architecture/sync/` and
   locally (memory only, zeroized); provide session-mode capabilities through the
   API-key path rather than dropping them, and track remaining gaps as open work.
 - Web Svelte/TypeScript retains UI/DOM and thin browser APIs such as media and
-  WebRTC. Apple retains native SwiftUI and platform hooks. Neither duplicates the
-  reusable Rust behavior. Keep thin IndexedDB/SwiftData persistence adapters
-  initially and preserve existing data; do not force a SQLite/OPFS migration.
+  WebRTC. Apple retains native SwiftUI, platform hooks and Keychain. Neither
+  duplicates the reusable Rust behavior. The core owns the encrypted local cache;
+  shells keep only opaque byte adapters (IndexedDB from the Worker on web). Shell
+  stores such as Apple ChatStore/OfflineStore are retired with a safe migration
+  of unsynced state (`client-core.cache.safe-store-retirement`).
 - Rust, npm and PyPI remain supported SDKs with matching public capabilities,
   including API-key auth (plus explicit anonymous mode), operations, crypto,
   streaming, recovery and errors.
@@ -48,9 +53,12 @@ sync and persistence policy also follows `specifications/architecture/sync/` and
 - Prove essential auth, encrypted chat, streaming/cancel, persistence and
   sync/reconnect/recovery through the entirely Rust CLI/TUI first. Then begin
   browser/WASM integration immediately; exhaustive CLI command/app parity remains
-  required as separate work and does not block web. Verify web before Apple through
-  the coordinated Mac workflow. Retire old code/commands only after full parity,
-  reliable security verification and explicit agent AND user retirement acceptance. Backend Rust
+  required as separate work and does not block web. Web flips and the Apple
+  strangler sequence (bridge, crypto+keys, sync+cache, send/stream/recovery,
+  drafts/search/settings/projects) proceed per capability as defined in
+  `client-core.md`; each capability's old code is deleted when it reaches
+  rust-only. Retire the npm CLI only after full parity, reliable security
+  verification and explicit agent AND user retirement acceptance. Backend Rust
   migration waits until every client and accepted cleanup are complete and is
   outside current implementation scope.
 - Before and after web migration, compare compressed JavaScript and WASM sizes
@@ -72,10 +80,10 @@ sync and persistence policy also follows `specifications/architecture/sync/` and
   - After every web bench, append the result to `docs/migration/rust/performance-history.yml`
     with `scripts/record_perf_measurement.py` (append-only; never edit old entries).
     Refresh the status with `python3 scripts/rust_migration_yaml.py`.
-  - Every web slice that routes TS to Rust under `VITE_OPENMATES_RUST_CORE` appends one
-    slice to `docs/migration/rust/web-port-ledger.yml` (`python3 scripts/rust_web_port_ledger.py
-    --suggest` prints the stub; `commit: null` = the deploying commit). `--check` fails on an
-    unledgered routing function, so the web_app percent counts only ported TS lines.
+  - Migration progress is the capability status metric in `client-core.md`. The
+    TS-lines ratio and `web-port-ledger.yml` are deprecated; until plan TASK-2 removes
+    the check, `rust_migration_yaml.py --check` still fails on an unledgered routing
+    function, so add the slice it asks for (`rust_web_port_ledger.py --suggest`).
   - Memory during the migration: at most one WASM instance, about +30 MB. More than
     one is a blocker. Memory that grows per page reload is always a bug. The final build with the TS paths removed must have RAM and
     download ≤ TS.
@@ -97,11 +105,11 @@ sync and persistence policy also follows `specifications/architecture/sync/` and
   member crate. Python uses native PyO3 wheels; the npm SDK loads the portable
   WASM build of the shared core. Use explicit versioned dev
   prereleases. GitHub prebuilt executable assets are outside this migration scope.
-- Keep the installed npm CLI and command operational during transition. Expose
-  verified Rust alongside it early through a separate command or installation path
-  for daily testing; do not automatically replace the global command. Retire the
-  old command/source only after full parity/security evidence and explicit agent
-  AND user confirmation of completeness/reliability and retirement.
+- The native Rust binary is the default `openmates` CLI/TUI (user decision
+  2026-11-09, `client-core.cli.native-default`). Keep the npm CLI operational as an
+  explicit fallback, never a silent one. Retire the npm command/source only after
+  full parity/security evidence and explicit agent AND user confirmation of
+  completeness/reliability and retirement.
 - GitHub CI must exercise self-host edition setup through the native CLI. Product
   integration checks use isolated CI; real AI remains isolated dev-only and retains
   automatic routing without model/provider overrides.

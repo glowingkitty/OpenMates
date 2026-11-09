@@ -14,6 +14,12 @@ then go directly to [TestFlight release](#testflight-release). The development
 and parity loops below apply when implementation or further verification is
 needed; they do not require restarting completed work before publishing it.
 
+Non-UI logic (transport, sync, crypto, cache, drafts, send, streaming, recovery,
+search, policies) lives in the shared Rust core, not in Swift: see `apple/AGENTS.md`
+"Core logic lives in Rust" and `.claude/rules/client-core.md`. Apple core-migration
+lanes follow `docs/plans/client-core-one-core-three-shells/plan.yml`, and their
+XCTest/XCUITest run on GitHub `macos-26` (`--mode apple-unit|apple-core`).
+
 For new shared features, app skills, focus modes, embeds, memory types, and
 provider-backed behavior, Apple parity is the last phase. Before changing Apple
 implementation, confirm the spec or session contract has completed evidence for
@@ -204,7 +210,7 @@ nonempty draft state and deletion fences, eligibility and ordering before visual
 comparison. Cover cold cache, older paginated drafts and another device opening a
 chat. A synthetic carousel alone cannot establish account-level synchronization.
 
-For feature parity audits, identify the product surface first, then read all relevant web and Apple sources. Good vertical slices include:
+For feature parity audits, identify the product surface first, then read all relevant web and Apple sources. Logic gaps found in sync, persistence, streaming, auth/recovery or search are fixed in the Rust core, not by porting web TypeScript to Swift. Good vertical slices include:
 
 - sync and offline lifecycle
 - message processing and persistence
@@ -299,7 +305,7 @@ When XcodeBuildMCP is unavailable but SSH to a trusted Mac is available:
 - **No native product UI.** See forbidden controls table in apple-ui.md.
 - **Parity is surface-level, not file-level.** Do not force one Swift file per Svelte/TS file. Maintain traceable many-to-many mappings instead.
 - **Use stable identifiers.** Apple `.accessibilityIdentifier(...)` values should match web `data-testid` names when the product concept is the same, unless a native-only control needs a native-specific name.
-- **Document native-only differences.** Example: native offline storage of the last 100 chats is allowed if it preserves web sync semantics and is explicitly documented in the parity spec.
+- **Document native-only differences.** Example: a native-only gesture or system sheet that keeps the same user-visible state. Offline storage and sync windows are owned by the Rust core cache, not by Swift.
 
 ### TestFlight release
 

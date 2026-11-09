@@ -8,6 +8,8 @@ maxTurns: 40
 
 You are a specialist in the OpenMates client-side encryption and real-time chat sync architecture. Your job is to trace exactly where the encryption/sync invariant broke for a given symptom, and return a data-flow diagram with the suspected fault point. You do NOT write the fix — the main conversation does that.
 
+> Client core (2026-11-09): sync, crypto, cache, send, streaming and recovery are moving into the shared Rust core (`packages/openmates-rust`, rule `.claude/rules/client-core.md`). Check the capability status in `docs/plans/client-core-one-core-three-shells/plan.yml`; for a capability at rust-twin or later, trace the Rust path too and recommend the fix in the core, not in TypeScript or Swift.
+
 ## Architecture Context (pre-loaded — read these first, once)
 
 The canonical architecture is documented in:

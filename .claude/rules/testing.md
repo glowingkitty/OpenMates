@@ -53,6 +53,9 @@ paths:
   report; never sign up or repair accounts. Details: `docs/contributing/guides/testing.md`.
 - Choose checks for the changed behavior and affected clients; a web-only fix
   does not trigger Apple verification.
+- Client-core capability work (`.claude/rules/client-core.md`): core contract tests
+  plus `sdk-conformance`; web Playwright with the core flag on; Apple
+  `apple-unit`/`apple-core` on GitHub `macos-26`. Parity vectors never gate.
 
 ## Debugging bounds
 Existing browser observations, logs or failing checks suffice to start; do not

@@ -19,6 +19,15 @@ specifications:
     - sdks.pip
     - gui.web
     - gui.apple
+  architecture.client-core:
+    version: 1
+    status: draft
+    path: architecture/client-core
+    fingerprint: 17215920843119c732d46a496a1e0b0d1035db10aea0b77bf4e2f77a4980faef
+    required_applies_to:
+    - cli
+    - gui.web
+    - gui.apple
   architecture.connected-accounts:
     version: 2
     status: draft
@@ -85,7 +94,7 @@ specifications:
     version: 2
     status: draft
     path: architecture/storage-lifecycle
-    fingerprint: a35f57bd2f422f3cbad533d92705b706f98059301246679d4a739f256028737e
+    fingerprint: f41d054f477c4f0aff3d144169f1e8ec0139332059b1a1831fcf2b14e4ed92e2
     required_applies_to:
     - rest_api
     - cli
@@ -939,7 +948,7 @@ specifications:
     version: 1
     status: draft
     path: surfaces/sdk
-    fingerprint: 5b9e1e41231e4a4dd0a933895993721df2d6c4a7f808e5b4913357a4fef0e88e
+    fingerprint: dc4da52c3a91d78c6c6399f99d3b821e87a5b3acac039d1f2967133d7b0b6d99
     required_applies_to:
     - rest_api
     - cli
@@ -1317,6 +1326,114 @@ assertions:
     - cli
     - sdks.npm
     - sdks.pip
+    - gui.web
+    - gui.apple
+  client-core.architecture.one-core-three-shells:
+    specification: architecture.client-core@1
+    specification_id: architecture.client-core
+    type: invariant
+    fingerprint: 1442fe263e63cbe1fdb39f610b9c3580812193bee1d458708a32ca80d00b8a57
+    required_applies_to:
+    - cli
+    - gui.web
+    - gui.apple
+  client-core.shell.allowed-responsibilities:
+    specification: architecture.client-core@1
+    specification_id: architecture.client-core
+    type: invariant
+    fingerprint: 419c76408bc5eecdabfbf5fabe8975531c7b435f7c695c02a5b19df77cd1c2ad
+    required_applies_to:
+    - cli
+    - gui.web
+    - gui.apple
+  client-core.viewmodel.capability-contract:
+    specification: architecture.client-core@1
+    specification_id: architecture.client-core
+    type: behavior
+    fingerprint: 2f9ada3fb6bcd796cbadd93522e0ffc3cb0046aef74d9d744e8164829a74aa92
+    required_applies_to:
+    - cli
+    - gui.web
+    - gui.apple
+  client-core.viewmodel.stream-updates:
+    specification: architecture.client-core@1
+    specification_id: architecture.client-core
+    type: invariant
+    fingerprint: 2faeef97226e7e85e7c243db431f463310e27e02815c92ef0d7aa87f0e35f713
+    required_applies_to:
+    - cli
+    - gui.web
+    - gui.apple
+  client-core.credentials.snapshot-boundary:
+    specification: architecture.client-core@1
+    specification_id: architecture.client-core
+    type: security
+    fingerprint: 15df3377be1260a672ce627b75eab930fb58bcb444cd9776b42be4240751ee2a
+    required_applies_to:
+    - cli
+    - gui.web
+    - gui.apple
+  client-core.cache.rust-owned-encrypted:
+    specification: architecture.client-core@1
+    specification_id: architecture.client-core
+    type: privacy
+    fingerprint: 923ec9d98d01e67513b90fbed31567e9b59cb438f76af7893ce03f712035b0fe
+    required_applies_to:
+    - cli
+    - gui.web
+    - gui.apple
+  client-core.cache.safe-store-retirement:
+    specification: architecture.client-core@1
+    specification_id: architecture.client-core
+    type: invariant
+    fingerprint: 561bc67ff4f5403389234f3597a3eb6d76785931fc45cc036fc03e69de37ddcb
+    required_applies_to:
+    - cli
+    - gui.web
+    - gui.apple
+  client-core.status.capability-model:
+    specification: architecture.client-core@1
+    specification_id: architecture.client-core
+    type: invariant
+    fingerprint: c7ad529769d0eb1e44c80d1f4b6276e400e91f1b6e5ce8fe4fbe86e226b3bb8d
+    required_applies_to:
+    - cli
+    - gui.web
+    - gui.apple
+  client-core.status.done-definition:
+    specification: architecture.client-core@1
+    specification_id: architecture.client-core
+    type: invariant
+    fingerprint: e7a282bf213e667f9bd4d4d532de334883a7638d9e3ab776d7fd3e016d3a5ffe
+    required_applies_to:
+    - cli
+    - gui.web
+    - gui.apple
+  client-core.web.flag-gated-capability:
+    specification: architecture.client-core@1
+    specification_id: architecture.client-core
+    type: behavior
+    fingerprint: 22903742d0a53eb30b7c06bda27dee6c6f417f6f9642f85d14e136aeeb06df2f
+    required_applies_to:
+    - cli
+    - gui.web
+    - gui.apple
+  client-core.apple.strangler-order:
+    specification: architecture.client-core@1
+    specification_id: architecture.client-core
+    type: invariant
+    fingerprint: 63cb9f1c3f1fc21cbf3c1c0b8eadd86d2660c488974f2203c7c9bf3ddf34ac92
+    required_applies_to:
+    - cli
+    - gui.web
+    - gui.apple
+  client-core.cli.native-default:
+    specification: architecture.client-core@1
+    specification_id: architecture.client-core
+    type: behavior
+    fingerprint: eb1bfd886e3aa3fdad9fc287c90389dee80a17d6d1fdda2a19cd6660f5388da2
+    required_applies_to:
+    - cli
     - gui.web
     - gui.apple
   connected-accounts.connection.client-surfaces:
@@ -1941,7 +2058,7 @@ assertions:
     specification: architecture.storage-lifecycle@2
     specification_id: architecture.storage-lifecycle
     type: invariant
-    fingerprint: 4aae64b7d49aa19bc38f603fd63b99450c890238d0e6b166f6903394c71810c4
+    fingerprint: 6ac007a94dba5b31bdcde1a64f95c7e5c8292582ea325eee97c48b4821952bee
     required_applies_to:
     - rest_api
     - cli
@@ -2305,7 +2422,7 @@ assertions:
     specification: architecture.storage-lifecycle@2
     specification_id: architecture.storage-lifecycle
     type: parity
-    fingerprint: 8e7962c3d175e66ed41932b19662b9ef5a497ff952f27276eb4e8d82ed1f82bb
+    fingerprint: 7da0eb97496bb5616ace8c7b3bb1ca4f7d6034162b6af7324c386b603cfad296
     required_applies_to:
     - rest_api
     - cli
@@ -12907,7 +13024,7 @@ assertions:
     specification: surface.sdk@1
     specification_id: surface.sdk
     type: parity
-    fingerprint: 3c44078a00df76481c7f1e493a4741d366207cf927f1aaf69f56e6bcb724dd4a
+    fingerprint: fac642dc027e78c3ea929d6041136fe38de3d0f5ad549e9549037cb6e3a554be
     required_applies_to:
     - rest_api
     - cli

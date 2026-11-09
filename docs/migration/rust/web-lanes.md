@@ -11,6 +11,11 @@ key_files:
 
 # Web client logic to Rust: wave 4 lane plan (2026-11-07)
 
+> **Superseded (2026-11-09)** by `docs/plans/client-core-one-core-three-shells/plan.yml`
+> and `specifications/architecture/client-core`. The "default off" and "byte-identical"
+> rules below now hold per capability only until that capability flips; the flag is on
+> by default in dev, and a flip deletes the capability's TypeScript. Historical record.
+
 Goal: move ALL client-side logic of the web app and shared client code (frontend/packages/ui/src, frontend/apps/web_app/src) into shared Rust in the one shared Worker. Svelte keeps UI/DOM and the browser APIs. The UI stays unchanged. VITE_OPENMATES_RUST_CORE stays default off, and flag-off output stays byte-identical.
 Sources: .claude/rules/cli-sdk.md, docs/architecture/platforms/rust-migration-status.md, sharedWorkerUnits.ts, plus a LOC scan of the tree on dev (f725997112).
 Machine-readable plan and live lane status: web-lanes.yml (this file is the narrative; statuses live in the YAML).

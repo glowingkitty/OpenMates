@@ -9,8 +9,17 @@ when a skill or this file points to it.
 ## Repository
 - Web: Svelte 5/TypeScript in `frontend/apps/web_app`, `frontend/packages/ui`.
 - Backend: Python/FastAPI in `backend/apps`, `backend/core`, `backend/shared`.
-- Apple: SwiftUI in `apple/`. CLI/SDK: shared Rust plus npm/Python SDKs.
+- Apple: SwiftUI in `apple/`. Client core, CLI/TUI and SDKs: shared Rust plus npm/Python SDKs.
 - Notes: `vaults/memory/`. Marketing lives in the sibling `openmates-marketing` repo.
+
+## Client core
+- One Rust client core (`packages/openmates-rust`, crate `openmates-sdk`), three
+  thin shells: TUI/CLI, web (shared Worker, wasm), Apple (UniFFI). Transport,
+  sync, crypto, cache, drafts, send, streaming, recovery, search and policies live
+  only in Rust; shells do UI, platform APIs and credential storage.
+- Never add such logic to TypeScript or Swift; add it to the core. A capability is
+  done only when the old shell code is deleted and that shell's suite is green.
+  Rules: `.claude/rules/client-core.md`; plan: `docs/plans/client-core-one-core-three-shells/`.
 
 ## Workflow
 1. Read-only work needs no session. Before the first edit run

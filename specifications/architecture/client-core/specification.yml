@@ -1,0 +1,179 @@
+schema_version: 1
+id: architecture.client-core
+version: 1
+status: draft
+title: One Rust Client Core, Three Thin Shells
+summary: >
+  The shared Rust crate openmates-sdk (packages/openmates-rust, its client/
+  module) is the single implementation of OpenMates client behavior: transport,
+  phased sync, keys and crypto, the encrypted local cache, drafts, send,
+  streaming, completion recovery, search and client policies. Three shells bind to
+  it: the ratatui TUI/CLI natively, the Svelte web app through the shared Worker
+  (wasm), and the SwiftUI Apple apps through a UniFFI framework. Shells own UI,
+  platform APIs and credential storage only. Migration progress is counted as
+  capabilities whose old shell implementation has been deleted while the shell's
+  existing test suite stays green.
+
+scope:
+  includes:
+    - The responsibility split between the Rust client core and the TUI/CLI, web and Apple shells.
+    - The capability-level view-model contract that shells bind to (chat list, chat window, stream updates, commands, workspace items).
+    - The credential-snapshot boundary between the core and platform credential stores.
+    - Rust ownership of the encrypted local cache model and the safe retirement of shell-owned stores.
+    - The per-capability, per-shell status model and the definition of done for moving a capability into the core.
+    - Shell rollout rules for web (flag-gated per capability), Apple (strangler order) and the CLI (native default with npm fallback).
+  excludes:
+    - Public SDK authentication and API-key rules, which stay in surface.sdk.
+    - Server-side storage, archival and authorization, which stay in architecture.storage-lifecycle and architecture.sync.
+    - Visual design and UI parity between web and Apple, which stay in the Apple UI rules and product Specifications.
+    - Backend Rust migration.
+    - Individual view-model method names, signatures or wire formats; these are implementation detail below the capability contract.
+
+models:
+  ShellBoundary:
+    core_owns:
+      type: responsibility_list
+      required: true
+      constraints: {values: [transport_and_reconnect, phased_sync_and_cursor_feed, keys_and_crypto, encrypted_cache_model, drafts, send_and_outbox, streaming, completion_and_metadata_recovery, search_and_indexing_policy, settings_projects_tasks_policy, deletion_and_logout_fences]}
+    shell_may_own:
+      type: responsibility_list
+      required: true
+      constraints: {values: [ui_rendering_navigation_and_view_state, platform_apis, credential_storage, opaque_byte_persistence_adapter, binding_glue], new_reusable_logic: forbidden}
+    platform_apis:
+      type: examples_list
+      constraints: {includes: [media_capture_and_playback, webrtc, notifications_and_apns, widgets_live_activities_spotlight, share_and_file_pickers, passkeys, os_lifecycle_and_background_tasks, webcrypto_or_cryptokit_primitive_adapters]}
+
+  ViewModelContract:
+    chat_list:
+      type: ordered_decrypted_presentation_items
+      required: true
+      constraints: {keys_or_credentials_in_fields: forbidden, partial_window_is_deletion_authority: false}
+    chat_window:
+      type: bounded_decrypted_message_window
+      required: true
+      constraints: {on_demand_paging: true, whole_history_load: forbidden}
+    stream_updates:
+      type: ordered_per_chat_event_stream
+      required: true
+      constraints: {cancellable: true, resumable_after_reconnect: true, shell_protocol_reconstruction: forbidden}
+    commands:
+      type: typed_command_with_typed_outcome
+      required: true
+      constraints: {typed_errors: true, silent_fallback: forbidden}
+    threading:
+      type: binding_rule
+      constraints: {core_runs_off_ui_thread: true, shell_applies_updates_on_ui_thread: true}
+
+  CredentialSnapshot:
+    revision:
+      type: monotonic_integer
+      required: true
+    payload:
+      type: opaque_secret_bytes
+      required: true
+      constraints: {zeroized_after_use: true, enters_view_model: false, logged: false}
+    acknowledgement:
+      type: shell_ack_of_revision
+      required: true
+
+  CacheRecord:
+    partition:
+      type: owner_or_team_scope
+      required: true
+    body:
+      type: authenticated_ciphertext
+      required: true
+      constraints: {plaintext_at_rest: forbidden}
+    schema_version:
+      type: core_owned_integer
+      required: true
+    adapter_view:
+      type: opaque_key_and_bytes
+      constraints: {shell_interprets_content: false}
+
+  CapabilityStatus:
+    status:
+      type: enum
+      values: [ts-only, swift-only, rust-twin, rust-default, rust-only, stays-shell]
+      required: true
+    counted_as_done:
+      type: derived
+      constraints: {only_values: [rust-only, stays-shell]}
+
+assertions:
+  - id: client-core.architecture.one-core-three-shells
+    type: invariant
+    must: The openmates-sdk crate in packages/openmates-rust is the only implementation of reusable OpenMates client behavior for the native TUI/CLI, the web app and the Apple apps. Transport and reconnect, phased sync and the cursor feed, keys and crypto, the encrypted local cache, drafts, send and outbox, streaming, completion and metadata recovery, search and indexing policy, and settings/project/task policy are implemented once in Rust and reached by each shell through its binding (native Rust, wasm in the shared web Worker, UniFFI on Apple). A capability is never implemented a second time in TypeScript or Swift once it exists in the core, and a missing core capability is added to the core rather than to a shell.
+    depends_on: [models.ShellBoundary, examples.shell_boundary]
+  - id: client-core.shell.allowed-responsibilities
+    type: invariant
+    must: A shell may implement only UI rendering, navigation and view state; platform APIs such as media, WebRTC, notifications/APNs, widgets, Live Activities, Spotlight, share and file pickers, passkeys and OS lifecycle; credential storage in the platform's secure store; an opaque byte persistence adapter; thin primitive adapters (WebCrypto, CryptoKit) that the core calls; and binding glue. New or changed protocol handling, sync ordering, key derivation or wrapping, cache schema, retention, conflict, retry or deletion policy in a shell is a contract violation, even when it duplicates core behavior for speed or convenience.
+    depends_on: [models.ShellBoundary, examples.shell_boundary]
+  - id: client-core.viewmodel.capability-contract
+    type: behavior
+    must: Shells bind to a view-model API offered by the core at the level of chat list, chat window, stream updates, commands and workspace items. The core delivers decrypted presentation values only, never keys or credentials; chat list output is ordered and its partial windows are never deletion authority; the chat window is a bounded, on-demand page window; commands return a typed outcome or a typed error with no silent fallback. The same command and the same account state produce the same semantic result in every shell, while each shell chooses its own rendering. Core work runs off the UI thread and the shell applies updates on its UI thread.
+    depends_on: [models.ViewModelContract, examples.view_model]
+  - id: client-core.viewmodel.stream-updates
+    type: invariant
+    must: Streaming, reconnect and completion recovery reach a shell as one ordered event stream per chat produced by the core. The shell renders the events and may cancel; it never reconstructs protocol state, reorders chunks, retries sends or finalizes recovered replies itself. After a reconnect or app relaunch the core resumes or recovers the stream and the shell receives the same final message it would have received without the interruption.
+    depends_on: [models.ViewModelContract.stream_updates, examples.view_model]
+  - id: client-core.credentials.snapshot-boundary
+    type: security
+    must: The core never discovers, reads or writes a platform credential store. It emits an explicit credential snapshot with a monotonic revision whenever credentials change; the shell stores it in its secure store (Keychain on Apple, OS keyring or protected file in the TUI, the browser credential store on web) and acknowledges that revision. On start the shell passes the stored snapshot back to the core. Snapshot bytes are zeroized after use, are never part of view-model output, logs or diagnostics, and an unacknowledged revision is re-emitted rather than assumed persisted.
+    depends_on: [models.CredentialSnapshot, examples.credentials]
+  - id: client-core.cache.rust-owned-encrypted
+    type: privacy
+    must: The core owns the local cache model, including record schema and its versioned migrations, owner and Team partitioning, encryption, retention and eviction, and logout and deletion fences. Shells persist only opaque authenticated ciphertext through a key/byte adapter (IndexedDB from the Worker on web, a file or database adapter on Apple, files in the TUI) and never interpret, re-encrypt or write plaintext cache content. Retained data stays partitioned by owner, and a delayed write from a previous account is rejected by the core's fence.
+    depends_on: [models.CacheRecord, examples.cache]
+  - id: client-core.cache.safe-store-retirement
+    type: invariant
+    must: Replacing a shell-owned store with the Rust-owned cache (Apple ChatStore and OfflineStore on SwiftData, web TypeScript IndexedDB stores) never silently drops unsynced local state such as pending drafts, queued sends, recovery checkpoints or the last-opened chat. The switch either migrates that state into the core cache or keeps the old store readable until the core has re-synchronized it from the server and drained local-only state, and the old store is deleted only after that verification passes on the exact build. Ordinary server-authoritative cached content may be re-fetched instead of migrated.
+    depends_on: [models.CacheRecord, examples.cache_migration]
+  - id: client-core.status.capability-model
+    type: invariant
+    must: Migration status is recorded per capability and per shell with exactly one of ts-only (implemented only in web TypeScript), swift-only (implemented only in Swift), rust-twin (a Rust path exists beside the old path but is not the default), rust-default (the Rust path is the default and the old path still exists), rust-only (the old path is deleted) or stays-shell (the capability is a legitimate shell responsibility). Progress is the share of capability/shell cells at rust-only or stays-shell. Lines of ported TypeScript, Worker namespaces installed, and parity vectors are not progress.
+    depends_on: [models.CapabilityStatus, examples.capability_status]
+  - id: client-core.status.done-definition
+    type: invariant
+    must: A capability reaches rust-only in a shell only when the shell's previous implementation of it is deleted and that shell's existing test suite passes on the exact deployed commit (core contract tests and sdk-conformance on Linux CI; the web Playwright suite with the core flag on; Apple XCTest and XCUITest on the GitHub macOS runners). A rust-twin or rust-default state is unfinished work. A parity or test-vector comparison between the old and the new implementation supports debugging but is never the completion gate, and a lane that adds a Rust path without retiring the old one has not finished its capability.
+    depends_on: [models.CapabilityStatus, examples.capability_status]
+  - id: client-core.web.flag-gated-capability
+    type: behavior
+    must: The web shell routes each capability to the core behind VITE_OPENMATES_RUST_CORE, defaulted on in dev. Until that capability flips, the flag-off path stays byte-identical to the previous TypeScript behavior. The flip is gated by the existing Playwright suite passing with the flag on; in the flip deploy the TypeScript implementation of that capability and its flag branch are deleted, after which the byte-identical rule no longer applies to it. The web shell keeps one shared Worker and one wasm instance.
+    depends_on: [models.CapabilityStatus, examples.web_rollout]
+  - id: client-core.apple.strangler-order
+    type: invariant
+    must: Apple moves to the core in this order. First the UniFFI binding framework that generalizes the existing pairing bridge. Then crypto and keys. Then sync and cache, replacing WebSocket routing, SyncManager, OfflineSyncBridge, ChatStore and OfflineStore. Then send, streaming and recovery. Then drafts, search, settings and projects. Keychain storage, SwiftUI views and platform hooks stay in Swift. Each step deletes the Swift implementation it replaces and the Apple web-parity tests whose subject moved into the core, while the remaining XCTest and XCUITest suite stays green on GitHub macOS runners. Tests that need a real account stay on the coordinated Mac.
+    depends_on: [models.CapabilityStatus, examples.apple_rollout]
+  - id: client-core.cli.native-default
+    type: behavior
+    must: The native Rust binary is the default openmates CLI and TUI. The npm CLI stays available as an explicit fallback until its retirement is accepted, and it never runs silently in place of the native binary.
+    depends_on: [examples.cli_distribution]
+
+applies_to:
+  rest_api:
+    required: false
+    role: The core consumes existing REST and WebSocket contracts; this Specification adds no server route or server behavior.
+  cli:
+    required: true
+    parity: semantic
+    role: The native TUI/CLI is the first shell bound directly to the core.
+  sdks:
+    required: false
+    role: Public Rust, npm and Python SDKs reuse the same crate under surface.sdk; their public authentication and capability rules are not changed here.
+    implementations:
+      rust: {required: false}
+      npm: {required: false}
+      pip: {required: false}
+  gui:
+    required: true
+    parity: semantic
+    role: The web shell binds through wasm in the shared Worker and the Apple shell through UniFFI; both own only UI, platform APIs and credential storage.
+    implementations:
+      web: {required: true}
+      apple: {required: true}
+    exceptions: []
+
+examples:
+  file: examples.yml
+  required_groups: [shell_boundary, view_model, credentials, cache, cache_migration, capability_status, web_rollout, apple_rollout, cli_distribution]

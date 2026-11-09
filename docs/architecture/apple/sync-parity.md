@@ -4,6 +4,12 @@ Status: Linux static audit
 Created: 2026-06-01  
 Scope: startup sync, cold boot recovery, offline extension, sync testability
 
+> **Superseded (2026-11-09):** Apple sync and cache move into the shared Rust core
+> (`specifications/architecture/client-core`, step "sync+cache" of
+> `docs/plans/client-core-one-core-three-shells/plan.yml`). The Swift sync sources below
+> are frozen and will be deleted; the web contract bullets remain useful as expected
+> behavior. Do not extend Swift sync to close parity gaps listed here.
+
 ## Goal
 
 Apple sync must preserve the same user-visible chat state as the web app after login, reconnect, refresh/cold boot, and cross-device updates. Native Apple may additionally persist the last 100 chats for offline availability, but that must not change server-authoritative sync semantics.

@@ -1,6 +1,12 @@
 id: apple-sync-decryption-performance
 title: Apple Sync Decryption Performance Parity
 status: approved
+# SUPERSEDED (user decision 2026-11-09). Do not implement further tasks from this
+# Plan. The Apple sync/decryption performance fix is now delivered by moving Apple
+# sync and cache into the shared Rust core (step "sync+cache" of
+# docs/plans/client-core-one-core-three-shells/plan.yml, contract
+# specifications/architecture/client-core). Kept for history and evidence only.
+superseded_by: docs/plans/client-core-one-core-three-shells/plan.yml
 
 goal: >
   Make Apple logged-in startup and chat-list sync match the web app's bounded

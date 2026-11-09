@@ -1,3 +1,8 @@
+# SUPERSEDED (2026-11-09): lane planning now follows the capability inventory in
+# docs/plans/client-core-one-core-three-shells/plan.yml (contract
+# specifications/architecture/client-core). Kept because scripts/rust_migration_yaml.py
+# still validates it; "flag-off byte-identical" now applies per capability only until
+# that capability flips. Do not plan new lanes here.
 # Web client logic -> Rust: lane plan and live lane status. HAND-CURATED (edit lane
 # `status` / `commit` as lanes progress, then run python3 scripts/rust_migration_yaml.py).
 # Validated by scripts/rust_migration_yaml.py: every lane has a status; landed lanes name

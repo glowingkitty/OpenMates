@@ -6659,6 +6659,102 @@ assertions:
         supporting_tests:
         - *id851
     current_direct_proof: false
+  client-core.architecture.one-core-three-shells:
+    specification: architecture.client-core@1
+    fingerprint: 1442fe263e63cbe1fdb39f610b9c3580812193bee1d458708a32ca80d00b8a57
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  client-core.shell.allowed-responsibilities:
+    specification: architecture.client-core@1
+    fingerprint: 419c76408bc5eecdabfbf5fabe8975531c7b435f7c695c02a5b19df77cd1c2ad
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  client-core.viewmodel.capability-contract:
+    specification: architecture.client-core@1
+    fingerprint: 2f9ada3fb6bcd796cbadd93522e0ffc3cb0046aef74d9d744e8164829a74aa92
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  client-core.viewmodel.stream-updates:
+    specification: architecture.client-core@1
+    fingerprint: 2faeef97226e7e85e7c243db431f463310e27e02815c92ef0d7aa87f0e35f713
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  client-core.credentials.snapshot-boundary:
+    specification: architecture.client-core@1
+    fingerprint: 15df3377be1260a672ce627b75eab930fb58bcb444cd9776b42be4240751ee2a
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  client-core.cache.rust-owned-encrypted:
+    specification: architecture.client-core@1
+    fingerprint: 923ec9d98d01e67513b90fbed31567e9b59cb438f76af7893ce03f712035b0fe
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  client-core.cache.safe-store-retirement:
+    specification: architecture.client-core@1
+    fingerprint: 561bc67ff4f5403389234f3597a3eb6d76785931fc45cc036fc03e69de37ddcb
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  client-core.status.capability-model:
+    specification: architecture.client-core@1
+    fingerprint: c7ad529769d0eb1e44c80d1f4b6276e400e91f1b6e5ce8fe4fbe86e226b3bb8d
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  client-core.status.done-definition:
+    specification: architecture.client-core@1
+    fingerprint: e7a282bf213e667f9bd4d4d532de334883a7638d9e3ab776d7fd3e016d3a5ffe
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  client-core.web.flag-gated-capability:
+    specification: architecture.client-core@1
+    fingerprint: 22903742d0a53eb30b7c06bda27dee6c6f417f6f9642f85d14e136aeeb06df2f
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  client-core.apple.strangler-order:
+    specification: architecture.client-core@1
+    fingerprint: 63cb9f1c3f1fc21cbf3c1c0b8eadd86d2660c488974f2203c7c9bf3ddf34ac92
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  client-core.cli.native-default:
+    specification: architecture.client-core@1
+    fingerprint: eb1bfd886e3aa3fdad9fc287c90389dee80a17d6d1fdda2a19cd6660f5388da2
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
   connected-accounts.connection.client-surfaces:
     specification: architecture.connected-accounts@2
     fingerprint: c6e99f271d7ef72171cf23ffb3d21ebb56d1d83baeab4d78c93da76de8b1d6bd
@@ -12973,7 +13069,7 @@ assertions:
     current_direct_proof: false
   storage.client.shared-policy-existing-adapters:
     specification: architecture.storage-lifecycle@2
-    fingerprint: 4aae64b7d49aa19bc38f603fd63b99450c890238d0e6b166f6903394c71810c4
+    fingerprint: 6ac007a94dba5b31bdcde1a64f95c7e5c8292582ea325eee97c48b4821952bee
     direct_tests: []
     supporting_tests:
     - &id1623
@@ -23522,7 +23618,7 @@ assertions:
     current_direct_proof: false
   storage.surface.semantic-parity:
     specification: architecture.storage-lifecycle@2
-    fingerprint: 8e7962c3d175e66ed41932b19662b9ef5a497ff952f27276eb4e8d82ed1f82bb
+    fingerprint: 7da0eb97496bb5616ace8c7b3bb1ca4f7d6034162b6af7324c386b603cfad296
     direct_tests:
     - &id3049
       path: apple/OpenMatesTests/ChatMessageWindowTests.swift
@@ -190580,7 +190676,7 @@ assertions:
     current_direct_proof: false
   sdk.client.thin-platform-boundary:
     specification: surface.sdk@1
-    fingerprint: 3c44078a00df76481c7f1e493a4741d366207cf927f1aaf69f56e6bcb724dd4a
+    fingerprint: fac642dc027e78c3ea929d6041136fe38de3d0f5ad549e9549037cb6e3a554be
     direct_tests: []
     supporting_tests:
     - &id24269

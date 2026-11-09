@@ -49,3 +49,14 @@ those assertions. Ensure the Specification declares Apple in
 recorded Apple test paths and lines are the supported reciprocal links from the
 Specification to proof. Do not add unsupported implementation-path fields to
 Specification YAML.
+
+## Core logic lives in Rust
+
+Swift implements UI, platform APIs and Keychain storage only. Transport, sync,
+crypto, the encrypted cache, drafts, send, streaming, recovery, search and
+policies live in the shared Rust core (`packages/openmates-rust`) and are reached
+through the UniFFI framework `apple/OpenMatesCore`. Never add such logic in Swift;
+add it to the core. Details, migration order and testing (GitHub `macos-26`
+XCTest/XCUITest; Mac only for TestFlight, device/APNs, real accounts):
+`apple/AGENTS.md` "Core logic lives in Rust" and `.claude/rules/client-core.md`.
+The UI rules above are unchanged.

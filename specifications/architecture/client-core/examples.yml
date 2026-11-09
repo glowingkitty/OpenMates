@@ -1,0 +1,105 @@
+schema_version: 1
+specification: architecture.client-core@1
+
+shell_boundary:
+  - id: new-sync-rule-goes-into-rust
+    assertion_ids: [client-core.architecture.one-core-three-shells, client-core.shell.allowed-responsibilities]
+    given: A bug shows that chats deleted on another device reappear after reconnect, on both web and Apple.
+    when: An agent fixes the deletion ordering.
+    then: The fix lands once in the Rust sync code and reaches the TUI, web and Apple through their bindings; no TypeScript or Swift sync handler is edited to reorder deletions.
+  - id: haptics-stay-in-swift
+    assertion_ids: [client-core.shell.allowed-responsibilities]
+    given: Apple should play a haptic tap and show a Live Activity when an AI reply starts streaming.
+    when: The feature is implemented.
+    then: Swift listens to the core's stream-started event and calls the haptics and Live Activity APIs itself; the core only reports the event and knows nothing about haptics.
+
+view_model:
+  - id: same-chat-list-in-three-shells
+    assertion_ids: [client-core.viewmodel.capability-contract]
+    given: An account has 40 chats, two pinned, and the TUI, web and iPhone are all signed in.
+    when: Each shell asks the core for the chat list.
+    then: All three receive the same ordered, decrypted titles with the two pinned chats first; none of them receives a chat key, and each draws the list in its own style.
+  - id: reply-survives-app-relaunch
+    assertion_ids: [client-core.viewmodel.stream-updates]
+    given: A user on iPhone sends a question and force-quits the app while the answer is streaming.
+    when: The app is opened again a minute later.
+    then: The core recovers the completed answer and emits it to the chat window; Swift only renders the final message and never retries the send or stitches chunks itself.
+
+credentials:
+  - id: keychain-stores-snapshot
+    assertion_ids: [client-core.credentials.snapshot-boundary]
+    given: A user signs in on iPhone.
+    when: The core finishes login and emits credential snapshot revision 1.
+    then: Swift writes the snapshot to the Keychain and acknowledges revision 1; the next launch passes it back to the core, and the snapshot bytes never appear in a view-model value or a log line.
+  - id: unacknowledged-revision-is-reemitted
+    assertion_ids: [client-core.credentials.snapshot-boundary]
+    given: The core rotates the session and emits revision 2, but the app is killed before the Keychain write finishes.
+    when: The app starts with the stored revision 1.
+    then: The core detects that revision 2 was never acknowledged and emits a fresh snapshot after re-validation, instead of assuming the rotation was saved.
+
+cache:
+  - id: shell-stores-only-ciphertext
+    assertion_ids: [client-core.cache.rust-owned-encrypted]
+    given: The web Worker caches the last opened chat for a fast warm start.
+    when: The cache record is written.
+    then: The core hands the IndexedDB adapter an opaque key and authenticated ciphertext; the adapter stores the bytes without reading them, and no plaintext title or message is written anywhere.
+  - id: previous-account-write-rejected
+    assertion_ids: [client-core.cache.rust-owned-encrypted]
+    given: A user logs out while a cache write is still pending and another account signs in on the same Mac.
+    when: The delayed write from the first account arrives.
+    then: The core's logout fence rejects it, so the second account never sees the first account's data, and unrelated cached data of the second account is kept.
+
+cache_migration:
+  - id: pending-draft-survives-store-switch
+    assertion_ids: [client-core.cache.safe-store-retirement]
+    given: An iPhone user has an unsent draft and one queued offline message in the SwiftData stores when an update moves sync and cache to the Rust core.
+    when: The updated app starts.
+    then: The draft and the queued message are migrated into the core cache, the queued message is sent once when online, and only then are ChatStore and OfflineStore data deleted.
+  - id: server-content-refetched-not-migrated
+    assertion_ids: [client-core.cache.safe-store-retirement]
+    given: The SwiftData store holds 100 cached chats that already exist on the server.
+    when: The core cache takes over.
+    then: The core may re-fetch those chats through bounded sync instead of converting them, and the old store stays readable until that sync has completed.
+
+capability_status:
+  - id: twin-is-not-done
+    assertion_ids: [client-core.status.capability-model, client-core.status.done-definition]
+    given: Web search now has a Rust path that is the dev default, but the TypeScript search service is still in the bundle.
+    when: The migration status is reported.
+    then: Web search is shown as rust-default and is not counted as progress; it becomes rust-only only after the TypeScript service is deleted and the Playwright suite is green on that commit.
+  - id: vectors-do-not-gate
+    assertion_ids: [client-core.status.done-definition]
+    given: An Apple lane ports draft encryption to Rust and its old-versus-new test vectors all match, but the XCUITest draft tests were not run.
+    when: The lane asks to mark Apple drafts rust-only.
+    then: The request is refused; matching vectors are not proof, and the status changes only after the Swift draft code is deleted and the Apple suite is green on the GitHub macOS runner.
+
+web_rollout:
+  - id: flag-off-stays-identical-until-flip
+    assertion_ids: [client-core.web.flag-gated-capability]
+    given: Web drafts are being moved to the core and the flag is on in dev.
+    when: A production build runs with the flag off before the drafts flip.
+    then: Draft behavior is byte-identical to the previous TypeScript implementation.
+  - id: flip-deletes-typescript
+    assertion_ids: [client-core.web.flag-gated-capability]
+    given: The full Playwright suite passes with the flag on for drafts.
+    when: Drafts flip.
+    then: The same deploy deletes the TypeScript draft services and the flag branch for drafts, and the byte-identical rule stops applying to drafts.
+
+apple_rollout:
+  - id: sync-before-send
+    assertion_ids: [client-core.apple.strangler-order]
+    given: The UniFFI framework and Rust crypto are live in the Apple app.
+    when: The next Apple capability is chosen.
+    then: Sync and cache go next, deleting the Swift WebSocket routing, SyncManager, OfflineSyncBridge, ChatStore and OfflineStore; send and streaming wait until that step is rust-only.
+  - id: parity-tests-deleted-with-subject
+    assertion_ids: [client-core.apple.strangler-order]
+    given: ChatSyncParityTests.swift checks that Swift sync matches web sync.
+    when: Apple sync becomes rust-only.
+    then: That parity test file is deleted together with the Swift sync code, the core's own contract tests cover sync, and the remaining Apple UI tests still pass on the macOS runner.
+
+cli_distribution:
+  - id: native-binary-is-default
+    assertion_ids: [client-core.cli.native-default]
+    given: A user installs OpenMates on Linux.
+    when: They run openmates chats list.
+    then: The native Rust binary answers; the npm CLI runs only if the user explicitly chooses it.

@@ -21,7 +21,7 @@ client_platforms:
   - id: native-ui-existing-data
     given: An Apple client has existing SwiftData chat records and the browser has existing IndexedDB records.
     when: Their native or browser UI opens a cached chat through the shared Rust core.
-    then: Thin platform adapters retain those stores and data while Rust applies the same reusable policy; no forced SQLite or OPFS conversion occurs.
+    then: Rust applies the same reusable policy and owns the encrypted cache; platform adapters store only core ciphertext, and any retired shell store keeps its unsynced drafts, queued sends and recovery state until the core has migrated or re-synchronized them.
 
 client_rollout:
   - id: unfinished-essential-native-flow-blocks-browser

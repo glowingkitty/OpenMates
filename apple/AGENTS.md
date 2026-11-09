@@ -49,7 +49,33 @@ Before touching native product UI, inspect the rendered web component and record
 
 If an interaction state is needed, drive the existing `*.spec.ts` test or a temporary browser/scripted flow based on existing tests to reach that state, then inspect the computed values. Svelte and CSS source files explain intent, but the browser-computed output is the final parity target.
 
+## Core logic lives in Rust
+
+Non-UI logic does not belong in Swift. The shared Rust client core
+(`packages/openmates-rust`, crate `openmates-sdk`) owns transport and reconnect,
+sync, keys and crypto, the encrypted local cache, drafts, send, streaming,
+completion recovery, search and settings/project policies. The Apple app reaches
+it through the UniFFI framework (`packages/openmates-apple-bindings`, Swift package
+`apple/OpenMatesCore`, generalising `PairOpaqueBridge`). Swift keeps SwiftUI/UIKit
+views and view state, platform APIs (APNs, widgets, Live Activities, Spotlight,
+StoreKit, media, haptics, pickers, passkeys, background tasks) and Keychain
+storage of the core's credential snapshots.
+
+- Do not add or change protocol, sync, crypto, cache or retry/deletion policy in
+  `Sources/Core/**` or `OpenMatesShared/**`; add it to the core and bind to it.
+  A defect fix in not-yet-migrated Swift logic is allowed and is marked
+  `shell-only: bugfix-in-frozen-code <capability>` in the deploy message.
+- Migration order and per-capability status: `docs/plans/client-core-one-core-three-shells/plan.yml`
+  (bridge, crypto+keys, sync+cache, send/stream/recovery, drafts/search/settings/projects).
+  Each step deletes the Swift it replaces and the web-parity tests of that subject.
+- XCTest/XCUITest run on GitHub `macos-26` (`ci_coordinator.py --mode apple-unit`,
+  `--mode apple-core`). The Mac is for TestFlight, device/APNs and real-account tests.
+- Rules: `.claude/rules/client-core.md`; contract: `specifications/architecture/client-core/`.
+  The UI rules in this file are unchanged.
+
 ## Apple/Web Parity Program
+
+Parity here means UI and user-visible behavior. Logic parity between Swift and web TypeScript is no longer a goal: logic moves into the Rust core and its parity tests are deleted with it (see "Core logic lives in Rust").
 
 For broad Apple UI parity work, use the program Plan in `docs/plans/apple-ui-parity-program/plan.yml` and the matrix in `docs/architecture/apple/parity-matrix.md` before adding one-off native UI tests.
 
@@ -185,6 +211,11 @@ Use `NativeDiagnostics` for Apple product diagnostics instead of adding new ad-h
 Diagnostics must remain privacy-safe: never log message plaintext, encryption keys, auth/session tokens, cookies, push tokens, full share URL fragments, request/response bodies, private file paths, or raw typed text. For performance instrumentation, use the approved diagnostics helpers (`NativePerformanceMonitor`, MetricKit summaries, or signpost-style phase logs) and keep payloads to counts, durations, sanitized categories, and hashed/prefixed identifiers only.
 
 ## Remote Mac Verification
+
+XCTest and XCUITest suites run first on GitHub `macos-26` runners
+(`ci_coordinator.py submit --mode apple-unit|apple-core`). Use the Mac below for
+TestFlight, physical-device/APNs and real-account tests, or while those CI modes
+are unavailable.
 
 When the active coding session runs on a Linux/dev server, attempt Apple
 verification through the redacted wrapper in `scripts/apple_remote.py` before

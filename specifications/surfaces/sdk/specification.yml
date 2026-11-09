@@ -30,7 +30,7 @@ scope:
     - Password, passkey, imported-session or CLI-login authentication as a public SDK mode; these remain first-party CLI/TUI, web and Apple session authority inside the shared Rust core.
     - CLI terminal UI, self-hosted server operations, local remote-access filesystem bridges, local test-account artifact commands, and newsletter management.
     - UI rendering, DOM interaction, terminal parsing, interactive profile selection, implicit CLI stored-login inheritance, SDK execution through a CLI subprocess, or bypasses of feature-owned REST/WebSocket safety contracts.
-    - Backend Rust implementation in this client migration or mandatory replacement of IndexedDB and SwiftData with SQLite or OPFS.
+    - Backend Rust implementation in this client migration, or a storage-engine change that skips the safe store retirement defined by architecture.client-core.
     - Server-side plaintext storage of API keys, account master keys, chat keys, private chat content, encrypted memory content, or API-key display labels.
     - Generic app-skill passthrough namespaces that bypass generated app metadata, disabled skill visibility rules, or typed SDK method contracts.
 
@@ -233,7 +233,7 @@ assertions:
     depends_on: [examples.sdk_architecture]
   - id: sdk.client.thin-platform-boundary
     type: parity
-    must: Web Svelte/TypeScript implements UI, DOM and thin browser-only APIs such as media and WebRTC, calling shared Rust through browser-compatible bindings. Apple retains native SwiftUI and platform hooks over the same reusable Rust behavior. Neither platform independently reimplements reusable operations, crypto, auth, storage policy, sync, reconnect or recovery. Thin platform persistence adapters preserve existing data under architecture.storage-lifecycle; this boundary does not require a storage-engine migration.
+    must: Web Svelte/TypeScript implements UI, DOM and thin browser-only APIs such as media and WebRTC, calling shared Rust through browser-compatible bindings. Apple retains native SwiftUI and platform hooks over the same reusable Rust behavior. Neither platform independently reimplements reusable operations, crypto, auth, storage policy, sync, reconnect or recovery. The shell boundary, the Rust-owned encrypted cache and the retirement of shell-owned stores follow architecture.client-core; platform persistence adapters store only opaque core ciphertext, and replacing a shell-owned store (for example Apple SwiftData ChatStore/OfflineStore) preserves unsynced local state under client-core.cache.safe-store-retirement.
     depends_on: [examples.client_platforms]
   - id: sdk.migration.ordered-client-rollout
     type: invariant

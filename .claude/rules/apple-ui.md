@@ -35,6 +35,11 @@ xcrun simctl install booted <path-to-.app>
 xcrun simctl launch booted org.openmates.app
 ```
 
+XCTest/XCUITest run first on GitHub `macos-26` (`ci_coordinator.py submit --mode
+apple-unit|apple-core`); the Mac is for TestFlight, device/APNs and real-account
+tests or when those modes are unavailable. Non-UI logic belongs in the Rust core
+(`.claude/rules/client-core.md`).
+
 If the active session runs on Linux, attempt the redacted remote Mac wrapper
 `python3 scripts/apple_remote.py status` followed by `build-ios` or `test-ios`
 from `docs/contributing/guides/testing.md` and `apple/AGENTS.md` before saying
