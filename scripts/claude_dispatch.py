@@ -11,9 +11,11 @@ Two cron-driven entry points (see docs/architecture/infrastructure/claude-dispat
                dev api container (deterministic, server-generated signals only)
                and opens one investigation chat for new failure fingerprints.
 
-Chats are launched with ``claude --bg --remote-control <title> --model claude-sonnet-5-5 --effort high <prompt>`` from
-the canonical checkout, so they appear in the owner's Claude app on the
-dev-server bridge and can ask the admin for input there.
+Each chat runs ``claude --remote-control <title> --model claude-sonnet-5-5 --effort high <prompt>``
+in its own tab of the persistent zellij session ``claude`` (created on demand,
+with a ``claude remote-control`` bridge tab), from the canonical checkout. It
+appears in the owner's Claude app and stays online while it waits for the
+admin's input. ``--bg`` is not used: background jobs retire after ~8h idle.
 
 Prompts are built only from validated identifiers and server-defined labels;
 no report text or log message text is ever interpolated.
@@ -57,6 +59,8 @@ def resolve_claude_bin() -> str:
 
 
 CLAUDE_BIN = resolve_claude_bin()
+ZELLIJ_BIN = os.getenv("ZELLIJ_BIN") or shutil.which("zellij") or "/usr/local/bin/zellij"
+ZELLIJ_SESSION = os.getenv("CLAUDE_DISPATCH_ZELLIJ_SESSION", "claude")
 
 UUID_RE = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 SHORT_ID_RE = re.compile(r"^[A-HJ-NP-Z2-9]{5}$")
@@ -78,19 +82,62 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def launch_claude_chat(title: str, prompt: str) -> str:
-    """Start a background Remote Control session; returns the CLI's short id."""
+def _zellij(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     result = subprocess.run(
-        [CLAUDE_BIN, "--bg", "--remote-control", title, "--model", CLAUDE_MODEL,
-         "--effort", CLAUDE_EFFORT, "--permission-mode", "auto", prompt],
-        cwd=REPO_ROOT, capture_output=True, text=True, timeout=120,
+        [ZELLIJ_BIN, *args], cwd=REPO_ROOT, env=_zellij_env(),
+        capture_output=True, text=True, timeout=60,
     )
-    if result.returncode != 0:
-        raise DispatchError(f"claude exited {result.returncode}: {(result.stderr or result.stdout)[-500:]}")
-    match = re.search(r"backgrounded\s+·\s+(\S+)", result.stdout)
-    if not match:
-        raise DispatchError(f"could not read session id from claude output: {result.stdout[-300:]}")
-    return match.group(1)
+    if check and result.returncode != 0:
+        raise DispatchError(f"zellij {args[0]} exited {result.returncode}: {(result.stderr or result.stdout)[-500:]}")
+    return result
+
+
+def _zellij_env() -> dict[str, str]:
+    """Cron has no XDG_RUNTIME_DIR; without it zellij looks in another socket dir
+    and cannot see the live session, so pin it to the login runtime dir."""
+    env = dict(os.environ)
+    env.setdefault("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")
+    return env
+
+
+def _session_state(listing: str, name: str) -> str:
+    """'live', 'exited' or 'missing' for `name` in `zellij list-sessions -n` output."""
+    for line in listing.splitlines():
+        parts = line.split()
+        if parts and parts[0] == name:
+            return "exited" if "EXITED" in line else "live"
+    return "missing"
+
+
+def ensure_zellij_session() -> None:
+    """Make sure the persistent `claude` zellij session exists and hosts the
+    `claude remote-control` bridge (for new chats started from the app)."""
+    listing = _zellij("list-sessions", "-n", check=False).stdout
+    state = _session_state(listing, ZELLIJ_SESSION)
+    if state == "live":
+        return
+    if state == "exited":
+        _zellij("delete-session", ZELLIJ_SESSION, "--force", check=False)
+    _zellij("attach", "--create-background", ZELLIJ_SESSION)
+    _zellij("--session", ZELLIJ_SESSION, "action", "new-tab", "--name", "remote-control",
+            "--cwd", str(REPO_ROOT), "--", CLAUDE_BIN, "remote-control")
+
+
+def launch_claude_chat(title: str, prompt: str) -> str:
+    """Open the chat as an interactive Remote Control session in its own tab of the
+    persistent zellij session; returns `<session>/<tab title>`.
+
+    Not `claude --bg`: background jobs are retired after ~8h idle at a prompt, which
+    takes chats that are waiting for the admin's answer offline in the Claude app.
+    Interactive sessions stay connected until the tab is closed.
+    """
+    ensure_zellij_session()
+    _zellij(
+        "--session", ZELLIJ_SESSION, "action", "new-tab", "--name", title, "--cwd", str(REPO_ROOT),
+        "--", CLAUDE_BIN, "--remote-control", title, "--model", CLAUDE_MODEL,
+        "--effort", CLAUDE_EFFORT, "--permission-mode", "auto", prompt,
+    )
+    return f"{ZELLIJ_SESSION}/{title}"
 
 
 def _record_launch(entry: dict[str, Any]) -> None:

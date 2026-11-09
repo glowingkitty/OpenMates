@@ -127,17 +127,43 @@ def test_prod_check_failure_is_an_error_not_quiet(isolated_state):
         dispatch.dispatch_prod_errors(launcher=lambda *_: "s", checker=failing)
 
 
-# contract-test: supporting surface=gui.web assertions=issue-reporting.automation.admin-dev-claude-chat
-def test_launch_uses_sonnet_5_5_with_high_effort(monkeypatch):
-    seen = {}
+def _fake_zellij(monkeypatch, listing: str) -> list[list[str]]:
+    calls: list[list[str]] = []
 
     def fake_run(command, **kwargs):
-        seen["command"] = command
-        return type("Result", (), {"returncode": 0, "stdout": "backgrounded · abc123", "stderr": ""})()
+        calls.append(command)
+        assert kwargs["env"]["XDG_RUNTIME_DIR"]
+        stdout = listing if "list-sessions" in command else "1"
+        return type("Result", (), {"returncode": 0, "stdout": stdout, "stderr": ""})()
 
     monkeypatch.setattr(dispatch.subprocess, "run", fake_run)
-    assert dispatch.launch_claude_chat("title", "prompt") == "abc123"
-    command = seen["command"]
-    assert command[command.index("--model") + 1] == "claude-sonnet-5-5"
-    assert command[command.index("--effort") + 1] == "high"
-    assert command[-1] == "prompt"
+    return calls
+
+
+# contract-test: supporting surface=gui.web assertions=issue-reporting.automation.admin-dev-claude-chat
+def test_launch_opens_persistent_remote_control_tab_with_sonnet_5_5_high(monkeypatch):
+    calls = _fake_zellij(monkeypatch, "claude [Created 1h ago] \n")
+    assert dispatch.launch_claude_chat("title", "prompt") == "claude/title"
+    command = calls[-1]
+    assert command[command.index("--session") + 1] == "claude"
+    assert command[command.index("--name") + 1] == "title"
+    chat = command[command.index("--") + 1:]
+    assert "--bg" not in chat, "background jobs retire after 8h idle and go offline in the app"
+    assert chat[chat.index("--remote-control") + 1] == "title"
+    assert chat[chat.index("--model") + 1] == "claude-sonnet-5-5"
+    assert chat[chat.index("--effort") + 1] == "high"
+    assert chat[-1] == "prompt"
+    assert not any("attach" in call for call in calls)
+
+
+# contract-test: supporting surface=gui.web assertions=issue-reporting.automation.admin-dev-claude-chat
+def test_launch_recreates_missing_or_exited_session_with_bridge(monkeypatch):
+    for listing, expect_delete in [("other [Created 1h ago]\n", False),
+                                   ("claude [Created 1h ago] (EXITED - attach to resurrect)\n", True)]:
+        calls = _fake_zellij(monkeypatch, listing)
+        dispatch.launch_claude_chat("title", "prompt")
+        assert any("delete-session" in call for call in calls) is expect_delete
+        assert any(call[1:3] == ["attach", "--create-background"] for call in calls)
+        bridge = next(call for call in calls if "remote-control" in call and "--name" in call
+                      and call[call.index("--name") + 1] == "remote-control")
+        assert bridge[-1] == "remote-control"
