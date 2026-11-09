@@ -1,7 +1,7 @@
 schema_version: 1
 cadence: daily
 date: '2026-11-08'
-generated_at: '2026-11-09T00:20:42+00:00'
+generated_at: '2026-11-09T00:48:03+00:00'
 range:
   since: '2026-11-08T00:00:00+00:00'
   until: '2026-11-09T00:00:00+00:00'
@@ -5598,23 +5598,21 @@ sources:
     - specifications/generated/assertion-index.yml
     related_feature_ids: []
 llm_summary:
-  overview: OpenMates focused on significant infrastructure and feature development, including the second version of PDF processing,
-    extensive migration of core logic to Rust, and the expansion of Learning Mode. Work also continued on aligning the native
-    CLI and various SDKs with existing web functionality.
+  overview: OpenMates focused on significant architectural and feature advancements, including the development of PDF processing
+    v2, the expansion of the shared Rust core for web functionality, and achieving high parity between the native CLI and
+    npm versions. Work also continued on cross-language SDK conformance and the new Learning Mode.
   released_changes: []
   bug_fixes:
-  - text: PDF processing fixes addressed file-name alias resolution in search, prefetch logic to ensure only rated pages are
-      selected, and recognition of CLI upload references.
+  - text: PDF processing now correctly resolves file-name aliases in search and ensures the prefetch logic only selects pages
+      rated by the decision model.
     evidence:
       commits:
       - 3a1aa55560
       - be1a51f531
       - 0f7c1ddd91
-      - 195b84f308
-      - c6a4853bce
     release_status: dev_only
-  - text: Native CLI improvements resolved wording inconsistencies for unknown IDs, fixed exit codes for usage errors, and
-      aligned task history and workflow parity with the npm version.
+  - text: The native CLI received numerous parity fixes to match npm behavior, including improved error wording for unknown
+      IDs, correct exit codes for usage errors, and aligned task history and workflow command logic.
     evidence:
       commits:
       - f2acd4bc47
@@ -5623,28 +5621,22 @@ llm_summary:
       - a775b34f6e
       - 31178e0771
     release_status: dev_only
-  - text: SDK maintenance focused on cross-language alignment for doc slugs, Wikipedia language settings, and memory implementation,
-      while unblocking strict conformance gates.
+  - text: SDK inconsistencies across Python, Rust, and npm were addressed, specifically regarding document slugs, Wikipedia
+      language settings, and project selector ranking.
     evidence:
       commits:
-      - 1ae0941977
-      - 4ebbc807af
-      - 1c8ffedb25
       - 3bba1b1950
       - b399dbf732
-      - ec4c1f92ae
       - beb7c08cb5
-      - c3ffeccc92
     release_status: dev_only
-  - text: Voice interaction logic was updated to ensure acknowledgement language follows the spoken turn rather than defaulting
-      to English.
+  - text: Voice call acknowledgments now correctly follow the language of the spoken turn rather than defaulting to English.
     evidence:
       commits:
       - 0ef7639c0d
     release_status: dev_only
   unreleased_progress:
-  - text: PDF Processing v2 development introduced per-page triage, chunked OCR, and parallel artifact storage to improve
-      performance and accuracy.
+  - text: The PDF processing v2 pipeline was introduced, featuring per-page triage, chunked OCR, parallel artifact storage,
+      and on-demand page routes for fullscreen viewing.
     evidence:
       commits:
       - c0b488e2ff
@@ -5653,30 +5645,53 @@ llm_summary:
       - 06dbe1d6ea
       - f21dd2c3ff
     release_status: dev_only
-  - text: Learning Mode was expanded with age rubrics, collaborative building toggles, and a guest mode for unauthenticated
-      sessions.
+  - text: Learning Mode was updated with an age rubric for content tailoring, a collaborative building toggle, and support
+      for guest mode.
     evidence:
       commits:
       - 98653a207f
     release_status: dev_only
-  - text: The Rust migration for web and core components progressed with new logic for Plans, Tasks, Projects, and Teams being
-      ported to the shared Rust core.
+  - text: Significant portions of the web application logic were ported to the shared Rust core, including chat sync protocols,
+      project and plan decisions, workflow management, and image recovery logic.
     evidence:
       commits:
-      - 29ada3ad98
+      - 457b51171b
+      - c25f900c81
+      - 32ad62c7ea
+      - 409405dc85
+      - 84ad012ff6
+      - d2c3c1e645
+      - b49cddac66
+      - fb1083431b
+      - 29534a7cab
     release_status: dev_only
-  - text: Voice call features were enhanced with iOS background resume support and automated disconnect cues when microphones
-      are muted by the platform.
+  - text: Voice call capabilities were enhanced with iOS background resume support and a new disconnect cue for when the platform
+      mutes the microphone.
     evidence:
       commits:
       - 12803c5b70
       - d42568c213
     release_status: dev_only
-  - text: CLI and SDK development focused on differential verification of commands and cross-language conformance testing
-      for work management features.
+  - text: The native CLI now supports plan and task lifecycle management with differential verification against the npm version.
     evidence:
       commits:
       - 6be6ec0a38
+    release_status: dev_only
+  internal_progress:
+  - text: Internal session lifecycle management was improved with better orphan cleanup, repeatable deploy scopes, and self-healing
+      pipelines for stale checkpoints.
+    evidence:
+      commits:
+      - 1872b011dc
+      - 7ee7933350
+      - 9879e76c1d
+      - 4f0909eac1
+      - 7aebcb24dc
+    release_status: dev_only
+  - text: Testing infrastructure was expanded with extensive differential verification between native and npm CLI commands
+      and new cross-SDK speed benchmarks for drafts and Wikipedia modules.
+    evidence:
+      commits:
       - 417936bb14
       - a7a5ab43b9
       - 8aca289cc7
@@ -5689,58 +5704,47 @@ llm_summary:
       - a20b3cdf82
       - 9416ed5704
     release_status: dev_only
-  internal_progress:
-  - text: Internal tooling and CI pipelines were strengthened with improved session lifecycle management, automated tracking
-      for new lane files, and self-healing deploy pipelines.
-    evidence:
-      commits:
-      - 1872b011dc
-      - 7ee7933350
-      - 9879e76c1d
-      - 4f0909eac1
-      - 7aebcb24dc
-      - 6b789340f0
-      - 4fbc1d0925
-    release_status: dev_only
   newsletter_recommendation:
     include: []
     exclude:
-    - text: PDF Processing v2 Upgrades
+    - text: Learning Mode updates (age rubric, collaborative building).
+      evidence:
+        commits:
+        - 98653a207f
+      reason: Learning Mode features are currently dev_only and not yet released to the main branch.
+    - text: PDF processing v2 and on-demand page routes.
       evidence:
         commits:
         - c0b488e2ff
         - 0b2c3143ef
-        - ebe6b5913c
-        - 06dbe1d6ea
-        - f21dd2c3ff
-      reason: PDF Processing v2 is currently in development and not yet merged to the main release branch.
-    - text: Learning Mode Enhancements
+      reason: PDF processing v2 is in active development and restricted to dev_only status.
+    - text: Rust core migration for chat sync and project management.
       evidence:
         commits:
-        - 98653a207f
-      reason: Learning Mode features are currently in development and not yet merged to the main release branch.
-    - text: Shared Rust Core Migration
-      evidence:
-        commits:
-        - 29ada3ad98
-      reason: The Rust migration work is internal infrastructure progress and not yet ready for public communication.
-    rationale: All changes from this period are currently in development (dev_only) and have not been merged into the main
-      release branch for public communication.
+        - 457b51171b
+        - c25f900c81
+        - 9d439dc408
+      reason: The migration of core logic to Rust is an ongoing internal architectural change not yet ready for public communication.
+    rationale: All user-facing changes from this period are currently in dev_only status and have not been merged into the
+      main branch for public release.
   social_video_recommendations:
-  - idea: A technical deep-dive into PDF Processing v2, showcasing chunked OCR and per-page triage.
+  - idea: Demonstrate the new Learning Mode age rubric and collaborative building toggle to show how the assistant adapts
+      to different educational contexts.
     priority: medium
-    reason: Significant architectural upgrade with clear user benefits in speed and accuracy.
-    evidence:
-      commits:
-      - c0b488e2ff
-  - idea: Demonstration of the new Learning Mode collaborative building and age-appropriate rubrics.
-    priority: low
-    reason: New user-facing feature set with a strong educational story.
+    reason: This is a concrete new feature with clear visual and functional impact for users.
     evidence:
       commits:
       - 98653a207f
+  - idea: Showcase the improved PDF processing v2, highlighting the speed of the new pipeline and the ability to view specific
+      pages in fullscreen.
+    priority: medium
+    reason: The PDF processing improvements offer a tangible performance benefit that is easy to demonstrate.
+    evidence:
+      commits:
+      - c0b488e2ff
+      - 0b2c3143ef
   quality_notes:
-  - Extensive use of cross-language conformance testing (Rust, Python, npm) to ensure parity during the migration.
-  - Heavy emphasis on performance benchmarking for new Rust-based components.
-  - Differential verification of over 150 CLI commands to ensure native-to-npm consistency.
+  - Extensive differential testing is being used to ensure the native Rust CLI matches the established npm CLI behavior.
+  - The PDF pipeline is undergoing a major version upgrade (v2) with a focus on per-page triage and OCR accuracy.
+  - Rust migration is progressing through modular 'slices' across chat sync, project state, and work management.
   validation_warnings: []

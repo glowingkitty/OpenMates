@@ -1,7 +1,7 @@
 schema_version: 1
 cadence: daily
 date: '2026-11-05'
-generated_at: '2026-11-06T00:20:42+00:00'
+generated_at: '2026-11-09T00:46:55+00:00'
 range:
   since: '2026-11-05T00:00:00+00:00'
   until: '2026-11-06T00:00:00+00:00'
@@ -67,34 +67,6 @@ feature_availability:
     override: disabled
     parent_id: app:web
     source: backend/apps/web/app.yml
-  - id: memory:health:appointments
-    kind: memory
-    default_enabled: false
-    effective_enabled: false
-    override: null
-    parent_id: app:health
-    source: backend/apps/health/app.yml
-  - id: memory:health:medical_history
-    kind: memory
-    default_enabled: false
-    effective_enabled: false
-    override: null
-    parent_id: app:health
-    source: backend/apps/health/app.yml
-  - id: memory:health:sleep_diary
-    kind: memory
-    default_enabled: false
-    effective_enabled: false
-    override: null
-    parent_id: app:health
-    source: backend/apps/health/app.yml
-  - id: memory:health:symptoms_log
-    kind: memory
-    default_enabled: false
-    effective_enabled: false
-    override: null
-    parent_id: app:health
-    source: backend/apps/health/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
@@ -1191,105 +1163,111 @@ sources:
     - frontend/packages/ui/src/components/enter_message/services/webPIIMatches.ts
     related_feature_ids: []
 llm_summary:
-  overview: OpenMates focused on UI refinements for event embeds, PDF handling, and chat controls, alongside significant internal
-    progress on the Rust core migration and shared worker infrastructure.
+  overview: OpenMates focused on refining the user experience for event and data embeds, improving chat input stability, and
+    advancing the background migration to a high-performance Rust core. Key updates include mobile optimizations for event
+    carousels and more reliable draft handling in the chat interface.
   released_changes:
-  - text: Event embeds now display sources at the bottom and feature an improved mobile carousel and venue geocoding.
+  - text: Event search results now feature a more intuitive layout with sources at the bottom and a functional carousel for
+      mobile devices.
     evidence:
       commits:
       - 4733976b8d
     release_status: released_main
-  - text: The chat interface now preserves new chat drafts if the \"Stop\" button is pressed after AI output has already begun.
+  - text: The message input now reliably preserves drafts even if the AI generation is interrupted early.
     evidence:
       commits:
       - 0109e71b0b
     release_status: released_main
-  - text: Fullscreen sheet views now scroll as a single surface to maintain table height.
-    evidence:
-      commits:
-      - 667adc822c
-    release_status: released_main
-  - text: PDF reading and viewing operations now correctly maintain file indices and Vault keys when processing page lists.
+  - text: PDF viewing and reading capabilities now maintain document context more effectively across different page selections.
     evidence:
       commits:
       - 6fc9fe34b9
     release_status: released_main
   bug_fixes:
-  - text: PII detection logic was refined to prevent standalone interjections like \"Awesome\" from being incorrectly flagged
-      as names.
+  - text: Resolved issues in event embeds where sources were misplaced; updated the mobile view to include a visible carousel
+      and improved venue geocoding accuracy.
+    evidence:
+      commits:
+      - 4733976b8d
+    release_status: released_main
+  - text: Fixed a bug where new chat drafts were lost if the 'Stop' button was pressed immediately after AI output began.
+    evidence:
+      commits:
+      - 0109e71b0b
+    release_status: released_main
+  - text: Corrected sheet fullscreen behavior to scroll as a single surface, ensuring tables maintain their full height during
+      interaction.
+    evidence:
+      commits:
+      - 667adc822c
+    release_status: released_main
+  - text: Fixed PDF processing to ensure file indices and Vault keys are preserved when specific page lists are requested.
+    evidence:
+      commits:
+      - 6fc9fe34b9
+    release_status: released_main
+  - text: Improved PII detection to prevent common interjections like 'Awesome' from being incorrectly flagged as personal
+      names.
     evidence:
       commits:
       - 3a3d69a2b2
     release_status: released_main
-  - text: Claude chat dispatching now uses the user-installed binary instead of stale cron paths.
-    evidence:
-      commits:
-      - edc86013e8
-    release_status: released_main
-  - text: The Browse skill and its associated embeds were disabled in development environments pending preview fixes.
-    evidence:
-      commits:
-      - 8bac0a7314
-    release_status: released_main
   unreleased_progress:
-  - text: Work continues on porting web search and PII display aliases to Rust.
+  - text: Development continues on the Rust core migration, including ports for web search, PII aliasing, and shared worker
+      session brokering for chat history.
     evidence:
       commits:
       - c179337624
-    release_status: dev_only
-  - text: Infrastructure for a shared Rust core worker was introduced, including a session broker for chat history.
-    evidence:
-      commits:
       - a42d1d7112
+      - 8ab883eda2
       - 5164f934a5
     release_status: dev_only
-  - text: A local admission layer and history support for saved chats were added to the Rust core.
-    evidence:
-      commits:
-      - 8ab883eda2
-    release_status: dev_only
-  internal_progress:
-  - text: The daily briefing now includes alerts for reported issues and repeating errors at the top of the summary.
-    evidence:
-      commits:
-      - 8f5fea1355
-      - f19d76746f
-    release_status: released_main
-  - text: A delete action was added for explicit decisions regarding reminders, and documentation was updated to reflect live
-      reminder syncing.
-    evidence:
-      commits:
-      - a17c6510f6
-      - 70b7f22d75
-      - 26700d2b96
-    release_status: released_main
-  - text: The SDK capability matrix was updated to classify 34 Rust-related transfer and profile-upload APIs.
+  - text: The SDK capability matrix was updated to classify new Rust-based transfer and profile APIs.
     evidence:
       commits:
       - f5be8bc812
     release_status: dev_only
+  internal_progress:
+  - text: Enhanced internal daily meeting orchestration with automated health alerts for reported issues and repeating errors,
+      alongside new explicit delete actions for reminders.
+    evidence:
+      commits:
+      - a17c6510f6
+      - 8f5fea1355
+      - f19d76746f
+    release_status: released_main
+  - text: Updated Claude dispatch scripts to utilize the user-installed binary rather than stale environment paths.
+    evidence:
+      commits:
+      - edc86013e8
+    release_status: released_main
   newsletter_recommendation:
     include:
-    - text: Enhanced event embeds with source citations, mobile-friendly carousels, and venue geocoding.
+    - text: Enhanced event embeds with mobile-friendly carousels and improved map geocoding.
       evidence:
         commits:
         - 4733976b8d
-      reason: Significant visual and functional improvement to event search results.
-    - text: The chat interface now preserves new chat drafts if the \"Stop\" button is pressed after AI output has begun.
+      reason: Significant visual and functional improvements to event search results, particularly for mobile users.
+    - text: Draft preservation when stopping AI responses.
       evidence:
         commits:
         - 0109e71b0b
-      reason: Improves the reliability of the chat interface when interrupting AI responses.
-    - text: Fullscreen sheet views now scroll as a single surface to maintain table height.
+      reason: Improves the reliability of the chat interface by preventing accidental loss of message drafts.
+    - text: Better fullscreen scrolling for sheet embeds.
       evidence:
         commits:
         - 667adc822c
-      reason: UI polish for data-heavy sheet embeds.
-    - text: PDF reading and viewing operations now correctly maintain file indices and Vault keys when processing page lists.
+      reason: Improves the usability of data tables within the web application.
+    - text: Reliable context preservation during PDF analysis.
       evidence:
         commits:
         - 6fc9fe34b9
-      reason: Fixes a critical context-loss bug during PDF interactions.
+      reason: Ensures consistent behavior when interacting with secure PDF documents.
+    - text: Refined PII detection for common conversational phrases.
+      evidence:
+        commits:
+        - 3a3d69a2b2
+      reason: Reduces friction in the message input by decreasing false-positive privacy flags.
     exclude:
     - text: Rust core migration and shared worker infrastructure.
       evidence:
@@ -1298,22 +1276,31 @@ llm_summary:
         - a42d1d7112
         - 8ab883eda2
         - 5164f934a5
-      reason: These items are currently flagged-off or in dev-only status as part of the Rust core migration.
-    rationale: The newsletter focuses on user-facing UI refinements and reliability fixes for the web application and AI skills.
+      reason: These items represent foundational Rust core work that is currently behind feature flags and not yet available
+        to users.
+    - text: Web browsing skill updates.
+      evidence:
+        commits:
+        - 8bac0a7314
+      reason: The browse skill is explicitly disabled in the configuration and not ready for public use.
+    rationale: The selected items provide immediate value to the general user base by improving interface stability, mobile
+      usability, and privacy detection accuracy.
   social_video_recommendations:
-  - idea: A short clip showing the new mobile carousel and geocoding for event search results.
-    priority: medium
-    reason: Visual improvement to a core search feature.
+  - idea: A short clip demonstrating the new mobile event carousel and map geocoding in action.
+    priority: high
+    reason: This is a highly visual update that directly impacts how users discover and interact with events.
     evidence:
       commits:
       - 4733976b8d
-  - idea: Demonstrating the 'Stop' button fix to show how drafts are preserved.
-    priority: low
-    reason: Functional polish that improves user confidence.
+  - idea: A side-by-side comparison of the old vs. new fullscreen sheet scrolling to show the improved table visibility.
+    priority: medium
+    reason: Demonstrates a clear UX improvement for users working with data tables.
     evidence:
       commits:
-      - 0109e71b0b
+      - 667adc822c
   quality_notes:
-  - Several fixes addressed edge cases in PII detection and PDF context preservation.
-  - Infrastructure work is heavily focused on the Rust core migration, which remains behind feature flags.
+  - Mobile usability for event embeds has been improved with better carousel visibility.
+  - Privacy protections were refined to reduce false positives in conversational text.
+  - Foundational work for a shared Rust-based web worker is progressing behind feature flags to improve future application
+    performance.
   validation_warnings: []

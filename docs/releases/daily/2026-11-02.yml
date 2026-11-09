@@ -1,7 +1,7 @@
 schema_version: 1
 cadence: daily
 date: '2026-11-02'
-generated_at: '2026-11-03T00:20:39+00:00'
+generated_at: '2026-11-09T00:45:42+00:00'
 range:
   since: '2026-11-02T00:00:00+00:00'
   until: '2026-11-03T00:00:00+00:00'
@@ -19,9 +19,9 @@ summary:
     infrastructure: 11
     internal: 0
     other: 0
-  newsletter_ready_items: 0
+  newsletter_ready_items: 20
   user_facing_items: 22
-  dev_only_items: 105
+  dev_only_items: 0
   unknown_release_items: 0
 feature_availability:
   disabled_features:
@@ -67,34 +67,6 @@ feature_availability:
     override: disabled
     parent_id: app:web
     source: backend/apps/web/app.yml
-  - id: memory:health:appointments
-    kind: memory
-    default_enabled: false
-    effective_enabled: false
-    override: null
-    parent_id: app:health
-    source: backend/apps/health/app.yml
-  - id: memory:health:medical_history
-    kind: memory
-    default_enabled: false
-    effective_enabled: false
-    override: null
-    parent_id: app:health
-    source: backend/apps/health/app.yml
-  - id: memory:health:sleep_diary
-    kind: memory
-    default_enabled: false
-    effective_enabled: false
-    override: null
-    parent_id: app:health
-    source: backend/apps/health/app.yml
-  - id: memory:health:symptoms_log
-    kind: memory
-    default_enabled: false
-    effective_enabled: false
-    override: null
-    parent_id: app:health
-    source: backend/apps/health/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
@@ -198,7 +170,7 @@ sections:
     changed_paths:
     - frontend/packages/openmates-tui-native/src/ui.rs
     - frontend/packages/openmates-tui-native/src/ui_live_tests.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -206,7 +178,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(rust-tui): daily inspiration banner on home'
     section: features
     commits:
@@ -217,7 +189,7 @@ sections:
     - frontend/packages/openmates-tui-native/src/ui.rs
     - packages/openmates-rust/src/client/inspirations.rs
     - packages/openmates-rust/src/client/overview.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -225,7 +197,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(rust-tui): home greeting from the cached display name'
     section: features
     commits:
@@ -238,7 +210,7 @@ sections:
     - packages/openmates-rust/src/client/snapshot_sections.rs
     - packages/openmates-rust/src/client/snapshot_sections_tests.rs
     - packages/openmates-rust/src/client/sync.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -246,7 +218,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(rust-tui): home carousel with due-soon footers and saved-item cards'
     section: features
     commits:
@@ -262,7 +234,7 @@ sections:
     - packages/openmates-rust/src/client/overview_cards_tests.rs
     - packages/openmates-rust/src/client/overview_tests.rs
     - packages/openmates-rust/src/client/sync_feed.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -270,7 +242,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(rust-tui): home continue-where-you-left-off order and copy'
     section: features
     commits:
@@ -279,7 +251,7 @@ sections:
     changed_paths:
     - frontend/packages/openmates-tui-native/src/runtime.rs
     - frontend/packages/openmates-tui-native/src/ui.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -287,7 +259,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(rust): chat sync feed client, overview order and warm chats list'
     section: features
     commits:
@@ -312,16 +284,16 @@ sections:
     - specifications/generated/assertion-index.yml
     - tests/sdk-conformance/essential_session_server.py
     - tests/sdk-conformance/test_essential_session_server.py
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(rust-cli): newsletter subscribe/confirm/unsubscribe work signed out'
     section: features
     commits:
@@ -335,7 +307,7 @@ sections:
     - frontend/packages/openmates-tui-native/src/cli/account/notifications.rs
     - frontend/packages/openmates-tui-native/src/cli/account/notifications_tests.rs
     - frontend/packages/openmates-tui-native/src/cli/docs.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -343,7 +315,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(rust-cli): personal billing address, bank-transfer and gift-card purchases, refunds and low-balance auto
       top-up'
     section: features
@@ -360,7 +332,7 @@ sections:
     - frontend/packages/openmates-tui-native/src/cli/account/settings_more.rs
     - packages/openmates-rust/src/account/billing.rs
     - packages/openmates-rust/src/account/billing_tests.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -368,7 +340,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(rust-cli): teams billing address/bank-transfer, export/import and switch-to alias'
     section: features
     commits:
@@ -388,7 +360,7 @@ sections:
     - packages/openmates-rust/src/account/settings_ops.rs
     - packages/openmates-rust/src/work/teams.rs
     - packages/openmates-rust/src/work/teams_billing.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -396,7 +368,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(sync): cold-start feed cursor and overview priority message for capable sockets'
     section: features
     commits:
@@ -404,16 +376,16 @@ sections:
     authored_at: '2026-11-02T18:55:56+00:00'
     changed_paths:
     - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(rust-cli): connected-accounts import and Revolut Business consent-url/exchange-code dry run'
     section: features
     commits:
@@ -431,7 +403,7 @@ sections:
     - packages/openmates-rust/src/account.rs
     - packages/openmates-rust/src/account/connected_accounts.rs
     - packages/openmates-rust/src/account/connected_accounts_tests.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -447,7 +419,7 @@ sections:
     rationale:
     - classified as new features from commit subject/path rules
     - 'matches feature availability gates: skill:finance:check_accounts'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(sdk): deprecate implicit CLI login in the root OpenMatesClient export'
     section: features
     commits:
@@ -460,16 +432,16 @@ sections:
     - frontend/packages/openmates-cli/src/index.ts
     - frontend/packages/openmates-cli/src/sdkRootClient.ts
     - frontend/packages/openmates-cli/tests/sdk-root-client-deprecation.test.ts
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(sdk): portable WASM build of the shared core for the npm SDK (stateless operations first)'
     section: features
     commits:
@@ -495,16 +467,16 @@ sections:
     - packages/openmates-session-bindings/src/wasm.rs
     - packages/openmates-session-bindings/src/wipe.rs
     - scripts/build_sdk_native.py
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(sync): capability-gated chat sync feed over WebSocket and GET /v1/chats/changes'
     section: features
     commits:
@@ -523,16 +495,16 @@ sections:
     - backend/tests/test_chat_sync_feed_service.py
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat: stream voice dictation into the composer editor'
     section: features
     commits:
@@ -561,16 +533,16 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(rust-cli): privacy status/disable/remove'
     section: features
     commits:
@@ -583,7 +555,7 @@ sections:
     - frontend/packages/openmates-tui-native/src/cli/docs.rs
     - frontend/packages/openmates-tui-native/src/cli/privacy_cmd.rs
     - frontend/packages/openmates-tui-native/src/cli/privacy_cmd_tests.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -591,7 +563,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(sync): durable chat sync change log and internal chat-sync Directus extension'
     section: features
     commits:
@@ -613,7 +585,7 @@ sections:
     - backend/tests/test_chat_sync_feed_db.py
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -621,7 +593,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(rust-cli): ideabucket add/status/settings/process'
     section: features
     commits:
@@ -639,7 +611,7 @@ sections:
     - packages/openmates-rust/src/account/ideabucket.rs
     - packages/openmates-rust/src/account/ideabucket_tests.rs
     - packages/openmates-rust/src/client/settings_read.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -647,7 +619,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(rust-cli): projects files list/read/search, account export start and delete, notifications and newsletter'
     section: features
     commits:
@@ -681,7 +653,7 @@ sections:
     - packages/openmates-rust/src/work/projects.rs
     - packages/openmates-rust/src/work/projects/remote_files.rs
     - packages/openmates-rust/src/work/projects/remote_files_tests.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -689,7 +661,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(rust-cli): projects settings focus activate/deactivate'
     section: features
     commits:
@@ -706,7 +678,7 @@ sections:
     - packages/openmates-rust/src/work/projects.rs
     - packages/openmates-rust/src/work/projects/focus.rs
     - packages/openmates-rust/src/work/projects/focus_tests.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -714,7 +686,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(rust-cli): teams --team selector and Direct-chat identity publication on list/show'
     section: features
     commits:
@@ -731,7 +703,7 @@ sections:
     - packages/openmates-rust/src/work/teams.rs
     - packages/openmates-rust/src/work/teams_identity.rs
     - packages/openmates-rust/src/work/teams_identity_tests.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -739,7 +711,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(bench): per-invocation message nonce and cold chats-show variant'
     section: features
     commits:
@@ -750,7 +722,7 @@ sections:
     - scripts/rust_bench/flows.py
     - scripts/rust_bench/runner.py
     - scripts/tests/test_rust_bench.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -758,7 +730,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(rust-cli): projects sources remove with exact-ID confirmation'
     section: features
     commits:
@@ -773,7 +745,7 @@ sections:
     - frontend/packages/openmates-tui-native/src/cli/projects/sources.rs
     - frontend/packages/openmates-tui-native/src/cli/projects/sources_tests.rs
     - packages/openmates-rust/src/work/projects/sources.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -781,7 +753,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(rust): resolve memory-entry @mentions from decrypted Personal memories'
     section: features
     commits:
@@ -791,7 +763,7 @@ sections:
     - packages/openmates-rust/src/client/mention_context.rs
     - packages/openmates-rust/src/mentions.rs
     - packages/openmates-rust/src/mentions_tests.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -799,7 +771,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(rust-cli): native teams commands (list/show/switch/create/update/delete, invites, access, members, billing,
       storage, usage)'
     section: features
@@ -817,7 +789,7 @@ sections:
     - packages/openmates-rust/src/work/mod.rs
     - packages/openmates-rust/src/work/teams.rs
     - packages/openmates-rust/src/work/teams_tests.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -825,7 +797,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(rust-cli): native openmates signup (password account, 2FA, backup codes, recovery key)'
     section: features
     commits:
@@ -850,7 +822,7 @@ sections:
     - packages/openmates-rust/src/crypto/signup.rs
     - packages/openmates-rust/src/crypto/signup_tests.rs
     - packages/openmates-rust/src/crypto/signup_vectors.json
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -858,7 +830,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(sdk): npm and Python SDKs call the shared Rust core through native bindings'
     section: features
     commits:
@@ -962,16 +934,16 @@ sections:
     - tests/sdk-conformance/test_session_cache_settlement_wrappers.py
     - tests/sdk-conformance/test_session_embed_version_wrappers.py
     - tests/sdk-conformance/test_session_settings_reminders_foreign.py
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: true
     rationale:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(rust-cli): settings reminders/memories/gift-cards/billing reads/account export, web-only settings notices'
     section: features
     commits:
@@ -997,7 +969,7 @@ sections:
     - packages/openmates-rust/src/account/settings_ops_tests.rs
     - packages/openmates-rust/src/account/test_support.rs
     - packages/openmates-rust/src/client/settings_read.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1005,7 +977,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(rust-cli): chats/embeds add-to-project and embeds remove-from-project; catalog status audit'
     section: features
     commits:
@@ -1021,7 +993,7 @@ sections:
     - packages/openmates-rust/src/work/projects.rs
     - packages/openmates-rust/src/work/projects/items.rs
     - packages/openmates-rust/src/work/projects/items/tests.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1029,7 +1001,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(rust-cli): link Tasks to Claude Code sessions (claude:<session-uuid>)'
     section: features
     commits:
@@ -1045,7 +1017,7 @@ sections:
     - frontend/packages/openmates-tui-native/src/cli/tasks.rs
     - packages/openmates-rust/src/work/task_crypto.rs
     - packages/openmates-rust/src/work/tasks/tests.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1053,7 +1025,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(bench): per-arm CLI messages and expected-model gate for inference flows'
     section: features
     commits:
@@ -1064,7 +1036,7 @@ sections:
     - scripts/rust_bench/flows.py
     - scripts/rust_bench/runner.py
     - scripts/tests/test_rust_bench.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1072,7 +1044,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat: show other running Claude chats in every Claude chat'
     section: features
     commits:
@@ -1084,7 +1056,7 @@ sections:
     - .claude/settings.json
     - scripts/agent_peers.py
     - scripts/tests/test_agent_peers.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1092,7 +1064,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(api): recognize X-OpenMates-SDK: rust for API keys and Task activity'
     section: features
     commits:
@@ -1107,8 +1079,8 @@ sections:
     - backend/tests/test_api_key_authoritative_auth.py
     - backend/tests/test_user_task_activity_api.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -1124,7 +1096,8 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: platform:tasks'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:tasks'
   - title: 'feat: compact ranked chat context menu with More-menu parity'
     section: features
     commits:
@@ -1168,16 +1141,16 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(web): add inert Rust core web adapter modules (not wired)'
     section: features
     commits:
@@ -1279,16 +1252,16 @@ sections:
     - frontend/packages/ui/src/services/rustCore/workerHost.ts
     - frontend/packages/ui/src/services/rustCore/workerHostLifecycle.ts
     - frontend/packages/ui/src/services/rustCore/workerHostTypes.ts
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: true
     rationale:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(api): opt-in read_details on chat metadata batch for the Rust client'
     section: features
     commits:
@@ -1299,16 +1272,16 @@ sections:
     - backend/tests/test_chat_activity.py
     - docs/plans/rust-tui/plan.yml
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(rust): read every web encryption format in Rust; add lean Rust-vs-TS benchmark'
     section: features
     commits:
@@ -1333,7 +1306,7 @@ sections:
     - scripts/rust_bench/stats.py
     - scripts/tests/test_rust_bench.py
     - scripts/tests/test_rust_bench_meter.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1341,7 +1314,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat: proactive disk cleanup, daily meeting brief script and non-blocking nightly selection'
     section: features
     commits:
@@ -1361,7 +1334,7 @@ sections:
     - scripts/tests/test_disk_coordinator.py
     - scripts/tests/test_resource_budget.py
     - scripts/tests/test_sessions_worktree_cleanup.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1369,7 +1342,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat: daily meeting brief, proactive disk cleanup and non-blocking nightly test selection'
     section: features
     commits:
@@ -1379,7 +1352,7 @@ sections:
     - scripts/host_disk_cleanup.py
     - scripts/tests/test_daily_meeting_brief.py
     - scripts/tests/test_host_disk_cleanup.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1387,7 +1360,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat: link OpenMates Tasks to Claude Code sessions'
     section: features
     commits:
@@ -1425,8 +1398,8 @@ sections:
     - specifications/features/tasks/specification.yml
     - specifications/generated/assertion-index.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -1442,7 +1415,8 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: platform:tasks'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:tasks'
   - title: 'feat(rust): land shared Rust core, native CLI/TUI and binding crates (inactive)'
     section: features
     commits:
@@ -2435,7 +2409,7 @@ sections:
     - tests/sdk-conformance/test_workflow_file_sync_peer.py
     - tests/sdk-conformance/work-field-web-decoder.cjs
     - tests/sdk-conformance/work_return_server.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2443,7 +2417,7 @@ sections:
     feature_metadata_changed: true
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   bug_fixes:
   - title: 'fix(rust): monitor actor observes original request cancel during in-flight reads'
     section: bug_fixes
@@ -2453,7 +2427,7 @@ sections:
     changed_paths:
     - packages/openmates-rust/src/client/monitor_actor.rs
     - packages/openmates-rust/src/client/owned_operation.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2461,7 +2435,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(rust): monitor actor observes original request cancel during in-flight reads'
     section: bug_fixes
     commits:
@@ -2469,7 +2443,7 @@ sections:
     authored_at: '2026-11-02T22:14:24+00:00'
     changed_paths:
     - packages/openmates-rust/src/client/monitor_actor_tests.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2477,7 +2451,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(sdk): initial startup cancel ends an in-flight metadata read'
     section: bug_fixes
     commits:
@@ -2485,7 +2459,7 @@ sections:
     authored_at: '2026-11-02T21:47:22+00:00'
     changed_paths:
     - packages/openmates-session-bindings/src/session_startup_sync.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2493,7 +2467,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(sdk): Project create sends the required default focus and settings; align app-skill/diagnostic runners'
     section: bug_fixes
     commits:
@@ -2508,16 +2482,16 @@ sections:
     - specifications/generated/assertion-index.yml
     - tests/sdk-conformance/runners/session-direct-app-skill-diagnostic.test.mjs
     - tests/sdk-conformance/runners/session-direct-app-skill.mjs
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(rust-tui): the chat home starts on its cards so Enter opens a chat'
     section: bug_fixes
     commits:
@@ -2526,7 +2500,7 @@ sections:
     changed_paths:
     - frontend/packages/openmates-tui-native/src/ui.rs
     - frontend/packages/openmates-tui-native/src/ui_focus_parity_tests.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2534,7 +2508,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(rust): cancelled owned sends no longer block later sends; peer-closed sockets count as returned'
     section: bug_fixes
     commits:
@@ -2543,7 +2517,7 @@ sections:
     changed_paths:
     - packages/openmates-rust/src/client/owned_saved_send_close_refusal_tests.rs
     - packages/openmates-rust/src/client/owned_saved_send_phase.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2551,7 +2525,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: complete reported-issue batch (4VXWM, BMKRJ, JB85P coverage, debug decryption)'
     section: bug_fixes
     commits:
@@ -2580,9 +2554,9 @@ sections:
     - frontend/packages/ui/src/services/__tests__/embedSendersCanonicalReconcile.test.ts
     - frontend/packages/ui/src/services/embedSenders.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -2618,7 +2592,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, app:nutrition, embed:nutrition:search_recipes, skill:nutrition:search_recipes'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: reported-issue batch (JB85P, 4VXWM, BMKRJ) plus Edamam throttling and debug decryption'
     section: bug_fixes
     commits:
@@ -2629,9 +2603,9 @@ sections:
     - frontend/packages/ui/src/components/enter_message/utils/__tests__/markdownParser.preprocess.test.ts
     - frontend/packages/ui/src/components/enter_message/utils/markdownParser.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:nutrition
@@ -2646,7 +2620,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:nutrition'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(sdk): saved streams always end with a typed outcome; saved-read peer accepts concurrent open-chat batch'
     section: bug_fixes
     commits:
@@ -2660,7 +2634,7 @@ sections:
     - tests/sdk-conformance/recovery_server.py
     - tests/sdk-conformance/saved_chat_read_server.py
     - tests/sdk-conformance/test_saved_chat_read_peer.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2668,7 +2642,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(rust-cli): actionable state-directory permission errors'
     section: bug_fixes
     commits:
@@ -2679,7 +2653,7 @@ sections:
     - frontend/packages/openmates-tui-native/src/cli/private_path.rs
     - frontend/packages/openmates-tui-native/src/cli/trusted_account.rs
     - frontend/packages/openmates-tui-native/src/command_runtime.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2687,7 +2661,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: no chat email when the final reply reached an awaiting CLI/SDK socket'
     section: bug_fixes
     commits:
@@ -2699,16 +2673,16 @@ sections:
     - backend/tests/test_final_stream_delivery.py
     - backend/tests/test_foreground_chat_notification_suppression.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(rust-tui): typing on the chat home starts a draft like the TS TUI'
     section: bug_fixes
     commits:
@@ -2717,7 +2691,7 @@ sections:
     changed_paths:
     - frontend/packages/openmates-tui-native/src/ui.rs
     - frontend/packages/openmates-tui-native/src/ui_focus_parity_tests.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2725,7 +2699,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(rust-tui): start without a terminal cursor-position round trip'
     section: bug_fixes
     commits:
@@ -2733,7 +2707,7 @@ sections:
     authored_at: '2026-11-02T16:56:05+00:00'
     changed_paths:
     - frontend/packages/openmates-tui-native/src/runtime.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2741,7 +2715,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(rust): hide chats this client deleted until the server finishes removal'
     section: bug_fixes
     commits:
@@ -2753,7 +2727,7 @@ sections:
     - packages/openmates-rust/src/client/sync.rs
     - packages/openmates-rust/src/client/workspaces.rs
     - packages/openmates-rust/src/client/workspaces_delete_tests.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2761,7 +2735,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(rust-cli): chats delete accepts any number of chat ids'
     section: bug_fixes
     commits:
@@ -2769,7 +2743,7 @@ sections:
     authored_at: '2026-11-02T16:18:39+00:00'
     changed_paths:
     - frontend/packages/openmates-tui-native/src/cli/parser.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2777,7 +2751,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(rust): unique new-chat slugs, explicit preflight rejection, send-time @mention resolution'
     section: bug_fixes
     commits:
@@ -2795,7 +2769,7 @@ sections:
     - packages/openmates-rust/src/mentions.rs
     - packages/openmates-rust/src/mentions_tests.rs
     - packages/openmates-rust/src/mentions_ts_vectors.json
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2803,7 +2777,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(api): serve the docs tree from the public /v1/docs API'
     section: bug_fixes
     commits:
@@ -2816,16 +2790,16 @@ sections:
     - backend/core/docker-compose.yml
     - backend/tests/test_docs_routes.py
     - backend/tests/test_sdk_cli_parity_api_key_auth.py
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(auth): bind pair approval to the rotated session credential'
     section: bug_fixes
     commits:
@@ -2835,16 +2809,16 @@ sections:
     - backend/core/api/app/routes/auth_routes/auth_pair_v2.py
     - backend/tests/test_auth_pair_v2.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(selfhost): drop removed Firecrawl key from Rust env template'
     section: bug_fixes
     commits:
@@ -2852,7 +2826,7 @@ sections:
     authored_at: '2026-11-02T14:49:48+00:00'
     changed_paths:
     - frontend/packages/openmates-tui-native/src/server/templates.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2860,7 +2834,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: keep follow-ups sending when chat recovery epoch is inactive'
     section: bug_fixes
     commits:
@@ -2877,16 +2851,16 @@ sections:
     - frontend/packages/ui/src/services/sendersChatMessages.ts
     - scripts/ci_coverage_manifest.json
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: keep managed worktrees a full week before hard expiry'
     section: bug_fixes
     commits:
@@ -2897,7 +2871,7 @@ sections:
     - scripts/disk_coordinator.py
     - scripts/sessions.py
     - scripts/tests/test_sessions_worktree_cleanup.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2905,7 +2879,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(rust): remove RUSTSEC-2026-0387 crypto-bigint from OPAQUE pairing chain'
     section: bug_fixes
     commits:
@@ -2983,7 +2957,7 @@ sections:
     - packages/third_party/voprf/src/tests/parser.rs
     - packages/third_party/voprf/src/tests/test_cfrg_vectors.rs
     - packages/third_party/voprf/src/voprf.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2991,7 +2965,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: host disk cleanup skips root-owned leftovers instead of failing'
     section: bug_fixes
     commits:
@@ -3000,7 +2974,7 @@ sections:
     changed_paths:
     - scripts/host_disk_cleanup.py
     - scripts/tests/test_host_disk_cleanup.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -3008,7 +2982,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: make native Rust checkpoint preparation ready and register source'
     section: bug_fixes
     commits:
@@ -3030,7 +3004,7 @@ sections:
     - scripts/tests/test_ci_native_release.py
     - scripts/tests/test_ci_preparation_readiness.py
     - scripts/tests/test_ci_sdk_gate_tooling_stage.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -3038,7 +3012,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   improvements:
   - title: 'perf(rust): overlap the warm chats list feed page with session admission'
     section: improvements
@@ -3050,7 +3024,7 @@ sections:
     - packages/openmates-rust/src/client.rs
     - packages/openmates-rust/src/client/sync_feed.rs
     - packages/openmates-rust/src/client/sync_feed_tests.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -3058,7 +3032,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as improvements from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'perf(rust): cache-then-delta for chats show (per-chat chat_details_v1 section)'
     section: improvements
     commits:
@@ -3074,7 +3048,7 @@ sections:
     - packages/openmates-rust/src/client/chat_details_cache_tests.rs
     - packages/openmates-rust/src/client/snapshot_sections.rs
     - packages/openmates-rust/src/client/sync.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -3082,7 +3056,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as improvements from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'perf(rust): feed catch-up over one HTTPS request; local UTC offset; Team revocation test'
     section: improvements
     commits:
@@ -3097,7 +3071,7 @@ sections:
     - packages/openmates-rust/src/client/overview_tests.rs
     - packages/openmates-rust/src/client/sync_feed.rs
     - packages/openmates-rust/src/client/sync_feed_tests.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -3105,7 +3079,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as improvements from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'refactor(rust-tui): preempts_boot_sync policy helper'
     section: improvements
     commits:
@@ -3113,7 +3087,7 @@ sections:
     authored_at: '2026-11-02T22:16:48+00:00'
     changed_paths:
     - frontend/packages/openmates-tui-native/src/runtime.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -3121,7 +3095,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as improvements from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'perf(rust-tui): chat list refresh uses the sync feed and preempts the boot sync'
     section: improvements
     commits:
@@ -3129,7 +3103,7 @@ sections:
     authored_at: '2026-11-02T22:11:37+00:00'
     changed_paths:
     - frontend/packages/openmates-tui-native/src/runtime.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -3137,7 +3111,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as improvements from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'perf(rust-cli): chats show/messages restore only the index and that chat''s cache section'
     section: improvements
     commits:
@@ -3145,7 +3119,7 @@ sections:
     authored_at: '2026-11-02T20:33:58+00:00'
     changed_paths:
     - frontend/packages/openmates-tui-native/src/session_runtime.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -3153,7 +3127,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as improvements from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'perf(rust-tui): chat open no longer waits behind the boot sync; early Enter opens'
     section: improvements
     commits:
@@ -3163,7 +3137,7 @@ sections:
     - frontend/packages/openmates-tui-native/src/runtime.rs
     - frontend/packages/openmates-tui-native/src/runtime_live_tests.rs
     - frontend/packages/openmates-tui-native/src/ui_focus_parity_tests.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -3171,7 +3145,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as improvements from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'perf(rust): lazy, sectioned, change-only native sync cache'
     section: improvements
     commits:
@@ -3192,7 +3166,7 @@ sections:
     - packages/openmates-rust/src/client/snapshot_sections.rs
     - packages/openmates-rust/src/client/snapshot_sections_tests.rs
     - packages/openmates-rust/src/client/sync.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -3200,7 +3174,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as improvements from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'perf(sync): batch phased-sync visibility fences and reuse fenced metadata'
     section: improvements
     commits:
@@ -3214,16 +3188,16 @@ sections:
     - backend/tests/test_chat_metadata_permissions.py
     - backend/tests/test_phased_sync_handler.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: true
     rationale:
     - classified as improvements from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'refactor(rust-cli): fold teams identity publication into the list/show/switch handlers'
     section: improvements
     commits:
@@ -3233,7 +3207,7 @@ sections:
     - frontend/packages/openmates-tui-native/src/cli/teams.rs
     - frontend/packages/openmates-tui-native/src/cli/teams_published_tests.rs
     - frontend/packages/openmates-tui-native/src/cli/teams_tests.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -3241,7 +3215,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as improvements from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'perf(rust): chats show and TUI chat open never run the global inventory sync'
     section: improvements
     commits:
@@ -3254,7 +3228,7 @@ sections:
     - frontend/packages/openmates-tui-native/src/completion_recovery_adapter.rs
     - frontend/packages/openmates-tui-native/src/runtime.rs
     - frontend/packages/openmates-tui-native/src/runtime_live_tests.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -3262,7 +3236,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as improvements from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'perf(rust): reuse a command''s own session validation for HTTP app-skill and workspace requests'
     section: improvements
     commits:
@@ -3275,7 +3249,7 @@ sections:
     - packages/openmates-rust/src/client/direct.rs
     - packages/openmates-rust/src/client/validation_reuse_tests.rs
     - packages/openmates-rust/src/client/workspaces.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -3283,7 +3257,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as improvements from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'refactor(web): land Rust core Worker dispatcher split into explicit state modules (inert)'
     section: improvements
     commits:
@@ -3298,16 +3272,16 @@ sections:
     - frontend/packages/ui/src/services/rustCore/workerRuntime.ts
     - frontend/packages/ui/src/services/rustCore/workerRuntimeState.ts
     - frontend/packages/ui/src/services/rustCore/workerRuntimeTypes.ts
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as improvements from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'perf(rust): fast list after show, concurrent open-chat requests; drop retired skills and removed providers'
     section: improvements
     commits:
@@ -3382,16 +3356,16 @@ sections:
     - packages/openmates-session-bindings/tests/stream_transport.rs
     - scripts/check_rust_cli_package.py
     - scripts/sync_rust_cli_assets.py
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: true
     rationale:
     - classified as improvements from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'refactor(rust): one openmates crate (CLI + SDK) in a root Cargo workspace'
     section: improvements
     commits:
@@ -3429,7 +3403,7 @@ sections:
     - packages/openmates-rust/Cargo.toml
     - packages/openmates-session-bindings/Cargo.lock
     - packages/openmates-session-bindings/Cargo.toml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -3437,7 +3411,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as improvements from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   docs:
   - title: 'docs(sdk): classify new Rust APIs and record accepted differences in the capability matrix'
     section: docs
@@ -3446,7 +3420,7 @@ sections:
     authored_at: '2026-11-02T19:43:55+00:00'
     changed_paths:
     - config/sdk-capabilities.json
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -3454,7 +3428,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs: describe live dictation in the message input architecture'
     section: docs
     commits:
@@ -3462,7 +3436,7 @@ sections:
     authored_at: '2026-11-02T18:47:38+00:00'
     changed_paths:
     - docs/architecture/messaging/message-input-field.md
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -3470,7 +3444,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs(spec): architecture.sync v2 incremental chat feed and workspace overview order'
     section: docs
     commits:
@@ -3483,7 +3457,7 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -3491,7 +3465,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs(spec): CLI/SDK sends awaiting the reply suppress the sender''s email and push'
     section: docs
     commits:
@@ -3501,7 +3475,7 @@ sections:
     - specifications/features/notifications/specification.yml
     - specifications/generated/assertion-index.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -3509,7 +3483,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs: remove provider-access research notes'
     section: docs
     commits:
@@ -3518,7 +3492,7 @@ sections:
     changed_paths:
     - docs/apis/discovery-provider-research-2026-10-25.md
     - docs/apis/event-api-quality-2026-10-25.md
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -3526,7 +3500,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   tests:
   - title: 'test(cli-rust): land the shared native Rust CLI terminal helper'
     section: tests
@@ -3535,7 +3509,7 @@ sections:
     authored_at: '2026-11-02T23:56:36+00:00'
     changed_paths:
     - frontend/apps/web_app/tests/helpers/rust-cli-terminal.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -3543,7 +3517,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test(rust-tui): boot-sync preemption policy'
     section: tests
     commits:
@@ -3551,7 +3525,7 @@ sections:
     authored_at: '2026-11-02T22:15:37+00:00'
     changed_paths:
     - frontend/packages/openmates-tui-native/src/runtime_live_tests.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -3559,7 +3533,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test(sdk): startup-sync peer expects the core''s foreground lifecycle'
     section: tests
     commits:
@@ -3567,7 +3541,7 @@ sections:
     authored_at: '2026-11-02T21:29:44+00:00'
     changed_paths:
     - tests/sdk-conformance/startup_sync_server.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -3575,7 +3549,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test(sdk): npm first-page strict vector forwards only the durable receipt'
     section: tests
     commits:
@@ -3583,7 +3557,7 @@ sections:
     authored_at: '2026-11-02T20:42:52+00:00'
     changed_paths:
     - tests/sdk-conformance/runners/session-chat-first-page-continuation.mjs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -3591,7 +3565,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test(cli-rust): two-device chat sync feed E2E'
     section: tests
     commits:
@@ -3601,7 +3575,7 @@ sections:
     - frontend/apps/web_app/tests/cli-rust-chat-sync-feed.spec.ts
     - scripts/ci_coverage_manifest.json
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -3609,7 +3583,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test(sdk): re-scope owner-rotation vector to admission-time owner change'
     section: tests
     commits:
@@ -3619,7 +3593,7 @@ sections:
     - packages/openmates-session-bindings/src/session_app_skill_tests.rs
     - tests/sdk-conformance/runners/session-direct-app-skill.mjs
     - tests/sdk-conformance/runners/session-direct-app-skill.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -3627,7 +3601,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test(sdk): machine-check the SDK capability matrix again; formatting-independent conformance source contracts'
     section: tests
     commits:
@@ -3644,7 +3618,7 @@ sections:
     - tests/sdk-conformance/test_api_key_foundation_contract.py
     - tests/sdk-conformance/test_first_page_continuation_contract.py
     - tests/sdk-conformance/test_saved_stream_contract.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -3652,7 +3626,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: register core-first Rust repair checkpoint'
     section: tests
     commits:
@@ -3661,7 +3635,7 @@ sections:
     changed_paths:
     - scripts/ci_sdk_candidate_authorities.json
     - scripts/ci_sdk_candidate_authorities/1f9dad0ff0db43c3cc92f2a671802a1a0ecc8ad52c473d45d7f028915e2d7a9a.json
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -3669,7 +3643,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: register verified Rust core checkpoint source'
     section: tests
     commits:
@@ -3678,7 +3652,7 @@ sections:
     changed_paths:
     - scripts/ci_sdk_candidate_authorities.json
     - scripts/ci_sdk_candidate_authorities/a7ebac0bb1cf0f2f336498c691b95df9cc8985fc2c98d5e9489e6974ff78d567.json
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -3686,7 +3660,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   infrastructure:
   - title: 'chore: auto-compact Claude contexts at 300k'
     section: infrastructure
@@ -3695,7 +3669,7 @@ sections:
     authored_at: '2026-11-02T23:36:17+00:00'
     changed_paths:
     - .claude/settings.json
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -3703,7 +3677,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'chore: default Claude sub-agents to Sonnet and bound agent lanes'
     section: infrastructure
     commits:
@@ -3713,7 +3687,7 @@ sections:
     - .claude/agents/legal-compliance-auditor.md
     - .claude/settings.json
     - CLAUDE.md
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -3721,7 +3695,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'build(sdk): prepare Python platform wheels; fix Rust saved-read UTF-16 leaf comparison'
     section: infrastructure
     commits:
@@ -3731,7 +3705,7 @@ sections:
     - .github/workflows/python-sdk-wheels.yml
     - packages/openmates-session-bindings/examples/session-saved-chat-read-conformance.rs
     - scripts/build_python_wheels.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -3739,7 +3713,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'ci(sdk): isolated SDK lane builds Python and WASM artifacts; restore gate tooling and packaged check'
     section: infrastructure
     commits:
@@ -3755,7 +3729,7 @@ sections:
     - scripts/tests/test_sdk_conformance_gate.py
     - tests/sdk-conformance/runners/session-direct-app-skill.py
     - tests/sdk-conformance/session_direct_app_skill_peer.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -3763,7 +3737,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'ci(web): build the opt-in Rust core WASM package in the same job for web-rust-core-* specs'
     section: infrastructure
     commits:
@@ -3773,7 +3747,7 @@ sections:
     - .github/workflows/isolated-tests.yml
     - frontend/apps/web_app/scripts/build-rust-core-web.mjs
     - scripts/tests/test_ci_web_rust_core_lane.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -3781,7 +3755,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'build(web): add opt-in Rust core package Vite plugin and VITE_OPENMATES_RUST_CORE build flag'
     section: infrastructure
     commits:
@@ -3791,7 +3765,7 @@ sections:
     - frontend/apps/web_app/scripts/vite-plugin-rust-core.mjs
     - frontend/apps/web_app/scripts/vite-plugin-rust-core.test.mjs
     - frontend/apps/web_app/vite.config.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -3799,7 +3773,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'ci(rust): one cached Rust pipeline; remove self-built candidate-authority gate and hash pins'
     section: infrastructure
     commits:
@@ -3913,7 +3887,7 @@ sections:
     - scripts/tests/test_ci_sdk_workflow_dispatch.py
     - scripts/tests/test_ci_workflow_yaml_packaging.py
     - scripts/tests/test_sdk_session_embed_version_gate.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -3921,7 +3895,7 @@ sections:
     feature_metadata_changed: true
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'chore: remove remaining references to removed providers'
     section: infrastructure
     commits:
@@ -3932,7 +3906,7 @@ sections:
     - docs/architecture/compliance/gdpr-audit.md
     - frontend/packages/ui/src/i18n/sources/app_skills/shopping.yml
     - frontend/packages/ui/src/i18n/sources/embeds.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -3940,7 +3914,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'chore: remove superseded codex_* script names'
     section: infrastructure
     commits:
@@ -3954,7 +3928,7 @@ sections:
     - scripts/tests/test_codex_evidence.py
     - scripts/tests/test_codex_meeting.py
     - scripts/tests/test_sessions_codex_binding.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -3962,7 +3936,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'chore: retire Linear and Codex agent workflow tooling'
     section: infrastructure
     commits:
@@ -4079,7 +4053,7 @@ sections:
     - scripts/tests/test_specification_prompt_waiver.py
     - scripts/tests/test_tests_control_campaigns.py
     - scripts/tests/test_workflow_decisions.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -4087,7 +4061,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'chore: make Claude Code the agent harness and path-scope instructions'
     section: infrastructure
     commits:
@@ -4245,7 +4219,7 @@ sections:
     - scripts/tests/test_tests_control.py
     - scripts/tests/test_tests_control_campaigns.py
     - scripts/tests/test_verify_component_preview_skill.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -4253,819 +4227,26 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   internal: []
   other: []
 unreleased_progress:
-  dev_only:
-  - title: 'test(cli-rust): land the shared native Rust CLI terminal helper'
-    commits:
-    - b8e38b912e
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(rust-tui): active-chat pointer line and /active on home'
-    commits:
-    - 37d4272c37
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(rust-tui): daily inspiration banner on home'
-    commits:
-    - 3dca378276
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'perf(rust): overlap the warm chats list feed page with session admission'
-    commits:
-    - 6df18835ae
-    section: improvements
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'chore: auto-compact Claude contexts at 300k'
-    commits:
-    - f147a5e688
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(rust-tui): home greeting from the cached display name'
-    commits:
-    - 058776ad50
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(rust-tui): home carousel with due-soon footers and saved-item cards'
-    commits:
-    - 87844f8882
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'perf(rust): cache-then-delta for chats show (per-chat chat_details_v1 section)'
-    commits:
-    - 1a8627c8c5
-    section: improvements
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(rust-tui): home continue-where-you-left-off order and copy'
-    commits:
-    - 15e4c89bcf
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'perf(rust): feed catch-up over one HTTPS request; local UTC offset; Team revocation test'
-    commits:
-    - e25fdccf07
-    section: improvements
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'refactor(rust-tui): preempts_boot_sync policy helper'
-    commits:
-    - 9a880439f2
-    section: improvements
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(rust): monitor actor observes original request cancel during in-flight reads'
-    commits:
-    - 644615d4ae
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test(rust-tui): boot-sync preemption policy'
-    commits:
-    - 9813e5bad9
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(rust): monitor actor observes original request cancel during in-flight reads'
-    commits:
-    - 3fd37fb1cb
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'perf(rust-tui): chat list refresh uses the sync feed and preempts the boot sync'
-    commits:
-    - c919dcdb97
-    section: improvements
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(sdk): initial startup cancel ends an in-flight metadata read'
-    commits:
-    - c81141fb82
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test(sdk): startup-sync peer expects the core''s foreground lifecycle'
-    commits:
-    - 7b246f9ceb
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test(sdk): npm first-page strict vector forwards only the durable receipt'
-    commits:
-    - b5a5020651
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'chore: default Claude sub-agents to Sonnet and bound agent lanes'
-    commits:
-    - 6e6b20eaa7
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'perf(rust-cli): chats show/messages restore only the index and that chat''s cache section'
-    commits:
-    - c9b9288f51
-    section: improvements
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(sdk): Project create sends the required default focus and settings; align app-skill/diagnostic runners'
-    commits:
-    - b3333fcf12
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'test(cli-rust): two-device chat sync feed E2E'
-    commits:
-    - 5c1050beec
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(rust): chat sync feed client, overview order and warm chats list'
-    commits:
-    - 4c8d41e274
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'perf(rust-tui): chat open no longer waits behind the boot sync; early Enter opens'
-    commits:
-    - ddf0a4c446
-    section: improvements
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'docs(sdk): classify new Rust APIs and record accepted differences in the capability matrix'
-    commits:
-    - 357f970a9e
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(rust-cli): newsletter subscribe/confirm/unsubscribe work signed out'
-    commits:
-    - 54749113aa
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(rust-cli): personal billing address, bank-transfer and gift-card purchases, refunds and low-balance auto
-      top-up'
-    commits:
-    - dbdf045e19
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'build(sdk): prepare Python platform wheels; fix Rust saved-read UTF-16 leaf comparison'
-    commits:
-    - 944584ec66
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test(sdk): re-scope owner-rotation vector to admission-time owner change'
-    commits:
-    - c8c8e75439
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'ci(sdk): isolated SDK lane builds Python and WASM artifacts; restore gate tooling and packaged check'
-    commits:
-    - 748a36a31e
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(rust-cli): teams billing address/bank-transfer, export/import and switch-to alias'
-    commits:
-    - a733de0e93
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(sync): cold-start feed cursor and overview priority message for capable sockets'
-    commits:
-    - 8c16210575
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'feat(rust-cli): connected-accounts import and Revolut Business consent-url/exchange-code dry run'
-    commits:
-    - caff66c848
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features:
-    - id: skill:finance:check_accounts
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:finance
-      source: backend/apps/finance/app.yml
-  - title: 'feat(sdk): deprecate implicit CLI login in the root OpenMatesClient export'
-    commits:
-    - 657506743e
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix(rust-tui): the chat home starts on its cards so Enter opens a chat'
-    commits:
-    - ac78ba7352
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'docs: describe live dictation in the message input architecture'
-    commits:
-    - 7772661a68
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(rust): cancelled owned sends no longer block later sends; peer-closed sockets count as returned'
-    commits:
-    - e9ae75a4b8
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'perf(rust): lazy, sectioned, change-only native sync cache'
-    commits:
-    - 548fecd0a8
-    section: improvements
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(sdk): portable WASM build of the shared core for the npm SDK (stateless operations first)'
-    commits:
-    - 4ecf9bf7a7
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'perf(sync): batch phased-sync visibility fences and reuse fenced metadata'
-    commits:
-    - ee0f230d56
-    section: improvements
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'feat(sync): capability-gated chat sync feed over WebSocket and GET /v1/chats/changes'
-    commits:
-    - cb8beb2bae
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'feat: stream voice dictation into the composer editor'
-    commits:
-    - c5f7cae5d7
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'feat(rust-cli): privacy status/disable/remove'
-    commits:
-    - 3e462111ca
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(sync): durable chat sync change log and internal chat-sync Directus extension'
-    commits:
-    - 6f6ea7c926
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'docs(spec): architecture.sync v2 incremental chat feed and workspace overview order'
-    commits:
-    - d805fe16dd
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: complete reported-issue batch (4VXWM, BMKRJ, JB85P coverage, debug decryption)'
-    commits:
-    - c3f6b42619
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:nutrition
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/nutrition/app.yml
-    - id: embed:nutrition:search_recipes
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:nutrition
-      source: backend/apps/nutrition/app.yml
-    - id: skill:nutrition:search_recipes
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:nutrition
-      source: backend/apps/nutrition/app.yml
-  - title: 'feat(rust-cli): ideabucket add/status/settings/process'
-    commits:
-    - f86a17baf1
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: reported-issue batch (JB85P, 4VXWM, BMKRJ) plus Edamam throttling and debug decryption'
-    commits:
-    - 7b84286b16
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:nutrition
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/nutrition/app.yml
-  - title: 'fix(sdk): saved streams always end with a typed outcome; saved-read peer accepts concurrent open-chat batch'
-    commits:
-    - a721a72864
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'refactor(rust-cli): fold teams identity publication into the list/show/switch handlers'
-    commits:
-    - d75334404c
-    section: improvements
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(rust-cli): projects files list/read/search, account export start and delete, notifications and newsletter'
-    commits:
-    - 849d15fed5
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'perf(rust): chats show and TUI chat open never run the global inventory sync'
-    commits:
-    - 6fc01f8dec
-    section: improvements
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(rust-cli): projects settings focus activate/deactivate'
-    commits:
-    - de00c342cd
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(rust-cli): teams --team selector and Direct-chat identity publication on list/show'
-    commits:
-    - f1d393bbb4
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(rust-cli): actionable state-directory permission errors'
-    commits:
-    - ec5948c07f
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(bench): per-invocation message nonce and cold chats-show variant'
-    commits:
-    - 679acc00a9
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'docs(spec): CLI/SDK sends awaiting the reply suppress the sender''s email and push'
-    commits:
-    - eee395415d
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: no chat email when the final reply reached an awaiting CLI/SDK socket'
-    commits:
-    - 2ac08af0dd
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'ci(web): build the opt-in Rust core WASM package in the same job for web-rust-core-* specs'
-    commits:
-    - a3fab1ec34
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(rust-tui): typing on the chat home starts a draft like the TS TUI'
-    commits:
-    - 6e7512606c
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(rust-cli): projects sources remove with exact-ID confirmation'
-    commits:
-    - 66978be1f3
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(rust): resolve memory-entry @mentions from decrypted Personal memories'
-    commits:
-    - c2723681ea
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(rust-tui): start without a terminal cursor-position round trip'
-    commits:
-    - 247a2a2066
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(rust-cli): native teams commands (list/show/switch/create/update/delete, invites, access, members, billing,
-      storage, usage)'
-    commits:
-    - 29f542b8f9
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'build(web): add opt-in Rust core package Vite plugin and VITE_OPENMATES_RUST_CORE build flag'
-    commits:
-    - 37fc662790
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(rust-cli): native openmates signup (password account, 2FA, backup codes, recovery key)'
-    commits:
-    - b042adf90c
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(rust): hide chats this client deleted until the server finishes removal'
-    commits:
-    - 9c6b28a8db
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(rust-cli): chats delete accepts any number of chat ids'
-    commits:
-    - 025d273032
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test(sdk): machine-check the SDK capability matrix again; formatting-independent conformance source contracts'
-    commits:
-    - fc25707319
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(sdk): npm and Python SDKs call the shared Rust core through native bindings'
-    commits:
-    - c56f31d76e
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'feat(rust-cli): settings reminders/memories/gift-cards/billing reads/account export, web-only settings notices'
-    commits:
-    - 96c627d8cc
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'perf(rust): reuse a command''s own session validation for HTTP app-skill and workspace requests'
-    commits:
-    - dafff9b7dc
-    section: improvements
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(rust): unique new-chat slugs, explicit preflight rejection, send-time @mention resolution'
-    commits:
-    - c1267e2f34
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(rust-cli): chats/embeds add-to-project and embeds remove-from-project; catalog status audit'
-    commits:
-    - 6fffb48410
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'refactor(web): land Rust core Worker dispatcher split into explicit state modules (inert)'
-    commits:
-    - 0180250adc
-    section: improvements
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'feat(rust-cli): link Tasks to Claude Code sessions (claude:<session-uuid>)'
-    commits:
-    - aef49a7d8d
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(bench): per-arm CLI messages and expected-model gate for inference flows'
-    commits:
-    - '3411674405'
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(api): serve the docs tree from the public /v1/docs API'
-    commits:
-    - 328ee16429
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'feat: show other running Claude chats in every Claude chat'
-    commits:
-    - 14ceea1375
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'docs: remove provider-access research notes'
-    commits:
-    - 2dcacf6825
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(api): recognize X-OpenMates-SDK: rust for API keys and Task activity'
-    commits:
-    - 06d7b980ca
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:tasks
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: platform
-  - title: 'fix(auth): bind pair approval to the rotated session credential'
-    commits:
-    - 6f7e9d38bd
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'ci(rust): one cached Rust pipeline; remove self-built candidate-authority gate and hash pins'
-    commits:
-    - f0c5897604
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(selfhost): drop removed Firecrawl key from Rust env template'
-    commits:
-    - 36a7691ef4
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'chore: remove remaining references to removed providers'
-    commits:
-    - 0f8139a399
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'perf(rust): fast list after show, concurrent open-chat requests; drop retired skills and removed providers'
-    commits:
-    - ad3dc704b4
-    section: improvements
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'feat: compact ranked chat context menu with More-menu parity'
-    commits:
-    - 2c4a3bddff
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: keep follow-ups sending when chat recovery epoch is inactive'
-    commits:
-    - 8bd7337fd5
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'feat(web): add inert Rust core web adapter modules (not wired)'
-    commits:
-    - 8df408dbc8
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'feat(api): opt-in read_details on chat metadata batch for the Rust client'
-    commits:
-    - 0b9c94c74e
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'refactor(rust): one openmates crate (CLI + SDK) in a root Cargo workspace'
-    commits:
-    - fedfbc80a1
-    section: improvements
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(rust): read every web encryption format in Rust; add lean Rust-vs-TS benchmark'
-    commits:
-    - 7f0707bb61
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: keep managed worktrees a full week before hard expiry'
-    commits:
-    - 8b4cee30f0
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(rust): remove RUSTSEC-2026-0387 crypto-bigint from OPAQUE pairing chain'
-    commits:
-    - 30c4b8a143
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: host disk cleanup skips root-owned leftovers instead of failing'
-    commits:
-    - 3c0c1310c5
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat: proactive disk cleanup, daily meeting brief script and non-blocking nightly selection'
-    commits:
-    - b93b9e5603
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'chore: remove superseded codex_* script names'
-    commits:
-    - e913ef1825
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat: daily meeting brief, proactive disk cleanup and non-blocking nightly test selection'
-    commits:
-    - d753e89877
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat: link OpenMates Tasks to Claude Code sessions'
-    commits:
-    - 3de6434413
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:tasks
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: platform
-  - title: 'feat(rust): land shared Rust core, native CLI/TUI and binding crates (inactive)'
-    commits:
-    - 88ba203911
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'chore: retire Linear and Codex agent workflow tooling'
-    commits:
-    - a3472ff252
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'chore: make Claude Code the agent harness and path-scope instructions'
-    commits:
-    - 9b6de93671
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: make native Rust checkpoint preparation ready and register source'
-    commits:
-    - 482d487833
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: register core-first Rust repair checkpoint'
-    commits:
-    - 944191d854
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: register verified Rust core checkpoint source'
-    commits:
-    - c1b6cdd280
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
+  dev_only: []
   unknown_release_status: []
   feature_metadata_changed:
   - title: 'perf(sync): batch phased-sync visibility fences and reuse fenced metadata'
     commits:
     - ee0f230d56
     section: improvements
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
   - title: 'fix: complete reported-issue batch (4VXWM, BMKRJ, JB85P coverage, debug decryption)'
     commits:
     - c3f6b42619
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -5099,110 +4280,101 @@ unreleased_progress:
     commits:
     - c56f31d76e
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
   - title: 'ci(rust): one cached Rust pipeline; remove self-built candidate-authority gate and hash pins'
     commits:
     - f0c5897604
     section: infrastructure
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     related_features: []
   - title: 'perf(rust): fast list after show, concurrent open-chat requests; drop retired skills and removed providers'
     commits:
     - ad3dc704b4
     section: improvements
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
   - title: 'feat(web): add inert Rust core web adapter modules (not wired)'
     commits:
     - 8df408dbc8
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
   - title: 'feat(rust): land shared Rust core, native CLI/TUI and binding crates (inactive)'
     commits:
     - 88ba203911
     section: features
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     related_features: []
 marketing_candidates:
-  newsletter: []
-  social_or_video:
+  newsletter:
   - title: 'fix(sdk): Project create sends the required default focus and settings; align app-skill/diagnostic runners'
     commits:
     - b3333fcf12
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'feat(rust): chat sync feed client, overview order and warm chats list'
     commits:
     - 4c8d41e274
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'feat(sync): cold-start feed cursor and overview priority message for capable sockets'
     commits:
     - 8c16210575
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'feat(sdk): deprecate implicit CLI login in the root OpenMatesClient export'
     commits:
     - 657506743e
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'feat(sdk): portable WASM build of the shared core for the npm SDK (stateless operations first)'
     commits:
     - 4ecf9bf7a7
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'perf(sync): batch phased-sync visibility fences and reuse fenced metadata'
     commits:
     - ee0f230d56
     section: improvements
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'feat(sync): capability-gated chat sync feed over WebSocket and GET /v1/chats/changes'
     commits:
     - cb8beb2bae
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'feat: stream voice dictation into the composer editor'
     commits:
     - c5f7cae5d7
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix: complete reported-issue batch (4VXWM, BMKRJ, JB85P coverage, debug decryption)'
     commits:
     - c3f6b42619
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -5232,13 +4404,12 @@ marketing_candidates:
       override: null
       parent_id: app:nutrition
       source: backend/apps/nutrition/app.yml
-    newsletter_ready: false
   - title: 'fix: reported-issue batch (JB85P, 4VXWM, BMKRJ) plus Edamam throttling and debug decryption'
     commits:
     - 7b84286b16
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:nutrition
       kind: app
@@ -5247,45 +4418,230 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/nutrition/app.yml
-    newsletter_ready: false
   - title: 'fix: no chat email when the final reply reached an awaiting CLI/SDK socket'
     commits:
     - 2ac08af0dd
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'feat(sdk): npm and Python SDKs call the shared Rust core through native bindings'
     commits:
     - c56f31d76e
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'refactor(web): land Rust core Worker dispatcher split into explicit state modules (inert)'
     commits:
     - 0180250adc
     section: improvements
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix(api): serve the docs tree from the public /v1/docs API'
     commits:
     - 328ee16429
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+  - title: 'fix(auth): bind pair approval to the rotated session credential'
+    commits:
+    - 6f7e9d38bd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'perf(rust): fast list after show, concurrent open-chat requests; drop retired skills and removed providers'
+    commits:
+    - ad3dc704b4
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: compact ranked chat context menu with More-menu parity'
+    commits:
+    - 2c4a3bddff
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep follow-ups sending when chat recovery epoch is inactive'
+    commits:
+    - 8bd7337fd5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat(web): add inert Rust core web adapter modules (not wired)'
+    commits:
+    - 8df408dbc8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat(api): opt-in read_details on chat metadata batch for the Rust client'
+    commits:
+    - 0b9c94c74e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix(sdk): Project create sends the required default focus and settings; align app-skill/diagnostic runners'
+    commits:
+    - b3333fcf12
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(rust): chat sync feed client, overview order and warm chats list'
+    commits:
+    - 4c8d41e274
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(sync): cold-start feed cursor and overview priority message for capable sockets'
+    commits:
+    - 8c16210575
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(sdk): deprecate implicit CLI login in the root OpenMatesClient export'
+    commits:
+    - 657506743e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(sdk): portable WASM build of the shared core for the npm SDK (stateless operations first)'
+    commits:
+    - 4ecf9bf7a7
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'perf(sync): batch phased-sync visibility fences and reuse fenced metadata'
+    commits:
+    - ee0f230d56
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(sync): capability-gated chat sync feed over WebSocket and GET /v1/chats/changes'
+    commits:
+    - cb8beb2bae
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: stream voice dictation into the composer editor'
+    commits:
+    - c5f7cae5d7
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: complete reported-issue batch (4VXWM, BMKRJ, JB85P coverage, debug decryption)'
+    commits:
+    - c3f6b42619
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:nutrition
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/nutrition/app.yml
+    - id: embed:nutrition:search_recipes
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:nutrition
+      source: backend/apps/nutrition/app.yml
+    - id: skill:nutrition:search_recipes
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:nutrition
+      source: backend/apps/nutrition/app.yml
+    newsletter_ready: true
+  - title: 'fix: reported-issue batch (JB85P, 4VXWM, BMKRJ) plus Edamam throttling and debug decryption'
+    commits:
+    - 7b84286b16
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:nutrition
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/nutrition/app.yml
+    newsletter_ready: true
+  - title: 'fix: no chat email when the final reply reached an awaiting CLI/SDK socket'
+    commits:
+    - 2ac08af0dd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(sdk): npm and Python SDKs call the shared Rust core through native bindings'
+    commits:
+    - c56f31d76e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'refactor(web): land Rust core Worker dispatcher split into explicit state modules (inert)'
+    commits:
+    - 0180250adc
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(api): serve the docs tree from the public /v1/docs API'
+    commits:
+    - 328ee16429
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
   - title: 'feat(api): recognize X-OpenMates-SDK: rust for API keys and Task activity'
     commits:
     - 06d7b980ca
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: platform:tasks
       kind: platform
@@ -5299,56 +4655,56 @@ marketing_candidates:
     commits:
     - 6f7e9d38bd
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'perf(rust): fast list after show, concurrent open-chat requests; drop retired skills and removed providers'
     commits:
     - ad3dc704b4
     section: improvements
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'feat: compact ranked chat context menu with More-menu parity'
     commits:
     - 2c4a3bddff
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: keep follow-ups sending when chat recovery epoch is inactive'
     commits:
     - 8bd7337fd5
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'feat(web): add inert Rust core web adapter modules (not wired)'
     commits:
     - 8df408dbc8
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'feat(api): opt-in read_details on chat metadata batch for the Rust client'
     commits:
     - 0b9c94c74e
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'feat: link OpenMates Tasks to Claude Code sessions'
     commits:
     - 3de6434413
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: platform:tasks
       kind: platform
@@ -5369,7 +4725,7 @@ sources:
     short_sha: b8e38b912e
     authored_at: '2026-11-02T23:56:36+00:00'
     subject: 'test(cli-rust): land the shared native Rust CLI terminal helper'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/helpers/rust-cli-terminal.ts
@@ -5378,7 +4734,7 @@ sources:
     short_sha: 37d4272c37
     authored_at: '2026-11-02T23:45:28+00:00'
     subject: 'feat(rust-tui): active-chat pointer line and /active on home'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/openmates-tui-native/src/ui.rs
@@ -5388,7 +4744,7 @@ sources:
     short_sha: 3dca378276
     authored_at: '2026-11-02T23:40:25+00:00'
     subject: 'feat(rust-tui): daily inspiration banner on home'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/openmates-tui-native/src/runtime.rs
@@ -5400,7 +4756,7 @@ sources:
     short_sha: 6df18835ae
     authored_at: '2026-11-02T23:38:13+00:00'
     subject: 'perf(rust): overlap the warm chats list feed page with session admission'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/openmates-tui-native/src/session_runtime.rs
@@ -5412,7 +4768,7 @@ sources:
     short_sha: f147a5e688
     authored_at: '2026-11-02T23:36:17+00:00'
     subject: 'chore: auto-compact Claude contexts at 300k'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .claude/settings.json
@@ -5421,7 +4777,7 @@ sources:
     short_sha: 058776ad50
     authored_at: '2026-11-02T23:32:11+00:00'
     subject: 'feat(rust-tui): home greeting from the cached display name'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/openmates-tui-native/src/runtime.rs
@@ -5435,7 +4791,7 @@ sources:
     short_sha: 87844f8882
     authored_at: '2026-11-02T23:21:48+00:00'
     subject: 'feat(rust-tui): home carousel with due-soon footers and saved-item cards'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/openmates-tui-native/src/home_items.rs
@@ -5452,7 +4808,7 @@ sources:
     short_sha: 1a8627c8c5
     authored_at: '2026-11-02T23:09:24+00:00'
     subject: 'perf(rust): cache-then-delta for chats show (per-chat chat_details_v1 section)'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/openmates-tui-native/src/session_runtime.rs
@@ -5469,7 +4825,7 @@ sources:
     short_sha: 15e4c89bcf
     authored_at: '2026-11-02T22:43:51+00:00'
     subject: 'feat(rust-tui): home continue-where-you-left-off order and copy'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/openmates-tui-native/src/runtime.rs
@@ -5479,7 +4835,7 @@ sources:
     short_sha: e25fdccf07
     authored_at: '2026-11-02T22:36:28+00:00'
     subject: 'perf(rust): feed catch-up over one HTTPS request; local UTC offset; Team revocation test'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/openmates-tui-native/Cargo.toml
@@ -5495,7 +4851,7 @@ sources:
     short_sha: 9a880439f2
     authored_at: '2026-11-02T22:16:48+00:00'
     subject: 'refactor(rust-tui): preempts_boot_sync policy helper'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/openmates-tui-native/src/runtime.rs
@@ -5504,7 +4860,7 @@ sources:
     short_sha: 644615d4ae
     authored_at: '2026-11-02T22:15:48+00:00'
     subject: 'fix(rust): monitor actor observes original request cancel during in-flight reads'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - packages/openmates-rust/src/client/monitor_actor.rs
@@ -5514,7 +4870,7 @@ sources:
     short_sha: 9813e5bad9
     authored_at: '2026-11-02T22:15:37+00:00'
     subject: 'test(rust-tui): boot-sync preemption policy'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/openmates-tui-native/src/runtime_live_tests.rs
@@ -5523,7 +4879,7 @@ sources:
     short_sha: 3fd37fb1cb
     authored_at: '2026-11-02T22:14:24+00:00'
     subject: 'fix(rust): monitor actor observes original request cancel during in-flight reads'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - packages/openmates-rust/src/client/monitor_actor_tests.rs
@@ -5532,7 +4888,7 @@ sources:
     short_sha: c919dcdb97
     authored_at: '2026-11-02T22:11:37+00:00'
     subject: 'perf(rust-tui): chat list refresh uses the sync feed and preempts the boot sync'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/openmates-tui-native/src/runtime.rs
@@ -5541,7 +4897,7 @@ sources:
     short_sha: c81141fb82
     authored_at: '2026-11-02T21:47:22+00:00'
     subject: 'fix(sdk): initial startup cancel ends an in-flight metadata read'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - packages/openmates-session-bindings/src/session_startup_sync.rs
@@ -5550,7 +4906,7 @@ sources:
     short_sha: 7b246f9ceb
     authored_at: '2026-11-02T21:29:44+00:00'
     subject: 'test(sdk): startup-sync peer expects the core''s foreground lifecycle'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - tests/sdk-conformance/startup_sync_server.py
@@ -5559,7 +4915,7 @@ sources:
     short_sha: b5a5020651
     authored_at: '2026-11-02T20:42:52+00:00'
     subject: 'test(sdk): npm first-page strict vector forwards only the durable receipt'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - tests/sdk-conformance/runners/session-chat-first-page-continuation.mjs
@@ -5568,7 +4924,7 @@ sources:
     short_sha: 6e6b20eaa7
     authored_at: '2026-11-02T20:40:12+00:00'
     subject: 'chore: default Claude sub-agents to Sonnet and bound agent lanes'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .claude/agents/legal-compliance-auditor.md
@@ -5579,7 +4935,7 @@ sources:
     short_sha: c9b9288f51
     authored_at: '2026-11-02T20:33:58+00:00'
     subject: 'perf(rust-cli): chats show/messages restore only the index and that chat''s cache section'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/openmates-tui-native/src/session_runtime.rs
@@ -5588,7 +4944,7 @@ sources:
     short_sha: b3333fcf12
     authored_at: '2026-11-02T20:23:13+00:00'
     subject: 'fix(sdk): Project create sends the required default focus and settings; align app-skill/diagnostic runners'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/openmates-cli/src/sdk.ts
@@ -5604,7 +4960,7 @@ sources:
     short_sha: 5c1050beec
     authored_at: '2026-11-02T20:16:41+00:00'
     subject: 'test(cli-rust): two-device chat sync feed E2E'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/cli-rust-chat-sync-feed.spec.ts
@@ -5615,7 +4971,7 @@ sources:
     short_sha: 4c8d41e274
     authored_at: '2026-11-02T20:13:56+00:00'
     subject: 'feat(rust): chat sync feed client, overview order and warm chats list'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/routes/handlers/websocket_handlers/chat_sync_cold_start.py
@@ -5641,7 +4997,7 @@ sources:
     short_sha: ddf0a4c446
     authored_at: '2026-11-02T20:03:43+00:00'
     subject: 'perf(rust-tui): chat open no longer waits behind the boot sync; early Enter opens'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/openmates-tui-native/src/runtime.rs
@@ -5652,7 +5008,7 @@ sources:
     short_sha: 357f970a9e
     authored_at: '2026-11-02T19:43:55+00:00'
     subject: 'docs(sdk): classify new Rust APIs and record accepted differences in the capability matrix'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - config/sdk-capabilities.json
@@ -5661,7 +5017,7 @@ sources:
     short_sha: 54749113aa
     authored_at: '2026-11-02T19:39:37+00:00'
     subject: 'feat(rust-cli): newsletter subscribe/confirm/unsubscribe work signed out'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - config/cli-command-catalog.json
@@ -5677,7 +5033,7 @@ sources:
     authored_at: '2026-11-02T19:30:58+00:00'
     subject: 'feat(rust-cli): personal billing address, bank-transfer and gift-card purchases, refunds and low-balance auto
       top-up'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - config/cli-command-catalog.json
@@ -5694,7 +5050,7 @@ sources:
     short_sha: 944584ec66
     authored_at: '2026-11-02T19:30:06+00:00'
     subject: 'build(sdk): prepare Python platform wheels; fix Rust saved-read UTF-16 leaf comparison'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .github/workflows/python-sdk-wheels.yml
@@ -5705,7 +5061,7 @@ sources:
     short_sha: c8c8e75439
     authored_at: '2026-11-02T19:19:37+00:00'
     subject: 'test(sdk): re-scope owner-rotation vector to admission-time owner change'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - packages/openmates-session-bindings/src/session_app_skill_tests.rs
@@ -5716,7 +5072,7 @@ sources:
     short_sha: 748a36a31e
     authored_at: '2026-11-02T19:15:42+00:00'
     subject: 'ci(sdk): isolated SDK lane builds Python and WASM artifacts; restore gate tooling and packaged check'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - packages/openmates-session-bindings/src/session_app_skill_tests.rs
@@ -5733,7 +5089,7 @@ sources:
     short_sha: a733de0e93
     authored_at: '2026-11-02T19:10:45+00:00'
     subject: 'feat(rust-cli): teams billing address/bank-transfer, export/import and switch-to alias'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - config/cli-command-catalog.json
@@ -5754,7 +5110,7 @@ sources:
     short_sha: 8c16210575
     authored_at: '2026-11-02T18:55:56+00:00'
     subject: 'feat(sync): cold-start feed cursor and overview priority message for capable sockets'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
@@ -5763,7 +5119,7 @@ sources:
     short_sha: caff66c848
     authored_at: '2026-11-02T18:55:22+00:00'
     subject: 'feat(rust-cli): connected-accounts import and Revolut Business consent-url/exchange-code dry run'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - config/cli-command-catalog.json
@@ -5783,7 +5139,7 @@ sources:
     short_sha: 657506743e
     authored_at: '2026-11-02T18:51:46+00:00'
     subject: 'feat(sdk): deprecate implicit CLI login in the root OpenMatesClient export'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/openmates-cli/CHANGELOG.md
@@ -5797,7 +5153,7 @@ sources:
     short_sha: ac78ba7352
     authored_at: '2026-11-02T18:48:12+00:00'
     subject: 'fix(rust-tui): the chat home starts on its cards so Enter opens a chat'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/openmates-tui-native/src/ui.rs
@@ -5807,7 +5163,7 @@ sources:
     short_sha: 7772661a68
     authored_at: '2026-11-02T18:47:38+00:00'
     subject: 'docs: describe live dictation in the message input architecture'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/architecture/messaging/message-input-field.md
@@ -5816,7 +5172,7 @@ sources:
     short_sha: e9ae75a4b8
     authored_at: '2026-11-02T18:47:01+00:00'
     subject: 'fix(rust): cancelled owned sends no longer block later sends; peer-closed sockets count as returned'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - packages/openmates-rust/src/client/owned_saved_send_close_refusal_tests.rs
@@ -5826,7 +5182,7 @@ sources:
     short_sha: 548fecd0a8
     authored_at: '2026-11-02T18:46:49+00:00'
     subject: 'perf(rust): lazy, sectioned, change-only native sync cache'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/openmates-tui-native/src/cache_persistence_tests.rs
@@ -5848,7 +5204,7 @@ sources:
     short_sha: 4ecf9bf7a7
     authored_at: '2026-11-02T18:46:13+00:00'
     subject: 'feat(sdk): portable WASM build of the shared core for the npm SDK (stateless operations first)'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - Cargo.lock
@@ -5875,7 +5231,7 @@ sources:
     short_sha: ee0f230d56
     authored_at: '2026-11-02T18:44:43+00:00'
     subject: 'perf(sync): batch phased-sync visibility fences and reuse fenced metadata'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
@@ -5890,7 +5246,7 @@ sources:
     short_sha: cb8beb2bae
     authored_at: '2026-11-02T18:43:09+00:00'
     subject: 'feat(sync): capability-gated chat sync feed over WebSocket and GET /v1/chats/changes'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/routes/chat_sync_feed.py
@@ -5910,7 +5266,7 @@ sources:
     short_sha: c5f7cae5d7
     authored_at: '2026-11-02T18:40:54+00:00'
     subject: 'feat: stream voice dictation into the composer editor'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
@@ -5940,7 +5296,7 @@ sources:
     short_sha: 3e462111ca
     authored_at: '2026-11-02T18:37:12+00:00'
     subject: 'feat(rust-cli): privacy status/disable/remove'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - config/cli-command-catalog.json
@@ -5954,7 +5310,7 @@ sources:
     short_sha: 6f6ea7c926
     authored_at: '2026-11-02T18:35:47+00:00'
     subject: 'feat(sync): durable chat sync change log and internal chat-sync Directus extension'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/directus/Dockerfile
@@ -5977,7 +5333,7 @@ sources:
     short_sha: d805fe16dd
     authored_at: '2026-11-02T18:33:14+00:00'
     subject: 'docs(spec): architecture.sync v2 incremental chat feed and workspace overview order'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .claude/rules/cli-sdk.md
@@ -5991,7 +5347,7 @@ sources:
     short_sha: c3f6b42619
     authored_at: '2026-11-02T18:31:40+00:00'
     subject: 'fix: complete reported-issue batch (4VXWM, BMKRJ, JB85P coverage, debug decryption)'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/main_processor.py
@@ -6025,7 +5381,7 @@ sources:
     short_sha: f86a17baf1
     authored_at: '2026-11-02T18:29:00+00:00'
     subject: 'feat(rust-cli): ideabucket add/status/settings/process'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - config/cli-command-catalog.json
@@ -6044,7 +5400,7 @@ sources:
     short_sha: 7b84286b16
     authored_at: '2026-11-02T18:25:50+00:00'
     subject: 'fix: reported-issue batch (JB85P, 4VXWM, BMKRJ) plus Edamam throttling and debug decryption'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/nutrition/providers/edamam_rate_limit.py
@@ -6057,7 +5413,7 @@ sources:
     short_sha: a721a72864
     authored_at: '2026-11-02T18:21:02+00:00'
     subject: 'fix(sdk): saved streams always end with a typed outcome; saved-read peer accepts concurrent open-chat batch'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/openmates-tui-native/tests/crypto_fixtures/session-saved-chat-read.json
@@ -6072,7 +5428,7 @@ sources:
     short_sha: d75334404c
     authored_at: '2026-11-02T18:15:45+00:00'
     subject: 'refactor(rust-cli): fold teams identity publication into the list/show/switch handlers'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/openmates-tui-native/src/cli/teams.rs
@@ -6083,7 +5439,7 @@ sources:
     short_sha: 849d15fed5
     authored_at: '2026-11-02T18:11:08+00:00'
     subject: 'feat(rust-cli): projects files list/read/search, account export start and delete, notifications and newsletter'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - Cargo.lock
@@ -6118,7 +5474,7 @@ sources:
     short_sha: 6fc01f8dec
     authored_at: '2026-11-02T17:47:46+00:00'
     subject: 'perf(rust): chats show and TUI chat open never run the global inventory sync'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/openmates-tui-native/src/cli/full_chat_read_policy_tests.rs
@@ -6132,7 +5488,7 @@ sources:
     short_sha: de00c342cd
     authored_at: '2026-11-02T17:47:12+00:00'
     subject: 'feat(rust-cli): projects settings focus activate/deactivate'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - config/cli-command-catalog.json
@@ -6150,7 +5506,7 @@ sources:
     short_sha: f1d393bbb4
     authored_at: '2026-11-02T17:34:17+00:00'
     subject: 'feat(rust-cli): teams --team selector and Direct-chat identity publication on list/show'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - config/cli-command-catalog.json
@@ -6168,7 +5524,7 @@ sources:
     short_sha: ec5948c07f
     authored_at: '2026-11-02T17:28:57+00:00'
     subject: 'fix(rust-cli): actionable state-directory permission errors'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/openmates-tui-native/src/cli/mod.rs
@@ -6180,7 +5536,7 @@ sources:
     short_sha: 679acc00a9
     authored_at: '2026-11-02T17:28:22+00:00'
     subject: 'feat(bench): per-invocation message nonce and cold chats-show variant'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/rust_bench/__main__.py
@@ -6192,7 +5548,7 @@ sources:
     short_sha: eee395415d
     authored_at: '2026-11-02T17:26:57+00:00'
     subject: 'docs(spec): CLI/SDK sends awaiting the reply suppress the sender''s email and push'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - specifications/features/notifications/specification.yml
@@ -6203,7 +5559,7 @@ sources:
     short_sha: 2ac08af0dd
     authored_at: '2026-11-02T17:13:38+00:00'
     subject: 'fix: no chat email when the final reply reached an awaiting CLI/SDK socket'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/routes/websockets.py
@@ -6216,7 +5572,7 @@ sources:
     short_sha: a3fab1ec34
     authored_at: '2026-11-02T17:12:00+00:00'
     subject: 'ci(web): build the opt-in Rust core WASM package in the same job for web-rust-core-* specs'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .github/workflows/isolated-tests.yml
@@ -6227,7 +5583,7 @@ sources:
     short_sha: 6e7512606c
     authored_at: '2026-11-02T17:09:57+00:00'
     subject: 'fix(rust-tui): typing on the chat home starts a draft like the TS TUI'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/openmates-tui-native/src/ui.rs
@@ -6237,7 +5593,7 @@ sources:
     short_sha: 66978be1f3
     authored_at: '2026-11-02T17:07:46+00:00'
     subject: 'feat(rust-cli): projects sources remove with exact-ID confirmation'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - config/cli-command-catalog.json
@@ -6253,7 +5609,7 @@ sources:
     short_sha: c2723681ea
     authored_at: '2026-11-02T17:00:17+00:00'
     subject: 'feat(rust): resolve memory-entry @mentions from decrypted Personal memories'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - packages/openmates-rust/src/client/mention_context.rs
@@ -6264,7 +5620,7 @@ sources:
     short_sha: 247a2a2066
     authored_at: '2026-11-02T16:56:05+00:00'
     subject: 'fix(rust-tui): start without a terminal cursor-position round trip'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/openmates-tui-native/src/runtime.rs
@@ -6274,7 +5630,7 @@ sources:
     authored_at: '2026-11-02T16:55:30+00:00'
     subject: 'feat(rust-cli): native teams commands (list/show/switch/create/update/delete, invites, access, members, billing,
       storage, usage)'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - config/cli-command-catalog.json
@@ -6292,7 +5648,7 @@ sources:
     short_sha: 37fc662790
     authored_at: '2026-11-02T16:35:01+00:00'
     subject: 'build(web): add opt-in Rust core package Vite plugin and VITE_OPENMATES_RUST_CORE build flag'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/scripts/vite-plugin-rust-core.mjs
@@ -6303,7 +5659,7 @@ sources:
     short_sha: b042adf90c
     authored_at: '2026-11-02T16:30:46+00:00'
     subject: 'feat(rust-cli): native openmates signup (password account, 2FA, backup codes, recovery key)'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - Cargo.lock
@@ -6329,7 +5685,7 @@ sources:
     short_sha: 9c6b28a8db
     authored_at: '2026-11-02T16:19:23+00:00'
     subject: 'fix(rust): hide chats this client deleted until the server finishes removal'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - packages/openmates-rust/src/client.rs
@@ -6342,7 +5698,7 @@ sources:
     short_sha: 025d273032
     authored_at: '2026-11-02T16:18:39+00:00'
     subject: 'fix(rust-cli): chats delete accepts any number of chat ids'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/openmates-tui-native/src/cli/parser.rs
@@ -6351,7 +5707,7 @@ sources:
     short_sha: fc25707319
     authored_at: '2026-11-02T16:16:00+00:00'
     subject: 'test(sdk): machine-check the SDK capability matrix again; formatting-independent conformance source contracts'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - config/sdk-capabilities.json
@@ -6369,7 +5725,7 @@ sources:
     short_sha: c56f31d76e
     authored_at: '2026-11-02T16:04:52+00:00'
     subject: 'feat(sdk): npm and Python SDKs call the shared Rust core through native bindings'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/user-guide/developers/sdk-reference.md
@@ -6474,7 +5830,7 @@ sources:
     short_sha: 96c627d8cc
     authored_at: '2026-11-02T16:00:11+00:00'
     subject: 'feat(rust-cli): settings reminders/memories/gift-cards/billing reads/account export, web-only settings notices'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - config/cli-command-catalog.json
@@ -6501,7 +5857,7 @@ sources:
     short_sha: dafff9b7dc
     authored_at: '2026-11-02T15:59:33+00:00'
     subject: 'perf(rust): reuse a command''s own session validation for HTTP app-skill and workspace requests'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - packages/openmates-rust/src/client.rs
@@ -6515,7 +5871,7 @@ sources:
     short_sha: c1267e2f34
     authored_at: '2026-11-02T15:40:42+00:00'
     subject: 'fix(rust): unique new-chat slugs, explicit preflight rejection, send-time @mention resolution'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/openmates-tui-native/src/cli/send.rs
@@ -6534,7 +5890,7 @@ sources:
     short_sha: 6fffb48410
     authored_at: '2026-11-02T15:29:13+00:00'
     subject: 'feat(rust-cli): chats/embeds add-to-project and embeds remove-from-project; catalog status audit'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - config/cli-command-catalog.json
@@ -6551,7 +5907,7 @@ sources:
     short_sha: 0180250adc
     authored_at: '2026-11-02T15:14:18+00:00'
     subject: 'refactor(web): land Rust core Worker dispatcher split into explicit state modules (inert)'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/src/lib/rustCore/production.worker.ts
@@ -6567,7 +5923,7 @@ sources:
     short_sha: aef49a7d8d
     authored_at: '2026-11-02T15:12:21+00:00'
     subject: 'feat(rust-cli): link Tasks to Claude Code sessions (claude:<session-uuid>)'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - config/cli-command-catalog.json
@@ -6584,7 +5940,7 @@ sources:
     short_sha: '3411674405'
     authored_at: '2026-11-02T15:10:40+00:00'
     subject: 'feat(bench): per-arm CLI messages and expected-model gate for inference flows'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/rust_bench/__main__.py
@@ -6596,7 +5952,7 @@ sources:
     short_sha: 328ee16429
     authored_at: '2026-11-02T15:09:19+00:00'
     subject: 'fix(api): serve the docs tree from the public /v1/docs API'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/Dockerfile.selfhost
@@ -6610,7 +5966,7 @@ sources:
     short_sha: 14ceea1375
     authored_at: '2026-11-02T15:03:32+00:00'
     subject: 'feat: show other running Claude chats in every Claude chat'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .claude/hooks/peer-chats.sh
@@ -6623,7 +5979,7 @@ sources:
     short_sha: 2dcacf6825
     authored_at: '2026-11-02T15:00:28+00:00'
     subject: 'docs: remove provider-access research notes'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/apis/discovery-provider-research-2026-10-25.md
@@ -6633,7 +5989,7 @@ sources:
     short_sha: 06d7b980ca
     authored_at: '2026-11-02T15:00:14+00:00'
     subject: 'feat(api): recognize X-OpenMates-SDK: rust for API keys and Task activity'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/routes/user_tasks.py
@@ -6650,7 +6006,7 @@ sources:
     short_sha: 6f7e9d38bd
     authored_at: '2026-11-02T14:58:01+00:00'
     subject: 'fix(auth): bind pair approval to the rotated session credential'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/routes/auth_routes/auth_pair_v2.py
@@ -6661,7 +6017,7 @@ sources:
     short_sha: f0c5897604
     authored_at: '2026-11-02T14:51:48+00:00'
     subject: 'ci(rust): one cached Rust pipeline; remove self-built candidate-authority gate and hash pins'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .github/workflows/isolated-tests.yml
@@ -6776,7 +6132,7 @@ sources:
     short_sha: 36a7691ef4
     authored_at: '2026-11-02T14:49:48+00:00'
     subject: 'fix(selfhost): drop removed Firecrawl key from Rust env template'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/openmates-tui-native/src/server/templates.rs
@@ -6785,7 +6141,7 @@ sources:
     short_sha: 0f8139a399
     authored_at: '2026-11-02T14:49:12+00:00'
     subject: 'chore: remove remaining references to removed providers'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/scripts/workflow_authoring_model_cases.py
@@ -6797,7 +6153,7 @@ sources:
     short_sha: ad3dc704b4
     authored_at: '2026-11-02T14:46:45+00:00'
     subject: 'perf(rust): fast list after show, concurrent open-chat requests; drop retired skills and removed providers'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .github/workflows/selfhost-smoke-rust.yml
@@ -6873,7 +6229,7 @@ sources:
     short_sha: 2c4a3bddff
     authored_at: '2026-11-02T14:44:48+00:00'
     subject: 'feat: compact ranked chat context menu with More-menu parity'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/chat-menu-parity.spec.ts
@@ -6918,7 +6274,7 @@ sources:
     short_sha: 8bd7337fd5
     authored_at: '2026-11-02T14:36:54+00:00'
     subject: 'fix: keep follow-ups sending when chat recovery epoch is inactive'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/chat-followup-recovery-disabled.spec.ts
@@ -6936,7 +6292,7 @@ sources:
     short_sha: 8df408dbc8
     authored_at: '2026-11-02T14:11:28+00:00'
     subject: 'feat(web): add inert Rust core web adapter modules (not wired)'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/src/lib/rustCore/metadata.worker.ts
@@ -7039,7 +6395,7 @@ sources:
     short_sha: 0b9c94c74e
     authored_at: '2026-11-02T13:55:32+00:00'
     subject: 'feat(api): opt-in read_details on chat metadata batch for the Rust client'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/routes/chats.py
@@ -7051,7 +6407,7 @@ sources:
     short_sha: fedfbc80a1
     authored_at: '2026-11-02T13:32:19+00:00'
     subject: 'refactor(rust): one openmates crate (CLI + SDK) in a root Cargo workspace'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - Cargo.lock
@@ -7090,7 +6446,7 @@ sources:
     short_sha: 7f0707bb61
     authored_at: '2026-11-02T13:13:16+00:00'
     subject: 'feat(rust): read every web encryption format in Rust; add lean Rust-vs-TS benchmark'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - packages/openmates-rust/src/crypto.rs
@@ -7116,7 +6472,7 @@ sources:
     short_sha: 8b4cee30f0
     authored_at: '2026-11-02T12:49:38+00:00'
     subject: 'fix: keep managed worktrees a full week before hard expiry'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - CLAUDE.md
@@ -7128,7 +6484,7 @@ sources:
     short_sha: 30c4b8a143
     authored_at: '2026-11-02T12:47:57+00:00'
     subject: 'fix(rust): remove RUSTSEC-2026-0387 crypto-bigint from OPAQUE pairing chain'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/openmates-tui-native/Cargo.lock
@@ -7207,7 +6563,7 @@ sources:
     short_sha: 3c0c1310c5
     authored_at: '2026-11-02T12:45:16+00:00'
     subject: 'fix: host disk cleanup skips root-owned leftovers instead of failing'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/host_disk_cleanup.py
@@ -7217,7 +6573,7 @@ sources:
     short_sha: b93b9e5603
     authored_at: '2026-11-02T12:39:03+00:00'
     subject: 'feat: proactive disk cleanup, daily meeting brief script and non-blocking nightly selection'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_dispatch.py
@@ -7238,7 +6594,7 @@ sources:
     short_sha: e913ef1825
     authored_at: '2026-11-02T12:37:42+00:00'
     subject: 'chore: remove superseded codex_* script names'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/architecture/codex-task-cache.md
@@ -7253,7 +6609,7 @@ sources:
     short_sha: d753e89877
     authored_at: '2026-11-02T12:36:39+00:00'
     subject: 'feat: daily meeting brief, proactive disk cleanup and non-blocking nightly test selection'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/host_disk_cleanup.py
@@ -7264,7 +6620,7 @@ sources:
     short_sha: 3de6434413
     authored_at: '2026-11-02T12:35:07+00:00'
     subject: 'feat: link OpenMates Tasks to Claude Code sessions'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .claude/rules/task-management.md
@@ -7304,7 +6660,7 @@ sources:
     short_sha: 88ba203911
     authored_at: '2026-11-02T12:29:51+00:00'
     subject: 'feat(rust): land shared Rust core, native CLI/TUI and binding crates (inactive)'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - config/cli-command-catalog.json
@@ -8298,7 +7654,7 @@ sources:
     short_sha: a3472ff252
     authored_at: '2026-11-02T11:41:09+00:00'
     subject: 'chore: retire Linear and Codex agent workflow tooling'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .claude/agents/main-processor-guru.md
@@ -8416,7 +7772,7 @@ sources:
     short_sha: 9b6de93671
     authored_at: '2026-11-02T10:49:06+00:00'
     subject: 'chore: make Claude Code the agent harness and path-scope instructions'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .agents/skills/add-api/SKILL.md
@@ -8575,7 +7931,7 @@ sources:
     short_sha: 482d487833
     authored_at: '2026-11-02T07:19:30+00:00'
     subject: 'fix: make native Rust checkpoint preparation ready and register source'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .github/workflows/isolated-tests.yml
@@ -8598,7 +7954,7 @@ sources:
     short_sha: 944191d854
     authored_at: '2026-11-02T02:31:30+00:00'
     subject: 'test: register core-first Rust repair checkpoint'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_sdk_candidate_authorities.json
@@ -8608,142 +7964,197 @@ sources:
     short_sha: c1b6cdd280
     authored_at: '2026-11-02T00:04:52+00:00'
     subject: 'test: register verified Rust core checkpoint source'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_sdk_candidate_authorities.json
     - scripts/ci_sdk_candidate_authorities/a7ebac0bb1cf0f2f336498c691b95df9cc8985fc2c98d5e9489e6974ff78d567.json
     related_feature_ids: []
 llm_summary:
-  overview: OpenMates focused heavily on the transition to a shared Rust core across all platforms, landing the core logic,
-    native CLI/TUI implementations, and native bindings for the npm and Python SDKs. Significant progress was made on a new
-    chat sync feed architecture and internal agent workflows were migrated to Claude Code. The web frontend received enhancements
-    for voice dictation and context menu navigation.
-  released_changes: []
-  bug_fixes: []
-  unreleased_progress:
-  - text: OpenMates landed the shared Rust core and native CLI/TUI, including support for native signup, teams management,
-      and project file handling.
+  overview: OpenMates reached a major architectural milestone by landing a shared Rust core that now powers both the npm and
+    Python SDKs. This update also introduced live voice dictation for the web composer, a new high-performance chat sync feed,
+    and significant refinements to the Rust-based CLI and TUI.
+  released_changes:
+  - text: OpenMates added support for streaming voice dictation directly into the message composer editor.
     evidence:
       commits:
-      - 88ba203911
-      - b042adf90c
-      - 29f542b8f9
-      - 849d15fed5
-    release_status: dev_only
-  - text: The npm and Python SDKs were updated to call the shared Rust core through native bindings, with a portable WASM
-      build now available for the npm SDK.
+      - c5f7cae5d7
+    release_status: released_main
+  - text: The npm and Python SDKs now call a shared Rust core through native bindings and a portable WASM build, ensuring
+      consistent behavior across environments.
     evidence:
       commits:
       - c56f31d76e
       - 4ecf9bf7a7
-    release_status: dev_only
-  - text: A new capability-gated chat sync feed was implemented over WebSockets, supported by a durable change log and cold-start
-      feed cursors.
+      - 657506743e
+    release_status: released_main
+  - text: A new chat sync feed was introduced over WebSocket, supporting incremental updates and faster cold-starts for capable
+      clients.
     evidence:
       commits:
       - cb8beb2bae
-      - 6f6ea7c926
       - 8c16210575
-    release_status: dev_only
-  - text: The web frontend now supports streaming voice dictation into the composer and features a more compact, ranked chat
-      context menu.
+      - 4c8d41e274
+    release_status: released_main
+  - text: The web interface now features a compact ranked chat context menu with full parity to the primary action menu.
     evidence:
       commits:
-      - c5f7cae5d7
       - 2c4a3bddff
-    release_status: dev_only
-  - text: Internal agent workflows were migrated to Claude Code, including new capabilities to link OpenMates Tasks directly
-      to Claude sessions.
+    release_status: released_main
+  - text: The API now supports an opt-in for detailed chat metadata in batch requests, optimized for the Rust client.
+    evidence:
+      commits:
+      - 0b9c94c74e
+    release_status: released_main
+  bug_fixes:
+  - text: OpenMates resolved a batch of reported issues in the AI and Nutrition apps, including recipe search coverage, debug
+      decryption, and Edamam rate-limit throttling.
+    evidence:
+      commits:
+      - c3f6b42619
+      - 7b84286b16
+    release_status: released_main
+  - text: The project now suppresses chat response emails and push notifications when the final reply successfully reaches
+      an awaiting CLI or SDK socket.
+    evidence:
+      commits:
+      - 2ac08af0dd
+    release_status: released_main
+  - text: The public /v1/docs API now correctly serves the documentation tree.
+    evidence:
+      commits:
+      - 328ee16429
+    release_status: released_main
+  - text: Device pairing approval is now securely bound to the rotated session credential.
+    evidence:
+      commits:
+      - 6f7e9d38bd
+    release_status: released_main
+  - text: A fix was implemented to ensure follow-up messages continue sending even when the chat recovery epoch is inactive.
+    evidence:
+      commits:
+      - 8bd7337fd5
+    release_status: released_main
+  unreleased_progress:
+  - text: Internal work continues on the Rust core web adapter, including new worker dispatcher modules and Vite build integration.
+    evidence:
+      commits:
+      - 8df408dbc8
+      - 0180250adc
+      - 37fc662790
+    release_status: released_main
+  - text: The Rust CLI added support for project file management, focus settings, and source removal, though the Projects
+      platform remains disabled.
+    evidence:
+      commits:
+      - 849d15fed5
+      - de00c342cd
+      - 66978be1f3
+      - 6fffb48410
+    release_status: released_main
+  - text: Development progressed on linking OpenMates Tasks to Claude Code sessions, pending the enablement of the Tasks platform.
+    evidence:
+      commits:
+      - aef49a7d8d
+      - 3de6434413
+      - 06d7b980ca
+    release_status: released_main
+  - text: Native Rust CLI commands for team management, billing, and storage were added, awaiting the release of the Teams
+      platform.
+    evidence:
+      commits:
+      - a733de0e93
+      - 29f542b8f9
+      - d75334404c
+    release_status: released_main
+  internal_progress:
+  - text: OpenMates migrated its internal agent harness to Claude Code, retiring the previous Linear and Codex-based workflow
+      tooling.
     evidence:
       commits:
       - 9b6de93671
-      - 3de6434413
-      - aef49a7d8d
-    release_status: dev_only
-  - text: The Rust TUI experience was enhanced with a daily inspiration banner, a home screen carousel, and improved boot
-      sync performance.
-    evidence:
-      commits:
-      - 3dca378276
-      - 87844f8882
-      - ddf0a4c446
-      - c919dcdb97
-    release_status: dev_only
-  internal_progress:
-  - text: OpenMates consolidated the Rust build pipeline into a single cached workflow and removed self-built authority gates.
+      - a3472ff252
+      - e913ef1825
+    release_status: released_main
+  - text: The CI pipeline was consolidated into a single cached Rust pipeline, with new isolated lanes for building Python
+      and WASM SDK artifacts.
     evidence:
       commits:
       - f0c5897604
-    release_status: dev_only
-  - text: The project addressed security advisory RUSTSEC-2026-0387 by updating dependencies within the OPAQUE pairing chain.
-    evidence:
-      commits:
-      - 30c4b8a143
-    release_status: dev_only
-  - text: New automated maintenance scripts were added for proactive disk cleanup and daily meeting brief generation.
+      - 748a36a31e
+      - a3fab1ec34
+    release_status: released_main
+  - text: New infrastructure scripts were added for proactive host disk cleanup and automated daily meeting briefs.
     evidence:
       commits:
       - b93b9e5603
       - d753e89877
       - 3c0c1310c5
-    release_status: dev_only
-  - text: Documentation was updated to include the new chat sync feed architecture and an expanded SDK capability matrix.
-    evidence:
-      commits:
-      - 357f970a9e
-      - d805fe16dd
-    release_status: dev_only
+    release_status: released_main
   newsletter_recommendation:
-    include: []
-    exclude:
-    - text: Streaming voice dictation in the composer editor.
+    include:
+    - text: Live voice dictation streaming directly into the message composer.
       evidence:
         commits:
         - c5f7cae5d7
-      reason: This feature is currently in development (dev_only).
-    - text: Native Rust bindings and WASM core for npm and Python SDKs.
+      reason: High-impact user-facing feature for the web composer.
+    - text: The npm and Python SDKs now utilize a shared Rust core via native bindings and WASM for improved performance and
+        consistency.
       evidence:
         commits:
         - c56f31d76e
         - 4ecf9bf7a7
-      reason: These architectural changes are currently in development (dev_only).
-    - text: Native CLI/TUI signup and teams management.
-      evidence:
-        commits:
-        - b042adf90c
-        - 29f542b8f9
-      reason: These features are currently in development (dev_only) and target disabled platforms.
-    - text: Claude Code agent harness and task linking.
-      evidence:
-        commits:
-        - 9b6de93671
-        - 3de6434413
-      reason: This internal workflow integration is currently in development (dev_only).
-    - text: Capability-gated chat sync feed architecture.
+      reason: Major architectural milestone for the developer ecosystem.
+    - text: A new capability-gated chat sync feed over WebSocket enables faster cold-starts and incremental updates.
       evidence:
         commits:
         - cb8beb2bae
-      reason: This infrastructure update is currently in development (dev_only).
-    rationale: All user-facing features and improvements landed today are currently in development (dev_only) or target features
-      that are currently disabled in the production environment (Teams, Projects, and Tasks).
+        - 8c16210575
+      reason: Significant improvement to the synchronization experience across devices.
+    - text: A compact, ranked chat context menu providing parity with the standard More-menu.
+      evidence:
+        commits:
+        - 2c4a3bddff
+      reason: UI refinement that improves consistency between web and mobile views.
+    exclude:
+    - text: Rust CLI project file management and focus settings.
+      evidence:
+        commits:
+        - 849d15fed5
+        - de00c342cd
+        - 66978be1f3
+      reason: The Projects platform is currently disabled in feature availability.
+    - text: Integration between OpenMates Tasks and Claude Code sessions.
+      evidence:
+        commits:
+        - aef49a7d8d
+        - 3de6434413
+        - 06d7b980ca
+      reason: The Tasks platform is currently disabled in feature availability.
+    - text: Native Rust CLI commands for team management and billing.
+      evidence:
+        commits:
+        - a733de0e93
+        - 29f542b8f9
+      reason: The Teams platform is currently disabled in feature availability.
+    rationale: The day's highlights are dominated by the unification of the SDK core and the introduction of live voice dictation.
+      Several other features (Projects, Tasks, Teams) are excluded as they remain disabled in the current configuration.
   social_video_recommendations:
-  - idea: 'Voice to Text: Streaming dictation in the OpenMates composer.'
-    priority: High
-    reason: This is a high-utility user-facing feature with clear visual feedback that demonstrates product polish.
+  - idea: A short clip showing a user speaking and seeing the text stream instantly into the OpenMates composer.
+    priority: high
+    reason: Voice dictation is a highly visible, 'magical' feature that demonstrates product polish.
     evidence:
       commits:
       - c5f7cae5d7
-  - idea: 'The New OpenMates Rust TUI: A fast, native terminal experience.'
-    priority: Medium
-    reason: Showcases the new native home screen, inspiration banners, and carousel for developer audiences.
+  - idea: A side-by-side comparison of the old and new compact context menus to show improved UI density.
+    priority: medium
+    reason: Demonstrates ongoing commitment to UI/UX refinement.
     evidence:
       commits:
-      - 87844f8882
-      - 3dca378276
+      - 2c4a3bddff
   quality_notes:
-  - Performance optimizations for the Rust client include lazy sectioned sync caches and overlapping feed requests with session
-    admission (548fecd0a8, 6df18835ae).
-  - Actionable error messages were added for state-directory permission issues in the Rust CLI (ec5948c07f).
-  - Security maintenance included updating the OPAQUE pairing chain to resolve a crypto-bigint advisory (30c4b8a143).
+  - The transition to a shared Rust core for SDKs includes extensive conformance testing to ensure parity across platforms
+    (c56f31d76e).
+  - Security was improved by removing a vulnerable dependency from the OPAQUE pairing chain (30c4b8a143).
+  - Performance optimizations were applied to the chat sync feed to reduce HTTPS request overhead during catch-up (e25fdccf07).
   validation_warnings: []

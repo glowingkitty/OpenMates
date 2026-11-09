@@ -1,7 +1,7 @@
 schema_version: 1
 cadence: daily
 date: '2026-11-06'
-generated_at: '2026-11-07T00:20:46+00:00'
+generated_at: '2026-11-09T00:47:14+00:00'
 range:
   since: '2026-11-06T00:00:00+00:00'
   until: '2026-11-07T00:00:00+00:00'
@@ -67,34 +67,6 @@ feature_availability:
     override: disabled
     parent_id: app:web
     source: backend/apps/web/app.yml
-  - id: memory:health:appointments
-    kind: memory
-    default_enabled: false
-    effective_enabled: false
-    override: null
-    parent_id: app:health
-    source: backend/apps/health/app.yml
-  - id: memory:health:medical_history
-    kind: memory
-    default_enabled: false
-    effective_enabled: false
-    override: null
-    parent_id: app:health
-    source: backend/apps/health/app.yml
-  - id: memory:health:sleep_diary
-    kind: memory
-    default_enabled: false
-    effective_enabled: false
-    override: null
-    parent_id: app:health
-    source: backend/apps/health/app.yml
-  - id: memory:health:symptoms_log
-    kind: memory
-    default_enabled: false
-    effective_enabled: false
-    override: null
-    parent_id: app:health
-    source: backend/apps/health/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
@@ -5207,32 +5179,36 @@ sources:
     related_feature_ids:
     - app:ai
 llm_summary:
-  overview: OpenMates focused heavily on technical consolidation, migrating several core web services—including search, synchronization,
-    and authentication—into a shared Rust-based worker. Significant progress was also made on local privacy features, specifically
-    PII detection for documents, and enhancing the native Rust CLI to achieve parity with the npm version.
+  overview: OpenMates focused on a major architectural migration, moving core web services like search, chat sync, and authentication
+    into a shared Rust worker. User-facing improvements include refined unread message tracking, structure-preserving Office
+    document imports, and local PII scanning for attachments.
   released_changes: []
   bug_fixes:
-  - text: Websocket session authority now follows refresh-token rotation to prevent refused sends after page reloads.
+  - text: WebSocket session authority now follows refresh-token rotation to prevent refused messages after a page reload.
     evidence:
       commits:
       - 376a506462
     release_status: dev_only
-  - text: The shared Rust worker no longer drops in-flight crypto calls or pending unit requests during idle retirement.
+  - text: Send failures now trigger a visible error message in the UI instead of only a haptic vibration.
     evidence:
       commits:
-      - e33563e82f
-      - c745a07fc0
+      - cca7eab6d4
+    release_status: dev_only
+  - text: PDF skills now wait for OCR processing to complete and skip duplicate dispatch requests.
+    evidence:
+      commits:
+      - d70d07f6ed
+      - e946874353
     release_status: dev_only
   - text: Image embed previews were updated to show full images, generate thumbnails, and support viewing as app-skill embeds.
     evidence:
       commits:
       - 070c9bc4b3
     release_status: dev_only
-  - text: PDF skills now correctly wait for OCR completion and skip duplicate OCR dispatch.
+  - text: The start-call button now fades out when the welcome composer is focused to reduce visual clutter.
     evidence:
       commits:
-      - d70d07f6ed
-      - e946874353
+      - a199325769
     release_status: dev_only
   - text: Chat project actions are now hidden when the projects feature is inactive.
     evidence:
@@ -5240,86 +5216,79 @@ llm_summary:
       - 346b7d16c3
     release_status: dev_only
   unreleased_progress:
-  - text: OpenMates migrated chat search, sync, imports, auth, and crypto services to a shared Rust worker to improve web
-      performance and consistency.
+  - text: OpenMates is migrating web search indexing, chat sync, embed writes, app execution policies, and authentication
+      to a shared Rust worker.
     evidence:
       commits:
       - 91d85cf9a5
       - '6615330318'
+      - 30472ca70c
       - c577ddd944
       - b33404bac9
-      - 1a8270bd35
-      - d57ad3867e
       - 13c5be3d3f
       - 71f15bd439
-      - 30472ca70c
-      - 83fadc3fb9
+      - 1a8270bd35
+      - d57ad3867e
     release_status: dev_only
-  - text: Chat unread status logic was updated to persist until the last line of a reply is viewed in both the web and TUI
-      clients.
+  - text: A new unread logic is in development that keeps a chat unread until the last line of a reply has been seen.
     evidence:
       commits:
       - 9861e327eb
     release_status: dev_only
-  - text: Local PII detection now supports scanning pasted documents and attached files using overlapping word windows for
-      improved accuracy.
+  - text: Support for structure-preserving XLSX and DOCX imports is being finalized, with PPTX support planned.
+    evidence:
+      commits:
+      - a063bedda1
+    release_status: dev_only
+  - text: Local PII scanning for pasted text and attached files using a windowed model is in testing.
     evidence:
       commits:
       - f05cb8ee40
       - 6005f4bde0
     release_status: dev_only
-  - text: XLSX and DOCX imports now preserve document structure and formulas, with PPTX support in development.
+  - text: The native Rust CLI is gaining parity with npm for billing, finance, notifications, and account imports.
     evidence:
       commits:
-      - a063bedda1
-    release_status: dev_only
-  - text: The native Rust CLI added support for API-key chat operations, finance CSV checks, and initial read protocols for
-      Team Plans.
-    evidence:
-      commits:
-      - 7b297d8a2e
-      - c934446588
       - f6b670470d
-      - ff80a6587e
-      - 9423d37444
-      - 365185ca52
+      - 7b297d8a2e
+      - 2aaafd26ec
+      - c934446588
     release_status: dev_only
-  - text: The Python and npm SDKs were updated with new bindings for key management, model vectors, and shared API-key wire
-      operations.
+  - text: Work continues on unreleased features including durable task delivery, team plan protocols, and direct-chat sealing.
     evidence:
       commits:
-      - dcb20e2978
-      - eccd3addce
-      - 21043b8be6
+      - 8cfa598387
+      - 9423d37444
+      - ff80a6587e
     release_status: dev_only
-  - text: PDF processing was improved with concurrent safety scans to reduce readiness time for large files.
+  - text: PDF processing is being optimized with concurrent page safety scans.
     evidence:
       commits:
       - fb78e9f194
     release_status: dev_only
-  - text: The message input field now displays visible error messages when a send operation fails.
-    evidence:
-      commits:
-      - cca7eab6d4
-    release_status: dev_only
   internal_progress:
-  - text: CI infrastructure for SDK conformance was enhanced to project fatal Python error reasons, tracebacks, and stdlib
-      frame coordinates.
-    evidence:
-      commits:
-      - 232567468b
-      - 74a400600e
-      - 330c04b523
-      - b8e4f82dd7
-      - 5a3b279adb
-    release_status: dev_only
-  - text: Conformance adapters now run in a bounded pool with independent state directories and launch timing records.
+  - text: The SDK conformance suite now runs independent adapters in a bounded pool with isolated state directories and launch
+      timing exports.
     evidence:
       commits:
       - a27748f73b
-      - 47bacc123f
       - f4e6504829
       - e2982f4e36
+      - 47bacc123f
+    release_status: dev_only
+  - text: Internal daily meeting scripts were updated to track chats waiting on founder input and include missing task/reminder
+      cron data.
+    evidence:
+      commits:
+      - 4d2f5ca979
+      - c922580ac6
+      - 25ab7c4f53
+    release_status: dev_only
+  - text: An opt-in usage guard pace tier was added to stop chats when the weekly budget falls below a specific threshold.
+    evidence:
+      commits:
+      - ead7bcac80
+      - 5b36c93961
     release_status: dev_only
   - text: The disk coordinator now releases reservations held by dead owners.
     evidence:
@@ -5330,47 +5299,47 @@ llm_summary:
   newsletter_recommendation:
     include: []
     exclude:
-    - text: Migration of core web services (search, sync, auth, crypto) to a shared Rust worker.
+    - text: Migration of web search, sync, embeds, and auth to the shared Rust worker.
       evidence:
         commits:
         - 91d85cf9a5
-        - '6615330318'
+        - 30472ca70c
         - c577ddd944
         - b33404bac9
+        - 13c5be3d3f
         - 1a8270bd35
         - d57ad3867e
-      reason: These core architectural migrations to Rust are currently dev-only and not released to main.
-    - text: Local PII scanning for pasted documents and attached files.
+      reason: These core architectural migrations to Rust are currently dev_only and not yet released to the main branch.
+    - text: Improved XLSX and DOCX structure-preserving imports.
+      evidence:
+        commits:
+        - a063bedda1
+      reason: Feature is currently dev_only and not yet released to main.
+    - text: Local PII scanning for pasted documents and files.
       evidence:
         commits:
         - f05cb8ee40
         - 6005f4bde0
-      reason: Local PII scanning features are currently in development and not yet released.
-    - text: Enhanced XLSX and DOCX structure and formula preservation during import.
-      evidence:
-        commits:
-        - a063bedda1
-      reason: Office import improvements are currently dev-only.
-    rationale: No user-facing changes were released to the main branch during this period; all work is currently in development
-      or internal testing.
+      reason: Feature is currently dev_only and not yet released to main.
+    rationale: All changes from this period are classified as dev_only and have not yet reached the main branch for public
+      communication.
   social_video_recommendations:
-  - idea: A short clip showing a complex Excel sheet being imported into OpenMates with formulas and structure intact.
+  - idea: A short clip showing a complex XLSX file being imported into a chat while maintaining its structure and formulas.
     priority: medium
-    reason: Demonstrates a concrete productivity improvement for users handling data.
+    reason: This is a concrete product improvement that solves a common user pain point with document structure.
     evidence:
       commits:
       - a063bedda1
-  - idea: A privacy-focused video demonstrating the local PII model detecting sensitive names in a pasted document without
-      sending data to a server.
+  - idea: A privacy-focused video demonstrating the local PII model detecting sensitive information in a pasted document before
+      it is sent.
     priority: high
-    reason: Highlights the project's commitment to local-first privacy.
+    reason: Privacy is a core product pillar and local PII detection is a strong differentiator.
     evidence:
       commits:
       - f05cb8ee40
-      - 6005f4bde0
   quality_notes:
-  - Extensive benchmarking was added to compare TypeScript and Rust performance, specifically targeting a 'not noticeable'
-    performance budget.
-  - Memory slope gates were introduced to monitor heap and RSS usage during same-tab reloads.
-  - Differential testing between native and npm CLI implementations was expanded to cover projects, teams, and billing.
+  - A 'not noticeable' performance budget was adopted for web Rust changes (ead619a54b).
+  - New memory slope gates were implemented to monitor retained heap and RSS during same-tab reloads (bd077109ea).
+  - Differential testing between native and npm CLI implementations was expanded to cover projects, teams, and apps (20b1fd6c0e,
+    a30186247f).
   validation_warnings: []

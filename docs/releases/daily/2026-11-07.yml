@@ -1,7 +1,7 @@
 schema_version: 1
 cadence: daily
 date: '2026-11-07'
-generated_at: '2026-11-08T00:20:41+00:00'
+generated_at: '2026-11-09T00:47:42+00:00'
 range:
   since: '2026-11-07T00:00:00+00:00'
   until: '2026-11-08T00:00:00+00:00'
@@ -7679,172 +7679,157 @@ sources:
     - tests/sdk-conformance/runners/session-embed-version-content.py
     related_feature_ids: []
 llm_summary:
-  overview: 'OpenMates focused heavily on two major parallel tracks: a comprehensive redesign of the Memories system and the
-    ongoing migration of the web application''s core logic to Rust. The Memories update unifies various data types into a
-    single system with inline embed references, while the Rust migration saw the introduction of several new ''units'' for
-    handling chat state, persistence, and authentication within a shared worker. Additionally, voice call capabilities were
-    expanded with improved interaction handling.'
+  overview: 'OpenMates focused heavily on two major architectural initiatives: a comprehensive redesign of the Memories system
+    and the continued migration of web platform core logic to Rust. The Memories update unifies various data types and introduces
+    inline embed support, while the Rust migration reached significant milestones in chat state management, persistence, and
+    authentication. Additionally, responsiveness improvements for voice interactions were introduced in development environments.'
   released_changes: []
   bug_fixes:
-  - text: The sidebar project navigator was updated to only list projects that contain active chats.
+  - text: The sidebar project navigator now correctly filters the list to only display projects that contain active chats.
     evidence:
       commits:
       - 588b70fda3
     release_status: dev_only
-  - text: Memories UI fixes addressed breadcrumb translation issues and ensured that recovered mixed-memory approvals correctly
-      retain automated entries.
+  - text: Memory deep-links and breadcrumbs now correctly display translated titles in the settings interface.
     evidence:
       commits:
       - 1287b76aa2
-      - 6f1f0b3e4c
     release_status: dev_only
-  - text: Resolved an issue where accepted messages were aborted if the composer chat binding moved during the send process.
+  - text: Resolved an issue where accepted message sends were aborted if the composer chat binding moved during the process.
     evidence:
       commits:
       - a1e92a6169
     release_status: dev_only
-  - text: SDK and CI stability improvements include pinning Playwright workflows to Ubuntu 24.04 and fixing Python interpreter
-      exit hangs in the session bindings.
+  - text: The Python SDK now prevents tokio completion re-attachment during interpreter exit to ensure cleaner shutdowns.
     evidence:
       commits:
       - 2bd01bca77
-      - 2a0929e6db
-      - d2c54fa439
     release_status: dev_only
   unreleased_progress:
-  - text: OpenMates is overhauling the Memories system, replacing separate app-specific memories with a unified model that
-      supports inline embed references, workflow snapshots, and project-based expiry.
+  - text: OpenMates is overhauling the Memories system to use a unified format that supports inline embeds and workflow snapshots
+      while removing legacy typed app memories.
     evidence:
       commits:
       - 1eb03c4acf
       - 67b0f31aa0
       - 77c0b15368
       - 6a2f455b23
+      - 6f1f0b3e4c
     release_status: dev_only
-  - text: Voice call capabilities were expanded to include barge-in detection on first words, instant acknowledgements, and
-      automated skill recaps during the call.
-    evidence:
-      commits:
-      - 2773572e37
-      - 26d6f60530
-    release_status: dev_only
-  - text: The Rust migration for the web platform progressed with new units for ChatState (list ordering, unread bookkeeping,
-      bookmarks), Persist (IndexedDB policies), Composer (PII detection, code language detection), and Transfer (ZIP and YAML
-      exports).
+  - text: The web platform's persistence layer is being migrated to Rust, including new IndexedDB message row policies and
+      quota recovery logic.
     evidence:
       commits:
       - 6798a8d93c
       - a974897e24
       - 4fef042de1
-      - 6f7afa392a
-      - bc77186697
-      - 3c5859ad96
-      - 13c341c23b
-      - 0f2f1c1d81
-      - 4e972b3312
-      - c414ab8f20
-      - 2aa5cd645c
-      - 9180fbf2f7
-      - bc918c7a66
-      - c2aa4b1a9a
-      - f725997112
-      - e4f6092364
-      - 7ee4459ff5
-      - a3b525cbd3
-      - eedfd6e590
-      - 0e54730b8a
-      - 5643d35c26
-      - dcc2ea813e
     release_status: dev_only
-  - text: The project added worker-resident crypto and authentication logic, including chat-key admission policies, guest
-      promotion plans, and push-to-store adapters for 2FA and signup flows.
+  - text: A new Rust-based chatState unit was developed to handle chat list ordering, unread bookkeeping, encrypted bookmarks,
+      and message highlights.
+    evidence:
+      commits:
+      - bc77186697
+      - 6f7afa392a
+      - 13c341c23b
+      - 3c5859ad96
+      - 4e972b3312
+    release_status: dev_only
+  - text: Authentication flows, including login, signup, and 2FA management, are being transitioned to the shared Rust core.
     evidence:
       commits:
       - 84cb77e2a6
-      - c89aa32172
-      - 535f549d0d
-      - 5ce60fbeaf
       - 52e4a2266c
       - 6df2e95b16
-      - cc77c3fbe1
-      - b4e558abb6
     release_status: dev_only
-  - text: The CLI now supports native draft previews and interactive-answer exit codes.
+  - text: Voice call capabilities are being enhanced with barge-in support on first words and instant acknowledgments for
+      a more natural conversational flow.
     evidence:
       commits:
-      - b5799e3802
+      - 2773572e37
+      - 26d6f60530
+    release_status: dev_only
+  - text: The composer unit in the Rust core now supports PII detection and replacement, code-language detection, and improved
+      mention ranking.
+    evidence:
+      commits:
+      - dcc2ea813e
+      - 0e54730b8a
+      - 5643d35c26
+    release_status: dev_only
+  - text: New data transfer capabilities in Rust allow for zip-based account exports and PII restoration during chat exports.
+    evidence:
+      commits:
+      - c2aa4b1a9a
+      - f725997112
     release_status: dev_only
   internal_progress:
-  - text: The project established a structured YAML-based tracking system for the Rust migration, linking units and lanes
-      to specification assertions and recording performance benchmarks.
+  - text: CI workflows utilizing Playwright have been pinned to Ubuntu 24.04 for improved environment stability.
     evidence:
       commits:
-      - ed0a979017
-      - 8d6a75ee95
-      - 748c9c1b20
-      - da83056b4b
-      - a6fb7884f8
-      - 8008dc463c
-      - 918b472aa9
-      - 51b5fd0b3d
+      - 2a0929e6db
     release_status: dev_only
-  - text: Internal tooling was enhanced with new session edit gates, parallel lane session support, and automated migration
-      linting.
+  - text: Internal session management tools were updated with enhanced edit gates and automated tracking for parallel agent
+      workflows.
     evidence:
       commits:
-      - fd7e89bac4
+      - 6cb0d8d894
       - 1dc8970e11
       - 366e1e3f35
       - fb75b02623
-      - 6cb0d8d894
-      - 70ceb38f89
+    release_status: dev_only
+  - text: The project established a structured YAML-based tracking system for the ongoing Rust migration, linking units and
+      lanes to specific architectural assertions.
+    evidence:
+      commits:
+      - 51b5fd0b3d
+      - 918b472aa9
+      - 8008dc463c
+      - ed0a979017
     release_status: dev_only
   newsletter_recommendation:
     include: []
     exclude:
-    - text: Voice call barge-in and skill recaps.
-      evidence:
-        commits:
-        - 2773572e37
-        - 26d6f60530
-      reason: Voice call enhancements are currently dev-only and not ready for public communication.
-    - text: Unified Memories redesign.
+    - text: Unified Memories and Project Overhaul
       evidence:
         commits:
         - 1eb03c4acf
         - 67b0f31aa0
         - 77c0b15368
-        - 6a2f455b23
-      reason: The Memories system overhaul is a major architectural change still in development.
-    - text: Web-Rust core migration units.
+      reason: The unified Memories system and related project features are currently disabled and marked for development only.
+    - text: Voice Call Barge-in and Responsiveness
+      evidence:
+        commits:
+        - 2773572e37
+        - 26d6f60530
+      reason: Voice call enhancements are currently in development and not yet available for public use.
+    - text: Web Platform Rust Migration
       evidence:
         commits:
         - 6798a8d93c
-        - 6f7afa392a
+        - bc77186697
+        - 84cb77e2a6
         - c414ab8f20
-        - 9180fbf2f7
-        - bc918c7a66
-      reason: The Rust core migration is an internal platform update not yet enabled for general users.
-    rationale: All user-facing changes from this period are classified as dev-only or relate to features currently disabled
-      in the production environment. No items meet the criteria for public communication.
+      reason: The Rust core migration for the web platform is an internal architectural change and not yet released to users.
+    rationale: All user-facing features developed during this period are currently behind feature flags or marked as development-only,
+      making them unsuitable for public communication at this time.
   social_video_recommendations:
-  - idea: Demonstrate the new voice call 'barge-in' capability, showing how the assistant instantly acknowledges interruptions
-      and recaps skill usage.
+  - idea: Demonstrate the new voice call barge-in and instant acknowledgement features to show improved assistant responsiveness.
     priority: medium
-    reason: This provides a concrete, visual (and auditory) improvement to the assistant's conversational fluidity.
+    reason: Voice responsiveness is a highly visible product improvement that translates well to video.
     evidence:
       commits:
       - 2773572e37
-  - idea: A walkthrough of the new Unified Memories interface, highlighting how users can now see inline references to documents
-      and events within their saved memories.
+      - 26d6f60530
+  - idea: Showcase the unified Memories interface, highlighting how users can now reference embeds inline within their personal
+      context.
     priority: low
-    reason: The feature is still dev-only, but the UI changes are significant enough for a 'coming soon' teaser.
+    reason: This is a major UX shift, though it should wait until the feature is enabled by default.
     evidence:
       commits:
       - 1eb03c4acf
+      - 67b0f31aa0
   quality_notes:
-  - The migration to Rust is being tracked with high granularity, including performance budgets and specification-linked assertions.
-  - The removal of 'typed app memories' in favor of a unified system represents a significant simplification of the AI context
-    model.
-  - Extensive use of 'vectors' for cross-language testing between TypeScript and Rust ensures logic parity during the migration.
+  - Significant focus on architectural integrity through the Rust migration.
+  - Extensive use of automated test vectors to validate cross-platform logic parity.
+  - Proactive cleanup of legacy typed memory systems in favor of a unified model.
   validation_warnings: []
