@@ -25,12 +25,19 @@ What may be worked on is defined in [`FOCUS.md`](../../../FOCUS.md)
      appendices with all reminders/chats/Tasks/commits;
    - renders it as a PDF (`scripts/daily_meeting_pdf.py`; the Claude app cannot
      fetch the long Markdown from a link) and uploads that with
-     `scripts/response_media.py` (private S3 link, 48 h), then posts the link to Discord (`DISCORD_WEBHOOK_DAILY_MEETING`, else
+     `scripts/response_media.py` (private S3 link, 48 h), then, before posting, checks that Tasks, reminders and Claude chats are live (up to 2 retries, 60 s apart); the Discord message says either "live as of HH:MM" or exactly what is not up to date, and the PDF opens with a warning banner for stale Tasks or reminders. Then it posts the link to Discord (`DISCORD_WEBHOOK_DAILY_MEETING`, else
      `DISCORD_WEBHOOK_DEV_NIGHTLY`).
 3. **Meeting:** download the PDF from the Discord link, attach it in the
    daily-meeting chat in the Claude app and start a voice call. Claude asks
    exactly one question at a time, with a recommendation, then waits. The meeting
-   ends with a `DECISIONS <date>` note.
+   has 6 blocks and is built for ADHD: Block 1 is a check-in in the founder's own
+   words (what have you been up to, how happy with the progress 1-5, largest
+   priorities, energy today 1-5), then safety net (production alerts, chats waiting),
+   focus (max 3 tasks, each with a 5-minute first step, time slot and stop rule),
+   reminders in groups with times, parking lot, and an optional 5-minute backlog
+   cleanup that is skipped when energy is low. Ideas that come up mid-meeting are
+   parked in one line, and it ends with a three-line read-back. The meeting ends
+   with a `DECISIONS <date>` note whose first line is `Check-in:`.
 4. **Write-back:** paste the note into a Claude Code chat on the dev server; the
    `daily-meeting-and-orchestration` skill updates FOCUS.md, Reminders and
    OpenMates Tasks and can start the approved work chats.

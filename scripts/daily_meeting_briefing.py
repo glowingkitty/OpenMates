@@ -22,6 +22,7 @@ import re
 import os
 from pathlib import Path
 import subprocess
+import time
 import sys
 from zoneinfo import ZoneInfo
 
@@ -102,53 +103,78 @@ def _reminder_line(item: dict) -> str:
     return f"- {item['title']} — {item['list']}, {_due_label(item)}"
 
 
+RETRIES = 2
+RETRY_WAIT_SECONDS = 60
+
 MEETING_SCRIPT = """\
 ## How to run this meeting (instructions for Claude)
-You are running a ~15-minute **voice** daily meeting with the founder of OpenMates, \
-a solo founder who often has 10–15 agent chats running and keeps getting \
-pulled into new features and bugs while marketing (videos, press) slips.
+You are running a ~20-minute **voice** daily meeting with the founder of OpenMates, \
+a solo founder who has ADHD, often has 10–15 agent chats running and keeps getting \
+pulled into new features and bugs while marketing (videos, press) slips. \
+The meeting must lower overwhelm, not add to it.
 - Speak short, plain sentences. Never read IDs, links or long lists aloud; summarize.
-- Ask **exactly one question at a time**, with your recommendation, then wait for the answer.
+- Ask **exactly one question at a time**, with your recommendation where one applies, then wait.
 - Respect the phase rules below. In a Marketing Week, gently push back on features, \
 refactors, UX polish and bug fixes that do not block marketing; offer the parking lot.
-- Flow: (0) if the briefing opens with a ⚠ warning that the OpenMates Tasks are not up to date or unavailable, \
-say so first, before anything else; (1) one-sentence recap of yesterday and today's phase, then ask about \
-yesterday's tasks (done, not done, moved?) — skip that question only when the git \
-commits make the answer obvious, and then still ask for a one-line confirmation; (1b) **production first**: \
-summarize the "Alerts" section in a few sentences — reported production issues (new or \
-not processed yet), then dev reports, then the errors that repeat most — and ask whether \
-anything needs attention before planning; production reports outrank everything else; \
-(1c) **chats waiting on the founder**: go through the "Chats waiting" section one chat at a time \
-(questions and blockers first), say in one sentence what it is waiting for and ask what to do — continue \
-(and with what reply), park, archive or done — with your recommendation; \
-(2) agree **today's \
-single focus** — propose one from the week's goals; (3) go through overdue and \
-today/tomorrow reminders **in groups** (done / move to a date and time you suggest / \
-keep), not one by one. Every moved or new reminder needs a **time of day**, never \
-just a date — suggest one; (4) agree **up to 3 tasks**; (5) parking-lot additions/removals and \
-week-goal changes; (6) **backlog cleanup**, time-boxed to ~5 minutes — see below; \
-(7) read back and output the decisions note.
-- **Backlog cleanup** (section 4): the meeting is not only for prioritizing today but \
-also for keeping the to-do lists healthy. Take the batch in groups of 3-5 related items \
-(one question per group, with your recommendation): which can be **closed or deleted** \
-(obsolete, done, no longer wanted), **merged** into another (duplicates), **delayed** \
-(park for a later Build Week) or **kept**. Be critical: say when an item looks stale, \
-vague or contradicts the current goals. In a Marketing Week, recommend delaying \
-non-marketing items. Never decide for the founder; deletion needs a clear "yes".
-- Ask clarifying questions in these directions: what blocks this week's goals; \
-deadlines at risk; loose ends from yesterday's chats (finish, park or drop?); \
-whether too many chats are running (and whether the remaining weekly Claude usage \
-covers the planned agent work — if it runs out before the reset, cut agent work first); \
-parked code that is about to be purged; open GitHub issues and Linear issues \
-(Appendix D) that block a goal or can be closed or parked; reminders whose date no longer makes sense.
-- Finish with the decisions note **exactly in this format** in a code block, so it \
-can be pasted back to the development server:
+- **ADHD-friendly rules:** (a) open by naming the 6 blocks and the time budget, and say \
+"Block N of 6" when you move on, so the founder always knows where we are; (b) never more \
+than **3** commitments for the day, each with a concrete **first step that takes 5 minutes** \
+and a time of day; (c) a new idea mid-meeting is parked in one line ("parked: …") and the \
+meeting returns to the agenda — never debate it now; (d) when the founder rambles, reflect \
+back in one sentence and ask the next question; (e) if energy is low (1–2), plan one small \
+win first and drop the backlog cleanup; (f) add a stop rule to each task ("if X is not \
+working after 45 minutes, park it and tell me"); (g) end with a three-line read-back.
+- **Flow (6 blocks):**
+  - **Block 1 — Check-in (the founder talks, you listen).** Ask these four, one at a time, \
+and do not use the briefing yet: (1) What have you been up to since the last meeting — what \
+did you work on? (2) How happy are you with that progress, 1–5, and why? (3) What do you \
+currently see as the largest priorities? (4) How is your energy today, 1–5? Then reflect \
+back in two sentences and compare gently with the facts in the briefing (commits, Task \
+changes, yesterday's decisions): name any mismatch ("you said X, but I see no commits for \
+it — blocked, or moved?"). Ask about yesterday's tasks (done, not done, moved?) unless the \
+git commits make it obvious — then still ask for a one-line confirmation.
+  - **Block 2 — Safety net.** If the briefing opens with a ⚠ warning that the OpenMates \
+Tasks or the reminders are not up to date, say so first. Then **production first**: \
+summarize the "Alerts" section in a few sentences — reported production issues (new or not \
+processed yet), then dev reports, then the errors that repeat most — and ask whether anything \
+needs attention before planning; production reports outrank everything else. Then the \
+**chats waiting on the founder**: one chat at a time (questions and blockers first), say in \
+one sentence what it is waiting for and ask what to do — continue (and with what reply), \
+park, archive or done — with your recommendation. Stop after the top 3 chats if energy is low.
+  - **Block 3 — Focus.** Agree **today's single focus** — propose one from the week's goals \
+and the founder's stated priorities — then up to **3 tasks**, each with done-criterion, \
+first 5-minute step, time slot and stop rule.
+  - **Block 4 — Reminders.** Go through overdue and today/tomorrow reminders **in groups** \
+(done / move to a date and time you suggest / keep), not one by one. Every moved or new \
+reminder needs a **time of day**, never just a date — suggest one. Offer one optional \
+midday reminder "Still on <focus>?" as a gentle anchor. Spread moved reminders over several \
+days so no day is overloaded.
+  - **Block 5 — Parking lot and week goals.** Additions/removals and week-goal changes. \
+Read back anything parked during the meeting.
+  - **Block 6 — Backlog cleanup (optional, max 5 minutes, skip if energy is low or the \
+meeting already ran 20 minutes).** The meeting also keeps the to-do lists healthy. Take \
+**one** batch in groups of 3-5 related items (one question per group, with your \
+recommendation): which can be **closed or deleted** (obsolete, done, no longer wanted), \
+**merged** into another (duplicates), **delayed** (park for a later Build Week) or **kept**. \
+Be critical: say when an item looks stale, vague or contradicts the current goals. In a \
+Marketing Week, recommend delaying non-marketing items. Never decide for the founder; \
+deletion needs a clear "yes".
+- Ask clarifying questions in these directions when relevant: what blocks this week's goals; \
+deadlines at risk; whether too many chats are running (and whether the remaining weekly \
+Claude usage covers the planned agent work — if it runs out before the reset, cut agent \
+work first); parked code that is about to be purged; open GitHub issues and Linear issues \
+(Appendix D) that block a goal or can be closed or parked; reminders whose date no longer \
+makes sense.
+- Close with the three-line read-back: "Today: <focus>. First step: <step> at <time>. \
+Parked: <items>." Then output the decisions note **exactly in this format** in a code block, \
+so it can be pasted back to the development server:
 
 ```
 DECISIONS {date}
+Check-in: progress <1-5>, energy <1-5>; did: <one line>; priorities: <up to 3, one line>
 Focus: <single most important task today>
 Tasks:
-1. <task> (done when: …)
+1. <task> (done when: …; first step: …; at HH:MM; stop rule: …)
 Reminders:
 - "<exact reminder title>" -> done | move YYYY-MM-DD HH:MM | keep
 New reminders:
@@ -250,6 +276,16 @@ def _waiting_section(waiting: dict) -> list[str]:
     return out + [""]
 
 
+def _reminders_banner(rem: dict) -> list[str]:
+    if rem.get("source") == "live":
+        return []
+    if rem:
+        return [f"> **⚠ Apple Reminders are NOT up to date** — the Mac was unreachable, so this briefing uses "
+                f"the copy synced {str(rem.get('fetched_at', '?'))[:16]} UTC. Say this at the start of the meeting.", ""]
+    return ["> **⚠ Apple Reminders are UNAVAILABLE** — no live read and no earlier copy. Say this at the "
+            "start of the meeting.", ""]
+
+
 def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> str:
     name, monday, sunday = phase(today)
     next_name, next_monday, _ = phase(monday + timedelta(days=7))
@@ -261,6 +297,7 @@ def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> s
     mkt = ev.get("marketing") or {}
     out = [f"# OpenMates daily meeting briefing — {today.strftime('%A %d %B %Y')}", ""]
     out += _tasks_banner(ev.get("tasks_status") or {})
+    out += _reminders_banner(ev.get("reminders") or {})
     out.append(f"**Phase:** {name} ({monday:%d %b}–{sunday:%d %b}); next: {next_name} from "
                f"{next_monday:%a %d %b}.  ")
     source = rem.get("source")
@@ -401,12 +438,36 @@ def post_discord(root: Path, text: str) -> dict:
     raise RuntimeError("no Discord webhook configured")
 
 
-def discord_text(today: date, url: str) -> str:
+def freshness(evidence: dict) -> list[str]:
+    """What is NOT current in the evidence (empty list = Tasks, reminders and chats all live)."""
+    problems = []
+    tasks = evidence.get("tasks_status") or {}
+    if tasks.get("source") != "live":
+        stamp = f"copy from {tasks['fetched_at'][:16]} UTC" if tasks.get("fetched_at") else "no copy"
+        problems.append(f"OpenMates Tasks not live ({stamp})")
+    rem = evidence.get("reminders") or {}
+    if rem.get("source") != "live":
+        problems.append(f"Apple Reminders not live (copy synced {str(rem.get('fetched_at', '?'))[:16]} UTC)"
+                        if rem else "Apple Reminders unavailable")
+    if not evidence.get("claude_chats"):
+        problems.append("no Claude chats found on the dev server")
+    return problems
+
+
+def discord_text(today: date, url: str, problems: list[str] | None = None, generated: str = "") -> str:
     name, _, _ = phase(today)
-    return (f"**Daily meeting briefing — {today:%a %d %b}** ({name})\n"
+    status = ("✅ Tasks, reminders and Claude chats are live" + (f" as of {generated}" if generated else "")
+              if not problems else "⚠️ Not up to date: " + "; ".join(problems))
+    return (f"**Daily meeting briefing — {today:%a %d %b}** ({name})\n{status}\n"
             f"Download the PDF and attach it in the daily-meeting chat. Claude: read all of it, "
             f"then run today's voice daily meeting exactly as its \"How to run this meeting\" "
             f"section describes.\n{url}\n(private link, valid 48 h)")
+
+
+def _collect(root: Path, out: Path, today: date) -> dict:
+    if context.main(["collect", "--root", str(root)]):
+        raise RuntimeError("context collection failed")
+    return json.loads((out / f"{today.isoformat()}-context.json").read_text())
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -434,9 +495,14 @@ def main(argv: list[str] | None = None) -> int:
         print(f"already sent: {state[today.isoformat()]}")
         return 0
     try:
-        if context.main(["collect", "--root", str(root)]):
-            raise RuntimeError("context collection failed")
-        evidence = json.loads((out / f"{today.isoformat()}-context.json").read_text())
+        evidence = _collect(root, out, today)
+        problems = freshness(evidence)
+        for _ in range(RETRIES if problems else 0):  # Mac or CLI may only be briefly unreachable
+            time.sleep(RETRY_WAIT_SECONDS)
+            evidence = _collect(root, out, today)
+            problems = freshness(evidence)
+            if not problems:
+                break
         summary = summarize_chats(evidence.get("claude_chats", []), evidence.setdefault("gaps", []))
         path.write_text(render(evidence, summary, today, now))
         path.chmod(0o600)
@@ -451,7 +517,8 @@ def main(argv: list[str] | None = None) -> int:
                                                 expires_in=LINK_SECONDS)
             result["url"] = upload["url"]
             if not args.no_send:
-                result["discord"] = post_discord(root, discord_text(today, upload["url"]))
+                result["discord"] = post_discord(root, discord_text(today, upload["url"], problems,
+                                                              now.astimezone(TZ).strftime("%H:%M")))
                 state[today.isoformat()] = {"sent": now.isoformat(), "key": upload.get("key")}
                 state_path.write_text(json.dumps(state, indent=1))
     except (RuntimeError, ValueError, OSError, subprocess.TimeoutExpired) as error:

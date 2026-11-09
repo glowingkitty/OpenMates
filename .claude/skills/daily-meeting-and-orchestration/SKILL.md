@@ -11,6 +11,7 @@ posted to Discord). Its output is a decisions note the user pastes here:
 
 ```
 DECISIONS 2026-11-04
+Check-in: progress <1-5>, energy <1-5>; did: …; priorities: …
 Focus: …
 Tasks:
 1. … (done when: …)
@@ -32,7 +33,7 @@ The note is the user's approved decision: apply it without re-asking, and ask
 only when an item is ambiguous (e.g. a reminder title matches none or several).
 
 ## Apply
-0. **Save the note** verbatim as `logs/daily-meetings/<date>-decisions.md`
+0. **Save the note** verbatim (the `Check-in:` line is context only: nothing to apply) as `logs/daily-meetings/<date>-decisions.md`
    (chmod 600, private); the next briefing shows it as the previous meeting.
    Personal notes (health, authorities, private links) stay there, never in FOCUS.md.
 1. **FOCUS.md** (repo root, work-related only): set *Today's focus* (focus + the
