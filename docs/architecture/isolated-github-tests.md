@@ -59,7 +59,7 @@ accounts or runtime seeds, and are not lightweight (macOS runners are scarce, ab
 
 - `apple-core --spec all`: rustup 1.98.1, builds PairOpaqueBridge for the
   iphonesimulator arm64 slice with its build-phase environment, runs the
-  PairOpaqueBridge and `openmates-rust` workspace tests natively on macOS, and
+  PairOpaqueBridge and `openmates-sdk` (`packages/openmates-rust`) tests natively on macOS, and
   runs `swift test` on `apple/OpenMatesCore` only when that package exists
   (otherwise a visible skipped row). Cargo state is cached on `Cargo.lock`.
 - `apple-unit --spec all` (or `OpenMatesTests/<Class>[/<test>]`): fetches the

@@ -1747,6 +1747,9 @@ def _fetch_reserved(github, job: dict, root: Path) -> dict:
             "runner_name", ""
         ).startswith("GitHub Actions")
 
+    if job.get("mode") in ("apple-core", "apple-unit"):
+        # The workflow's other job is skipped for these modes and never gets a runner.
+        runner_jobs = [e for e in runner_jobs if e.get("conclusion") != "skipped"]
     if not runner_jobs or any(not admitted_runner(entry) for entry in runner_jobs):
         raise RuntimeError(
             "Test evidence did not execute exclusively on admitted isolated runners"

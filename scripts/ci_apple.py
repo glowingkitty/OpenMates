@@ -4,7 +4,7 @@ Both modes run on a GitHub-hosted `macos-26` arm64 runner with Xcode 26.2 (the
 version apple/project.yml pins), never on the shared dev host.
 
   apple-core   target `all`: build PairOpaqueBridge for the iOS simulator slice
-               with the Xcode build-phase semantics, run the Rust workspace and
+               with the Xcode build-phase semantics, run the openmates-sdk (packages/openmates-rust) and
                PairOpaqueBridge test suites natively on macOS, and test the
                Swift package apple/OpenMatesCore when it exists.
   apple-unit   targets `all` or `OpenMatesTests[/<Class>[/<test>]]`: fetch the
@@ -75,8 +75,8 @@ def core_plan(root: Path, results: Path) -> list[Step]:
             "",
         ),
         (
-            "openmates-rust tests (macOS)",
-            ["cargo", "test", "--workspace", *RUST_TEST_FLAGS],
+            "openmates-sdk tests (macOS)",
+            ["cargo", "test", "-p", "openmates-sdk", *RUST_TEST_FLAGS],
             toolchain,
             "",
         ),
