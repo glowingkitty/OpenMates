@@ -1074,7 +1074,7 @@ async def _anonymous_post_processing_event(
             user_system_language=payload.system_language,
             current_chat_title=title,
             quick_tips_enabled=False,
-            learning_mode_context=payload.learning_mode,
+            learning_mode_context=build_anonymous_request_learning_mode_context(payload.learning_mode),
             translate_ui_metadata=False,
             allow_model_fallbacks=False,
             usage_callback=usage_events.append,

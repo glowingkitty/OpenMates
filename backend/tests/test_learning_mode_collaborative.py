@@ -316,3 +316,32 @@ def test_voice_learning_focus_instruction_only_for_voice_with_learning_or_focus(
         {VOICE_LEARNING_FOCUS_INSTRUCTION_KEY: "bundle text"},
         voice_mode=True, learning_mode_active=True, focus_active=False,
     ) == "bundle text"
+
+
+# contract-test: supporting surface=rest_api assertions=learning-mode.anonymous-client-side
+def test_anonymous_route_never_forwards_the_raw_client_learning_mode_payload() -> None:
+    """Every anonymous AI step must see the sanitized context, never client input."""
+    source = (
+        Path(__file__).resolve().parents[1] / "core/api/app/routes/anonymous.py"
+    ).read_text()
+    assert "learning_mode_context=payload.learning_mode" not in source
+    assert "learning_mode_context=build_anonymous_request_learning_mode_context(" in source
+
+
+_WIKI_LABEL_CASES = [
+    ("Photosynthese", "Photosynthese", True),
+    ("Zelle", "Zelle (Biologie)", True),
+    ("größe", "Größe", True),
+    ("Éclair", "Éclair", True),
+    ("光合作用", "光合作用", True),
+    ("Zellen", "Zelle (Biologie)", False),
+    ("", "Photosynthese", False),
+]
+
+
+# contract-test: supporting surface=rest_api assertions=learning-mode.term-definitions
+@pytest.mark.parametrize(("label", "canonical", "expected"), _WIKI_LABEL_CASES)
+def test_wiki_term_labels_match_translated_article_titles(label: str, canonical: str, expected: bool) -> None:
+    from backend.shared.providers.wikipedia.learning import wiki_label_matches
+
+    assert wiki_label_matches(label, canonical) is expected
