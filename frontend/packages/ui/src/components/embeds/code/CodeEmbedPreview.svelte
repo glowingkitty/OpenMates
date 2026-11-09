@@ -27,7 +27,9 @@
   import { text } from '@repo/ui';
   import { countCodeLines, formatLanguageName, parseCodeEmbedContent } from './codeEmbedContent';
   import InteractiveHtmlFrame from './InteractiveHtmlFrame.svelte';
-  import { isInteractiveHtmlCode } from './interactiveHtmlSandbox';
+  import ProgressiveHtmlFrame from './ProgressiveHtmlFrame.svelte';
+  import SvgEmbedImage from './SvgEmbedImage.svelte';
+  import { isInteractiveHtmlCode, resolveCodePreviewKind } from './interactiveHtmlSandbox';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
   import { embedPIIStore, addEmbedPIIMappings, removeEmbedPIIMappings } from '../../../stores/embedPIIStore';
   import { loadEmbedPIIMappings } from '../../enter_message/services/codeEmbedService';
@@ -240,11 +242,18 @@
   let renderLanguage = $derived(parsedContent.language || '');
   let renderFilename = $derived(parsedContent.filename);
   let displayLanguage = $derived.by(() => formatLanguageName(renderLanguage));
+  let visualKind = $derived(resolveCodePreviewKind(renderLanguage, renderFilename, renderCodeContent));
+  // SVG embeds render as an image, progressively while streaming.
+  let showSvgImage = $derived(visualKind === 'svg' && (!!renderCodeContent || status === 'processing'));
   // Finished HTML embeds render as a live sandboxed visual instead of source.
   let showInteractiveHtml = $derived(
     status === 'finished' && !!renderCodeContent && isInteractiveHtmlCode(renderLanguage, renderFilename)
   );
-  
+  // Streaming HTML shows the script-free partial document until generation ends.
+  let showProgressiveHtml = $derived(
+    status === 'processing' && !!renderCodeContent && isInteractiveHtmlCode(renderLanguage, renderFilename)
+  );
+
   let previewLines = $derived.by(() => {
     const c = renderCodeContent;
     if (!c) return [];
@@ -421,7 +430,15 @@
 	        <div class="code-run-output-preview" data-testid="code-run-output-preview">
 	          <pre>{savedRunOutputPreviewText}</pre>
 	        </div>
-	      {:else if showInteractiveHtml}
+	      {:else if showSvgImage}
+        <div class="interactive-html-preview" class:large={isLargePreview} data-testid="svg-embed-preview">
+          <SvgEmbedImage code={renderCodeContent} title={renderFilename || displayLanguage} streaming={status === 'processing'} />
+        </div>
+      {:else if showProgressiveHtml}
+        <div class="interactive-html-preview" class:large={isLargePreview}>
+          <ProgressiveHtmlFrame code={renderCodeContent} title={renderFilename || displayLanguage} />
+        </div>
+      {:else if showInteractiveHtml}
 	        <div class="interactive-html-preview" class:large={isLargePreview}>
 	          <InteractiveHtmlFrame code={renderCodeContent} title={renderFilename || displayLanguage} interactive={false} />
 	        </div>

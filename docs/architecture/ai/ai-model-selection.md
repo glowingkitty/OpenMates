@@ -111,6 +111,30 @@ recommend LOW, MEDIUM, HIGH or EXTRA_HIGH independently of complexity, resolved
 against each actual model/server's documented controls. See
 [main-answer reasoning recommendations](./reasoning-routing.md).
 
+#### Use-case routing
+
+Jev also answers one optional `use_case` question in the same pass. The options come from the
+registry in [`use_case_routing.py`](../../backend/apps/ai/processing/use_case_routing.py): each
+`UseCaseProfile` has an id, the criterion Jev reads, an ordered model list (primary, then
+fallbacks) and an optional reasoning level for the primary. Adding a use case is one registry
+entry (plus the enum in the generative recovery tool schema, guarded by a test).
+
+| Use case | Primary | Fallbacks | Thinking |
+|----------|---------|-----------|----------|
+| `vector_graphic` (create or modify SVG) | GPT-6.1 Sol | Claude Haiku 5.5, Gemini 3.8 Flash | MEDIUM |
+
+A recognised use case applies to automatic selection only: an exact chat model or a saved tier
+preference still wins, and a missing, weak (confidence below 0.5) or unknown answer keeps tier
+routing. The use-case models lead the candidate list and the tier chain stays behind them, so the
+usual disabled-model, provider, server and input-capability filters apply unchanged. A use case
+does not set an output limit: the answer limit stays the selected model's catalogue
+`max_output_tokens` fitted to the user's available credits.
+
+Vector graphics described in words, and edits of an existing SVG, are written by the answer model
+in an `svg` code fence (see `base_code_block_instruction.md`, section 11). `images.generate` with
+`output_filetype="svg"` (Recraft) remains for richly detailed decorative illustrations and
+explicit requests; `images.vectorize` still converts uploaded pixel images.
+
 Eligible low-complexity text uses native Mercury 3 MEDIUM by default. Gemini 3.8 Flash LOW
 handles unavailable credentials/models, disabled model/server restrictions,
 unsupported modalities and provider outages, or an effort-specific deadline before

@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.ai-model-routing
-version: 9
+version: 10
 status: draft
 title: AI Model Settings And Chat Routing
 summary: >
@@ -11,6 +11,7 @@ summary: >
 
 scope:
   includes:
+    - Use-case model routing that selects specialised automatic answer models with fallbacks for recognised request kinds such as vector graphics.
     - Independent preprocessing reasoning recommendations resolved through verified model and hosting-server controls.
     - Current, affordable automatic recovery and a consistent answer-only retry after suppressed model-generated tool protocol.
     - Bounded recovery from missing required preprocessing tool output without changing the selected answer model.
@@ -288,6 +289,10 @@ assertions:
     type: failure
     must: Automatic recovery preserves the configured tier default, then uses only eligible current Gemini 3.8 Flash and inexpensive Mercury 3 routes in that order, omitting duplicate models and honoring disabled models, providers, servers and actual input capabilities. Rankings cannot add older Gemini 3.7 or premium paid models to this chain. Mercury recovery defaults to MEDIUM reasoning, carries the separate preprocessing recommendation when present, and never drops images or documents to admit a text-only model. After model-generated tool protocol is suppressed, one clean answer-only retry first retains the current model, disables native tools, removes tool-dispatch and tool-selection instructions, preserves safety, verified evidence and published text, and only then uses the next eligible configured model. Recovery remains bounded and exhaustion reports failure without an unapproved model or duplicated published text. Explicit model and preference-bucket choices retain precedence.
     depends_on: [examples.answer_recovery]
+  - id: ai-model-routing.use-case.specialised-automatic-models
+    type: behavior
+    must: Preprocessing may recognise at most one registered specialised use case per request in its existing pass; vector graphic creation or modification is the first one. On automatic selection a recognised use case answers with that use case's ordered model list (GPT-6.1 Sol, then Claude Haiku 5.5, then Gemini 3.8 Flash for vector graphics) ahead of the tier recovery chain, honoring disabled models, providers, servers and input capabilities. An exact chat model or a saved tier preference always wins, a missing, weak or unknown answer keeps ordinary tier routing, and a use case never changes the output limit, which stays the selected model's maximum fitted to available credits.
+    depends_on: [models.TierModelPreference.default_profiles, examples.use_case_routing]
   - id: ai-model-routing.reasoning.preprocessor-recommendation
     type: behavior
     must: Jev may recommend LOW, MEDIUM, HIGH or EXTRA_HIGH reasoning independently of request complexity in its existing preprocessing pass. LOW is reserved for trivial work, MEDIUM is the normal recommendation, and HIGH or EXTRA_HIGH is selective. A missing or malformed recommendation does not invalidate otherwise valid routing or trigger a separate generative pass. The recommendation survives continuation and answer recovery, is resolved separately for each actual model and hosting server using verified supported controls, and unsupported levels clamp to the declared maximum. Undeclared controls and fixed-effort model variants preserve native defaults. Assigning effort never changes model selection precedence, automatic-route eligibility or provider restrictions.
@@ -353,4 +358,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [required_instructions, prepared_privacy, contextual_compact_assembly, preprocessing_recovery, preprocessing_recovery_policy, tier_classification, tier_preferences, catalog, chat_selection, routing, mentions, unavailable, settings_hierarchy, composer_layout, answer_recovery]
+  required_groups: [use_case_routing, required_instructions, prepared_privacy, contextual_compact_assembly, preprocessing_recovery, preprocessing_recovery_policy, tier_classification, tier_preferences, catalog, chat_selection, routing, mentions, unavailable, settings_hierarchy, composer_layout, answer_recovery]

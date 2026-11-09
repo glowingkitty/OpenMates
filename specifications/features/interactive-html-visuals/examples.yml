@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.interactive-html-visuals@1
+specification: feature.interactive-html-visuals@2
 
 render:
   - id: animated-visual-in-card-and-fullscreen
@@ -9,7 +9,17 @@ render:
   - id: streaming-and-other-languages
     given: An HTML embed is still streaming, and the same answer also contains a Python snippet and a Markdown file.
     when: Alice watches the answer arrive.
-    then: The HTML embed shows its source until it is finished and then turns into the live visual; the Python and Markdown embeds keep their existing previews.
+    then: The HTML embed shows the page building up without running scripts and turns into the live visual when it is finished; the Python and Markdown embeds keep their existing previews.
+
+progressive:
+  - id: logo-builds-up-while-streaming
+    given: Alice asked for a coffee shop logo as SVG and the assistant is still writing the svg code fence.
+    when: She watches the card.
+    then: The background appears first, then the emblem shapes and the wordmark, a few updates per second, and the finished card shows the complete logo; fullscreen opens on the picture and "View code" shows the source.
+  - id: hostile-svg-and-streaming-script-stay-inert
+    given: An SVG contains a script element and an external image reference, and a streaming HTML document already contains a complete script element.
+    when: The cards render.
+    then: The SVG shows only its own shapes with no script run and no external load, and the streaming HTML shows its markup and styles with no script executed until it is finished.
 
 security:
   - id: hostile-page-stays-contained

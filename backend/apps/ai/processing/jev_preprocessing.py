@@ -10,6 +10,9 @@ from backend.apps.ai.processing.jev_decisions import (
     evaluate_jev_decisions,
     noul_value,
 )
+from backend.apps.ai.processing.use_case_routing import (
+    USE_CASE_QUESTION_KEY, normalize_use_case, use_case_question,
+)
 from backend.apps.ai.utils.authored_result_instructions import authoring_preview_hints
 from backend.apps.ai.utils.authored_result_fences import get_authoring_definitions
 from backend.core.api.app.utils.secrets_manager import SecretsManager
@@ -261,6 +264,7 @@ def _early_routing_questions(topic_areas: list[str], skip_mate_routing: bool) ->
         "needs_detailed_context": {"type": "noul", "instructions": "Does the latest request require selecting a Focus, saved Workflow, app or personal Memory, private Project/Plan material, connected capability, or a previous conversation/Task? Include implicit applicable guidance even if no app tool will be called. Architecture, process-flow, workflow, concept-map, relationship or diagram discussions need the public Mind Maps and Diagram Design guides even without an explicit visual request. Interpret follow-ups in conversation context. Loading guides leaves the main processor free to answer with prose. When unsure, answer yes."},
         "needs_related_work": {"type": "noul", "instructions": "Does the latest request refer to prior work in another chat or Task, a previous fix, or an explicit dependency? Ordinary standalone factual questions are no. When unsure, answer yes."},
     }
+    questions[USE_CASE_QUESTION_KEY] = use_case_question()
     if not skip_mate_routing:
         questions["topic_area"] = {"type": "choice", "instructions": "Choose the most specific topic for the latest request; use general_misc only as a fallback.",
                                    "criteria": _criteria(topic_areas)}
@@ -280,6 +284,17 @@ def _optional_reasoning_level(response: DecisionResponse | None) -> str | None:
     except (ValueError, KeyError, TypeError):
         return None
     return value if value in {"low", "medium", "high", "extra_high"} else None
+
+
+def _optional_use_case(response: DecisionResponse | None) -> str | None:
+    """A specialised use case is optional; a weak or missing answer means none."""
+    if response is None:
+        return None
+    try:
+        value = choice_value(response, USE_CASE_QUESTION_KEY, min_confidence=.5)
+    except (ValueError, KeyError, TypeError):
+        return None
+    return normalize_use_case(value)
 
 
 def _validated_early_decisions(response: DecisionResponse, topic_areas: list[str],
@@ -305,6 +320,7 @@ def _validated_early_decisions(response: DecisionResponse, topic_areas: list[str
         return None
     return {
         "reasoning_level": _optional_reasoning_level(response),
+        "use_case": _optional_use_case(response),
         "complexity": choices["complexity"], "task_area": choices["task_area"],
         "user_unhappy": nouls["user_unhappy"] >= .5,
         "china_model_sensitive": nouls["china_sensitive"] >= .5,
@@ -673,7 +689,7 @@ async def decide_preprocessing_with_jev(
 
     questions = _early_routing_questions(topic_areas, skip_mate_routing)
     if early_decisions:
-        for key in ("reasoning_level", "complexity", "task_area", "user_unhappy", "china_sensitive",
+        for key in ("reasoning_level", USE_CASE_QUESTION_KEY, "complexity", "task_area", "user_unhappy", "china_sensitive",
                     "needs_detailed_context", "needs_related_work", "topic_area", "topic_shift"):
             questions.pop(key, None)
     public_decisions = (early_decisions or {}).get("public_decisions")
@@ -817,6 +833,7 @@ async def decide_preprocessing_with_jev(
         "llm_response_temp": temperature,
         "reasoning_level": (early_decisions.get("reasoning_level") if early_decisions
                             else _optional_reasoning_level(response)),
+        "use_case": early_decisions.get("use_case") if early_decisions else _optional_use_case(response),
         "complexity": early_decisions["complexity"] if early_decisions else choice_value(response, "complexity", min_confidence=0.05),
         "task_area": early_decisions["task_area"] if early_decisions else choice_value(response, "task_area", min_confidence=0.05),
         "user_unhappy": early_decisions["user_unhappy"] if early_decisions else noul_value(response, "user_unhappy") >= 0.5,

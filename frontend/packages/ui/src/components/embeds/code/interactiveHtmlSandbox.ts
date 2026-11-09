@@ -33,6 +33,8 @@
  * second document (see InteractiveHtmlFrame.svelte).
  */
 
+import { isStandaloneSvg } from './progressiveSvg';
+
 export const INTERACTIVE_HTML_SANDBOX = 'allow-scripts';
 
 export const INTERACTIVE_HTML_CSP = [
@@ -132,19 +134,24 @@ export function buildInteractiveHtmlSrcdoc(source: string): string {
   ].join('\n');
 }
 
-export type CodePreviewKind = 'markdown' | 'interactive-html' | 'html' | null;
+export type CodePreviewKind = 'markdown' | 'interactive-html' | 'svg' | 'html' | null;
 
 const MARKDOWN_LANGUAGES = new Set(['markdown', 'md']);
 const MARKDOWN_EXTENSIONS = new Set(['.md', '.markdown']);
 
 /**
  * Which rendered preview a code embed supports: markdown (inline, sanitized),
- * interactive-html (live sandboxed visual), static html (XML/other markup
+ * interactive-html (live sandboxed visual), svg (image rendering), static html (XML/other markup
  * shown inert) or none.
  */
-export function resolveCodePreviewKind(language: string | null | undefined, filename?: string | null): CodePreviewKind {
+export function resolveCodePreviewKind(
+  language: string | null | undefined,
+  filename?: string | null,
+  code?: string | null
+): CodePreviewKind {
   const lang = (language || '').trim().toLowerCase();
   const ext = extensionOf(filename);
+  if (lang === 'svg' || ext === '.svg' || (lang === 'xml' && isStandaloneSvg(code))) return 'svg';
   if (MARKDOWN_LANGUAGES.has(lang) || MARKDOWN_EXTENSIONS.has(ext)) return 'markdown';
   if (isInteractiveHtmlCode(lang, filename)) return 'interactive-html';
   if (lang === 'xml') return 'html';

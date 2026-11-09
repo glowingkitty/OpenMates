@@ -184,6 +184,10 @@ preprocess_request_tool:
           type: "string"
           description: "Optional reasoning effort independent of model-routing complexity: low only for trivial/simple requests, medium for normal analysis/synthesis, high selectively for difficult tasks, extra_high only for exceptional reasoning needs. Exclude work delegated to app skills. This does not select a model."
           enum: ["low", "medium", "high", "extra_high"]
+        use_case:
+          type: "string"
+          description: "Optional specialised use case. vector_graphic: the assistant must itself write or modify vector graphic (SVG) code, not photos or pixel images. Otherwise none."
+          enum: ["none", "vector_graphic"]
         task_area:
           type: "string"
           description: "Primary task area for model selection."

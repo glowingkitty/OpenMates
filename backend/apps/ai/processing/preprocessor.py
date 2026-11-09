@@ -56,6 +56,9 @@ from backend.apps.ai.utils.authored_result_instructions import admitted_authorin
 from backend.apps.ai.testing.voice_pipeline_fixture import voice_preprocessing_scope
 from backend.apps.ai.assistant_speech.voice_context import build_voice_heard_context
 from backend.apps.ai.utils.model_reasoning import normalize_reasoning_level as _canonical_requested_reasoning_level
+from backend.apps.ai.processing.use_case_routing import (
+    normalize_use_case, use_case_model_candidates, use_case_thinking_level,
+)
 from backend.apps.ai.processing.ai_model_topic_routing import complete_ai_model_topics
 from backend.apps.ai.processing.model_routing import (
     HIGH_TIER,
@@ -1461,6 +1464,10 @@ class PreprocessingResult(BaseModel):
         None, description="Server-selected reasoning level for the automatic default model profile.",
     )
 
+    use_case: Optional[str] = Field(
+        None, description="Recognised specialised use case that selected the automatic answer model, if any.",
+    )
+
     # Model selection with fallbacks (from intelligent model selector)
     selected_secondary_model_id: Optional[str] = None
     selected_fallback_model_id: Optional[str] = None
@@ -1886,6 +1893,8 @@ async def _select_main_model(
     # Extract task_area and user_unhappy from LLM analysis for model selection
     task_area_val = llm_analysis_args.get("task_area", "general")
     user_unhappy_val = llm_analysis_args.get("user_unhappy", False)
+    use_case_val = normalize_use_case(llm_analysis_args.get("use_case"))
+    use_case_applied = False
 
     # Validate task_area (enum: code, math, creative, instruction, general)
     valid_task_areas = ["code", "math", "creative", "instruction", "general"]
@@ -2175,7 +2184,11 @@ async def _select_main_model(
     # Explicit chat and saved-tier choices retain their existing precedence.
     if not model_override_applied:
         candidates = []
-        configured_candidates = automatic_model_candidates(complexity_val)
+        tier_candidates = automatic_model_candidates(complexity_val)
+        # A recognised use case leads with its own models; the tier chain
+        # stays behind them as recovery.
+        use_case_candidates = use_case_model_candidates(use_case_val)
+        configured_candidates = list(dict.fromkeys([*use_case_candidates, *tier_candidates]))
         if not enable_auto_select and selected_llm_for_main_id:
             # Disabling automatic selection preserves the operator's configured
             # primary; recovery still uses the current affordable policy.
@@ -2199,20 +2212,30 @@ async def _select_main_model(
         selected_llm_for_main_id = candidates[0] if candidates else None
         selected_secondary_model_id = candidates[1] if len(candidates) > 1 else None
         selected_fallback_model_id = candidates[-1] if len(candidates) > 1 else None
+        use_case_applied = bool(candidates) and candidates[0] in use_case_candidates
+        if use_case_applied and len(candidates) > 2:
+            # Three attempts are dispatched; keep the third one a capable
+            # model instead of the tier's last-resort text route.
+            selected_fallback_model_id = candidates[2]
         selected_llm_for_main_name = None
         if selected_llm_for_main_id:
             provider, model = selected_llm_for_main_id.split("/", 1)
             selected_llm_for_main_name = config_manager.get_model_display_name(model, provider) or model
+        if use_case_applied:
+            model_selection_reason = f"Use case '{use_case_val}': {selected_llm_for_main_id}; {model_selection_reason}"
         model_selection_reason = f"{model_selection_reason}; Permitted automatic chain: {candidates}"
 
-    selected_llm_thinking_level = (
-        automatic_profile_thinking_level(complexity_val, selected_llm_for_main_id)
-        if not model_override_applied else None
-    )
+    selected_llm_thinking_level = None
+    if not model_override_applied:
+        selected_llm_thinking_level = (
+            use_case_thinking_level(use_case_val, selected_llm_for_main_id) if use_case_applied
+            else automatic_profile_thinking_level(complexity_val, selected_llm_for_main_id)
+        )
 
     return {
         "complexity_val": complexity_val,
         "task_area_val": task_area_val,
+        "use_case_val": use_case_val if use_case_applied else None,
         "user_unhappy_val": user_unhappy_val,
         "enable_subchats_val": enable_subchats_val,
         "china_related": china_related,
@@ -4579,6 +4602,7 @@ async def handle_preprocessing(
         selected_main_llm_model_name=selected_llm_for_main_name,
         requested_reasoning_level=_canonical_requested_reasoning_level(llm_analysis_args.get("reasoning_level")),
         selected_main_llm_thinking_level=selected_llm_thinking_level,
+        use_case=model_selection.get("use_case_val"),
         selected_secondary_model_id=selected_secondary_model_id,  # Secondary fallback model from leaderboard selection
         selected_fallback_model_id=selected_fallback_model_id,  # Final fallback model (hardcoded reliable default)
         model_selection_reason=model_selection_reason,  # Explanation of model selection for debugging

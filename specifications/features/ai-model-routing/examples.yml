@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.ai-model-routing@9
+specification: feature.ai-model-routing@10
 
 required_instructions:
   - id: incomplete-cache-does-not-start-inference
@@ -255,3 +255,15 @@ reasoning_recommendation:
     given: Alice's medium-complexity request separately receives an EXTRA_HIGH recommendation, and its Gemini answer needs bounded recovery after a clean retry.
     when: The request reaches Gemini 3.8 and later an eligible text-only Mercury fallback.
     then: Each model receives its own highest supported HIGH level and the verified evidence is retained. The recommendation survives continuation; it cannot replace Alice's explicit model selection or override a fixed-effort variant. Missing or invalid effort preserves valid routing and the tier default without another preprocessing call.
+
+use_case_routing:
+  - id: vector-graphic-request-on-auto
+    assertion_ids: [ai-model-routing.use-case.specialised-automatic-models]
+    given: Alice leaves her model preferences on Auto and asks for a coffee shop logo as SVG, then asks to change its colors.
+    when: Preprocessing recognises the vector graphic use case for both requests.
+    then: Both answers come from GPT-6.1 Sol with Claude Haiku 5.5 and Gemini 3.8 Flash as fallbacks, and the answer limit is the model's own maximum fitted to her credits.
+  - id: explicit-choice-or-no-use-case-keeps-routing
+    assertion_ids: [ai-model-routing.use-case.specialised-automatic-models]
+    given: Bob selected an exact chat model, Carol saved a model for Simple requests, and Dana asks an ordinary question on Auto.
+    when: Bob and Carol ask for an SVG icon and Dana's request matches no use case or the answer is missing.
+    then: Bob and Carol keep their chosen models, and Dana gets ordinary tier routing.

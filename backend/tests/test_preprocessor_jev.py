@@ -454,7 +454,7 @@ async def test_explicit_mate_skips_routing_after_app_shortlist_and_keeps_telemet
     assert len(calls) == 2
     assert all(call["telemetry_task_id"] == "chat_message" for call in calls)
     assert set(calls[0]["questions"]) == {
-        "app_0", "reasoning_level", "complexity", "task_area", "user_unhappy", "china_sensitive",
+        "app_0", "reasoning_level", "use_case", "complexity", "task_area", "user_unhappy", "china_sensitive",
         "needs_detailed_context", "needs_related_work",
     } | set(jev_preprocessing._public_decision_questions(True))
     stage_two_questions = set(calls[1]["questions"])
@@ -520,7 +520,7 @@ async def test_app_shortlist_selects_multiple_apps_without_unrelated_stage_two_c
     assert result["relevant_rules"] == [{"id": "news-guide", "revision": "v1", "load_mode": "auto_include"}]
     assert result["relevant_app_skills"] == ["news-search", "web-search", "images-search"]
     assert set(calls[0]["questions"]) == {
-        "app_0", "app_1", "app_2", "app_3", "reasoning_level", "complexity", "task_area",
+        "app_0", "app_1", "app_2", "app_3", "reasoning_level", "use_case", "complexity", "task_area",
         "user_unhappy", "china_sensitive", "topic_area", "topic_shift",
         "needs_detailed_context", "needs_related_work",
     } | set(jev_preprocessing._public_decision_questions(False))
@@ -868,3 +868,117 @@ async def test_exhausted_jev_generative_recovery_never_fabricates_routing(monkey
         tool_definition={"type": "function", "function": {"name": "analyze_request_properties", "description": "Classify", "parameters": {"type": "object", "properties": {}}}})
     assert calls == (["mercury-3", "gemini-3.5-flash-lite"] if allow_retries else ["mercury-3"])
     assert result.arguments is None and result.error_message
+
+
+def _use_case_catalog(monkeypatch):
+    import yaml
+    providers = Path(__file__).resolve().parents[1] / "providers"
+    catalog = {provider: yaml.safe_load((providers / f"{provider}.yml").read_text())
+               for provider in ("inception", "google", "openai", "anthropic")}
+    monkeypatch.setattr(preprocessor, "config_manager", SimpleNamespace(
+        get_provider_config=lambda provider: catalog.get(provider),
+        get_model_pricing=lambda provider, model_id: next(
+            (entry for entry in catalog[provider]["models"] if entry["id"] == model_id), None),
+        get_model_display_name=lambda model, _: model,
+    ))
+    monkeypatch.setattr(preprocessor, "is_provider_healthy", AsyncMock(return_value=True))
+    leaderboard_tasks = ModuleType("backend.core.api.app.tasks.leaderboard_tasks")
+    leaderboard_tasks.get_leaderboard_data = AsyncMock(return_value=None)
+    monkeypatch.setitem(sys.modules, leaderboard_tasks.__name__, leaderboard_tasks)
+    return catalog
+
+
+def _use_case_decisions(choice="vector_graphic", confidence=.99):
+    questions = jev_preprocessing._early_routing_questions(["general_misc: General"], False)
+    questions.update(jev_preprocessing._public_decision_questions(False))
+    response = _routing_answer(questions)
+    if choice is None:
+        response.answers.pop("use_case")
+    else:
+        response.answers["use_case"].choice = choice
+        response.answers["use_case"].confidence = confidence
+    decisions = jev_preprocessing._validated_early_decisions(response, ["general_misc: General"], False, False)
+    assert decisions is not None
+    return decisions
+
+
+def _use_case_request(preferences=None):
+    return AskSkillRequest(
+        chat_id="use-case-test", message_id="use-case-message", user_id="use-case-user",
+        user_id_hash="use-case-user-hash", message_history=[
+            {"role": "user", "content": "Create a coffee shop logo as SVG", "created_at": 1},
+        ], user_preferences=preferences or {},
+    )
+
+
+# contract-test: direct surface=rest_api assertions=ai-model-routing.use-case.specialised-automatic-models
+@pytest.mark.asyncio
+async def test_vector_graphic_use_case_selects_its_models_with_fallbacks_on_auto(monkeypatch):
+    _use_case_catalog(monkeypatch)
+    decisions = _use_case_decisions()
+    assert decisions["use_case"] == "vector_graphic"
+    selected = await preprocessor._select_main_model(
+        decisions, _use_case_request(), SimpleNamespace(enable_auto_model_selection=True), None, "use-case-test",
+    )
+    assert selected["selected_llm_for_main_id"] == "openai/gpt-6.1-sol"
+    assert selected["selected_secondary_model_id"] == "anthropic/claude-haiku-5-5"
+    assert selected["selected_fallback_model_id"] == "google/gemini-3.8-flash"
+    assert selected["selected_llm_thinking_level"] == "MEDIUM"
+    assert selected["use_case_val"] == "vector_graphic"
+    assert selected["model_override_applied"] is False
+    assert "Use case 'vector_graphic'" in selected["model_selection_reason"]
+
+
+# contract-test: direct surface=rest_api assertions=ai-model-routing.use-case.specialised-automatic-models
+@pytest.mark.asyncio
+@pytest.mark.parametrize("explicit,preferences,expected", [
+    (True, {}, "google/gemini-4-argon"),
+    (False, {"default_ai_model_simple": "google/gemini-4-argon"}, "google/gemini-4-argon"),
+])
+async def test_use_case_never_replaces_an_exact_or_saved_model_choice(monkeypatch, explicit, preferences, expected):
+    _use_case_catalog(monkeypatch)
+    selected = await preprocessor._select_main_model(
+        _use_case_decisions(), _use_case_request(preferences),
+        SimpleNamespace(enable_auto_model_selection=True),
+        preprocessor.UserOverrides(model_id=expected) if explicit else None, "use-case-test",
+    )
+    assert selected["selected_llm_for_main_id"] == expected
+    assert selected["use_case_val"] is None
+    assert selected["model_override_applied"] is True
+
+
+# contract-test: direct surface=rest_api assertions=ai-model-routing.use-case.specialised-automatic-models
+@pytest.mark.asyncio
+@pytest.mark.parametrize("choice,confidence", [("none", .99), ("vector_graphic", .2), (None, 0)])
+async def test_missing_weak_or_absent_use_case_keeps_tier_routing(monkeypatch, choice, confidence):
+    _use_case_catalog(monkeypatch)
+    decisions = _use_case_decisions(choice, confidence)
+    assert decisions["use_case"] is None
+    selected = await preprocessor._select_main_model(
+        decisions, _use_case_request(), SimpleNamespace(enable_auto_model_selection=True), None, "use-case-test",
+    )
+    assert selected["selected_llm_for_main_id"] == "inception/mercury-3"
+    assert selected["selected_llm_thinking_level"] == "MEDIUM"
+    assert selected["use_case_val"] is None
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.use-case.specialised-automatic-models
+def test_use_case_registry_drives_question_schema_and_known_models(monkeypatch):
+    import yaml
+    from backend.apps.ai.processing import use_case_routing
+    catalog = _use_case_catalog(monkeypatch)
+    question = use_case_routing.use_case_question()
+    assert list(question["criteria"]) == ["none", *use_case_routing.USE_CASE_PROFILES]
+    schema = yaml.safe_load((Path(__file__).resolve().parents[1] / "apps/ai/base_instructions.yml").read_text())
+    parameters = schema["preprocess_request_tool"]["function"]["parameters"]
+    assert parameters["properties"]["use_case"]["enum"] == list(question["criteria"])
+    assert "use_case" not in parameters["required"]
+    for profile in use_case_routing.USE_CASE_PROFILES.values():
+        assert profile.models
+        for model_id in profile.models:
+            provider, short_id = model_id.split("/", 1)
+            entry = next((model for model in catalog[provider]["models"] if model["id"] == short_id), None)
+            assert entry is not None, model_id
+            assert entry["features"]["max_output_tokens"] >= 32000
+    assert use_case_routing.use_case_model_candidates("unknown") == []
+    assert use_case_routing.normalize_use_case(["vector_graphic"]) is None

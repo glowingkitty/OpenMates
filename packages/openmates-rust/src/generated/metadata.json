@@ -4396,7 +4396,7 @@
     "app_namespace_py": "images",
     "skill_method_py": "generate",
     "description_key": "images.generate.description",
-    "description": "Generate high-quality images from text prompts and/or reference images (image-to-image editing). Also use for: mockups, design concepts, visual mockup creation, logo mockups, product mockups, illustration requests, visual design, concept art, posters, banners, thumbnails, or any request that implies creating a visual output. Use output_filetype=\"svg\" for logos, icons, illustrations, and any other vector graphics that need to be scalable or editable. When the user provides uploaded images as refe",
+    "description": "Generate high-quality images from text prompts and/or reference images (image-to-image editing). Also use for: mockups, design concepts, visual mockup creation, logo mockups, product mockups, illustration requests, visual design, concept art, posters, banners, thumbnails, or any request that implies creating a visual output. Not for ordinary vector graphics described in words (logos, icons, simple illustrations, infographics, labelled or technical drawings, patterns) and not for changing an exis",
     "schema": {
       "type": "object",
       "properties": {
@@ -4437,7 +4437,7 @@
                   "basic": true
                 },
                 "type": "string",
-                "description": "Output file format. Use \"svg\" to generate a scalable vector graphic (SVG) via\nRecraft V4.1 — ideal for logos, icons, illustrations, and any graphic that needs\nto be scalable, editable in design tools, or used at any size without quality loss.\nUse \"png\" or \"jpg\" for photos, realistic scenes, and detailed raster images.\nWhen a Recraft model is selected, Recraft V4 is used for raster output as well.\n",
+                "description": "Output file format. Use \"svg\" to generate a vector graphic (SVG) via Recraft V4.1 —\nonly for richly detailed, painterly or decorative vector illustrations, or when the\nuser explicitly asks for the image generator. Logos, icons, simple illustrations,\ninfographics, labelled or technical drawings and edits of an existing SVG are written\ndirectly as SVG code by the assistant instead of calling this skill.\nUse \"png\" or \"jpg\" for photos, realistic scenes, and detailed raster images.\nWhen a Recraft model is selected, Recraft V4 is used for raster output as well.\n",
                 "enum": [
                   "png",
                   "jpg",

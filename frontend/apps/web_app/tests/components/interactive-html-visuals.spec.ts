@@ -128,3 +128,21 @@ test('fullscreen opens on the interactive visual and switches to code and back',
 	await proof.checkpoint('code');
 	await proof.attach();
 });
+
+const SVG_PREVIEW = '/dev/preview/embeds/code/CodeEmbedPreview?variant=svg&theme=light&width=420&chrome=0';
+const SVG_STREAMING_PREVIEW = '/dev/preview/embeds/code/CodeEmbedPreview?variant=svgStreaming&theme=light&width=420&chrome=0';
+
+// contract-test: direct surface=gui.web assertions=interactive-html.render.vector-image-and-progressive-streaming
+test('SVG code embed renders as an image, also from partial streaming source', async ({ page }) => {
+	await page.goto(SVG_PREVIEW);
+	await waitForComponentPreview(page);
+	const image = page.getByTestId('svg-embed-image');
+	await expect(image).toBeVisible({ timeout: 30_000 });
+	await expect(image).toHaveAttribute('src', /^data:image\/svg\+xml/);
+	await expect(page.getByTestId('svg-embed-visual')).toHaveAttribute('data-streaming', 'false');
+
+	await page.goto(SVG_STREAMING_PREVIEW);
+	await waitForComponentPreview(page);
+	await expect(page.getByTestId('svg-embed-visual')).toHaveAttribute('data-streaming', 'true');
+	await expect(page.getByTestId('svg-embed-image')).toBeVisible({ timeout: 30_000 });
+});

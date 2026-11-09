@@ -38,6 +38,19 @@ def test_code_instruction_uses_notebook_artifacts_for_jupyter_requests() -> None
     assert "Do NOT emit raw nbformat JSON unless" in instruction
 
 
+def test_code_instruction_writes_vector_graphics_directly_and_demotes_the_image_generator() -> None:
+    instruction = CODE_BLOCK_INSTRUCTION_PATH.read_text(encoding="utf-8")
+    images_app = (Path(__file__).resolve().parents[1] / "apps/images/app.yml").read_text(encoding="utf-8")
+
+    assert "**11. Vector graphics (SVG):**" in instruction
+    assert "write the SVG yourself" in instruction
+    assert "return the full updated SVG in a new `svg` fence" in instruction
+    assert "Do not call an image generation skill for these requests" in instruction
+    assert "images.vectorize" in instruction
+    assert "the assistant writes that SVG code itself" in images_app
+    assert "vector graphics that need to be scalable or editable" not in images_app
+
+
 def test_stream_consumer_suppresses_deferred_application_preview_chunks() -> None:
     source = STREAM_CONSUMER_PATH.read_text(encoding="utf-8")
 
