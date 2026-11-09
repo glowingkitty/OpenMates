@@ -7,8 +7,8 @@ version apple/project.yml pins), never on the shared dev host.
                with the Xcode build-phase semantics, run the openmates-sdk (packages/openmates-rust) and
                PairOpaqueBridge test suites natively on macOS, and test the
                Swift package apple/OpenMatesCore when it exists.
-  apple-unit   targets `all` or `OpenMatesTests[/<Class>[/<test>]]`: fetch the
-               pinned Whistle link inputs, then `xcodebuild test` the
+  apple-unit   targets `all` or `OpenMatesTests[/<Class>[/<test>]]`: generate the design tokens and locales the project
+               references, fetch the pinned Whistle link inputs, then `xcodebuild test` the
                OpenMates_iOS scheme limited to the OpenMatesTests unit target
                (XCUITest targets are never selected).
 
@@ -114,6 +114,15 @@ def unit_plan(root: Path, results: Path, specs: list[str]) -> list[Step]:
     command += ["CODE_SIGNING_ALLOWED=NO", "CODE_SIGN_IDENTITY="]
     return [
         (
+            "design tokens and locales",
+            [
+                "bash", "-c",
+                "cd frontend/packages/ui && node scripts/build-tokens.js && node scripts/build-translations.js",
+            ],
+            {},
+            "",
+        ),
+        (
             "whistle link inputs",
             ["python3", "apple/WhistleBridge/prepare-build.py", "--fetch"],
             {},
@@ -162,7 +171,7 @@ def run(root: Path, results: list[dict], mode: str, specs: list[str]) -> None:
             }
         )
         if mode == "apple-unit" and code != 0:
-            break  # the unit run cannot proceed without its link inputs
+            break  # the unit run cannot proceed without its generated inputs
 
 
 def main() -> None:
