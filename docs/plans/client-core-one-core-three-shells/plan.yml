@@ -51,7 +51,7 @@ decisions:
     decision: Web flips one capability at a time; flag on by default in dev; the existing Playwright suite with the flag on is the gate; TypeScript for that capability is deleted in the flip deploy. Flag-off stays byte-identical only for capabilities that have not flipped.
   - id: D-5
     status: active
-    decision: Apple verification runs XCTest/XCUITest on GitHub macos-26 runners (ci_coordinator modes apple-core and apple-unit, added by session 97b7). The Mac is used only for TestFlight, physical-device/APNs and real-account tests. Apple web-parity test files are deleted when their subject moves into the core.
+    decision: Apple verification runs XCTest on GitHub macos-26 runners (ci_coordinator modes apple-core and apple-unit, added by session 97b7). XCUITest runs on the Mac until the apple-ui CI mode (TASK-12) lands. The Mac is otherwise used only for TestFlight, physical-device/APNs and real-account tests. Apple web-parity test files are deleted when their subject moves into the core.
   - id: D-6
     status: active
     decision: Parity vectors between old and new implementations are debugging aids, never a gate; partial twins are unfinished work.
@@ -59,12 +59,14 @@ decisions:
 # ---------------------------------------------------------------------------
 # Capability inventory. Status enum: ts-only | swift-only | rust-twin |
 # rust-default | rust-only | stays-shell. Snapshot 2026-11-09, derived from
-# frontend/apps/web_app/src/lib/rustCore/shared/sharedWorkerUnits.ts (17 units),
+# frontend/apps/web_app/src/lib/rustCore/shared/sharedWorkerUnits.ts (17 units, including the `core` unit),
 # config/sdk-capabilities.json domains (operations, recovery, configuration,
 # encryption, auth, streaming, errors) and apple/OpenMates/Sources/Core/*.
 # Web cells marked rust-twin have an installed Worker unit but the TS path is
 # still present; TASK-2 re-audits every cell and moves the table into
 # docs/migration/rust/capabilities.yml, after which that file is authoritative.
+# Status rule: Worker-unit cells stay rust-twin until TASK-3 proves the full suite
+# flag-on; only then do they become rust-default (and rust-only once the TS path is deleted).
 # ---------------------------------------------------------------------------
 capability_inventory:
   - id: transport
@@ -99,7 +101,7 @@ capability_inventory:
     tui: rust-only
   - id: chat-list
     what: ordered chat list view model, pins, unread, hidden chats
-    web: {status: ts-only, unit: chatState (planned)}
+    web: {status: rust-twin, unit: chatState, note: unit installed (chatListUnit); the TS chat-list path is still present}
     apple: {status: swift-only, old: [ChatStore.swift list projection, apple/OpenMates/Sources/Core/Services/UnreadMessagesStore.swift]}
     tui: rust-only
   - id: chat-window
@@ -187,7 +189,7 @@ acceptance_criteria:
     text: The old shell implementation of the capability is deleted in the same deploy that makes the core path the only path (no flag branch, no fallback).
     required: true
   - id: AC-2
-    text: The shell's existing suite is green on the exact deployed commit (web Playwright with VITE_OPENMATES_RUST_CORE=1; Apple apple-unit and apple-core on GitHub macos-26; TUI/core rust-check plus sdk-conformance).
+    text: The shell's existing suite is green on the exact deployed commit (web Playwright with VITE_OPENMATES_RUST_CORE=1; Apple apple-unit and apple-core on GitHub macos-26, plus XCUITest on macos-26 once TASK-12 lands (until then XCUITest evidence comes from the Mac); TUI/core rust-check plus sdk-conformance).
     required: true
   - id: AC-3
     text: docs/migration/rust/capabilities.yml records the new status with the deploy commit (after TASK-2 exists; before that, this Plan's inventory is updated).
@@ -294,13 +296,13 @@ tasks:
     split: one lane each, in order - (a) transport + sync behind the view model, (b) local-cache with the SwiftData migration, (c) chat-list and chat-window view models. Each lane deletes what it replaces.
     delete: WebSocketManager.swift routing, SyncManager.swift, OfflineSyncBridge.swift, ChatStore.swift, OfflineStore.swift, NativeWorkspaceOfflineCache.swift, ChatMessageWindowClient.swift, ChatSyncParityTests.swift and other parity tests of those subjects
     migration: pending drafts, queued sends, recovery checkpoints and last-opened chat migrate into the core cache on first launch; server content is re-synced; old SwiftData files are deleted only after the migration check passes (client-core.cache.safe-store-retirement)
-    verify: apple-unit, apple-core, apple/OpenMatesUITests/ChatOpeningScalabilityUITests.swift on macos-26; a real-account cold start on the Mac with timing recorded
+    verify: apple-unit, apple-core, apple/OpenMatesUITests/ChatOpeningScalabilityUITests.swift on macos-26 via the apple-ui mode (TASK-12; until it lands, on the Mac); a real-account cold start on the Mac with timing recorded
     done: AC-1..AC-3 for transport, sync, local-cache, chat-list, chat-window on Apple; cold start to usable chat list no slower than before.
   - id: TASK-7
     title: Apple step 4 - send, streaming, completion recovery
     read: [apple/OpenMatesShared/BackgroundChatSender.swift, apple/OpenMates/Sources/Core/Networking/StreamingClient.swift, apple/OpenMates/Sources/Core/Services/ChatCompletionRecoveryCoordinator.swift, ChatMetadataRecoveryCoordinator.swift, ChatQueuedFollowupRuntime.swift, PendingAssistantResponseQueue.swift, apple/OpenMatesTests/ChatSendPipelineParityTests.swift, ChatStreamingLifecycleParityTests.swift, ChatCompletionRecoveryTests.swift]
     delete: the files above except UI; the share extension and background-task entry points stay in Swift and call the core
-    verify: apple-unit, apple-core; streaming XCUITests; one real-account send on the Mac
+    verify: apple-unit, apple-core; streaming XCUITests (TASK-12 apple-ui mode, until then on the Mac); one real-account send on the Mac
     done: AC-1..AC-3 for send, streaming, completion-recovery on Apple.
   - id: TASK-8
     title: Apple step 5 - drafts, search, settings, projects and the remaining capabilities
@@ -321,6 +323,12 @@ tasks:
     title: Deploy guard for shell logic edits (implements the design below)
     read: [.claude/hooks/, scripts/sessions.py deploy validation, this Plan's deploy_guard section]
     done: the guard rejects a deploy that changes guarded shell paths without a linked Rust change or a `shell-only:` line, with tests in scripts/tests.
+  - id: TASK-12
+    title: apple-ui CI mode - run XCUITest targets on macos-26
+    read: [scripts/ci_apple.py, scripts/ci_coordinator.py, apple/OpenMatesUITests/ChatOpeningScalabilityUITests.swift]
+    steps: add an apple-ui mode to ci_apple.py and ci_coordinator.py that selects and runs the XCUITest targets (including ChatOpeningScalabilityUITests) on macos-26; ci_apple.py does not select XCUITest targets today
+    note: Until it lands, XCUITest evidence comes from the Mac (scripts/apple_remote.py).
+    done: ci_coordinator.py submit --mode apple-ui runs the XCUITest targets green on macos-26; AC-2 and TASK-6/TASK-7 reference it directly.
 
 deploy_guard:
   summary: >
@@ -350,7 +358,7 @@ risks:
     mitigation: Reuse the pinned nightly build-std recipe already proven in PairOpaqueBridge/build-apple.sh; Watch moves last (TASK-9) and may stay Swift with user acceptance.
   - id: R-4
     risk: Single Mac is a bottleneck and single point of failure.
-    mitigation: XCTest/XCUITest move to GitHub macos-26 (apple-core, apple-unit); the Mac only serves TestFlight, device/APNs and real-account tests.
+    mitigation: XCTest moves to GitHub macos-26 (apple-core, apple-unit) and XCUITest follows with TASK-12 (until then on the Mac); the Mac otherwise only serves TestFlight, device/APNs and real-account tests.
   - id: R-5
     risk: Binary size and startup cost of the full core in the iOS app and extensions.
     mitigation: Record size and cold start in TASK-1 and TASK-6 deploy messages; share one framework between app and extensions.

@@ -1,6 +1,6 @@
 ---
 name: apple-parity-auditor
-description: Audit Apple UI and logic parity against the rendered web source of truth using apple_evidence_bundle.py, Apple parity inventories, web specs, Svelte/CSS mappings, and Swift accessibility identifiers. Use for Apple/web UI drift, missing native test IDs, stale web contracts, renderer gaps, or parity regressions.
+description: Audit Apple UI and user-visible behavior parity against the rendered web source of truth using apple_evidence_bundle.py, Apple parity inventories, web specs, Svelte/CSS mappings, and Swift accessibility identifiers. Use for Apple/web UI drift, missing native test IDs, stale web contracts, renderer gaps, or parity regressions.
 tools: Read, Grep, Glob, Bash
 model: sonnet
 maxTurns: 40

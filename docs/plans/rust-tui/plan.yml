@@ -1,3 +1,4 @@
+# Ordering superseded by docs/plans/client-core-one-core-three-shells/plan.yml (web and Apple parallel per capability; Apple verified on macOS CI)
 profile: concise
 id: rust-tui
 title: Move the OpenMates CLI/TUI, web client logic and SDKs onto one shared Rust core

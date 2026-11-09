@@ -115,7 +115,7 @@ capability status model and lane shape are in `.claude/rules/client-core.md` and
   automatic routing without model/provider overrides.
 - Acceptance also requires the actual Linux dev installation and Mac testing
   through an explicit coordinated Mac-chat handoff or admitted typed `apple_remote`
-  operation. Windows testing is explicitly
+  operation, or the CI modes `apple-core`/`apple-unit`. Windows testing is explicitly
   waived; do not add a CPU-architecture matrix, infer Windows build/support proof,
   or waive existing GitHub product/self-host requirements.
 - Preserve the original TypeScript performance baseline before retiring source.

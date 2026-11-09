@@ -95,7 +95,9 @@ memory behavior, the spec or inline contract must also define this phase gate:
    Firecrawl only as a recorded fallback when Playwright is impractical or
    blocked. `*.spec.ts` evidence alone is not enough.
 5. Start Apple parity only after CLI, SDK, web, and user-confirmation evidence are
-   complete, or after an explicit waiver/blocker is recorded.
+   complete, or after an explicit waiver/blocker is recorded. This applies to
+   Apple UI parity; Apple client logic comes from the Rust core and is not
+   sequenced behind web.
 
 ### Step 2: Read Reference Implementation
 

@@ -6669,7 +6669,7 @@ assertions:
     current_direct_proof: false
   client-core.shell.allowed-responsibilities:
     specification: architecture.client-core@1
-    fingerprint: 419c76408bc5eecdabfbf5fabe8975531c7b435f7c695c02a5b19df77cd1c2ad
+    fingerprint: 774d8bfd61ac369f0c293f9a7727930554a10d388426c70a3bafd15f701e93e9
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -6725,7 +6725,7 @@ assertions:
     current_direct_proof: false
   client-core.status.done-definition:
     specification: architecture.client-core@1
-    fingerprint: e7a282bf213e667f9bd4d4d532de334883a7638d9e3ab776d7fd3e016d3a5ffe
+    fingerprint: 939306adbb732691323ca9cd8e9b8f940c7c56a124c428425928143026d8301c
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -6741,7 +6741,7 @@ assertions:
     current_direct_proof: false
   client-core.apple.strangler-order:
     specification: architecture.client-core@1
-    fingerprint: 63cb9f1c3f1fc21cbf3c1c0b8eadd86d2660c488974f2203c7c9bf3ddf34ac92
+    fingerprint: f005ae3d15236e92340e5144d4e6ae47bfc2c7c9f9337b66a76cd0e45e9461f9
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -6749,7 +6749,7 @@ assertions:
     current_direct_proof: false
   client-core.cli.native-default:
     specification: architecture.client-core@1
-    fingerprint: eb1bfd886e3aa3fdad9fc287c90389dee80a17d6d1fdda2a19cd6660f5388da2
+    fingerprint: 1887174cfebea825dfdd34fbcedc0759cac402ba7366303c3f095823c337aadc
     direct_tests: []
     supporting_tests: []
     tests: []

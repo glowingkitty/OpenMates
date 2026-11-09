@@ -53,7 +53,8 @@ when a skill or this file points to it.
   embed types, background jobs, Directus schema → durable Plan (`/create-plan`,
   `scripts/plan_validate.py`) plus the owning Specification (`/define-specification`).
 - Shared features go API/WebSocket → CLI/SDK (real stack in isolated CI, never
-  mocks) → web → Apple, touching only affected clients. Classify each new
+  mocks) → web and Apple in parallel per capability, touching only affected
+  clients. Apple core lanes need no web flip; only Apple UI parity follows web. Classify each new
   endpoint's access model; client-encrypted data stays first-party/internal.
 - Done means fresh evidence for the exact deployed commit: relevant E2E green in
   CI; visible UI checked with `/verify-component-preview` or `/verify-ui-change`;

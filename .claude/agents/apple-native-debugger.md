@@ -93,7 +93,11 @@ re-sign the app or bypass the guard.
 
 ### Step 5: Choose the Smallest Native Proof
 
-Prefer targeted checks over broad builds:
+Prefer targeted checks over broad builds. Run the CI modes first
+(`python3 scripts/ci_coordinator.py submit --mode apple-core` for core lanes,
+`--mode apple-unit` for XCTest); use `apple_remote.py` below only for
+TestFlight, physical device/APNs, real-account tests, XCUITest, or runtime
+startup/crash checks CI cannot cover:
 
 - Swift compile or iOS runtime issue:
   `python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"`

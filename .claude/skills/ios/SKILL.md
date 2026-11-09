@@ -18,17 +18,20 @@ Non-UI logic (transport, sync, crypto, cache, drafts, send, streaming, recovery,
 search, policies) lives in the shared Rust core, not in Swift: see `apple/AGENTS.md`
 "Core logic lives in Rust" and `.claude/rules/client-core.md`. Apple core-migration
 lanes follow `docs/plans/client-core-one-core-three-shells/plan.yml`, and their
-XCTest/XCUITest run on GitHub `macos-26` (`--mode apple-unit|apple-core`).
+XCTest runs first on GitHub `macos-26` (`--mode apple-unit|apple-core`); XCUITest
+runs on the Mac until an apple-ui CI mode exists (TASK-12 of that plan).
 
 For new shared features, app skills, focus modes, embeds, memory types, and
-provider-backed behavior, Apple parity is the last phase. Before changing Apple
+provider-backed behavior, Apple UI/feature parity is the last phase. This phase
+rule does not apply to client-core lanes: Apple client logic comes from the Rust
+core and is not sequenced behind web. Before changing Apple UI/feature
 implementation, confirm the spec or session contract has completed evidence for
 CLI implementation/testing against the dev server, npm SDK and pip SDK
 parity/testing locally against the dev server when applicable, GitHub Actions
 CI/daily-test reproduction only after local CLI and SDK success, web
 implementation/testing, and user confirmation that deployed dev web behavior
 works and looks correct. If any earlier phase is missing, stop Apple
-implementation and record the missing gate unless the spec contains an explicit
+UI/feature implementation and record the missing gate unless the spec contains an explicit
 waiver or accepted external blocker. Mocked OpenMates API calls, mocked SDK
 clients, stubbed servers, direct function calls, and fixture replay do not count
 as completed CLI evidence.
@@ -274,9 +277,17 @@ keep personal-account clips private. A missing successful-run recording is a
 remaining visual-proof gap. Do not record unrelated tests or rerun a passing
 test solely to repair an export/upload.
 
-### Step 8: Remote Mac CLI verification loop
+### Step 8: Verification order (CI first, Mac for exceptions)
 
-When XcodeBuildMCP is unavailable but SSH to a trusted Mac is available:
+First submit `python3 scripts/ci_coordinator.py submit --mode apple-core` (core
+lanes) or `--mode apple-unit` (XCTest) and wait for it. Use the Mac only as the
+follow-up for TestFlight, physical device/APNs, real-account tests, and XCUITest
+(until an apple-ui CI mode exists).
+
+#### Remote Mac CLI verification loop
+
+When XcodeBuildMCP is unavailable but SSH to a trusted Mac is available and the
+CI modes above cannot cover the check:
 
 1. Run `python3 scripts/apple_remote.py status`.
 2. Run `python3 scripts/apple_remote.py doctor` to verify Xcode, simulator, checkout, scheme, and Watch-test readiness with sanitized output.

@@ -15,7 +15,8 @@ schema_version: 1
 plan_date: 2026-11-07
 base_commit: f725997112
 goal: Move all web client-side logic into shared Rust in the one shared Worker; Svelte keeps UI/DOM/browser APIs;
-  VITE_OPENMATES_RUST_CORE default off; flag-off byte-identical.
+  VITE_OPENMATES_RUST_CORE default off; each capability is flag-gated per spec client-core.web.flag-gated-capability
+  (flag-off keeps the TS path until that capability's old code is deleted).
 units:
   installed:
   - core
@@ -27,7 +28,9 @@ units:
   - search
   - transfer
   - sync
-  planned: [chatState, ws]
+  - chatState
+  - ws
+  planned: []
   new_in_wave: [settings, composer, parse]
 hot_files:
 - frontend/packages/ui/src/services/rustCore/host/sharedWorkerProtocol.ts

@@ -41,8 +41,9 @@ debugging the browser path.
 
 For new or changed functionality, preserve the full verification order in your
 recommendation or fix plan: OpenMates CLI first, Playwright `*.spec.ts` second,
-and Apple app third via `scripts/apple_remote.py` when the surface has a native
-counterpart.
+and Apple via the `apple-unit`/`apple-core` CI modes (`ci_coordinator.py submit`)
+when the surface has a native counterpart; `scripts/apple_remote.py` only for
+TestFlight, physical device, real-account tests and XCUITest.
 
 ### Step 1: Read the failure report and screenshots (parallel)
 
@@ -149,7 +150,7 @@ provider/app skill result rendered.
 
 - **Screenshots are truth.** Error messages in the test report often describe a downstream symptom, not the root cause. Always check what the screenshot actually shows.
 - **CLI before web for shared behavior.** Chat, AI pipeline, settings-backed chat behavior, app skill, embed, and sync investigations must check or propose CLI contract coverage before changing Playwright, unless the failure is clearly browser-only.
-- **Apple after web for native counterparts.** When the investigated flow affects chat, sync, auth, settings, embeds, billing, shared UI, app chrome, or provider result rendering, include `scripts/apple_remote.py test-ios` or `build-ios` as the third verification step after CLI and Playwright evidence are green.
+- **Apple after web for native counterparts.** When the investigated flow affects chat, sync, auth, settings, embeds, billing, shared UI, app chrome, or provider result rendering, include `ci_coordinator.py submit --mode apple-unit|apple-core` as the Apple verification step (it does not wait for web); use `scripts/apple_remote.py` only for TestFlight, physical device/APNs, real-account tests and XCUITest.
 - **Never run tests locally.** Use `python3 scripts/tests.py run --spec <name>.spec.ts` to dispatch to GitHub Actions CI and record status/history.
 - **Never run vitest or Playwright directly.** Always dispatch via `scripts/tests.py run`.
 - **Query OpenObserve systematically.** Don't guess — check the logs. The E2E debug log pipeline tags client console logs with the test run ID.

@@ -40,10 +40,12 @@ apple-unit|apple-core`); the Mac is for TestFlight, device/APNs and real-account
 tests or when those modes are unavailable. Non-UI logic belongs in the Rust core
 (`.claude/rules/client-core.md`).
 
-If the active session runs on Linux, attempt the redacted remote Mac wrapper
-`python3 scripts/apple_remote.py status` followed by `build-ios` or `test-ios`
-from `docs/contributing/guides/testing.md` and `apple/AGENTS.md` before saying
-Apple verification is unavailable. Record only sanitized evidence or failure
+If the active session runs on Linux, first submit
+`python3 scripts/ci_coordinator.py submit --mode apple-unit` (or `apple-core`).
+Use the redacted remote Mac wrapper `python3 scripts/apple_remote.py status` plus
+`build-ios`/`test-ios` (see `docs/contributing/guides/testing.md` and
+`apple/AGENTS.md`) only for TestFlight, physical device/APNs, real-account tests
+and XCUITest. Record only sanitized evidence or failure
 classes such as `ssh_failed`, `project_not_found`, or `xcode_build_failed`.
 
 ---
