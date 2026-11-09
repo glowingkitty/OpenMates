@@ -63,3 +63,23 @@ def test_section_lists_chats_and_handles_none():
                                                 "omitted": 2}))
     assert "`abcdef12`" in text and "plus 2 more" in text
     assert "None" in "\n".join(briefing._waiting_section({}))
+
+
+def test_plain_title_never_shows_untitled_slug_or_id():
+    assert waiting.plain_title("Voice call setup", "x", "y") == "Voice call setup"
+    assert waiting.plain_title("untitled", "Why does the upload service stop after a PDF?", "ok") \
+        == "Why does the upload service stop after a PDF?"
+    assert waiting.plain_title("prod-chat-failures-check", "", "The task failed because the user pressed stop") \
+        .startswith("The task failed")
+    assert waiting.plain_title("", "", "") == "chat without a title"
+
+
+def test_waiting_section_shows_plain_title_and_task_title_before_ids():
+    chat = {"title": "Projects editing", "session": "97f91b74-f2af", "idle_hours": 5, "task": "TASK-9 (todo)",
+            "task_title": "Design Projects editing", "signal": "asks you a question", "last_reply": "Due date?"}
+    text = "\n".join(briefing._waiting_section({"chats": [chat]}))
+    assert text.index("Projects editing") < text.index("TASK-9") and 'Task "Design Projects editing"' in text
+
+
+def test_meeting_script_has_plain_language_rule():
+    assert "Plain-language rule" in briefing.MEETING_SCRIPT

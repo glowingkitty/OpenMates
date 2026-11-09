@@ -80,6 +80,9 @@ only when an item is ambiguous (e.g. a reminder title matches none or several).
    - Record every `keep` in `logs/daily-meetings/cleanup-reviewed.json` (`{"<id>":
      "YYYY-MM-DD"}`, private) so it is not offered again for 30 days.
    Report counts and any failures by id.
+Plain-language rule: whenever you report to the user (summaries, printed replies, parking-lot lines),
+name every ID, agent or task with a few plain words first and the ID only in brackets after it; if a
+briefing line shows a bare ID, say what it is before using it.
 4b. **Chats** (the `Chats:` lines, from the briefing's "Chats waiting on you"): `reply: <text>`
    → print the ready-to-paste reply for the user and do NOT send it to the chat; `park` →
    parking-lot line; `archive`/`done` → archive the chat via `archive_session` when it has a

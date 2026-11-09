@@ -39,6 +39,23 @@ def _ts(value) -> datetime | None:
         return None
 
 
+def plain_title(title: str, prompt: str, reply: str) -> str:
+    """A title the founder can recognise: the chat title, else the last prompt or reply in words.
+
+    Claude Code stores no title for many chats, and some titles are slugs or ids; the briefing
+    must never show a bare id or "untitled" (plain-language rule of the daily meeting).
+    """
+    title = (title or "").strip()
+    slug = bool(re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)+", title)) or bool(re.fullmatch(r"[0-9a-f-]{8,}", title))
+    if title and title.lower() != "untitled" and not slug:
+        return title[:120]
+    for source in (prompt, reply):
+        text = re.sub(r"[`*#>]+", "", re.sub(r"\s+", " ", source or "")).strip()
+        if len(text) > 12:
+            return (text[:80].rsplit(" ", 1)[0] if len(text) > 80 else text) + ("…" if len(text) > 80 else "")
+    return "chat without a title" if slug or title.lower() == "untitled" or not title else title[:120]
+
+
 def signal(reply: str) -> str:
     tail = reply[-500:]
     if "?" in tail:
@@ -112,12 +129,14 @@ def waiting_chats(base: Path, now: datetime, tasks: list[dict] | None = None,
         task = by_chat.get(path.stem)
         if task and task.get("status") == "done":
             continue
+        last_prompt = re.sub(r"\s+", " ", scan["human"][1]).strip()[:300] if scan["human"] else ""
         found.append({
-            "session": path.stem, "title": (scan["title"] or "untitled")[:120], "branch": scan["branch"],
+            "session": path.stem, "title": plain_title(scan["title"], last_prompt, reply), "branch": scan["branch"],
             "idle_hours": round(idle.total_seconds() / 3600, 1), "signal": verdict,
             "last_reply": re.sub(r"\s+", " ", reply).strip()[:600],
-            "last_prompt": re.sub(r"\s+", " ", scan["human"][1]).strip()[:300] if scan["human"] else "",
+            "last_prompt": last_prompt,
             "task": f"{task['id']} ({task['status']})" if task else "",
+            "task_title": task.get("title", "") if task else "",
         })
     # Questions and blockers first, then finished work; newest first within each group.
     found.sort(key=lambda c: (c["signal"] == "reports it is done", c["idle_hours"]))

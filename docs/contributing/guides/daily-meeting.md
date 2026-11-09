@@ -100,3 +100,10 @@ whose Task is Done or that were dismissed in the last 14 days are skipped). Each
 waiting for (question, blocker, done), its Task if linked, and the last reply. The meeting goes
 through them one at a time; answers go into the `Chats:` lines of the decisions note. Replies are
 printed for the user to paste, never sent automatically. Data: `scripts/daily_meeting_waiting.py`.
+
+## Plain-language rule
+IDs, agent names and tasks are never mentioned bare in the briefing, the meeting or the decisions
+note: each comes with a few plain words saying what it is, and the ID only in brackets after it.
+The briefing shows chats by title (else the last prompt or reply in words, never "untitled" or a
+slug) with their Task title, and Tasks, GitHub and Linear issues as "title (id)". The meeting
+script (`MEETING_SCRIPT`) tells Claude to speak and write the same way.

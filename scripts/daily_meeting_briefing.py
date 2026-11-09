@@ -113,6 +113,10 @@ a solo founder who has ADHD, often has 10–15 agent chats running and keeps get
 pulled into new features and bugs while marketing (videos, press) slips. \
 The meeting must lower overwhelm, not add to it.
 - Speak short, plain sentences. Never read IDs, links or long lists aloud; summarize.
+- **Plain-language rule:** never mention an ID (TASK-…, issue numbers, session or commit \
+ids), an agent name (e.g. "agent-33bc") or a task bare. Always say what it is in a few plain \
+words ("the Projects editing task", "the chat about PDF uploads"). In the decisions note, write \
+the plain description first and the ID only in brackets after it.
 - Ask **exactly one question at a time**, with your recommendation where one applies, then wait.
 - Respect the phase rules below. In a Marketing Week, gently push back on features, \
 refactors, UX polish and bug fixes that do not block marketing; offer the parking lot.
@@ -182,7 +186,7 @@ New reminders:
 Chats:
 - <chat title or 8-char id> -> reply: <text> | park | archive | done | keep
 Cleanup:
-- <GitHub #123 | Linear ABC-1 | TASK-123> -> close | delete | merge <other id> | delay | keep
+- <plain title> (<GitHub #123 | Linear ABC-1 | TASK-123>) -> close | delete | merge <other id> | delay | keep
 Parking lot:
 + <added item> | - <removed item>
 Week goals: <unchanged | new goals>
@@ -197,7 +201,7 @@ def _issue_section(title: str, rows: list[dict] | None, extra: str) -> list[str]
     out = [f"**{title} ({len(rows)} open)** — newest activity first, top 15:"]
     for row in rows[:15]:
         tags = ", ".join(filter(None, [row.get(extra), *row.get("labels", [])[:3]]))
-        out.append(f"- {row['id']} {row['title']}" + (f" ({tags})" if tags else ""))
+        out.append(f"- {row['title']} ({row['id']}" + (f", {tags}" if tags else "") + ")")
     if len(rows) > 15:
         out.append(f"- … {len(rows) - 15} more")
     return out + [""]
@@ -236,10 +240,10 @@ def _cleanup_section(cleanup: dict) -> list[str]:
     out = ["## 4. Backlog cleanup", "",
            "The meeting also tidies the to-do lists. Review this batch (oldest first): "
            "close/delete what is obsolete, merge duplicates, delay what should wait, keep the rest.", ""]
-    labels = (("tasks", "OpenMates Tasks (todo, backlog, blocked)", lambda t: f"{t['id']} {t['title']} "
+    labels = (("tasks", "OpenMates Tasks (todo, backlog, blocked)", lambda t: f"{t['title']} ({t['id']}) "
                                                                                   f"[{t.get('status')}, {t.get('priority')}]"),
-              ("github", "GitHub issues", lambda i: f"{i['id']} {i['title']} (last activity {i['updated']})"),
-              ("linear", "Linear issues", lambda i: f"{i['id']} {i['title']} ({i.get('state')}, "
+              ("github", "GitHub issues", lambda i: f"{i['title']} ({i['id']}, last activity {i['updated']})"),
+              ("linear", "Linear issues", lambda i: f"{i['title']} ({i['id']}, {i.get('state')}, "
                                                     f"last activity {i['updated']})"))
     for key, title, line in labels:
         part = cleanup.get(key) or {}
@@ -268,8 +272,9 @@ def _waiting_section(waiting: dict) -> list[str]:
     if not chats:
         return out + ["_None: every recent dev-server chat has your last word or is finished._"]
     for chat in chats:
-        task = f", Task {chat['task']}" if chat.get("task") else ""
-        out.append(f"- **{chat['title']}** (`{chat['session'][:8]}`, idle {chat['idle_hours']} h{task}) — "
+        task = (f", Task \"{chat['task_title']}\" ({chat['task']})" if chat.get("task_title")
+                else f", Task {chat['task']}" if chat.get("task") else "")
+        out.append(f"- **{chat['title']}** (idle {chat['idle_hours']} h{task}; id `{chat['session'][:8]}`) — "
                    f"{chat['signal']}: {chat['last_reply'][:300]}")
     if waiting.get("omitted"):
         out.append(f"- plus {waiting['omitted']} more waiting chats (older or finished work), not listed")
