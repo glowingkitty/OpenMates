@@ -1286,15 +1286,18 @@ jobs:
         if: inputs.mode == 'apple-unit'
         with:
           node-version: '24'
-      - name: Install token generator dependency
+      - name: Install token generator dependencies
         if: inputs.mode == 'apple-unit'
         timeout-minutes: 10
         run: |
-          version="$(node -p "require('./frontend/packages/ui/package.json').devDependencies.yaml || require('./frontend/packages/ui/package.json').dependencies.yaml")"
-          npm install --prefix "$RUNNER_TEMP/token-deps" --no-save --no-package-lock \
-            --ignore-scripts --no-audit --no-fund "yaml@$version"
-          mkdir -p frontend/packages/ui/node_modules
+          # build-tokens.js needs only these packages; the full web workspace install is not required.
+          specs="$(node -e "const p=require('./frontend/packages/ui/package.json');const d={...p.dependencies,...p.devDependencies};console.log(['yaml','@lucide/svelte','@meteocons/svg'].map(n=>n+'@'+d[n]).join(' '))")"
+          npm install --prefix "$RUNNER_TEMP/token-deps" --no-save --no-package-lock --legacy-peer-deps \
+            --ignore-scripts --no-audit --no-fund $specs
+          mkdir -p frontend/packages/ui/node_modules/@lucide
           ln -sfn "$RUNNER_TEMP/token-deps/node_modules/yaml" frontend/packages/ui/node_modules/yaml
+          ln -sfn "$RUNNER_TEMP/token-deps/node_modules/@lucide/svelte" frontend/packages/ui/node_modules/@lucide/svelte
+          ln -sfn "$RUNNER_TEMP/token-deps/node_modules/@meteocons" frontend/packages/ui/node_modules/@meteocons
       - name: Restore pinned Whistle assets
         if: inputs.mode == 'apple-unit'
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
