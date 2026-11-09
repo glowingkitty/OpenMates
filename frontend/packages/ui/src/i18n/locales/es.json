@@ -3081,46 +3081,6 @@
         "text": "Resuelve: ¿cuánto es el 15% de 240?"
       }
     },
-    "quick_tips": {
-      "eyebrow": {
-        "text": "Consejo rápido"
-      },
-      "cta_learn_more": {
-        "text": "Más información"
-      },
-      "shorter_chats_equal_better_responses": {
-        "title": {
-          "text": "Los chats más cortos funcionan mejor"
-        },
-        "body": {
-          "text": "Obtienes mejores respuestas y ahorras créditos cuando separas los temas en chats más cortos."
-        }
-      },
-      "search_current_info_next_time": {
-        "title": {
-          "text": "Busca cuando la actualidad importe"
-        },
-        "body": {
-          "text": "La próxima vez que necesites precios actuales, eventos, noticias, detalles de productos o datos recientes, OpenMates puede buscar en la web por ti."
-        }
-      },
-      "travel_can_add_local_context": {
-        "title": {
-          "text": "Añade más contexto de viaje"
-        },
-        "body": {
-          "text": "Después de planificar un viaje, OpenMates también puede ayudarte a encontrar lugares locales, eventos, alojamientos, rutas y detalles prácticos para el mismo viaje."
-        }
-      },
-      "use_apps_for_better_results": {
-        "title": {
-          "text": "Prueba una app para el siguiente paso"
-        },
-        "body": {
-          "text": "Cuando sabes qué quieres hacer después, las apps de OpenMates dan a la IA mejores herramientas para tareas como programar, investigar, eventos, compras, escritura o planificación."
-        }
-      }
-    },
     "suggestions": {
       "explore_next": {
         "text": "¿Qué quieres explorar a continuación?"
@@ -13325,6 +13285,7 @@
     }
   },
   "projects": {},
+  "recommendations": {},
   "reminder": {
     "panel": {
       "title": {
@@ -14330,11 +14291,11 @@
         "follow_up_suggestions_save_error": {
           "text": "No se pudo guardar el ajuste de sugerencias de seguimiento."
         },
-        "quick_tips": {
-          "text": "Consejos rápidos"
+        "recommendations": {
+          "text": "Recomendaciones"
         },
-        "quick_tips_description": {
-          "text": "Muestra consejos ocasionales sobre el producto después de las respuestas del asistente. Desactiva esta opción si no quieres que OpenMates genere tarjetas de consejos rápidos."
+        "recommendations_description": {
+          "text": "Sugiere memorias y flujos de trabajo para crear o actualizar después de las respuestas del asistente. No se guarda nada hasta que lo guardes."
         },
         "server_region": {
           "text": "Región del servidor"
@@ -14344,15 +14305,6 @@
         },
         "prefer_eu_servers_description": {
           "text": "Activado (predeterminado): los modelos de IA se ejecutan primero en servidores de la UE y otras regiones solo como respaldo. Desactivado: el más rápido, global; OpenMates elige el servidor más rápido del mundo."
-        },
-        "quick_tips_enabled": {
-          "text": "Consejos rápidos activados."
-        },
-        "quick_tips_disabled": {
-          "text": "Consejos rápidos desactivados."
-        },
-        "quick_tips_save_error": {
-          "text": "No se pudo guardar el ajuste de consejos rápidos."
         },
         "manual_select_note": {
           "text": "Siempre puedes seleccionar manualmente un modelo usando @mención en el chat."
@@ -14529,6 +14481,50 @@
         },
         "enable_model": {
           "text": "Habilitar modelo"
+        }
+      }
+    },
+    "app_settings_memories": {
+      "text": "Memorias",
+      "item_key_required": {
+        "text": "La clave de entrada es obligatoria"
+      },
+      "item_value_required": {
+        "text": "El valor de entrada es obligatorio"
+      },
+      "authentication_required": {
+        "text": "Se requiere autenticación"
+      },
+      "confirm_delete": {
+        "text": "¿Estás seguro de que quieres eliminar esta entrada?"
+      },
+      "entry_not_found": {
+        "text": "Entrada no encontrada"
+      },
+      "back_to_category": {
+        "text": "Volver a la categoría"
+      },
+      "deleting": {
+        "text": "Eliminando..."
+      },
+      "saving": {
+        "text": "Guardando..."
+      },
+      "encrypted_notice": {
+        "text": "Sus entradas de configuración y memorias están cifradas, solo pueden ser leídas por sus dispositivos y nunca se envían a OpenMates para su procesamiento sin su consentimiento explícito."
+      },
+      "diff_previous_value": {
+        "text": "Anterior:"
+      },
+      "diff_not_set": {
+        "text": "No establecido"
+      },
+      "ideabucket": {
+        "processing_settings": {
+          "text": "Processing settings",
+          "description": {
+            "text": "Default prompt and processing times for IdeaBucket buckets."
+          }
         }
       }
     },
@@ -16360,7 +16356,7 @@
       "text": "Ingresa el código de acceso de Learning Mode para desactivarlo en esta cuenta."
     },
     "learning_mode_guest_description": {
-      "text": "Elige el grupo de edad del estudiante. Para invitados, Learning Mode dura solo esta sesión del navegador y no tiene código de acceso."
+      "text": "Elige el grupo de edad del estudiante y define un código de acceso. Se necesita el código para desactivar Learning Mode o para volver a permitir la creación colaborativa. Se queda en este navegador y nunca se envía a nuestros servidores."
     },
     "learning_mode_active_detail": {
       "text": "Learning Mode está activo para todos los chats de esta cuenta. Las respuestas priorizan la enseñanza y algunas herramientas están restringidas."
@@ -16369,10 +16365,10 @@
       "text": "Cuando está activo, OpenMates guía al estudiante paso a paso en lugar de dar respuestas completas."
     },
     "learning_mode_guest_active_detail": {
-      "text": "Learning Mode está activo para chats anónimos en esta sesión del navegador. Crea una cuenta para bloquearlo con un código de acceso en todos tus dispositivos."
+      "text": "Learning Mode está activo para los chats anónimos de este navegador. Sigue activo hasta que se desactive con el código de acceso."
     },
     "learning_mode_guest_inactive_detail": {
-      "text": "Los invitados pueden probar Learning Mode para chats anónimos en esta sesión del navegador. Crea una cuenta para bloquearlo con un código de acceso."
+      "text": "Los invitados pueden usar Learning Mode en chats anónimos de este navegador, protegido con un código de acceso."
     },
     "learning_mode_age_group_label": {
       "text": "Grupo de edad del estudiante"
@@ -16412,6 +16408,30 @@
     },
     "learning_mode_disable_button": {
       "text": "Desactivar Learning Mode"
+    },
+    "learning_mode_collaborative_label": {
+      "text": "Permitir creación colaborativa"
+    },
+    "learning_mode_collaborative_help": {
+      "text": "Permite que el estudiante cree cosas junto con la IA, como código, documentos y archivos. Si está desactivado, la IA solo explica y orienta. No disponible para estudiantes menores de 10 años."
+    },
+    "learning_mode_collaborative_enable_prompt": {
+      "text": "Ingresa el código de acceso de Learning Mode para volver a permitir la creación colaborativa."
+    },
+    "learning_mode_collaborative_confirm_button": {
+      "text": "Permitir creación colaborativa"
+    },
+    "learning_mode_collaborative_enabled": {
+      "text": "La creación colaborativa está activada."
+    },
+    "learning_mode_collaborative_disabled": {
+      "text": "La creación colaborativa está desactivada."
+    },
+    "learning_mode_guest_notice": {
+      "text": "Sin una cuenta, Learning Mode solo existe en este navegador. Borrar los datos del navegador o usar una ventana privada lo elimina o lo evita. Crea una cuenta para tener un bloqueo que funcione en todas partes."
+    },
+    "learning_mode_passcode_invalid": {
+      "text": "El código de acceso debe tener entre 4 y 128 caracteres."
     },
     "incognito_explainer_description": {
       "text": "El modo incógnito se aplica solo a los nuevos chats que cree. Los nuevos chats creados mientras el modo incógnito está activo no se sincronizan entre dispositivos, no se almacenan en el servidor y no se almacenan en caché. Estos chats solo existen en su sesión actual del navegador. Los chats existentes permanecen sin cambios."

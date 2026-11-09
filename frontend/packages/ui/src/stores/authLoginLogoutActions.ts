@@ -26,6 +26,7 @@ import { deleteSessionId } from "../utils/sessionId";
 import { phasedSyncState } from "./phasedSyncStateStore";
 import { aiTypingStore } from "./aiTypingStore";
 import { dailyInspirationStore } from "./dailyInspirationStore";
+import { clearAllChatRecommendations } from "./chatRecommendationsStore";
 import { webSocketService } from "../services/websocketService";
 import { chatListCache } from "../services/chatListCache";
 import { invalidateWorkspaceCaches } from "../services/workspaceCacheLifecycle";
@@ -144,6 +145,7 @@ export function resetLocalLogoutState(): void {
   chatListCache.clear();
   invalidateWorkspaceCaches();
   chatMetadataCache.clearAll();
+  clearAllChatRecommendations();
   clearAllSessionStorageDrafts();
   if (typeof window !== "undefined") {
     // Invitation fragment keys are tab-local secrets and must not cross logout.
@@ -473,8 +475,8 @@ export async function login(
                 data.user.default_app_skill_models ?? {},
               follow_up_suggestions_enabled:
                 data.user.follow_up_suggestions_enabled !== false,
-              quick_tips_enabled:
-                data.user.quick_tips_enabled !== false,
+              recommendations_enabled:
+                data.user.recommendations_enabled !== false,
               encrypted_settings: data.user.encrypted_settings ?? null,
             });
 

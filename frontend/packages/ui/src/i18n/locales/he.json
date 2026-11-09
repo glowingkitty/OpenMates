@@ -3081,46 +3081,6 @@
         "text": "פתור: כמה זה 15% מתוך 240?"
       }
     },
-    "quick_tips": {
-      "eyebrow": {
-        "text": "טיפ מהיר"
-      },
-      "cta_learn_more": {
-        "text": "מידע נוסף"
-      },
-      "shorter_chats_equal_better_responses": {
-        "title": {
-          "text": "צ'אטים קצרים עובדים טוב יותר"
-        },
-        "body": {
-          "text": "תקבל תשובות טובות יותר ותחסוך קרדיטים כשתפצל נושאים לצ'אטים קצרים ונפרדים."
-        }
-      },
-      "search_current_info_next_time": {
-        "title": {
-          "text": "חפש כשהעדכניות חשובה"
-        },
-        "body": {
-          "text": "בפעם הבאה שתצטרך מחירים עדכניים, אירועים, חדשות, פרטי מוצרים או עובדות מהזמן האחרון, OpenMates יוכל לחפש באינטרנט עבורך."
-        }
-      },
-      "travel_can_add_local_context": {
-        "title": {
-          "text": "הוספת הקשר נוסף לנסיעה"
-        },
-        "body": {
-          "text": "לאחר תכנון הנסיעה, OpenMates יכול לעזור גם במציאת מקומות מקומיים, אירועים, מקומות לינה, מסלולים ופרטים פרקטיים לאותה נסיעה."
-        }
-      },
-      "use_apps_for_better_results": {
-        "title": {
-          "text": "נסה אפליקציה לשלב הבא"
-        },
-        "body": {
-          "text": "כשאתה יודע מה אתה רוצה לעשות הלאה, האפליקציות של OpenMates יכולות לתת ל-AI כלים טובים יותר למשימות כמו תכנות, מחקר, אירועים, קניות, כתיבה או תכנון."
-        }
-      }
-    },
     "suggestions": {
       "explore_next": {
         "text": "מה אתה רוצה לחקור הלאה?"
@@ -13298,6 +13258,7 @@
     }
   },
   "projects": {},
+  "recommendations": {},
   "reminder": {
     "panel": {
       "title": {
@@ -14303,11 +14264,11 @@
         "follow_up_suggestions_save_error": {
           "text": "לא ניתן היה לשמור את הגדרת ההצעות להמשך."
         },
-        "quick_tips": {
-          "text": "טיפים מהירים"
+        "recommendations": {
+          "text": "המלצות"
         },
-        "quick_tips_description": {
-          "text": "מציג מדי פעם טיפים על המוצר לאחר תשובות העוזר. כבה אפשרות זו אם אינך רוצה ש-OpenMates יפיק כרטיסי טיפים מהירים."
+        "recommendations_description": {
+          "text": "מציע זיכרונות ותהליכי עבודה ליצירה או לעדכון לאחר תשובות העוזר. שום דבר לא נשמר עד שתשמור."
         },
         "server_region": {
           "text": "אזור שרתים"
@@ -14317,15 +14278,6 @@
         },
         "prefer_eu_servers_description": {
           "text": "פעיל (ברירת מחדל): מודלי AI רצים קודם בשרתים באיחוד האירופי, ואזורים אחרים משמשים רק כגיבוי. כבוי: המהיר ביותר, גלובלי – OpenMates בוחר את השרת המהיר ביותר בעולם."
-        },
-        "quick_tips_enabled": {
-          "text": "הטיפים המהירים הופעלו."
-        },
-        "quick_tips_disabled": {
-          "text": "הטיפים המהירים הושבתו."
-        },
-        "quick_tips_save_error": {
-          "text": "לא ניתן היה לשמור את הגדרת הטיפים המהירים."
         },
         "manual_select_note": {
           "text": "תמיד ניתן לבחור מודל ידנית באמצעות @mention בצ'אט."
@@ -14502,6 +14454,50 @@
         },
         "enable_model": {
           "text": "הפעלת מודל"
+        }
+      }
+    },
+    "app_settings_memories": {
+      "text": "זיכרונות",
+      "item_key_required": {
+        "text": "חובה להזין מפתח רשומה"
+      },
+      "item_value_required": {
+        "text": "חובה להזין ערך רשומה"
+      },
+      "authentication_required": {
+        "text": "נדרש אימות"
+      },
+      "confirm_delete": {
+        "text": "האם ברצונך למחוק את הרשומה הזו?"
+      },
+      "entry_not_found": {
+        "text": "הרשומה לא נמצאה"
+      },
+      "back_to_category": {
+        "text": "חזרה לקטגוריה"
+      },
+      "deleting": {
+        "text": "מוחק..."
+      },
+      "saving": {
+        "text": "שומר..."
+      },
+      "encrypted_notice": {
+        "text": "הרשומות של ההגדרות והזיכרונות שלך מוצפנות, ניתנות לקריאה רק על ידי המכשירים שלך ולעולם לא נשלחות ל-OpenMates לעיבוד ללא הסכמתך המפורשת."
+      },
+      "diff_previous_value": {
+        "text": "קודם:"
+      },
+      "diff_not_set": {
+        "text": "לא הוגדר"
+      },
+      "ideabucket": {
+        "processing_settings": {
+          "text": "Processing settings",
+          "description": {
+            "text": "Default prompt and processing times for IdeaBucket buckets."
+          }
         }
       }
     },
@@ -16333,7 +16329,7 @@
       "text": "הזן את קוד הגישה של Learning Mode כדי לכבות אותו בחשבון הזה."
     },
     "learning_mode_guest_description": {
-      "text": "בחר את קבוצת הגיל של הלומד. לאורחים, Learning Mode נמשך רק בהפעלת הדפדפן הזו ואין לו קוד גישה."
+      "text": "בחר את קבוצת הגיל של הלומד והגדר קוד גישה. הקוד נדרש כדי לכבות את Learning Mode או כדי לאפשר שוב יצירה משותפת. הוא נשאר בדפדפן הזה ולעולם לא נשלח לשרתים שלנו."
     },
     "learning_mode_active_detail": {
       "text": "Learning Mode פעיל לכל צ'אט בחשבון הזה. התשובות נשארות ממוקדות בהוראה וכלים נבחרים מוגבלים."
@@ -16342,10 +16338,10 @@
       "text": "כשהוא מופעל, OpenMates מדריך את הלומד צעד אחר צעד במקום לתת תשובות מלאות."
     },
     "learning_mode_guest_active_detail": {
-      "text": "Learning Mode פעיל לצ'אטים אנונימיים בהפעלת הדפדפן הזו. צור חשבון כדי לנעול אותו עם קוד גישה בכל המכשירים."
+      "text": "Learning Mode פעיל בצ'אטים אנונימיים בדפדפן הזה. הוא נשאר פעיל עד שמכבים אותו באמצעות קוד הגישה."
     },
     "learning_mode_guest_inactive_detail": {
-      "text": "אורחים יכולים לנסות את Learning Mode לצ'אטים אנונימיים בהפעלת הדפדפן הזו. צור חשבון כדי לנעול אותו עם קוד גישה."
+      "text": "אורחים יכולים להשתמש ב-Learning Mode בצ'אטים אנונימיים בדפדפן הזה, מוגן בקוד גישה."
     },
     "learning_mode_age_group_label": {
       "text": "קבוצת הגיל של הלומד"
@@ -16385,6 +16381,30 @@
     },
     "learning_mode_disable_button": {
       "text": "כבה את Learning Mode"
+    },
+    "learning_mode_collaborative_label": {
+      "text": "אפשר יצירה משותפת"
+    },
+    "learning_mode_collaborative_help": {
+      "text": "מאפשר ללומד ליצור דברים יחד עם ה-AI, כמו קוד, מסמכים וקבצים. כשהאפשרות כבויה, ה-AI רק מסביר ומדריך. לא זמין ללומדים מתחת לגיל 10."
+    },
+    "learning_mode_collaborative_enable_prompt": {
+      "text": "הזן את קוד הגישה של Learning Mode כדי לאפשר שוב יצירה משותפת."
+    },
+    "learning_mode_collaborative_confirm_button": {
+      "text": "אפשר יצירה משותפת"
+    },
+    "learning_mode_collaborative_enabled": {
+      "text": "היצירה המשותפת פועלת."
+    },
+    "learning_mode_collaborative_disabled": {
+      "text": "היצירה המשותפת כבויה."
+    },
+    "learning_mode_guest_notice": {
+      "text": "ללא חשבון, Learning Mode קיים רק בדפדפן הזה. ניקוי נתוני הדפדפן או שימוש בחלון פרטי מסירים או עוקפים אותו. צור חשבון כדי לקבל נעילה שעובדת בכל מקום."
+    },
+    "learning_mode_passcode_invalid": {
+      "text": "קוד הגישה חייב להכיל בין 4 ל-128 תווים."
     },
     "incognito_explainer_description": {
       "text": "מצב גלישה בסתר חל רק על צ'אטים חדשים שתיצור. צ'אטים חדשים שנוצרו בזמן שמצב גלישה בסתר פעיל אינם מסונכרנים בין מכשירים, אינם נשמרים בשרת ואינם נשמרים במטמון. צ'אטים אלו קיימים רק בהפעלת הדפדפן הנוכחית שלך. צ'אטים קיימים נותרים ללא שינוי."

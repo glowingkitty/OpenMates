@@ -648,6 +648,13 @@ async def _publish_fixture_postprocessing_metadata(
     if not chat_summary:
         return
 
+    # Fixtures obey the live Recommendations gate (setting off, sub-chat, incognito).
+    recommendations_allowed = (
+        (request_data.user_preferences or {}).get("recommendations_enabled", True) is not False
+        and not getattr(request_data, "is_sub_chat", False)
+        and not getattr(request_data, "is_incognito", False)
+    )
+
     payload = {
         "type": "post_processing_completed",
         "event_for_client": "post_processing_completed",
@@ -668,7 +675,7 @@ async def _publish_fixture_postprocessing_metadata(
         "top_recommended_apps_for_user": postprocessing.get(
             "top_recommended_apps_for_user", []
         ),
-        "quick_tip_slugs": postprocessing.get("quick_tip_slugs", []),
+        "recommendations": postprocessing.get("recommendations", []) if recommendations_allowed else [],
         "task_proposals": postprocessing.get("task_proposals", []),
         "task_update_proposals": postprocessing.get("task_update_proposals", []),
     }

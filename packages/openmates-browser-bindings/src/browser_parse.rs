@@ -33,3 +33,21 @@ pub fn parse_strip_voice_cues(markdown: &str) -> String {
 pub fn parse_normalize_plan(plan_json: &str) -> Result<String, JsValue> {
     blocks::normalize_json(plan_json).map_err(|e| JsValue::from_str(&e))
 }
+
+/// Chat Recommendations reconcile (`recommendations::reconcile_recommendations_json`).
+#[wasm_bindgen]
+pub fn parse_reconcile_recommendations(input_json: &str) -> Result<String, JsValue> {
+    openmates_sdk::client::recommendations::reconcile_recommendations_json(input_json).map_err(|e| JsValue::from_str(&e.to_string()))
+}
+
+/// Validated `context_entry` system message content (`recommendations::build_context_entry_event_json`).
+#[wasm_bindgen]
+pub fn parse_build_context_entry_event(event_json: &str) -> Result<String, JsValue> {
+    openmates_sdk::client::recommendations::build_context_entry_event_json(event_json).map_err(|e| JsValue::from_str(&e.to_string()))
+}
+
+/// Event object or `null` for system message content (`recommendations::parse_context_entry_event_json`).
+#[wasm_bindgen]
+pub fn parse_context_entry_event(content: &str) -> String {
+    openmates_sdk::client::recommendations::parse_context_entry_event_json(content)
+}

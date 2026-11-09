@@ -667,7 +667,7 @@ def test_post_processing_does_not_ack_failed_persistence(monkeypatch) -> None:
                 user_id_hash="owner-hash",
                 device_fingerprint_hash="device-1",
                 payload=chat_metadata_payload(
-                    encrypted_quick_tip_slugs="cipher-quick-tips",
+                    encrypted_recommendations="cipher-recommendations",
                     encrypted_chat_key="cipher-key",
                 ),
             )
@@ -706,7 +706,7 @@ def test_post_processing_keeps_new_chat_suggestions_on_persistence_queue(monkeyp
             device_fingerprint_hash="device-1",
             payload=chat_metadata_payload(
                 encrypted_new_chat_suggestions=["cipher-suggestion"],
-                encrypted_quick_tip_slugs="cipher-quick-tips",
+                encrypted_recommendations="cipher-recommendations",
                 encrypted_chat_key="cipher-key",
             ),
         )

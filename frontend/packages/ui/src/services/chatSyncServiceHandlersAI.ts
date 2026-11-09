@@ -1,5 +1,10 @@
 import { getWorkspaceCacheIdentity } from "./workspaceQueryCache";
-import { parseContextSuggestion } from "./contextSuggestionWire";
+import {
+  RECOMMENDATIONS_IN_BUILD, decryptRecommendationsState, encryptRecommendationsState,
+  reconcileIncomingRecommendations,
+} from "./chatRecommendationsPersistence";
+import { setChatRecommendations } from "../stores/chatRecommendationsStore";
+import type { ChatRecommendation, ChatRecommendationsState } from "../types/recommendations";
 import { persistGeneratedChatMetadata } from "./generatedChatMetadataPersistence";
 import { getWorkspaceCacheEpoch } from "./workspaceCacheLifecycle";
 import { noteChatMetadataTurn, completeChatMetadataTurn, isChatMetadataTurnCurrent } from "./lateChatMetadataGuard";
@@ -2609,7 +2614,7 @@ export async function handlePostProcessingCompletedImpl(
     chat_tags: string[];
     harmful_response: number;
     top_recommended_apps_for_user?: string[]; // Optional: Top 5 recommended app IDs
-    quick_tip_slugs?: string[]; // Optional: Product quick tip slugs selected during post-processing
+    recommendations?: ChatRecommendation[]; // Optional: memory/workflow recommendations (plan chat-recommendations)
     updated_chat_title?: string; // OPE-265: New title if conversation drifted from original topic
     source_title_v?: number | null;
     source_metadata_v?: number | null;
@@ -2655,7 +2660,8 @@ export async function handlePostProcessingCompletedImpl(
     let encryptedShareCtaText: string | null = null;
     let encryptedChatTags: string | null = null;
     let encryptedTopRecommendedApps: string | null = null;
-    let encryptedQuickTipSlugs: string | null = null;
+    let encryptedRecommendations: string | null = null;
+    let recommendationsState: ChatRecommendationsState | null = null;
     let encryptedUpdatedTitle: string | null = null;
 
     const storedChat = await chatDB.getChat(payload.chat_id);
@@ -2827,15 +2833,26 @@ export async function handlePostProcessingCompletedImpl(
       );
     }
 
-    if (turnIsCurrent() && payload.quick_tip_slugs && payload.quick_tip_slugs.length > 0) {
-      encryptedQuickTipSlugs = await encryptArrayWithChatKey(
-        payload.quick_tip_slugs.slice(0, 2),
-        chatKey,
-      );
-      chat.encrypted_quick_tip_slugs = encryptedQuickTipSlugs;
-      console.debug(
-        `[ChatSyncService:AI] Saved ${payload.quick_tip_slugs.length} quick tip slug(s) for chat ${payload.chat_id}`,
-      );
+    // Recommendations exist only in Rust core builds (reconcile runs in the core);
+    // flag-off builds ignore payload.recommendations.
+    if (RECOMMENDATIONS_IN_BUILD && turnIsCurrent()) {
+      try {
+        recommendationsState = await nextRecommendationsState(
+          payload.chat_id, payload.recommendations ?? [], chat.encrypted_recommendations ?? null, chatKey,
+        );
+        if (recommendationsState) {
+          encryptedRecommendations = await encryptRecommendationsState(recommendationsState, chatKey);
+          chat.encrypted_recommendations = encryptedRecommendations;
+        }
+      } catch (error) {
+        // Recommendations are optional output; they must not block follow-ups, title or summary.
+        console.error(
+          `[ChatSyncService:AI] Could not reconcile recommendations for chat ${payload.chat_id}`,
+          error,
+        );
+        recommendationsState = null;
+        encryptedRecommendations = null;
+      }
     }
 
     // OPE-265: Encrypt and save updated chat title if the postprocessor determined a title change is needed.
@@ -2875,7 +2892,7 @@ export async function handlePostProcessingCompletedImpl(
       payload.share_cta_text ||
       payload.chat_tags?.length > 0 ||
       encryptedTopRecommendedApps ||
-      encryptedQuickTipSlugs ||
+      encryptedRecommendations ||
       encryptedUpdatedTitle
     ) {
       const persisted = await persistGeneratedChatMetadata(chatDB, storedChat!, {
@@ -2884,7 +2901,7 @@ export async function handlePostProcessingCompletedImpl(
         ...(encryptedShareCtaText ? { encrypted_share_cta_text: encryptedShareCtaText } : {}),
         ...(encryptedChatTags ? { encrypted_chat_tags: encryptedChatTags } : {}),
         ...(encryptedTopRecommendedApps ? { encrypted_top_recommended_apps_for_chat: encryptedTopRecommendedApps } : {}),
-        ...(encryptedQuickTipSlugs ? { encrypted_quick_tip_slugs: encryptedQuickTipSlugs } : {}),
+        ...(encryptedRecommendations ? { encrypted_recommendations: encryptedRecommendations } : {}),
         ...(encryptedUpdatedTitle ? { encrypted_title: encryptedUpdatedTitle, title_v: (storedChat!.title_v ?? 0) + 1 } : {}),
       }, isCurrent, (patch) => {
         if (turnIsCurrent()) return patch;
@@ -2900,7 +2917,8 @@ export async function handlePostProcessingCompletedImpl(
         encryptedShareCtaText = null;
         encryptedChatTags = null;
         encryptedTopRecommendedApps = null;
-        encryptedQuickTipSlugs = null;
+        encryptedRecommendations = null;
+        recommendationsState = null;
       }
       if (persisted.encrypted_title !== encryptedUpdatedTitle) encryptedUpdatedTitle = null;
       if (persisted.encrypted_chat_summary !== encryptedChatSummary) encryptedChatSummary = null;
@@ -2933,7 +2951,7 @@ export async function handlePostProcessingCompletedImpl(
       encryptedShareCtaText ||
       encryptedChatTags ||
       encryptedTopRecommendedApps ||
-      encryptedQuickTipSlugs ||
+      encryptedRecommendations ||
       encryptedUpdatedTitle
     ) {
       const { sendPostProcessingMetadataImpl } =
@@ -2950,7 +2968,8 @@ export async function handlePostProcessingCompletedImpl(
         encryptedShareCtaText = null;
         encryptedChatTags = null;
         encryptedTopRecommendedApps = null;
-        encryptedQuickTipSlugs = null;
+        encryptedRecommendations = null;
+        recommendationsState = null;
       }
       await sendPostProcessingMetadataImpl(
         serviceInstance,
@@ -2960,7 +2979,7 @@ export async function handlePostProcessingCompletedImpl(
         encryptedChatSummary || "",
         encryptedChatTags || "",
         encryptedTopRecommendedApps || "",
-        encryptedQuickTipSlugs || "",
+        encryptedRecommendations || "",
         encryptedUpdatedTitle || "",
         encryptedShareCtaText || "",
         encryptedChatKeyForValidation,
@@ -2982,6 +3001,7 @@ export async function handlePostProcessingCompletedImpl(
 
     // Dispatch event to notify components (e.g., to update UI with new suggestions)
     if (!ownerIsCurrent() || !turnIsCurrent()) return;
+    if (recommendationsState) setChatRecommendations(payload.chat_id, recommendationsState);
     const event = new CustomEvent("postProcessingCompleted", {
       detail: {
         chatId: payload.chat_id,
@@ -2989,10 +3009,9 @@ export async function handlePostProcessingCompletedImpl(
         turnId: payload.turn_id,
         userMessageId: payload.user_message_id,
         followUpSuggestions: payload.follow_up_request_suggestions,
-        quickTipSlugs: payload.quick_tip_slugs || [],
+        recommendations: recommendationsState?.items ?? [],
         taskProposals: payload.task_proposals || [],
         taskUpdateProposals: payload.task_update_proposals || [],
-        contextSuggestion: parseContextSuggestion(payload),
         harmfulResponse: payload.harmful_response,
       },
     });
@@ -3007,6 +3026,26 @@ export async function handlePostProcessingCompletedImpl(
       error,
     );
   }
+}
+
+/**
+ * State after a completed current turn, or null when nothing changes. Items are the
+ * Rust-reconciled recommendations of this turn; a turn without any clears the open items.
+ */
+async function nextRecommendationsState(
+  chatId: string,
+  incoming: ChatRecommendation[],
+  storedCiphertext: string | null,
+  chatKey: Uint8Array,
+): Promise<ChatRecommendationsState | null> {
+  const previous = storedCiphertext
+    ? await decryptRecommendationsState(storedCiphertext, chatKey, chatId)
+    : null;
+  if (incoming.length === 0) {
+    if (!previous || previous.items.length === 0) return null;
+    return { ...previous, items: [], updated_at: Math.floor(Date.now() / 1000) };
+  }
+  return reconcileIncomingRecommendations(incoming, previous);
 }
 
 /**

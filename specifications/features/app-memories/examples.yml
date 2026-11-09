@@ -265,18 +265,34 @@ references:
   when: The memory is loaded.
   then: The chat reference is ignored; only embed references are resolved and no chat content or metadata is supplied.
 suggestions:
+- id: conference-search
+  given: The user asks for open source conferences in Europe next year and the assistant lists FOSDEM 2027 and others.
+  when: Post-processing finishes.
+  then: The Recommendations card offers at least one memory such as "Interested in open source conferences in Europe" and at least one workflow such as a weekly alert for new open source conference calls for papers, with dots for each recommendation and previous/next buttons; the follow-up chips below are unchanged.
 - id: update-title-only
   given: The memory "Staging API" says port 8001 and the chat reveals port 8002.
-  when: The post-processor proposes updating it.
-  then: Below the chat the container shows "Update Staging API"; no memory text is shown.
+  when: The post-processor recommends it.
+  then: The card shows "Update Staging API" with a short summary; no memory text is shown.
+- id: mention-only-duplicate
+  given: The user has a Mention only memory "Open source conferences" that was never sent to the server.
+  when: Post-processing recommends creating "Open source conferences in Europe".
+  then: The client shows it as an update of the existing memory instead of a new one.
+- id: existing-workflow
+  given: The user already has a workflow "Weekly conference CFP alert".
+  when: Post-processing would recommend creating a similar workflow.
+  then: The card recommends updating the existing workflow.
 - id: draft-not-saved
-  given: The user previews an update and opens it in Settings.
+  given: The user opens a memory recommendation and the draft appears in Settings.
   when: They leave without choosing Save, or choose Save after the memory changed on another device.
-  then: The memory is unchanged; if it was edited elsewhere meanwhile, pressing Save reports a conflict and overwrites nothing.
-- id: workflow-title-and-summary
-  given: The user repeatedly asked for a weekly summary of new events in their city.
-  when: The post-processor proposes a Workflow.
-  then: The container shows only a title and a short summary with a Create button; pressing Create opens the Workflow workspace and builds the Workflow visibly, and nothing exists before that.
+  then: The memory is unchanged and the recommendation stays in the chat; if it was edited elsewhere meanwhile, pressing Save reports a conflict and overwrites nothing.
+- id: saved-event
+  given: The user opens a workflow recommendation, the editor opens beside the chat and they press Save.
+  when: They look at the chat afterwards, also after reloading on another device.
+  then: The recommendation is gone and the history shows "Workflow created" with its title; the link opens that workflow.
+- id: setting-off
+  given: The user turned Recommendations off in settings.
+  when: They send another message.
+  then: No recommendations are generated and no card is shown; follow-up chips still appear.
 suggestion_billing:
 - id: attributed-to-originating-chat
   given: A suggestion was made in the chat "Release planning".

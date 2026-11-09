@@ -2865,3 +2865,87 @@ builder.memory_needs_attention_badge:
   context: Badge on a Workflow step whose mentioned memory was deleted or expired
   en: "Needs attention: a mentioned memory is no longer available"
   verified_by_human: []
+
+side_panel.kicker_draft:
+  context: Small label above the title of an unsaved AI workflow draft in the chat side panel
+  en: Workflow draft
+  de: Workflow-Entwurf
+  verified_by_human: []
+
+side_panel.kicker_saved:
+  context: Small label above the title of a saved workflow in the chat side panel
+  en: Workflow
+  de: Workflow
+  verified_by_human: []
+
+side_panel.title_label:
+  context: Accessible label of the workflow name field in the chat side panel
+  en: Workflow name
+  de: Workflow-Name
+  verified_by_human: []
+
+side_panel.close:
+  context: Button that closes the workflow editor next to the chat and returns to the chat
+  en: Close workflow editor
+  de: Workflow-Editor schließen
+  verified_by_human: []
+
+side_panel.save:
+  context: Button that saves the workflow shown in the chat side panel
+  en: Save workflow
+  de: Workflow speichern
+  verified_by_human: []
+
+side_panel.saving:
+  context: Save button label while the side panel workflow is being saved
+  en: Saving…
+  de: Wird gespeichert…
+  verified_by_human: []
+
+side_panel.generating:
+  context: Status while AI generates a workflow draft in the chat side panel
+  en: Generating the workflow draft…
+  de: Workflow-Entwurf wird erstellt…
+  verified_by_human: []
+
+side_panel.loading:
+  context: Status while the chat side panel loads an existing workflow
+  en: Loading the workflow…
+  de: Workflow wird geladen…
+  verified_by_human: []
+
+side_panel.unsaved_hint:
+  context: Note in the chat side panel that the AI draft is not saved until the user saves it
+  en: Not saved yet. Review the draft, then save it.
+  de: Noch nicht gespeichert. Prüfe den Entwurf und speichere ihn dann.
+  verified_by_human: []
+
+side_panel.saved_hint:
+  context: Note in the chat side panel after the workflow was saved
+  en: Saved to your workflows. It stays paused until you enable it.
+  de: In deinen Workflows gespeichert. Er bleibt pausiert, bis du ihn aktivierst.
+  verified_by_human: []
+
+side_panel.load_failed:
+  context: Error when the chat side panel cannot load the workflow to edit
+  en: The workflow could not be loaded. Please try again.
+  de: Der Workflow konnte nicht geladen werden. Bitte versuche es erneut.
+  verified_by_human: []
+
+side_panel.save_failed:
+  context: Error when saving the workflow in the chat side panel fails
+  en: The workflow could not be saved. Please try again.
+  de: Der Workflow konnte nicht gespeichert werden. Bitte versuche es erneut.
+  verified_by_human: []
+
+side_panel.retry:
+  context: Button that retries generating the workflow draft in the chat side panel
+  en: Try again
+  de: Erneut versuchen
+  verified_by_human: []
+
+side_panel.draft_unavailable:
+  context: Error in the chat side panel when AI workflow drafts are not available in this app build
+  en: AI workflow drafts are not available here yet.
+  de: KI-Workflow-Entwürfe sind hier noch nicht verfügbar.
+  verified_by_human: []

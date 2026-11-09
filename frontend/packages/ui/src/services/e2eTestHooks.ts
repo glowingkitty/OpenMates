@@ -65,7 +65,6 @@ export async function installE2ETestHooks() {
       chat: Record<string, unknown>;
       messages: Record<string, unknown>[];
     }) => Promise<{ chatId: string; messageCount: number }>;
-    __openmatesE2ESeedContextSuggestion?: (input: { chatId: string; suggestion: Record<string, unknown> | null }) => Promise<boolean>;
     __openmatesE2EEvictEmbedCache?: (embedIds: string[]) => Promise<void>;
     __openmatesE2EPrepareEmbedCache?: (input: { chatId: string; embedIds: string[]; indexByApp?: boolean }) => Promise<{ decryptedCount: number; encryptedCount: number; indexedCount?: number }>;
     __openmatesE2ESeedFollowupImage?: () => Promise<{ chatId: string; embedId: string }>;
@@ -268,15 +267,6 @@ export async function installE2ETestHooks() {
     }
     const { embedStore } = await import('./embedStore');
     for (const id of embedIds) await embedStore.deleteEmbed(id);
-  };
-
-  // Seeds the post-processor suggestion container through the same adapter the live event uses.
-  testWindow.__openmatesE2ESeedContextSuggestion = async ({ chatId, suggestion }) => {
-    const { parseContextSuggestion, CONTEXT_SUGGESTION_WIRE } = await import('./contextSuggestionWire');
-    const { setContextSuggestion } = await import('../stores/contextSuggestionStore');
-    const parsed = suggestion ? parseContextSuggestion({ [CONTEXT_SUGGESTION_WIRE.postProcessingField]: suggestion }) : null;
-    setContextSuggestion(chatId, parsed);
-    return suggestion === null || parsed !== null;
   };
 
   testWindow.__openmatesE2ESeedChat = async ({ chat, messages }) => {

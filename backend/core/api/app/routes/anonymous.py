@@ -996,7 +996,6 @@ async def _anonymous_post_processing_event(
         "chat_summary": summary,
         "chat_tags": [],
         "harmful_response": 0,
-        "quick_tip_slugs": [],
     }
     if title and title != payload.current_chat_title:
         event["updated_chat_title"] = title
@@ -1073,7 +1072,7 @@ async def _anonymous_post_processing_event(
             output_language=output_language,
             user_system_language=payload.system_language,
             current_chat_title=title,
-            quick_tips_enabled=False,
+            recommendations_enabled=False,
             learning_mode_context=build_anonymous_request_learning_mode_context(payload.learning_mode),
             translate_ui_metadata=False,
             allow_model_fallbacks=False,

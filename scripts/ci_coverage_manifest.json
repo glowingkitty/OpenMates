@@ -238,6 +238,7 @@
     },
     "browser_component_contract": {
       "specs": [
+        "components/chat-recommendations-components.spec.ts",
         "components/message-input-url-conversion.spec.ts",
         "components/audio-recording-compact-send.spec.ts",
         "components/results-view-source-validation.spec.ts",
@@ -670,6 +671,7 @@
         "web-rust-core-composer.spec.ts",
         "web-rust-core-projects-flow.spec.ts",
         "web-rust-core-projects-remote-sources.spec.ts",
+        "web-rust-core-chat-recommendations-flow.spec.ts",
         "web-rust-core-continue-carousel.spec.ts"
       ]
     },
@@ -941,6 +943,7 @@
         "workflows-editor.spec.ts",
         "workflows-website-changes.spec.ts",
         "workflows-input.spec.ts",
+        "web-rust-core-workflow-side-panel.spec.ts",
         "workflows-input-stream.spec.ts",
         "workflows-load-failure.spec.ts",
         "workflows-reorder-inputs.spec.ts",

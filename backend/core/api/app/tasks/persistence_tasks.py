@@ -81,7 +81,7 @@ def _chat_list_cache_data_from_metadata(
         encrypted_follow_up_request_suggestions=chat_metadata.get("encrypted_follow_up_request_suggestions"),
         encrypted_suggested_followup_message=chat_metadata.get("encrypted_suggested_followup_message"),
         encrypted_top_recommended_apps_for_chat=chat_metadata.get("encrypted_top_recommended_apps_for_chat"),
-        encrypted_quick_tip_slugs=chat_metadata.get("encrypted_quick_tip_slugs"),
+        encrypted_recommendations=chat_metadata.get("encrypted_recommendations"),
         encrypted_shared_short_url=chat_metadata.get("encrypted_shared_short_url"),
         encrypted_active_focus_id=chat_metadata.get("encrypted_active_focus_id"),
         encrypted_focus_phase_state=chat_metadata.get("encrypted_focus_phase_state"),
@@ -2355,7 +2355,7 @@ async def _async_persist_encrypted_chat_metadata(
                                    "encrypted_chat_summary", "encrypted_share_cta_text", "encrypted_chat_tags",
                                    "encrypted_follow_up_request_suggestions", "encrypted_suggested_followup_message",
                                     "encrypted_top_recommended_apps_for_chat",
-                                   "encrypted_quick_tip_slugs", "encrypted_shared_short_url",
+                                   "encrypted_recommendations", "encrypted_shared_short_url",
                                    "encrypted_auto_speak_response"):
                         if field in update_fields:
                             rejected_metadata.append(field)
@@ -2373,7 +2373,7 @@ async def _async_persist_encrypted_chat_metadata(
                 "encrypted_title", "encrypted_icon", "encrypted_category", "encrypted_chat_tags",
                 "encrypted_chat_summary", "encrypted_share_cta_text", "encrypted_follow_up_request_suggestions", "encrypted_suggested_followup_message", "encrypted_chat_key",
                 "encrypted_top_recommended_apps_for_chat",
-                "encrypted_quick_tip_slugs", "encrypted_shared_short_url", "encrypted_auto_speak_response", "encrypted_focus_phase_state",
+                "encrypted_recommendations", "encrypted_shared_short_url", "encrypted_auto_speak_response", "encrypted_focus_phase_state",
                 "updated_at"
             }
             
@@ -2527,7 +2527,7 @@ async def _async_persist_encrypted_chat_metadata(
                         encrypted_follow_up_request_suggestions=encrypted_metadata.get("encrypted_follow_up_request_suggestions"),
                         encrypted_suggested_followup_message=encrypted_metadata.get("encrypted_suggested_followup_message"),
                         encrypted_top_recommended_apps_for_chat=encrypted_metadata.get("encrypted_top_recommended_apps_for_chat"),
-                        encrypted_quick_tip_slugs=encrypted_metadata.get("encrypted_quick_tip_slugs"),
+                        encrypted_recommendations=encrypted_metadata.get("encrypted_recommendations"),
                         encrypted_shared_short_url=encrypted_metadata.get("encrypted_shared_short_url"),
                         encrypted_active_focus_id=encrypted_metadata.get("encrypted_active_focus_id"),
                         encrypted_focus_phase_state=encrypted_metadata.get("encrypted_focus_phase_state"),
@@ -2608,7 +2608,7 @@ async def _async_persist_encrypted_chat_metadata(
                 "encrypted_follow_up_request_suggestions": encrypted_metadata.get("encrypted_follow_up_request_suggestions"),
                 "encrypted_suggested_followup_message": encrypted_metadata.get("encrypted_suggested_followup_message"),
                 "encrypted_top_recommended_apps_for_chat": encrypted_metadata.get("encrypted_top_recommended_apps_for_chat"),
-                "encrypted_quick_tip_slugs": encrypted_metadata.get("encrypted_quick_tip_slugs"),
+                "encrypted_recommendations": encrypted_metadata.get("encrypted_recommendations"),
                 "encrypted_shared_short_url": encrypted_metadata.get("encrypted_shared_short_url"),
                 "encrypted_auto_speak_response": encrypted_metadata.get("encrypted_auto_speak_response"),
                 "parent_id": encrypted_metadata.get("parent_id"),

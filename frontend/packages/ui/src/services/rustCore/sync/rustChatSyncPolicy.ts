@@ -30,7 +30,7 @@ export const NEW_CHAT_KEYS = [
 	'encrypted_chat_key', 'anonymous_encrypted_chat_key', 'candidate_encrypted_keys', 'encrypted_icon', 'encrypted_category',
 	'last_visible_message_id', 'pinned', 'encrypted_follow_up_request_suggestions', 'encrypted_suggested_followup_message',
 	'encrypted_chat_summary', 'encrypted_share_cta_text', 'encrypted_shared_short_url', 'encrypted_chat_tags',
-	'encrypted_top_recommended_apps_for_chat', 'encrypted_quick_tip_slugs', 'encrypted_active_focus_id',
+	'encrypted_top_recommended_apps_for_chat', 'encrypted_recommendations', 'encrypted_active_focus_id',
 	'encrypted_focus_phase_state', 'encrypted_auto_speak_response', 'is_shared', 'is_private', 'is_anonymous', 'share_pii',
 	'share_highlights', 'parent_id', 'is_sub_chat', 'budget_limit', 'budget_spent', 'user_id',
 ] as const;
@@ -45,7 +45,7 @@ export const MERGED_CHAT_KEYS = [
 	'anonymous_encrypted_chat_key', 'candidate_encrypted_keys', 'encrypted_icon', 'encrypted_category', 'last_visible_message_id',
 	'pinned', 'encrypted_follow_up_request_suggestions', 'encrypted_suggested_followup_message', 'encrypted_chat_summary',
 	'encrypted_share_cta_text', 'encrypted_shared_short_url', 'encrypted_chat_tags', 'encrypted_top_recommended_apps_for_chat',
-	'encrypted_quick_tip_slugs', 'encrypted_focus_phase_state', 'encrypted_active_focus_id', 'encrypted_auto_speak_response',
+	'encrypted_recommendations', 'encrypted_focus_phase_state', 'encrypted_active_focus_id', 'encrypted_auto_speak_response',
 	'is_shared', 'is_private', 'is_anonymous', 'share_pii', 'share_highlights', 'parent_id', 'is_sub_chat', 'budget_limit',
 	'budget_spent',
 ] as const;

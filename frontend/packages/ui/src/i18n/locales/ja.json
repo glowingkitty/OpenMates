@@ -3081,46 +3081,6 @@
         "text": "計算: 240の15%はいくらですか？"
       }
     },
-    "quick_tips": {
-      "eyebrow": {
-        "text": "クイックヒント"
-      },
-      "cta_learn_more": {
-        "text": "詳細を見る"
-      },
-      "shorter_chats_equal_better_responses": {
-        "title": {
-          "text": "短いチャットの方が効果的です"
-        },
-        "body": {
-          "text": "トピックを個別の短いチャットに分けることで、より良い回答が得られ、クレジットも節約できます。"
-        }
-      },
-      "search_current_info_next_time": {
-        "title": {
-          "text": "情報の鮮度が重要な場合は検索を"
-        },
-        "body": {
-          "text": "次回、最新の価格、イベント、ニュース、製品の詳細、または最近の事実が必要なときは、OpenMatesがウェブを検索します。"
-        }
-      },
-      "travel_can_add_local_context": {
-        "title": {
-          "text": "旅行の情報をさらに追加する"
-        },
-        "body": {
-          "text": "旅行の計画を立てた後、OpenMatesは同じ旅行の現地の場所、イベント、宿泊先、ルート、実用的な詳細を見つけるお手伝いもできます。"
-        }
-      },
-      "use_apps_for_better_results": {
-        "title": {
-          "text": "次のステップでアプリを試す"
-        },
-        "body": {
-          "text": "次に何をしたいかが決まっている場合、OpenMatesアプリは、コーディング、リサーチ、イベント、ショッピング、執筆、計画などのタスクに対して、AIにより優れたツールを提供できます。"
-        }
-      }
-    },
     "suggestions": {
       "explore_next": {
         "text": "次に何を探求しますか？"
@@ -13298,6 +13258,7 @@
     }
   },
   "projects": {},
+  "recommendations": {},
   "reminder": {
     "panel": {
       "title": {
@@ -14303,11 +14264,11 @@
         "follow_up_suggestions_save_error": {
           "text": "フォローアップの提案設定を保存できませんでした。"
         },
-        "quick_tips": {
-          "text": "クイックチップ"
+        "recommendations": {
+          "text": "おすすめ"
         },
-        "quick_tips_description": {
-          "text": "アシスタントの回答後に、製品のヒントを時々表示します。OpenMatesによるクイックチップカードの生成を希望しない場合は、これをオフにしてください。"
+        "recommendations_description": {
+          "text": "アシスタントの回答後に、作成または更新するメモリーとワークフローを提案します。保存するまで何も保存されません。"
         },
         "server_region": {
           "text": "サーバーリージョン"
@@ -14317,15 +14278,6 @@
         },
         "prefer_eu_servers_description": {
           "text": "オン（デフォルト）：AIモデルはまずEUのサーバーで実行され、他の地域は代替としてのみ使われます。オフ：最速・グローバル – OpenMatesが世界中で最も速いサーバーを選びます。"
-        },
-        "quick_tips_enabled": {
-          "text": "クイックチップを有効にしました。"
-        },
-        "quick_tips_disabled": {
-          "text": "クイックチップを無効にしました。"
-        },
-        "quick_tips_save_error": {
-          "text": "クイックチップ設定を保存できませんでした。"
         },
         "manual_select_note": {
           "text": "チャットで@メンションを使用していつでも手動でモデルを選択できます。"
@@ -14502,6 +14454,50 @@
         },
         "enable_model": {
           "text": "モデルを有効にする"
+        }
+      }
+    },
+    "app_settings_memories": {
+      "text": "メモリ",
+      "item_key_required": {
+        "text": "エントリキーは必須です"
+      },
+      "item_value_required": {
+        "text": "エントリ値は必須です"
+      },
+      "authentication_required": {
+        "text": "認証が必要です"
+      },
+      "confirm_delete": {
+        "text": "このエントリを削除してもよろしいですか？"
+      },
+      "entry_not_found": {
+        "text": "エントリが見つかりません"
+      },
+      "back_to_category": {
+        "text": "カテゴリに戻る"
+      },
+      "deleting": {
+        "text": "削除中..."
+      },
+      "saving": {
+        "text": "保存中..."
+      },
+      "encrypted_notice": {
+        "text": "設定とメモリのエントリは暗号化されており、あなたのデバイスのみが読み取ることができ、あなたの明示的な同意なしにOpenMatesに処理のために送信されることはありません。"
+      },
+      "diff_previous_value": {
+        "text": "変更前："
+      },
+      "diff_not_set": {
+        "text": "未設定"
+      },
+      "ideabucket": {
+        "processing_settings": {
+          "text": "Processing settings",
+          "description": {
+            "text": "Default prompt and processing times for IdeaBucket buckets."
+          }
         }
       }
     },
@@ -16333,7 +16329,7 @@
       "text": "このアカウントでオフにするには、Learning Mode のパスコードを入力してください。"
     },
     "learning_mode_guest_description": {
-      "text": "学習者の年齢グループを選択してください。ゲストの場合、Learning Mode はこのブラウザセッション中のみ有効で、パスコードはありません。"
+      "text": "学習者の年齢グループを選び、パスコードを設定してください。パスコードは、Learning Mode をオフにするときや、共同作成を再び許可するときに必要です。パスコードはこのブラウザー内にのみ保存され、サーバーには送信されません。"
     },
     "learning_mode_active_detail": {
       "text": "Learning Mode はこのアカウントのすべてのチャットで有効です。回答は学習優先のままで、一部のツールは制限されます。"
@@ -16342,10 +16338,10 @@
       "text": "有効にすると、OpenMates は完全な答えを出す代わりに学習者を段階的に案内します。"
     },
     "learning_mode_guest_active_detail": {
-      "text": "Learning Mode はこのブラウザセッションの匿名チャットで有効です。アカウントを作成すると、デバイス間でパスコード付きでロックできます。"
+      "text": "Learning Mode は、このブラウザーの匿名チャットで有効です。パスコードでオフにするまで有効のままです。"
     },
     "learning_mode_guest_inactive_detail": {
-      "text": "ゲストはこのブラウザセッションの匿名チャットで Learning Mode を試せます。アカウントを作成すると、パスコードでロックできます。"
+      "text": "ゲストは、このブラウザーの匿名チャットで、パスコードで保護された Learning Mode を使えます。"
     },
     "learning_mode_age_group_label": {
       "text": "学習者の年齢グループ"
@@ -16385,6 +16381,30 @@
     },
     "learning_mode_disable_button": {
       "text": "Learning Mode をオフにする"
+    },
+    "learning_mode_collaborative_label": {
+      "text": "共同作成を許可"
+    },
+    "learning_mode_collaborative_help": {
+      "text": "学習者が AI と一緒に、コード、ドキュメント、ファイルなどを作れるようにします。オフの場合、AI は説明とサポートのみを行います。10 歳未満の学習者は利用できません。"
+    },
+    "learning_mode_collaborative_enable_prompt": {
+      "text": "共同作成を再び許可するには、Learning Mode のパスコードを入力してください。"
+    },
+    "learning_mode_collaborative_confirm_button": {
+      "text": "共同作成を許可"
+    },
+    "learning_mode_collaborative_enabled": {
+      "text": "共同作成をオンにしました。"
+    },
+    "learning_mode_collaborative_disabled": {
+      "text": "共同作成をオフにしました。"
+    },
+    "learning_mode_guest_notice": {
+      "text": "アカウントがない場合、Learning Mode はこのブラウザー内でのみ有効です。ブラウザーのデータを消去したりプライベートウィンドウを使ったりすると、解除または回避されます。どこでも有効なロックにはアカウントを作成してください。"
+    },
+    "learning_mode_passcode_invalid": {
+      "text": "パスコードは 4～128 文字で入力してください。"
     },
     "incognito_explainer_description": {
       "text": "シークレットモードは、作成する新しいチャットにのみ適用されます。シークレットモードがアクティブな間に作成された新しいチャットは、デバイス間で同期されず、サーバーに保存されず、キャッシュされません。これらのチャットは、現在のブラウザセッションにのみ存在します。既存のチャットは変更されません。"

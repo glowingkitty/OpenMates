@@ -3,7 +3,7 @@
 # Charging for the memory update preview model request. The usage record holds
 # token counts, model and the originating chat_id only - never memory or chat text.
 # Spec: app-memories.suggestions.billing
-# test-file: backend/tests/test_postprocessing_context_suggestions.py
+# test-file: backend/tests/test_memory_update_preview.py, backend/tests/test_memory_create_draft.py
 
 from typing import Any, Callable, Dict, List, Optional
 
@@ -28,7 +28,8 @@ def priced_buckets(telemetry: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
 
 async def charge_preview(billing: Any, pricing_lookup: Callable[[str, str], Any], *, user_id: str, user_id_hash: str, chat_id: str,
-                         operation_id: str, buckets: List[Dict[str, Any]]) -> int:
+                         operation_id: str, buckets: List[Dict[str, Any]],
+                         purpose: str = "memory_update_preview") -> int:
     """Charge token usage to the chat. The record never contains memory or chat text."""
     breakdown = build_model_usage_breakdown(buckets, pricing_lookup)
     credits = breakdown["credits_charged"]
@@ -37,12 +38,12 @@ async def charge_preview(billing: Any, pricing_lookup: Callable[[str, str], Any]
         "model_used": buckets[0]["model_id"],
         "input_tokens": breakdown["input_tokens"],
         "output_tokens": breakdown["output_tokens"],
-        "purpose": "memory_update_preview",
+        "purpose": purpose,
         "llm_usage_breakdown": breakdown,
     }
     await billing.charge_user_credits(
         user_id=user_id, credits_to_deduct=credits, user_id_hash=user_id_hash,
-        app_id="ai", skill_id="memory_update_preview", idempotency_key=operation_id,
+        app_id="ai", skill_id=purpose, idempotency_key=operation_id,
         usage_details=usage_details,
     )
     return credits

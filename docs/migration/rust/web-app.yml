@@ -9,10 +9,10 @@ flag:
   default: 'off'
   flag_off_behavior: original TypeScript path, byte-identical build output (guarded in CI)
 summary:
-  total: 106637
-  done: 8204
+  total: 107034
+  done: 8294
   partial: 0
-  missing: 98433
+  missing: 98740
   percent: 7.7
 worker_namespaces_installed_not_progress:
   installed: 17
@@ -20,23 +20,23 @@ worker_namespaces_installed_not_progress:
   note: 'Worker namespaces installed (not progress): a namespace can be installed while most of its TS still runs.'
 port_ledger:
   unit: TS code lines
-  portable_files: 446
-  portable_code_lines: 106637
-  ported_code_lines: 8204
+  portable_files: 449
+  portable_code_lines: 107034
+  ported_code_lines: 8294
   percent: 7.7
   ported_by_proof:
-    e2e-flag-on: 4014
-    vectors: 3953
+    e2e-flag-on: 4105
+    vectors: 3952
     none: 237
-  files_with_ported_code: 91
-  routing_functions: 357
+  files_with_ported_code: 93
+  routing_functions: 365
   functions_counted_at_decision_sites_only: 44
   non_portable:
     files: 55
-    code_lines: 9558
+    code_lines: 9550
   bridge_excluded:
-    files: 204
-    code_lines: 18252
+    files: 205
+    code_lines: 18290
   slices:
   - id: rust-web-auth-session-lane-behind-vite-openmates-cd767f7
     commit: cd767f7058
@@ -115,7 +115,7 @@ port_ledger:
     date: '2026-11-07'
     proof: e2e-flag-on
     functions: 5
-    ts_code_lines: 239
+    ts_code_lines: 240
   - id: persist-slice-3-duplicate-message-cleanup-plan-4fef042
     commit: 4fef042de1
     date: '2026-11-07'
@@ -235,7 +235,7 @@ port_ledger:
     date: '2026-11-07'
     proof: vectors
     functions: 8
-    ts_code_lines: 130
+    ts_code_lines: 127
   - id: settings-privacy-entry-hydration-plan-in-shared-cf2dcaf
     commit: cf2dcaf0aa
     date: '2026-11-07'
@@ -313,7 +313,7 @@ port_ledger:
     date: '2026-11-08'
     proof: vectors
     functions: 35
-    ts_code_lines: 611
+    ts_code_lines: 613
   - id: embed-sender-decisions-in-shared-rust-core-worke-97b5619
     commit: 97b5619a98
     date: '2026-11-08'
@@ -368,13 +368,20 @@ port_ledger:
     proof: vectors
     functions: 7
     ts_code_lines: 42
-e2e_specs_in_repo: [web-rust-core-apps.spec.ts, web-rust-core-auth.spec.ts, web-rust-core-bench.spec.ts, web-rust-core-chat.spec.ts,
-  web-rust-core-chatstate-fork-conversation.spec.ts, web-rust-core-chatstate-hidden-chats-flow.spec.ts, web-rust-core-chatstate-message-highlights.spec.ts,
-  web-rust-core-chatstate.spec.ts, web-rust-core-composer.spec.ts, web-rust-core-continue-carousel.spec.ts, web-rust-core-crypto.spec.ts,
-  web-rust-core-drafts.spec.ts, web-rust-core-embeds.spec.ts, web-rust-core-memory-level.spec.ts, web-rust-core-persist.spec.ts,
-  web-rust-core-profile.spec.ts, web-rust-core-projects-flow.spec.ts, web-rust-core-projects-remote-sources.spec.ts,
-  web-rust-core-reload-memory.spec.ts, web-rust-core-search.spec.ts, web-rust-core-send-bench.spec.ts, web-rust-core-sync.spec.ts,
-  web-rust-core-transfer.spec.ts, web-rust-core-ws.spec.ts]
+  - id: chat-recommendations-reconcile-and-context-entry-events
+    commit: null
+    date: '2026-11-09'
+    proof: e2e-flag-on
+    functions: 8
+    ts_code_lines: 90
+e2e_specs_in_repo: [web-rust-core-apps.spec.ts, web-rust-core-auth.spec.ts, web-rust-core-bench.spec.ts, web-rust-core-chat-recommendations-flow.spec.ts,
+  web-rust-core-chat.spec.ts, web-rust-core-chatstate-fork-conversation.spec.ts, web-rust-core-chatstate-hidden-chats-flow.spec.ts,
+  web-rust-core-chatstate-message-highlights.spec.ts, web-rust-core-chatstate.spec.ts, web-rust-core-composer.spec.ts,
+  web-rust-core-continue-carousel.spec.ts, web-rust-core-crypto.spec.ts, web-rust-core-drafts.spec.ts, web-rust-core-embeds.spec.ts,
+  web-rust-core-memory-level.spec.ts, web-rust-core-persist.spec.ts, web-rust-core-profile.spec.ts, web-rust-core-projects-flow.spec.ts,
+  web-rust-core-projects-remote-sources.spec.ts, web-rust-core-reload-memory.spec.ts, web-rust-core-search.spec.ts,
+  web-rust-core-send-bench.spec.ts, web-rust-core-sync.spec.ts, web-rust-core-transfer.spec.ts, web-rust-core-workflow-side-panel.spec.ts,
+  web-rust-core-ws.spec.ts]
 lanes:
   file: web-lanes.yml
   plan: web-lanes.md

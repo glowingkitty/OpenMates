@@ -1,12 +1,14 @@
 # backend/core/api/app/routes/memory_suggestions.py
 #
+# API surface: first-party client surface only (session auth; never public/developer API-key REST).
+# Routes: POST /update-preview and POST /create-draft (both explicit user actions, billed).
 # Surface: first-party client only (session auth). Accepts cleartext memory and
 # chat text for ONE explicit user action; text is never logged or stored.
 # Rate limited; refuses when the wallet is empty. The model request is charged
 # and attributed to the originating chat; the usage record holds token counts
 # and chat_id only. A false-positive ("unchanged") request is charged too.
 # Spec: app-memories.suggestions.billing
-# test-file: backend/tests/test_postprocessing_context_suggestions.py
+# test-file: backend/tests/test_memory_suggestions_route.py
 
 import hashlib
 import logging
@@ -16,6 +18,7 @@ from typing import Any, Dict, List, Literal, Optional
 from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
 
+from backend.apps.ai.processing.memory_create_draft import run_memory_create_draft
 from backend.apps.ai.processing.memory_update_preview import MemoryPreviewError, run_memory_update_preview
 from backend.apps.ai.processing.memory_preview_billing import charge_preview, priced_buckets
 from backend.apps.ai.processing.postprocessor import POSTPROCESSING_MODEL_ID
@@ -73,6 +76,47 @@ async def update_preview(request: Request, response: Response, body: UpdatePrevi
     if error is not None:
         raise HTTPException(status_code=502, detail="Memory update preview failed")
     return {"status": "unchanged"} if updated is None else {"status": "updated", "body": updated}
+
+
+class CreateDraftRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    chat_id: str = Field(min_length=1, max_length=64)
+    title: str = Field(min_length=1, max_length=120, repr=False)
+    summary: str = Field(min_length=1, max_length=400, repr=False)
+    user_message: str = Field(min_length=1, max_length=8_000, repr=False)
+    assistant_response: str = Field(min_length=1, max_length=8_000, repr=False)
+
+
+@router.post("/create-draft", include_in_schema=False)
+@limiter.limit("20/minute")
+async def create_draft(request: Request, response: Response, body: CreateDraftRequest) -> Dict[str, Any]:
+    """Generate one unsaved memory document (load_mode ask_first) from a recommendation; billed like update-preview."""
+    state = request.app.state
+    user = await _user(request, response)
+    if not await state.directus_service.chat.check_chat_ownership(body.chat_id, user.id):
+        raise HTTPException(status_code=404, detail="Chat not found")
+    user_id_hash = hashlib.sha256(user.id.encode()).hexdigest()
+    billing = BillingService(state.cache_service, state.directus_service, state.encryption_service)
+    if await billing.get_authoritative_personal_balance(user_id=user.id, user_id_hash=user_id_hash) < 1:
+        raise HTTPException(status_code=402, detail="Insufficient credits")
+    usage_events: List[Dict[str, Any]] = []
+    task_id = f"memory-create-draft-{uuid.uuid4()}"
+    try:
+        draft, telemetry = await run_memory_create_draft(
+            task_id=task_id, model_id=POSTPROCESSING_MODEL_ID, title=body.title, summary=body.summary,
+            user_message=body.user_message, assistant_response=body.assistant_response,
+            secrets_manager=state.secrets_manager, usage_callback=usage_events.append,
+        )
+        error: Optional[MemoryPreviewError] = None
+    except MemoryPreviewError as exc:
+        draft, telemetry, error = None, None, exc
+    buckets = priced_buckets(usage_events[-1] if usage_events else telemetry)
+    if buckets:
+        await charge_preview(billing, config_manager.get_model_pricing, user_id=user.id, user_id_hash=user_id_hash,
+                             chat_id=body.chat_id, operation_id=task_id, buckets=buckets, purpose="memory_create_draft")
+    if error is not None or draft is None:
+        raise HTTPException(status_code=502, detail="Memory draft generation failed")
+    return draft
 
 
 async def _user(request: Request, response: Response):

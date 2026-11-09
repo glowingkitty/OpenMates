@@ -5,13 +5,13 @@
 # Privacy: inputs are cleartext sent by the client for this single action; they
 # are never logged or stored, and only token counts reach usage records.
 # Spec: app-memories.suggestions.post-processor / .billing
-# test-file: backend/tests/test_postprocessing_context_suggestions.py
+# test-file: backend/tests/test_memory_update_preview.py
 
 from __future__ import annotations
 
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from backend.apps.ai.processing.postprocessing_context_suggestions import contains_secret
+from backend.apps.ai.processing.postprocessing_recommendations import contains_secret
 from backend.apps.ai.utils.llm_utils import call_preprocessing_llm
 from backend.shared.python_utils.memory_loader import MAX_MEMORY_CHARS, parse_memory_md
 

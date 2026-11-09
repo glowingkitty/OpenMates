@@ -339,11 +339,47 @@ def test_replay_fixture_publishes_fixture_postprocessing_metadata(monkeypatch) -
             "chat_tags": ["weather", "Berlin"],
             "harmful_response": 1,
             "top_recommended_apps_for_user": [],
-            "quick_tip_slugs": [],
+            "recommendations": [],
             "task_proposals": [],
             "task_update_proposals": [],
         }
     ]
+
+
+@pytest.mark.parametrize(
+    ("overrides", "expected_count"),
+    [
+        ({}, 1),
+        ({"user_preferences": {"recommendations_enabled": False}}, 0),
+        ({"is_incognito": True}, 0),
+    ],
+)
+def test_fixture_postprocessing_applies_recommendations_gate(overrides, expected_count) -> None:
+    """Fixture replays drop Recommendations when the setting is off or the chat is incognito."""
+    from types import SimpleNamespace
+
+    recommendation = {"id": "rec-1", "kind": "memory", "action": "create", "target_id": None,
+                      "title": "Conference day pacing", "summary": "Balance talks and rest."}
+    request_data = AskSkillRequest(
+        chat_id="22222222-2222-4222-8222-222222222222",
+        message_id="55555555-5555-4555-8555-555555555555",
+        user_id="11111111-1111-4111-8111-111111111111",
+        user_id_hash="owner-hash",
+        message_history=[AIHistoryMessage(role="user", content="hello", created_at=1)],
+        **overrides,
+    )
+    cache_service = _StubCacheService()
+    asyncio.run(
+        mock_replay._publish_fixture_postprocessing_metadata(
+            fixture_data={"postprocessing": {"chat_summary": "Conference plan.", "recommendations": [recommendation]}},
+            task_id="66666666-6666-4666-8666-666666666666",
+            request_data=request_data,
+            cache_service=cache_service,
+            preprocessing_result=SimpleNamespace(chat_summary=None),
+        )
+    )
+    [(_channel, payload)] = cache_service.events
+    assert len(payload["recommendations"]) == expected_count
 
 
 def test_mock_mail_fixture_recreates_finished_draft_with_owner_bindings(monkeypatch) -> None:

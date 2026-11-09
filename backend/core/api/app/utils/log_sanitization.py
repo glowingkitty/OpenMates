@@ -93,11 +93,12 @@ def sanitize_request_data_for_logging(request_data: Dict[str, Any]) -> Dict[str,
         else:
             sanitized["follow_up_request_suggestions"] = "[REDACTED]"
     
-    # context_suggestion carries memory/workflow text: keep only its kind
-    if "context_suggestion" in sanitized:
-        suggestion = sanitized["context_suggestion"]
-        sanitized["context_suggestion"] = (
-            {"kind": suggestion.get("kind"), "content": "[REDACTED_CONTENT]"} if isinstance(suggestion, dict) else None
+    # recommendations carry memory/workflow titles and summaries: keep only count and kinds
+    if "recommendations" in sanitized:
+        recommendations = sanitized["recommendations"]
+        sanitized["recommendations"] = (
+            [{"kind": item.get("kind"), "content": "[REDACTED_CONTENT]"} for item in recommendations if isinstance(item, dict)]
+            if isinstance(recommendations, list) else None
         )
 
     # Sanitize new_chat_request_suggestions: replace with count and lengths

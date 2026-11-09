@@ -626,8 +626,8 @@ class UserDatabaseService {
             "follow_up_suggestions_enabled",
           );
         }
-        if ("quick_tips_enabled" in userData) {
-          store.put(userData.quick_tips_enabled !== false, "quick_tips_enabled");
+        if ("recommendations_enabled" in userData) {
+          store.put(userData.recommendations_enabled !== false, "recommendations_enabled");
         }
         // Furry Mode persistence is disabled until any furry art is made by human artists.
       };
@@ -921,7 +921,7 @@ class UserDatabaseService {
       const serverRegionPreferenceRequest = store.get("server_region_preference");
       const defaultAppSkillModelsRequest = store.get("default_app_skill_models");
       const followUpSuggestionsEnabledRequest = store.get("follow_up_suggestions_enabled");
-      const quickTipsEnabledRequest = store.get("quick_tips_enabled");
+      const recommendationsEnabledRequest = store.get("recommendations_enabled");
       const totalChatCountRequest = store.get("total_chat_count");
 
       idRequest.onsuccess = () => {
@@ -1195,10 +1195,10 @@ class UserDatabaseService {
             : true;
       };
 
-      quickTipsEnabledRequest.onsuccess = () => {
-        profile.quick_tips_enabled =
-          quickTipsEnabledRequest.result !== undefined
-            ? !!quickTipsEnabledRequest.result
+      recommendationsEnabledRequest.onsuccess = () => {
+        profile.recommendations_enabled =
+          recommendationsEnabledRequest.result !== undefined
+            ? !!recommendationsEnabledRequest.result
             : true;
       };
 
@@ -1594,8 +1594,8 @@ class UserDatabaseService {
           "follow_up_suggestions_enabled",
         );
       }
-      if (partialData.quick_tips_enabled !== undefined) {
-        store.put(!!partialData.quick_tips_enabled, "quick_tips_enabled");
+      if (partialData.recommendations_enabled !== undefined) {
+        store.put(!!partialData.recommendations_enabled, "recommendations_enabled");
       }
       if (partialData.encrypted_settings !== undefined) {
         store.put(partialData.encrypted_settings, "encrypted_settings");

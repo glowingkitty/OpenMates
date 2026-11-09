@@ -495,6 +495,25 @@ vi.mock("../websocketService", () => ({
   webSocketService: mockWebSocketService,
 }));
 
+const mockRecommendations = vi.hoisted(() => ({
+  inBuild: false,
+  reconcile: vi.fn(),
+  decrypt: vi.fn(),
+  encrypt: vi.fn(),
+  setState: vi.fn(),
+}));
+
+vi.mock("../chatRecommendationsPersistence", () => ({
+  get RECOMMENDATIONS_IN_BUILD() { return mockRecommendations.inBuild; },
+  reconcileIncomingRecommendations: mockRecommendations.reconcile,
+  decryptRecommendationsState: mockRecommendations.decrypt,
+  encryptRecommendationsState: mockRecommendations.encrypt,
+}));
+
+vi.mock("../../stores/chatRecommendationsStore", () => ({
+  setChatRecommendations: mockRecommendations.setState,
+}));
+
 vi.mock("../chatSyncService", () => ({
   chatSyncService: {
     addEventListener: vi.fn(),
@@ -1213,7 +1232,7 @@ describe("handlePostProcessingCompletedImpl", () => {
       chat_tags: ["Berlin"],
       harmful_response: 0,
       top_recommended_apps_for_user: [],
-      quick_tip_slugs: [],
+      recommendations: [],
       source_title_v: 3,
       source_metadata_v: 3,
     });
@@ -1276,7 +1295,7 @@ describe("handlePostProcessingCompletedImpl", () => {
       chat_tags: [],
       harmful_response: 0,
       top_recommended_apps_for_user: [],
-      quick_tip_slugs: [],
+      recommendations: [],
       source_title_v: 3,
       source_metadata_v: 3,
     });
@@ -1306,6 +1325,92 @@ describe("handlePostProcessingCompletedImpl", () => {
       "",
       "encrypted-chat-key",
     );
+  });
+});
+
+describe("handlePostProcessingCompletedImpl recommendations", () => {
+  const recommendation = {
+    id: "rec-1", kind: "memory" as const, action: "create" as const, target_id: null,
+    title: "Conference preferences", summary: "Prefers open source conferences in Europe.",
+  };
+  const previous = {
+    schema_version: 1 as const, items: [], dismissed: ["Old idea"], resolved: [], updated_at: 1,
+  };
+  const basePayload = {
+    chat_id: "chat-1", task_id: "task-1", follow_up_request_suggestions: [],
+    new_chat_request_suggestions: [], chat_summary: "", chat_tags: [], harmful_response: 0,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockRecommendations.inBuild = true;
+    mockChatDB.updateChat.mockResolvedValue(undefined);
+    mockChatDB.getChat.mockResolvedValue({
+      chat_id: "chat-1", encrypted_chat_key: "encrypted-chat-key", title_v: 1, metadata_v: 1,
+      encrypted_recommendations: "stored-recommendations",
+    });
+    mockChatKeyManager.withKey.mockImplementation(
+      async (_chatId: string, _reason: string, callback: (key: Uint8Array) => Promise<void>) => {
+        await callback(new Uint8Array([1, 2, 3]));
+      },
+    );
+    mockEnsureChatKeySafeForWrite.mockResolvedValue(true);
+    mockSendPostProcessingMetadata.mockResolvedValue(undefined);
+    mockRecommendations.decrypt.mockResolvedValue(previous);
+    mockRecommendations.reconcile.mockImplementation(async (items: unknown[], prior: typeof previous) => ({
+      ...prior, items, updated_at: 2,
+    }));
+    mockRecommendations.encrypt.mockImplementation(async (state: { items: unknown[] }) =>
+      `encrypted-recommendations:${state.items.length}`);
+  });
+
+  afterEach(() => { mockRecommendations.inBuild = false; });
+
+  // contract-test: direct surface=gui.web assertions=app-memories.suggestions.post-processor,app-memories.suggestions.no-duplicates
+  it("reconciles against the stored state, encrypts, persists, syncs and dispatches the items", async () => {
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    await handlePostProcessingCompletedImpl(service, { ...basePayload, recommendations: [recommendation] });
+
+    expect(mockRecommendations.decrypt).toHaveBeenCalledWith("stored-recommendations", expect.any(Uint8Array), "chat-1");
+    expect(mockRecommendations.reconcile).toHaveBeenCalledWith([recommendation], previous);
+    expect(mockChatDB.updateChat).toHaveBeenCalledWith(expect.objectContaining({
+      encrypted_recommendations: "encrypted-recommendations:1",
+    }));
+    expect(mockSendPostProcessingMetadata).toHaveBeenCalledWith(
+      service, "chat-1", "", [], "", "", "", "encrypted-recommendations:1", "", "", "encrypted-chat-key",
+    );
+    expect(mockRecommendations.setState).toHaveBeenCalledWith("chat-1", expect.objectContaining({
+      items: [recommendation], dismissed: ["Old idea"],
+    }));
+    const completed = vi.mocked(service.dispatchEvent).mock.calls
+      .map(([event]) => event as CustomEvent)
+      .find((event) => event.type === "postProcessingCompleted");
+    expect(completed?.detail.recommendations).toEqual([recommendation]);
+  });
+
+  // contract-test: direct surface=gui.web assertions=app-memories.suggestions.post-processor
+  it("clears the open items when the latest turn has no recommendations", async () => {
+    mockRecommendations.decrypt.mockResolvedValue({ ...previous, items: [recommendation] });
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    await handlePostProcessingCompletedImpl(service, { ...basePayload, recommendations: [] });
+
+    expect(mockRecommendations.reconcile).not.toHaveBeenCalled();
+    expect(mockRecommendations.setState).toHaveBeenCalledWith("chat-1", expect.objectContaining({
+      items: [], dismissed: ["Old idea"],
+    }));
+  });
+
+  // contract-test: direct surface=gui.web assertions=app-memories.suggestions.post-processor
+  it("ignores recommendations in flag-off builds", async () => {
+    mockRecommendations.inBuild = false;
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    await handlePostProcessingCompletedImpl(service, { ...basePayload, recommendations: [recommendation] });
+
+    expect(mockRecommendations.decrypt).not.toHaveBeenCalled();
+    expect(mockRecommendations.reconcile).not.toHaveBeenCalled();
+    expect(mockRecommendations.encrypt).not.toHaveBeenCalled();
+    expect(mockRecommendations.setState).not.toHaveBeenCalled();
+    expect(mockChatDB.updateChat).not.toHaveBeenCalled();
   });
 });
 

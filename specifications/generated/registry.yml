@@ -145,7 +145,7 @@ specifications:
     version: 9
     status: draft
     path: features/ai-model-routing
-    fingerprint: 6a705114728c72ebfb1e05558cb195b67aa53a8bd14c7d1dad905d3bc2d6d30d
+    fingerprint: 7ad584a3f5f84dc92eb1e24e5de263fcd8468e74a5d738644980a72d32ebb4e8
     required_applies_to:
     - rest_api
     - cli
@@ -157,7 +157,7 @@ specifications:
     version: 4
     status: draft
     path: features/app-memories
-    fingerprint: 7d267813307a9c1815160bd4345910498318cde6aa03217dd3481370e932f3c7
+    fingerprint: b9a1d93e2a299fb70334dc4b2366c46807da5513bd69a4624ffd786f36f40449
     required_applies_to:
     - rest_api
     - cli
@@ -2982,7 +2982,7 @@ assertions:
     specification: feature.ai-model-routing@9
     specification_id: feature.ai-model-routing
     type: behavior
-    fingerprint: 0c5229d5bbb1e34a9e98b85154c0139303f61d8921c02270cd80f439bf349919
+    fingerprint: 9eef3e7b733a196ce48bcb005bdf34a5d41ffba3daf26e01e3c9a6921ab32c5a
     required_applies_to:
     - rest_api
     - cli
@@ -3006,7 +3006,7 @@ assertions:
     specification: feature.ai-model-routing@9
     specification_id: feature.ai-model-routing
     type: parity
-    fingerprint: 8dc8259fddbb0522987f8ffb68909c705aa5339314fc91c930aa8f36d217f9fb
+    fingerprint: ebe31d224e1726f8be28966e37c31f964a4b876ddc1ba3a2495c82f76187cca0
     required_applies_to:
     - rest_api
     - cli
@@ -3102,7 +3102,7 @@ assertions:
     specification: feature.app-memories@4
     specification_id: feature.app-memories
     type: parity
-    fingerprint: 78f33c53ff72fd59b4a84047894a44941992422db966df0e0b689f6334b7b446
+    fingerprint: edccba84ca9d87ff0981cb3f053fce51fdb26e92ebd3ae58203706b24c6a9db6
     required_applies_to:
     - rest_api
     - cli
@@ -3234,7 +3234,19 @@ assertions:
     specification: feature.app-memories@4
     specification_id: feature.app-memories
     type: behavior
-    fingerprint: babac8ec8d19b039a8b803a23abc358a3227a69637abaf129fdc642712e34552
+    fingerprint: 517fa880ad3cf7fec9bf56b5f067daf34181f5f1e534d3e1e6a9524df8623604
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  app-memories.suggestions.no-duplicates:
+    specification: feature.app-memories@4
+    specification_id: feature.app-memories
+    type: privacy
+    fingerprint: 1a980e9f1bda00cedf89ad3fce24298bd43abd68c31bb0dfe4871ff8e4b4c263
     required_applies_to:
     - rest_api
     - cli
@@ -3246,7 +3258,7 @@ assertions:
     specification: feature.app-memories@4
     specification_id: feature.app-memories
     type: behavior
-    fingerprint: 52374983e5d90b154c468d10ed58f31558e9879d8f8f2db40f560a2ff8455dc6
+    fingerprint: c2573ea9d10027f88faeef859815c6ed5dadda3c7cd2223cf42dc26e18f77f7a
     required_applies_to:
     - rest_api
     - cli

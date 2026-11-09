@@ -149,7 +149,7 @@ def test_authored_replay_returns_validated_committed_postprocessing(monkeypatch)
     ))
     metadata = result["postprocessing_result"]
     assert isinstance(metadata, postprocessor.PostProcessingResult)
-    assert metadata.model_dump() == {**data["postprocessing"], "context_suggestion": None}
+    assert metadata.model_dump() == data["postprocessing"]
     provider_postprocess.assert_not_awaited()
     assert mock_replay.build_fixture_postprocessing_result({}) is None
 

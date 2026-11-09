@@ -3081,46 +3081,6 @@
         "text": "Lös: vad är 15% av 240?"
       }
     },
-    "quick_tips": {
-      "eyebrow": {
-        "text": "Snabbtips"
-      },
-      "cta_learn_more": {
-        "text": "Läs mer"
-      },
-      "shorter_chats_equal_better_responses": {
-        "title": {
-          "text": "Kortare chattar fungerar bättre"
-        },
-        "body": {
-          "text": "Du får bättre svar och sparar krediter när du delar upp ämnen i separata, kortare chattar."
-        }
-      },
-      "search_current_info_next_time": {
-        "title": {
-          "text": "Sök när aktualitet är viktigt"
-        },
-        "body": {
-          "text": "Nästa gång du behöver aktuella priser, evenemang, nyheter, produktinformation eller färska fakta kan OpenMates söka på webben åt dig."
-        }
-      },
-      "travel_can_add_local_context": {
-        "title": {
-          "text": "Lägg till mer resekontext"
-        },
-        "body": {
-          "text": "Efter att du har planerat en resa kan OpenMates även hjälpa till att hitta lokala platser, evenemang, boenden, rutter och praktiska detaljer för samma resa."
-        }
-      },
-      "use_apps_for_better_results": {
-        "title": {
-          "text": "Prova en app för nästa steg"
-        },
-        "body": {
-          "text": "När du vet vad du vill göra härnäst kan OpenMates-appar ge AI:n bättre verktyg för uppgifter som kodning, efterforskning, evenemang, shopping, skrivande eller planering."
-        }
-      }
-    },
     "suggestions": {
       "explore_next": {
         "text": "Vad vill du utforska härnäst?"
@@ -13298,6 +13258,7 @@
     }
   },
   "projects": {},
+  "recommendations": {},
   "reminder": {
     "panel": {
       "title": {
@@ -14303,11 +14264,11 @@
         "follow_up_suggestions_save_error": {
           "text": "Kunde inte spara inställningen för uppföljningsförslag."
         },
-        "quick_tips": {
-          "text": "Snabbtips"
+        "recommendations": {
+          "text": "Rekommendationer"
         },
-        "quick_tips_description": {
-          "text": "Visar tillfälliga produkttips efter assistentens svar. Stäng av detta om du inte vill att OpenMates ska generera snabbtipskort."
+        "recommendations_description": {
+          "text": "Föreslår minnen och arbetsflöden att skapa eller uppdatera efter assistentens svar. Inget sparas förrän du sparar det."
         },
         "server_region": {
           "text": "Serverregion"
@@ -14317,15 +14278,6 @@
         },
         "prefer_eu_servers_description": {
           "text": "På (standard): AI-modeller körs först på EU-servrar, andra regioner endast som reserv. Av: Snabbast, globalt – OpenMates väljer den snabbaste servern i världen."
-        },
-        "quick_tips_enabled": {
-          "text": "Snabbtips aktiverade."
-        },
-        "quick_tips_disabled": {
-          "text": "Snabbtips inaktiverade."
-        },
-        "quick_tips_save_error": {
-          "text": "Kunde inte spara inställningen för snabbtips."
         },
         "manual_select_note": {
           "text": "Du kan alltid manuellt välja en modell med hjälp av @mention i chatten."
@@ -14502,6 +14454,50 @@
         },
         "enable_model": {
           "text": "Aktivera modell"
+        }
+      }
+    },
+    "app_settings_memories": {
+      "text": "Minnen",
+      "item_key_required": {
+        "text": "Inmatningsnyckel krävs"
+      },
+      "item_value_required": {
+        "text": "Inmatningsvärde krävs"
+      },
+      "authentication_required": {
+        "text": "Autentisering krävs"
+      },
+      "confirm_delete": {
+        "text": "Är du säker på att du vill ta bort det här inlägget?"
+      },
+      "entry_not_found": {
+        "text": "Inlägget hittades inte"
+      },
+      "back_to_category": {
+        "text": "Tillbaka till kategorin"
+      },
+      "deleting": {
+        "text": "Tar bort..."
+      },
+      "saving": {
+        "text": "Sparar..."
+      },
+      "encrypted_notice": {
+        "text": "Dina inställningar och minnesposter är krypterade, kan bara läsas av dina enheter och skickas aldrig till OpenMates för bearbetning utan ditt uttryckliga samtycke."
+      },
+      "diff_previous_value": {
+        "text": "Föregående:"
+      },
+      "diff_not_set": {
+        "text": "Inte inställt"
+      },
+      "ideabucket": {
+        "processing_settings": {
+          "text": "Processing settings",
+          "description": {
+            "text": "Default prompt and processing times for IdeaBucket buckets."
+          }
         }
       }
     },
@@ -16333,7 +16329,7 @@
       "text": "Ange lösenkoden för Learning Mode för att stänga av det för det här kontot."
     },
     "learning_mode_guest_description": {
-      "text": "Välj elevens åldersgrupp. För gäster varar Learning Mode bara under den här webbläsarsessionen och har ingen lösenkod."
+      "text": "Välj elevens åldersgrupp och ställ in en lösenkod. Lösenkoden behövs för att stänga av Learning Mode eller för att tillåta gemensamt skapande igen. Den stannar i den här webbläsaren och skickas aldrig till våra servrar."
     },
     "learning_mode_active_detail": {
       "text": "Learning Mode är aktivt för varje chatt på det här kontot. Svaren förblir undervisningsinriktade och valda verktyg är begränsade."
@@ -16342,10 +16338,10 @@
       "text": "När det är aktiverat vägleder OpenMates eleven steg för steg i stället för att ge fullständiga svar."
     },
     "learning_mode_guest_active_detail": {
-      "text": "Learning Mode är aktivt för anonyma chattar i den här webbläsarsessionen. Skapa ett konto för att låsa det med en lösenkod på flera enheter."
+      "text": "Learning Mode är aktivt för anonyma chattar i den här webbläsaren. Det förblir på tills det stängs av med lösenkoden."
     },
     "learning_mode_guest_inactive_detail": {
-      "text": "Gäster kan prova Learning Mode för anonyma chattar i den här webbläsarsessionen. Skapa ett konto för att låsa det med en lösenkod."
+      "text": "Gäster kan använda Learning Mode för anonyma chattar i den här webbläsaren, skyddat av en lösenkod."
     },
     "learning_mode_age_group_label": {
       "text": "Elevens åldersgrupp"
@@ -16385,6 +16381,30 @@
     },
     "learning_mode_disable_button": {
       "text": "Stäng av Learning Mode"
+    },
+    "learning_mode_collaborative_label": {
+      "text": "Tillåt gemensamt skapande"
+    },
+    "learning_mode_collaborative_help": {
+      "text": "Låter eleven skapa saker tillsammans med AI:n, till exempel kod, dokument och filer. När det är av förklarar och vägleder AI:n bara. Inte tillgängligt för elever under 10 år."
+    },
+    "learning_mode_collaborative_enable_prompt": {
+      "text": "Ange lösenkoden för Learning Mode för att tillåta gemensamt skapande igen."
+    },
+    "learning_mode_collaborative_confirm_button": {
+      "text": "Tillåt gemensamt skapande"
+    },
+    "learning_mode_collaborative_enabled": {
+      "text": "Gemensamt skapande är på."
+    },
+    "learning_mode_collaborative_disabled": {
+      "text": "Gemensamt skapande är av."
+    },
+    "learning_mode_guest_notice": {
+      "text": "Utan konto finns Learning Mode bara i den här webbläsaren. Om du rensar webbläsardata eller använder ett privat fönster tas det bort eller kringgås. Skapa ett konto för ett lås som gäller överallt."
+    },
+    "learning_mode_passcode_invalid": {
+      "text": "Lösenkoden måste vara mellan 4 och 128 tecken."
     },
     "incognito_explainer_description": {
       "text": "Inkognitoläget gäller bara för nya chattar du skapar. Nya chattar som skapas i inkognitoläget synkroniseras inte mellan enheter, lagras inte på servern och cachas inte. Dessa chattar finns bara i din nuvarande webbläsarsession. Befintliga chattar förblir oförändrade."

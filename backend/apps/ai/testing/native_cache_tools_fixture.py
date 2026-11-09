@@ -240,7 +240,7 @@ def generate_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | 
                          "chat_summary": "A synthetic square-root conversation.",
                          "chat_tags": ["math"], "share_cta_text": "Explore square roots",
                          "updated_chat_title": "Synthetic Square Roots",
-                         "daily_inspiration_topic_suggestions": ["square roots"], "quick_tip_slug": ""}
+                         "daily_inspiration_topic_suggestions": ["square roots"], "memory_recommendations": [{"action": "create", "title": "Interested in synthetic test topics", "summary": "The user explores synthetic test conversations."}], "workflow_recommendations": [{"action": "create", "title": "Weekly synthetic digest", "summary": "Send a weekly digest of synthetic test topics."}]}
             return {"response": {"type": "non_stream", "value": _chunk(
                 "backend.apps.ai.llm_providers.google_client", "UnifiedGoogleResponse",
                 {"task_id": str(kwargs.get("task_id", "native-postprocessor")), "model_id": model,

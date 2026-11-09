@@ -171,7 +171,7 @@ AI_USER_PREFERENCE_FIELDS = [
     "default_ai_model_complex",
     "default_app_skill_models",
     "follow_up_suggestions_enabled",
-    "quick_tips_enabled",
+    "recommendations_enabled",
     "learning_mode_enabled",
     "learning_mode_age_group",
     "learning_mode_collaborative_build",
@@ -2674,12 +2674,12 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 f"Including follow_up_suggestions_enabled={user_preferences_dict['follow_up_suggestions_enabled']} "
                 f"in AI request for user {user_id}"
             )
-            quick_tips_enabled = user_data_for_prefs.get("quick_tips_enabled")
-            user_preferences_dict["quick_tips_enabled"] = (
-                True if quick_tips_enabled is None else bool(quick_tips_enabled)
+            recommendations_enabled = user_data_for_prefs.get("recommendations_enabled")
+            user_preferences_dict["recommendations_enabled"] = (
+                True if recommendations_enabled is None else bool(recommendations_enabled)
             )
             logger.debug(
-                f"Including quick_tips_enabled={user_preferences_dict['quick_tips_enabled']} "
+                f"Including recommendations_enabled={user_preferences_dict['recommendations_enabled']} "
                 f"in AI request for user {user_id}"
             )
             learning_mode_context = build_learning_mode_context(user_data_for_prefs)

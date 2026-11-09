@@ -161,6 +161,9 @@ pub struct SendOutcome {
     pub model_name: Option<String>,
     pub mate_name: Option<String>,
     pub follow_up_suggestions: Vec<String>,
+    /// Memory/workflow recommendations of the completed turn (`ChatRecommendation` objects, at most 6).
+    #[serde(default)]
+    pub recommendations: Vec<Value>,
     /// None = omitted; Some(None) = explicitly observed null.
     #[serde(
         default,
@@ -194,7 +197,7 @@ mod tests {
         json!({"status":"queued","chatId":"chat","messageId":null,
             "userMessageId":"human","queueMode":"follow_up","queueRevision":4,
             "assistant":"","category":null,"modelName":null,"mateName":null,
-            "followUpSuggestions":[],"taskProposals":[],"taskUpdateProposals":[],
+            "followUpSuggestions":[],"recommendations":[],"taskProposals":[],"taskUpdateProposals":[],
             "taskEvents":[],"pendingTaskUpdateJobs":[{"job_id":"job","revision":3}],
             "subChatEvents":[{"type":"sub_chat_progress","payload":{"status":"running"}}],
             "appSettingsMemoryRequests":[{"requestId":null,"requestedKeys":["health-medications"],"approvedKeys":[],"entryCount":2}],

@@ -1,4 +1,5 @@
 import { prepareSavedPersonalAdmissionHistory, selectPersonalPhasedAdmission } from './savedPersonalAdmissionHistory';
+import { withoutPresentationOnlyEvents } from './contextEntryEvents';
 import { initialChatHistoryGate } from './initialChatHistoryGate';
 import { freshPersonalPrivacyForSend, filterWithFreshPersonalPrivacy, attachFreshPrivacyReceipt, personalPrivacyMetadataKeys, type PrivacySendReceipt } from "./preparedPrivacyForSend";
 import { createVoiceCallSendDiagnostics } from "./voiceCallTurns";
@@ -1364,7 +1365,7 @@ async function dispatchFastPersonalTurn(input: {
 		recordSendPreparationPhase('saved_admission_history_begin');
 		inferenceRequest.message_history = await prepareSavedPersonalAdmissionHistory({
 			chatId: message.chat_id, messageId: message.message_id, currentContent: message.content ?? '',
-			read: () => chatDB.getMessagesForChat(message.chat_id),
+			read: () => chatDB.getMessagesForChat(message.chat_id).then(withoutPresentationOnlyEvents),
 			category: (row) => resolveHistoryCategoryForInference(row, false,
 				(encrypted) => decryptWithChatKey(encrypted, chatKey)),
 			assertCurrent: assertCurrentAdmissionScope,
@@ -2335,8 +2336,10 @@ export async function sendNewMessageImpl(
 		}
 	} else {
 		try {
+			// Presentation-only system events (context_entry, voice_call) never reach the AI.
 			messageHistory = await loadLocalSavedHistoryForSend(
-				message.chat_id, chat?.team_id, (id) => chatDB.getMessagesForChat(id)
+				message.chat_id, chat?.team_id,
+				(id) => chatDB.getMessagesForChat(id).then(withoutPresentationOnlyEvents)
 			);
 			if (messageHistory.length > 0) {
 				console.debug(
@@ -3983,7 +3986,6 @@ export async function sendEncryptedStoragePackage(
 			encrypted_follow_up_suggestions?: string;
 			encrypted_new_chat_suggestions?: string;
 			encrypted_top_recommended_apps_for_chat?: string;
-			encrypted_quick_tip_slugs?: string;
 			created_at: number;
 			encrypted_chat_key?: string;
 			versions: {

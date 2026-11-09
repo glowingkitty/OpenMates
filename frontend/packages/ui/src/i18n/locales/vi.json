@@ -3081,46 +3081,6 @@
         "text": "Giải: 15% của 240 là bao nhiêu?"
       }
     },
-    "quick_tips": {
-      "eyebrow": {
-        "text": "Mẹo nhanh"
-      },
-      "cta_learn_more": {
-        "text": "Tìm hiểu thêm"
-      },
-      "shorter_chats_equal_better_responses": {
-        "title": {
-          "text": "Trò chuyện ngắn hơn sẽ hiệu quả hơn"
-        },
-        "body": {
-          "text": "Bạn sẽ nhận được phản hồi tốt hơn và tiết kiệm tín dụng khi chia các chủ đề thành những cuộc trò chuyện ngắn riêng biệt."
-        }
-      },
-      "search_current_info_next_time": {
-        "title": {
-          "text": "Tìm kiếm khi cần thông tin mới nhất"
-        },
-        "body": {
-          "text": "Lần tới khi bạn cần giá cả hiện tại, sự kiện, tin tức, chi tiết sản phẩm hoặc các sự kiện gần đây, OpenMates có thể tìm kiếm trên web giúp bạn."
-        }
-      },
-      "travel_can_add_local_context": {
-        "title": {
-          "text": "Thêm bối cảnh du lịch"
-        },
-        "body": {
-          "text": "Sau khi lập kế hoạch du lịch, OpenMates cũng có thể giúp tìm các địa điểm địa phương, sự kiện, nơi lưu trú, lộ trình và các chi tiết thực tế cho cùng chuyến đi đó."
-        }
-      },
-      "use_apps_for_better_results": {
-        "title": {
-          "text": "Thử một ứng dụng cho bước tiếp theo"
-        },
-        "body": {
-          "text": "Khi bạn biết mình muốn làm gì tiếp theo, các ứng dụng OpenMates có thể cung cấp cho AI các công cụ tốt hơn cho các tác vụ như lập trình, nghiên cứu, sự kiện, mua sắm, viết lách hoặc lập kế hoạch."
-        }
-      }
-    },
     "suggestions": {
       "explore_next": {
         "text": "Bạn muốn khám phá gì tiếp theo?"
@@ -13298,6 +13258,7 @@
     }
   },
   "projects": {},
+  "recommendations": {},
   "reminder": {
     "panel": {
       "title": {
@@ -14303,11 +14264,11 @@
         "follow_up_suggestions_save_error": {
           "text": "Không thể lưu cài đặt gợi ý tiếp theo."
         },
-        "quick_tips": {
-          "text": "Mẹo nhanh"
+        "recommendations": {
+          "text": "Đề xuất"
         },
-        "quick_tips_description": {
-          "text": "Hiển thị các mẹo sản phẩm thỉnh thoảng sau khi trợ lý trả lời. Tắt tính năng này nếu bạn không muốn OpenMates tạo các thẻ mẹo nhanh."
+        "recommendations_description": {
+          "text": "Đề xuất các ký ức và quy trình để tạo hoặc cập nhật sau khi trợ lý trả lời. Không có gì được lưu cho đến khi bạn lưu."
         },
         "server_region": {
           "text": "Khu vực máy chủ"
@@ -14317,15 +14278,6 @@
         },
         "prefer_eu_servers_description": {
           "text": "Bật (mặc định): mô hình AI chạy trên máy chủ EU trước, các khu vực khác chỉ dùng dự phòng. Tắt: Nhanh nhất, toàn cầu – OpenMates chọn máy chủ nhanh nhất trên thế giới."
-        },
-        "quick_tips_enabled": {
-          "text": "Đã bật mẹo nhanh."
-        },
-        "quick_tips_disabled": {
-          "text": "Đã tắt mẹo nhanh."
-        },
-        "quick_tips_save_error": {
-          "text": "Không thể lưu cài đặt mẹo nhanh."
         },
         "manual_select_note": {
           "text": "Bạn luôn có thể chọn thủ công một mô hình bằng cách dùng @mention trong chat."
@@ -14502,6 +14454,50 @@
         },
         "enable_model": {
           "text": "Bật mô hình"
+        }
+      }
+    },
+    "app_settings_memories": {
+      "text": "Ký ức",
+      "item_key_required": {
+        "text": "Khóa mục nhập là bắt buộc"
+      },
+      "item_value_required": {
+        "text": "Giá trị mục nhập là bắt buộc"
+      },
+      "authentication_required": {
+        "text": "Yêu cầu xác thực"
+      },
+      "confirm_delete": {
+        "text": "Bạn có chắc muốn xóa mục này không?"
+      },
+      "entry_not_found": {
+        "text": "Không tìm thấy mục"
+      },
+      "back_to_category": {
+        "text": "Quay lại danh mục"
+      },
+      "deleting": {
+        "text": "Đang xóa..."
+      },
+      "saving": {
+        "text": "Đang lưu..."
+      },
+      "encrypted_notice": {
+        "text": "Các mục cài đặt và ký ức của bạn được mã hóa, chỉ có thể được đọc bởi thiết bị của bạn và không bao giờ được gửi đến OpenMates để xử lý mà không có sự đồng ý rõ ràng của bạn."
+      },
+      "diff_previous_value": {
+        "text": "Trước đó:"
+      },
+      "diff_not_set": {
+        "text": "Chưa đặt"
+      },
+      "ideabucket": {
+        "processing_settings": {
+          "text": "Processing settings",
+          "description": {
+            "text": "Default prompt and processing times for IdeaBucket buckets."
+          }
         }
       }
     },
@@ -16333,7 +16329,7 @@
       "text": "Nhập mã khóa Learning Mode để tắt chế độ này cho tài khoản này."
     },
     "learning_mode_guest_description": {
-      "text": "Chọn nhóm tuổi người học. Với khách, Learning Mode chỉ kéo dài trong phiên trình duyệt này và không có mã khóa."
+      "text": "Chọn nhóm tuổi người học và đặt mã khóa. Cần có mã khóa để tắt Learning Mode hoặc để cho phép cùng sáng tạo trở lại. Mã chỉ lưu trong trình duyệt này và không bao giờ được gửi đến máy chủ của chúng tôi."
     },
     "learning_mode_active_detail": {
       "text": "Learning Mode đang hoạt động cho mọi cuộc trò chuyện trên tài khoản này. Câu trả lời luôn ưu tiên giảng dạy và một số công cụ bị hạn chế."
@@ -16342,10 +16338,10 @@
       "text": "Khi được bật, OpenMates hướng dẫn người học từng bước thay vì đưa ra câu trả lời hoàn chỉnh."
     },
     "learning_mode_guest_active_detail": {
-      "text": "Learning Mode đang hoạt động cho các cuộc trò chuyện ẩn danh trong phiên trình duyệt này. Tạo tài khoản để khóa bằng mã khóa trên nhiều thiết bị."
+      "text": "Learning Mode đang hoạt động cho các cuộc trò chuyện ẩn danh trong trình duyệt này. Chế độ này luôn bật cho đến khi được tắt bằng mã khóa."
     },
     "learning_mode_guest_inactive_detail": {
-      "text": "Khách có thể thử Learning Mode cho các cuộc trò chuyện ẩn danh trong phiên trình duyệt này. Tạo tài khoản để khóa bằng mã khóa."
+      "text": "Khách có thể dùng Learning Mode cho các cuộc trò chuyện ẩn danh trong trình duyệt này, được bảo vệ bằng mã khóa."
     },
     "learning_mode_age_group_label": {
       "text": "Nhóm tuổi người học"
@@ -16385,6 +16381,30 @@
     },
     "learning_mode_disable_button": {
       "text": "Tắt Learning Mode"
+    },
+    "learning_mode_collaborative_label": {
+      "text": "Cho phép cùng sáng tạo"
+    },
+    "learning_mode_collaborative_help": {
+      "text": "Cho phép người học cùng tạo ra mọi thứ với AI, chẳng hạn như mã, tài liệu và tệp. Khi tắt, AI chỉ giải thích và hướng dẫn. Không dành cho người học dưới 10 tuổi."
+    },
+    "learning_mode_collaborative_enable_prompt": {
+      "text": "Nhập mã khóa Learning Mode để cho phép cùng sáng tạo trở lại."
+    },
+    "learning_mode_collaborative_confirm_button": {
+      "text": "Cho phép cùng sáng tạo"
+    },
+    "learning_mode_collaborative_enabled": {
+      "text": "Đã bật cùng sáng tạo."
+    },
+    "learning_mode_collaborative_disabled": {
+      "text": "Đã tắt cùng sáng tạo."
+    },
+    "learning_mode_guest_notice": {
+      "text": "Khi không có tài khoản, Learning Mode chỉ tồn tại trong trình duyệt này. Xóa dữ liệu trình duyệt hoặc dùng cửa sổ riêng tư sẽ gỡ bỏ hoặc vượt qua nó. Hãy tạo tài khoản để có khóa hoạt động ở mọi nơi."
+    },
+    "learning_mode_passcode_invalid": {
+      "text": "Mã khóa phải có từ 4 đến 128 ký tự."
     },
     "incognito_explainer_description": {
       "text": "Chế độ ẩn danh chỉ áp dụng cho các cuộc trò chuyện mới bạn tạo. Các cuộc trò chuyện mới được tạo khi chế độ ẩn danh đang hoạt động sẽ không được đồng bộ giữa các thiết bị, không được lưu trữ trên máy chủ và không được lưu vào bộ nhớ đệm. Các cuộc trò chuyện này chỉ tồn tại trong phiên trình duyệt hiện tại của bạn. Các cuộc trò chuyện hiện có vẫn không thay đổi."

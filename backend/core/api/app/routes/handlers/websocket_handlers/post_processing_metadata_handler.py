@@ -79,7 +79,7 @@ async def handle_post_processing_metadata(
         "encrypted_share_cta_text": "...",  // Optional: Encrypted short shared-preview CTA
         "encrypted_chat_tags": "...",  // Encrypted array of tags (max 10)
         "encrypted_top_recommended_apps_for_chat": "...",  // Optional: Encrypted array of up to 5 app IDs
-        "encrypted_quick_tip_slugs": "...",  // Optional: Encrypted array of selected quick tip slugs
+        "encrypted_recommendations": "...",  // Optional: Encrypted ChatRecommendationsState (may be sent alone with chat_id for dismiss/save)
         "encrypted_title": "...",  // Optional (OPE-265): Updated title from post-processing when conversation drifted
         "encrypted_chat_key": "...",  // Optional (OPE-314): For server-side key validation to prevent stale-key metadata
         "manual_update": true,  // Optional: user-edited title/summary, not generated post-processing
@@ -103,7 +103,7 @@ async def handle_post_processing_metadata(
             encrypted_share_cta_text = payload.get("encrypted_share_cta_text")
             encrypted_chat_tags = payload.get("encrypted_chat_tags")
             encrypted_top_recommended_apps_for_chat = payload.get("encrypted_top_recommended_apps_for_chat")
-            encrypted_quick_tip_slugs = payload.get("encrypted_quick_tip_slugs")
+            encrypted_recommendations = payload.get("encrypted_recommendations")
             encrypted_title = payload.get("encrypted_title")  # OPE-265: Updated title from post-processing
             # OPE-314: Client includes encrypted_chat_key so server can validate metadata
             # was encrypted with the correct key (prevents stale-key metadata from persisting)
@@ -251,8 +251,8 @@ async def handle_post_processing_metadata(
             if encrypted_top_recommended_apps_for_chat:
                 chat_update_fields["encrypted_top_recommended_apps_for_chat"] = encrypted_top_recommended_apps_for_chat
 
-            if encrypted_quick_tip_slugs:
-                chat_update_fields["encrypted_quick_tip_slugs"] = encrypted_quick_tip_slugs
+            if encrypted_recommendations:
+                chat_update_fields["encrypted_recommendations"] = encrypted_recommendations
 
             # OPE-265: Update encrypted title when post-processing detected conversation drift
             if encrypted_title:

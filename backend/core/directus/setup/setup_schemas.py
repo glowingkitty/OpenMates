@@ -330,6 +330,10 @@ AI_MEMORY_REMOVAL_MIGRATION_PATH = os.getenv(
     'AI_MEMORY_REMOVAL_MIGRATION_PATH',
     '/usr/src/app/migrations/migrate_remove_ai_memories.sql',
 )
+QUICK_TIPS_REMOVAL_MIGRATION_PATH = os.getenv(
+    'QUICK_TIPS_REMOVAL_MIGRATION_PATH',
+    '/usr/src/app/migrations/migrate_remove_quick_tips.sql',
+)
 SUB_CHAT_ORCHESTRATION_INDEXES = (
     'sub_chat_orchestrations_owner_root_turn_uq',
     'sub_chat_orchestrations_owner_status_idx',
@@ -1983,6 +1987,31 @@ def apply_and_verify_ai_memory_removal():
     return deleted_count
 
 
+def apply_and_verify_quick_tips_removal():
+    """Drop the obsolete quick tip columns after the sync feed trigger no longer names them."""
+    if not os.path.isfile(QUICK_TIPS_REMOVAL_MIGRATION_PATH):
+        raise RuntimeError(
+            "Required quick tip removal migration is missing: "
+            f"{QUICK_TIPS_REMOVAL_MIGRATION_PATH}"
+        )
+    with open(QUICK_TIPS_REMOVAL_MIGRATION_PATH, 'r', encoding='utf-8') as migration_file:
+        migration_sql = migration_file.read()
+    with connect_database() as connection:
+        connection.autocommit = True
+        with connection.cursor() as cursor:
+            cursor.execute(migration_sql)
+            cursor.execute(
+                "SELECT table_name, column_name FROM information_schema.columns "
+                "WHERE table_schema = 'public' AND "
+                "((table_name = 'chats' AND column_name = 'encrypted_quick_tip_slugs') OR "
+                "(table_name = 'directus_users' AND column_name = 'quick_tips_enabled'))"
+            )
+            remaining = cursor.fetchall()
+    if remaining:
+        raise RuntimeError(f"Quick tip column removal verification failed: {remaining}")
+    print("Verified quick tip columns are removed")
+
+
 def verify_chat_recovery_endpoint():
     """Require the baked extension to answer an authenticated metadata-only read."""
     if not INTERNAL_API_SHARED_TOKEN:
@@ -2183,6 +2212,9 @@ def setup_schemas():
 
         print("\n--- Removing obsolete AI-owned memories ---")
         apply_and_verify_ai_memory_removal()
+
+        print("\n--- Removing obsolete quick tip columns ---")
+        apply_and_verify_quick_tips_removal()
 
         print("\n--- Verifying sub-chat orchestration Directus endpoint ---")
         verify_sub_chat_orchestration_endpoint()

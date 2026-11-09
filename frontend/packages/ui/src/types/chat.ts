@@ -533,7 +533,7 @@ export interface Chat {
   encrypted_follow_up_request_suggestions?: string | null; // Encrypted array of 6 follow-up request suggestions
   encrypted_suggested_followup_message?: string | null; // Encrypted, turn-identified composer ghost suggestion
   encrypted_top_recommended_apps_for_chat?: string | null; // Encrypted array of up to 5 recommended app IDs for this chat, generated during post-processing
-  encrypted_quick_tip_slugs?: string | null; // Encrypted array of product quick tip slugs selected during post-processing
+  encrypted_recommendations?: string | null; // Chat-key encrypted ChatRecommendationsState JSON (types/recommendations.ts)
   encrypted_chat_key?: string | null; // Chat-specific encryption key, encrypted with user's master key for device sync
   anonymous_encrypted_chat_key?: string | null; // Local-only anonymous wrapper for pre-signup chat keys
   candidate_encrypted_keys?: string[] | null; // Fallback encrypted_chat_key blobs rejected by injectKey (multi-tab race survivors). Tried in order when primary decryption fails.
@@ -1110,7 +1110,7 @@ export interface InitialSyncResponsePayload {
     encrypted_chat_key?: string | null; // Encrypted chat-specific key for decryption
     encrypted_icon?: string | null; // Encrypted icon name from Lucide library
     encrypted_category?: string | null; // Encrypted category name
-    encrypted_quick_tip_slugs?: string | null; // Encrypted quick-tip slugs selected during post-processing
+    encrypted_recommendations?: string | null; // Chat-key encrypted ChatRecommendationsState JSON
     encrypted_auto_speak_response?: string | null;
     encrypted_focus_phase_state?: string | null;
     encrypted_shared_short_url?: string | null;

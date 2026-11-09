@@ -85,3 +85,22 @@ fn unknown_ops_and_malformed_inputs_are_refused() {
     assert_eq!(run_json("workflowPath", r#"{"route":"nope"}"#).unwrap_err(), "bad_field:route");
     assert!(run_json("workflowInputSession", "not json").is_err());
 }
+
+#[test]
+fn instruction_body_sends_draft_only_instead_of_optimistic_save_and_defaults_unchanged() {
+    let base = r#"{"route":"stream","text":"Go","timezone":"UTC"#;
+    let default = run_json("workflowInputBody", &format!("{base}\"}}")).unwrap();
+    assert!(default.contains("optimistic_save") && !default.contains("draft_only"));
+    let falsy = run_json(
+        "workflowInputBody",
+        &format!("{base}\",\"draft_only\":false}}"),
+    )
+    .unwrap();
+    assert_eq!(falsy, default);
+    let draft = run_json(
+        "workflowInputBody",
+        &format!("{base}\",\"draft_only\":true}}"),
+    )
+    .unwrap();
+    assert!(draft.contains("draft_only") && !draft.contains("optimistic_save"));
+}

@@ -427,5 +427,8 @@ def test_mention_only_is_never_listed_to_preprocessor_or_postprocessor():
     assert "mention_only" not in str(MemoryCatalogEntry.model_fields["load_mode"].annotation)
     with pytest.raises(ValueError):
         parse_memory_catalog([entry(mode="mention_only")])
-    from backend.apps.ai.processing import postprocessing_context_suggestions as post
-    assert post.sanitize_context_suggestion({"kind": "memory_update", "memory_id": "m1", "title": "x"}, []) is None
+    from backend.apps.ai.processing import postprocessing_recommendations as post
+    assert post.build_recommendations(
+        {"memory_recommendations": [{"action": "update", "ref": "m1", "title": "x", "summary": "y"}]},
+        task_id="t", memory_aliases=post.build_memory_aliases([]), workflow_aliases={}, all_workflows=[],
+    ) == []

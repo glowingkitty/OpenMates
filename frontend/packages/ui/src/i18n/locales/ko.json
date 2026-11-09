@@ -3081,46 +3081,6 @@
         "text": "풀어봐: 240의 15%는 얼마인가요?"
       }
     },
-    "quick_tips": {
-      "eyebrow": {
-        "text": "팁"
-      },
-      "cta_learn_more": {
-        "text": "자세히 알아보기"
-      },
-      "shorter_chats_equal_better_responses": {
-        "title": {
-          "text": "대화가 짧을수록 답변 품질이 좋아집니다"
-        },
-        "body": {
-          "text": "주제별로 대화를 짧게 나누면 더 정확한 답변을 얻고 크레딧도 절약할 수 있습니다."
-        }
-      },
-      "search_current_info_next_time": {
-        "title": {
-          "text": "최신 정보가 필요할 땐 검색하세요"
-        },
-        "body": {
-          "text": "다음번에 최신 가격, 이벤트, 뉴스, 제품 상세 정보 또는 최근 사실이 필요할 때 OpenMates가 웹에서 대신 검색해 드립니다."
-        }
-      },
-      "travel_can_add_local_context": {
-        "title": {
-          "text": "여행 정보 추가하기"
-        },
-        "body": {
-          "text": "여행 계획을 세운 후, OpenMates는 해당 여행의 현지 장소, 이벤트, 숙소, 경로 및 실용적인 세부 정보를 찾는 데 도움을 줄 수 있습니다."
-        }
-      },
-      "use_apps_for_better_results": {
-        "title": {
-          "text": "다음 단계를 위해 앱을 사용해 보세요"
-        },
-        "body": {
-          "text": "다음에 무엇을 할지 결정했다면, OpenMates 앱을 통해 코딩, 리서치, 이벤트, 쇼핑, 글쓰기 또는 계획과 같은 작업에 더 적합한 도구를 AI에 제공할 수 있습니다."
-        }
-      }
-    },
     "suggestions": {
       "explore_next": {
         "text": "다음에 무엇을 탐구하시겠어요?"
@@ -13298,6 +13258,7 @@
     }
   },
   "projects": {},
+  "recommendations": {},
   "reminder": {
     "panel": {
       "title": {
@@ -14303,11 +14264,11 @@
         "follow_up_suggestions_save_error": {
           "text": "후속 제안 설정을 저장할 수 없습니다."
         },
-        "quick_tips": {
-          "text": "퀵 팁"
+        "recommendations": {
+          "text": "추천"
         },
-        "quick_tips_description": {
-          "text": "어시스턴트 응답 후 가끔 제품 팁을 표시합니다. OpenMates가 퀵 팁 카드를 생성하지 않도록 하려면 이 기능을 끄세요."
+        "recommendations_description": {
+          "text": "어시스턴트 응답 후 만들거나 업데이트할 메모리와 워크플로를 제안합니다. 직접 저장하기 전에는 아무것도 저장되지 않습니다."
         },
         "server_region": {
           "text": "서버 지역"
@@ -14317,15 +14278,6 @@
         },
         "prefer_eu_servers_description": {
           "text": "켜짐(기본값): AI 모델이 EU 서버에서 먼저 실행되며 다른 지역은 대체용으로만 사용됩니다. 꺼짐: 가장 빠른 글로벌 – OpenMates가 전 세계에서 가장 빠른 서버를 선택합니다."
-        },
-        "quick_tips_enabled": {
-          "text": "퀵 팁이 활성화되었습니다."
-        },
-        "quick_tips_disabled": {
-          "text": "퀵 팁이 비활성화되었습니다."
-        },
-        "quick_tips_save_error": {
-          "text": "퀵 팁 설정을 저장할 수 없습니다."
         },
         "manual_select_note": {
           "text": "채팅에서 @멘션을 사용하여 언제든지 모델을 수동으로 선택할 수 있습니다."
@@ -14502,6 +14454,50 @@
         },
         "enable_model": {
           "text": "모델 활성화"
+        }
+      }
+    },
+    "app_settings_memories": {
+      "text": "기억",
+      "item_key_required": {
+        "text": "항목 키는 필수입니다"
+      },
+      "item_value_required": {
+        "text": "항목 값은 필수입니다"
+      },
+      "authentication_required": {
+        "text": "인증이 필요합니다"
+      },
+      "confirm_delete": {
+        "text": "이 항목을 삭제하시겠습니까?"
+      },
+      "entry_not_found": {
+        "text": "항목을 찾을 수 없습니다"
+      },
+      "back_to_category": {
+        "text": "카테고리로 돌아가기"
+      },
+      "deleting": {
+        "text": "삭제 중..."
+      },
+      "saving": {
+        "text": "저장 중..."
+      },
+      "encrypted_notice": {
+        "text": "귀하의 설정 및 메모리 항목은 암호화되어 있으며, 귀하의 기기에서만 읽을 수 있고, 귀하의 명시적인 동의 없이는 처리를 위해 OpenMates로 전송되지 않습니다."
+      },
+      "diff_previous_value": {
+        "text": "이전:"
+      },
+      "diff_not_set": {
+        "text": "설정되지 않음"
+      },
+      "ideabucket": {
+        "processing_settings": {
+          "text": "Processing settings",
+          "description": {
+            "text": "Default prompt and processing times for IdeaBucket buckets."
+          }
         }
       }
     },
@@ -16333,7 +16329,7 @@
       "text": "이 계정에서 끄려면 Learning Mode 암호를 입력하세요."
     },
     "learning_mode_guest_description": {
-      "text": "학습자 연령대를 선택하세요. 게스트의 경우 Learning Mode는 이 브라우저 세션 동안만 지속되며 암호가 없습니다."
+      "text": "학습자 연령대를 선택하고 암호를 설정하세요. 이 암호는 Learning Mode를 끄거나 함께 만들기를 다시 허용할 때 필요합니다. 암호는 이 브라우저에만 저장되며 서버로 전송되지 않습니다."
     },
     "learning_mode_active_detail": {
       "text": "Learning Mode가 이 계정의 모든 채팅에 활성화되어 있습니다. 답변은 교육 우선 방식으로 유지되며 선택한 도구는 제한됩니다."
@@ -16342,10 +16338,10 @@
       "text": "활성화하면 OpenMates가 완성된 답을 주는 대신 학습자를 단계별로 안내합니다."
     },
     "learning_mode_guest_active_detail": {
-      "text": "Learning Mode가 이 브라우저 세션의 익명 채팅에 활성화되어 있습니다. 계정을 만들면 여러 기기에서 암호로 잠글 수 있습니다."
+      "text": "Learning Mode가 이 브라우저의 익명 채팅에 활성화되어 있습니다. 암호로 끌 때까지 계속 켜져 있습니다."
     },
     "learning_mode_guest_inactive_detail": {
-      "text": "게스트는 이 브라우저 세션의 익명 채팅에서 Learning Mode를 사용해 볼 수 있습니다. 계정을 만들면 암호로 잠글 수 있습니다."
+      "text": "게스트는 이 브라우저의 익명 채팅에서 암호로 보호되는 Learning Mode를 사용할 수 있습니다."
     },
     "learning_mode_age_group_label": {
       "text": "학습자 연령대"
@@ -16385,6 +16381,30 @@
     },
     "learning_mode_disable_button": {
       "text": "Learning Mode 끄기"
+    },
+    "learning_mode_collaborative_label": {
+      "text": "함께 만들기 허용"
+    },
+    "learning_mode_collaborative_help": {
+      "text": "학습자가 AI와 함께 코드, 문서, 파일 같은 것을 만들 수 있게 합니다. 끄면 AI는 설명하고 안내하기만 합니다. 10세 미만 학습자는 사용할 수 없습니다."
+    },
+    "learning_mode_collaborative_enable_prompt": {
+      "text": "함께 만들기를 다시 허용하려면 Learning Mode 암호를 입력하세요."
+    },
+    "learning_mode_collaborative_confirm_button": {
+      "text": "함께 만들기 허용"
+    },
+    "learning_mode_collaborative_enabled": {
+      "text": "함께 만들기가 켜졌습니다."
+    },
+    "learning_mode_collaborative_disabled": {
+      "text": "함께 만들기가 꺼졌습니다."
+    },
+    "learning_mode_guest_notice": {
+      "text": "계정이 없으면 Learning Mode는 이 브라우저에서만 유지됩니다. 브라우저 데이터를 삭제하거나 비공개 창을 사용하면 해제되거나 우회될 수 있습니다. 어디서나 적용되는 잠금을 원하면 계정을 만드세요."
+    },
+    "learning_mode_passcode_invalid": {
+      "text": "암호는 4자 이상 128자 이하여야 합니다."
     },
     "incognito_explainer_description": {
       "text": "시크릿 모드는 새로 만드는 채팅에만 적용됩니다. 시크릿 모드가 활성화된 동안 만들어진 새 채팅은 기기 간에 동기화되지 않고, 서버에 저장되지 않으며, 캐시되지 않습니다. 이 채팅은 현재 브라우저 세션에서만 존재합니다. 기존 채팅은 변경되지 않습니다."

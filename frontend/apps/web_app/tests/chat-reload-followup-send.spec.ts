@@ -41,7 +41,7 @@ test('follow-up sent right after a reload is not stuck as a queued edit and gets
     const editor = page.getByTestId('message-editor').filter({ visible: true }).first().locator('.ProseMirror');
     await editor.waitFor({ state: 'visible', timeout: 60000 });
     await editor.click();
-    await page.keyboard.insertText(withMockMarker('Give me one quick tip for studying.', 'chat_flow_quick_tip', 'medium'));
+    await page.keyboard.insertText(withMockMarker('Help me plan an open source conference.', 'chat_recommendations', 'medium'));
     await expect(page.getByTestId('queued-edit-banner')).toHaveCount(0);
     await page.getByTestId('composer-send-button').filter({ visible: true }).first().click();
     await expect(page.getByTestId('message-user')).toHaveCount(2, { timeout: 30000 });
@@ -110,7 +110,7 @@ test('first send after several reloads and a refresh-token rotation is accepted 
     expect((await rotated.json()).success).toBe(true);
     expect(await cookie(), 'The /session call must publish a successor cookie.').not.toBe(original);
 
-    await sendRightAway(page, withMockMarker('Give me one quick tip for studying.', 'chat_flow_quick_tip', 'medium'), 2);
+    await sendRightAway(page, withMockMarker('Help me plan an open source conference.', 'chat_recommendations', 'medium'), 2);
     expect(refusals(), 'The send-time privacy check must accept the rotated session.').toEqual([]);
 
     // One full session-watcher interval: the rotated socket must not be closed.

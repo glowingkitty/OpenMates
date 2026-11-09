@@ -237,7 +237,7 @@ models:
     response_feature_rows:
       type: navigable_toggle_rows
       required: true
-      constraints: {values: [followup_suggestions, quick_tips], detail_explainer_reachable: true}
+      constraints: {values: [followup_suggestions, recommendations], detail_explainer_reachable: true}
 
 assertions:
   - id: ai-model-routing.instructions.required-safety

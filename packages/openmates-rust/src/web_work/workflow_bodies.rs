@@ -229,7 +229,13 @@ fn instruction(input: &Value) -> Decision {
     body.value("selected_workflow_id", or(record, "selected_workflow_id", Value::Null));
     let timezone = if truthy(record.get("timezone")) { record["timezone"].clone() } else { json!("UTC") };
     body.value("timezone", timezone);
-    body.value("optimistic_save", json!(true));
+    // `draft_only: true` asks the server for an unsaved draft: it replaces
+    // `optimistic_save`, and absence keeps the body byte-identical to before.
+    if record.get("draft_only") == Some(&Value::Bool(true)) {
+        body.value("draft_only", json!(true));
+    } else {
+        body.value("optimistic_save", json!(true));
+    }
     if truthy(record.get("idempotency_key")) {
         body.raw("idempotency_key", record, "idempotency_key");
     }

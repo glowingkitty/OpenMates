@@ -3081,46 +3081,6 @@
         "text": "Selesaikan: berapakah 15% dari 240?"
       }
     },
-    "quick_tips": {
-      "eyebrow": {
-        "text": "Tip cepat"
-      },
-      "cta_learn_more": {
-        "text": "Pelajari selengkapnya"
-      },
-      "shorter_chats_equal_better_responses": {
-        "title": {
-          "text": "Obrolan singkat bekerja lebih baik"
-        },
-        "body": {
-          "text": "Kamu akan mendapatkan respons yang lebih baik dan menghemat kredit saat membagi topik ke dalam obrolan terpisah yang lebih pendek."
-        }
-      },
-      "search_current_info_next_time": {
-        "title": {
-          "text": "Cari saat kesegaran informasi penting"
-        },
-        "body": {
-          "text": "Lain kali kamu butuh harga terkini, acara, berita, detail produk, atau fakta terbaru, OpenMates bisa mencari di web untukmu."
-        }
-      },
-      "travel_can_add_local_context": {
-        "title": {
-          "text": "Tambahkan lebih banyak konteks perjalanan"
-        },
-        "body": {
-          "text": "Setelah merencanakan perjalanan, OpenMates juga bisa membantu menemukan tempat lokal, acara, penginapan, rute, dan detail praktis untuk perjalanan yang sama."
-        }
-      },
-      "use_apps_for_better_results": {
-        "title": {
-          "text": "Coba aplikasi untuk langkah selanjutnya"
-        },
-        "body": {
-          "text": "Saat kamu tahu apa yang ingin dilakukan selanjutnya, aplikasi OpenMates dapat memberikan alat yang lebih baik kepada AI untuk tugas-tugas seperti coding, riset, acara, belanja, menulis, atau perencanaan."
-        }
-      }
-    },
     "suggestions": {
       "explore_next": {
         "text": "Apa yang ingin Anda eksplorasi selanjutnya?"
@@ -13298,6 +13258,7 @@
     }
   },
   "projects": {},
+  "recommendations": {},
   "reminder": {
     "panel": {
       "title": {
@@ -14303,11 +14264,11 @@
         "follow_up_suggestions_save_error": {
           "text": "Gagal menyimpan pengaturan saran tindak lanjut."
         },
-        "quick_tips": {
-          "text": "Tips cepat"
+        "recommendations": {
+          "text": "Rekomendasi"
         },
-        "quick_tips_description": {
-          "text": "Menampilkan tips produk sesekali setelah asisten membalas. Matikan ini jika kamu tidak ingin OpenMates membuat kartu tips cepat."
+        "recommendations_description": {
+          "text": "Menyarankan memori dan alur kerja untuk dibuat atau diperbarui setelah asisten membalas. Tidak ada yang disimpan sampai kamu menyimpannya."
         },
         "server_region": {
           "text": "Wilayah server"
@@ -14317,15 +14278,6 @@
         },
         "prefer_eu_servers_description": {
           "text": "Aktif (default): model AI berjalan di server UE terlebih dahulu, wilayah lain hanya sebagai cadangan. Nonaktif: Tercepat, global – OpenMates memilih server tercepat di seluruh dunia."
-        },
-        "quick_tips_enabled": {
-          "text": "Tips cepat diaktifkan."
-        },
-        "quick_tips_disabled": {
-          "text": "Tips cepat dinonaktifkan."
-        },
-        "quick_tips_save_error": {
-          "text": "Gagal menyimpan pengaturan tips cepat."
         },
         "manual_select_note": {
           "text": "Anda selalu bisa memilih model secara manual menggunakan @mention di chat."
@@ -14502,6 +14454,50 @@
         },
         "enable_model": {
           "text": "Aktifkan model"
+        }
+      }
+    },
+    "app_settings_memories": {
+      "text": "Memori",
+      "item_key_required": {
+        "text": "Kunci entri diperlukan"
+      },
+      "item_value_required": {
+        "text": "Nilai entri diperlukan"
+      },
+      "authentication_required": {
+        "text": "Autentikasi diperlukan"
+      },
+      "confirm_delete": {
+        "text": "Apakah Anda yakin ingin menghapus entri ini?"
+      },
+      "entry_not_found": {
+        "text": "Entri tidak ditemukan"
+      },
+      "back_to_category": {
+        "text": "Kembali ke kategori"
+      },
+      "deleting": {
+        "text": "Menghapus..."
+      },
+      "saving": {
+        "text": "Menyimpan..."
+      },
+      "encrypted_notice": {
+        "text": "Entri pengaturan dan memori Anda dienkripsi, hanya dapat dibaca oleh perangkat Anda dan tidak pernah dikirim ke OpenMates untuk diproses tanpa persetujuan eksplisit Anda."
+      },
+      "diff_previous_value": {
+        "text": "Sebelumnya:"
+      },
+      "diff_not_set": {
+        "text": "Belum diatur"
+      },
+      "ideabucket": {
+        "processing_settings": {
+          "text": "Processing settings",
+          "description": {
+            "text": "Default prompt and processing times for IdeaBucket buckets."
+          }
         }
       }
     },
@@ -16333,7 +16329,7 @@
       "text": "Masukkan kode akses Learning Mode untuk mematikannya di akun ini."
     },
     "learning_mode_guest_description": {
-      "text": "Pilih kelompok usia pelajar. Untuk tamu, Learning Mode hanya berlangsung selama sesi browser ini dan tidak memiliki kode akses."
+      "text": "Pilih kelompok usia pelajar dan atur kode akses. Kode akses diperlukan untuk menonaktifkan Learning Mode atau untuk mengizinkan pembuatan bersama lagi. Kode ini tetap berada di browser ini dan tidak pernah dikirim ke server kami."
     },
     "learning_mode_active_detail": {
       "text": "Learning Mode aktif untuk setiap obrolan di akun ini. Jawaban tetap mengutamakan pengajaran dan alat tertentu dibatasi."
@@ -16342,10 +16338,10 @@
       "text": "Saat diaktifkan, OpenMates membimbing pelajar langkah demi langkah, bukan memberi jawaban lengkap."
     },
     "learning_mode_guest_active_detail": {
-      "text": "Learning Mode aktif untuk obrolan anonim dalam sesi browser ini. Buat akun untuk menguncinya dengan kode akses di berbagai perangkat."
+      "text": "Learning Mode aktif untuk obrolan anonim di browser ini. Tetap aktif sampai dinonaktifkan dengan kode akses."
     },
     "learning_mode_guest_inactive_detail": {
-      "text": "Tamu dapat mencoba Learning Mode untuk obrolan anonim dalam sesi browser ini. Buat akun untuk menguncinya dengan kode akses."
+      "text": "Tamu dapat menggunakan Learning Mode untuk obrolan anonim di browser ini, dilindungi dengan kode akses."
     },
     "learning_mode_age_group_label": {
       "text": "Kelompok usia pelajar"
@@ -16385,6 +16381,30 @@
     },
     "learning_mode_disable_button": {
       "text": "Matikan Learning Mode"
+    },
+    "learning_mode_collaborative_label": {
+      "text": "Izinkan pembuatan bersama"
+    },
+    "learning_mode_collaborative_help": {
+      "text": "Memungkinkan pelajar membuat sesuatu bersama AI, seperti kode, dokumen, dan file. Saat nonaktif, AI hanya menjelaskan dan membimbing. Tidak tersedia untuk pelajar di bawah 10 tahun."
+    },
+    "learning_mode_collaborative_enable_prompt": {
+      "text": "Masukkan kode akses Learning Mode untuk mengizinkan pembuatan bersama lagi."
+    },
+    "learning_mode_collaborative_confirm_button": {
+      "text": "Izinkan pembuatan bersama"
+    },
+    "learning_mode_collaborative_enabled": {
+      "text": "Pembuatan bersama diaktifkan."
+    },
+    "learning_mode_collaborative_disabled": {
+      "text": "Pembuatan bersama dinonaktifkan."
+    },
+    "learning_mode_guest_notice": {
+      "text": "Tanpa akun, Learning Mode hanya berlaku di browser ini. Menghapus data browser atau memakai jendela pribadi akan menghapus atau melewatinya. Buat akun untuk kunci yang berlaku di mana saja."
+    },
+    "learning_mode_passcode_invalid": {
+      "text": "Kode akses harus terdiri dari 4 hingga 128 karakter."
     },
     "incognito_explainer_description": {
       "text": "Mode penyamaran hanya berlaku untuk obrolan baru yang Anda buat. Obrolan baru yang dibuat saat mode penyamaran aktif tidak disinkronkan antar perangkat, tidak disimpan di server, dan tidak di-cache. Obrolan ini hanya ada dalam sesi browser Anda saat ini. Obrolan yang ada tetap tidak berubah."

@@ -19,11 +19,6 @@ from backend.apps.ai.utils.utility_model_fallbacks import MISTRAL_UTILITY_MODEL,
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.services.cache import CacheService
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML
-from backend.apps.ai.processing.quick_tips import (
-    build_quick_tip_context,
-    sanitize_quick_tip_slug,
-    select_hardcoded_quick_tip_slug,
-)
 from backend.apps.ai.processing.jev_decisions import evaluate_jev_decisions, noul_value, score_value
 from backend.apps.ai.processing.task_proposals import (
     TaskProposal,
@@ -31,7 +26,15 @@ from backend.apps.ai.processing.task_proposals import (
     sanitize_task_proposals,
     sanitize_task_update_proposals,
 )
-from backend.apps.ai.processing.postprocessing_context_suggestions import generate_context_suggestion
+from backend.apps.ai.processing.postprocessing_recommendations import (
+    build_memory_aliases,
+    build_recommendation_context,
+    build_recommendations,
+    build_workflow_aliases,
+    recommendations_skip_reason,
+    select_prompt_workflows,
+    strip_recommendation_fields,
+)
 from backend.apps.ai.processing.learning_followups import filter_learning_followups
 from backend.shared.python_utils.learning_mode import (
     filter_learning_mode_suggestions,
@@ -314,7 +317,10 @@ class PostProcessingResult(BaseModel):
     top_recommended_apps_for_user: List[str] = Field(default_factory=list, description="Top 5 recommended app IDs for this user based on conversation context")
     chat_summary: Optional[str] = Field(None, description="Updated chat summary (max 20 words) including the latest exchange")
     usage_telemetry: Optional[Dict[str, Any]] = Field(default=None, exclude=True, repr=False)
-    context_suggestion: Optional[Dict[str, Any]] = Field(default=None, repr=False, description="At most one transient Memory/Workflow suggestion; never persisted server-side")
+    recommendations: List[Dict[str, Any]] = Field(
+        default_factory=list, repr=False,
+        description="Chat Recommendations {id, kind, action, target_id, title, summary}; metadata only, persisted client-side as encrypted_recommendations",
+    )
     chat_tags: List[str] = Field(default_factory=list, description="Up to 10 search and categorization tags for the completed conversation")
     share_cta_text: Optional[str] = Field(None, description="Short call-to-open text for shared chat previews and OG images")
     # Updated chat title: only set when the conversation has evolved significantly beyond the original title.
@@ -325,10 +331,6 @@ class PostProcessingResult(BaseModel):
     daily_inspiration_topic_suggestions: List[str] = Field(
         default_factory=list,
         description="3 concise topic/interest phrases (in English) capturing what the user discussed or showed curiosity about"
-    )
-    quick_tip_slugs: List[str] = Field(
-        default_factory=list,
-        description="0-1 product quick tip slugs selected from the backend registry; UI copy is loaded client-side from i18n"
     )
     task_proposals: List[TaskProposal] = Field(
         default_factory=list,
@@ -359,7 +361,7 @@ async def handle_postprocessing(
     user_system_language: str = "en",
     current_chat_title: Optional[str] = None,
     follow_up_suggestions_enabled: bool = True,
-    quick_tips_enabled: bool = True,
+    recommendations_enabled: bool = True,
     learning_mode_context: Optional[Dict[str, Any]] = None,
     learning_focus_context: Optional[Dict[str, Any]] = None,
     decision_model_id: Optional[str] = None,
@@ -369,6 +371,7 @@ async def handle_postprocessing(
     max_output_tokens: Optional[int] = None,
     voice_mode: bool = False,
     memory_catalog: Optional[List[Any]] = None,
+    existing_workflows: Optional[List[Dict[str, Any]]] = None,
 ) -> Optional[PostProcessingResult]:
     """
     Generate post-processing suggestions using LLM.
@@ -399,7 +402,9 @@ async def handle_postprocessing(
         current_chat_title: The current decrypted chat title (if available). Passed to the LLM so it
             can decide whether the title still fits the conversation. None for new chats (first message).
         follow_up_suggestions_enabled: Whether active-chat follow-up suggestion chips should be returned.
-        quick_tips_enabled: Whether product quick-tip cards should be generated.
+        recommendations_enabled: Whether memory/workflow Recommendations should be generated.
+        memory_catalog: Personal memory catalog metadata (aliased m1.. in the prompt).
+        existing_workflows: In-memory workflow metadata (workflow_id, title, description, updated_at); never logged.
 
     Returns:
         PostProcessingResult with suggestions, summaries, and metadata
@@ -462,10 +467,13 @@ async def handle_postprocessing(
             if field not in {"follow_up_app_skill_suggestions", "follow_up_general_suggestions"}
         ]
         logger.info(f"[Task ID: {task_id}] [PostProcessor] Follow-up suggestions disabled (is_sub_chat={is_sub_chat})")
-    if not quick_tips_enabled or is_sub_chat:
-        tool_properties.pop("quick_tip_slug", None)
-        tool_required = [field for field in tool_required if field != "quick_tip_slug"]
-        logger.info(f"[Task ID: {task_id}] [PostProcessor] Quick tips disabled (is_sub_chat={is_sub_chat})")
+    recommendations_skip = recommendations_skip_reason(
+        recommendations_enabled=recommendations_enabled, is_sub_chat=is_sub_chat, is_incognito=is_incognito,
+        user_message=user_message, assistant_response=assistant_response,
+    )
+    if recommendations_skip:
+        tool_required = strip_recommendation_fields(tool_properties, tool_required)
+        logger.info(f"[Task ID: {task_id}] [PostProcessor] Recommendations skipped ({recommendations_skip})")
     if is_sub_chat:
         tool_properties.pop("top_recommended_apps_for_user", None)
         tool_required = [field for field in tool_required if field != "top_recommended_apps_for_user"]
@@ -507,7 +515,16 @@ async def handle_postprocessing(
     else:
         skills_context = ""
 
-    quick_tip_context = build_quick_tip_context(available_app_ids) if quick_tips_enabled else ""
+    memory_aliases = {}
+    workflow_aliases = {}
+    recommendation_context = ""
+    if not recommendations_skip:
+        memory_aliases = build_memory_aliases(memory_catalog)
+        workflow_aliases = build_workflow_aliases(select_prompt_workflows(
+            existing_workflows or [],
+            " ".join([user_message or "", assistant_response or "", current_chat_title or "", " ".join(chat_tags or [])]),
+        ))
+        recommendation_context = build_recommendation_context(memory_aliases, workflow_aliases)
 
     learning_mode_suggestion_context = ""
     if is_learning_mode_enabled(learning_mode_context) or learning_focus_context:
@@ -567,7 +584,7 @@ async def handle_postprocessing(
         f"Conversation tags: {chat_tags_str}"
         f"{available_apps_context}"
         f"{skills_context}{memory_prefix_context}"
-        f"{quick_tip_context}"
+        f"{recommendation_context}"
         f"{learning_mode_suggestion_context}"
         f"{title_context}"
         f"{language_instruction}"
@@ -820,23 +837,10 @@ async def handle_postprocessing(
     task_proposals = sanitize_task_proposals(llm_result.arguments.get("task_proposals", []), task_id)
     task_update_proposals = sanitize_task_update_proposals(llm_result.arguments.get("task_update_proposals", []), task_id)
 
-    if not quick_tips_enabled:
-        quick_tip_slugs = []
-    else:
-        hardcoded_quick_tip_slug = select_hardcoded_quick_tip_slug(message_history, available_app_ids)
-        if hardcoded_quick_tip_slug:
-            quick_tip_slugs = [hardcoded_quick_tip_slug]
-            logger.info(
-                f"[Task ID: {task_id}] [PostProcessor] Selected hardcoded quick tip: {hardcoded_quick_tip_slug}"
-            )
-        else:
-            sanitized_quick_tip_slug = sanitize_quick_tip_slug(
-                raw_slug=llm_result.arguments.get("quick_tip_slug", ""),
-                available_app_ids=available_app_ids,
-                task_id=task_id,
-                logger=logger,
-            )
-            quick_tip_slugs = [sanitized_quick_tip_slug] if sanitized_quick_tip_slug else []
+    recommendations = [] if recommendations_skip else build_recommendations(
+        llm_result.arguments, task_id=task_id, memory_aliases=memory_aliases,
+        workflow_aliases=workflow_aliases, all_workflows=existing_workflows or [],
+    )
 
     result = PostProcessingResult(
         follow_up_request_suggestions=sanitized_follow_up,
@@ -853,22 +857,10 @@ async def handle_postprocessing(
         share_cta_text=share_cta_text,
         updated_chat_title=postproc_updated_title,  # New title if conversation drifted (may be None)
         daily_inspiration_topic_suggestions=validated_topic_suggestions,
-        quick_tip_slugs=quick_tip_slugs,
+        recommendations=recommendations,
         task_proposals=task_proposals,
         task_update_proposals=task_update_proposals,
     )
-
-    if not is_sub_chat:
-        result.context_suggestion = await generate_context_suggestion(
-            task_id=task_id,
-            model_id=model_id,
-            message_history=message_history,
-            user_message=user_message,
-            assistant_response=assistant_response,
-            memory_catalog=memory_catalog or [],
-            secrets_manager=secrets_manager,
-            usage_callback=usage_callback,
-        )
 
     # Validate that we have the required number of suggestions
     if len(result.follow_up_request_suggestions) < 6:
@@ -896,7 +888,7 @@ async def handle_postprocessing(
         f"{len(result.top_recommended_apps_for_user)} app recommendations, "
 
         f"{len(result.daily_inspiration_topic_suggestions)} daily inspiration topic suggestions, "
-        f"{len(result.quick_tip_slugs)} quick tips"
+        f"{len(result.recommendations)} recommendations"
     )
 
     return result

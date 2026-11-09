@@ -306,31 +306,6 @@ draft_conflict:
   en: This memory changed since the suggestion was made. Nothing was overwritten. Reopen the suggestion to review the latest version.
   de: Diese Erinnerung wurde seit dem Vorschlag geändert. Es wurde nichts überschrieben. Öffne den Vorschlag erneut, um die aktuelle Version zu prüfen.
   verified_by_human: []
-suggestion_update:
-  context: Title line of a suggestion to update an existing Memory, shown below the chat
-  en: 'Update {title}'
-  de: '{title} aktualisieren'
-  verified_by_human: []
-suggestion_create:
-  context: Title line of a suggestion to create a new Memory, shown below the chat
-  en: 'Save {title}'
-  de: '{title} speichern'
-  verified_by_human: []
-suggestion_preview:
-  context: Button that previews a suggested Memory change without saving it
-  en: Preview
-  de: Vorschau
-  verified_by_human: []
-suggestion_dismiss:
-  context: Accessible label of the button that dismisses a suggestion
-  en: Dismiss suggestion
-  de: Vorschlag verwerfen
-  verified_by_human: []
-suggestion_previewing:
-  context: Status while a suggested Memory update is being prepared
-  en: Preparing preview…
-  de: Vorschau wird vorbereitet…
-  verified_by_human: []
 suggestion_up_to_date:
   context: Message when a suggested Memory update found nothing to change
   en: This memory already looks up to date.
@@ -350,16 +325,6 @@ suggestion_insufficient_credits:
   context: Error toast when a suggested Memory update preview needs more credits than available
   en: Not enough credits for this preview.
   de: Nicht genug Credits für diese Vorschau.
-  verified_by_human: []
-suggestion_workflow_create:
-  context: Button that creates a suggested Workflow in the Workflow workspace
-  en: Create
-  de: Erstellen
-  verified_by_human: []
-suggestion_workflow_prompt:
-  context: Instruction sent to the Workflow builder when the user creates a suggested Workflow
-  en: 'Create a workflow: {title}. {summary}'
-  de: 'Erstelle einen Workflow: {title}. {summary}'
   verified_by_human: []
 draft_current:
   context: Label above the current saved value in a Memory suggestion diff

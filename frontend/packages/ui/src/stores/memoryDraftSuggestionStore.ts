@@ -14,6 +14,13 @@ export interface MemoryDraftPayload {
   is_new?: boolean;
   /** Saved document at preview time; Save reports a conflict if it changed meanwhile. */
   base_document?: string;
+  /** Chat Recommendation that opened this draft; saving it resolves that recommendation. */
+  origin?: MemoryDraftOrigin;
+}
+
+export interface MemoryDraftOrigin {
+  chatId: string;
+  recommendationId: string;
 }
 
 export const memoryDraftSuggestion = writable<MemoryDraftPayload | null>(null);

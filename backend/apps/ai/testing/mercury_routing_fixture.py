@@ -179,7 +179,7 @@ def llm_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | None:
                 "new_chat_app_skill_suggestions": [], "new_chat_general_suggestions": [],
                 "chat_summary": "Answered a simple arithmetic question.", "chat_tags": ["arithmetic"],
                 "share_cta_text": "Arithmetic answer", "updated_chat_title": "Arithmetic answer",
-                "daily_inspiration_topic_suggestions": [], "quick_tip_slug": ""}
+                "daily_inspiration_topic_suggestions": [], "memory_recommendations": [{"action": "create", "title": "Interested in synthetic test topics", "summary": "The user explores synthetic test conversations."}], "workflow_recommendations": [{"action": "create", "title": "Weekly synthetic digest", "summary": "Send a weekly digest of synthetic test topics."}]}
         if get_mock_group() in LEGACY_WEB_PROMPTS:
             args.update(chat_summary="Completed the requested web search.", chat_tags=["web search"],
                         share_cta_text="Web search results", updated_chat_title="Web search results")

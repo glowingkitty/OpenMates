@@ -1669,7 +1669,7 @@ type FieldDecryptResult = {
   success: boolean;
   /** First 40 chars of decrypted value (or error message) */
   preview: string;
-  /** Full decrypted value for non-sensitive diagnostics such as quick-tip slugs. */
+  /** Full decrypted value for non-sensitive diagnostics such as recommendation titles (redacted on request). */
   value?: string;
 };
 
@@ -1761,7 +1761,7 @@ async function attemptChatDecryption(
     { field: "Icon", key: "encrypted_icon" },
     { field: "Summary", key: "encrypted_chat_summary" },
     { field: "Tags", key: "encrypted_chat_tags" },
-    { field: "Quick Tips", key: "encrypted_quick_tip_slugs" },
+    { field: "Recommendations", key: "encrypted_recommendations" },
     {
       field: "Follow-up Suggestions",
       key: "encrypted_follow_up_request_suggestions",
@@ -1878,17 +1878,20 @@ async function attemptChatDecryption(
   return report;
 }
 
-function parseQuickTipSlugs(value: string | undefined): string[] | null {
+/** Titles of the open recommendations in a decrypted ChatRecommendationsState JSON. */
+function parseRecommendationTitles(value: string | undefined): string[] | null {
   if (!value) return null;
+  let parsed: unknown;
   try {
-    const parsed = JSON.parse(value);
-    if (Array.isArray(parsed)) {
-      return parsed.filter((item): item is string => typeof item === "string");
-    }
+    parsed = JSON.parse(value);
   } catch {
-    // Older/debug payloads may already be a single plaintext slug.
+    return null;
   }
-  return value ? [value] : null;
+  const items = (parsed as { items?: unknown } | null)?.items;
+  if (!Array.isArray(items)) return null;
+  return items
+    .map((item) => (item as { title?: unknown } | null)?.title)
+    .filter((title): title is string => typeof title === "string");
 }
 
 /**
@@ -1980,13 +1983,15 @@ export async function inspectChat(
     (f) => !f.success,
   ).length;
   const msgDecryptTotal = decryptionReport.messageFields.length;
-  const encryptedQuickTips = chatMeta?.encrypted_quick_tip_slugs as
+  const encryptedRecommendations = chatMeta?.encrypted_recommendations as
     | string
     | undefined;
-  const quickTipDecrypt = decryptionReport.metadataFields.find(
-    (f) => f.field === "Quick Tips",
+  const recommendationsDecrypt = decryptionReport.metadataFields.find(
+    (f) => f.field === "Recommendations",
   );
-  const quickTipSlugs = parseQuickTipSlugs(quickTipDecrypt?.value);
+  const recommendationTitles = parseRecommendationTitles(
+    recommendationsDecrypt?.value,
+  );
 
   const healthSummary = buildClientChatHealthSummary({
     chatMeta,
@@ -2082,9 +2087,9 @@ export async function inspectChat(
       shortLabel: "Follow-up",
     },
     {
-      label: "Quick Tips",
-      key: "encrypted_quick_tip_slugs",
-      shortLabel: "Quick Tips",
+      label: "Recommendations",
+      key: "encrypted_recommendations",
+      shortLabel: "Recommendations",
     },
     {
       label: "Draft",
@@ -2141,21 +2146,23 @@ export async function inspectChat(
     );
 
     lines.push("");
-    lines.push("QUICK TIPS");
-    if (!encryptedQuickTips) {
-      lines.push("  · No encrypted_quick_tip_slugs in local IndexedDB");
-    } else if (quickTipDecrypt?.success && quickTipSlugs) {
+    lines.push("RECOMMENDATIONS");
+    if (!encryptedRecommendations) {
+      lines.push("  · No encrypted_recommendations in local IndexedDB");
+    } else if (recommendationsDecrypt?.success && recommendationTitles) {
       lines.push(
-        `  🟢 Local: ${quickTipSlugs.length} slug(s) decrypted from ${encryptedQuickTips.length} chars`,
+        `  🟢 Local: ${recommendationTitles.length} open recommendation(s) decrypted from ${encryptedRecommendations.length} chars`,
       );
-      lines.push(redactText ? "     [redacted]" : `     ${quickTipSlugs.join(", ")}`);
-    } else if (quickTipDecrypt) {
       lines.push(
-        `  🔴 Local: encrypted_quick_tip_slugs present (${encryptedQuickTips.length} chars) but decrypt failed: ${quickTipDecrypt.preview}`,
+        redactText ? "     [redacted]" : `     ${recommendationTitles.join(" | ")}`,
+      );
+    } else if (recommendationsDecrypt) {
+      lines.push(
+        `  🔴 Local: encrypted_recommendations present (${encryptedRecommendations.length} chars) but decrypt/parse failed: ${recommendationsDecrypt.preview}`,
       );
     } else {
       lines.push(
-        `  🔴 Local: encrypted_quick_tip_slugs present (${encryptedQuickTips.length} chars) but chat key is unavailable`,
+        `  🔴 Local: encrypted_recommendations present (${encryptedRecommendations.length} chars) but chat key is unavailable`,
       );
     }
   } else {
@@ -4216,12 +4223,12 @@ interface ServerChatSyncStatus {
   db_message_count?: number;
   db_messages_v?: number;
   db_embed_count?: number;
-  db_has_encrypted_quick_tip_slugs?: boolean;
-  db_encrypted_quick_tip_slugs_length?: number;
+  db_has_encrypted_recommendations?: boolean;
+  db_encrypted_recommendations_length?: number;
   cache_present: boolean;
   cache_messages_v?: number;
-  cache_has_encrypted_quick_tip_slugs?: boolean;
-  cache_encrypted_quick_tip_slugs_length?: number;
+  cache_has_encrypted_recommendations?: boolean;
+  cache_encrypted_recommendations_length?: number;
   db_consistent?: boolean;
   db_cache_consistent?: boolean;
 }
@@ -4331,9 +4338,9 @@ function formatServerChatSync(
     `  DB: messages=${dbMsgCount}  messages_v=${dbMsgV}  embeds=${dbEmbedCount}`,
   );
   lines.push(
-    `  DB Quick Tips: ${
-      serverStatus.db_has_encrypted_quick_tip_slugs
-        ? `PRESENT (${serverStatus.db_encrypted_quick_tip_slugs_length ?? "?"} chars)`
+    `  DB Recommendations: ${
+      serverStatus.db_has_encrypted_recommendations
+        ? `PRESENT (${serverStatus.db_encrypted_recommendations_length ?? "?"} chars)`
         : "MISSING"
     }`,
   );
@@ -4343,9 +4350,9 @@ function formatServerChatSync(
     const cacheMsgV = serverStatus.cache_messages_v ?? "?";
     lines.push(`  Cache: PRESENT  messages_v=${cacheMsgV}`);
     lines.push(
-      `  Cache Quick Tips: ${
-        serverStatus.cache_has_encrypted_quick_tip_slugs
-          ? `PRESENT (${serverStatus.cache_encrypted_quick_tip_slugs_length ?? "?"} chars)`
+      `  Cache Recommendations: ${
+        serverStatus.cache_has_encrypted_recommendations
+          ? `PRESENT (${serverStatus.cache_encrypted_recommendations_length ?? "?"} chars)`
           : "MISSING"
       }`,
     );

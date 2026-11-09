@@ -234,7 +234,8 @@ def _postprocessing_arguments(fingerprint: str) -> dict[str, Any]:
         "daily_inspiration_topic_suggestions": [
             "encrypted archive design", "database transaction ordering", "bounded page retrieval",
         ],
-        "quick_tip_slug": "",
+        "memory_recommendations": [{"action": "create", "title": "Interested in synthetic test topics", "summary": "The user explores synthetic test conversations."}],
+        "workflow_recommendations": [{"action": "create", "title": "Weekly synthetic digest", "summary": "Send a weekly digest of synthetic test topics."}],
     }
 
 

@@ -1,5 +1,4 @@
 <script lang="ts">
-    import { setContextSuggestion } from '../stores/contextSuggestionStore';
     import { authoredResultMetadata } from '../utils/authoredResultPresentation';
 import { storageArchiveFetch } from "../config/api";
 import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
@@ -76,6 +75,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import PdfSearchEmbedFullscreen from './embeds/pdf/PdfSearchEmbedFullscreen.svelte';
     import RecordingEmbedFullscreen from './embeds/audio/RecordingEmbedFullscreen.svelte';
     import WorkflowRunEmbedFullscreen from './embeds/workflows/WorkflowRunEmbedFullscreen.svelte';
+    import WorkflowSidePanel from './workflows/WorkflowSidePanel.svelte';
+    import { installWorkflowSidePanelE2EHook } from './workflows/workflowSidePanelE2EHook';
+    import { workflowSidePanel, closeWorkflowSidePanel } from '../stores/workflowSidePanelStore';
     import type { AudioWaveformData } from '../utils/audioWaveform';
     import Model3DResultEmbedFullscreen from './embeds/models3d/Model3DResultEmbedFullscreen.svelte';
     import { resolveRegistryKey, hasFullscreenComponent, loadFullscreenComponent } from '../services/embedFullscreenResolver';
@@ -1757,36 +1759,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         window.location.hash = buildAppsWorkspaceHash(`apps/${appId}/focus/${focusModeId}`, undefined, window.location.pathname + window.location.search + window.location.hash);
     }
 
-    async function handleQuickTipAction(event: CustomEvent) {
-        const tip = event.detail;
-        if (!tip?.ctaAction) return;
-
-        if (tip.ctaAction === 'new_chat') {
-            await handleNewChatClick();
-            return;
-        }
-
-        if (tip.ctaAction === 'open_app') {
-            try {
-                const { navigateToSettings } = await import('../stores/settingsNavigationStore');
-                const { settingsDeepLink } = await import('../stores/settingsDeepLinkStore');
-                const { panelState } = await import('../stores/panelStateStore');
-                const settingsPath = tip.appId ? `apps/${tip.appId}` : 'apps';
-                navigateToSettings(settingsPath, 'Apps', 'app', '');
-                settingsDeepLink.set(settingsPath);
-                panelState.openSettings();
-            } catch (error) {
-                console.error('[ActiveChat] Error handling quick tip app navigation:', error);
-            }
-            return;
-        }
-
-        if (tip.ctaAction === 'send_prompt' && tip.prompt) {
-            messageInputFieldRef?.setSuggestionText(tip.prompt);
-            messageInputFieldRef?.focus();
-        }
-    }
-    
     // Handler for Wikipedia fullscreen events (from WikiInlineLink).
     // Only one fullscreen can be open at a time — close any regular embed fullscreen
     // before opening the wiki fullscreen. Updating wikiFullscreenData while wiki is
@@ -2801,7 +2773,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         const {
             chatId,
             followUpSuggestions: newSuggestions,
-            quickTipSlugs: newQuickTipSlugs,
             taskProposals = [],
             taskUpdateProposals = [],
         } = event.detail;
@@ -2826,7 +2797,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         // Always try to reload from database if it's the current chat, even if suggestions aren't in event
         // This handles cases where the event arrives before database is updated
         if (isCurrentChat) {
-            setContextSuggestion(chatId, isPublicChat(chatId) ? null : (event.detail.contextSuggestion ?? null));
             pendingTaskProposals = Array.isArray(taskProposals) && !isPublicChat(chatId) ? taskProposals : [];
             pendingTaskUpdateProposals = Array.isArray(taskUpdateProposals) && !isPublicChat(chatId) ? taskUpdateProposals : [];
             try {
@@ -2890,22 +2860,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     } else {
                         followUpSuggestions = [];
                         console.debug('[ActiveChat] No follow-up suggestions found');
-                    }
-
-                    if (freshChat.encrypted_quick_tip_slugs) {
-                        const chatKey = chatKeyManager.getKeySync(chatId);
-                        if (chatKey) {
-                            const { decryptArrayWithChatKey } = await import('../services/cryptoService');
-                            const decryptedTips = await decryptArrayWithChatKey(freshChat.encrypted_quick_tip_slugs, chatKey) || [];
-                            if (!metadataIsCurrent()) return;
-                            quickTipSlugs = decryptedTips;
-                        } else if (newQuickTipSlugs && Array.isArray(newQuickTipSlugs)) {
-                            quickTipSlugs = newQuickTipSlugs;
-                        }
-                    } else if (newQuickTipSlugs && Array.isArray(newQuickTipSlugs)) {
-                        quickTipSlugs = newQuickTipSlugs;
-                    } else {
-                        quickTipSlugs = [];
                     }
 
                 } else {
@@ -5221,42 +5175,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         }
     }
 
-    let quickTipSlugs = $state<string[]>([]);
-
-    async function hydrateQuickTipSlugs(
-        chatId: string,
-        encryptedSlugs?: string | null,
-    ): Promise<void> {
-        if (isPublicChat(chatId) || isExampleChat(chatId)) {
-            if (currentChat?.chat_id === chatId) quickTipSlugs = [];
-            return;
-        }
-
-        try {
-            const storedChat = await chatDB.getChat(chatId);
-            const ciphertext = encryptedSlugs || storedChat?.encrypted_quick_tip_slugs;
-            if (!ciphertext) {
-                if (currentChat?.chat_id === chatId) quickTipSlugs = [];
-                return;
-            }
-
-            const chatKey = await chatKeyManager.getKey(chatId);
-            if (!chatKey) {
-                console.warn(`[ActiveChat] Quick tip hydration deferred because chat key is unavailable: ${chatId}`);
-                return;
-            }
-
-            const { decryptArrayWithChatKey } = await import('../services/cryptoService');
-            const decryptedSlugs = await decryptArrayWithChatKey(ciphertext, chatKey) || [];
-            if (currentChat?.chat_id === chatId) {
-                quickTipSlugs = decryptedSlugs;
-                console.debug(`[ActiveChat] Hydrated ${decryptedSlugs.length} quick tip slug(s) for chat ${chatId}`);
-            }
-        } catch (error) {
-            console.error(`[ActiveChat] Failed to hydrate quick tip slugs for chat ${chatId}:`, error);
-        }
-    }
-
     // Track settings/memories suggestions for the current chat
     // These are suggested entries generated during AI post-processing Phase 2
     // Shown as horizontally scrollable cards below the last AI response
@@ -5300,12 +5218,26 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     
     // Keep split capability separate from pane visibility. Hiding the chat must
     // not become a full-chat -> split transition when it is shown again.
-    const hasSplitChatContext = $derived(Boolean(isUltraWide && (
+    const embedSplitChatContext = $derived(Boolean(isUltraWide && (
         (showEmbedFullscreen && embedFullscreenData && fullscreenHasChatContext) ||
         (showWikiFullscreen && wikiFullscreenData && wikiFullscreenHasChatContext)
     )));
-    const showSideBySideFullscreen = $derived(hasSplitChatContext && !forceOverlayMode);
-    const showChatButtonInFullscreen = $derived(hasSplitChatContext && forceOverlayMode);
+    // Workflow side panel (chat Recommendations): editor right of the 400px chat
+    // at >= 1024px, fullscreen over the chat below. An embed or wiki fullscreen
+    // opened from the chat takes the pane; the panel stays mounted (hidden) so
+    // its unsaved draft survives. Minimize-chat stays an embed-only control.
+    const workflowPanelRequest = $derived($workflowSidePanel);
+    const workflowPanelVisible = $derived(Boolean(workflowPanelRequest && !showEmbedFullscreen && !showWikiFullscreen));
+    const hasSplitChatContext = $derived(embedSplitChatContext || (isUltraWide && workflowPanelVisible));
+    const showSideBySideFullscreen = $derived(embedSplitChatContext && !forceOverlayMode);
+    const showChatButtonInFullscreen = $derived(embedSplitChatContext && forceOverlayMode);
+
+    // The panel belongs to the chat that opened it: leaving that chat closes it.
+    $effect(() => {
+        const request = workflowPanelRequest;
+        if (request && (currentChat?.chat_id ?? '') !== request.chatId) untrack(() => closeWorkflowSidePanel());
+    });
+    onMount(() => installWorkflowSidePanelE2EHook());
     // Nested result overlays must restore the same workspace chat even when
     // their app-specific adapters do not forward the optional toolbar props.
     setContext<EmbedSourceChatContext>(EMBED_SOURCE_CHAT_CONTEXT, {
@@ -7562,7 +7494,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         // Hide follow-up suggestions until new ones are received
         dismissedFollowUpSuggestionsKey = followUpSuggestionsKey;
         followUpSuggestions = [];
-        quickTipSlugs = [];
         
         // Hide settings/memories suggestions when user sends a new message
         // New suggestions will be generated during post-processing
@@ -9524,9 +9455,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         if (incomingChatMetadata && !incomingMetadataIsStale) {
             console.debug("[ActiveChat] handleChatUpdated: Updating currentChat with metadata from event:", incomingChatMetadata);
             currentChat = { ...currentChat, ...incomingChatMetadata }; // Merge, prioritizing incoming. This updates messages_v etc.
-            if (isHeaderMetadataUpdate) {
-                await hydrateQuickTipSlugs(incomingChatId, incomingChatMetadata.encrypted_quick_tip_slugs);
-            }
         } else if (incomingMetadataIsStale) {
             console.debug('[ActiveChat] handleChatUpdated: Ignoring stale encrypted metadata event:', {
                 incomingMetadataVersion,
@@ -10257,7 +10185,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         focusPillSetByEvent = false;
         activeFocusId = null;
         followUpSuggestions = [];
-        quickTipSlugs = [];
         currentChat = selected.chat;
         currentMessages = selected.window.messages;
         currentCompressionCheckpoints = selected.window.compressionCheckpoints;
@@ -11431,11 +11358,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         } else if (isCurrentLoadTarget() && composerGhostChatId !== currentChat.chat_id) {
             composerGhostSuggestion = null;
             composerGhostChatId = null;
-        }
-
-        quickTipSlugs = [];
-        if (!isProvidedDraftOnlyChat) {
-            await hydrateQuickTipSlugs(currentChat.chat_id, currentChat.encrypted_quick_tip_slugs);
         }
 
 
@@ -13402,20 +13324,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         }) as EventListenerCallback;
         chatSyncService.addEventListener('syncComplete', syncCompleteHandler);
 
-        const phase1bContentReadyHandler = ((event: CustomEvent<{
-            chat_id?: string;
-            chats?: Array<{ chat_id?: string }>;
-        }>) => {
-            const activeChatId = currentChat?.chat_id;
-            const activeChatWasSynced = activeChatId && (
-                event.detail?.chat_id === activeChatId ||
-                event.detail?.chats?.some(chat => chat.chat_id === activeChatId)
-            );
-            if (activeChatWasSynced) {
-                void hydrateQuickTipSlugs(activeChatId);
-            }
-        }) as EventListenerCallback;
-        chatSyncService.addEventListener('phase_1b_chat_content_ready', phase1bContentReadyHandler);
 
         // ─── Tab visibility: refresh stale carousel when tab returns from background ──
         // When a tab is backgrounded and later foregrounded, the carousel may show stale
@@ -14027,7 +13935,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             chatSyncService.removeEventListener('chatDeleted', chatDeletedHandler);
             chatSyncService.removeEventListener('messageDeleted', messageDeletedHandler);
             chatSyncService.removeEventListener('syncComplete', syncCompleteHandler);
-            chatSyncService.removeEventListener('phase_1b_chat_content_ready', phase1bContentReadyHandler);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             window.removeEventListener('focus', handleWindowFocus);
             window.removeEventListener('savedEmbedChanged', priorityCarouselInvalidatedHandler);
@@ -14164,6 +14071,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             <!-- Chat stays mounted at its split width while sliding out/in. -->
             <div 
                 class="chat-wrapper"
+                data-testid="chat-pane"
+                data-split-layout={showSideBySideLayout ? 'split' : 'full'}
                 bind:this={chatNavigationPane}
                 data-navigation-closing={closingChat}
                 class:fullscreen={isFullscreen} 
@@ -15223,12 +15132,11 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                             {queuedActionBusyMessageId}
                             {queuedActionErrors}
                            followUpSuggestions={showFollowUpSuggestions ? followUpSuggestions : []}
-                           {quickTipSlugs}
+                           recommendationsAllowed={!currentChat?.is_sub_chat && !currentChat?.parent_id && $userProfile.recommendations_enabled !== false}
                            compressionCheckpoints={showWelcome ? [] : currentCompressionCheckpoints}
                            hasOlderMessages={showWelcome ? false : currentMessageWindowHasMoreBefore}
                            olderMessagesLoading={olderMessageWindowLoading}
                            onSuggestionClick={handleFollowUpSuggestionClick}
-                           on:quickTipAction={handleQuickTipAction}
                            on:messagesChange={handleMessagesChange}
                            on:chatUpdated={handleChatUpdated}
                           on:loadOlderMessages={handleLoadOlderMessages}
@@ -15851,8 +15759,25 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 {/if}
                 </div>
             {/if}
-            
-            <!-- 
+
+            {#if workflowPanelRequest}
+                {@const panelRequest = workflowPanelRequest}
+                <div
+                    data-testid="workflow-side-panel-container"
+                    class="fullscreen-embed-container workflow-side-panel-container"
+                    class:side-panel={showSideBySideLayout}
+                    class:overlay-mode={!showSideBySideLayout}
+                    class:side-by-side-entering={sideBySideAnimating && sideBySideAnimationDirection === 'enter'}
+                    class:side-by-side-exiting={sideBySideAnimating && sideBySideAnimationDirection === 'exit'}
+                    hidden={!workflowPanelVisible}
+                >
+                    {#key panelRequest}
+                        <WorkflowSidePanel request={panelRequest} fullscreen={!showSideBySideLayout} onClose={closeWorkflowSidePanel} />
+                    {/key}
+                </div>
+            {/if}
+
+            <!--
                 Standalone VideoIframe component - CSS-based PiP
                 
                 This component is ALWAYS rendered in the same DOM position within ActiveChat.
@@ -16130,6 +16055,11 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     .fullscreen-embed-container {
         position: relative;
         height: 100%;
+    }
+
+    /* Workflow side panel stays mounted while an embed or wiki fullscreen takes the pane. */
+    .workflow-side-panel-container[hidden] {
+        display: none;
     }
 
     /* Sample-data banner — only rendered for synthetic app-store example

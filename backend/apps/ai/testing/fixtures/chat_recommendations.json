@@ -1,0 +1,71 @@
+{
+  "fixture_id": "chat_recommendations",
+  "recorded_at": "2026-11-09T12:00:00Z",
+  "speed_profile": "instant",
+  "initial_delay_ms": 2500,
+  "chunk_delay_ms": 7000,
+  "user_message_snippet": "Open source conference recommendations test",
+  "preprocessing": {
+    "can_proceed": true,
+    "category": "general_knowledge",
+    "title": "Open Source Conference Plan",
+    "icon_names": ["map"],
+    "selected_model_id": "anthropic/claude-sonnet-4-20250514",
+    "selected_model_name": "Claude Sonnet",
+    "mate_id": "default",
+    "chat_summary": "User asked for a deterministic open source conference planning response.",
+    "chat_tags": ["conference", "planning"],
+    "relevant_app_skills": [],
+    "llm_response_temp": 0.7,
+    "complexity": "simple",
+    "steps": [
+      {"step": "title_generated", "data": {"title": "Open Source Conference Plan"}},
+      {"step": "mate_selected", "data": {"mate_id": "default"}},
+      {"step": "model_selected", "data": {"model_name": "Claude Sonnet", "provider_name": "Anthropic"}}
+    ]
+  },
+  "typing_started": {
+    "category": "general_knowledge",
+    "model_name": "Claude Sonnet",
+    "provider_name": "Anthropic",
+    "server_region": "EU"
+  },
+  "response": "Open source conference recommendations test\n\nA conference plan should balance talks, hallway time, and rest.",
+  "postprocessing": {
+    "chat_summary": "User is planning a balanced visit to an open source conference.",
+    "recommendations": [
+      {
+        "id": "fixture-conference-memory-0",
+        "kind": "memory",
+        "action": "create",
+        "target_id": null,
+        "title": "Conference day pacing",
+        "summary": "Plan conference days with a balance of talks, hallway conversations and rest breaks."
+      },
+      {
+        "id": "fixture-conference-workflow-0",
+        "kind": "workflow",
+        "action": "create",
+        "target_id": null,
+        "title": "Weekly open source conference digest",
+        "summary": "Every Monday, summarize upcoming open source conferences and their talk submission deadlines."
+      },
+      {
+        "id": "fixture-conference-memory-1",
+        "kind": "memory",
+        "action": "create",
+        "target_id": null,
+        "title": "Preferred conference topics",
+        "summary": "Prioritize talks about developer tooling, privacy and community maintenance."
+      }
+    ]
+  },
+  "skill_executions": [],
+  "thinking_content": null,
+  "usage": {
+    "prompt_tokens": 48,
+    "completion_tokens": 18,
+    "total_credits": 3,
+    "model_name": "Claude Sonnet"
+  }
+}

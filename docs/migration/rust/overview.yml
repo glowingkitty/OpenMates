@@ -28,10 +28,10 @@ areas:
   priority_rank: 1
   file: web-app.yml
   unit: TS code lines (portable)
-  total: 106637
-  done: 8204
+  total: 107034
+  done: 8294
   partial: 0
-  missing: 98433
+  missing: 98740
   percent: 7.7
   done_definition: code line of a portable TS function (services/, utils/, stores/) that routes to the shared Rust
     core under VITE_OPENMATES_RUST_CORE and is listed in web-port-ledger.yml; functions over 80 code lines count
@@ -118,11 +118,11 @@ perf_attention:
     in performance-history.yml.
 performance:
   source: performance-history.yml
-  reference_date: '2026-11-08'
+  reference_date: '2026-11-09'
   stale_rule: 'age_hours = (reference_date - entry date) * 24, reference_date = newest slice date in web-port-ledger.yml
     (the newest web Rust change); stale when age_hours > 24. Day granularity: history entries carry dates, not times.'
   latest_count: 23
-  stale_count: 8
+  stale_count: 12
   by_verdict:
     rust_not_worse: 13
     inconclusive: 7
@@ -140,7 +140,7 @@ performance:
     verdict: rust_not_worse
     date: '2026-11-06'
     source_commit: null
-    age_hours: 48
+    age_hours: 72
     stale: true
   - flow: chatRendered
     metric: chatListRenderedMs
@@ -152,8 +152,8 @@ performance:
     verdict: rust_not_worse
     date: '2026-11-07'
     source_commit: 13c341c23b
-    age_hours: 24
-    stale: false
+    age_hours: 48
+    stale: true
   - flow: chatRendered
     metric: chatRenderedMs
     id: 2026-11-08-chatRendered-01
@@ -164,7 +164,7 @@ performance:
     verdict: inconclusive
     date: '2026-11-08'
     source_commit: c25f900c81f9
-    age_hours: 0
+    age_hours: 24
     stale: false
   - flow: chatRendered
     metric: openChatMs
@@ -176,8 +176,8 @@ performance:
     verdict: rust_not_worse
     date: '2026-11-07'
     source_commit: bce302fe1fc5b20cbcc32984baae065f50f80f92
-    age_hours: 24
-    stale: false
+    age_hours: 48
+    stale: true
   - flow: chatRendered
     metric: openChatWallMs
     id: 2026-11-05-chatRendered-01
@@ -188,7 +188,7 @@ performance:
     verdict: unverified
     date: '2026-11-05'
     source_commit: 8ab883e
-    age_hours: 72
+    age_hours: 96
     stale: true
   - flow: cpu
     metric: browserCpuMs
@@ -200,7 +200,7 @@ performance:
     verdict: rust_not_worse
     date: '2026-11-08'
     source_commit: c25f900c81f9
-    age_hours: 0
+    age_hours: 24
     stale: false
   - flow: cpu
     metric: cpuMs
@@ -212,7 +212,7 @@ performance:
     verdict: inconclusive
     date: '2026-11-06'
     source_commit: null
-    age_hours: 48
+    age_hours: 72
     stale: true
   - flow: cpu
     metric: searchCpuMs
@@ -224,8 +224,8 @@ performance:
     verdict: rust_not_worse
     date: '2026-11-07'
     source_commit: 44cf35f
-    age_hours: 24
-    stale: false
+    age_hours: 48
+    stale: true
   - flow: embedReady
     metric: embedReadyMs
     id: 2026-11-08-embedReady-01
@@ -236,7 +236,7 @@ performance:
     verdict: inconclusive
     date: '2026-11-08'
     source_commit: c25f900c81f9
-    age_hours: 0
+    age_hours: 24
     stale: false
   - flow: embedReady
     metric: embedsBenchCpu
@@ -248,7 +248,7 @@ performance:
     verdict: unverified
     date: '2026-11-06'
     source_commit: 30472ca
-    age_hours: 48
+    age_hours: 72
     stale: true
   - flow: reloadMemory
     metric: retainedBytes
@@ -260,7 +260,7 @@ performance:
     verdict: rust_not_worse
     date: '2026-11-08'
     source_commit: c25f900c81f9
-    age_hours: 0
+    age_hours: 24
     stale: false
   - flow: reloadMemory
     metric: retainedBytes slope
@@ -272,7 +272,7 @@ performance:
     verdict: inconclusive
     date: '2026-11-06'
     source_commit: c0a439f
-    age_hours: 48
+    age_hours: 72
     stale: true
   - flow: rss
     metric: browserRssBytes
@@ -284,7 +284,7 @@ performance:
     verdict: inconclusive
     date: '2026-11-08'
     source_commit: c25f900c81f9
-    age_hours: 0
+    age_hours: 24
     stale: false
   - flow: rss
     metric: embedsBenchRss
@@ -296,7 +296,7 @@ performance:
     verdict: inconclusive
     date: '2026-11-06'
     source_commit: 30472ca
-    age_hours: 48
+    age_hours: 72
     stale: true
   - flow: rss
     metric: totalRssBytes
@@ -308,7 +308,7 @@ performance:
     verdict: rust_not_worse
     date: '2026-11-06'
     source_commit: 14bc6157939781cd5029c0fd176905df754a8992
-    age_hours: 48
+    age_hours: 72
     stale: true
   - flow: search
     metric: searchRenderedMs
@@ -320,7 +320,7 @@ performance:
     verdict: rust_not_worse
     date: '2026-11-08'
     source_commit: c25f900c81f9
-    age_hours: 0
+    age_hours: 24
     stale: false
   - flow: send
     metric: draftSaveP95Ms
@@ -332,7 +332,7 @@ performance:
     verdict: rust_worse
     date: '2026-11-08'
     source_commit: c25f900c81f9
-    age_hours: 0
+    age_hours: 24
     stale: false
   - flow: send
     metric: sendBrowserCpuMs
@@ -344,7 +344,7 @@ performance:
     verdict: rust_not_worse
     date: '2026-11-08'
     source_commit: c25f900c81f9
-    age_hours: 0
+    age_hours: 24
     stale: false
   - flow: send
     metric: sendTotalMs
@@ -356,7 +356,7 @@ performance:
     verdict: inconclusive
     date: '2026-11-06'
     source_commit: a777600
-    age_hours: 48
+    age_hours: 72
     stale: true
   - flow: sendToAdmit
     metric: sendToAdmitMs
@@ -368,7 +368,7 @@ performance:
     verdict: rust_not_worse
     date: '2026-11-08'
     source_commit: c25f900c81f9
-    age_hours: 0
+    age_hours: 24
     stale: false
   - flow: uiInteractive
     metric: uiInteractiveMs
@@ -380,7 +380,7 @@ performance:
     verdict: rust_not_worse
     date: '2026-11-08'
     source_commit: c25f900c81f9
-    age_hours: 0
+    age_hours: 24
     stale: false
   - flow: wasmInstances
     metric: wasmInstances
@@ -392,8 +392,8 @@ performance:
     verdict: rust_not_worse
     date: '2026-11-07'
     source_commit: 44cf35f
-    age_hours: 24
-    stale: false
+    age_hours: 48
+    stale: true
   - flow: wasmInstances
     metric: wasmInstantiations
     id: 2026-11-08-wasmInstances-01
@@ -404,5 +404,5 @@ performance:
     verdict: rust_not_worse
     date: '2026-11-08'
     source_commit: c25f900c81f9
-    age_hours: 0
+    age_hours: 24
     stale: false

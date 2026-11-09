@@ -7,6 +7,7 @@ pub(super) struct SendObservations {
     pub(super) model: Option<String>,
     pub(super) mate: Option<String>,
     pub(super) suggestions: Vec<String>,
+    pub(super) recommendations: Vec<Value>,
     pub(super) suggested: Option<Option<String>>,
     pub(super) proposals: Vec<Value>,
     pub(super) updates: Vec<Value>,
@@ -71,6 +72,13 @@ impl SendObservations {
                     .filter_map(Value::as_str)
                     .filter(|v| !v.is_empty())
                     .map(str::to_owned)
+                    .collect();
+            }
+            if let Some(rows) = p["recommendations"].as_array() {
+                // Only well-formed rows survive so CLI output never shows junk.
+                self.recommendations = super::recommendations::recommendations_from_payload(rows)
+                    .iter()
+                    .filter_map(|row| serde_json::to_value(row).ok())
                     .collect();
             }
             for (wire, target) in [
@@ -158,6 +166,7 @@ impl SendObservations {
             model_name: self.model,
             mate_name,
             follow_up_suggestions: self.suggestions,
+            recommendations: self.recommendations,
             suggested_followup_message: self.suggested,
             task_proposals: self.proposals,
             task_update_proposals: self.updates,
@@ -192,6 +201,25 @@ mod tests {
             )
             .unwrap();
         assert_eq!(observed.suggested.unwrap().unwrap().len(), 400);
+    }
+    #[test]
+    fn post_processing_recommendations_keep_only_well_formed_rows() {
+        let mut observed = SendObservations::default();
+        let good = json!({"id":"r1","kind":"memory","action":"create","target_id":null,"title":"T","summary":"S"});
+        observed
+            .capture_owned(
+                "post_processing_completed",
+                &json!({"recommendations":[good,{"id":"bad"},"x"]}),
+            )
+            .unwrap();
+        assert_eq!(observed.recommendations, vec![good.clone()]);
+        // Other frame kinds never touch the field.
+        observed
+            .capture_owned("ai_message_update", &json!({"recommendations":[]}))
+            .unwrap();
+        assert_eq!(observed.recommendations.len(), 1);
+        let outcome = observed.finish(Chat::default(), "u", None, SendStatus::Completed);
+        assert_eq!(outcome.recommendations, vec![good]);
     }
     #[test]
     fn jobs_require_exact_chat_and_remain_pending_without_a_persistence_receipt() {

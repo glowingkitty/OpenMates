@@ -155,6 +155,7 @@ services:
       NOTIFICATION_EMAIL_MIGRATION_PATH: /usr/src/app/migrations/migrate_notification_email_preferences.sql
       USER_WORK_CONTROL_MIGRATION_PATH: /usr/src/app/migrations/migrate_user_work_control_indexes.sql
       AI_MEMORY_REMOVAL_MIGRATION_PATH: /usr/src/app/migrations/migrate_remove_ai_memories.sql
+      QUICK_TIPS_REMOVAL_MIGRATION_PATH: /usr/src/app/migrations/migrate_remove_quick_tips.sql
     networks: [openmates]
     depends_on: [cms]
     restart: "no"

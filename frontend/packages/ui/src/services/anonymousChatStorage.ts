@@ -773,9 +773,6 @@ class AnonymousChatStorage {
     const followUpSuggestions = Array.isArray(payload.follow_up_request_suggestions)
       ? payload.follow_up_request_suggestions.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
       : [];
-    const quickTipSlugs = Array.isArray(payload.quick_tip_slugs)
-      ? payload.quick_tip_slugs.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
-      : [];
     const chatSummary = typeof payload.chat_summary === "string" && payload.chat_summary.trim()
       ? payload.chat_summary.trim()
       : null;
@@ -806,7 +803,8 @@ class AnonymousChatStorage {
         chatId: hydratedChat.chat_id,
         taskId: typeof payload.task_id === "string" ? payload.task_id : buildAnonymousTaskId(userMessageId),
         followUpSuggestions,
-        quickTipSlugs,
+        // Guest chats never receive Recommendations (plan D-2).
+        recommendations: [],
         harmfulResponse: typeof payload.harmful_response === "number" ? payload.harmful_response : 0,
       },
     }));

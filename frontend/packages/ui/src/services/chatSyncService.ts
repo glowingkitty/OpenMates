@@ -2369,7 +2369,7 @@ export class ChatSynchronizationService extends EventTarget {
           chat_tags: string[];
           harmful_response: number;
           top_recommended_apps_for_user?: string[];
-          quick_tip_slugs?: string[];
+          recommendations?: import("../types/recommendations").ChatRecommendation[];
         },
       ),
     );

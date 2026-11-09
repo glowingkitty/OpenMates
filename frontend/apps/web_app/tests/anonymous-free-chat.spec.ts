@@ -253,7 +253,7 @@ async function mockProgressiveAnonymousChatStream(page: any, anonymousRequests: 
 								chat_summary: longSummary,
 								chat_tags: [],
 								harmful_response: 0,
-								quick_tip_slugs: []
+								recommendations: []
 							});
 							controller.close();
 						}

@@ -250,6 +250,8 @@ class WorkflowInputStartRequest(BaseModel):
     selected_project_id: str | None = Field(default=None, min_length=1, max_length=200)
     timezone: str | None = Field(default=None, min_length=1, max_length=100)
     optimistic_save: bool = False
+    # First-party draft preview: validate and return status "draft" with preview_workflow; persist no Workflow.
+    draft_only: bool = False
     idempotency_key: str | None = Field(default=None, pattern=r"^[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$")
 
     @model_validator(mode="after")
@@ -1329,7 +1331,7 @@ async def start_workflow_input(
             selected_project_id=body.selected_project_id,
             timezone=body.timezone,
             vault_key_id=current_user.vault_key_id,
-            optimistic_save=body.optimistic_save,
+            optimistic_save=body.optimistic_save, draft_only=body.draft_only,
             idempotency_key=body.idempotency_key,
             team_id=team_id,
         )
@@ -1399,6 +1401,7 @@ async def stream_workflow_input(
                     audio_ref=body.audio_ref, selected_workflow_id=body.selected_workflow_id,
                     selected_project_id=body.selected_project_id, timezone=body.timezone,
                     vault_key_id=current_user.vault_key_id, optimistic_save=body.optimistic_save,
+                    draft_only=body.draft_only,
                     idempotency_key=body.idempotency_key,
                     team_id=team_id,
                     on_event=emit,

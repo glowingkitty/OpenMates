@@ -7,6 +7,7 @@
  * produced by the page compiler and cross the boundary only as opaque JSON.
  */
 import type { UnitProtocol } from '../host/unitPort';
+import type { ChatRecommendation, ContextEntryHistoryEvent, ReconcileRecommendationsInput } from '../../../types/recommendations';
 
 export type ParsePhase = 'streaming' | 'final';
 export interface ParseBlockRef { id: string; markdown: string }
@@ -37,6 +38,12 @@ export interface ParseUnitProtocol extends UnitProtocol {
 	imageRecoveryParents: { request: { source: string }; response: string[] };
 	/** Recovered document (or null) from the resolved parents aligned with imageRecoveryParents (JSON array text). */
 	recoverGeneratedImages: { request: { source: string; parents: string }; response: Record<string, unknown> | null };
+	/** Chat Recommendations duplicate/dismiss policy (packages/openmates-rust/src/client/recommendations.rs). */
+	reconcileRecommendations: { request: { input: ReconcileRecommendationsInput }; response: ChatRecommendation[] };
+	/** Validated context_entry system message content (JSON text). */
+	buildContextEntryEvent: { request: { event: ContextEntryHistoryEvent }; response: string };
+	/** Event object, or null when the content is not a valid context_entry event. */
+	parseContextEntryEvent: { request: { content: string }; response: ContextEntryHistoryEvent | null };
 }
 
 /** Worker module exports (snake_case, JSON strings) of browser_parse.rs. */
@@ -46,11 +53,15 @@ export interface ParseBinding {
 	parse_strip_voice_cues(markdown: string): string;
 	parse_image_recovery_parents(sourceJson: string): string;
 	parse_recover_generated_images(sourceJson: string, parentsJson: string): string;
+	parse_reconcile_recommendations(inputJson: string): string;
+	parse_build_context_entry_event(eventJson: string): string;
+	parse_context_entry_event(content: string): string;
 }
 
 const BINDING_EXPORTS: readonly (keyof ParseBinding)[] = [
 	'parse_plan_blocks', 'parse_normalize_plan', 'parse_strip_voice_cues',
 	'parse_image_recovery_parents', 'parse_recover_generated_images',
+	'parse_reconcile_recommendations', 'parse_build_context_entry_event', 'parse_context_entry_event',
 ];
 
 export function isParseBinding(value: unknown): value is ParseBinding {

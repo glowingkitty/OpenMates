@@ -6,7 +6,7 @@
 //! ciphertext preserved from a different key. When the keys differ the local
 //! key and ciphertext win, the server key becomes a recovery candidate and
 //! `messages_v` drops to 0 so content is re-fetched under the right key.
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
 use super::{field, nullish, num, num_or, number, or, parse, strict_eq, truthy};
 
@@ -178,7 +178,7 @@ const NEW_CHAT_PASSTHROUGH: &[&str] = &[
     "encrypted_shared_short_url",
     "encrypted_chat_tags",
     "encrypted_top_recommended_apps_for_chat",
-    "encrypted_quick_tip_slugs",
+    "encrypted_recommendations",
     "encrypted_active_focus_id",
     "encrypted_focus_phase_state",
     "encrypted_auto_speak_response",
@@ -222,7 +222,7 @@ const KEY_BOUND: &[&str] = &[
     "encrypted_shared_short_url",
     "encrypted_chat_tags",
     "encrypted_top_recommended_apps_for_chat",
-    "encrypted_quick_tip_slugs",
+    "encrypted_recommendations",
     "encrypted_focus_phase_state",
     "encrypted_active_focus_id",
     "encrypted_auto_speak_response",
@@ -638,7 +638,7 @@ pub fn merge_json(input: &str) -> Result<String, String> {
         (_, KeyMismatchPlan::Decided(mismatch)) => mismatch,
         (Some(Value::Bool(settled)), _) => *settled,
         (Some(Value::Null) | None, plan) => {
-            return Ok(json!({"kind": "compareKeys", "plan": plan.to_json()}).to_string())
+            return Ok(json!({"kind": "compareKeys", "plan": plan.to_json()}).to_string());
         }
         _ => return Err(super::PROTOCOL.to_string()),
     };

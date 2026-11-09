@@ -157,7 +157,7 @@ export async function mergeServerChatWithLocal(
       encrypted_chat_tags: serverChat.encrypted_chat_tags,
       encrypted_top_recommended_apps_for_chat:
         serverChat.encrypted_top_recommended_apps_for_chat,
-      encrypted_quick_tip_slugs: serverChat.encrypted_quick_tip_slugs,
+      encrypted_recommendations: serverChat.encrypted_recommendations,
       encrypted_active_focus_id: serverChat.encrypted_active_focus_id,
       encrypted_focus_phase_state: serverChat.encrypted_focus_phase_state,
       encrypted_auto_speak_response: serverChat.encrypted_auto_speak_response,
@@ -330,10 +330,10 @@ export async function mergeServerChatWithLocal(
         ? localChat.encrypted_top_recommended_apps_for_chat
         : serverChat.encrypted_top_recommended_apps_for_chat ??
           localChat.encrypted_top_recommended_apps_for_chat,
-    encrypted_quick_tip_slugs:
+    encrypted_recommendations:
       keyMismatch
-        ? localChat.encrypted_quick_tip_slugs
-        : serverChat.encrypted_quick_tip_slugs ?? localChat.encrypted_quick_tip_slugs,
+        ? localChat.encrypted_recommendations
+        : serverChat.encrypted_recommendations ?? localChat.encrypted_recommendations,
     encrypted_focus_phase_state:
       keyMismatch ? localChat.encrypted_focus_phase_state : (serverChat.encrypted_focus_phase_state ?? localChat.encrypted_focus_phase_state),
     encrypted_active_focus_id:

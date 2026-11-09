@@ -182,6 +182,7 @@ services:
       ENCRYPTED_SLUG_MIGRATION_PATH: "/usr/src/app/migrations/migrate_encrypted_slug_indexes.sql"
       SUB_CHAT_ORCHESTRATION_MIGRATION_PATH: "/usr/src/app/migrations/migrate_sub_chat_orchestration_indexes.sql"
       AI_MEMORY_REMOVAL_MIGRATION_PATH: "/usr/src/app/migrations/migrate_remove_ai_memories.sql"
+      QUICK_TIPS_REMOVAL_MIGRATION_PATH: "/usr/src/app/migrations/migrate_remove_quick_tips.sql"
     volumes:
       - ./directus/schemas:/usr/src/app/schemas:ro
       - ./directus/setup/migrate_personal_privacy_generation.sql:/usr/src/app/migrations/migrate_personal_privacy_generation.sql:ro
@@ -206,6 +207,7 @@ services:
       - ./directus/setup/migrate_encrypted_slug_indexes.sql:/usr/src/app/migrations/migrate_encrypted_slug_indexes.sql:ro
       - ./directus/setup/migrate_sub_chat_orchestration_indexes.sql:/usr/src/app/migrations/migrate_sub_chat_orchestration_indexes.sql:ro
       - ./directus/setup/migrate_remove_ai_memories.sql:/usr/src/app/migrations/migrate_remove_ai_memories.sql:ro
+      - ./directus/setup/migrate_remove_quick_tips.sql:/usr/src/app/migrations/migrate_remove_quick_tips.sql:ro
     networks:
       - openmates
     depends_on:

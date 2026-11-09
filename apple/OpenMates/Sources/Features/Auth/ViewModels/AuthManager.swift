@@ -289,7 +289,7 @@ final class AuthManager: ObservableObject {
                 defaultAiModelSimple: nil,
                 defaultAiModelComplex: nil,
                 followUpSuggestionsEnabled: nil,
-                quickTipsEnabled: nil
+                recommendationsEnabled: nil
             )
             if isWindowDraftFixture, let currentUser {
                 do {

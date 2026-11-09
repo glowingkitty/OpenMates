@@ -1,0 +1,95 @@
+card_title:
+  context: Heading of the card below an AI response that recommends saving a memory or creating a workflow from the chat
+  en: Recommendations
+  de: Empfehlungen
+  verified_by_human: []
+heading_memory_create:
+  context: Heading of the recommendations card when it suggests saving a new memory from this chat
+  en: New memory recommended
+  de: Neue Erinnerung empfohlen
+  verified_by_human: []
+heading_memory_update:
+  context: Heading of the recommendations card when it suggests updating an existing memory from this chat
+  en: Memory update recommended
+  de: Aktualisierung einer Erinnerung empfohlen
+  verified_by_human: []
+heading_workflow_create:
+  context: Heading of the recommendations card when it suggests creating a new workflow from this chat
+  en: New workflow recommended
+  de: Neuer Workflow empfohlen
+  verified_by_human: []
+heading_workflow_update:
+  context: Heading of the recommendations card when it suggests updating an existing workflow from this chat
+  en: Workflow update recommended
+  de: Aktualisierung eines Workflows empfohlen
+  verified_by_human: []
+type_memory:
+  context: Type label of a recommendation that creates or updates a Memory
+  en: Memory
+  de: Erinnerung
+  verified_by_human: []
+type_workflow:
+  context: Type label of a recommendation that creates or updates a Workflow
+  en: Workflow
+  de: Workflow
+  verified_by_human: []
+create:
+  context: Button that opens an unsaved draft of a recommended new memory or workflow
+  en: Create
+  de: Erstellen
+  verified_by_human: []
+update:
+  context: Button that opens an unsaved draft updating an existing memory or workflow
+  en: Update
+  de: Aktualisieren
+  verified_by_human: []
+previous:
+  context: Accessible label of the button that shows the previous recommendation
+  en: Previous recommendation
+  de: Vorherige Empfehlung
+  verified_by_human: []
+next:
+  context: Accessible label of the button that shows the next recommendation
+  en: Next recommendation
+  de: Nächste Empfehlung
+  verified_by_human: []
+position:
+  context: Accessible label of a dot that shows which recommendation is visible, e.g. "Recommendation 2 of 3"
+  en: 'Recommendation {current} of {total}'
+  de: 'Empfehlung {current} von {total}'
+  verified_by_human: []
+preparing:
+  context: Status while the draft of a recommendation is being generated
+  en: Preparing draft…
+  de: Entwurf wird vorbereitet…
+  verified_by_human: []
+memory_created:
+  context: Chat history event after the user saved a new memory from a recommendation, followed by the memory title
+  en: 'Memory created: {title}'
+  de: 'Erinnerung erstellt: {title}'
+  verified_by_human: []
+memory_updated:
+  context: Chat history event after the user saved an updated memory from a recommendation, followed by the memory title
+  en: 'Memory updated: {title}'
+  de: 'Erinnerung aktualisiert: {title}'
+  verified_by_human: []
+workflow_created:
+  context: Chat history event after the user saved a new workflow from a recommendation, followed by the workflow title
+  en: 'Workflow created: {title}'
+  de: 'Workflow erstellt: {title}'
+  verified_by_human: []
+workflow_updated:
+  context: Chat history event after the user saved an updated workflow from a recommendation, followed by the workflow title
+  en: 'Workflow updated: {title}'
+  de: 'Workflow aktualisiert: {title}'
+  verified_by_human: []
+open_entry:
+  context: Link in the chat history event that opens the saved memory or workflow
+  en: Open
+  de: Öffnen
+  verified_by_human: []
+entry_missing:
+  context: Shown in the chat history event when the saved memory or workflow was deleted later
+  en: No longer exists
+  de: Existiert nicht mehr
+  verified_by_human: []

@@ -166,6 +166,18 @@ impl Presentation {
                 text.push_str(&format!("  • {suggestion}\n"));
             }
         }
+        if !outcome.recommendations.is_empty() {
+            text.push_str("Recommendations:\n");
+            for item in &outcome.recommendations {
+                let field = |name: &str| terminal_text(item[name].as_str().unwrap_or(""));
+                text.push_str(&format!(
+                    "  - [{}] {} - {}\n",
+                    field("kind"),
+                    field("title"),
+                    field("summary")
+                ));
+            }
+        }
         if !outcome.task_events.is_empty() {
             text.push_str("Task updates:\n");
             for event in &outcome.task_events {

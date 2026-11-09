@@ -3827,46 +3827,6 @@
         "text": "Berechne: Was sind 15% von 240?"
       }
     },
-    "quick_tips": {
-      "eyebrow": {
-        "text": "Kurztipp"
-      },
-      "cta_learn_more": {
-        "text": "Mehr erfahren"
-      },
-      "shorter_chats_equal_better_responses": {
-        "title": {
-          "text": "Kürzere Chats funktionieren besser"
-        },
-        "body": {
-          "text": "Du bekommst bessere Antworten und sparst Credits, wenn du Themen in separate, kürzere Chats aufteilst."
-        }
-      },
-      "search_current_info_next_time": {
-        "title": {
-          "text": "Suche, wenn Aktualität wichtig ist"
-        },
-        "body": {
-          "text": "Wenn du das nächste Mal aktuelle Preise, Veranstaltungen, Nachrichten, Produktdetails oder neue Fakten brauchst, kann OpenMates für dich im Web suchen."
-        }
-      },
-      "travel_can_add_local_context": {
-        "title": {
-          "text": "Mehr Reisekontext hinzufügen"
-        },
-        "body": {
-          "text": "Nach der Reiseplanung kann OpenMates auch lokale Orte, Veranstaltungen, Unterkünfte, Routen und praktische Details für dieselbe Reise finden."
-        }
-      },
-      "use_apps_for_better_results": {
-        "title": {
-          "text": "Nutze eine App für den nächsten Schritt"
-        },
-        "body": {
-          "text": "Wenn du weißt, was du als Nächstes tun möchtest, geben OpenMates Apps der KI bessere Werkzeuge für Aufgaben wie Programmieren, Recherche, Events, Shopping, Schreiben oder Planen."
-        }
-      }
-    },
     "send_storage_errors": {
       "missing_attachment_content": {
         "text": "Ein Anhang ist noch nicht zum Speichern bereit. Bitte bereite ihn erneut vor."
@@ -8852,11 +8812,11 @@
     "watch_sheet_cells": {
       "text": "{count} Zellen"
     },
-    "add_memory": {
-      "text": "Erinnerung hinzufügen"
+    "save_item": {
+      "text": "Speichern"
     },
-    "forget_memory": {
-      "text": "Vergessen"
+    "saved_item": {
+      "text": "Gespeichert"
     },
     "event": {
       "text": "Veranstaltung"
@@ -15274,6 +15234,75 @@
     },
     "app_loading": {
       "text": "Öffentlich · Von der App bereitgestellt · Schreibgeschützt · Wird bei Bedarf automatisch geladen"
+    },
+    "load_mode": {
+      "text": "Lademodus"
+    },
+    "load_mode_auto_include": {
+      "text": "Automatisch einbeziehen"
+    },
+    "load_mode_ask_first": {
+      "text": "Erst fragen"
+    },
+    "load_mode_mention_only": {
+      "text": "Nur bei Erwähnung"
+    },
+    "when_to_use_optional": {
+      "text": "Wann anwenden (optional)"
+    },
+    "when_to_use_hint": {
+      "text": "Leer lassen, damit diese Erinnerung immer berücksichtigt wird. Titel und Anwendungsbereich sind für KI-Verarbeitungsstufen bei den Modi Automatisch einbeziehen und Erst fragen sichtbar."
+    },
+    "valid_from": {
+      "text": "Startdatum (optional)"
+    },
+    "valid_until": {
+      "text": "Ablaufdatum (optional)"
+    },
+    "expired": {
+      "text": "Abgelaufen"
+    },
+    "renew": {
+      "text": "Verlängern"
+    },
+    "character_budget": {
+      "text": "{used} / {max} Zeichen verwendet"
+    },
+    "draft_unsaved": {
+      "text": "Dies ist ein ungespeicherter Vorschlag. Prüfe die Änderungen und speichere, um sie zu übernehmen."
+    },
+    "draft_conflict": {
+      "text": "Diese Erinnerung wurde seit dem Vorschlag geändert. Es wurde nichts überschrieben. Öffne den Vorschlag erneut, um die aktuelle Version zu prüfen."
+    },
+    "suggestion_up_to_date": {
+      "text": "Diese Erinnerung scheint bereits aktuell zu sein."
+    },
+    "suggestion_failed": {
+      "text": "Die Vorschau konnte nicht erstellt werden. Bitte versuche es erneut."
+    },
+    "suggestion_not_found": {
+      "text": "Diese Erinnerung existiert nicht mehr."
+    },
+    "suggestion_insufficient_credits": {
+      "text": "Nicht genug Credits für diese Vorschau."
+    },
+    "draft_current": {
+      "text": "aktuell"
+    },
+    "project_memories": {
+      "text": "Projekt-Erinnerungen"
+    },
+    "private_memories": {
+      "text": "Deine Erinnerungen"
+    },
+    "references_hint": {
+      "text": "Füge ein aus einem Chat kopiertes Embed in den Text ein, damit es mit dieser Erinnerung geladen wird."
+    },
+    "references_limit": {
+      "text": "Eine Erinnerung kann höchstens 50 Verweise haben."
+    },
+    "body_placeholder": {
+      "text": "Schreibe die Erinnerung. Füge ein Embed aus einem Chat ein, um es einzubinden."
     }
   },
   "metadata": {
@@ -15634,6 +15663,65 @@
     },
     "workspace_entry_range": {
       "text": "{start}–{end} von {total} Einträgen"
+    }
+  },
+  "recommendations": {
+    "card_title": {
+      "text": "Empfehlungen"
+    },
+    "heading_memory_create": {
+      "text": "Neue Erinnerung empfohlen"
+    },
+    "heading_memory_update": {
+      "text": "Aktualisierung einer Erinnerung empfohlen"
+    },
+    "heading_workflow_create": {
+      "text": "Neuer Workflow empfohlen"
+    },
+    "heading_workflow_update": {
+      "text": "Aktualisierung eines Workflows empfohlen"
+    },
+    "type_memory": {
+      "text": "Erinnerung"
+    },
+    "type_workflow": {
+      "text": "Workflow"
+    },
+    "create": {
+      "text": "Erstellen"
+    },
+    "update": {
+      "text": "Aktualisieren"
+    },
+    "previous": {
+      "text": "Vorherige Empfehlung"
+    },
+    "next": {
+      "text": "Nächste Empfehlung"
+    },
+    "position": {
+      "text": "Empfehlung {current} von {total}"
+    },
+    "preparing": {
+      "text": "Entwurf wird vorbereitet…"
+    },
+    "memory_created": {
+      "text": "Erinnerung erstellt: {title}"
+    },
+    "memory_updated": {
+      "text": "Erinnerung aktualisiert: {title}"
+    },
+    "workflow_created": {
+      "text": "Workflow erstellt: {title}"
+    },
+    "workflow_updated": {
+      "text": "Workflow aktualisiert: {title}"
+    },
+    "open_entry": {
+      "text": "Öffnen"
+    },
+    "entry_missing": {
+      "text": "Existiert nicht mehr"
     }
   },
   "reminder": {
@@ -16777,11 +16865,11 @@
         "follow_up_suggestions_save_error": {
           "text": "Einstellung für Folgefragen-Vorschläge konnte nicht gespeichert werden."
         },
-        "quick_tips": {
-          "text": "Kurztipps"
+        "recommendations": {
+          "text": "Empfehlungen"
         },
-        "quick_tips_description": {
-          "text": "Zeigt gelegentliche Produkttipps nach Antworten des Assistenten. Deaktiviere dies, wenn OpenMates keine Kurztipp-Karten generieren soll."
+        "recommendations_description": {
+          "text": "Schlägt nach Antworten des Assistenten Erinnerungen und Workflows zum Erstellen oder Aktualisieren vor. Gespeichert wird erst, wenn du speicherst."
         },
         "server_region": {
           "text": "Serverregion"
@@ -16791,15 +16879,6 @@
         },
         "prefer_eu_servers_description": {
           "text": "An (Standard): KI-Modelle laufen zuerst auf EU-Servern, andere Regionen nur als Ausweichlösung. Aus: Schnellste, global – OpenMates wählt weltweit den schnellsten Server."
-        },
-        "quick_tips_enabled": {
-          "text": "Kurztipps aktiviert."
-        },
-        "quick_tips_disabled": {
-          "text": "Kurztipps deaktiviert."
-        },
-        "quick_tips_save_error": {
-          "text": "Einstellung für Kurztipps konnte nicht gespeichert werden."
         },
         "manual_select_note": {
           "text": "Sie können jederzeit ein Modell manuell mit @Erwähnung im Chat auswählen."
@@ -17045,6 +17124,95 @@
         },
         "over_200k_explanation": {
           "text": "Wenn eine Anfrage mehr als 200.000 Eingabe-Tokens enthält, gelten diese Eingabe- und Ausgabepreise für die gesamte Anfrage."
+        }
+      }
+    },
+    "app_settings_memories": {
+      "validation_key_length": {
+        "text": "Der Schlüssel darf höchstens {limit} Zeichen enthalten"
+      },
+      "validation_value_length": {
+        "text": "Der Wert darf höchstens {limit} Zeichen enthalten"
+      },
+      "validation_required": {
+        "text": "{field} ist erforderlich"
+      },
+      "validation_length": {
+        "text": "{field} darf höchstens {limit} Zeichen enthalten"
+      },
+      "validation_integer": {
+        "text": "{field} muss eine ganze Zahl sein"
+      },
+      "validation_number": {
+        "text": "{field} muss eine Zahl sein"
+      },
+      "validation_boolean": {
+        "text": "{field} muss wahr oder falsch sein"
+      },
+      "validation_json": {
+        "text": "{field} muss gültiges JSON enthalten"
+      },
+      "validation_json_array": {
+        "text": "{field} muss ein JSON-Array enthalten"
+      },
+      "validation_json_object": {
+        "text": "{field} muss ein JSON-Objekt enthalten"
+      },
+      "validation_unsupported_type": {
+        "text": "Nicht unterstützter Feldtyp: {type}"
+      },
+      "validation_allowed_value": {
+        "text": "{field} muss einem der zulässigen Werte entsprechen"
+      },
+      "validation_minimum": {
+        "text": "{field} muss mindestens {limit} sein"
+      },
+      "validation_maximum": {
+        "text": "{field} darf höchstens {limit} sein"
+      },
+      "validation_invalid_type": {
+        "text": "{field} enthält einen ungültigen Wert"
+      },
+      "text": "Erinnerungen",
+      "item_key_required": {
+        "text": "Eintragsschlüssel ist erforderlich"
+      },
+      "item_value_required": {
+        "text": "Eintragswert ist erforderlich"
+      },
+      "authentication_required": {
+        "text": "Authentifizierung erforderlich"
+      },
+      "confirm_delete": {
+        "text": "Bist du sicher, dass du diesen Eintrag löschen möchtest?"
+      },
+      "entry_not_found": {
+        "text": "Eintrag nicht gefunden"
+      },
+      "back_to_category": {
+        "text": "Zurück zur Kategorie"
+      },
+      "deleting": {
+        "text": "Wird gelöscht..."
+      },
+      "saving": {
+        "text": "Wird gespeichert..."
+      },
+      "encrypted_notice": {
+        "text": "Deine Einstellungen und Erinnerungseinträge sind verschlüsselt, können nur von deinen Geräten gelesen werden und werden niemals ohne deine ausdrückliche Zustimmung zur Verarbeitung an OpenMates gesendet."
+      },
+      "diff_previous_value": {
+        "text": "Vorher:"
+      },
+      "diff_not_set": {
+        "text": "Nicht gesetzt"
+      },
+      "ideabucket": {
+        "processing_settings": {
+          "text": "Verarbeitungseinstellungen",
+          "description": {
+            "text": "Standardprompt und Verarbeitungszeiten für IdeaBucket-Buckets."
+          }
         }
       }
     },
@@ -19109,6 +19277,9 @@
       },
       "retry": {
         "text": "Erneut versuchen"
+      },
+      "tab_sources": {
+        "text": "Quellen"
       }
     },
     "incognito": {
@@ -19160,7 +19331,7 @@
       "text": "Gib den Learning Mode-Passcode ein, um ihn für dieses Konto auszuschalten."
     },
     "learning_mode_guest_description": {
-      "text": "Wähle die Altersgruppe der lernenden Person. Für Gäste gilt Learning Mode nur für diese Browsersitzung und hat keinen Passcode."
+      "text": "Wähle die Altersgruppe der lernenden Person und lege einen Passcode fest. Der Passcode ist nötig, um Learning Mode auszuschalten oder gemeinsames Bauen wieder zu erlauben. Er bleibt in diesem Browser und wird nie an unsere Server gesendet."
     },
     "learning_mode_active_detail": {
       "text": "Learning Mode ist für jeden Chat in diesem Konto aktiv. Antworten bleiben auf Lernen ausgerichtet, und ausgewählte Tools sind eingeschränkt."
@@ -19169,10 +19340,10 @@
       "text": "Wenn aktiviert, führt OpenMates die lernende Person Schritt für Schritt, statt vollständige Antworten zu geben."
     },
     "learning_mode_guest_active_detail": {
-      "text": "Learning Mode ist für anonyme Chats in dieser Browsersitzung aktiv. Erstelle ein Konto, um ihn geräteübergreifend mit einem Passcode zu sperren."
+      "text": "Learning Mode ist für anonyme Chats in diesem Browser aktiv. Er bleibt an, bis er mit dem Passcode ausgeschaltet wird."
     },
     "learning_mode_guest_inactive_detail": {
-      "text": "Gäste können Learning Mode für anonyme Chats in dieser Browsersitzung ausprobieren. Erstelle ein Konto, um ihn mit einem Passcode zu sperren."
+      "text": "Gäste können Learning Mode für anonyme Chats in diesem Browser nutzen, geschützt durch einen Passcode."
     },
     "learning_mode_age_group_label": {
       "text": "Altersgruppe der lernenden Person"
@@ -19212,6 +19383,30 @@
     },
     "learning_mode_disable_button": {
       "text": "Learning Mode ausschalten"
+    },
+    "learning_mode_collaborative_label": {
+      "text": "Gemeinsames Bauen erlauben"
+    },
+    "learning_mode_collaborative_help": {
+      "text": "Erlaubt der lernenden Person, gemeinsam mit der KI Dinge zu bauen, etwa Code, Dokumente und Dateien. Wenn aus, erklärt und begleitet die KI nur. Nicht verfügbar für Lernende unter 10."
+    },
+    "learning_mode_collaborative_enable_prompt": {
+      "text": "Gib den Learning Mode-Passcode ein, um gemeinsames Bauen wieder zu erlauben."
+    },
+    "learning_mode_collaborative_confirm_button": {
+      "text": "Gemeinsames Bauen erlauben"
+    },
+    "learning_mode_collaborative_enabled": {
+      "text": "Gemeinsames Bauen ist an."
+    },
+    "learning_mode_collaborative_disabled": {
+      "text": "Gemeinsames Bauen ist aus."
+    },
+    "learning_mode_guest_notice": {
+      "text": "Ohne Konto gilt Learning Mode nur in diesem Browser. Das Löschen von Browserdaten oder ein privates Fenster entfernt oder umgeht ihn. Erstelle ein Konto für eine Sperre, die überall gilt."
+    },
+    "learning_mode_passcode_invalid": {
+      "text": "Der Passcode muss zwischen 4 und 128 Zeichen lang sein."
     },
     "incognito_explainer_description": {
       "text": "Der Inkognito-Modus gilt nur für neue Chats, die Sie erstellen. Neue Chats, die erstellt werden, während der Inkognito-Modus aktiv ist, werden nicht zwischen Geräten synchronisiert, nicht auf dem Server gespeichert und nicht zwischengespeichert. Diese Chats existieren nur in Ihrer aktuellen Browsersitzung. Bestehende Chats bleiben unverändert."
@@ -24928,6 +25123,15 @@
     "live": {
       "text": "Hört zu · Du kannst jetzt sprechen"
     },
+    "paused": {
+      "text": "Anruf pausiert. Kehre zu diesem Bildschirm zurück, um weiterzusprechen."
+    },
+    "ended_in_background": {
+      "text": "Anruf beendet, weil OpenMates den Bildschirm verlassen hat. Tippe auf den Anrufknopf, um erneut anzurufen."
+    },
+    "reconnecting": {
+      "text": "Verbindung wird wiederhergestellt…"
+    },
     "muted": {
       "text": "Mikrofon stummgeschaltet"
     },
@@ -25555,6 +25759,50 @@
       },
       "website_changes_message_title": {
         "text": "Congress-Neuigkeiten"
+      }
+    },
+    "side_panel": {
+      "kicker_draft": {
+        "text": "Workflow-Entwurf"
+      },
+      "kicker_saved": {
+        "text": "Workflow"
+      },
+      "title_label": {
+        "text": "Workflow-Name"
+      },
+      "close": {
+        "text": "Workflow-Editor schließen"
+      },
+      "save": {
+        "text": "Workflow speichern"
+      },
+      "saving": {
+        "text": "Wird gespeichert…"
+      },
+      "generating": {
+        "text": "Workflow-Entwurf wird erstellt…"
+      },
+      "loading": {
+        "text": "Workflow wird geladen…"
+      },
+      "unsaved_hint": {
+        "text": "Noch nicht gespeichert. Prüfe den Entwurf und speichere ihn dann."
+      },
+      "saved_hint": {
+        "text": "In deinen Workflows gespeichert. Er bleibt pausiert, bis du ihn aktivierst."
+      },
+      "load_failed": {
+        "text": "Der Workflow konnte nicht geladen werden. Bitte versuche es erneut."
+      },
+      "save_failed": {
+        "text": "Der Workflow konnte nicht gespeichert werden. Bitte versuche es erneut."
+      },
+      "retry": {
+        "text": "Erneut versuchen"
+      },
+      "draft_unavailable": {
+        "text": "KI-Workflow-Entwürfe sind hier noch nicht verfügbar."
       }
     }
   }

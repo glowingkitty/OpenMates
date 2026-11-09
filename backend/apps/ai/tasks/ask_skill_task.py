@@ -84,6 +84,8 @@ from backend.apps.ai.processing.artifact_ledger import (
     load_and_merge_artifact_ledger,
     recover_inline_upload_artifacts,
 )
+from backend.apps.ai.processing.postprocessing_workflow_context import fetch_user_workflow_metadata
+from backend.apps.ai.processing.postprocessing_recommendations import recommendations_skip_reason
 from backend.apps.ai.processing.postprocessor import (
     handle_postprocessing,
     PostProcessingResult,
@@ -5020,7 +5022,7 @@ async def _async_process_ai_skill_ask_task(
             chat_output_language = preprocessing_result.output_language if preprocessing_result else "en"
             user_system_language = request_data.user_preferences.get("language", "en") if request_data.user_preferences else "en"
             follow_up_suggestions_enabled = (request_data.user_preferences or {}).get("follow_up_suggestions_enabled", True) is not False
-            quick_tips_enabled = (request_data.user_preferences or {}).get("quick_tips_enabled", True) is not False
+            recommendations_enabled = (request_data.user_preferences or {}).get("recommendations_enabled", True) is not False
             effective_learning_mode_context = (
                 getattr(request_data, "learning_mode", None)
                 or learning_mode_context_from_preferences(request_data.user_preferences)
@@ -5043,7 +5045,22 @@ async def _async_process_ai_skill_ask_task(
                 # result too; deterministic fixture checks must not call a provider.
                 if isinstance(_fixture_postprocessing_result, PostProcessingResult):
                     postprocessing_result = _fixture_postprocessing_result.model_copy(deep=True)
+                    # Fixtures obey the same Recommendations gate as live post-processing
+                    # (setting off, sub-chat, incognito, small talk).
+                    if recommendations_skip_reason(
+                        recommendations_enabled=recommendations_enabled,
+                        is_sub_chat=bool(getattr(request_data, "is_sub_chat", False)),
+                        is_incognito=bool(getattr(request_data, "is_incognito", False)),
+                        user_message=last_user_message, assistant_response=postprocessing_response,
+                    ):
+                        postprocessing_result.recommendations = []
                 else:
+                    # Optional in-memory workflow metadata so Recommendations can update instead of duplicate.
+                    existing_workflows_for_postproc = (
+                        await fetch_user_workflow_metadata(request_data, cache_service_instance)
+                        if recommendations_enabled and not getattr(request_data, "is_sub_chat", False)
+                        else []
+                    )
                     postprocessing_result = await handle_postprocessing(
                         task_id=task_id,
                         user_message=last_user_message,
@@ -5063,7 +5080,7 @@ async def _async_process_ai_skill_ask_task(
                         user_system_language=user_system_language,
                         current_chat_title=current_title_for_postproc,  # OPE-265: For title update evaluation
                         follow_up_suggestions_enabled=follow_up_suggestions_enabled,
-                        quick_tips_enabled=quick_tips_enabled,
+                        recommendations_enabled=recommendations_enabled,
                         learning_mode_context=effective_learning_mode_context,
                         learning_focus_context=(
                             {"focus_id": request_data.active_focus_id,
@@ -5075,6 +5092,7 @@ async def _async_process_ai_skill_ask_task(
                         decision_model_id=getattr(skill_config.default_llms, "decision_model", None),
                         voice_mode=request_data.voice_mode,
                         memory_catalog=[e for e in request_data.memory_catalog if e.source == "personal"],
+                        existing_workflows=existing_workflows_for_postproc,
                     )
                 _log_team_ai_pipeline_stage(request_data, task_id, "postprocess", "completed")
 
@@ -5143,8 +5161,7 @@ async def _async_process_ai_skill_ask_task(
                 "chat_tags": postprocessing_result.chat_tags or chat_tags,
                 "harmful_response": postprocessing_result.harmful_response,
                 "top_recommended_apps_for_user": postprocessing_result.top_recommended_apps_for_user,
-                "quick_tip_slugs": postprocessing_result.quick_tip_slugs,
-                "context_suggestion": postprocessing_result.context_suggestion,
+                "recommendations": postprocessing_result.recommendations,
                 "task_proposals": [proposal.model_dump() for proposal in postprocessing_result.task_proposals],
                 "task_update_proposals": [proposal.model_dump() for proposal in postprocessing_result.task_update_proposals],
                 "source_title_v": source_title_v,

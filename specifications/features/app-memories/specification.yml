@@ -17,7 +17,7 @@ scope:
   - Public app-provided and client-encrypted Project Memory documents with inspectable loaded receipts.
   - Encrypted custom personal guidance, legacy document compatibility and one Memories concept without content-kind subcategories.
   - Removal of all app-specific typed memory types and their automatic client-side migration to Memory documents.
-  - Post-processor create and update suggestions with billed previews and unsaved drafts.
+  - Post-processing memory and workflow Recommendations (create or update) with billed drafts, unsaved drafts, encrypted per-chat storage and save events in chat history.
   excludes:
   - Chat history, account profile fields, tasks, plans, connected-account credentials, Focus procedures and required Specifications.
   - Retained backup expiry and account-wide deletion policy owned by storage lifecycle Specifications.
@@ -198,10 +198,17 @@ models:
       - create
       - update
       required: true
+    entry_kind:
+      type: enum
+      values:
+      - memory
+      - workflow
+      required: true
     visible_before_preview:
       type: policy
       constraints:
-        title_only: true
+        title_and_summary_only: true
+        per_kind_count: {min: 1, max: 3}
     source_text:
       type: policy
       constraints:
@@ -210,8 +217,10 @@ models:
     persistence:
       type: policy
       constraints:
-        server_durable_storage: forbidden
+        stored_per_chat_encrypted_with_chat_key: true
+        server_plaintext_storage: forbidden
         write_requires_explicit_user_save: true
+        removed_from_chat_on_save_only: true
   LegacyTypedMemory:
     app_id:
       type: app_id
@@ -403,17 +412,38 @@ assertions:
   - examples.references
 - id: app-memories.suggestions.post-processor
   type: behavior
-  must: After a turn the post-processor, seeing only titles and when-to-use of Auto include and Ask first memories, may propose
-    creating or updating a memory in the existing container between chat history and follow-up suggestions. The container
-    shows titles only. Preview of an update sends the memory body and the user/assistant chat messages to a separate model
-    request and shows a diff, or tells the user the memory already looks up to date. Preview of a new memory shows the already
-    generated body. Selecting either opens Settings Memories deep-linked to an unsaved draft; nothing changes until the user
-    saves, and a revision change since preview is reported as a conflict. Tool and external results are never a suggestion
-    source. At most one suggestion appears per turn and dismissals are remembered locally. Memories explicitly loaded in the
-    chat are eligible even when Mention only. The same container may instead propose creating a Workflow, which shows only a
-    title and a short summary, offers Create instead of Preview, and nothing is generated or saved until the user chooses
-    Create, which opens the Workflow workspace and generates the Workflow visibly, as when asking AI there. Workflow
-    suggestions follow the same one-per-turn, local dismissal and no-tool-source rules.
+  must: After every substantive turn the regular post-processing request (no separate request) returns one to three memory
+    recommendations and one to three workflow recommendations, each only a title and a short summary, shown in the
+    Recommendations card that replaced the quick tips container between chat history and the follow-up suggestion chips.
+    The follow-up suggestion chips are a separate feature and are unchanged. The card keeps the chat-category colored
+    background of the former quick tips container and shows one recommendation at a time, starting with a heading that says whether it
+    recommends a new memory or workflow or an update to an existing one, the entry as an embed preview card, and below it a
+    Create (or Update) button; clicking the preview card does the same as the button. Previous/next icon buttons and one dot
+    per recommendation sit underneath. There is no dismiss control. No recommendations are
+    produced for sub-chats, incognito chats, guests, greeting-only turns, or when the user turned Recommendations off in
+    settings (on by default); the card is never shown in shared or public views. Tool and external results are never a
+    source and secrets are never proposed. Recommendations are stored per chat encrypted with the chat key, survive reload
+    and sync to the user's other devices; the server stores only ciphertext. The next completed turn replaces the open set;
+    saved recommendations are not proposed again in that chat. Only choosing a recommendation's action starts a separate request that generates the full
+    entry from its title, summary, the previous user message and the last assistant response. A memory opens as an unsaved
+    draft in Settings Memories (an update shows the diff, or says the memory already looks up to date), a workflow opens as
+    an unsaved draft in the workflow editor side by side with the chat (chat left, editor right; fullscreen on narrow
+    screens) and is generated visibly. Choosing does not remove the recommendation; nothing changes until the user saves,
+    and a revision change since preview is reported as a conflict. Saving removes that recommendation from the chat and
+    adds a system event to the chat history saying a memory or workflow was created or updated, with its title and a link
+    that opens the entry (or says it no longer exists). These events are not sent to the AI.
+  depends_on:
+  - models.MemorySuggestion
+  - examples.suggestions
+- id: app-memories.suggestions.no-duplicates
+  type: privacy
+  must: Recommendations never duplicate an existing memory or workflow; a matching one is recommended as an update instead.
+    The post-processor sees only the titles and when-to-use of Auto include and Ask first memories (as already sent with
+    the request) and the titles and shortened descriptions of the user's workflows that are relevant to the turn (all of
+    them when there are at most 15, otherwise the best lexical matches plus the most recently edited), decrypted
+    server-side for that request only and never stored, cached or logged. Mention only memories never leave the device
+    for this purpose; the client checks every recommendation against all of its local memories before showing it and turns
+    a match into an update. The server checks every new workflow recommendation against all of the user's workflows.
   depends_on:
   - models.MemorySuggestion
   - examples.suggestions

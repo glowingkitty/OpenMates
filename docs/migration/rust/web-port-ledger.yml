@@ -784,3 +784,18 @@ slices:
   - file: frontend/packages/ui/src/services/userPlanService.ts
     functions: [addUserPlanKeyWrappers, listPlanAssumptions, listPlanCriteria, listPlanReferencePatterns, listPlanVerifications, listUserPlanKeyWrappers,
       planChildPathRust]
+- id: chat-recommendations-reconcile-and-context-entry-events
+  commit: null
+  date: '2026-11-09'
+  title: 'feat: chat Recommendations reconcile and context_entry system events in the shared Rust parse unit'
+  rust: [packages/openmates-rust/src/client/recommendations.rs, packages/openmates-rust/src/client/recommendations_tests.rs]
+  vectors: [frontend/packages/ui/src/stores/__tests__/chatRecommendationsStore.test.ts]
+  e2e: [frontend/apps/web_app/tests/web-rust-core-chat-recommendations-flow.spec.ts]
+  notes: Duplicate/dismiss policy and the context_entry event body live in Rust (parse unit ops reconcileRecommendations,
+    buildContextEntryEvent, parseContextEntryEvent); the TS functions only route, encrypt with the chat key and persist.
+  ts:
+  - file: frontend/packages/ui/src/services/chatRecommendationsPersistence.ts
+    functions: [hydrateChatRecommendations, reconcileIncomingRecommendations, removeRecommendation]
+  - file: frontend/packages/ui/src/services/contextEntryEvents.ts
+    functions: [listenForWorkflowRecommendationSaves, parseContextEntryContent, recordContextEntrySaved, withoutPresentationOnlyEvents,
+      writeContextEntryMessage]

@@ -3832,46 +3832,6 @@
         "text": "Solve: what is 15% of 240?"
       }
     },
-    "quick_tips": {
-      "eyebrow": {
-        "text": "Quick tip"
-      },
-      "cta_learn_more": {
-        "text": "Learn more"
-      },
-      "shorter_chats_equal_better_responses": {
-        "title": {
-          "text": "Shorter chats work better"
-        },
-        "body": {
-          "text": "You get better responses and save credits when you split topics into separate shorter chats."
-        }
-      },
-      "search_current_info_next_time": {
-        "title": {
-          "text": "Search when freshness matters"
-        },
-        "body": {
-          "text": "Next time you need current prices, events, news, product details, or recent facts, OpenMates can search the web for you."
-        }
-      },
-      "travel_can_add_local_context": {
-        "title": {
-          "text": "Add more travel context"
-        },
-        "body": {
-          "text": "After planning travel, OpenMates can also help find local places, events, stays, routes, and practical details for the same trip."
-        }
-      },
-      "use_apps_for_better_results": {
-        "title": {
-          "text": "Try an app for the next step"
-        },
-        "body": {
-          "text": "When you know what you want to do next, OpenMates apps can give the AI better tools for tasks like coding, research, events, shopping, writing, or planning."
-        }
-      }
-    },
     "send_storage_errors": {
       "missing_attachment_content": {
         "text": "An attachment is not ready to save. Please prepare it again."
@@ -8881,11 +8841,11 @@
     "watch_sheet_cells": {
       "text": "{count} cells"
     },
-    "add_memory": {
-      "text": "Add memory"
+    "save_item": {
+      "text": "Save"
     },
-    "forget_memory": {
-      "text": "Forget"
+    "saved_item": {
+      "text": "Saved"
     },
     "event": {
       "text": "Event"
@@ -15342,6 +15302,75 @@
     },
     "app_loading": {
       "text": "Public · Provided by the app · Read-only · Loads automatically when relevant"
+    },
+    "load_mode": {
+      "text": "Load mode"
+    },
+    "load_mode_auto_include": {
+      "text": "Auto include"
+    },
+    "load_mode_ask_first": {
+      "text": "Ask first"
+    },
+    "load_mode_mention_only": {
+      "text": "Only when mentioned"
+    },
+    "when_to_use_optional": {
+      "text": "When to use (optional)"
+    },
+    "when_to_use_hint": {
+      "text": "Leave blank to always consider this Memory. The title and when-to-use text are visible to AI processing stages for Auto include and Ask first memories."
+    },
+    "valid_from": {
+      "text": "Start date (optional)"
+    },
+    "valid_until": {
+      "text": "Expiry date (optional)"
+    },
+    "expired": {
+      "text": "Expired"
+    },
+    "renew": {
+      "text": "Renew"
+    },
+    "character_budget": {
+      "text": "{used} / {max} characters used"
+    },
+    "draft_unsaved": {
+      "text": "This is an unsaved suggestion. Review the changes and save to apply them."
+    },
+    "draft_conflict": {
+      "text": "This memory changed since the suggestion was made. Nothing was overwritten. Reopen the suggestion to review the latest version."
+    },
+    "suggestion_up_to_date": {
+      "text": "This memory already looks up to date."
+    },
+    "suggestion_failed": {
+      "text": "The preview could not be created. Please try again."
+    },
+    "suggestion_not_found": {
+      "text": "This memory no longer exists."
+    },
+    "suggestion_insufficient_credits": {
+      "text": "Not enough credits for this preview."
+    },
+    "draft_current": {
+      "text": "current"
+    },
+    "project_memories": {
+      "text": "Project Memories"
+    },
+    "private_memories": {
+      "text": "Your Memories"
+    },
+    "references_hint": {
+      "text": "Paste an embed copied from a chat into the text to load it with this Memory."
+    },
+    "references_limit": {
+      "text": "A Memory can have at most 50 references."
+    },
+    "body_placeholder": {
+      "text": "Write the Memory. Paste an embed from a chat to include it."
     }
   },
   "metadata": {
@@ -16245,6 +16274,65 @@
     },
     "workspace_error_source_timeout": {
       "text": "The remote machine did not respond. Retry the Project read."
+    }
+  },
+  "recommendations": {
+    "card_title": {
+      "text": "Recommendations"
+    },
+    "heading_memory_create": {
+      "text": "New memory recommended"
+    },
+    "heading_memory_update": {
+      "text": "Memory update recommended"
+    },
+    "heading_workflow_create": {
+      "text": "New workflow recommended"
+    },
+    "heading_workflow_update": {
+      "text": "Workflow update recommended"
+    },
+    "type_memory": {
+      "text": "Memory"
+    },
+    "type_workflow": {
+      "text": "Workflow"
+    },
+    "create": {
+      "text": "Create"
+    },
+    "update": {
+      "text": "Update"
+    },
+    "previous": {
+      "text": "Previous recommendation"
+    },
+    "next": {
+      "text": "Next recommendation"
+    },
+    "position": {
+      "text": "Recommendation {current} of {total}"
+    },
+    "preparing": {
+      "text": "Preparing draft…"
+    },
+    "memory_created": {
+      "text": "Memory created: {title}"
+    },
+    "memory_updated": {
+      "text": "Memory updated: {title}"
+    },
+    "workflow_created": {
+      "text": "Workflow created: {title}"
+    },
+    "workflow_updated": {
+      "text": "Workflow updated: {title}"
+    },
+    "open_entry": {
+      "text": "Open"
+    },
+    "entry_missing": {
+      "text": "No longer exists"
     }
   },
   "reminder": {
@@ -17388,11 +17476,11 @@
         "follow_up_suggestions_save_error": {
           "text": "Could not save follow-up suggestions setting."
         },
-        "quick_tips": {
-          "text": "Quick tips"
+        "recommendations": {
+          "text": "Recommendations"
         },
-        "quick_tips_description": {
-          "text": "Shows occasional product tips after assistant replies. Turn this off if you do not want OpenMates to generate quick tip cards."
+        "recommendations_description": {
+          "text": "Suggests memories and workflows to create or update after assistant replies. Nothing is saved until you save it."
         },
         "server_region": {
           "text": "Server region"
@@ -17402,15 +17490,6 @@
         },
         "prefer_eu_servers_description": {
           "text": "On (default): AI models run on EU servers first, with other regions only as fallback. Off: Fastest, global – OpenMates picks the fastest server worldwide."
-        },
-        "quick_tips_enabled": {
-          "text": "Quick tips enabled."
-        },
-        "quick_tips_disabled": {
-          "text": "Quick tips disabled."
-        },
-        "quick_tips_save_error": {
-          "text": "Could not save quick tips setting."
         },
         "manual_select_note": {
           "text": "You can always manually select a model using @mention in the chat."
@@ -17656,6 +17735,95 @@
         },
         "over_200k_explanation": {
           "text": "When a request exceeds 200,000 input tokens, these input and output rates apply to the whole request."
+        }
+      }
+    },
+    "app_settings_memories": {
+      "validation_key_length": {
+        "text": "Key must be {limit} characters or fewer"
+      },
+      "validation_value_length": {
+        "text": "Value must be {limit} characters or fewer"
+      },
+      "validation_required": {
+        "text": "{field} is required"
+      },
+      "validation_length": {
+        "text": "{field} must be {limit} characters or fewer"
+      },
+      "validation_integer": {
+        "text": "{field} must be an integer"
+      },
+      "validation_number": {
+        "text": "{field} must be a number"
+      },
+      "validation_boolean": {
+        "text": "{field} must be true or false"
+      },
+      "validation_json": {
+        "text": "{field} must contain valid JSON"
+      },
+      "validation_json_array": {
+        "text": "{field} must contain a JSON array"
+      },
+      "validation_json_object": {
+        "text": "{field} must contain a JSON object"
+      },
+      "validation_unsupported_type": {
+        "text": "Unsupported field type: {type}"
+      },
+      "validation_allowed_value": {
+        "text": "{field} must be one of the allowed values"
+      },
+      "validation_minimum": {
+        "text": "{field} must be at least {limit}"
+      },
+      "validation_maximum": {
+        "text": "{field} must be at most {limit}"
+      },
+      "validation_invalid_type": {
+        "text": "{field} contains an invalid value"
+      },
+      "text": "Memories",
+      "item_key_required": {
+        "text": "Entry key is required"
+      },
+      "item_value_required": {
+        "text": "Entry value is required"
+      },
+      "authentication_required": {
+        "text": "Authentication required"
+      },
+      "confirm_delete": {
+        "text": "Are you sure you want to delete this entry?"
+      },
+      "entry_not_found": {
+        "text": "Entry not found"
+      },
+      "back_to_category": {
+        "text": "Back to category"
+      },
+      "deleting": {
+        "text": "Deleting..."
+      },
+      "saving": {
+        "text": "Saving..."
+      },
+      "encrypted_notice": {
+        "text": "Your memories entries are encrypted, can only be read by your devices and are never sent to OpenMates for processing without your explicit consent."
+      },
+      "diff_previous_value": {
+        "text": "Previous:"
+      },
+      "diff_not_set": {
+        "text": "Not set"
+      },
+      "ideabucket": {
+        "processing_settings": {
+          "text": "Processing settings",
+          "description": {
+            "text": "Default prompt and processing times for IdeaBucket buckets."
+          }
         }
       }
     },
@@ -19720,6 +19888,9 @@
       },
       "retry": {
         "text": "Retry"
+      },
+      "tab_sources": {
+        "text": "Sources"
       }
     },
     "incognito": {
@@ -19771,7 +19942,7 @@
       "text": "Enter the Learning Mode passcode to turn it off for this account."
     },
     "learning_mode_guest_description": {
-      "text": "Choose the learner age group. For guests, Learning Mode lasts only for this browser session and has no passcode."
+      "text": "Choose the learner age group and set a passcode. The passcode is needed to turn Learning Mode off or to allow collaborative building again. It stays in this browser and is never sent to our servers."
     },
     "learning_mode_active_detail": {
       "text": "Learning Mode is active for every chat on this account. Answers stay teaching-first and selected tools are restricted."
@@ -19780,10 +19951,10 @@
       "text": "When enabled, OpenMates guides the learner step by step instead of giving complete answers."
     },
     "learning_mode_guest_active_detail": {
-      "text": "Learning Mode is active for anonymous chats in this browser session. Create an account to lock it with a passcode across devices."
+      "text": "Learning Mode is active for anonymous chats in this browser. It stays on until it is turned off with the passcode."
     },
     "learning_mode_guest_inactive_detail": {
-      "text": "Guests can try Learning Mode for anonymous chats in this browser session. Create an account to lock it with a passcode."
+      "text": "Guests can use Learning Mode for anonymous chats in this browser, protected by a passcode."
     },
     "learning_mode_age_group_label": {
       "text": "Learner age group"
@@ -19823,6 +19994,30 @@
     },
     "learning_mode_disable_button": {
       "text": "Turn off Learning Mode"
+    },
+    "learning_mode_collaborative_label": {
+      "text": "Allow collaborative building"
+    },
+    "learning_mode_collaborative_help": {
+      "text": "Lets the learner build things together with the AI, such as code, documents and files. When off, the AI only explains and guides. Not available for learners under 10."
+    },
+    "learning_mode_collaborative_enable_prompt": {
+      "text": "Enter the Learning Mode passcode to allow collaborative building again."
+    },
+    "learning_mode_collaborative_confirm_button": {
+      "text": "Allow collaborative building"
+    },
+    "learning_mode_collaborative_enabled": {
+      "text": "Collaborative building is on."
+    },
+    "learning_mode_collaborative_disabled": {
+      "text": "Collaborative building is off."
+    },
+    "learning_mode_guest_notice": {
+      "text": "Without an account, Learning Mode only lives in this browser. Clearing browser data or using a private window removes or bypasses it. Create an account for a lock that holds everywhere."
+    },
+    "learning_mode_passcode_invalid": {
+      "text": "The passcode must be between 4 and 128 characters."
     },
     "incognito_explainer_description": {
       "text": "Incognito mode applies only to new chats you create. New chats created while incognito mode is active are not synced across devices, not stored on the server, and not cached. These chats exist only in your current browser session. Existing chats remain unchanged."
@@ -25584,6 +25779,15 @@
     "live": {
       "text": "Listening · You can speak now"
     },
+    "paused": {
+      "text": "Call paused. Return to this screen to keep talking."
+    },
+    "ended_in_background": {
+      "text": "Call ended because OpenMates left the screen. Tap the call button to call again."
+    },
+    "reconnecting": {
+      "text": "Reconnecting…"
+    },
     "muted": {
       "text": "Microphone muted"
     },
@@ -26746,6 +26950,21 @@
       },
       "signup": {
         "text": "Signup"
+      },
+      "memory_snapshot_consent": {
+        "text": "This step mentions a memory. When you save, a snapshot of it is stored in your Automation Vault and the server can read it each time this Workflow runs, even when none of your devices is online. Other memories stay unavailable."
+      },
+      "memory_needs_attention": {
+        "text": "A memory mentioned in this step was deleted or expired, so its snapshot was removed. Update the instruction before this step can run."
+      },
+      "memory_picker_label": {
+        "text": "Memories"
+      },
+      "memory_picker_unavailable": {
+        "text": "Memories could not be loaded."
+      },
+      "memory_needs_attention_badge": {
+        "text": "Needs attention: a mentioned memory is no longer available"
       }
     },
     "completion": {
@@ -27143,6 +27362,50 @@
       },
       "website_changes_message_title": {
         "text": "Congress updates"
+      }
+    },
+    "side_panel": {
+      "kicker_draft": {
+        "text": "Workflow draft"
+      },
+      "kicker_saved": {
+        "text": "Workflow"
+      },
+      "title_label": {
+        "text": "Workflow name"
+      },
+      "close": {
+        "text": "Close workflow editor"
+      },
+      "save": {
+        "text": "Save workflow"
+      },
+      "saving": {
+        "text": "Saving…"
+      },
+      "generating": {
+        "text": "Generating the workflow draft…"
+      },
+      "loading": {
+        "text": "Loading the workflow…"
+      },
+      "unsaved_hint": {
+        "text": "Not saved yet. Review the draft, then save it."
+      },
+      "saved_hint": {
+        "text": "Saved to your workflows. It stays paused until you enable it."
+      },
+      "load_failed": {
+        "text": "The workflow could not be loaded. Please try again."
+      },
+      "save_failed": {
+        "text": "The workflow could not be saved. Please try again."
+      },
+      "retry": {
+        "text": "Try again"
+      },
+      "draft_unavailable": {
+        "text": "AI workflow drafts are not available here yet."
       }
     }
   }

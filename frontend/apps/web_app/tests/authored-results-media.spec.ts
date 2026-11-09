@@ -53,7 +53,7 @@ test('selected uploaded media survives source-message deletion and explicit chil
     // A real unrelated upload is in authorized history, but is never selected by
     // the authored document. The seed fixture also replaces postprocessing AI.
     const initial = parseCliJson(await mediaStep('Save the unrelated upload', () => runWorkflowCli(apiUrl, home, ['chats', 'new',
-      `Keep this unrelated upload separate. @${unrelatedFile} <<<TEST_MOCK:chat_flow_quick_tip:instant>>>`, '--json'],
+      `Keep this unrelated upload separate. @${unrelatedFile} <<<TEST_MOCK:chat_recommendations:instant>>>`, '--json'],
     180_000)), 'seed saved chat with unrelated upload');
     expect(initial.status).toBe('completed');
     chatId = initial.chatId;
@@ -62,7 +62,7 @@ test('selected uploaded media survives source-message deletion and explicit chil
     // ledger binds each authored cohort to its initiating user message; deleting
     // that message would legitimately delete the card as well as the upload.
     const upload = await mediaStep('Save the selected upload in its own message', () => runWorkflowCli(apiUrl, home, ['chats', 'send', '--chat', chatId,
-      `Keep this selected illustration for my next request. @${selectedFile} <<<TEST_MOCK:chat_flow_quick_tip:instant>>>`, '--json'],
+      `Keep this selected illustration for my next request. @${selectedFile} <<<TEST_MOCK:chat_recommendations:instant>>>`, '--json'],
     180_000, { OPENMATES_CLI_RECORD_E2E: '1', OPENMATES_E2E_SPEC: 'authored-selected-media-upload' }));
     expect(upload.recording, 'real terminal capture of selected CLI upload').toBeTruthy();
     if (upload.recording) {

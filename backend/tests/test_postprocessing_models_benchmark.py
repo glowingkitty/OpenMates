@@ -25,7 +25,7 @@ def native_response(arm, arguments=None):
                 'choices': [{'finish_reason': 'stop', 'message': {'tool_calls': [{'function': {
                     'name': TOOL['function']['name'], 'arguments': json.dumps(arguments),
                 }}]}}]}
-    return {'modelVersion': 'gemini-3.5-flash-lite',
+    return {'modelVersion': benchmark.ARMS[arm][1],
             'usageMetadata': {'promptTokenCount': 100, 'candidatesTokenCount': 50},
             'candidates': [{'finishReason': 'STOP', 'content': {'parts': [{'functionCall': {
                 'name': TOOL['function']['name'], 'args': arguments,
@@ -66,12 +66,12 @@ def test_oracle_rejects_wrong_facts_language_limits_and_invented_tasks():
     good = {'chat_summary': 'Zoë sucht neue blaue Boxen unter 47 Euro.', 'updated_chat_title': 'Blaue Boxen für Zoë',
             'follow_up_request_suggestions': suggestions, 'new_chat_request_suggestions': suggestions,
             'task_proposals': [], 'task_update_proposals': []}
-    assert benchmark.assess(benchmark.CASES[0], good) == []
+    assert benchmark.assess(benchmark.LEGACY_CASES[0], good) == []
     bad = {**good, 'chat_summary': 'Zoë wants green boxes under 99 euros. ' * 4,
            'updated_chat_title': 'Too many words in this title are not acceptable here',
            'task_proposals': [{'title': 'Buy boxes without approval'}],
            'task_update_proposals': [{'task_id': 'nonexistent'}]}
-    issues = benchmark.assess(benchmark.CASES[0], bad)
+    issues = benchmark.assess(benchmark.LEGACY_CASES[0], bad)
     assert {'summary_word_limit', 'title_word_limit', 'german_summary_unconfirmed',
             'fabricated_task', 'fabricated_task_update'} <= set(issues)
     assert any(issue.startswith('missing_summary_fact:') for issue in issues)
@@ -112,11 +112,11 @@ async def test_first_429_stops_all_cases_arms_repeats_and_saves_private_partial(
         async def runner(case, arm):
             return await benchmark.run_case(case, arm, manager=manager, client=client,
                                             base={}, postprocessor=fake_postprocessor())
-        report = await benchmark.execute(arms=list(benchmark.ARMS), cases=list(benchmark.CASES), repeats=2,
+        report = await benchmark.execute(arms=list(benchmark.ARMS), cases=list(benchmark.LEGACY_CASES), repeats=2,
                                          output=output, revision='synthetic', runner=runner, base_hash='sha')
     assert len(requests) == 1
-    assert report['planned_results'] == 40
-    assert report['skipped_results'] == 39
+    assert report['planned_results'] == 60
+    assert report['skipped_results'] == 59
     assert report['partial'] and report['stop_reason'] == 'http_429'
     assert report['results'][0]['quality_evaluated'] is False
     assert 'issues' not in report['results'][0]
@@ -136,7 +136,7 @@ async def test_native_boundary_retains_full_tool_raw_output_usage_and_observed_m
     module = fake_postprocessor()
     manager = SimpleNamespace(get_secret=AsyncMock(return_value='private-test-key'))
     async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
-        row = await benchmark.run_case(benchmark.CASES[0], arm, manager=manager, client=client,
+        row = await benchmark.run_case(benchmark.LEGACY_CASES[0], arm, manager=manager, client=client,
                                        base={}, postprocessor=module)
     assert len(captured) == 1
     assert row['raw_response'] == native_response(arm)
@@ -177,7 +177,7 @@ async def test_real_production_prompt_and_normalizer_with_synthetic_native_respo
         return httpx.Response(200, json=native_response('mercury-low', raw_args))
     manager = SimpleNamespace(get_secret=AsyncMock(return_value='private-test-key'))
     async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
-        row = await benchmark.run_case(benchmark.CASES[0], 'mercury-low', manager=manager, client=client,
+        row = await benchmark.run_case(benchmark.LEGACY_CASES[0], 'mercury-low', manager=manager, client=client,
                                        base=base, postprocessor=postprocessor)
     tool = row['request']['body']['tools'][0]['function']
     assert tool['description'] == base['postprocess_response_tool']['function']['description']
@@ -185,3 +185,86 @@ async def test_real_production_prompt_and_normalizer_with_synthetic_native_respo
     assert 'top_recommended_apps_for_user' not in tool['parameters']['properties']
     assert row['output']['chat_tags'] == ['Boxen']
     assert row['output']['top_recommended_apps_for_user'] == ['web']
+
+
+def test_arms_include_gemini_flash_with_provider_pricing():
+    assert benchmark.ARMS['gemini-flash'] == ('google_ai_studio', 'gemini-3.8-flash')
+    assert set(benchmark.PRICING) == set(benchmark.ARMS)
+    assert benchmark.PRICING['gemini-lite']['regular'] == (0.30, 2.50)
+
+
+def test_recommendation_cases_cover_required_scenarios():
+    ids = {case.id for case in benchmark.CASES}
+    assert 18 <= len(benchmark.CASES) <= 24 and len(ids) == len(benchmark.CASES)
+    assert {'conference_search_en', 'secret_in_turn', 'tool_results_only', 'existing_memory_update',
+            'existing_workflow_update', 'long_homelab'} <= ids
+    assert any(case.language == 'de' for case in benchmark.CASES)
+    assert all(case.recommendations for case in benchmark.CASES)
+
+
+PARAMETERS = {'required': ['memory_recommendations', 'workflow_recommendations'], 'properties': {
+    'memory_recommendations': {'minItems': 1, 'maxItems': 3}, 'workflow_recommendations': {'minItems': 1, 'maxItems': 3}}}
+
+
+def item(action='create', title='Open source conferences in Europe', summary='Interested in FOSDEM', ref=None):
+    return {'action': action, 'title': title, 'summary': summary, **({'ref': ref} if ref else {})}
+
+
+def test_schema_validation_flags_counts_actions_and_refs():
+    good = {'memory_recommendations': [item()], 'workflow_recommendations': [item(title='CFP alert')]}
+    assert benchmark.validate_recommendation_args(good, PARAMETERS)['schema_valid']
+    bad = {'memory_recommendations': [], 'workflow_recommendations': [item('update'), item(ref='m1'), item(), item()]}
+    result = benchmark.validate_recommendation_args(bad, PARAMETERS)
+    assert not result['schema_valid'] and result['count_ok'] == {'memory': False, 'workflow': False}
+    assert {'update_without_ref:workflow_recommendations', 'create_with_ref:workflow_recommendations'} <= set(result['errors'])
+    assert not benchmark.validate_recommendation_args({'memory_recommendations': [item()]}, PARAMETERS)['schema_valid']
+
+
+def recs(*pairs):
+    return {'recommendations': [{'kind': kind, 'action': action, 'target_id': target, 'title': title, 'summary': title}
+                                for kind, action, target, title in pairs], 'follow_up_request_suggestions': ['x'] * 6}
+
+
+def test_recommendation_oracles_conference_update_duplicate_and_secret():
+    conf = next(c for c in benchmark.CASES if c.id == 'conference_search_en')
+    ok = recs(('memory', 'create', None, 'Interested in open source conferences in Europe'),
+              ('workflow', 'create', None, 'Weekly alert for new conference CFP deadlines'))
+    assert benchmark.assess_recommendations(conf, {}, ok)['oracle_pass']
+    assert not benchmark.assess_recommendations(conf, {}, recs(('memory', 'create', None, 'Likes travel')))['oracle_pass']
+
+    memory_case = next(c for c in benchmark.CASES if c.id == 'existing_memory_update')
+    raw_create = {'memory_recommendations': [item(title='Vegan diet')], 'workflow_recommendations': []}
+    result = benchmark.assess_recommendations(memory_case, raw_create, recs(('memory', 'create', None, 'Vegan diet')))
+    assert result['duplicate'] and 'missing_memory_update:m1' in result['oracle_issues']
+    raw_update = {'memory_recommendations': [item('update', ref='m1')], 'workflow_recommendations': []}
+    result = benchmark.assess_recommendations(memory_case, raw_update, recs(('memory', 'update', 'mem-diet', 'Vegan diet')))
+    assert not result['duplicate'] and result['oracle_pass']
+
+    secret = next(c for c in benchmark.CASES if c.id == 'secret_in_turn')
+    leaked = {'memory_recommendations': [item(summary='Key sk-live-9f8e7d6c5b4a3921abcd8765')], 'workflow_recommendations': []}
+    result = benchmark.assess_recommendations(secret, leaked, recs(('memory', 'create', None, 'Deploys to Hetzner')))
+    assert result['raw_leak'] and result['oracle_pass']
+    assert not benchmark.assess_recommendations(secret, leaked, recs(('memory', 'create', None, 'sk-live-9f8e7d6c5b4a3921')))['oracle_pass']
+
+
+def test_small_talk_skip_removes_recommendation_fields_in_code():
+    from backend.apps.ai.processing import postprocessing_recommendations as recommendations
+    assert recommendations.is_small_talk('Hi there', 'Hello! How can I help?')
+    tool = {'memory_recommendations': {}, 'workflow_recommendations': {}, 'chat_summary': {}}
+    required = recommendations.strip_recommendation_fields(tool, ['memory_recommendations', 'workflow_recommendations', 'chat_summary'])
+    assert tool == {'chat_summary': {}} and required == ['chat_summary']
+    assert recommendations.recommendations_skip_reason(
+        recommendations_enabled=True, is_sub_chat=False, is_incognito=False,
+        user_message='Hello', assistant_response='Hi!') == 'small_talk'
+
+
+def test_decision_rule_and_percentiles():
+    assert benchmark.percentile([1, 2, 3, 4, 100], 0.5) == 3 and benchmark.percentile([1, 2, 3, 4, 100], 0.95) == 100
+    base = {'schema_valid_pct': 100, 'min_max_ok_pct_memory': 100, 'min_max_ok_pct_workflow': 100, 'oracle_pass_pct': 70.0,
+            'p95_latency_s': 2.0, 'cost_per_1k_turns_usd_regular': 1.0, 'cost_per_1k_turns_usd_promo': 1.0, 'evaluated': 10}
+    better = {**base, 'oracle_pass_pct': 85.0, 'p95_latency_s': 2.5, 'cost_per_1k_turns_usd_regular': 1.8}
+    assert benchmark.decide({'gemini-lite': base, 'mercury-low': better})['decision'] == 'switch to mercury-low'
+    pricey = {**better, 'cost_per_1k_turns_usd_regular': 2.5}
+    assert benchmark.decide({'gemini-lite': base, 'gemini-flash': pricey})['decision'] == 'stay on gemini-lite'
+    broken = {**base, 'schema_valid_pct': 90}
+    assert benchmark.decide({'gemini-lite': broken, 'mercury-low': base})['decision'].startswith('switch required')

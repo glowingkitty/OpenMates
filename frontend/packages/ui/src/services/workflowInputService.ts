@@ -15,9 +15,9 @@ async function normalizedWork(work: WorkClient, session: WorkflowInputSession): 
 }
 
 /** Flag on: an instruction request (path and ordered body) decided in the Worker. */
-async function instructionWork(work: WorkClient, route: 'input' | 'stream', text: string, selectedWorkflowId?: string, idempotencyKey?: string): Promise<{ path: string; body: string }> {
+async function instructionWork(work: WorkClient, route: 'input' | 'stream', text: string, selectedWorkflowId?: string, idempotencyKey?: string, draftOnly?: boolean): Promise<{ path: string; body: string }> {
   const request = await workDecide<WorkRequest>(work, 'workflowInputBody', {
-    route, text, selected_workflow_id: selectedWorkflowId, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, idempotency_key: idempotencyKey,
+    route, text, selected_workflow_id: selectedWorkflowId, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, idempotency_key: idempotencyKey, ...(draftOnly ? { draft_only: true } : {}),
   });
   return { path: request.path, body: JSON.stringify(await buildWorkBody(request.steps, {}, {})) };
 }
@@ -106,10 +106,13 @@ export async function streamWorkflowInstruction(
   onEvent: (event: WorkflowInputStreamEvent) => void,
   signal?: AbortSignal,
   idempotencyKey?: string,
+  options?: { draftOnly?: boolean },
 ): Promise<WorkflowInputSession> {
+  // draftOnly is decided only in the Rust core Worker; no TypeScript twin exists.
+  if (options?.draftOnly && !RUST_WORK) throw new Error('draftOnly requires the Rust core');
   const work = RUST_WORK ? workClient() : null;
   const request = work
-    ? await instructionWork(work, 'stream', text, selectedWorkflowId, idempotencyKey)
+    ? await instructionWork(work, 'stream', text, selectedWorkflowId, idempotencyKey, options?.draftOnly)
     : { path: '/v1/workflows/input/stream', body: instructionBody(text, selectedWorkflowId, idempotencyKey) };
   const response = await workflowApiFetch(request.path, {
     method: 'POST', body: request.body

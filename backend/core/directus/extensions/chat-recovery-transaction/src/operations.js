@@ -76,7 +76,7 @@ const CHAT_METADATA_FIELDS = new Set([
   'encrypted_title', 'encrypted_chat_key', 'encrypted_active_focus_id',
   'encrypted_chat_summary', 'encrypted_share_cta_text', 'encrypted_chat_tags',
   'encrypted_follow_up_request_suggestions', 'encrypted_top_recommended_apps_for_chat',
-  'encrypted_quick_tip_slugs', 'encrypted_icon', 'encrypted_category',
+  'encrypted_recommendations', 'encrypted_icon', 'encrypted_category',
   'encrypted_settings_memories_suggestions', 'encrypted_slug', 'slug_lookup_hash',
   'created_at', 'updated_at',
 ]);

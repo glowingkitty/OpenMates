@@ -181,7 +181,8 @@ def _postprocessing_fixture(model: str, task_id: Any) -> dict[str, Any]:
         "share_cta_text": "Explore the OpenMates architecture",
         "updated_chat_title": "OpenMates Architecture Diagram",
         "daily_inspiration_topic_suggestions": ["software architecture", "diagram design"],
-        "quick_tip_slug": "",
+        "memory_recommendations": [{"action": "create", "title": "Interested in synthetic test topics", "summary": "The user explores synthetic test conversations."}],
+        "workflow_recommendations": [{"action": "create", "title": "Weekly synthetic digest", "summary": "Send a weekly digest of synthetic test topics."}],
     }
     call = {
         "tool_call_id": "diagram-postprocess-fixture",

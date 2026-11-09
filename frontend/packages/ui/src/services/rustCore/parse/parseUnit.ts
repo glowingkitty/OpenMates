@@ -48,6 +48,21 @@ export function createParseHandlers(binding: ParseBinding): UnitHandlers<ParseUn
 			const p = record(payload);
 			return call(() => binding.parse_recover_generated_images(text(p.source), text(p.parents)));
 		},
+		reconcileRecommendations: (payload) => {
+			const p = record(payload);
+			return call(() => binding.parse_reconcile_recommendations(JSON.stringify(p.input)));
+		},
+		buildContextEntryEvent: (payload) => {
+			const p = record(payload);
+			let content: string;
+			try {
+				content = binding.parse_build_context_entry_event(JSON.stringify(p.event));
+			} catch {
+				throw new UnitRefusal('protocol');
+			}
+			return content;
+		},
+		parseContextEntryEvent: (payload) => call(() => binding.parse_context_entry_event(text(record(payload).content))),
 	};
 }
 

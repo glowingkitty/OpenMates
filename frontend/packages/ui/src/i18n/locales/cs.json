@@ -3081,46 +3081,6 @@
         "text": "Vypočítej: kolik je 15% z 240?"
       }
     },
-    "quick_tips": {
-      "eyebrow": {
-        "text": "Rychlý tip"
-      },
-      "cta_learn_more": {
-        "text": "Zjistit více"
-      },
-      "shorter_chats_equal_better_responses": {
-        "title": {
-          "text": "Kratší chaty fungují lépe"
-        },
-        "body": {
-          "text": "Získáš lepší odpovědi a ušetříš kredity, když témata rozdělíš do samostatných kratších chatů."
-        }
-      },
-      "search_current_info_next_time": {
-        "title": {
-          "text": "Hledej, když záleží na aktuálnosti"
-        },
-        "body": {
-          "text": "Až budeš příště potřebovat aktuální ceny, události, zprávy, podrobnosti o produktech nebo nedávná fakta, OpenMates za tebe může prohledat web."
-        }
-      },
-      "travel_can_add_local_context": {
-        "title": {
-          "text": "Přidej další cestovní kontext"
-        },
-        "body": {
-          "text": "Po naplánování cesty ti OpenMates může pomoci najít místní podniky, události, ubytování, trasy a praktické detaily pro stejný výlet."
-        }
-      },
-      "use_apps_for_better_results": {
-        "title": {
-          "text": "Zkus aplikaci pro další krok"
-        },
-        "body": {
-          "text": "Když víš, co chceš dělat dál, aplikace OpenMates mohou dát AI lepší nástroje pro úkoly, jako je kódování, výzkum, události, nakupování, psaní nebo plánování."
-        }
-      }
-    },
     "suggestions": {
       "explore_next": {
         "text": "Co chcete prozkoumat dál?"
@@ -13298,6 +13258,7 @@
     }
   },
   "projects": {},
+  "recommendations": {},
   "reminder": {
     "panel": {
       "title": {
@@ -14303,11 +14264,11 @@
         "follow_up_suggestions_save_error": {
           "text": "Nepodařilo se uložit nastavení návrhů doplňujících dotazů."
         },
-        "quick_tips": {
-          "text": "Rychlé tipy"
+        "recommendations": {
+          "text": "Doporučení"
         },
-        "quick_tips_description": {
-          "text": "Po odpovědích asistenta občas zobrazí tipy k produktu. Vypni tuto možnost, pokud nechceš, aby OpenMates generoval karty s rychlými tipy."
+        "recommendations_description": {
+          "text": "Po odpovědích asistenta navrhuje vzpomínky a pracovní postupy k vytvoření nebo aktualizaci. Nic se neuloží, dokud to neuložíš."
         },
         "server_region": {
           "text": "Oblast serverů"
@@ -14317,15 +14278,6 @@
         },
         "prefer_eu_servers_description": {
           "text": "Zapnuto (výchozí): modely AI běží nejdříve na serverech v EU, jiné oblasti jen jako záloha. Vypnuto: nejrychlejší, globálně – OpenMates vybere nejrychlejší server na světě."
-        },
-        "quick_tips_enabled": {
-          "text": "Rychlé tipy zapnuty."
-        },
-        "quick_tips_disabled": {
-          "text": "Rychlé tipy vypnuty."
-        },
-        "quick_tips_save_error": {
-          "text": "Nepodařilo se uložit nastavení rychlých tipů."
         },
         "manual_select_note": {
           "text": "Vždy můžete ručně vybrat model pomocí @zmínky v chatu."
@@ -14502,6 +14454,50 @@
         },
         "enable_model": {
           "text": "Povolit model"
+        }
+      }
+    },
+    "app_settings_memories": {
+      "text": "Vzpomínky",
+      "item_key_required": {
+        "text": "Klíč záznamu je povinný"
+      },
+      "item_value_required": {
+        "text": "Hodnota záznamu je povinná"
+      },
+      "authentication_required": {
+        "text": "Vyžaduje se ověření"
+      },
+      "confirm_delete": {
+        "text": "Opravdu chcete tento záznam smazat?"
+      },
+      "entry_not_found": {
+        "text": "Záznam nenalezen"
+      },
+      "back_to_category": {
+        "text": "Zpět na kategorii"
+      },
+      "deleting": {
+        "text": "Mazání..."
+      },
+      "saving": {
+        "text": "Ukládání..."
+      },
+      "encrypted_notice": {
+        "text": "Vaše záznamy nastavení a vzpomínek jsou šifrovány, mohou být čteny pouze vašimi zařízeními a nikdy nejsou odesílány k zpracování do OpenMates bez vašeho výslovného souhlasu."
+      },
+      "diff_previous_value": {
+        "text": "Předchozí:"
+      },
+      "diff_not_set": {
+        "text": "Nenastaveno"
+      },
+      "ideabucket": {
+        "processing_settings": {
+          "text": "Processing settings",
+          "description": {
+            "text": "Default prompt and processing times for IdeaBucket buckets."
+          }
         }
       }
     },
@@ -16333,7 +16329,7 @@
       "text": "Zadejte přístupový kód Learning Mode, abyste jej pro tento účet vypnuli."
     },
     "learning_mode_guest_description": {
-      "text": "Vyberte věkovou skupinu studenta. Pro hosty Learning Mode trvá pouze po dobu této relace prohlížeče a nemá přístupový kód."
+      "text": "Vyberte věkovou skupinu studenta a nastavte přístupový kód. Kód je potřeba k vypnutí Learning Mode nebo k opětovnému povolení společného tvoření. Zůstává v tomto prohlížeči a nikdy se neodesílá na naše servery."
     },
     "learning_mode_active_detail": {
       "text": "Learning Mode je aktivní pro každý chat na tomto účtu. Odpovědi zůstávají zaměřené na výuku a vybrané nástroje jsou omezené."
@@ -16342,10 +16338,10 @@
       "text": "Když je zapnutý, OpenMates vede studenta krok za krokem místo poskytování hotových odpovědí."
     },
     "learning_mode_guest_active_detail": {
-      "text": "Learning Mode je aktivní pro anonymní chaty v této relaci prohlížeče. Vytvořte si účet, abyste jej mohli zamknout přístupovým kódem napříč zařízeními."
+      "text": "Learning Mode je v tomto prohlížeči zapnutý pro anonymní chaty. Zůstává zapnutý, dokud se nevypne přístupovým kódem."
     },
     "learning_mode_guest_inactive_detail": {
-      "text": "Hosté mohou vyzkoušet Learning Mode pro anonymní chaty v této relaci prohlížeče. Vytvořte si účet, abyste jej mohli zamknout přístupovým kódem."
+      "text": "Hosté mohou v tomto prohlížeči používat Learning Mode pro anonymní chaty, chráněný přístupovým kódem."
     },
     "learning_mode_age_group_label": {
       "text": "Věková skupina studenta"
@@ -16385,6 +16381,30 @@
     },
     "learning_mode_disable_button": {
       "text": "Vypnout Learning Mode"
+    },
+    "learning_mode_collaborative_label": {
+      "text": "Povolit společné tvoření"
+    },
+    "learning_mode_collaborative_help": {
+      "text": "Umožňuje studentovi tvořit společně s AI, například kód, dokumenty a soubory. Když je vypnuto, AI pouze vysvětluje a vede. Není dostupné pro studenty mladší 10 let."
+    },
+    "learning_mode_collaborative_enable_prompt": {
+      "text": "Zadejte přístupový kód Learning Mode, abyste znovu povolili společné tvoření."
+    },
+    "learning_mode_collaborative_confirm_button": {
+      "text": "Povolit společné tvoření"
+    },
+    "learning_mode_collaborative_enabled": {
+      "text": "Společné tvoření je zapnuto."
+    },
+    "learning_mode_collaborative_disabled": {
+      "text": "Společné tvoření je vypnuto."
+    },
+    "learning_mode_guest_notice": {
+      "text": "Bez účtu existuje Learning Mode jen v tomto prohlížeči. Smazání dat prohlížeče nebo použití anonymního okna ho odstraní nebo obejde. Vytvořte si účet pro zámek, který platí všude."
+    },
+    "learning_mode_passcode_invalid": {
+      "text": "Přístupový kód musí mít 4 až 128 znaků."
     },
     "incognito_explainer_description": {
       "text": "Anonymní režim se vztahuje pouze na nové chaty, které vytvoříte. Nové chaty vytvořené v anonymním režimu nejsou synchronizovány mezi zařízeními, nejsou uloženy na serveru a nejsou ukládány do mezipaměti. Tyto chaty existují pouze v aktuální relaci prohlížeče. Stávající chaty zůstávají nezměněny."

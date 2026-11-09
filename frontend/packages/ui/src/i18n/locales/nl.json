@@ -3081,46 +3081,6 @@
         "text": "Los op: hoeveel is 15% van 240?"
       }
     },
-    "quick_tips": {
-      "eyebrow": {
-        "text": "Snelle tip"
-      },
-      "cta_learn_more": {
-        "text": "Meer informatie"
-      },
-      "shorter_chats_equal_better_responses": {
-        "title": {
-          "text": "Kortere chats werken beter"
-        },
-        "body": {
-          "text": "Je krijgt betere antwoorden en bespaart credits wanneer je onderwerpen opsplitst in afzonderlijke, kortere chats."
-        }
-      },
-      "search_current_info_next_time": {
-        "title": {
-          "text": "Zoek wanneer actuele informatie belangrijk is"
-        },
-        "body": {
-          "text": "De volgende keer dat je actuele prijzen, evenementen, nieuws, productdetails of recente feiten nodig hebt, kan OpenMates het web voor je doorzoeken."
-        }
-      },
-      "travel_can_add_local_context": {
-        "title": {
-          "text": "Voeg meer reiscontext toe"
-        },
-        "body": {
-          "text": "Na het plannen van een reis kan OpenMates ook helpen bij het vinden van lokale plekken, evenementen, verblijven, routes en praktische details voor diezelfde reis."
-        }
-      },
-      "use_apps_for_better_results": {
-        "title": {
-          "text": "Probeer een app voor de volgende stap"
-        },
-        "body": {
-          "text": "Wanneer je weet wat je vervolgens wilt doen, kunnen OpenMates-apps de AI betere tools geven voor taken zoals coderen, onderzoek, evenementen, winkelen, schrijven of plannen."
-        }
-      }
-    },
     "suggestions": {
       "explore_next": {
         "text": "Wat wil je als volgende verkennen?"
@@ -13298,6 +13258,7 @@
     }
   },
   "projects": {},
+  "recommendations": {},
   "reminder": {
     "panel": {
       "title": {
@@ -14303,11 +14264,11 @@
         "follow_up_suggestions_save_error": {
           "text": "Kan instelling voor vervolgsuggesties niet opslaan."
         },
-        "quick_tips": {
-          "text": "Snelle tips"
+        "recommendations": {
+          "text": "Aanbevelingen"
         },
-        "quick_tips_description": {
-          "text": "Toont af en toe producttips na antwoorden van de assistent. Schakel dit uit als je niet wilt dat OpenMates kaarten met snelle tips genereert."
+        "recommendations_description": {
+          "text": "Stelt na antwoorden van de assistent herinneringen en workflows voor om te maken of bij te werken. Er wordt niets opgeslagen totdat je het opslaat."
         },
         "server_region": {
           "text": "Serverregio"
@@ -14317,15 +14278,6 @@
         },
         "prefer_eu_servers_description": {
           "text": "Aan (standaard): AI-modellen draaien eerst op EU-servers, andere regio's alleen als terugval. Uit: snelste, wereldwijd – OpenMates kiest de snelste server ter wereld."
-        },
-        "quick_tips_enabled": {
-          "text": "Snelle tips ingeschakeld."
-        },
-        "quick_tips_disabled": {
-          "text": "Snelle tips uitgeschakeld."
-        },
-        "quick_tips_save_error": {
-          "text": "Kan instelling voor snelle tips niet opslaan."
         },
         "manual_select_note": {
           "text": "U kunt altijd handmatig een model selecteren met @mention in de chat."
@@ -14502,6 +14454,50 @@
         },
         "enable_model": {
           "text": "Model inschakelen"
+        }
+      }
+    },
+    "app_settings_memories": {
+      "text": "Herinneringen",
+      "item_key_required": {
+        "text": "Invoersleutel is vereist"
+      },
+      "item_value_required": {
+        "text": "Invoerwaarde is vereist"
+      },
+      "authentication_required": {
+        "text": "Authenticatie vereist"
+      },
+      "confirm_delete": {
+        "text": "Weet u zeker dat u dit item wilt verwijderen?"
+      },
+      "entry_not_found": {
+        "text": "Item niet gevonden"
+      },
+      "back_to_category": {
+        "text": "Terug naar categorie"
+      },
+      "deleting": {
+        "text": "Verwijderen..."
+      },
+      "saving": {
+        "text": "Opslaan..."
+      },
+      "encrypted_notice": {
+        "text": "Uw instellingen en geheugenitems zijn versleuteld, kunnen alleen door uw apparaten worden gelezen en worden nooit zonder uw uitdrukkelijke toestemming naar OpenMates verzonden voor verwerking."
+      },
+      "diff_previous_value": {
+        "text": "Vorig:"
+      },
+      "diff_not_set": {
+        "text": "Niet ingesteld"
+      },
+      "ideabucket": {
+        "processing_settings": {
+          "text": "Processing settings",
+          "description": {
+            "text": "Default prompt and processing times for IdeaBucket buckets."
+          }
         }
       }
     },
@@ -16333,7 +16329,7 @@
       "text": "Voer de toegangscode van Learning Mode in om het voor dit account uit te schakelen."
     },
     "learning_mode_guest_description": {
-      "text": "Kies de leeftijdsgroep van de leerling. Voor gasten duurt Learning Mode alleen tijdens deze browsersessie en heeft het geen toegangscode."
+      "text": "Kies de leeftijdsgroep van de leerling en stel een toegangscode in. De code is nodig om Learning Mode uit te schakelen of om samen bouwen weer toe te staan. Hij blijft in deze browser en wordt nooit naar onze servers gestuurd."
     },
     "learning_mode_active_detail": {
       "text": "Learning Mode is actief voor elke chat op dit account. Antwoorden blijven gericht op uitleg en geselecteerde tools zijn beperkt."
@@ -16342,10 +16338,10 @@
       "text": "Als dit is ingeschakeld, begeleidt OpenMates de leerling stap voor stap in plaats van volledige antwoorden te geven."
     },
     "learning_mode_guest_active_detail": {
-      "text": "Learning Mode is actief voor anonieme chats in deze browsersessie. Maak een account om het op al je apparaten met een toegangscode te vergrendelen."
+      "text": "Learning Mode is actief voor anonieme chats in deze browser. Het blijft aan totdat het met de toegangscode wordt uitgeschakeld."
     },
     "learning_mode_guest_inactive_detail": {
-      "text": "Gasten kunnen Learning Mode proberen voor anonieme chats in deze browsersessie. Maak een account om het met een toegangscode te vergrendelen."
+      "text": "Gasten kunnen Learning Mode gebruiken voor anonieme chats in deze browser, beveiligd met een toegangscode."
     },
     "learning_mode_age_group_label": {
       "text": "Leeftijdsgroep van de leerling"
@@ -16385,6 +16381,30 @@
     },
     "learning_mode_disable_button": {
       "text": "Learning Mode uitschakelen"
+    },
+    "learning_mode_collaborative_label": {
+      "text": "Samen bouwen toestaan"
+    },
+    "learning_mode_collaborative_help": {
+      "text": "Laat de leerling samen met de AI dingen maken, zoals code, documenten en bestanden. Als dit uit staat, legt de AI alleen uit en begeleidt hij. Niet beschikbaar voor leerlingen onder de 10."
+    },
+    "learning_mode_collaborative_enable_prompt": {
+      "text": "Voer de toegangscode van Learning Mode in om samen bouwen weer toe te staan."
+    },
+    "learning_mode_collaborative_confirm_button": {
+      "text": "Samen bouwen toestaan"
+    },
+    "learning_mode_collaborative_enabled": {
+      "text": "Samen bouwen staat aan."
+    },
+    "learning_mode_collaborative_disabled": {
+      "text": "Samen bouwen staat uit."
+    },
+    "learning_mode_guest_notice": {
+      "text": "Zonder account bestaat Learning Mode alleen in deze browser. Browsergegevens wissen of een privévenster gebruiken verwijdert of omzeilt het. Maak een account aan voor een vergrendeling die overal geldt."
+    },
+    "learning_mode_passcode_invalid": {
+      "text": "De toegangscode moet tussen 4 en 128 tekens lang zijn."
     },
     "incognito_explainer_description": {
       "text": "Incognitomodus is alleen van toepassing op nieuwe chats die je aanmaakt. Nieuwe chats die zijn aangemaakt terwijl de incognitomodus actief is, worden niet gesynchroniseerd op apparaten, niet opgeslagen op de server en niet gecached. Deze chats bestaan alleen in je huidige browsersessie. Bestaande chats blijven ongewijzigd."

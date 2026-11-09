@@ -3081,46 +3081,6 @@
         "text": "Oblicz: ile wynosi 15% z 240?"
       }
     },
-    "quick_tips": {
-      "eyebrow": {
-        "text": "Szybka wskazówka"
-      },
-      "cta_learn_more": {
-        "text": "Dowiedz się więcej"
-      },
-      "shorter_chats_equal_better_responses": {
-        "title": {
-          "text": "Krótsze czaty działają lepiej"
-        },
-        "body": {
-          "text": "Otrzymasz lepsze odpowiedzi i zaoszczędzisz kredyty, dzieląc tematy na osobne, krótsze czaty."
-        }
-      },
-      "search_current_info_next_time": {
-        "title": {
-          "text": "Szukaj, gdy liczy się aktualność"
-        },
-        "body": {
-          "text": "Gdy następnym razem będziesz potrzebować aktualnych cen, wydarzeń, wiadomości, szczegółów produktów lub najnowszych faktów, OpenMates może przeszukać dla Ciebie sieć."
-        }
-      },
-      "travel_can_add_local_context": {
-        "title": {
-          "text": "Dodaj więcej kontekstu podróży"
-        },
-        "body": {
-          "text": "Po zaplanowaniu podróży OpenMates może również pomóc w znalezieniu lokalnych miejsc, wydarzeń, noclegów, tras i praktycznych szczegółów dotyczących tej samej wyprawy."
-        }
-      },
-      "use_apps_for_better_results": {
-        "title": {
-          "text": "Wypróbuj aplikację w kolejnym kroku"
-        },
-        "body": {
-          "text": "Gdy wiesz, co chcesz zrobić dalej, aplikacje OpenMates mogą zapewnić AI lepsze narzędzia do zadań takich jak kodowanie, research, wydarzenia, zakupy, pisanie czy planowanie."
-        }
-      }
-    },
     "suggestions": {
       "explore_next": {
         "text": "Co chcesz zbadać dalej?"
@@ -13298,6 +13258,7 @@
     }
   },
   "projects": {},
+  "recommendations": {},
   "reminder": {
     "panel": {
       "title": {
@@ -14303,11 +14264,11 @@
         "follow_up_suggestions_save_error": {
           "text": "Nie udało się zapisać ustawienia sugestii pytań pomocniczych."
         },
-        "quick_tips": {
-          "text": "Szybkie wskazówki"
+        "recommendations": {
+          "text": "Rekomendacje"
         },
-        "quick_tips_description": {
-          "text": "Wyświetla sporadyczne wskazówki dotyczące produktu po odpowiedziach asystenta. Wyłącz tę opcję, jeśli nie chcesz, aby OpenMates generował karty z szybkimi wskazówkami."
+        "recommendations_description": {
+          "text": "Proponuje wspomnienia i przepływy pracy do utworzenia lub zaktualizowania po odpowiedziach asystenta. Nic nie zostanie zapisane, dopóki tego nie zapiszesz."
         },
         "server_region": {
           "text": "Region serwerów"
@@ -14317,15 +14278,6 @@
         },
         "prefer_eu_servers_description": {
           "text": "Włączone (domyślnie): modele AI działają najpierw na serwerach UE, inne regiony tylko jako zapas. Wyłączone: najszybszy, globalnie – OpenMates wybiera najszybszy serwer na świecie."
-        },
-        "quick_tips_enabled": {
-          "text": "Szybkie wskazówki włączone."
-        },
-        "quick_tips_disabled": {
-          "text": "Szybkie wskazówki wyłączone."
-        },
-        "quick_tips_save_error": {
-          "text": "Nie udało się zapisać ustawienia szybkich wskazówek."
         },
         "manual_select_note": {
           "text": "Zawsze możesz ręcznie wybrać model, używając @wzmianki w czacie."
@@ -14502,6 +14454,50 @@
         },
         "enable_model": {
           "text": "Włącz model"
+        }
+      }
+    },
+    "app_settings_memories": {
+      "text": "Wspomnienia",
+      "item_key_required": {
+        "text": "Klucz wpisu jest wymagany"
+      },
+      "item_value_required": {
+        "text": "Wartość wpisu jest wymagana"
+      },
+      "authentication_required": {
+        "text": "Wymagane uwierzytelnienie"
+      },
+      "confirm_delete": {
+        "text": "Czy na pewno chcesz usunąć ten wpis?"
+      },
+      "entry_not_found": {
+        "text": "Wpis nie znaleziony"
+      },
+      "back_to_category": {
+        "text": "Powrót do kategorii"
+      },
+      "deleting": {
+        "text": "Usuwanie..."
+      },
+      "saving": {
+        "text": "Zapisywanie..."
+      },
+      "encrypted_notice": {
+        "text": "Twoje wpisy ustawień i wspomnień są zaszyfrowane, mogą być odczytane tylko przez Twoje urządzenia i nigdy nie są wysyłane do OpenMates do przetwarzania bez Twojej wyraźnej zgody."
+      },
+      "diff_previous_value": {
+        "text": "Poprzednio:"
+      },
+      "diff_not_set": {
+        "text": "Nie ustawiono"
+      },
+      "ideabucket": {
+        "processing_settings": {
+          "text": "Processing settings",
+          "description": {
+            "text": "Default prompt and processing times for IdeaBucket buckets."
+          }
         }
       }
     },
@@ -16333,7 +16329,7 @@
       "text": "Wpisz kod dostępu do Learning Mode, aby wyłączyć go dla tego konta."
     },
     "learning_mode_guest_description": {
-      "text": "Wybierz grupę wiekową ucznia. Dla gości Learning Mode działa tylko w tej sesji przeglądarki i nie ma kodu dostępu."
+      "text": "Wybierz grupę wiekową ucznia i ustaw kod dostępu. Kod jest potrzebny, aby wyłączyć Learning Mode lub ponownie zezwolić na wspólne tworzenie. Pozostaje w tej przeglądarce i nigdy nie jest wysyłany na nasze serwery."
     },
     "learning_mode_active_detail": {
       "text": "Learning Mode jest aktywny dla każdego czatu na tym koncie. Odpowiedzi pozostają nastawione na nauczanie, a wybrane narzędzia są ograniczone."
@@ -16342,10 +16338,10 @@
       "text": "Po włączeniu OpenMates prowadzi ucznia krok po kroku zamiast podawać gotowe odpowiedzi."
     },
     "learning_mode_guest_active_detail": {
-      "text": "Learning Mode jest aktywny dla anonimowych czatów w tej sesji przeglądarki. Utwórz konto, aby zablokować go kodem dostępu na różnych urządzeniach."
+      "text": "Learning Mode jest aktywny dla anonimowych czatów w tej przeglądarce. Pozostaje włączony, dopóki nie zostanie wyłączony kodem dostępu."
     },
     "learning_mode_guest_inactive_detail": {
-      "text": "Goście mogą wypróbować Learning Mode dla anonimowych czatów w tej sesji przeglądarki. Utwórz konto, aby zablokować go kodem dostępu."
+      "text": "Goście mogą korzystać z Learning Mode w anonimowych czatach w tej przeglądarce, chronionego kodem dostępu."
     },
     "learning_mode_age_group_label": {
       "text": "Grupa wiekowa ucznia"
@@ -16385,6 +16381,30 @@
     },
     "learning_mode_disable_button": {
       "text": "Wyłącz Learning Mode"
+    },
+    "learning_mode_collaborative_label": {
+      "text": "Zezwól na wspólne tworzenie"
+    },
+    "learning_mode_collaborative_help": {
+      "text": "Pozwala uczniowi tworzyć rzeczy razem z AI, takie jak kod, dokumenty i pliki. Gdy opcja jest wyłączona, AI tylko wyjaśnia i prowadzi. Niedostępne dla uczniów poniżej 10 lat."
+    },
+    "learning_mode_collaborative_enable_prompt": {
+      "text": "Wpisz kod dostępu do Learning Mode, aby ponownie zezwolić na wspólne tworzenie."
+    },
+    "learning_mode_collaborative_confirm_button": {
+      "text": "Zezwól na wspólne tworzenie"
+    },
+    "learning_mode_collaborative_enabled": {
+      "text": "Wspólne tworzenie jest włączone."
+    },
+    "learning_mode_collaborative_disabled": {
+      "text": "Wspólne tworzenie jest wyłączone."
+    },
+    "learning_mode_guest_notice": {
+      "text": "Bez konta Learning Mode działa tylko w tej przeglądarce. Wyczyszczenie danych przeglądarki lub użycie okna prywatnego usuwa go lub omija. Załóż konto, aby blokada działała wszędzie."
+    },
+    "learning_mode_passcode_invalid": {
+      "text": "Kod dostępu musi mieć od 4 do 128 znaków."
     },
     "incognito_explainer_description": {
       "text": "Tryb incognito dotyczy tylko nowych czatów, które tworzysz. Nowe czaty tworzone w trybie incognito nie są synchronizowane między urządzeniami, nie są przechowywane na serwerze i nie są buforowane. Te czaty istnieją tylko w bieżącej sesji przeglądarki. Istniejące czaty pozostają bez zmian."

@@ -3081,46 +3081,6 @@
         "text": "计算：240的15%是多少？"
       }
     },
-    "quick_tips": {
-      "eyebrow": {
-        "text": "小提示"
-      },
-      "cta_learn_more": {
-        "text": "了解更多"
-      },
-      "shorter_chats_equal_better_responses": {
-        "title": {
-          "text": "较短的对话效果更好"
-        },
-        "body": {
-          "text": "将不同主题拆分为较短的独立对话，可以获得更好的回复并节省额度。"
-        }
-      },
-      "search_current_info_next_time": {
-        "title": {
-          "text": "在需要即时信息时使用搜索"
-        },
-        "body": {
-          "text": "下次当你需要了解当前价格、活动、新闻、产品详情或近期事实时，OpenMates 可以为你搜索网页。"
-        }
-      },
-      "travel_can_add_local_context": {
-        "title": {
-          "text": "添加更多旅行背景信息"
-        },
-        "body": {
-          "text": "在规划行程后，OpenMates 还可以帮助查找同一行程的当地地点、活动、住宿、路线和实用细节。"
-        }
-      },
-      "use_apps_for_better_results": {
-        "title": {
-          "text": "尝试使用应用进行下一步操作"
-        },
-        "body": {
-          "text": "当你明确下一步要做什么时，OpenMates 应用可以为 AI 提供更好的工具，用于编程、研究、活动、购物、写作或规划等任务。"
-        }
-      }
-    },
     "suggestions": {
       "explore_next": {
         "text": "接下来你想探索什么？"
@@ -13298,6 +13258,7 @@
     }
   },
   "projects": {},
+  "recommendations": {},
   "reminder": {
     "panel": {
       "title": {
@@ -14303,11 +14264,11 @@
         "follow_up_suggestions_save_error": {
           "text": "无法保存后续建议设置。"
         },
-        "quick_tips": {
-          "text": "快捷提示"
+        "recommendations": {
+          "text": "推荐"
         },
-        "quick_tips_description": {
-          "text": "在助手回复后偶尔显示产品提示。如果你不希望 OpenMates 生成快捷提示卡片，请关闭此选项。"
+        "recommendations_description": {
+          "text": "在助手回复后，建议创建或更新记忆和工作流。在你保存之前不会保存任何内容。"
         },
         "server_region": {
           "text": "服务器区域"
@@ -14317,15 +14278,6 @@
         },
         "prefer_eu_servers_description": {
           "text": "开启（默认）：AI 模型优先在欧盟服务器上运行，其他地区仅作备用。关闭：最快、全球——OpenMates 在全球范围内选择最快的服务器。"
-        },
-        "quick_tips_enabled": {
-          "text": "快捷提示已启用。"
-        },
-        "quick_tips_disabled": {
-          "text": "快捷提示已禁用。"
-        },
-        "quick_tips_save_error": {
-          "text": "无法保存快捷提示设置。"
         },
         "manual_select_note": {
           "text": "您随时可以在聊天中使用@提及手动选择模型。"
@@ -14502,6 +14454,50 @@
         },
         "enable_model": {
           "text": "启用模型"
+        }
+      }
+    },
+    "app_settings_memories": {
+      "text": "记忆",
+      "item_key_required": {
+        "text": "条目键是必填项"
+      },
+      "item_value_required": {
+        "text": "条目值是必填项"
+      },
+      "authentication_required": {
+        "text": "需要身份验证"
+      },
+      "confirm_delete": {
+        "text": "您确定要删除此条目吗？"
+      },
+      "entry_not_found": {
+        "text": "未找到条目"
+      },
+      "back_to_category": {
+        "text": "返回分类"
+      },
+      "deleting": {
+        "text": "正在删除..."
+      },
+      "saving": {
+        "text": "正在保存..."
+      },
+      "encrypted_notice": {
+        "text": "您的设置和记忆条目已加密，只有您的设备才能读取，未经您的明确同意，绝不会发送给 OpenMates 进行处理。"
+      },
+      "diff_previous_value": {
+        "text": "之前："
+      },
+      "diff_not_set": {
+        "text": "未设置"
+      },
+      "ideabucket": {
+        "processing_settings": {
+          "text": "Processing settings",
+          "description": {
+            "text": "Default prompt and processing times for IdeaBucket buckets."
+          }
         }
       }
     },
@@ -16333,7 +16329,7 @@
       "text": "输入 Learning Mode 密码以在此账号上关闭它。"
     },
     "learning_mode_guest_description": {
-      "text": "选择学习者年龄组。对于访客，Learning Mode 仅在此浏览器会话中持续有效，且没有密码。"
+      "text": "选择学习者年龄组并设置密码。关闭 Learning Mode 或再次允许协作构建时需要输入该密码。密码只保存在此浏览器中，绝不会发送到我们的服务器。"
     },
     "learning_mode_active_detail": {
       "text": "Learning Mode 对此账号上的每个聊天都处于启用状态。回答会优先教学，并且部分工具会受限。"
@@ -16342,10 +16338,10 @@
       "text": "启用后，OpenMates 会逐步引导学习者，而不是给出完整答案。"
     },
     "learning_mode_guest_active_detail": {
-      "text": "Learning Mode 已在此浏览器会话的匿名聊天中启用。创建账号即可用密码在多台设备上锁定它。"
+      "text": "Learning Mode 已在此浏览器的匿名聊天中启用，在使用密码关闭之前会一直保持开启。"
     },
     "learning_mode_guest_inactive_detail": {
-      "text": "访客可以在此浏览器会话中为匿名聊天试用 Learning Mode。创建账号即可用密码锁定它。"
+      "text": "访客可以在此浏览器的匿名聊天中使用 Learning Mode，并用密码保护。"
     },
     "learning_mode_age_group_label": {
       "text": "学习者年龄组"
@@ -16385,6 +16381,30 @@
     },
     "learning_mode_disable_button": {
       "text": "关闭 Learning Mode"
+    },
+    "learning_mode_collaborative_label": {
+      "text": "允许协作构建"
+    },
+    "learning_mode_collaborative_help": {
+      "text": "让学习者与 AI 一起动手创作，例如代码、文档和文件。关闭后，AI 只会讲解和引导。10 岁以下的学习者不可用。"
+    },
+    "learning_mode_collaborative_enable_prompt": {
+      "text": "输入 Learning Mode 密码，即可再次允许协作构建。"
+    },
+    "learning_mode_collaborative_confirm_button": {
+      "text": "允许协作构建"
+    },
+    "learning_mode_collaborative_enabled": {
+      "text": "协作构建已开启。"
+    },
+    "learning_mode_collaborative_disabled": {
+      "text": "协作构建已关闭。"
+    },
+    "learning_mode_guest_notice": {
+      "text": "没有账号时，Learning Mode 只在此浏览器中有效。清除浏览器数据或使用隐私窗口会移除或绕过它。创建账号即可获得处处有效的锁定。"
+    },
+    "learning_mode_passcode_invalid": {
+      "text": "密码长度必须在 4 到 128 个字符之间。"
     },
     "incognito_explainer_description": {
       "text": "隐身模式仅适用于您创建的新聊天。在隐身模式激活时创建的新聊天不会跨设备同步，不会存储在服务器上，也不会被缓存。这些聊天仅存在于您当前的浏览器会话中。现有聊天保持不变。"

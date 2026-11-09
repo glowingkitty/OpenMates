@@ -358,11 +358,13 @@ postprocess_response_tool:
          - **NO POLITICAL PARTIES OR ELECTORAL CONTENT**: NEVER extract a political party, political candidate, electoral campaign, or partisan ideology as a topic — in any country or language. If the conversation touched politics, capture the underlying policy, governance, or societal question instead — never the party or candidate. Examples to avoid: "Democratic Party platform", "Trump immigration policy", "Labour manifesto", "AfD views", "BJP campaign". Rephrase to the underlying concept: "universal healthcare economics" instead of "Labour health policy", "immigration economics" instead of any party's border stance. The goal is educational curiosity, not political advocacy.
           - **NO RELIGIOUS PROMOTION**: NEVER extract topics that promote, advocate for, or proselytize a specific religion or religious movement. Historical, archaeological, cultural, mathematical, or architectural context is allowed — promotional or devotional framing is not. Examples to avoid: "why Islam is the true religion", "Christian salvation message", "join Buddhism", "Hinduism is the answer". Examples that are fine: "Islamic Golden Age mathematics", "Byzantine church architecture", "Buddhist monastery engineering", "ancient temple construction techniques".
 
-      8. **quick_tip_slug**: Select 0 or 1 product quick-tip slug from the available quick_tip_slug values in the system message.
-          - Return a slug only when the tip is timely, concrete, and useful for this exact conversation.
-          - Return an empty string when no quick tip fits.
-          - Do NOT write UI copy. Return only the existing slug.
-          - Do NOT invent slugs.
+      8. **memory_recommendations** and **workflow_recommendations**: Recommend 1 to 3 durable entries of each kind (metadata only: title and summary).
+          - memory_recommendations: durable personal memories worth keeping: facts, preferences or interests the USER stated about themselves (e.g. "Interested in open source conferences in Europe"). Base them only on what the USER said and on the assistant answer to the user. NEVER derive a memory from tool or search results alone, and never from third-party facts the user did not make their own.
+          - workflow_recommendations: repeatable or scheduled automation ideas the turn suggests (e.g. "Weekly alert for new open source conference CFPs").
+          - NEVER include secrets, passwords, API keys, tokens, or private identifiers in any title or summary.
+          - Use action "create" for a new entry. If the "Existing memories" or "Existing workflows" lists in the system message already cover the idea, use action "update" and set ref to that item's alias (m1, m2, ... for memories; w1, w2, ... for workflows). Never invent aliases; ref is only allowed for update.
+          - title is at most 80 characters, summary at most 200 characters, both in the user's system language.
+          - Prefer fewer, higher-value items over padding, but always return at least one of each.
 
       9. **share_cta_text**: Generate one short call-to-open line for shared chat previews.
           - This is NOT a summary. It appears as large text inside a 1200x630 social image, so it must be punchy and readable.
@@ -442,9 +444,48 @@ postprocess_response_tool:
             type: "string"
           minItems: 3
           maxItems: 3
-        quick_tip_slug:
-          type: "string"
-          description: "One existing quick-tip slug selected from the available quick_tip_slug values in the system message, or an empty string if no product tip fits. Never invent slugs and never write UI copy."
+        memory_recommendations:
+          type: "array"
+          description: "1-3 durable personal memories (facts, preferences, interests stated by the USER) worth saving, or updates of an existing memory by alias. Never from tool or search results alone, never secrets."
+          minItems: 1
+          maxItems: 3
+          items:
+            type: "object"
+            properties:
+              action:
+                type: "string"
+                enum: ["create", "update"]
+              ref:
+                type: "string"
+                description: "Alias (m1, m2, ...) of the existing entry from the system message. Only for action update."
+              title:
+                type: "string"
+                maxLength: 80
+              summary:
+                type: "string"
+                maxLength: 200
+            required: ["action", "title", "summary"]
+        workflow_recommendations:
+          type: "array"
+          description: "1-3 repeatable or scheduled workflow ideas suggested by this turn, or updates of an existing workflow by alias. Never secrets."
+          minItems: 1
+          maxItems: 3
+          items:
+            type: "object"
+            properties:
+              action:
+                type: "string"
+                enum: ["create", "update"]
+              ref:
+                type: "string"
+                description: "Alias (w1, w2, ...) of the existing entry from the system message. Only for action update."
+              title:
+                type: "string"
+                maxLength: 80
+              summary:
+                type: "string"
+                maxLength: 200
+            required: ["action", "title", "summary"]
         task_proposals:
           type: "array"
           description: "Optional review-only task proposals. The backend does not persist these; the client must show them for review, encrypt accepted content locally, and commit through /v1/user-tasks. Max 3."
@@ -501,7 +542,8 @@ postprocess_response_tool:
         - "share_cta_text"
         - "updated_chat_title"
         - "daily_inspiration_topic_suggestions"
-        - "quick_tip_slug"
+        - "memory_recommendations"
+        - "workflow_recommendations"
 
 url_correction_tool:
   type: "function"

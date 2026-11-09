@@ -3081,46 +3081,6 @@
         "text": "Çöz: 240'ın yüzde 15'i nedir?"
       }
     },
-    "quick_tips": {
-      "eyebrow": {
-        "text": "Hızlı ipucu"
-      },
-      "cta_learn_more": {
-        "text": "Daha fazla bilgi edin"
-      },
-      "shorter_chats_equal_better_responses": {
-        "title": {
-          "text": "Kısa sohbetler daha iyi sonuç verir"
-        },
-        "body": {
-          "text": "Konuları ayrı ve daha kısa sohbetlere böldüğünde daha iyi yanıtlar alır ve kredi tasarrufu sağlarsın."
-        }
-      },
-      "search_current_info_next_time": {
-        "title": {
-          "text": "Bilgilerin güncelliği önemli olduğunda arama yap"
-        },
-        "body": {
-          "text": "Bir dahaki sefere güncel fiyatlara, etkinliklere, haberlere, ürün detaylarına veya yeni bilgilere ihtiyaç duyduğunda, OpenMates senin için web'de arama yapabilir."
-        }
-      },
-      "travel_can_add_local_context": {
-        "title": {
-          "text": "Daha fazla seyahat bağlamı ekle"
-        },
-        "body": {
-          "text": "Seyahat planladıktan sonra OpenMates; aynı gezi için yerel mekanlar, etkinlikler, konaklama yerleri, rotalar ve pratik detaylar bulmana da yardımcı olabilir."
-        }
-      },
-      "use_apps_for_better_results": {
-        "title": {
-          "text": "Bir sonraki adım için bir uygulama dene"
-        },
-        "body": {
-          "text": "Bir sonraki adımda ne yapmak istediğini bildiğinde, OpenMates uygulamaları; kodlama, araştırma, etkinlikler, alışveriş, yazma veya planlama gibi görevler için yapay zekaya daha iyi araçlar sunabilir."
-        }
-      }
-    },
     "suggestions": {
       "explore_next": {
         "text": "Sonra ne keşfetmek istersin?"
@@ -13298,6 +13258,7 @@
     }
   },
   "projects": {},
+  "recommendations": {},
   "reminder": {
     "panel": {
       "title": {
@@ -14303,11 +14264,11 @@
         "follow_up_suggestions_save_error": {
           "text": "Takip önerileri ayarı kaydedilemedi."
         },
-        "quick_tips": {
-          "text": "Hızlı ipuçları"
+        "recommendations": {
+          "text": "Öneriler"
         },
-        "quick_tips_description": {
-          "text": "Asistan yanıtlarından sonra ara sıra ürün ipuçları gösterir. OpenMates'in hızlı ipucu kartları oluşturmasını istemiyorsan bunu kapat."
+        "recommendations_description": {
+          "text": "Asistan yanıtlarından sonra oluşturulacak veya güncellenecek anıları ve iş akışlarını önerir. Sen kaydedene kadar hiçbir şey kaydedilmez."
         },
         "server_region": {
           "text": "Sunucu bölgesi"
@@ -14317,15 +14278,6 @@
         },
         "prefer_eu_servers_description": {
           "text": "Açık (varsayılan): Yapay zeka modelleri önce AB sunucularında çalışır, diğer bölgeler yalnızca yedek olarak kullanılır. Kapalı: En hızlı, küresel – OpenMates dünya genelinde en hızlı sunucuyu seçer."
-        },
-        "quick_tips_enabled": {
-          "text": "Hızlı ipuçları etkinleştirildi."
-        },
-        "quick_tips_disabled": {
-          "text": "Hızlı ipuçları devre dışı bırakıldı."
-        },
-        "quick_tips_save_error": {
-          "text": "Hızlı ipuçları ayarı kaydedilemedi."
         },
         "manual_select_note": {
           "text": "Sohbette @bahsederek istediğiniz zaman manuel olarak bir model seçebilirsiniz."
@@ -14502,6 +14454,50 @@
         },
         "enable_model": {
           "text": "Modeli etkinleştir"
+        }
+      }
+    },
+    "app_settings_memories": {
+      "text": "Anılar",
+      "item_key_required": {
+        "text": "Giriş anahtarı gereklidir"
+      },
+      "item_value_required": {
+        "text": "Giriş değeri gereklidir"
+      },
+      "authentication_required": {
+        "text": "Kimlik doğrulama gerekli"
+      },
+      "confirm_delete": {
+        "text": "Bu girişi silmek istediğinizden emin misiniz?"
+      },
+      "entry_not_found": {
+        "text": "Giriş bulunamadı"
+      },
+      "back_to_category": {
+        "text": "Kategoriye geri dön"
+      },
+      "deleting": {
+        "text": "Siliniyor..."
+      },
+      "saving": {
+        "text": "Kaydediliyor..."
+      },
+      "encrypted_notice": {
+        "text": "Ayarlarınız ve anı girişleriniz şifrelenmiştir, yalnızca cihazlarınız tarafından okunabilir ve açık onayınız olmadan işleme için hiçbir zaman OpenMates'e gönderilmez."
+      },
+      "diff_previous_value": {
+        "text": "Önceki:"
+      },
+      "diff_not_set": {
+        "text": "Ayarlanmamış"
+      },
+      "ideabucket": {
+        "processing_settings": {
+          "text": "Processing settings",
+          "description": {
+            "text": "Default prompt and processing times for IdeaBucket buckets."
+          }
         }
       }
     },
@@ -16333,7 +16329,7 @@
       "text": "Bu hesapta kapatmak için Learning Mode parolasını girin."
     },
     "learning_mode_guest_description": {
-      "text": "Öğrenci yaş grubunu seçin. Misafirler için Learning Mode yalnızca bu tarayıcı oturumu boyunca sürer ve parolası yoktur."
+      "text": "Öğrenci yaş grubunu seçin ve bir parola belirleyin. Parola, Learning Mode'u kapatmak veya birlikte oluşturmaya yeniden izin vermek için gerekir. Yalnızca bu tarayıcıda kalır ve sunucularımıza asla gönderilmez."
     },
     "learning_mode_active_detail": {
       "text": "Learning Mode bu hesaptaki her sohbet için etkin. Yanıtlar öğretim öncelikli kalır ve seçili araçlar kısıtlanır."
@@ -16342,10 +16338,10 @@
       "text": "Etkinleştirildiğinde OpenMates, tam cevaplar vermek yerine öğrenciyi adım adım yönlendirir."
     },
     "learning_mode_guest_active_detail": {
-      "text": "Learning Mode bu tarayıcı oturumundaki anonim sohbetler için etkin. Cihazlar arasında parola ile kilitlemek için bir hesap oluşturun."
+      "text": "Learning Mode bu tarayıcıdaki anonim sohbetler için etkin. Parolayla kapatılana kadar açık kalır."
     },
     "learning_mode_guest_inactive_detail": {
-      "text": "Misafirler bu tarayıcı oturumunda anonim sohbetler için Learning Mode'u deneyebilir. Parola ile kilitlemek için bir hesap oluşturun."
+      "text": "Misafirler, bu tarayıcıdaki anonim sohbetlerde parolayla korunan Learning Mode'u kullanabilir."
     },
     "learning_mode_age_group_label": {
       "text": "Öğrenci yaş grubu"
@@ -16385,6 +16381,30 @@
     },
     "learning_mode_disable_button": {
       "text": "Learning Mode'u kapat"
+    },
+    "learning_mode_collaborative_label": {
+      "text": "Birlikte oluşturmaya izin ver"
+    },
+    "learning_mode_collaborative_help": {
+      "text": "Öğrencinin yapay zekâ ile birlikte kod, belge ve dosya gibi şeyler oluşturmasına olanak tanır. Kapalıyken yapay zekâ yalnızca açıklar ve yol gösterir. 10 yaş altı öğrenciler için kullanılamaz."
+    },
+    "learning_mode_collaborative_enable_prompt": {
+      "text": "Birlikte oluşturmaya yeniden izin vermek için Learning Mode parolasını girin."
+    },
+    "learning_mode_collaborative_confirm_button": {
+      "text": "Birlikte oluşturmaya izin ver"
+    },
+    "learning_mode_collaborative_enabled": {
+      "text": "Birlikte oluşturma açık."
+    },
+    "learning_mode_collaborative_disabled": {
+      "text": "Birlikte oluşturma kapalı."
+    },
+    "learning_mode_guest_notice": {
+      "text": "Hesap olmadan Learning Mode yalnızca bu tarayıcıda geçerlidir. Tarayıcı verilerini temizlemek veya gizli pencere kullanmak onu kaldırır ya da atlatır. Her yerde geçerli bir kilit için hesap oluşturun."
+    },
+    "learning_mode_passcode_invalid": {
+      "text": "Parola 4 ile 128 karakter arasında olmalıdır."
     },
     "incognito_explainer_description": {
       "text": "Gizli mod yalnızca oluşturduğunuz yeni sohbetlere uygulanır. Gizli mod etkinken oluşturulan yeni sohbetler cihazlar arasında senkronize edilmez, sunucuda saklanmaz ve önbelleğe alınmaz. Bu sohbetler yalnızca mevcut tarayıcı oturumunuzda mevcuttur. Mevcut sohbetler değişmeden kalır."

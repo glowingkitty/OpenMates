@@ -19,11 +19,15 @@ import { storageArchiveFetch } from "../config/api";
   import { associateLoadedMemories } from '../utils/associateLoadedMemories';
   import { projectAuthoringJobs, saveProjectAuthoring } from '../services/projectAuthoringClientService';
   import FollowUpSuggestions from './FollowUpSuggestions.svelte';
-  import ContextSuggestionContainer from './ContextSuggestionContainer.svelte';
-  import QuickTipsCard from './QuickTipsCard.svelte';
+  import ChatRecommendations from './ChatRecommendations.svelte';
+  import ContextEntryEventNotice from './ContextEntryEventNotice.svelte';
+  import SystemMessageNotice from './SystemMessageNotice.svelte';
+  import { RECOMMENDATIONS_IN_BUILD } from '../services/chatRecommendationsPersistence';
+  import { parseContextEntryContent } from '../services/contextEntryEvents';
+  import { contextEntryExists, openContextEntryMemory } from '../services/contextEntryLinks';
+  import type { ContextEntryHistoryEvent } from '../types/recommendations';
   import { fade, slide } from "svelte/transition";
   import type { MessageStatus, ProcessingPhase, ResumeCardImageBubble } from '../types/chat'; // Import global MessageStatus and ProcessingPhase
-  import type { QuickTipDefinition } from '../data/quickTips';
 
   // Define the internal Message type for ChatHistory's own state,
   // tailored for what ChatMessage.svelte needs.
@@ -98,7 +102,6 @@ import { storageArchiveFetch } from "../config/api";
   import { MAX_WIDTH_PREVIEW_THUMBNAIL, proxyImage } from '../utils/imageProxy';
   import { extractSearchResultsFromContent } from './embeds/embedPreviewHydration';
   import { chatDB } from '../services/db';
-  import { chatKeyManager } from '../services/encryption/ChatKeyManager';
   import { authStore } from '../stores/authStore';
   import { userProfile } from '../stores/userProfile';
   import { activeTeamId } from '../stores/teamStore';
@@ -1181,6 +1184,8 @@ import { storageArchiveFetch } from "../config/api";
         if (request?.type === 'app_settings_memories_request') {
           return false;
         }
+        // context_entry events show only once validated, and never in shared/public views.
+        if (isContextEntryCandidate(msg) && !contextEntryEvents[msg.id]) return false;
       }
       return true;
     });
@@ -1577,7 +1582,7 @@ import { storageArchiveFetch } from "../config/api";
     backgroundFrames = null,
     autoplayVideo = false,
     followUpSuggestions = [],
-    quickTipSlugs = [],
+    recommendationsAllowed = false,
     compressionCheckpoints = [],
     hasOlderMessages = false,
     olderMessagesLoading = false,
@@ -1671,7 +1676,8 @@ import { storageArchiveFetch } from "../config/api";
      *  Passed from ActiveChat; shown without input-focus requirement so users
      *  see them immediately without clicking the message input. */
     followUpSuggestions?: string[];
-    quickTipSlugs?: string[];
+    /** Regular owned chat with Recommendations on (not a sub-chat, setting enabled). */
+    recommendationsAllowed?: boolean;
     /** Callback fired when the user clicks a follow-up suggestion. */
     onSuggestionClick?: (suggestion: string) => void;
     onChatNavigate?: (chatId: string) => Promise<void> | void;
@@ -1756,73 +1762,41 @@ import { storageArchiveFetch } from "../config/api";
         || message.original_message?.user_message_id === pendingAssistantResponse.userMessageId)));
 
 
-  let hydratedQuickTipSlugs = $state<string[]>([]);
-  let effectiveQuickTipSlugs = $derived(
-    quickTipSlugs.length > 0 ? quickTipSlugs : hydratedQuickTipSlugs
+  // Recommendations card and context_entry history events exist only in Rust core
+  // builds and only in the owner's view of a regular chat (plan chat-recommendations).
+  let ownedRecommendationsView = $derived(
+    RECOMMENDATIONS_IN_BUILD && canAnnotate && recommendationsAllowed && $authStore.isAuthenticated
+      && !!currentChatId && !isIncognito && !isExampleChat && !isSharedChat && !isPublicChat(currentChatId),
   );
-  // Persisted tips are a login-recovery fallback only; once live props own a chat,
-  // do not revive its previous tips after a later message clears them.
-  let quickTipPropsSeenChatId: string | null = null;
-  let quickTipHydrationAttemptKey: string | null = null;
-  let quickTipKeyReadyVersion = $state(0);
-  let quickTipHydrationGeneration = 0;
-
-  onMount(() => chatKeyManager.onKeyReady((chatId) => {
-    if (chatId === currentChatId) quickTipKeyReadyVersion += 1;
-  }));
-
+  let contextEntryEvents = $state<Record<string, ContextEntryHistoryEvent>>({});
+  // Candidate set key: re-parse only when context_entry rows change, not on every stream chunk.
+  let contextEntryCandidateKey = $derived(
+    ownedRecommendationsView
+      ? candidateDisplayMessages.filter(isContextEntryCandidate).map((msg) => `${msg.id}:${systemContentOf(msg).length}`).join('|')
+      : '',
+  );
   $effect(() => {
-    const isAuthenticated = $authStore.isAuthenticated;
-    const chatId = currentChatId;
-    const lastMessageRole = sourceMessages[sourceMessages.length - 1]?.role;
-    const hydrationAttemptKey = chatId ? `${chatId}:${quickTipKeyReadyVersion}` : null;
-    const generation = ++quickTipHydrationGeneration;
-
-    if (!isAuthenticated) {
-      hydratedQuickTipSlugs = [];
-      quickTipPropsSeenChatId = null;
-      quickTipHydrationAttemptKey = null;
-      return;
-    }
-    if (quickTipSlugs.length > 0) {
-      hydratedQuickTipSlugs = [];
-      quickTipPropsSeenChatId = chatId ?? null;
-      return;
-    }
-    if (
-      !chatId ||
-      lastMessageRole !== 'assistant' ||
-      isPublicChat(chatId) ||
-      quickTipPropsSeenChatId === chatId ||
-      quickTipHydrationAttemptKey === hydrationAttemptKey
-    ) {
-      hydratedQuickTipSlugs = [];
-      return;
-    }
-    hydratedQuickTipSlugs = [];
-    quickTipHydrationAttemptKey = hydrationAttemptKey;
-
-    void (async () => {
-      try {
-        const storedChat = await chatDB.getChat(chatId);
-        if (!storedChat?.encrypted_quick_tip_slugs) return;
-        const chatKey = await chatKeyManager.getKey(chatId);
-        if (!chatKey) return;
-        const { decryptArrayWithChatKey } = await import('../services/cryptoService');
-        const slugs = await decryptArrayWithChatKey(storedChat.encrypted_quick_tip_slugs, chatKey) || [];
-        if (
-          generation === quickTipHydrationGeneration &&
-          $authStore.isAuthenticated &&
-          currentChatId === chatId &&
-          quickTipSlugs.length === 0
-        ) {
-          hydratedQuickTipSlugs = slugs;
-        }
-      } catch (error) {
-        console.error(`[ChatHistory] Failed to hydrate quick tips for chat ${chatId}:`, error);
-      }
-    })();
+    if (!contextEntryCandidateKey) { contextEntryEvents = {}; return; }
+    const candidates = untrack(() => candidateDisplayMessages.filter(isContextEntryCandidate));
+    let stale = false;
+    void Promise.all(candidates.map(async (msg) => [msg.id, await parseContextEntryContent(systemContentOf(msg))] as const))
+      .then((parsed) => {
+        if (stale) return;
+        contextEntryEvents = Object.fromEntries(parsed.filter((entry): entry is readonly [string, ContextEntryHistoryEvent] => entry[1] !== null));
+      })
+      .catch((error) => console.error('[ChatHistory] Could not read context entry events', error));
+    return () => { stale = true; };
   });
+
+  function systemContentOf(msg: InternalMessage): string {
+    const raw = msg.original_message?.content ?? msg.content;
+    return typeof raw === 'string' ? raw : '';
+  }
+
+  /** Cheap pre-check only; the Rust core validates the event. */
+  function isContextEntryCandidate(msg: InternalMessage): boolean {
+    return msg.role === 'system' && systemContentOf(msg).includes('"context_entry"');
+  }
 
   let lastSourceSyncChatKey = $state<string | undefined>(undefined);
 
@@ -2003,8 +1977,8 @@ import { storageArchiveFetch } from "../config/api";
     !isCurrentlyStreaming
   );
 
-  let showQuickTipsInHistory = $derived(
-    effectiveQuickTipSlugs.length > 0 &&
+  let showRecommendationsInHistory = $derived(
+    ownedRecommendationsView &&
     lastAssistantMessageId !== null &&
     !isCurrentlyStreaming
   );
@@ -2017,10 +1991,6 @@ import { storageArchiveFetch } from "../config/api";
   let assistantFeedbackKey = $derived(
     currentChatId && lastAssistantMessageId ? `${currentChatId}:${lastAssistantMessageId}` : null
   );
-
-  function handleQuickTipAction(tip: QuickTipDefinition): void {
-    dispatch('quickTipAction', tip);
-  }
 
   $effect(() => {
     const submittedForCurrentMessage = assistantFeedbackKey !== null && submittedAssistantFeedbackKeys.includes(assistantFeedbackKey);
@@ -3475,6 +3445,12 @@ import { storageArchiveFetch } from "../config/api";
                       animate:flip={{ duration: (msg.status === 'streaming' || msg.status === 'processing') ? 0 : 250 }}>
                     {#if agentContext}
                       <AgentContextMessage event={agentContext} onAuthoring={startContextAuthoring} jobs={Object.values($projectAuthoringJobs)} onSaveJob={saveProjectAuthoring} />
+                    {:else if msg.role === 'system' && contextEntryEvents[msg.id]}
+                      <div class="context-entry-row">
+                        <SystemMessageNotice testId="context-entry-notice">
+                          <ContextEntryEventNotice event={contextEntryEvents[msg.id]} checkExists={contextEntryExists} onOpenMemory={openContextEntryMemory} />
+                        </SystemMessageNotice>
+                      </div>
                     {:else}
                     <ChatMessage
                         role={msg.role}
@@ -3626,18 +3602,10 @@ import { storageArchiveFetch } from "../config/api";
             
             <!-- Follow-up suggestions shown after the last assistant message.
                  Visible without requiring the user to focus the message input first. -->
-            {#if showQuickTipsInHistory && !timelineSection}
-                <div class="quick-tips-wrapper" in:fade={{ duration: 200 }}>
-                    <QuickTipsCard
-                        slugs={effectiveQuickTipSlugs}
-                        category={chatCategory}
-                        on:action={(event) => handleQuickTipAction(event.detail)}
-                    />
+            {#if showRecommendationsInHistory && currentChatId && !timelineSection}
+                <div class="recommendations-wrapper" in:fade={{ duration: 200 }}>
+                    <ChatRecommendations chatId={currentChatId} category={chatCategory ?? null} />
                 </div>
-            {/if}
-
-            {#if currentChatId && !timelineSection && !isPublicChat(currentChatId)}
-                <ContextSuggestionContainer chatId={currentChatId} />
             {/if}
 
             {#if showFollowUpSuggestionsInHistory && onSuggestionClick && !timelineSection}
@@ -3929,7 +3897,13 @@ import { storageArchiveFetch } from "../config/api";
 
   /* Follow-up suggestions wrapper — shown inline below the chat history, aligned
      to the right as quick user-response actions rather than assistant content. */
-  .quick-tips-wrapper,
+  .context-entry-row {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .recommendations-wrapper,
   .follow-up-suggestions-wrapper {
     padding: 8px 0 14px;
     padding-inline-start: 20px;
@@ -4059,7 +4033,7 @@ import { storageArchiveFetch } from "../config/api";
   }
 
   @media (max-width: 500px) {
-    .quick-tips-wrapper,
+    .recommendations-wrapper,
     .follow-up-suggestions-wrapper {
       padding-inline-start: 10px;
       padding-inline-end: 10px;

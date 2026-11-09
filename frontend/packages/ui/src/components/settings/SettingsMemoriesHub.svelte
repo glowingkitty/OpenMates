@@ -21,7 +21,7 @@
     import { allAppsInitialFilter } from '../../stores/allAppsFilterStore';
 
     import MemoriesEditor from './MemoriesEditor.svelte';
-    import { defaultMemoryEditorService } from '../../services/memoryEditorService';
+    import { defaultMemoryEditorService, recommendationMemoryEditorService } from '../../services/memoryEditorService';
     import { memoryDraftSuggestion } from '../../stores/memoryDraftSuggestionStore';
 
     /** Route: settings_memories or settings_memories/<memory id> (deep link). */
@@ -36,6 +36,12 @@
                 load_mode: $memoryDraftSuggestion.load_mode, valid_from: $memoryDraftSuggestion.valid_from, valid_until: $memoryDraftSuggestion.valid_until,
                 is_new: $memoryDraftSuggestion.is_new, base_document: $memoryDraftSuggestion.base_document }
             : null,
+    );
+    // A draft opened from a chat Recommendation resolves it when saved.
+    let memoriesService = $derived(
+        deepLinkSuggestion && $memoryDraftSuggestion?.origin
+            ? recommendationMemoryEditorService($memoryDraftSuggestion.origin)
+            : defaultMemoryEditorService,
     );
 
     const dispatch = createEventDispatcher();
@@ -157,7 +163,7 @@
     {#if isAuthenticated}
         <div class="private-memories" data-testid="settings-memories-private">
             <SettingsSectionHeading title={$text('memories.private_memories')} icon="app" />
-            <MemoriesEditor source="personal" projectId={null} service={defaultMemoryEditorService}
+            <MemoriesEditor source="personal" projectId={null} service={memoriesService}
                 initialMemoryId={deepLinkMemoryId} suggestion={deepLinkSuggestion} />
         </div>
     {/if}

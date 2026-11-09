@@ -339,7 +339,7 @@ struct UserProfile: Codable, Identifiable {
     // Third request-tier default returned by the canonical session profile.
     var defaultAiModelMostDemanding: String? = nil
     let followUpSuggestionsEnabled: Bool?
-    let quickTipsEnabled: Bool?
+    let recommendationsEnabled: Bool?
 }
 
 // MARK: - Passkey

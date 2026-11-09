@@ -531,7 +531,7 @@ export async function sendPostProcessingMetadataImpl(
 	encrypted_chat_summary: string,
 	encrypted_chat_tags: string,
 	encrypted_top_recommended_apps: string = "",
-	encrypted_quick_tip_slugs: string = "",
+	encrypted_recommendations: string = "",
 	encrypted_updated_title: string = "",
 	encrypted_share_cta_text: string = "",
 	encrypted_chat_key: string = ""
@@ -551,7 +551,7 @@ export async function sendPostProcessingMetadataImpl(
 			encrypted_chat_summary?: string;
 			encrypted_chat_tags?: string;
 			encrypted_top_recommended_apps_for_chat?: string;
-			encrypted_quick_tip_slugs?: string;
+			encrypted_recommendations?: string; // chat-key encrypted ChatRecommendationsState
 			encrypted_title?: string; // OPE-265: Updated title from post-processing
 			encrypted_share_cta_text?: string;
 			encrypted_chat_key?: string; // OPE-314: Include for server-side key validation
@@ -582,8 +582,8 @@ export async function sendPostProcessingMetadataImpl(
 				encrypted_top_recommended_apps;
 		}
 
-		if (encrypted_quick_tip_slugs) {
-			payload.encrypted_quick_tip_slugs = encrypted_quick_tip_slugs;
+		if (encrypted_recommendations) {
+			payload.encrypted_recommendations = encrypted_recommendations;
 		}
 
 		// OPE-265: Include updated title from post-processing if the conversation drifted
@@ -614,6 +614,27 @@ export async function sendPostProcessingMetadataImpl(
 		);
 		throw error; // Don't swallow errors
 	}
+}
+
+/**
+ * Persist only the chat's encrypted Recommendations state (dismiss or save in the
+ * Recommendations card). The server accepts chat_id + encrypted_recommendations alone.
+ * Plan: docs/plans/chat-recommendations/plan.yml (wire_contract.client_storage)
+ */
+export async function sendChatRecommendationsStateImpl(
+	serviceInstance: ChatSynchronizationService,
+	chat_id: string,
+	encrypted_recommendations: string,
+	encrypted_chat_key: string
+): Promise<void> {
+	if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
+		throw new Error("recommendations_sync_offline");
+	}
+	await webSocketService.sendMessage("update_post_processing_metadata", {
+		chat_id,
+		encrypted_recommendations,
+		...(encrypted_chat_key ? { encrypted_chat_key } : {})
+	});
 }
 
 /**

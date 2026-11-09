@@ -192,7 +192,7 @@ export async function handleInitialSyncResponseImpl(
           encrypted_chat_key: serverChat.encrypted_chat_key, // Add encrypted chat key for decryption
           encrypted_icon: serverChat.encrypted_icon, // Add encrypted icon for decryption
           encrypted_category: serverChat.encrypted_category, // Add encrypted category for decryption
-          encrypted_quick_tip_slugs: serverChat.encrypted_quick_tip_slugs,
+          encrypted_recommendations: serverChat.encrypted_recommendations,
           encrypted_auto_speak_response: serverChat.encrypted_auto_speak_response,
           encrypted_focus_phase_state: serverChat.encrypted_focus_phase_state,
           encrypted_shared_short_url: serverChat.encrypted_shared_short_url,

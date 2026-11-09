@@ -735,8 +735,8 @@ async function performAuthCheck(
             data.user.default_app_skill_models ?? {},
           follow_up_suggestions_enabled:
             data.user.follow_up_suggestions_enabled !== false,
-          quick_tips_enabled:
-            data.user.quick_tips_enabled !== false,
+          recommendations_enabled:
+            data.user.recommendations_enabled !== false,
           encrypted_settings: data.user.encrypted_settings ?? null,
         });
         // Apply server dark mode preference to the theme store.

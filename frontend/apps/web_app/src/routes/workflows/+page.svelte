@@ -52,10 +52,13 @@
 		workflowGraphReady
 	} from '@repo/ui/components/workflows/workflowBuilder.ts';
 	import WorkspacePromptComposer from '@repo/ui/components/workspace/WorkspacePromptComposer.svelte';
-	import WorkflowPendingPreview from '@repo/ui/components/workflows/WorkflowPendingPreview.svelte';
+	import WorkflowEditorWorkspace from '@repo/ui/components/workflows/WorkflowEditorWorkspace.svelte';
+	import WorkflowAuthoringStatus from '@repo/ui/components/workflows/WorkflowAuthoringStatus.svelte';
+	import WorkflowUnsavedGuard from '@repo/ui/components/workflows/WorkflowUnsavedGuard.svelte';
 	import WorkflowBindingReview from '@repo/ui/components/workflows/WorkflowBindingReview.svelte';
 	import { downloadWorkflowFile, isWorkflowFileName, readWorkflowFile } from '@repo/ui/services/workflowFileService';
-	import { committedWorkflows, getWorkflowInstruction, stopWorkflowInstruction, streamWorkflowInstruction, undoWorkflowInstruction, workflowNodeChanges, type WorkflowAcceptedPreview, type WorkflowInputChange, type WorkflowInputSession, type WorkflowInputStreamEvent } from '@repo/ui/services/workflowInputService';
+	import { committedWorkflows, getWorkflowInstruction, stopWorkflowInstruction, undoWorkflowInstruction, workflowNodeChanges, type WorkflowAcceptedPreview, type WorkflowInputChange, type WorkflowInputSession } from '@repo/ui/services/workflowInputService';
+	import { runWorkflowAuthoring } from '@repo/ui/components/workflows/workflowAuthoringRun';
 	import WorkflowRunHistory from '@repo/ui/components/workflows/WorkflowRunHistory.svelte';
 	import WorkflowCompletionStatus from '@repo/ui/components/workflows/WorkflowCompletionStatus.svelte';
 	import WorkflowVersionHistory from '@repo/ui/components/workflows/WorkflowVersionHistory.svelte';
@@ -118,7 +121,7 @@
 	let editorDescription = $state('');
 	let editorGraph = $state<WorkflowGraph | null>(null);
 	let editorDirty = $state(false);
-	let workflowGraphRef = $state<WorkflowGraphRenderer | null>(null);
+	let workflowGraphRef = $state<WorkflowEditorWorkspace | null>(null);
 	let editorHasPendingDraft = $state(false);
 	let identityResetSignal = $state(0);
 	let hydratedEditorWorkflow: WorkflowDetail | null = null;
@@ -1024,77 +1027,52 @@
 			}
 		};
 		try {
-			let session: WorkflowInputSession;
-			if (existingSessionId) {
-				session = await getWorkflowInstruction(existingSessionId);
-				if (!stillCurrent()) return;
-			} else {
-				const key = interruptedSubmission?.instruction === instruction && interruptedSubmission.workflowId === workflowId
+			let idempotencyKey = '';
+			let signal = new AbortController().signal;
+			if (!existingSessionId) {
+				idempotencyKey = interruptedSubmission?.instruction === instruction && interruptedSubmission.workflowId === workflowId
 					? interruptedSubmission.key : crypto.randomUUID();
-				interruptedSubmission = { instruction, workflowId, key };
+				interruptedSubmission = { instruction, workflowId, key: idempotencyKey };
 				const controller = new AbortController();
 				streamController = controller;
+				signal = controller.signal;
 				authoringPhase = 'planning';
-				let startedSessionId: string | null = null;
-				const onEvent = (event: WorkflowInputStreamEvent) => {
-					if (!stillCurrent()) return;
-					if (event.type === 'started') {
-						startedSessionId = event.session_id;
-						pendingSaveSessionId = event.session_id;
-						sessionStorage.setItem(pendingKey, JSON.stringify({ sessionId: event.session_id, workflowId }));
-						if (stopRequested) void acknowledgeStop(event.session_id);
-					} else if (event.type === 'progress') {
-						authoringPhase = event.phase;
-						if (event.operation && Number.isInteger(event.workflow_count) && (event.workflow_count ?? 0) > 0) {
-							authoringScope = { operation: event.operation, workflowCount: event.workflow_count! };
-							if (!workflowId && (event.operation !== 'create' || event.workflow_count !== 1)) {
-								provisionalFullscreen = null;
-							} else if (event.operation === 'create' && event.workflow_count === 1 && !workflowId && !provisionalDismissed) {
-								provisionalFullscreen = streamPreviewWorkflows.find(item => item.id === 'provisional-0') ?? provisionalFullscreen;
-							}
+			}
+			const settled = await runWorkflowAuthoring({ instruction, workflowId, existingSessionId, idempotencyKey, signal }, {
+				isCurrent: stillCurrent,
+				isStopRequested: () => stopRequested,
+				onStarted: (sessionId) => {
+					pendingSaveSessionId = sessionId;
+					sessionStorage.setItem(pendingKey, JSON.stringify({ sessionId, workflowId }));
+					if (stopRequested) void acknowledgeStop(sessionId);
+				},
+				onProgress: (event) => {
+					authoringPhase = event.phase;
+					if (event.operation && Number.isInteger(event.workflow_count) && (event.workflow_count ?? 0) > 0) {
+						authoringScope = { operation: event.operation, workflowCount: event.workflow_count! };
+						if (!workflowId && (event.operation !== 'create' || event.workflow_count !== 1)) {
+							provisionalFullscreen = null;
+						} else if (event.operation === 'create' && event.workflow_count === 1 && !workflowId && !provisionalDismissed) {
+							provisionalFullscreen = streamPreviewWorkflows.find(item => item.id === 'provisional-0') ?? provisionalFullscreen;
 						}
-					} else if (event.type === 'preview' && event.provisional && event.validated && event.graph.version === 2) {
-						showAcceptedPreview(event);
 					}
-				};
-				try {
-					session = await streamWorkflowInstruction(instruction, workflowId, onEvent, controller.signal, key);
-				} catch (streamError) {
-					if (!stillCurrent() || (controller.signal.aborted && !stopRequested)) throw streamError;
-					if (controller.signal.aborted && stopRequested && startedSessionId) {
-						session = await getWorkflowInstruction(startedSessionId);
-					} else if (!startedSessionId) {
-						// Reuse the same key: the server may have accepted the first request.
-						try {
-							session = await streamWorkflowInstruction(instruction, workflowId, onEvent, controller.signal, key);
-						} catch (retryError) {
-							if (!startedSessionId) throw retryError;
-							session = await getWorkflowInstruction(startedSessionId);
-						}
-					} else {
-						session = await getWorkflowInstruction(startedSessionId);
-					}
+				},
+				onPreview: showAcceptedPreview,
+				onStreamSettled: () => { streamController = null; },
+				onPending: (pending) => {
+					pendingSaveSessionId = pending.session_id;
+					pendingSaveMessage = stopRequested ? 'Stopping after the current step...' : pending.message || $text('workflows.builder.ai_saving');
+					pendingPreviewWorkflow = pending.preview_workflow ?? pendingPreviewWorkflow;
+					if (pending.preview_workflows?.length) streamPreviewWorkflows = pending.preview_workflows;
+					for (const preview of pending.partial_previews ?? []) showAcceptedPreview(preview);
+					if (!stopRequested) authoringPhase = 'saving';
+					pendingPreviewTargetId = workflowId ?? null;
+					authoringAssumptions = pending.assumptions ?? authoringAssumptions;
+					sessionStorage.setItem(pendingKey, JSON.stringify({ sessionId: pending.session_id, workflowId }));
 				}
-				if (!stillCurrent()) return;
-				streamController = null;
-			}
-			let pendingChecks = 0;
-			while (session.status === 'running' || session.status === 'queued' || session.status === 'saving') {
-				if (!stillCurrent()) return;
-				pendingSaveSessionId = session.session_id;
-				pendingSaveMessage = stopRequested ? 'Stopping after the current step...' : session.message || $text('workflows.builder.ai_saving');
-				pendingPreviewWorkflow = session.preview_workflow ?? pendingPreviewWorkflow;
-				if (session.preview_workflows?.length) streamPreviewWorkflows = session.preview_workflows;
-				for (const preview of session.partial_previews ?? []) showAcceptedPreview(preview);
-				if (!stopRequested) authoringPhase = 'saving';
-				pendingPreviewTargetId = workflowId ?? null;
-				authoringAssumptions = session.assumptions ?? authoringAssumptions;
-				sessionStorage.setItem(pendingKey, JSON.stringify({ sessionId: session.session_id, workflowId }));
-				await new Promise(resolve => setTimeout(resolve, pendingChecks++ < 2 ? 500 : 1500));
-				if (!stillCurrent()) return;
-				session = await getWorkflowInstruction(session.session_id);
-			}
-			if (!stillCurrent()) return;
+			});
+			if (!settled) return;
+			const session = settled;
 			pendingSaveSessionId = null;
 			pendingSaveMessage = null;
 			pendingPreviewWorkflow = null;
@@ -1527,6 +1505,13 @@
 		}
 	}
 
+	function authoringPhaseMessage(phase: typeof authoringPhase): string {
+		if (phase === 'planning') return 'Planning workflow...';
+		if (phase === 'retrying_node') return 'Correcting this step...';
+		if (phase === 'validating') return 'Validating workflow...';
+		return $text('workflows.builder.ai_saving');
+	}
+
 	function updateEditorGraph(graph: WorkflowGraph): void {
 		editorGraph = graph;
 		editorDirty = true;
@@ -1796,55 +1781,36 @@
 												onRestored={handleWorkflowVersionRestored}
 											>
 												{#if editorGraph}
-													<div data-testid="workflow-editor">
-													{#if partialNotice && partialWorkflowIds.includes(selectedWorkflow.id)}<p class="workflow-ai-partial-warning" data-testid="workflow-ai-partial-warning" role="status">{partialNotice}</p>{/if}
-													{#if authoringReminder || (authoringAssumptionsWorkflowId === selectedWorkflow.id && authoringAssumptions.length) || createdAiWorkflowIds.includes(selectedWorkflow.id)}
-														<div class="workflow-authoring-info" data-testid="workflow-authoring-info" role="status">
-															{#if createdAiWorkflowIds.includes(selectedWorkflow.id)}<p>{$text('workflows.builder.ai_created_disabled')}</p>{/if}
-															{#if authoringReminder}<p data-testid="workflow-authoring-reminder">{authoringReminder}</p>{/if}
-															{#if authoringAssumptionsWorkflowId === selectedWorkflow.id}{#each authoringAssumptions as assumption}<p>{assumption}</p>{/each}{/if}
-															{#if createdAiWorkflowIds.includes(selectedWorkflow.id) && createdAiSession?.undo_available}<button type="button" data-testid="workflow-ai-created-undo" disabled={saving} onclick={() => void undoCreatedAiChanges()}>{$text('workflows.builder.ai_undo')}</button>{/if}
-														</div>
-													{/if}
-											{#if aiChange && !activeEditorPreview && aiChange.workflow_id === selectedWorkflow.id}
-														<div class="workflow-ai-changes" data-testid="workflow-ai-changes" role="status">
-															<strong>{$text('workflows.builder.ai_changes_saved')}</strong>
-															{#if aiChange.removed_nodes.length}<p>{$text('workflows.builder.ai_removed')} {aiChange.removed_nodes.map(node => node.title).join(', ')}</p>{/if}
-															{#if aiChange.added_node_ids.length}<p>{aiChange.added_node_ids.length} {$text('workflows.builder.ai_added_nodes')}</p>{/if}
-															{#if aiChange.edited_node_ids.length}<p>{aiChange.edited_node_ids.length} {$text('workflows.builder.ai_edited_nodes')}</p>{/if}
-															<button type="button" data-testid="workflow-ai-undo" disabled={saving || !aiSession?.undo_available} onclick={() => void undoAiChanges()}>{$text('workflows.builder.ai_undo')}</button>
-															{#if undoConflict}<button type="button" data-testid="workflow-ai-open-history" onclick={() => document.querySelector<HTMLButtonElement>('[data-testid="workflow-version-selector"]')?.click()}>{$text('workflows.version_history.title')}</button>{/if}
-														</div>
-													{/if}
-											{#if activeEditorPreview && pendingPreviewTargetId === selectedWorkflow.id}
-												<WorkflowPendingPreview workflow={activeEditorPreview} mode="editor" phase={authoringPhase ?? 'saving'} acceptedNodeCount={acceptedNodeCounts[activeEditorPreview.id] ?? 0} changes={workflowNodeChanges(selectedWorkflow.graph.nodes, activeEditorPreview.graph.nodes)}/>
-													{:else}
-													<WorkflowGraphRenderer
+													{@const selectedId = selectedWorkflow.id}
+													{@const createdByAi = createdAiWorkflowIds.includes(selectedId)}
+													<WorkflowEditorWorkspace
 														bind:this={workflowGraphRef}
+														workflowId={selectedId}
 														graph={editorGraph}
-														aiAddedNodeIds={aiChange?.workflow_id === selectedWorkflow.id ? aiChange.added_node_ids : []}
-														aiEditedNodeIds={aiChange?.workflow_id === selectedWorkflow.id ? aiChange.edited_node_ids : []}
-															workflowId={selectedWorkflow.id}
-																onChange={updateEditorGraph}
-																onSave={saveNodeGraph}
-																onDraftStateChange={(hasDraft) => { editorHasPendingDraft = hasDraft; }}
-																/>
-													{/if}
-											{#if hasTimeTrigger && !activeEditorPreview}
-															<div class="workflow-test-now-row">
-																<button
-																	type="button"
-																	class="workflow-test-now"
-																	data-testid="workflow-template-test-now"
-																	disabled={saving || editorDirty || !savedRunReady}
-																	onclick={() => void runSelectedWorkflow()}
-																>
-																	<span class="workflow-icon icon-play size-20" aria-hidden="true"></span>
-																	{$text('workflows.builder.test_now')}
-																</button>
-															</div>
-														{/if}
-													</div>
+														{saving}
+														preview={activeEditorPreview && pendingPreviewTargetId === selectedId ? { workflow: activeEditorPreview, phase: authoringPhase ?? 'saving', acceptedNodeCount: acceptedNodeCounts[activeEditorPreview.id] ?? 0, baseGraph: selectedWorkflow.graph } : null}
+														partialNotice={partialNotice && partialWorkflowIds.includes(selectedId) ? partialNotice : null}
+														info={{
+															createdDisabled: createdByAi,
+															reminder: authoringReminder,
+															assumptions: authoringAssumptionsWorkflowId === selectedId ? authoringAssumptions : [],
+															onUndoCreated: createdByAi && createdAiSession?.undo_available ? () => void undoCreatedAiChanges() : null
+														}}
+														review={aiChange && !activeEditorPreview && aiChange.workflow_id === selectedId ? {
+															change: aiChange,
+															savedLabel: $text('workflows.builder.ai_changes_saved'),
+															undoAvailable: !!aiSession?.undo_available,
+															undoConflict,
+															onUndo: () => void undoAiChanges(),
+															onOpenHistory: () => document.querySelector<HTMLButtonElement>('[data-testid="workflow-version-selector"]')?.click()
+														} : null}
+														testNow={hasTimeTrigger && !activeEditorPreview ? { disabled: saving || editorDirty || !savedRunReady, label: $text('workflows.builder.test_now'), onRun: () => void runSelectedWorkflow() } : null}
+														aiAddedNodeIds={aiChange?.workflow_id === selectedId ? aiChange.added_node_ids : []}
+														aiEditedNodeIds={aiChange?.workflow_id === selectedId ? aiChange.edited_node_ids : []}
+														onChange={updateEditorGraph}
+														onSave={saveNodeGraph}
+														onDraftStateChange={(hasDraft) => { editorHasPendingDraft = hasDraft; }}
+													/>
 												{/if}
 											</WorkflowVersionHistory>
 										</div>
@@ -1865,7 +1831,7 @@
 									submitTestId="workflow-ai-edit-submit" micTestId="workflow-ai-edit-mic" onSubmit={() => undefined}
 									onMicClick={() => undefined} recording={false}
 									onRecordingClose={() => undefined}/>
-									{#if saving}<div class="workflow-ai-pending" data-testid="workflow-ai-pending" role="status"><span>{pendingSaveMessage || $text('workflows.builder.processing')}</span><button type="button" data-testid="workflow-ai-stop" disabled={stopRequested} onclick={() => void stopAuthoring()}>{stopRequested ? $text('workflows.builder.ai_stopping') : $text('workflows.builder.stop')}</button></div>{/if}
+									{#if saving}<WorkflowAuthoringStatus message={pendingSaveMessage || $text('workflows.builder.processing')} stop={{ requested: stopRequested, label: stopRequested ? $text('workflows.builder.ai_stopping') : $text('workflows.builder.stop'), onStop: () => void stopAuthoring() }} check={null}/>{/if}
 							</div>
 						{:else if selectedWorkflow && !displayedRunsView && editorGraph}
 							<div class="workflow-ai-composer" data-testid="workflow-ai-editor-composer">
@@ -1878,48 +1844,22 @@
 									submitDictationOnFinish={true}
 									onUntranscribedAudio={handleWorkflowUntranscribedAudio}
 									onRecordingClose={() => { voiceTarget = null; }}/>
-								{#if pendingSaveSessionId || authoringPhase}<div class="workflow-ai-pending" data-testid="workflow-ai-pending" role="status"><span>{pendingSaveMessage || (authoringPhase === 'planning' ? 'Planning workflow...' : authoringPhase === 'retrying_node' ? 'Correcting this step...' : authoringPhase === 'validating' ? 'Validating workflow...' : $text('workflows.builder.ai_saving'))}</span>{#if pendingSaveSessionId && saving}<button type="button" data-testid="workflow-ai-stop" disabled={stopRequested} onclick={() => void stopAuthoring()}>{stopRequested ? 'Stopping...' : 'Stop'}</button>{/if}{#if pendingSaveSessionId && !saving}<button type="button" onclick={resumePendingSave}>{$text('workflows.builder.ai_check_status')}</button>{/if}</div>{/if}
+								{#if pendingSaveSessionId || authoringPhase}<WorkflowAuthoringStatus
+									message={pendingSaveMessage || authoringPhaseMessage(authoringPhase)}
+									stop={pendingSaveSessionId && saving ? { requested: stopRequested, label: stopRequested ? 'Stopping...' : 'Stop', onStop: () => void stopAuthoring() } : null}
+									check={pendingSaveSessionId && !saving ? { label: $text('workflows.builder.ai_check_status'), onCheck: resumePendingSave } : null}/>{/if}
 							</div>
 						{/if}
 					</section>
 				{/if}
 
 				{#if pendingNavigation}
-					<div
-						class="unsaved-guard-backdrop"
-						data-testid="workflow-unsaved-guard"
-						role="presentation"
-					>
-						<div
-							class="unsaved-guard"
-							role="dialog"
-							aria-modal="true"
-							aria-labelledby="workflow-unsaved-title"
-							use:focusTrap={{ onEscape: () => (pendingNavigation = null) }}
-						>
-							<h2 id="workflow-unsaved-title">Save your changes?</h2>
-							<p>This Workflow has unsaved Template changes.</p>
-							<div>
-								<button
-									type="button"
-									data-testid="workflow-guard-stay"
-									onclick={() => (pendingNavigation = null)}>Stay</button
-								>
-								<button
-									type="button"
-									data-testid="workflow-guard-discard"
-									onclick={() => void discardAndContinueNavigation()}>Discard</button
-								>
-								<button
-									type="button"
-									class="primary"
-									data-testid="workflow-guard-save"
-									disabled={saving}
-									onclick={() => void saveAndContinueNavigation()}>Save</button
-								>
-							</div>
-						</div>
-					</div>
+					<WorkflowUnsavedGuard
+						{saving}
+						onStay={() => (pendingNavigation = null)}
+						onDiscard={() => void discardAndContinueNavigation()}
+						onSave={() => void saveAndContinueNavigation()}
+					/>
 				{/if}
 
 				{#if canRenderWorkflowData && blankCreatorOpen}
@@ -1993,13 +1933,8 @@
 	.workflow-ai-assumptions{max-width:42rem;margin:.75rem auto;text-align:center;color:var(--color-font-secondary);font-size:var(--font-size-small)}
 	.workflow-ai-partial-warning{max-width:56rem;margin:.75rem auto;padding:.75rem 1rem;border:1px solid var(--color-warning, var(--color-button-primary));border-radius:.75rem;background:var(--color-grey-10);color:var(--color-font-primary)}
 	.workflow-ai-pending{display:flex;justify-content:center;align-items:center;gap:.75rem;max-width:42rem;margin:.75rem auto;color:var(--color-font-secondary)}
-	.workflow-ai-pending button{border:1px solid var(--color-button-primary);border-radius:.7rem;padding:.35rem .7rem;background:transparent;color:var(--color-primary);font:inherit;cursor:pointer}
-	.workflow-ai-changes{box-sizing:border-box;width:min(42rem,calc(100% - 2rem));margin:1rem auto;padding:1rem 1.25rem;border:1px solid var(--color-button-primary);border-radius:1rem;background:var(--color-grey-10);color:var(--color-font-primary)}
 	.workflow-authoring-info{box-sizing:border-box;width:min(42rem,calc(100% - 2rem));margin:1rem auto;padding:.75rem 1rem;border-radius:var(--radius-8,20px);color:var(--color-font-secondary);background:var(--color-grey-10);font-size:var(--font-size-small,.875rem)}
 	.workflow-authoring-info p{margin:.25rem 0}
-	.workflow-authoring-info button{margin-top:.5rem;border:0;border-radius:.7rem;padding:.5rem .8rem;background:var(--color-button-primary);color:var(--color-font-button);font:inherit;cursor:pointer}
-	.workflow-ai-changes p{margin:.45rem 0}
-	.workflow-ai-changes button{margin-top:.5rem;border:0;border-radius:.7rem;padding:.55rem .9rem;background:var(--color-button-primary);color:var(--color-font-button);font:inherit;cursor:pointer}
 	.workflows-route-state {
 		min-height: calc(100vh - 90px);
 		display: grid;
@@ -2172,47 +2107,6 @@
 		padding: 0;
 	}
 
-	.unsaved-guard-backdrop {
-		position: fixed;
-		z-index: var(--z-index-modal, 1000);
-		inset: 0;
-		display: grid;
-		place-items: center;
-		padding: var(--spacing-6);
-		background: color-mix(in srgb, var(--color-grey-100) 48%, transparent);
-	}
-
-	.unsaved-guard {
-		display: grid;
-		width: min(430px, 100%);
-		gap: var(--spacing-5);
-		padding: var(--spacing-8);
-		border-radius: var(--radius-10);
-		color: var(--color-font-primary);
-		background: var(--color-grey-0);
-		box-shadow: var(--shadow-xl);
-	}
-
-	.unsaved-guard h2,
-	.unsaved-guard p {
-		margin: 0;
-	}
-	.unsaved-guard p {
-		color: var(--color-font-secondary);
-	}
-	.unsaved-guard div {
-		display: grid;
-		grid-template-columns: repeat(3, minmax(0, 1fr));
-		gap: var(--spacing-3);
-	}
-	.unsaved-guard button {
-		background: var(--color-grey-20);
-	}
-	.unsaved-guard .primary {
-		color: var(--color-font-button);
-		background: var(--color-button-primary);
-	}
-
 	.blank-creator-backdrop {
 		position: fixed;
 		z-index: var(--z-index-modal, 1000);
@@ -2270,35 +2164,6 @@
 	.blank-creator .primary {
 		color: var(--color-font-button);
 		background: var(--color-button-primary);
-	}
-
-	.workflow-test-now-row {
-		display: flex;
-		justify-content: center;
-		padding: 0 1rem 2rem;
-	}
-
-	.workflow-test-now {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		gap: 0.55rem;
-		min-width: 12rem;
-		min-height: 3rem;
-		padding: 0.6rem 1.4rem;
-		border: 0;
-		border-radius: 1rem;
-		background: var(--color-button-primary);
-		color: var(--color-font-button);
-		box-shadow: var(--shadow-sm);
-		font: inherit;
-		font-weight: 650;
-		cursor: pointer;
-	}
-
-	.workflow-test-now:disabled {
-		opacity: 0.55;
-		cursor: not-allowed;
 	}
 
 	.empty-detail {
