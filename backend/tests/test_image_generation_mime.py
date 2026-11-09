@@ -164,7 +164,7 @@ async def test_svg_names_and_provider_match_child_result_index_and_completion(mo
     result = await producer._async_generate_image(task, "images", "generate", {
         "prompt": "Sunflower botanical illustration", "user_id": "unit-owner",
         "embed_id": "11111111-1111-4111-8111-111111111111",
-        "full_model_reference": "google/unit-image-model", "output_filetype": "svg",
+        "full_model_reference": "google/unit-image-model", "output_filetype": "svg", "vector_engine": "recraft",
         "external_request": True,
     })
     child = send_child.await_args.kwargs["content"]
@@ -173,3 +173,42 @@ async def test_svg_names_and_provider_match_child_result_index_and_completion(mo
     assert generated_media_graph.media_completion_result(result)["filename"] == result["filename"]
     assert result["embed_ref"] == "generated-images-111111111111"
     producer.generate_image_google.assert_not_awaited()
+
+
+# contract-test: direct surface=rest_api assertions=images-generate.vector.skill-authors-svg,images-generate.vector.token-metered-billing
+@pytest.mark.asyncio
+async def test_svg_is_authored_by_default_and_charged_from_reported_tokens(monkeypatch):
+    from backend.apps.images.vector_author import VectorAuthorResult, VectorUsage
+
+    svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10" fill="green"/></svg>'
+    task, _, _, send_child = prepare_producer(monkeypatch, b"unused")
+    recraft = AsyncMock()
+    author = AsyncMock(return_value=VectorAuthorResult(
+        svg=svg, model_id="openai/gpt-6.1-sol", attempts=2, review_status="accepted",
+        usage=[VectorUsage("drawing", "openai/gpt-6.1-sol", 300, 900), VectorUsage("review", "typesafe/jev-1.14", 900, 0)],
+    ))
+    prices = {
+        "openai/gpt-6.1-sol": {"tokens": {"input": {"per_credit_unit": 100}, "output": {"per_credit_unit": 30}}},
+        "typesafe/jev-1.14": {"tokens": {"input": {"per_credit_unit": 9000}, "output": {"per_credit_unit": 0}}},
+    }
+    monkeypatch.setattr(producer, "generate_vector_recraft", recraft)
+    monkeypatch.setattr(producer, "author_svg", author)
+    monkeypatch.setattr(producer, "_fetch_model_pricing_config", AsyncMock(side_effect=lambda ref, _prefix: prices.get(ref)))
+
+    result = await producer._async_generate_image(task, "images", "generate", {
+        "prompt": "Sunflower icon", "user_id": "unit-owner",
+        "embed_id": "11111111-1111-4111-8111-111111111111",
+        "full_model_reference": "google/unit-image-model", "output_filetype": "svg",
+        "external_request": True,
+    })
+
+    recraft.assert_not_awaited()
+    assert author.await_args.kwargs["prompt"] == "Sunflower icon"
+    assert author.await_args.kwargs["on_draft"] is None  # no chat to stream drafts to
+    child = send_child.await_args.kwargs["content"]
+    assert child["filename"].endswith(".svg") and result["status"] != "failed"
+    assert (child["vector_review"], child["vector_attempts"]) == ("accepted", 2)
+    charge = producer._charge_image_generation_credits.await_args.kwargs
+    # 3 + 30 + 0.1 exact credits, rounded down once.
+    assert charge["metered_credits"] == 33
+    assert (charge["metered_usage"]["input_tokens"], charge["metered_usage"]["output_tokens"]) == (1200, 900)

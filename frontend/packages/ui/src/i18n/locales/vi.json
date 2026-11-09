@@ -6438,6 +6438,12 @@
       "loading": {
         "text": "Đang tải hình ảnh..."
       },
+      "checking": {
+        "text": "Đang kiểm tra kết quả…"
+      },
+      "correcting": {
+        "text": "Đang cải thiện…"
+      },
       "prompt_label": {
         "text": "Lời nhắc"
       },

@@ -6438,6 +6438,12 @@
       "loading": {
         "text": "Afbeelding laden..."
       },
+      "checking": {
+        "text": "Resultaat controleren…"
+      },
+      "correcting": {
+        "text": "Verbeteren…"
+      },
       "prompt_label": {
         "text": "Prompt"
       },

@@ -145,7 +145,7 @@ specifications:
     version: 10
     status: draft
     path: features/ai-model-routing
-    fingerprint: 40c2d534cb9c35217ac3b5cda6ed7c4a206acd792df3ad05ee459b3f41258b00
+    fingerprint: ef5ca60950485c6d853d2f6c35341b3b37ad32bd6aaea6677bcb2d1c088deb9b
     required_applies_to:
     - rest_api
     - cli
@@ -262,6 +262,18 @@ specifications:
     status: draft
     path: features/app-skills/hosting-search-domains
     fingerprint: e84ae2e9676e69c9ad0793a404db98d2ded7df2778ee67140474e4798279eb72
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  feature.app-skill.images-generate:
+    version: 1
+    status: draft
+    path: features/app-skills/images-generate
+    fingerprint: 32c40286c6f0537a6bba9e74dde9c04d2eb1a82c16e96d01ee613db13676c9ae
     required_applies_to:
     - rest_api
     - cli
@@ -2910,7 +2922,7 @@ assertions:
     specification: feature.ai-model-routing@10
     specification_id: feature.ai-model-routing
     type: behavior
-    fingerprint: c313e4095ea575856e6a6503ca8baefa8182bde473dadf07303e6844fedc3374
+    fingerprint: d870a1c1572978ad3ddff86eb79796d31bff3e31f97cc1b1c5dac7c695459501
     required_applies_to:
     - rest_api
     - cli
@@ -3018,7 +3030,7 @@ assertions:
     specification: feature.ai-model-routing@10
     specification_id: feature.ai-model-routing
     type: parity
-    fingerprint: 277d67eadd443cd7fd0d2c335b83cc315ddb77a779581513d04450a7c4fbe769
+    fingerprint: 6fc743bea4099e986ab2d288b15d3070bf2289fefb88c29a91a205b0bf3b8d57
     required_applies_to:
     - rest_api
     - cli
@@ -4445,6 +4457,66 @@ assertions:
     specification_id: feature.app-skill.hosting-search-domains
     type: parity
     fingerprint: 78b9d80c7aa43a765194a759dd85f09d89bd6413eb886245639968a7a017d51b
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  images-generate.vector.skill-authors-svg:
+    specification: feature.app-skill.images-generate@1
+    specification_id: feature.app-skill.images-generate
+    type: behavior
+    fingerprint: f81757d66e38691707400b155ebe86faf1247bf0070da997dc242d2cf4c6fbf9
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  images-generate.vector.references-vector-and-pixel:
+    specification: feature.app-skill.images-generate@1
+    specification_id: feature.app-skill.images-generate
+    type: behavior
+    fingerprint: de9d147072c0e01a38f6e43d7280b6569a3cda690eb83fec2b6cdbbce6e38e5f
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  images-generate.vector.validated-reviewed-corrected:
+    specification: feature.app-skill.images-generate@1
+    specification_id: feature.app-skill.images-generate
+    type: invariant
+    fingerprint: aa1959b96ebd4d89a36012f75fc62bf75082f9586a367c36750f6e178b79a11f
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  images-generate.vector.progressive-drafts:
+    specification: feature.app-skill.images-generate@1
+    specification_id: feature.app-skill.images-generate
+    type: behavior
+    fingerprint: a2bdcf4d59e574ce1ab4bca75e264d7363ec311b606a6b1a59c4d7a35fb1631e
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  images-generate.vector.token-metered-billing:
+    specification: feature.app-skill.images-generate@1
+    specification_id: feature.app-skill.images-generate
+    type: invariant
+    fingerprint: 04a3c8f9a44f708e5627918ba13db893b17b846d018a6fbdb9dabdaffb94024e
     required_applies_to:
     - rest_api
     - cli

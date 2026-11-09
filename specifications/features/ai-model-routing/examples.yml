@@ -257,13 +257,18 @@ reasoning_recommendation:
     then: Each model receives its own highest supported HIGH level and the verified evidence is retained. The recommendation survives continuation; it cannot replace Alice's explicit model selection or override a fixed-effort variant. Missing or invalid effort preserves valid routing and the tier default without another preprocessing call.
 
 use_case_routing:
-  - id: vector-graphic-request-on-auto
+  - id: registered-use-case-on-auto
     assertion_ids: [ai-model-routing.use-case.specialised-automatic-models]
-    given: Alice leaves her model preferences on Auto and asks for a coffee shop logo as SVG, then asks to change its colors.
-    when: Preprocessing recognises the vector graphic use case for both requests.
-    then: Both answers come from GPT-6.1 Sol with Claude Haiku 5.5 and Gemini 3.8 Flash as fallbacks, and the answer limit is the model's own maximum fitted to her credits.
+    given: A use case with an ordered model list is registered, and Alice leaves her model preferences on Auto.
+    when: Preprocessing recognises that use case for her request.
+    then: The answer comes from the first usable model of that list with the others as fallbacks, and the answer limit is the model's own maximum fitted to her credits.
   - id: explicit-choice-or-no-use-case-keeps-routing
     assertion_ids: [ai-model-routing.use-case.specialised-automatic-models]
     given: Bob selected an exact chat model, Carol saved a model for Simple requests, and Dana asks an ordinary question on Auto.
-    when: Bob and Carol ask for an SVG icon and Dana's request matches no use case or the answer is missing.
+    when: Their requests are routed and Dana's matches no use case or the answer is missing.
     then: Bob and Carol keep their chosen models, and Dana gets ordinary tier routing.
+  - id: empty-registry-asks-nothing
+    assertion_ids: [ai-model-routing.use-case.specialised-automatic-models]
+    given: No use case is registered.
+    when: Erin asks for an SVG logo on Auto.
+    then: The use-case question is not part of preprocessing, the ordinary routed model answers and calls images.generate to draw the logo.

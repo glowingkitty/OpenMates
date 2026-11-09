@@ -7,6 +7,10 @@ fallbacks); the tier's own recovery chain stays behind it. An exact chat model
 or a saved tier preference always wins, so this applies to automatic
 selection only.
 
+No use case is registered at present: vector graphics are handled by the
+``images-generate`` app skill, so the main chat model stays the normal tier
+default and the decision question is not asked while the registry is empty.
+
 Adding a use case means adding one ``UseCaseProfile`` entry: the decision
 question, validation and routing are all derived from the registry.
 
@@ -39,28 +43,13 @@ class UseCaseProfile:
     thinking_level: str | None = None
 
 
-USE_CASE_PROFILES: dict[str, UseCaseProfile] = {
-    profile.id: profile for profile in (
-        UseCaseProfile(
-            id="vector_graphic",
-            criterion=(
-                "The assistant must itself write or modify vector graphic code (SVG): creating a logo, icon, "
-                "illustration, diagram-like drawing, pattern or other graphic as SVG/vector, or changing an "
-                "existing SVG. Not for photos or pixel images, and not for converting an uploaded image to vector."
-            ),
-            models=(
-                "openai/gpt-6.1-sol",
-                "anthropic/claude-haiku-5-5",
-                "google/gemini-3.8-flash",
-            ),
-            thinking_level="MEDIUM",
-        ),
-    )
-}
+USE_CASE_PROFILES: dict[str, UseCaseProfile] = {}
 
 
-def use_case_question() -> dict[str, Any]:
-    """Build the optional decision question from the registry."""
+def use_case_question() -> dict[str, Any] | None:
+    """Build the optional decision question from the registry, or None when it is empty."""
+    if not USE_CASE_PROFILES:
+        return None
     criteria = {NO_USE_CASE: "None of the other options clearly applies. This is the answer for most requests."}
     criteria.update({profile.id: profile.criterion for profile in USE_CASE_PROFILES.values()})
     return {

@@ -6438,6 +6438,12 @@
       "loading": {
         "text": "טוען תמונה..."
       },
+      "checking": {
+        "text": "בודק את התוצאה…"
+      },
+      "correcting": {
+        "text": "משפר…"
+      },
       "prompt_label": {
         "text": "פרומפט"
       },

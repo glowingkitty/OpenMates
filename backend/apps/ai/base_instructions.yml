@@ -186,8 +186,8 @@ preprocess_request_tool:
           enum: ["low", "medium", "high", "extra_high"]
         use_case:
           type: "string"
-          description: "Optional specialised use case. vector_graphic: the assistant must itself write or modify vector graphic (SVG) code, not photos or pixel images. Otherwise none."
-          enum: ["none", "vector_graphic"]
+          description: "Optional specialised use case. No specialised use case is registered at present; always none."
+          enum: ["none"]
         task_area:
           type: "string"
           description: "Primary task area for model selection."

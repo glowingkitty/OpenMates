@@ -6438,6 +6438,12 @@
       "loading": {
         "text": "画像を読み込み中..."
       },
+      "checking": {
+        "text": "結果を確認中…"
+      },
+      "correcting": {
+        "text": "改善中…"
+      },
       "prompt_label": {
         "text": "プロンプト"
       },

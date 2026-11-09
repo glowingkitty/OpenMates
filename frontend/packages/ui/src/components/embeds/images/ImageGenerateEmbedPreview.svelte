@@ -26,6 +26,8 @@
   import { imageGenerationAttribution } from './imageGenerationMetadata';
   import { getProviderIconUrl } from '../../../data/providerIcons';
   import { hasMediaEncryptionMetadata } from '../../../services/encryption/mediaEncryption';
+  import SvgEmbedImage from '../code/SvgEmbedImage.svelte';
+  import { EMPTY_SVG_DRAFT, readSvgDraft, shouldShowSvgDraft, svgDraftStageLabelKey, type SvgDraftStage, type SvgDraftState } from './svgDraft';
   
   /**
    * Image embed content structure from the backend
@@ -88,6 +90,10 @@
     inputEmbedIds?: string[];
     /** Direct preview image URL — bypasses S3 decrypt for store examples */
     previewImageUrl?: string;
+    /** Initial partial/complete SVG source while a vector image is being drawn */
+    svgDraft?: string;
+    /** Initial drawing stage */
+    draftStage?: SvgDraftStage;
   }
 
   let {
@@ -107,6 +113,8 @@
     onFullscreen,
     inputEmbedIds: inputEmbedIdsProp,
     previewImageUrl: previewImageUrlProp,
+    svgDraft: svgDraftProp,
+    draftStage: draftStageProp,
   }: Props = $props();
   
   // Local reactive state — updated via handleEmbedDataUpdated callback
@@ -122,6 +130,7 @@
   let localError = $state<string | undefined>(undefined);
   let localTaskId = $state<string | undefined>(undefined);
   let localInputEmbedIds = $state<string[] | undefined>(undefined);
+  let svgDraftState = $state<SvgDraftState>(EMPTY_SVG_DRAFT);
 
   // Decrypted thumbnail URLs for input (reference) images — keyed by embed ID
   // S3 keys retained from the cache so we can release on unmount
@@ -180,6 +189,7 @@
       localError = errorProp;
       localTaskId = taskIdProp;
       localInputEmbedIds = inputEmbedIdsProp;
+      svgDraftState = { draft: svgDraftProp ?? '', stage: draftStageProp, attempt: undefined };
       // Direct image URL for store examples — bypasses S3 decrypt
       if (previewImageUrlProp && !imageUrl) imageUrl = previewImageUrlProp;
     }
@@ -196,6 +206,8 @@
   let aesKey = $derived(localAesKey);
   let aesNonce = $derived(localAesNonce);
   let inputEmbedIds = $derived(localInputEmbedIds);
+  let showSvgDraft = $derived(shouldShowSvgDraft(status, svgDraftState.draft));
+  let draftStageLabelKey = $derived(svgDraftStageLabelKey(svgDraftState.stage));
   
   // Human-readable model name resolved from model ID via frontend metadata
   let modelDisplayName = $derived(imageGenerationAttribution(model, localProvider));
@@ -298,6 +310,12 @@
     }
     if (data.status !== 'processing') {
       storeResolved = true;
+      // Finished/error/cancelled: drop the live drawing so the final rendering shows
+      svgDraftState = EMPTY_SVG_DRAFT;
+    } else if (data.decodedContent) {
+      // A shorter draft replaces the old one (correction round restarted the drawing)
+      const next = readSvgDraft(data.decodedContent);
+      if (next.draft) svgDraftState = next;
     }
 
     // Update content from decoded data
@@ -342,7 +360,7 @@
         <!-- Finished state with loaded image: show decrypted image with model info overlay -->
         <div class="image-content">
           <div class="image-container">
-            <img src={imageUrl} alt={prompt || 'Generated image'} class="preview-image" />
+            <img src={imageUrl} alt={prompt || 'Generated image'} class="preview-image" data-testid="image-generate-preview-image" />
           </div>
 
         </div>
@@ -351,6 +369,19 @@
         <div class="image-error-small">
           <span class="error-icon-small">!</span>
           <span>{imageError}</span>
+        </div>
+      {:else if showSvgDraft}
+        <!-- Vector author is still drawing: render the partial SVG progressively -->
+        <div
+          class="svg-draft"
+          data-testid="image-generate-svg-draft"
+          data-stage={svgDraftState.stage}
+          data-attempt={svgDraftState.attempt}
+        >
+          <SvgEmbedImage code={svgDraftState.draft} title={prompt || skillName} streaming={true} />
+          {#if draftStageLabelKey}
+            <span class="svg-draft-stage" data-testid="image-generate-svg-draft-stage">{$text(draftStageLabelKey)}</span>
+          {/if}
         </div>
       {:else if status !== 'error'}
         <!-- Processing state OR finished-but-still-loading-image: show the prompt text -->
@@ -403,6 +434,37 @@
   
   
   
+  /* Live SVG drawing: contained and centered on a letterbox surface like the finished image */
+  .svg-draft {
+    position: relative;
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-media-letterbox);
+  }
+
+  .svg-draft :global(.svg-embed-image) {
+    width: 100%;
+    height: 100%;
+  }
+
+  .svg-draft-stage {
+    position: absolute;
+    left: var(--spacing-4);
+    bottom: var(--spacing-4);
+    padding: var(--spacing-1) var(--spacing-4);
+    border-radius: var(--radius-2);
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    font-size: var(--font-size-tiny);
+    line-height: 1.3;
+    pointer-events: none;
+  }
+
   /* Skeleton lines fallback when prompt is not yet available */
   .skeleton-lines {
     display: flex;

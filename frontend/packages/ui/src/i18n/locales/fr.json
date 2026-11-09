@@ -6465,6 +6465,12 @@
       "loading": {
         "text": "Chargement de l'image..."
       },
+      "checking": {
+        "text": "Vérification du résultat…"
+      },
+      "correcting": {
+        "text": "Amélioration…"
+      },
       "prompt_label": {
         "text": "Invite"
       },

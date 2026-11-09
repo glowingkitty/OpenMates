@@ -11,7 +11,7 @@ summary: >
 
 scope:
   includes:
-    - Use-case model routing that selects specialised automatic answer models with fallbacks for recognised request kinds such as vector graphics.
+    - Use-case model routing that selects specialised automatic answer models with fallbacks for registered request kinds.
     - Independent preprocessing reasoning recommendations resolved through verified model and hosting-server controls.
     - Current, affordable automatic recovery and a consistent answer-only retry after suppressed model-generated tool protocol.
     - Bounded recovery from missing required preprocessing tool output without changing the selected answer model.
@@ -291,7 +291,7 @@ assertions:
     depends_on: [examples.answer_recovery]
   - id: ai-model-routing.use-case.specialised-automatic-models
     type: behavior
-    must: Preprocessing may recognise at most one registered specialised use case per request in its existing pass; vector graphic creation or modification is the first one. On automatic selection a recognised use case answers with that use case's ordered model list (GPT-6.1 Sol, then Claude Haiku 5.5, then Gemini 3.8 Flash for vector graphics) ahead of the tier recovery chain, honoring disabled models, providers, servers and input capabilities. An exact chat model or a saved tier preference always wins, a missing, weak or unknown answer keeps ordinary tier routing, and a use case never changes the output limit, which stays the selected model's maximum fitted to available credits.
+    must: Preprocessing may recognise at most one registered specialised use case per request in its existing pass. No use case is registered at present (vector graphics are drawn inside the images.generate skill, so the chat model stays the ordinary routed model), and while the registry is empty the use-case question is not asked. On automatic selection a recognised use case answers with that use case's ordered model list ahead of the tier recovery chain, honoring disabled models, providers, servers and input capabilities. An exact chat model or a saved tier preference always wins, a missing, weak or unknown answer keeps ordinary tier routing, and a use case never changes the output limit, which stays the selected model's maximum fitted to available credits.
     depends_on: [models.TierModelPreference.default_profiles, examples.use_case_routing]
   - id: ai-model-routing.reasoning.preprocessor-recommendation
     type: behavior

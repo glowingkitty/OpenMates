@@ -13,6 +13,7 @@ import logging
 import asyncio
 import uuid
 import json
+import math
 import hashlib
 import base64
 import os
@@ -47,8 +48,14 @@ from backend.shared.providers.recraft.recraft import (
     RECRAFT_RASTER_MODEL_MAX,
 )
 from backend.core.api.app.services.s3.config import get_bucket_name
+from backend.apps.images.vector_author import (
+    VECTOR_AUTHOR_MODELS,
+    VectorUsage,
+    author_svg,
+)
 from backend.shared.python_utils.billing_utils import (
     MINIMUM_CREDITS_CHARGED,
+    calculate_credits_from_tokens,
     calculate_total_credits,
     ensure_credit_headroom,
 )
@@ -94,12 +101,71 @@ async def _fetch_model_pricing_config(model_ref: Optional[str], log_prefix: str)
     return None
 
 
+VECTOR_ENGINE_LLM = "llm"
+VECTOR_ENGINE_RECRAFT = "recraft"
+# Typical drawing: short request in, one SVG plus reasoning out. Only used for the
+# balance check before work starts; the charge itself uses the reported tokens.
+VECTOR_AUTHOR_ESTIMATE_INPUT_TOKENS = 1_500
+VECTOR_AUTHOR_ESTIMATE_OUTPUT_TOKENS = 8_000
+
+
+def _resolve_vector_engine(value: Any) -> str:
+    """SVG output is written by the LLM vector author unless Recraft is asked for."""
+    return VECTOR_ENGINE_RECRAFT if str(value or "").lower() == VECTOR_ENGINE_RECRAFT else VECTOR_ENGINE_LLM
+
+
+async def _estimate_vector_author_credits(log_prefix: str) -> int:
+    pricing_config = await _fetch_model_pricing_config(VECTOR_AUTHOR_MODELS[0], log_prefix)
+    if not pricing_config:
+        raise RuntimeError(f"No pricing for vector author model {VECTOR_AUTHOR_MODELS[0]}")
+    return max(MINIMUM_CREDITS_CHARGED, calculate_total_credits(
+        pricing_config=pricing_config,
+        input_tokens=VECTOR_AUTHOR_ESTIMATE_INPUT_TOKENS,
+        output_tokens=VECTOR_AUTHOR_ESTIMATE_OUTPUT_TOKENS,
+    ))
+
+
+async def _vector_author_credits(usage: List[VectorUsage], log_prefix: str) -> Tuple[int, Dict[str, Any]]:
+    """Price every provider call of one drawing from its reported tokens.
+
+    The exact (fractional) credits of all calls are summed and rounded down once,
+    so several small calls are not each rounded up. A call without usage or
+    without a price is an error, never free: the drawing is not delivered
+    unbilled and the user is not charged a guessed amount.
+    """
+    raw_credits = 0.0
+    pricing_by_model: Dict[str, Any] = {}
+    steps: List[Dict[str, Any]] = []
+    for entry in usage:
+        if entry.input_tokens + entry.output_tokens <= 0:
+            raise RuntimeError(f"Vector author call '{entry.step}' on {entry.model_id} reported no token usage")
+        if entry.model_id not in pricing_by_model:
+            pricing_by_model[entry.model_id] = await _fetch_model_pricing_config(entry.model_id, log_prefix)
+        pricing_config = pricing_by_model[entry.model_id]
+        pricing_rules = (pricing_config or {}).get("pricing", pricing_config)
+        if not pricing_rules or "tokens" not in pricing_rules:
+            raise RuntimeError(f"No token pricing for vector author model {entry.model_id}")
+        step_credits = calculate_credits_from_tokens(entry.input_tokens, entry.output_tokens, pricing_rules)
+        raw_credits += step_credits
+        steps.append({"step": entry.step, "model_used": entry.model_id, "input_tokens": entry.input_tokens,
+                      "output_tokens": entry.output_tokens, "credits": round(step_credits, 4)})
+    details = {
+        "input_tokens": sum(entry.input_tokens for entry in usage),
+        "output_tokens": sum(entry.output_tokens for entry in usage),
+        "provider_calls": steps,
+    }
+    return max(MINIMUM_CREDITS_CHARGED, math.floor(raw_credits)), details
+
+
 def _resolve_image_billing_model_ref(
     model_ref: Optional[str],
     output_filetype: str,
     quality: str,
     has_reference_images: bool,
+    vector_engine: str = VECTOR_ENGINE_RECRAFT,
 ) -> Optional[str]:
+    if output_filetype == "svg" and vector_engine == VECTOR_ENGINE_LLM:
+        return VECTOR_AUTHOR_MODELS[0]
     if output_filetype == "svg":
         recraft_model_id = RECRAFT_MODEL_MAX if quality == "max" else RECRAFT_MODEL_DEFAULT
         return f"recraft/{recraft_model_id}"
@@ -138,9 +204,14 @@ async def _charge_image_generation_credits(
     log_prefix: str,
     team_id: Optional[str] = None,
     event_id: Optional[str] = None,
+    metered_credits: Optional[int] = None,
+    metered_usage: Optional[Dict[str, Any]] = None,
 ) -> None:
     """
     Charge a flat per-image credit fee for a successful image generation.
+
+    ``metered_credits`` replaces the flat fee for token-metered engines (the LLM
+    vector author); ``metered_usage`` is recorded with the charge.
     
     Fetches the provider pricing config via internal API and charges 1 unit
     (= 1 image). Pricing is defined in provider YAML files:
@@ -154,10 +225,12 @@ async def _charge_image_generation_credits(
         if INTERNAL_API_SHARED_TOKEN:
             headers["X-Internal-Service-Token"] = INTERNAL_API_SHARED_TOKEN
 
-        pricing_config = await _fetch_model_pricing_config(model_ref, log_prefix)
+        pricing_config = None if metered_credits is not None else await _fetch_model_pricing_config(model_ref, log_prefix)
 
         # Calculate credits: flat fee per image (1 unit = 1 image)
-        if pricing_config:
+        if metered_credits is not None:
+            credits_charged = metered_credits
+        elif pricing_config:
             credits_charged = calculate_total_credits(
                 pricing_config=pricing_config,
                 units_processed=1
@@ -201,6 +274,7 @@ async def _charge_image_generation_credits(
                 "model_used": model_ref,  # Full model reference (e.g., "bfl/flux-2-klein")
                 "server_provider": resolved_provider_name,  # Provider display name (e.g., "BFL", "Google")
                 "server_region": resolved_region,  # Server region (e.g., "US")
+                **(metered_usage or {}),
             }
         }
 
@@ -512,6 +586,7 @@ async def _decrypt_reference_images(
     embed_ids: List[str],
     user_vault_key_id: str,
     log_prefix: str,
+    svg_sources: Optional[List[str]] = None,
 ) -> Tuple[List[bytes], List[str]]:
     """
     Fetch and decrypt reference images from the Redis embed cache for use as
@@ -604,6 +679,14 @@ async def _decrypt_reference_images(
                     logger.warning(f"{embed_log} TOON decoded to unexpected type. Skipping.")
                     continue
 
+                # An SVG kept as a code embed is itself the editable source: no file to download.
+                embedded_code = content.get("code")
+                if (svg_sources is not None and isinstance(embedded_code, str)
+                        and "<svg" in embedded_code.lower()):
+                    svg_sources.append(embedded_code)
+                    logger.info(f"{embed_log} Using SVG code embed as editable vector source")
+                    continue
+
                 vault_wrapped_aes_key = content.get("vault_wrapped_aes_key")
                 s3_base_url = content.get("s3_base_url")
                 aes_nonce_b64 = content.get("aes_nonce")
@@ -691,6 +774,21 @@ async def _decrypt_reference_images(
                 mime_type = f"image/{detected_format}" if detected_format != "jpg" else "image/jpeg"
                 image_bytes_list.append(plaintext_bytes)
                 mime_types_list.append(mime_type)
+
+                # A vector reference is edited from its SVG source text; the raster
+                # preview above still feeds the input safety check.
+                original = files.get("original") or {}
+                if (svg_sources is not None and original.get("format") == "svg"
+                        and original.get("s3_key") and original["s3_key"] != s3_key):
+                    async with httpx.AsyncClient(timeout=60) as client:
+                        svg_resp = await client.get(
+                            download_url,
+                            params={"bucket_key": "chatfiles", "s3_key": original["s3_key"]},
+                            headers={"X-Internal-Service-Token": shared_token},
+                        )
+                    svg_resp.raise_for_status()
+                    svg_sources.append(aesgcm.decrypt(nonce_bytes, svg_resp.content, None).decode("utf-8"))
+                    logger.info(f"{embed_log} Loaded SVG source of vector reference")
                 logger.info(
                     f"{embed_log} Decrypted reference image: {len(plaintext_bytes)} bytes "
                     f"(MIME: {mime_type})"
@@ -750,6 +848,57 @@ def generate_image_draft_task(self, app_id: str, skill_id: str, arguments: Dict[
     )) if arguments.get("requests") else asyncio.run(_async_generate_image(self, app_id, skill_id, arguments))
 
 
+class _VectorDraftPublisher:
+    """Sends the SVG written so far to the client so the picture builds up while it is drawn.
+
+    Drafts go out as ``processing`` updates of the result embed and are never
+    stored: only the finished drawing is encrypted, uploaded and persisted.
+    """
+
+    def __init__(self, task: BaseServiceTask, *, arguments: Dict[str, Any], embed_id: str, prompt: Any,
+                 aspect_ratio: str, user_id: str, chat_id: Optional[str], message_id: Optional[str],
+                 log_prefix: str) -> None:
+        from backend.core.api.app.services.embed_service import EmbedService
+        self._embed_service = EmbedService(
+            cache_service=task._cache_service,
+            directus_service=task._directus_service,
+            encryption_service=task._encryption_service,
+        )
+        self._embed_id = embed_id
+        self._parent_embed_id = arguments.get("producer_embed_id") or embed_id
+        self._base_content = {
+            "app_id": "images", "skill_id": "generate", "type": "generated_image", "status": "processing",
+            "prompt": prompt, "aspect_ratio": aspect_ratio, "output_filetype": "svg",
+        }
+        self._user_id = user_id
+        self._user_id_hash = _hash_value(user_id)
+        self._chat_id = chat_id
+        self._message_id = message_id
+        self._log_prefix = log_prefix
+
+    async def publish(self, svg_draft: str, stage: str, attempt: int) -> None:
+        if not self._chat_id or not self._message_id:
+            return
+        from toon_format import encode as toon_encode
+        content = {**self._base_content, "svg_draft": svg_draft, "draft_stage": stage, "draft_attempt": attempt}
+        await self._embed_service.send_embed_data_to_client(
+            embed_id=self._embed_id,
+            embed_type="generated_image",
+            content_toon=toon_encode(content),
+            chat_id=self._chat_id,
+            message_id=self._message_id,
+            user_id=self._user_id,
+            user_id_hash=self._user_id_hash,
+            status="processing",
+            encryption_mode="client",
+            parent_embed_id=self._parent_embed_id if self._parent_embed_id != self._embed_id else None,
+            log_prefix=self._log_prefix,
+            check_cache_status=False,
+            app_id="images",
+            skill_id="generated_image",
+        )
+
+
 async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: str, arguments: Dict[str, Any]):
     task_id = task.request.id
     log_prefix = f"[Task ID: {task_id}]"
@@ -773,6 +922,10 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         quality = str(arguments.get("quality", "default")).lower()
         # style: Recraft artistic style (e.g. "realistic_image", "digital_illustration")
         style = arguments.get("style")
+        # vector_engine: who draws an SVG — the LLM vector author (default) or Recraft.
+        vector_engine = _resolve_vector_engine(arguments.get("vector_engine"))
+        use_vector_author = output_filetype == "svg" and vector_engine == VECTOR_ENGINE_LLM
+        reference_svg_sources: List[str] = []
         # Reference images for image-to-image generation (resolved embed IDs from skill layer)
         reference_image_embed_ids: List[str] = arguments.get("reference_image_embed_ids") or []
         user_vault_key_id: Optional[str] = arguments.get("user_vault_key_id")
@@ -838,6 +991,7 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
                         embed_ids=reference_image_embed_ids,
                         user_vault_key_id=user_vault_key_id,
                         log_prefix=log_prefix,
+                        svg_sources=reference_svg_sources if use_vector_author else None,
                     )
                 )
                 logger.info(
@@ -922,8 +1076,13 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             output_filetype,
             quality,
             bool(reference_image_bytes_list),
+            vector_engine,
         )
-        estimated_credits = await _estimate_image_generation_credits(precheck_model_ref, log_prefix)
+        estimated_credits = (
+            await _estimate_vector_author_credits(log_prefix)
+            if use_vector_author
+            else await _estimate_image_generation_credits(precheck_model_ref, log_prefix)
+        )
         if arguments.get("team_id"):
             from backend.shared.python_utils.team_skill_billing import ensure_team_skill_credit_headroom
             await ensure_team_skill_credit_headroom(
@@ -965,7 +1124,36 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             else (model_ref or "Unknown")
         )
 
-        if output_filetype == "svg":
+        metered_credits: Optional[int] = None
+        metered_usage: Optional[Dict[str, Any]] = None
+        vector_review_status: Optional[str] = None
+        vector_attempts: Optional[int] = None
+        if use_vector_author:
+            # --- SVG branch: LLM vector author (writes, checks and corrects the SVG) ---
+            # A vector reference is edited from its SVG source; only pixel references
+            # are attached as images for the author to redraw.
+            pixel_references = [] if reference_svg_sources else list(
+                zip(reference_image_bytes_list, reference_image_mime_types)
+            )
+            draft_publisher = _VectorDraftPublisher(
+                task, arguments=arguments, embed_id=embed_id, prompt=prompt, aspect_ratio=aspect_ratio,
+                user_id=user_id, chat_id=chat_id, message_id=message_id, log_prefix=log_prefix,
+            )
+            authored = await author_svg(
+                task_id=str(task_id), prompt=str(prompt), aspect_ratio=aspect_ratio, quality=quality,
+                source_svgs=reference_svg_sources, reference_images=pixel_references,
+                secrets_manager=task._secrets_manager,
+                on_draft=None if external_request else draft_publisher.publish,
+            )
+            svg_bytes = authored.svg.encode("utf-8")
+            model_ref = authored.model_id
+            actual_model = authored.model_id
+            display_model_id = authored.model_id.split("/")[-1]
+            vector_review_status = authored.review_status
+            vector_attempts = authored.attempts
+            metered_credits, metered_usage = await _vector_author_credits(authored.usage, log_prefix)
+
+        elif output_filetype == "svg":
             # --- SVG branch: Recraft V4.1 Vector ---
             # Both "default" and "max" use the same generate skill;
             # quality selects between the two Recraft model tiers.
@@ -1193,6 +1381,8 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             log_prefix=log_prefix,
             team_id=arguments.get("team_id"),
             event_id=str(embed_id),
+            metered_credits=metered_credits,
+            metered_usage=metered_usage,
         )
 
         # 6. Process image into storage formats.
@@ -1398,6 +1588,9 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             # Input reference image embed IDs (non-empty only for image-to-image generation).
             # Used by the frontend to display thumbnails of the source images above the prompt.
             "input_embed_ids": reference_image_embed_ids or [],
+            # LLM vector author only: how many drafts were written and how the last one was judged.
+            **({"vector_review": vector_review_status, "vector_attempts": vector_attempts}
+               if vector_review_status else {}),
             "provenance": {
                 "ai_generated": True,
                 "labeling": "xmp+c2pa" if output_filetype != "svg" else "account_metadata+preview_xmp_c2pa",

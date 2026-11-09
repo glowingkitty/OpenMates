@@ -6438,6 +6438,12 @@
       "loading": {
         "text": "Načítání obrázku..."
       },
+      "checking": {
+        "text": "Kontrola výsledku…"
+      },
+      "correcting": {
+        "text": "Vylepšování…"
+      },
       "prompt_label": {
         "text": "Výzva"
       },

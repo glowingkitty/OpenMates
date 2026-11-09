@@ -1,0 +1,114 @@
+schema_version: 1
+id: feature.app-skill.images-generate
+version: 1
+status: draft
+title: Images Generate Skill — Vector Graphics
+summary: >
+  Images Generate creates and modifies vector graphics (SVG) inside the skill:
+  the chat model only makes a short tool call, a dedicated vector author model
+  writes the SVG, every draft is checked against the request and corrected
+  automatically within a fixed limit, the drawing is shown while it is written,
+  and the user pays exactly for the tokens that were used.
+
+inherits:
+  - architecture.app-skill-execution@1
+
+scope:
+  includes:
+    - images.generate calls with output_filetype svg from first-party chats, for new vector graphics and for changes to an existing SVG or pixel image passed as reference_images.
+    - Choice of the vector engine per request, the author model order with fallbacks, validation, automatic review and bounded correction of drafts.
+    - Draft updates of the generated image embed while the drawing is written, checked and corrected.
+    - Billing of vector authoring from reported token usage.
+  excludes:
+    - Raster image generation and editing, image search, viewing and bitmap-to-vector tracing (images.vectorize).
+    - SVG source that a user explicitly asks to see as code in the answer; that stays a code embed.
+    - Script-generated graphics executed in a sandbox.
+    - A guarantee that a drawing matches subjective taste; the review catches objective defects only.
+
+models:
+  VectorRequest:
+    prompt:
+      type: string
+      required: true
+    output_filetype:
+      type: enum
+      required: true
+      values: [svg]
+    vector_engine:
+      type: enum
+      required: false
+      values: [llm, recraft]
+      default: llm
+    quality:
+      type: enum
+      required: false
+      values: [default, max]
+      default: default
+    reference_images:
+      type: embed_ref_list
+      required: false
+      constraints: {accepts: [svg_source, pixel_image], used_by_engine: llm}
+
+  VectorAuthoring:
+    author_models:
+      type: ordered_model_list
+      required: true
+      values: [openai/gpt-6.1-sol, anthropic/claude-haiku-5-5, google/gemini-3.8-flash]
+    review_model:
+      type: decision_model
+      required: true
+      values: [typesafe/jev-1.14]
+    max_correction_rounds:
+      type: integer
+      required: true
+      constraints: {value: 2}
+    draft_stages:
+      type: enum
+      required: true
+      values: [drawing, checking, correcting]
+
+assertions:
+  - id: images-generate.vector.skill-authors-svg
+    type: behavior
+    must: A vector graphic is created or changed through images.generate with output_filetype svg, not by the chat model writing SVG in its answer, so the chat model stays the ordinary routed model. With vector_engine llm (the default) a dedicated author call receives only a compact instruction, the request, the canvas size and any references; the author models are tried in their configured order and a later model is used only when an earlier one fails or cannot produce a valid SVG. vector_engine recraft keeps the Recraft vector models and their flat prices.
+    depends_on: [models.VectorRequest, models.VectorAuthoring.author_models, examples.create]
+  - id: images-generate.vector.references-vector-and-pixel
+    type: behavior
+    must: reference_images given with an llm vector request are handed to the author in their native form; an SVG reference (a generated vector graphic or an SVG code embed) as its source text to be modified in place, a pixel image as an image to redraw or use as visual reference. Parts of an existing SVG that the request does not mention stay unchanged.
+    depends_on: [models.VectorRequest.reference_images, examples.modify]
+  - id: images-generate.vector.validated-reviewed-corrected
+    type: invariant
+    must: Only a well-formed standalone SVG with a viewBox, visible shapes and no scripts, event attributes, embedded images, foreign content or external references is ever delivered. Each valid draft is rendered and judged against the request by the review model; a confident defect or clear mismatch, like an invalid draft, triggers a correction that names the problem. At most two correction rounds follow the first draft. When the limit is reached the last valid drawing is delivered with its review outcome, an unavailable review never blocks delivery, and when no author model produces a valid SVG the request fails explicitly without a charge.
+    depends_on: [models.VectorAuthoring, examples.correction]
+  - id: images-generate.vector.progressive-drafts
+    type: behavior
+    must: While the author writes, the generated image embed receives processing updates carrying the SVG written so far in complete lines, a stage (drawing, checking or correcting) and the attempt number, so the client shows the picture building up instead of an empty placeholder followed by the finished image. The finished embed replaces the draft with the stored file.
+    depends_on: [models.VectorAuthoring.draft_stages, examples.create]
+  - id: images-generate.vector.token-metered-billing
+    type: invariant
+    must: A drawing made by the llm engine is charged the sum of the credits of every provider call made for it (each author draft, each correction and each review), each priced from that call's reported input and output tokens at that model's price; the exact sum is rounded down once to whole credits, with the platform minimum charge. A call without reported usage or without a price fails the request instead of being free or estimated.
+    depends_on: [models.VectorAuthoring, examples.billing]
+
+applies_to:
+  rest_api:
+    required: true
+    role: The skill and its task own engine choice, authoring, review, correction, draft updates and billing.
+  cli:
+    required: true
+    role: CLI chats trigger the same skill and receive the finished vector file.
+  sdks:
+    required: true
+    role: SDK chats trigger the same skill and receive the finished vector file.
+    implementations:
+      npm: {required: true}
+      pip: {required: true}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: true}
+
+examples:
+  file: examples.yml
+  required_groups: [create, modify, correction, billing]

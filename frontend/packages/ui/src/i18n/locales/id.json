@@ -6438,6 +6438,12 @@
       "loading": {
         "text": "Memuat gambar..."
       },
+      "checking": {
+        "text": "Memeriksa hasil…"
+      },
+      "correcting": {
+        "text": "Memperbaiki…"
+      },
       "prompt_label": {
         "text": "Prompt"
       },

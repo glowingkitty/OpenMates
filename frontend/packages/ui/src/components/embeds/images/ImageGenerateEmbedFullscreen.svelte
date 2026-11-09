@@ -30,6 +30,8 @@
   import { resolveEmbed, decodeToonContent } from '../../../services/embedResolver';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { hasMediaEncryptionMetadata } from '../../../services/encryption/mediaEncryption';
+  import SvgEmbedImage from '../code/SvgEmbedImage.svelte';
+  import { readSvgDraft, shouldShowSvgDraft, svgDraftStageLabelKey } from './svgDraft';
 
   /**
    * Type for files metadata from embed content
@@ -103,6 +105,10 @@
   let aesNonce = $derived(typeof dc.aes_nonce === 'string' ? dc.aes_nonce : undefined);
   let status = $derived(typeof ed?.status === 'string' ? ed.status : 'finished');
   let error = $derived(typeof dc.error === 'string' ? dc.error : undefined);
+  // Live SVG drawing while the vector author is still working
+  let svgDraftState = $derived(readSvgDraft(dc));
+  let showSvgDraft = $derived(shouldShowSvgDraft(status, svgDraftState.draft));
+  let draftStageLabelKey = $derived(svgDraftStageLabelKey(svgDraftState.stage));
   let skillIdProp = $derived<'generate' | 'generate_draft'>(typeof dc.skill_id === 'string' && dc.skill_id === 'generate_draft' ? 'generate_draft' : 'generate');
   let generatedAt = $derived(typeof dc.generated_at === 'string' ? dc.generated_at : undefined);
   let inputEmbedIds = $derived(Array.isArray(dc.input_embed_ids) ? dc.input_embed_ids as string[] : undefined);
@@ -468,7 +474,19 @@
              2. Swap to full-res when ready
              On desktop this sits on the right; on narrow containers it appears first (top via CSS order). -->
         <div class="image-section">
-          {#if fullImageUrl}
+          {#if showSvgDraft}
+            <div
+              class="svg-draft"
+              data-testid="image-generate-svg-draft"
+              data-stage={svgDraftState.stage}
+              data-attempt={svgDraftState.attempt}
+            >
+              <SvgEmbedImage code={svgDraftState.draft} title={prompt || filename} streaming={true} />
+              {#if draftStageLabelKey}
+                <span class="svg-draft-stage" data-testid="image-generate-svg-draft-stage">{$text(draftStageLabelKey)}</span>
+              {/if}
+            </div>
+          {:else if fullImageUrl}
             <div class="image-wrapper">
               <a href={fullImageUrl} target="_blank" rel="noopener noreferrer" class="image-link" title={$text('embeds.image_generate.open_full_size')} onclick={handleImageClick}>
                 <img src={fullImageUrl} alt={prompt || 'Generated image'} class="result-primary-media full-image" />
@@ -999,5 +1017,27 @@
     .quote-card {
       padding: 20px 46px;
     }
+  }
+
+  .svg-draft {
+    position: relative;
+    width: 100%;
+    min-height: 240px;
+    aspect-ratio: 1 / 1;
+    max-height: 100%;
+    overflow: hidden;
+    border-radius: var(--radius-3);
+  }
+
+  .svg-draft-stage {
+    position: absolute;
+    left: var(--spacing-4);
+    bottom: var(--spacing-4);
+    padding: var(--spacing-1) var(--spacing-4);
+    border-radius: var(--radius-2);
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    font-size: var(--font-size-tiny);
+    pointer-events: none;
   }
 </style>

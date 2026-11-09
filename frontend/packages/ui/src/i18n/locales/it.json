@@ -6465,6 +6465,12 @@
       "loading": {
         "text": "Caricamento immagine..."
       },
+      "checking": {
+        "text": "Controllo del risultato…"
+      },
+      "correcting": {
+        "text": "Miglioramento…"
+      },
       "prompt_label": {
         "text": "Prompt"
       },

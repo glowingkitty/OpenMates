@@ -4396,7 +4396,7 @@
     "app_namespace_py": "images",
     "skill_method_py": "generate",
     "description_key": "images.generate.description",
-    "description": "Generate high-quality images from text prompts and/or reference images (image-to-image editing). Also use for: mockups, design concepts, visual mockup creation, logo mockups, product mockups, illustration requests, visual design, concept art, posters, banners, thumbnails, or any request that implies creating a visual output. Not for ordinary vector graphics described in words (logos, icons, simple illustrations, infographics, labelled or technical drawings, patterns) and not for changing an exis",
+    "description": "Generate high-quality images from text prompts and/or reference images (image-to-image editing). Also use for: mockups, design concepts, visual mockup creation, logo mockups, product mockups, illustration requests, visual design, concept art, posters, banners, thumbnails, or any request that implies creating a visual output. Also the way to create or modify ANY vector graphic (SVG): logos, icons, illustrations, infographics, labelled or technical drawings, patterns, embroidery or cutting motifs",
     "schema": {
       "type": "object",
       "properties": {
@@ -4405,7 +4405,7 @@
             "basic": true
           },
           "type": "array",
-          "description": "REQUIRED: Array of image generation request objects for parallel processing (up to 5 requests).\nThis parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single image.\nExample for single image: {\"requests\": [{\"prompt\": \"a cute cat\"}]}\nEach object must contain 'prompt' (detailed description), and can include optional\n'aspect_ratio', 'output_filetype', and 'quality'.\n",
+          "description": "REQUIRED: Array of image generation request objects for parallel processing (up to 5 requests).\nThis parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single image.\nExample for single image: {\"requests\": [{\"prompt\": \"a cute cat\"}]}\nEach object must contain 'prompt' (detailed description), and can include optional\n'aspect_ratio', 'output_filetype', 'vector_engine', 'quality' and 'reference_images'.\n",
           "items": {
             "type": "object",
             "properties": {
@@ -4437,7 +4437,7 @@
                   "basic": true
                 },
                 "type": "string",
-                "description": "Output file format. Use \"svg\" to generate a vector graphic (SVG) via Recraft V4.1 —\nonly for richly detailed, painterly or decorative vector illustrations, or when the\nuser explicitly asks for the image generator. Logos, icons, simple illustrations,\ninfographics, labelled or technical drawings and edits of an existing SVG are written\ndirectly as SVG code by the assistant instead of calling this skill.\nUse \"png\" or \"jpg\" for photos, realistic scenes, and detailed raster images.\nWhen a Recraft model is selected, Recraft V4 is used for raster output as well.\n",
+                "description": "Output file format. Use \"svg\" for every vector graphic: logos, icons, illustrations,\ninfographics, labelled or technical drawings, patterns, and for changing an existing\nSVG or redrawing a pixel image as vector. See vector_engine for who draws it.\nUse \"png\" or \"jpg\" for photos, realistic scenes, and detailed raster images.\nWhen a Recraft model is selected, Recraft V4 is used for raster output as well.\n",
                 "enum": [
                   "png",
                   "jpg",
@@ -4450,19 +4450,31 @@
                   "basic": true
                 },
                 "type": "string",
-                "description": "Generation quality. Controls which model tier is used when Recraft is the provider.\nFor SVG output (output_filetype=\"svg\"):\n  \"default\" uses Recraft V4.1 Vector (100 credits — good for web/UI use).\n  \"max\" uses Recraft V4.1 Pro Vector (300 credits — best for print, large-format,\n  or highly detailed vector illustrations).\nFor raster output (output_filetype=\"png\"/\"jpg\") with a Recraft model selected:\n  \"default\" uses Recraft V4.1 (50 credits — fast, cost-effective).\n  \"max\" uses Recraft V4.1 Pro (250 credits — high-resolution, print-ready).\nFor other raster models (Google Gemini, GPT Image 2, FLUX), quality may be handled by the provider.\n",
+                "description": "Generation quality.\nFor SVG output with vector_engine \"llm\": \"max\" lets the vector author reason longer\n(for complex, multi-part drawings; costs more tokens).\nFor SVG output with vector_engine \"recraft\":\n  \"default\" uses Recraft V4.1 Vector (100 credits — good for web/UI use).\n  \"max\" uses Recraft V4.1 Pro Vector (300 credits — best for print, large-format,\n  or highly detailed vector illustrations).\nFor raster output (output_filetype=\"png\"/\"jpg\") with a Recraft model selected:\n  \"default\" uses Recraft V4.1 (50 credits — fast, cost-effective).\n  \"max\" uses Recraft V4.1 Pro (250 credits — high-resolution, print-ready).\nFor other raster models (Google Gemini, GPT Image 2, FLUX), quality may be handled by the provider.\n",
                 "enum": [
                   "default",
                   "max"
                 ],
                 "default": "default"
               },
+              "vector_engine": {
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "string",
+                "description": "Only for output_filetype=\"svg\": who draws the vector graphic.\n\"llm\" (default): a vector author model writes clean, editable SVG code, checks the\nrendered result against the request and corrects it automatically. Best for logos,\nicons, flat illustrations, diagrams, patterns, text, precise or mathematical shapes,\nembroidery/cutting motifs, and the only engine that can modify an existing graphic\npassed in reference_images. Billed by the tokens used (typically 10-80 credits).\n\"recraft\": Recraft V4.1 Vector, for richly detailed, painterly or decorative\nillustrations where a traced look is fine (100 credits, or 300 with quality \"max\").\nCannot use reference_images.\n",
+                "enum": [
+                  "llm",
+                  "recraft"
+                ],
+                "default": "llm"
+              },
               "reference_images": {
                 "x-ui": {
                   "basic": false
                 },
                 "type": "array",
-                "description": "Optional list of reference image filenames (embed_refs) to use as visual\nreferences for this generation. Pass the exact embed_ref values (original\nfilenames, e.g. \"my_photo.jpg\") from the toon blocks in the conversation.\nThe server resolves all cryptographic and storage details automatically.\nSupports up to 14 reference images. When provided, enables image-to-image\nediting/style-transfer mode (Google Gemini: same endpoint; FLUX: switches\nto the 4B edit model). Ignored for SVG/Recraft output.\n",
+                "description": "Optional list of reference image filenames (embed_refs) to use as visual\nreferences for this generation. Pass the exact embed_ref values (original\nfilenames, e.g. \"my_photo.jpg\") from the toon blocks in the conversation.\nThe server resolves all cryptographic and storage details automatically.\nSupports up to 14 reference images. When provided, enables image-to-image\nediting/style-transfer mode (Google Gemini: same endpoint; FLUX: switches\nto the 4B edit model). With output_filetype=\"svg\" and vector_engine \"llm\": an SVG\nreference is modified from its source code, a pixel reference is redrawn as vector.\nIgnored by vector_engine \"recraft\".\n",
                 "items": {
                   "type": "string",
                   "description": "Original filename (embed_ref) of an uploaded image"

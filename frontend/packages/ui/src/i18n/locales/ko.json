@@ -6438,6 +6438,12 @@
       "loading": {
         "text": "이미지 로딩 중..."
       },
+      "checking": {
+        "text": "결과 확인 중…"
+      },
+      "correcting": {
+        "text": "개선 중…"
+      },
       "prompt_label": {
         "text": "프롬프트"
       },

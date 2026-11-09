@@ -264,7 +264,9 @@ def _early_routing_questions(topic_areas: list[str], skip_mate_routing: bool) ->
         "needs_detailed_context": {"type": "noul", "instructions": "Does the latest request require selecting a Focus, saved Workflow, app or personal Memory, private Project/Plan material, connected capability, or a previous conversation/Task? Include implicit applicable guidance even if no app tool will be called. Architecture, process-flow, workflow, concept-map, relationship or diagram discussions need the public Mind Maps and Diagram Design guides even without an explicit visual request. Interpret follow-ups in conversation context. Loading guides leaves the main processor free to answer with prose. When unsure, answer yes."},
         "needs_related_work": {"type": "noul", "instructions": "Does the latest request refer to prior work in another chat or Task, a previous fix, or an explicit dependency? Ordinary standalone factual questions are no. When unsure, answer yes."},
     }
-    questions[USE_CASE_QUESTION_KEY] = use_case_question()
+    use_case = use_case_question()
+    if use_case is not None:
+        questions[USE_CASE_QUESTION_KEY] = use_case
     if not skip_mate_routing:
         questions["topic_area"] = {"type": "choice", "instructions": "Choose the most specific topic for the latest request; use general_misc only as a fallback.",
                                    "criteria": _criteria(topic_areas)}

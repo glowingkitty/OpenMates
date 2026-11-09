@@ -252,6 +252,13 @@ instructions:
       When the user asks to edit, modify, transform, or remix an uploaded image, you MUST call images-generate (or images-generate_draft) with the embed_ref in the reference_images parameter. The server will automatically load and decrypt the original image and pass it to the image generation model. Do NOT call images-view first — that is only for when you need to visually inspect or describe an image, not for editing it.
       Correct example: User uploads "photo.jpg" and says "add a dragon" → call images-generate with requests: [{"prompt": "...", "reference_images": ["photo.jpg"]}]
       Wrong: calling images-view first and then images-generate without reference_images.
+  - instruction: |
+      Vector graphics (SVG): create and change them only through images-generate with output_filetype "svg".
+      Do not write SVG code in the answer unless the user explicitly asks to see or get the raw source.
+      To change a graphic made earlier in the chat, call images-generate with output_filetype "svg",
+      the embed_ref of that graphic in reference_images, and a prompt that states only the requested change.
+      One request per wanted variation; keep each prompt short and concrete (subject, style, colours, text,
+      intended use such as print, embroidery or cutting).
 skills:
   - id: search
     anonymous_access: authenticated
@@ -334,10 +341,10 @@ skills:
       Also use for: mockups, design concepts, visual mockup creation, logo mockups,
       product mockups, illustration requests, visual design, concept art, posters,
       banners, thumbnails, or any request that implies creating a visual output.
-      Not for ordinary vector graphics described in words (logos, icons, simple illustrations,
-      infographics, labelled or technical drawings, patterns) and not for changing an existing SVG:
-      the assistant writes that SVG code itself. Use output_filetype="svg" only for richly detailed,
-      painterly or decorative vector illustrations, or when the user explicitly asks for the image generator.
+      Also the way to create or modify ANY vector graphic (SVG): logos, icons, illustrations,
+      infographics, labelled or technical drawings, patterns, embroidery or cutting motifs — call this
+      skill with output_filetype="svg" instead of writing SVG code in the answer. To change an existing
+      graphic (SVG or pixel image), pass it via reference_images and describe the change.
       When the user provides uploaded images as references (embed_refs), pass them via reference_images.
       Do not use this for scam, spam, fake-document, fake-endorsement, public-figure
       impersonation, or watermark/detection-evasion requests.
@@ -360,7 +367,7 @@ skills:
             This parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single image.
             Example for single image: {"requests": [{"prompt": "a cute cat"}]}
             Each object must contain 'prompt' (detailed description), and can include optional
-            'aspect_ratio', 'output_filetype', and 'quality'.
+            'aspect_ratio', 'output_filetype', 'vector_engine', 'quality' and 'reference_images'.
           items:
             type: object
             properties:
@@ -381,11 +388,9 @@ skills:
                   basic: true
                 type: string
                 description: |
-                  Output file format. Use "svg" to generate a vector graphic (SVG) via Recraft V4.1 —
-                  only for richly detailed, painterly or decorative vector illustrations, or when the
-                  user explicitly asks for the image generator. Logos, icons, simple illustrations,
-                  infographics, labelled or technical drawings and edits of an existing SVG are written
-                  directly as SVG code by the assistant instead of calling this skill.
+                  Output file format. Use "svg" for every vector graphic: logos, icons, illustrations,
+                  infographics, labelled or technical drawings, patterns, and for changing an existing
+                  SVG or redrawing a pixel image as vector. See vector_engine for who draws it.
                   Use "png" or "jpg" for photos, realistic scenes, and detailed raster images.
                   When a Recraft model is selected, Recraft V4 is used for raster output as well.
                 enum: ["png", "jpg", "svg"]
@@ -395,8 +400,10 @@ skills:
                   basic: true
                 type: string
                 description: |
-                  Generation quality. Controls which model tier is used when Recraft is the provider.
-                  For SVG output (output_filetype="svg"):
+                  Generation quality.
+                  For SVG output with vector_engine "llm": "max" lets the vector author reason longer
+                  (for complex, multi-part drawings; costs more tokens).
+                  For SVG output with vector_engine "recraft":
                     "default" uses Recraft V4.1 Vector (100 credits — good for web/UI use).
                     "max" uses Recraft V4.1 Pro Vector (300 credits — best for print, large-format,
                     or highly detailed vector illustrations).
@@ -406,6 +413,22 @@ skills:
                   For other raster models (Google Gemini, GPT Image 2, FLUX), quality may be handled by the provider.
                 enum: ["default", "max"]
                 default: "default"
+              vector_engine:
+                x-ui:
+                  basic: false
+                type: string
+                description: |
+                  Only for output_filetype="svg": who draws the vector graphic.
+                  "llm" (default): a vector author model writes clean, editable SVG code, checks the
+                  rendered result against the request and corrects it automatically. Best for logos,
+                  icons, flat illustrations, diagrams, patterns, text, precise or mathematical shapes,
+                  embroidery/cutting motifs, and the only engine that can modify an existing graphic
+                  passed in reference_images. Billed by the tokens used (typically 10-80 credits).
+                  "recraft": Recraft V4.1 Vector, for richly detailed, painterly or decorative
+                  illustrations where a traced look is fine (100 credits, or 300 with quality "max").
+                  Cannot use reference_images.
+                enum: ["llm", "recraft"]
+                default: "llm"
               reference_images:
                 x-ui:
                   basic: false
@@ -417,7 +440,9 @@ skills:
                   The server resolves all cryptographic and storage details automatically.
                   Supports up to 14 reference images. When provided, enables image-to-image
                   editing/style-transfer mode (Google Gemini: same endpoint; FLUX: switches
-                  to the 4B edit model). Ignored for SVG/Recraft output.
+                  to the 4B edit model). With output_filetype="svg" and vector_engine "llm": an SVG
+                  reference is modified from its source code, a pixel reference is redrawn as vector.
+                  Ignored by vector_engine "recraft".
                 items:
                   type: string
                   description: Original filename (embed_ref) of an uploaded image

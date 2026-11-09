@@ -7879,6 +7879,12 @@
       "loading": {
         "text": "Loading image..."
       },
+      "checking": {
+        "text": "Checking result…"
+      },
+      "correcting": {
+        "text": "Improving…"
+      },
       "prompt_label": {
         "text": "Prompt"
       },

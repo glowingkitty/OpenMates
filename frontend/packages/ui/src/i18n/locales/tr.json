@@ -6438,6 +6438,12 @@
       "loading": {
         "text": "Görsel yükleniyor..."
       },
+      "checking": {
+        "text": "Sonuç kontrol ediliyor…"
+      },
+      "correcting": {
+        "text": "İyileştiriliyor…"
+      },
       "prompt_label": {
         "text": "İstem"
       },

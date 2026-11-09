@@ -113,27 +113,36 @@ against each actual model/server's documented controls. See
 
 #### Use-case routing
 
-Jev also answers one optional `use_case` question in the same pass. The options come from the
+Jev can also answer one optional `use_case` question in the same pass. The options come from the
 registry in [`use_case_routing.py`](../../backend/apps/ai/processing/use_case_routing.py): each
-`UseCaseProfile` has an id, the criterion Jev reads, an ordered model list (primary, then
+`UseCaseProfile` has an id, the criterion text Jev sees, an ordered model list (primary first, then
 fallbacks) and an optional reasoning level for the primary. Adding a use case is one registry
-entry (plus the enum in the generative recovery tool schema, guarded by a test).
-
-| Use case | Primary | Fallbacks | Thinking |
-|----------|---------|-----------|----------|
-| `vector_graphic` (create or modify SVG) | GPT-6.1 Sol | Claude Haiku 5.5, Gemini 3.8 Flash | MEDIUM |
+entry. The registry is currently empty, and while it is empty the question is not asked.
 
 A recognised use case applies to automatic selection only: an exact chat model or a saved tier
-preference still wins, and a missing, weak (confidence below 0.5) or unknown answer keeps tier
-routing. The use-case models lead the candidate list and the tier chain stays behind them, so the
-usual disabled-model, provider, server and input-capability filters apply unchanged. A use case
-does not set an output limit: the answer limit stays the selected model's catalogue
-`max_output_tokens` fitted to the user's available credits.
+preference always wins, and a missing, weak or unknown answer keeps ordinary tier routing. The
+use-case models lead the candidate list and the tier chain stays behind them, so the usual
+disabled-model, provider, server and input-capability filters apply unchanged. A use case never
+changes the output limit.
 
-Vector graphics described in words, and edits of an existing SVG, are written by the answer model
-in an `svg` code fence (see `base_code_block_instruction.md`, section 11). `images.generate` with
-`output_filetype="svg"` (Recraft) remains for richly detailed decorative illustrations and
-explicit requests; `images.vectorize` still converts uploaded pixel images.
+#### Vector graphics (SVG)
+
+Vector graphics are not a chat-model use case. The ordinary routed chat model makes a short
+`images.generate` call with `output_filetype: "svg"`, and the skill task draws the graphic
+([`vector_author.py`](../../backend/apps/images/vector_author.py)):
+
+| Step | Model | Notes |
+|---|---|---|
+| Author | GPT-6.1 Sol, then Claude Haiku 5.5, then Gemini 3.8 Flash | Compact dedicated prompt plus the request; MEDIUM reasoning, HIGH for `quality: "max"` |
+| Review | Jev 1.14 | Judges the rendered draft against the request |
+| Correction | same author model | At most 2 rounds, each naming the defect found |
+
+`reference_images` hand an existing SVG to the author as source text and a pixel image as an
+image. Drafts are sent to the client as `processing` updates of the generated image embed, so the
+picture builds up while it is written. The charge is the exact sum of all author and review calls
+priced from their reported tokens. `vector_engine: "recraft"` keeps Recraft V4.1 Vector at its
+flat price for dense painterly illustrations; `images.vectorize` still converts pixel images by
+tracing.
 
 Eligible low-complexity text uses native Mercury 3 MEDIUM by default. Gemini 3.8 Flash LOW
 handles unavailable credentials/models, disabled model/server restrictions,

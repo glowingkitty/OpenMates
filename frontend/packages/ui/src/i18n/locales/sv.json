@@ -6438,6 +6438,12 @@
       "loading": {
         "text": "Laddar bild..."
       },
+      "checking": {
+        "text": "Kontrollerar resultatet…"
+      },
+      "correcting": {
+        "text": "Förbättrar…"
+      },
       "prompt_label": {
         "text": "Prompt"
       },

@@ -49,11 +49,17 @@ class ImageGenerationRequestItem(BaseModel):
     )
     output_filetype: str = Field(
         default="png",
-        description="Output file type: 'png', 'jpg', or 'svg'. Use 'svg' for scalable vector graphics via Recraft V4.1.",
+        description="Output file type: 'png', 'jpg', or 'svg'. Use 'svg' for scalable vector graphics.",
+    )
+    vector_engine: str = Field(
+        default="llm",
+        description="Only for svg output: 'llm' (a vector author model writes, checks and corrects the SVG; "
+        "billed by tokens; can modify reference_images) or 'recraft' (Recraft V4.1 Vector, flat price).",
     )
     quality: str = Field(
         default="default",
-        description="Quality/model tier: 'default' or 'max'. Only relevant for svg and recraft raster models.",
+        description="Quality tier: 'default' or 'max'. For svg with the llm engine 'max' means longer reasoning; "
+        "otherwise it selects the Recraft model tier.",
     )
     style: Optional[str] = Field(
         default=None,
@@ -265,6 +271,8 @@ class GenerateSkill(BaseSkill):
                 "aspect_ratio": req.get("aspect_ratio", "1:1"),
                 "output_filetype": output_filetype,
                 "quality": quality,
+                # Only read for SVG output: "llm" (vector author, default) or "recraft".
+                "vector_engine": str(req.get("vector_engine") or "llm").lower(),
                 "style": req.get("style"),
                 "user_id": user_id,
                 "chat_id": self._current_chat_id,

@@ -1,0 +1,47 @@
+schema_version: 1
+specification: feature.app-skill.images-generate@1
+
+create:
+  - id: logo-on-auto
+    given: Alice leaves her model on Auto and asks for a logo for the coffee shop "Bean & Leaf" as SVG.
+    when: The chat model calls images.generate with output_filetype svg and a short prompt.
+    then: The first author model writes the logo, the card shows it building up with the stage "drawing" and then "checking", and the finished SVG file replaces the draft. The chat answer comes from the ordinary routed model.
+  - id: painterly-illustration-with-recraft
+    given: Bob asks for a richly detailed painterly vector illustration of a forest.
+    when: The chat model sets vector_engine recraft.
+    then: Recraft draws it at its flat price and no author or review call is made.
+
+modify:
+  - id: change-generated-svg
+    given: Alice has the generated logo and asks to make the leaf orange.
+    when: The chat model calls images.generate with output_filetype svg and the logo's embed_ref in reference_images.
+    then: The author receives the logo's SVG source and returns the same logo with only the leaf colour changed.
+  - id: redraw-photo-as-vector
+    given: Carol uploads sketch.jpg and asks for a clean vector version.
+    when: The chat model passes sketch.jpg in reference_images with output_filetype svg.
+    then: The author receives the picture as an image and draws it as vector shapes.
+
+correction:
+  - id: cut-off-draft-is-corrected
+    draft_reviews: [cut_off, none]
+    expect: {attempts: 2, delivered_draft: 2, review_status: accepted}
+  - id: limit-reached-delivers-last-valid
+    draft_reviews: [wrong_content, text_problem, cut_off]
+    expect: {attempts: 3, delivered_draft: 3, review_status: rejected, further_corrections: 0}
+  - id: unsafe-draft-never-delivered
+    drafts: [contains_script, valid]
+    expect: {attempts: 2, delivered_draft: 2}
+  - id: review-unavailable
+    draft_reviews: [unavailable]
+    expect: {attempts: 1, delivered_draft: 1, review_status: unavailable}
+
+billing:
+  - id: one-draft-one-review
+    provider_calls:
+      - {step: drawing, input_tokens: 600, output_tokens: 3000}
+      - {step: review, input_tokens: 900, output_tokens: 0}
+    expect: {charged: sum_of_call_credits, minimum_charge_applies: true}
+  - id: call-without-usage
+    provider_calls:
+      - {step: drawing, input_tokens: 0, output_tokens: 0}
+    expect: {request_fails: true, charged: 0}

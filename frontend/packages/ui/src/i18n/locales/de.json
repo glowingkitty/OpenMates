@@ -7850,6 +7850,12 @@
       "loading": {
         "text": "Bild wird geladen..."
       },
+      "checking": {
+        "text": "Ergebnis wird geprüft…"
+      },
+      "correcting": {
+        "text": "Wird verbessert…"
+      },
       "prompt_label": {
         "text": "Eingabe"
       },

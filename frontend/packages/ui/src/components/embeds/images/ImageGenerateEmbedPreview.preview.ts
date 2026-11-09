@@ -18,6 +18,9 @@ const defaultProps = {
 	onFullscreen: () => {}
 };
 
+const sampleSvg =
+	'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 120"><rect width="200" height="120" fill="#bfe3ff"/><circle cx="150" cy="30" r="16" fill="#fcd34d"/><path d="M0 120 L0 80 Q 50 40 100 80 T 200 80 L200 120 Z" fill="#4ade80"/></svg>';
+
 export default defaultProps;
 
 /** Named variants for different component states */
@@ -37,6 +40,30 @@ export const variants = {
 		prompt: 'A futuristic cityscape with flying cars and neon lights',
 		model: 'flux-schnell',
 		status: 'processing' as const,
+		isMobile: false
+	},
+
+	/** Vector author mid-drawing: partial SVG cut off inside a path. */
+	svgDrafting: {
+		id: 'preview-image-gen-svg-drafting',
+		skillId: 'generate' as const,
+		prompt: 'A flat illustration of a sun over two hills',
+		model: 'vector-author',
+		status: 'processing' as const,
+		svgDraft: sampleSvg.slice(0, sampleSvg.indexOf('Q 50 40') + 4),
+		draftStage: 'drawing' as const,
+		isMobile: false
+	},
+
+	/** Complete drawing while the automatic check runs. */
+	svgChecking: {
+		id: 'preview-image-gen-svg-checking',
+		skillId: 'generate' as const,
+		prompt: 'A flat illustration of a sun over two hills',
+		model: 'vector-author',
+		status: 'processing' as const,
+		svgDraft: sampleSvg,
+		draftStage: 'checking' as const,
 		isMobile: false
 	},
 
