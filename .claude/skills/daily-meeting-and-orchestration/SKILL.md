@@ -62,7 +62,7 @@ only when an item is ambiguous (e.g. a reminder title matches none or several).
    the project) or create it (`openmates tasks create --project
    96033196-e4b1-431e-b773-ba221e952fed --title … --description
    "<goal, done-criterion, date>" --priority … --assign external-ai`). Parking-lot
-   items that already have Tasks move to `backlog`. Never mark incomplete work Done.
+   items that already have Tasks move to `backlog`. Never mark undeployed or incomplete work Done (deployed to dev counts as done).
 4. **Cleanup** (the `Cleanup:` lines; the meeting also tidies the to-do lists):
    - Tasks: `close`/`delete` → `openmates tasks delete <id> --confirm` only if the note
      says delete, else mark obsolete work via `tasks edit --status backlog` plus an
