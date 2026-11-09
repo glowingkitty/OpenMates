@@ -115,6 +115,25 @@ def test_future_offer_is_not_applied_before_start():
     assert result["costs"]["input_per_million_token"]["price"] == 1
 
 
+# contract-test: supporting surface=rest_api assertions=billing.models.scheduled-temporary-tariffs
+def test_lapsed_cache_review_keeps_ordinary_billing_without_temporary_prices():
+    """A model with no temporary prices must not fail admission once its cache review lapses."""
+    model = catalog_model("anthropic", "claude-sonnet-5-5")
+    assert not model.get("temporary_prices")
+    expiry = date.fromisoformat(model["cache_pricing"]["expires_on"])
+    original = copy.deepcopy(model)
+
+    active = resolve_model_tariff(model, on_date=expiry)
+    assert active["cache_pricing"]["enabled"] is True
+
+    lapsed = resolve_model_tariff(model, on_date=date.fromordinal(expiry.toordinal() + 1))
+    assert lapsed["cache_pricing"]["enabled"] is False
+    assert lapsed["cache_pricing"]["status"] == "expired_pending_review"
+    assert lapsed["pricing"] == original["pricing"]
+    assert model == original
+    assert snapshot_model_tariff(lapsed)["cache_pricing"]["enabled"] is False
+
+
 # contract-test: supporting surface=rest_api assertions=billing.models.verified-host-prices
 @pytest.mark.parametrize("defect", ["missing_cost", "missing_category", "currency", "negative", "zero", "nan", "boolean", "reversed", "source", "unknown_host", "duplicate", "overlap", "missing_tier"])
 def test_invalid_and_incomplete_offers_fail_closed(defect):
@@ -175,7 +194,15 @@ def test_invalid_nested_supplier_profiles_are_rejected_before_dispatch(defect):
 
 
 # contract-test: supporting surface=rest_api assertions=billing.models.immutable-attempt-tariffs
-def test_receipt_uses_frozen_sale_after_catalog_changes_and_settlement_replays():
+def test_receipt_uses_frozen_sale_after_catalog_changes_and_settlement_replays(monkeypatch):
+    class AdmissionDay(date):
+        """Pin admission to the sale window so the test does not depend on the wall clock."""
+
+        @classmethod
+        def today(cls):
+            return cls(2026, 10, 14)
+
+    monkeypatch.setattr("backend.shared.python_utils.billing_utils.date", AdmissionDay)
     model = catalog_model("mistral", "mistral-large-4")
     frozen = snapshot_model_tariff(resolve_model_tariff(model, on_date=date(2026, 10, 14)))
     bucket = {
