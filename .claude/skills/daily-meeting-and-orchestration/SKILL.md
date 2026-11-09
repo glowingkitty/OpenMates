@@ -13,19 +13,19 @@ posted to Discord). Its output is a decisions note the user pastes here:
 DECISIONS 2026-11-04
 Check-in: progress <1-5>, energy <1-5>; did: …; priorities: …
 Focus: …
-Tasks:
-1. … (done when: …)
-Reminders:
-- "<exact title>" -> done | move YYYY-MM-DD HH:MM | keep
-New reminders:
-- "<title>" (OpenMates|Personal Tasks, YYYY-MM-DD HH:MM)
+Focus tasks:
+1. … (done when: …; milestone: …)
+Reminder changes:      (table: Action | Reminder (exact title) | List | New due | New title | Notes)
+Task changes:          (table: Action | Task (exact title) | New title | Priority | Status | Label | Due | Description)
+Goals:                 (table: Level | Item | Action | Done when | By)
 Chats:
-- <chat title or 8-char id> -> reply: <text> | park | archive | done | keep
+- <chat title> -> reply: <text> | park | archive | done | keep
 Cleanup:
-- <GitHub #123 | Linear ABC-1 | TASK-123> -> close | delete | merge <other id> | delay | keep
+- <plain title> (<GitHub #123 | Linear ABC-1 | TASK-123>) -> close | delete | merge <other id> | delay | keep
 Parking lot:
 + … | - …
 Week goals: unchanged | …
+Meeting: <one change> -> adopt | adjust | revert | none (trial until YYYY-MM-DD)
 Notes: …
 ```
 
@@ -41,7 +41,19 @@ only when an item is ambiguous (e.g. a reminder title matches none or several).
    each addition with the date), replace *Current week's goals* if changed.
    Personal items never go into FOCUS.md. Publish with `sessions.py start --mode
    docs` → edit → `sessions.py deploy --title "docs: focus for <date>"`.
-2. **Reminders** via `scripts/mac_reminders.py`: FIRST run `mac_reminders.py sync` and
+1b. **Reminder and Task tables: one command, every row proven.** Run
+   `python3 scripts/daily_meeting_apply.py plan --note logs/daily-meetings/<date>-decisions.md`
+   first (reads the live Mac and live Tasks, shows what each row would do), fix every
+   `NEEDS ATTENTION` row (wrong title, missing time, ambiguity: ask the user only if it cannot be
+   resolved from the live data), then `... apply --note ...`. It applies the ready rows, re-reads
+   both lists and prints one result per row (OK verified on live data / FAILED / NEEDS ATTENTION);
+   exit code 1 means something is not applied and verified. **Never say the reminders and Tasks are
+   done unless the report shows OK for every row**; put the report (or its failures) in the closing
+   summary. Old-format notes (`- "title" -> move ...`) are still parsed. If the Mac is offline the
+   reminder ops are saved to `<date>-pending-reminders.json` and the script says so.
+   The manual steps below (2, 3) remain only for what the script cannot do (for example `tasks edit`
+   has no due date: recreate the Task).
+2. **Reminders** via `scripts/mac_reminders.py` (manual fallback; the script above does this): FIRST run `mac_reminders.py sync` and
    `mac_reminders.py list` to read the live reminders from the Mac (titles, times and
    lists may have changed since the briefing; decide from the live state, not the note's
    titles alone; renamed or already-finished items are reported, not guessed). After the
@@ -83,6 +95,20 @@ only when an item is ambiguous (e.g. a reminder title matches none or several).
 Plain-language rule: whenever you report to the user (summaries, printed replies, parking-lot lines),
 name every ID, agent or task with a few plain words first and the ID only in brackets after it; if a
 briefing line shows a bare ID, say what it is before using it.
+4a. **Goals** (the `Goals:` table, from the Monday block; plain wording, never bare IDs): edit
+   `GOALS.md` (repo root of the canonical checkout, private, gitignored, never committed): `add`/`edit`
+   milestones with their done-when and date, `done` moves a milestone to the done list with the date,
+   `drop` removes it with a one-line reason, mission/goal rows only when the note says so. Set the
+   `Last weekly review: <date>` line whenever the Monday block ran. Tasks created for a milestone carry
+   the label `milestone:<name>` (use the `Label` column of the Task table); add one reminder with a
+   time on the milestone's due date. Update the "Current milestone" line in FOCUS.md.
+4c. **Meeting** (the `Meeting:` line): `adopt`/`adjust` a change: small tuning (order, length, wording,
+   skipping a block on some days) goes into the private `logs/daily-meetings/meeting-settings.md`
+   (the briefing injects it as "Agreed meeting adjustments"); structural changes edit
+   `MEETING_SCRIPT` in `scripts/daily_meeting_briefing.py` with tests and a deploy. Append one line to
+   `logs/daily-meetings/meeting-changelog.md` (`- <date> <plain change> (trial until <date>)`). `revert`
+   removes the change from the settings file and logs it; `none` does nothing. Every change is a
+   one-week trial; never two at once.
 4b. **Chats** (the `Chats:` lines, from the briefing's "Chats waiting on you"): `reply: <text>`
    → send the reply yourself to that chat (`send_message` to its Remote session, matched by title/last prompt; the user never pastes into chats you can answer), then report each result; if a chat cannot be reached, say so and print the reply; a reply that would need a production or other user-only action (e.g. 3FA SSH) is not carried out: report it to the user instead; `park` →
    parking-lot line; `archive`/`done` → archive the chat via `archive_session` when it has a

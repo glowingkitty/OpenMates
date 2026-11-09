@@ -107,3 +107,30 @@ note: each comes with a few plain words saying what it is, and the ID only in br
 The briefing shows chats by title (else the last prompt or reply in words, never "untitled" or a
 slug) with their Task title, and Tasks, GitHub and Linear issues as "title (id)". The meeting
 script (`MEETING_SCRIPT`) tells Claude to speak and write the same way.
+
+## Structured decisions note (reminder and Task tables)
+The note's `Reminder changes:` and `Task changes:` sections are tables, one row per change, with the exact
+reminder title, a time in every due and the plain Task title. `scripts/daily_meeting_apply.py plan|apply
+--note <file>` reads the live reminders (Mac) and live Tasks, resolves every row (exact title or a unique
+prefix), applies the unambiguous rows and then re-reads both lists. It prints one result per row (OK /
+FAILED / NEEDS ATTENTION) and exits 1 if any row is not applied and verified, so a change can no longer be
+skipped silently. Mac offline: the reminder ops are saved to `<date>-pending-reminders.json`. Goals, Meeting,
+Chats, Cleanup and Parking lot lines are listed as manual steps for the skill.
+
+## Goals and milestones (Mondays)
+`GOALS.md` (private, gitignored, canonical checkout) holds the mission, at most 3 goals, milestones (each with
+a done-when and a date) and a `Last weekly review:` line. Tasks that serve a milestone carry the label
+`milestone:<name>`. The briefing shows GOALS.md, per-milestone Task progress (against a snapshot about a week
+old) and drift warnings (review overdue, high-priority Tasks without a milestone, a milestone with open
+high-priority Tasks and no movement). Every day the meeting asks which milestone today's top task serves; on
+Mondays Block 6 is the goals block (about 10 minutes, replacing the backlog cleanup): on track? still the right
+milestone (the mission and goals once a quarter or when asked)? the next milestone split into 3-7 Tasks and the
+week's priority order. Data: `scripts/daily_meeting_goals.py`.
+
+## Improving the meeting itself
+Every meeting ends with a two-minute "improve the meeting" block: the assistant proposes one change with its
+recommendation, based on evidence from that meeting, and asks whether to adopt it, replace it or do nothing.
+A change is a one-week trial (never two at once) and is reviewed the next time. Small tuning lives in the
+private `logs/daily-meetings/meeting-settings.md` and takes effect the next day; structural changes edit the
+meeting script. `meeting-changelog.md` keeps the dated history; both appear in the briefing as "Agreed meeting
+adjustments". The note carries a `Meeting:` line.

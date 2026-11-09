@@ -120,8 +120,8 @@ the plain description first and the ID only in brackets after it.
 - Ask **exactly one question at a time**, with your recommendation where one applies, then wait.
 - Respect the phase rules below. In a Marketing Week, gently push back on features, \
 refactors, UX polish and bug fixes that do not block marketing; offer the parking lot.
-- **ADHD-friendly rules:** (a) open by naming the 6 blocks and the time budget, and say \
-"Block N of 6" when you move on, so the founder always knows where we are; (b) never more \
+- **ADHD-friendly rules:** (a) open by naming the 6 blocks (plus a 2-minute closing "improve the meeting") and the time \
+budget, and say "Block N of 6" when you move on, so the founder always knows where we are; (b) never more \
 than **3** commitments for the day, each with a concrete **first step that takes 5 minutes** \
 and a time of day; (c) a new idea mid-meeting is parked in one line ("parked: …") and the \
 meeting returns to the agenda — never debate it now; (d) when the founder rambles, reflect \
@@ -147,7 +147,9 @@ one sentence what it is waiting for and ask what to do — continue (and with wh
 park, archive or done — with your recommendation. Stop after the top 3 chats if energy is low.
   - **Block 3 — Focus.** Agree **today's single focus** — propose one from the week's goals \
 and the founder's stated priorities — then up to **3 tasks**, each with done-criterion, \
-first 5-minute step, time slot and stop rule.
+first 5-minute step, time slot and stop rule. Then one short question, every day: **which \
+milestone does today's top task serve?** (see "Goals and milestones" in the briefing); if it \
+serves none, say so and ask whether to do it anyway, park it or swap it.
   - **Block 4 — Reminders.** Go through overdue and today/tomorrow reminders **in groups** \
 (done / move to a date and time you suggest / keep), not one by one. Every moved or new \
 reminder needs a **time of day**, never just a date — suggest one. Offer one optional \
@@ -155,7 +157,14 @@ midday reminder "Still on <focus>?" as a gentle anchor. Spread moved reminders o
 days so no day is overloaded.
   - **Block 5 — Parking lot and week goals.** Additions/removals and week-goal changes. \
 Read back anything parked during the meeting.
-  - **Block 6 — Backlog cleanup (optional, max 5 minutes, skip if energy is low or the \
+  - **Block 6 on Mondays — Goals and milestones (about 10 minutes; this replaces the backlog \
+cleanup).** Follow the "Goals and milestones" section: (1) is the current milestone on track — \
+use the progress evidence and the drift warnings; (2) is it still the right milestone, and once \
+a quarter or when asked, are the mission and the (at most 3) goals still right; (3) split the \
+next milestone into 3-7 concrete Tasks (plain title, priority, done-criterion) and agree the \
+priority order for the week. One question at a time, with your recommendation. If energy is \
+1-2, shrink it to three questions: on track? blocked? is the top priority still right?
+  - **Block 6 on other days — Backlog cleanup (optional, max 5 minutes, skip if energy is low or the \
 meeting already ran 20 minutes).** The meeting also keeps the to-do lists healthy. Take \
 **one** batch in groups of 3-5 related items (one question per group, with your \
 recommendation): which can be **closed or deleted** (obsolete, done, no longer wanted), \
@@ -170,26 +179,52 @@ work first); parked code that is about to be purged; open GitHub issues and Line
 (Appendix D) that block a goal or can be closed or parked; reminders whose date no longer \
 makes sense.
 - Close with the three-line read-back: "Today: <focus>. First step: <step> at <time>. \
-Parked: <items>." Then output the decisions note **exactly in this format** in a code block, \
-so it can be pasted back to the development server:
+Parked: <items>."
+- **Improve the meeting (2 minutes, every meeting, after the read-back).** Propose **one** change \
+to how this meeting runs, with your recommendation, based on evidence from today (it ran long, a \
+block was skipped or got "skip" answers, the same item was parked again, stale data was read out, \
+a question was unclear) and ask one question: "do you want this change, a different one, or none?" \
+"None" is always fine. A change is a one-week trial: if "Agreed meeting adjustments" below lists a \
+trial that has run a week, ask first whether to keep, adjust or revert it. Never run two trials at once.
+- Then output the decisions note **exactly in this format** in a code block, so it can be \
+pasted back to the development server. **Reminder changes and Task changes are tables with one \
+row per change, never prose**: the dev server applies and verifies every row, and a row it cannot \
+match is reported back. Use the exact reminder title as it appears in the briefing, a time in \
+every due (`YYYY-MM-DD HH:MM`, Berlin), and the plain title of a Task (never only an ID).
 
 ```
 DECISIONS {date}
 Check-in: progress <1-5>, energy <1-5>; did: <one line>; priorities: <up to 3, one line>
 Focus: <single most important task today>
-Tasks:
-1. <task> (done when: …; first step: …; at HH:MM; stop rule: …)
-Reminders:
-- "<exact reminder title>" -> done | move YYYY-MM-DD HH:MM | keep
-New reminders:
-- "<title>" (OpenMates|Personal Tasks, YYYY-MM-DD HH:MM)
+Focus tasks:
+1. <task> (done when: …; first step: …; at HH:MM; stop rule: …; milestone: <name or none>)
+Reminder changes:
+| Action | Reminder (exact title) | List | New due | New title | Notes |
+|---|---|---|---|---|---|
+| move | <title> | | YYYY-MM-DD HH:MM | | |
+| done | <title> | | | | |
+| delete | <title> | | | | |
+| create | <new title> | OpenMates or Personal Tasks | YYYY-MM-DD HH:MM | | <notes> |
+| update | <title> | | | <new title> | <notes> |
+Task changes:
+| Action | Task (exact title) | New title | Priority | Status | Label | Due | Description |
+|---|---|---|---|---|---|---|---|
+| create | <plain title> | | none/low/medium/high/urgent | todo | milestone:<name> | YYYY-MM-DD | <goal, done-criterion> |
+| edit | <title> | <new title> | <priority> | <status> | <label to add> | | <description> |
+| done | <title> | | | | | | |
+| delete | <title> | | | | | | |
+Goals:
+| Level | Item | Action | Done when | By |
+|---|---|---|---|---|
+| mission / goal / milestone | <plain wording> | add / edit / done / drop / keep | <measurable result> | YYYY-MM-DD |
 Chats:
-- <chat title or 8-char id> -> reply: <text> | park | archive | done | keep
+- <chat title> -> reply: <text> | park | archive | done | keep
 Cleanup:
 - <plain title> (<GitHub #123 | Linear ABC-1 | TASK-123>) -> close | delete | merge <other id> | delay | keep
 Parking lot:
 + <added item> | - <removed item>
 Week goals: <unchanged | new goals>
+Meeting: <the one change agreed for the meeting itself> -> adopt | adjust | revert | none (trial until YYYY-MM-DD)
 Notes: <anything else>
 ```
 """
@@ -281,6 +316,48 @@ def _waiting_section(waiting: dict) -> list[str]:
     return out + [""]
 
 
+def _goals_section(goals: dict, today: date) -> list[str]:
+    """Mission, goals and milestones (GOALS.md) with progress evidence; the Monday block runs on this."""
+    monday = today.weekday() == 0
+    out = ["", "## Goals and milestones" + (" — **Monday: run the goals block (Block 6) today**" if monday else ""), ""]
+    if not goals:
+        return out + ["_Goals data unavailable._", ""]
+    for warning in goals.get("warnings", []):
+        out.append(f"> **⚠** {warning}")
+    if goals.get("warnings"):
+        out.append("")
+    if goals.get("goals_file"):
+        text = re.sub(r"^(#{1,2}) ", "#### ", goals["goals_file"].strip(), flags=re.M)
+        out += [f"Last weekly review: {goals.get('last_review') or 'never'}.", "", text, ""]
+    progress = goals.get("progress") or {}
+    rows = progress.get("milestones") or {}
+    out.append(f"**Progress per milestone** (Tasks labelled `milestone:<name>`; baseline: {progress.get('baseline', '?')}):")
+    out += [f"- **{name}**: " + ", ".join(f"{count} {status}" for status, count in row["statuses"].items())
+            + f"; moved this week: {row['moved_this_week']}; open high priority: {row['open_high']}"
+            for name, row in rows.items()] or ["- no Task carries a milestone label yet"]
+    loose = progress.get("high_open_without_milestone") or {}
+    if loose.get("count"):
+        out.append(f"- {loose['count']} open high-priority Tasks without a milestone, e.g. " + "; ".join(loose["examples"][:4]))
+    out.append("")
+    if not monday:
+        out.append("_Not a Monday: only ask which milestone today's top task serves._")
+        out.append("")
+    return out
+
+
+def _meeting_adjustments(goals: dict) -> list[str]:
+    """Adjustments the founder agreed in earlier 'improve the meeting' blocks (private file)."""
+    settings, log = (goals or {}).get("meeting_settings"), (goals or {}).get("meeting_changelog") or []
+    if not settings and not log:
+        return []
+    out = ["## Agreed meeting adjustments (follow these; they override the script above where they differ)", ""]
+    if settings:
+        out += [settings, ""]
+    if log:
+        out += ["Recent changes to the meeting (newest last):"] + [f"- {line.lstrip('- ')}" for line in log] + [""]
+    return out
+
+
 def _reminders_banner(rem: dict) -> list[str]:
     if rem.get("source") == "live":
         return []
@@ -334,7 +411,7 @@ def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> s
             out.append(product["description"])
         if product.get("features"):
             out += ["", "Core features:"] + [f"- {feature}" for feature in product["features"]]
-    out += ["", MEETING_SCRIPT.replace("{date}", today.isoformat()), "## Phase rules", "",
+    out += ["", MEETING_SCRIPT.replace("{date}", today.isoformat()), "", *_meeting_adjustments(ev.get("goals") or {}), "## Phase rules", "",
             "- **Marketing Week:** marketing work (storyboards, Remotion video editing, screen "
             "recordings, press outreach, marketing copy) plus bug fixes that clearly block "
             "marketing. Everything else goes to the parking lot.",
@@ -342,6 +419,7 @@ def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> s
             "matters but need not fill the week.", ""]
     focus_text = re.sub(r"^(#{1,2}) ", "### ", ev.get("focus_file", "").strip(), flags=re.M)
     out += ["## 1. Focus file (FOCUS.md)", "", focus_text or "_FOCUS.md missing._", ""]
+    out += _goals_section(ev.get("goals") or {}, today)
     previous = ev.get("previous_meeting") or {}
     if previous.get("decisions"):
         out += [f"### Decisions from the last meeting ({previous['date']})",

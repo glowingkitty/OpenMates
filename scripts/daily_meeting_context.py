@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 import json
 import os
 from pathlib import Path
@@ -212,6 +212,7 @@ def task_snapshot(gaps: list[str], status: dict | None = None) -> list[dict] | N
         "blocked": t.get("blocked_reason_code") or "", "due": t.get("due_at") or "",
         "assignee": t.get("assignee_type") or "",
         "chat": _chat_ref(t.get("external_chat")),
+        "labels": [str(label) for label in t.get("labels") or []],
     } for t in data.get("tasks", [])]
 
 
@@ -496,6 +497,14 @@ def product_overview(root: Path) -> dict:
     return {"tagline": tagline, "description": description, "features": features}
 
 
+def goals(root: Path, out: Path, tasks: list[dict] | None, today: date) -> dict:
+    """GOALS.md, milestone progress from Task labels, drift warnings and agreed meeting adjustments."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import daily_meeting_goals  # noqa: E402 - sibling script, path set just above
+
+    return daily_meeting_goals.collect(root, out, tasks, today)
+
+
 def focus(root: Path) -> str:
     path = root / "FOCUS.md"
     return path.read_text()[:12000] if path.exists() else ""
@@ -547,6 +556,7 @@ def collect(root: Path, now: datetime, since: datetime, out: Path) -> tuple[dict
         "tasks_status": tasks_status,
         "waiting_chats": waiting(tasks, out, now),
         "alerts": alerts(gaps),
+        "goals": goals(root, out, tasks, now.astimezone(TZ).date()),
         "issues": issues,
         "cleanup": cleanup,
         "reminders": reminders(gaps),
