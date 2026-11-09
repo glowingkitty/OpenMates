@@ -2,6 +2,8 @@
 # Utilities for processing and handling LLM response streams.
 
 import logging
+import re
+import time
 from typing import AsyncIterator
 
 from backend.apps.ai.utils.pseudo_tool_call import SuppressedToolCallMarkup
@@ -9,8 +11,24 @@ logger = logging.getLogger(__name__)
 # set logger to to DEBUG level for detailed output
 # logger.setLevel(logging.DEBUG)
 
+# Fence languages whose code embed is drawn while it is still being written.
+# Their blocks are released in complete lines instead of one closed block.
+PROGRESSIVE_CODE_LANGUAGES = frozenset({"svg", "html"})
+# Minimum seconds between two partial releases of one progressive block.
+PROGRESSIVE_CODE_RELEASE_INTERVAL = 0.2
+
+
+def _fence_language(fence_line: str) -> str:
+    """Return the lower-case language of an opening fence line (```lang:file)."""
+    return re.split(r"[:\s]", fence_line.strip()[3:].strip(), maxsplit=1)[0].lower()
+
+
 async def aggregate_paragraphs(
-    raw_chunk_stream: AsyncIterator, *, early_prose: bool = False
+    raw_chunk_stream: AsyncIterator,
+    *,
+    early_prose: bool = False,
+    progressive_code_languages: frozenset[str] = frozenset(),
+    progressive_code_interval: float = PROGRESSIVE_CODE_RELEASE_INTERVAL,
 ) -> AsyncIterator:
     """
     Asynchronously aggregates text chunks from a stream into paragraphs,
@@ -27,6 +45,12 @@ async def aggregate_paragraphs(
     yielded as a SuppressedToolCallMarkup object, never as text, so the caller
     can recognize a turn that only wrote a pseudo tool call.
     The default retains the paragraph contract for other callers.
+
+    A code block whose fence language is in progressive_code_languages is not
+    held until its closing fence: its complete lines are released at most once
+    per progressive_code_interval seconds, the opening fence line first and the
+    closing fence in the last piece. A trailing partial line is always held, so
+    a closing fence is never split across two pieces.
 
     Args:
         raw_chunk_stream: An asynchronous iterator yielding text chunks (strings)
@@ -47,6 +71,12 @@ async def aggregate_paragraphs(
     max_tool_call_text = 4096
     early_release_done = False
     early_prose_min_chars = 8
+    # None until the opening fence line of the current code block is complete.
+    code_lines_progressive: bool | None = None
+    # False once part of the current block was released: the buffer then no
+    # longer starts with the opening fence, so a leading fence is the closing one.
+    opening_fence_buffered = False
+    last_code_release = 0.0
 
     def held_marker_suffix(value: str) -> int:
         """Keep only suffixes that may complete a special opening token."""
@@ -106,7 +136,7 @@ async def aggregate_paragraphs(
                     # that delimiter so it cannot be mistaken for the closing fence.
                     delimiter_search_start = (
                         len(code_block_delimiter)
-                        if buffer.startswith(code_block_delimiter)
+                        if opening_fence_buffered and buffer.startswith(code_block_delimiter)
                         else 0
                     )
                     end_code_block_idx = buffer.find(
@@ -119,7 +149,27 @@ async def aggregate_paragraphs(
                         yield code_block_content
                         buffer = buffer[end_code_block_idx + len(code_block_delimiter):]
                         in_code_block = False
+                        code_lines_progressive = None
                         processed_in_outer_loop = True
+                    elif progressive_code_languages and (
+                        code_lines_progressive
+                        or (code_lines_progressive is None and "\n" in buffer)
+                    ):
+                        if code_lines_progressive is None:
+                            code_lines_progressive = (
+                                _fence_language(buffer[:buffer.find("\n")]) in progressive_code_languages
+                            )
+                            if not code_lines_progressive:
+                                break
+                            last_code_release = 0.0
+                        release_end = buffer.rfind("\n") + 1
+                        now = time.monotonic()
+                        if release_end and now - last_code_release >= progressive_code_interval:
+                            yield buffer[:release_end]
+                            buffer = buffer[release_end:]
+                            last_code_release = now
+                            opening_fence_buffered = False
+                        break
                     elif len(buffer) > MAX_BUFFER_SIZE:
                         # Code block is too long without a closing delimiter, force yield part of it
                         # Try to break on a newline for cleaner output
@@ -131,6 +181,7 @@ async def aggregate_paragraphs(
                         else: # No newline found, or it's at the start, yield fixed size
                             yield buffer[:forced_yield_len]
                             buffer = buffer[forced_yield_len:]
+                        opening_fence_buffered = False
                         logger.warning(f"Forced yield from within a long code block. Current buffer size: {len(buffer)}")
                         processed_in_outer_loop = True # Buffer was modified
                     else:
@@ -171,6 +222,7 @@ async def aggregate_paragraphs(
                             yield buffer[:code_block_start_idx]
                         buffer = buffer[code_block_start_idx:] # Buffer now starts with ```
                         in_code_block = True # Enter code block state
+                        opening_fence_buffered = True
                         processed_in_outer_loop = True
                     else:
                         # No separators found in the scan_area
