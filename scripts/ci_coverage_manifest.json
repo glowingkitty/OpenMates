@@ -984,7 +984,8 @@
       "execution": null,
       "enabling_work": "Run only on the coordinated dev stack with isolated provisioned test accounts, bounded disposable Team credits and real inference; never dispatch to CI.",
       "specs": [
-        "teams-chat-collaboration-real.spec.ts"
+        "teams-chat-collaboration-real.spec.ts",
+        "vector-graphic-chat.spec.ts"
       ]
     },
     "real_stripe_sandbox_settlement": {

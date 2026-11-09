@@ -13625,6 +13625,11 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         // During streaming, embed NodeViews are created with "processing" status before the
         // actual embed data arrives. When `send_embed_data` stores the embed and dispatches
         // `embedUpdated`, we need to force a re-render so the embed content is displayed.
+        // Code embeds whose card is already mounted in "processing" state. Their further
+        // processing updates (streamed code/SVG/HTML lines) reach the mounted card through
+        // its own embedUpdated subscription; re-rendering the message for each of them
+        // would remount the card and flash its loading placeholder several times a second.
+        const mountedProcessingEmbeds = new Set<string>();
         const embedUpdatedHandler = ((event: CustomEvent) => {
             const { chat_id, message_id, task_id, embed_id, type, status, isProcessing } = event.detail;
             if (typeof chat_id === 'string') invalidateRecentChatWindow(chat_id);
@@ -13647,6 +13652,11 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             if (chatHistoryRef && currentMessages.length > 0) {
                 const targetIds = embedUpdateTargetIds(currentMessages, { message_id, task_id, embed_id });
                 if (targetIds.size === 0) return;
+                if (type === 'code' && typeof embed_id === 'string') {
+                    if (status !== 'processing') mountedProcessingEmbeds.delete(embed_id);
+                    else if (mountedProcessingEmbeds.has(embed_id)) return;
+                    else mountedProcessingEmbeds.add(embed_id);
+                }
                 // CRITICAL: For error/cancelled embeds, check if the error is already tracked.
                 // If so, skip the re-render to prevent an infinite loop where:
                 //   error embed -> re-render -> resolveEmbed() -> request_embed -> send_embed_data(error)
