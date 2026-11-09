@@ -7882,6 +7882,9 @@
       "checking": {
         "text": "Checking result…"
       },
+      "scripting": {
+        "text": "Writing the generator script…"
+      },
       "correcting": {
         "text": "Improving…"
       },

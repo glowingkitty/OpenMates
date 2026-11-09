@@ -67,6 +67,18 @@ export const variants = {
 		isMobile: false
 	},
 
+	/** Generator script being written and run: no picture yet, only the stage label. */
+	svgScripting: {
+		id: 'preview-image-gen-svg-scripting',
+		skillId: 'generate' as const,
+		prompt: 'A precise geometric pattern of concentric circles',
+		model: 'vector-author',
+		status: 'processing' as const,
+		svgDraft: '',
+		draftStage: 'scripting' as const,
+		isMobile: false
+	},
+
 	/** Draft generation variant */
 	draft: {
 		id: 'preview-image-gen-draft',

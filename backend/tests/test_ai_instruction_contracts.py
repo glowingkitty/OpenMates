@@ -175,7 +175,9 @@ def test_images_generate_owns_vector_graphics_and_offers_both_engines() -> None:
     skill = next(item for item in app["skills"] if item["id"] == "generate" and "tool_schema" in item)
     request = skill["tool_schema"]["properties"]["requests"]["items"]["properties"]
     assert "instead of writing SVG code" in skill["preprocessor_hint"]
-    assert request["vector_engine"]["enum"] == ["llm", "recraft"]
+    assert request["vector_engine"]["enum"] == ["llm", "script", "recraft"]
+    assert request["requirements"]["type"] == "array"
+    assert "no check\n" in request["requirements"]["description"] or "no check" in request["requirements"]["description"]
     assert request["vector_engine"]["default"] == "llm"
     assert "modified from its source code" in request["reference_images"]["description"]
     assert "pixel reference is redrawn as vector" in request["reference_images"]["description"]

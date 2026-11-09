@@ -7853,6 +7853,9 @@
       "checking": {
         "text": "Ergebnis wird geprüft…"
       },
+      "scripting": {
+        "text": "Generator-Skript wird geschrieben…"
+      },
       "correcting": {
         "text": "Wird verbessert…"
       },

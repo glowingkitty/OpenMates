@@ -27,7 +27,7 @@
   import { getProviderIconUrl } from '../../../data/providerIcons';
   import { hasMediaEncryptionMetadata } from '../../../services/encryption/mediaEncryption';
   import SvgEmbedImage from '../code/SvgEmbedImage.svelte';
-  import { EMPTY_SVG_DRAFT, readSvgDraft, shouldShowSvgDraft, svgDraftStageLabelKey, type SvgDraftStage, type SvgDraftState } from './svgDraft';
+  import { EMPTY_SVG_DRAFT, mergeSvgDraft, readSvgDraft, shouldShowDraftStatusOnly, shouldShowSvgDraft, svgDraftStageLabelKey, type SvgDraftStage, type SvgDraftState } from './svgDraft';
   
   /**
    * Image embed content structure from the backend
@@ -207,6 +207,7 @@
   let aesNonce = $derived(localAesNonce);
   let inputEmbedIds = $derived(localInputEmbedIds);
   let showSvgDraft = $derived(shouldShowSvgDraft(status, svgDraftState.draft));
+  let showDraftStatusOnly = $derived(shouldShowDraftStatusOnly(status, svgDraftState.draft, svgDraftState.stage));
   let draftStageLabelKey = $derived(svgDraftStageLabelKey(svgDraftState.stage));
   
   // Human-readable model name resolved from model ID via frontend metadata
@@ -315,7 +316,7 @@
     } else if (data.decodedContent) {
       // A shorter draft replaces the old one (correction round restarted the drawing)
       const next = readSvgDraft(data.decodedContent);
-      if (next.draft) svgDraftState = next;
+      svgDraftState = mergeSvgDraft(svgDraftState, next);
     }
 
     // Update content from decoded data
@@ -390,6 +391,11 @@
             <div class="skeleton-line long"></div>
             <div class="skeleton-line short"></div>
           </div>
+          {#if showDraftStatusOnly && draftStageLabelKey}
+            <div class="draft-status" data-testid="image-generate-draft-status" data-stage={svgDraftState.stage}>
+              <span class="draft-status-label" data-testid="image-generate-svg-draft-stage">{$text(draftStageLabelKey)}</span>
+            </div>
+          {/if}
         </div>
       {:else}
         <!-- Error state -->
@@ -463,6 +469,20 @@
     font-size: var(--font-size-tiny);
     line-height: 1.3;
     pointer-events: none;
+  }
+
+  .draft-status {
+    margin-top: var(--spacing-4);
+  }
+
+  .draft-status-label {
+    display: inline-block;
+    padding: var(--spacing-1) var(--spacing-4);
+    border-radius: var(--radius-2);
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    font-size: var(--font-size-tiny);
+    line-height: 1.3;
   }
 
   /* Skeleton lines fallback when prompt is not yet available */

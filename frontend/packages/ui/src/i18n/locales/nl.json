@@ -6441,6 +6441,9 @@
       "checking": {
         "text": "Resultaat controleren…"
       },
+      "scripting": {
+        "text": "Generatorscript wordt geschreven…"
+      },
       "correcting": {
         "text": "Verbeteren…"
       },

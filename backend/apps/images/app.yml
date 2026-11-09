@@ -259,6 +259,10 @@ instructions:
       the embed_ref of that graphic in reference_images, and a prompt that states only the requested change.
       One request per wanted variation; keep each prompt short and concrete (subject, style, colours, text,
       intended use such as print, embroidery or cutting).
+      Choose vector_engine "script" when shapes should be computed (mathematical, symmetric, repeated, smooth
+      transitions), "recraft" for dense painterly illustrations, otherwise leave the default. Put the user's
+      hard, checkable constraints into requirements so the result is verified and corrected automatically;
+      if the result lists unmet requirements, tell the user plainly which ones.
 skills:
   - id: search
     anonymous_access: authenticated
@@ -367,7 +371,7 @@ skills:
             This parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single image.
             Example for single image: {"requests": [{"prompt": "a cute cat"}]}
             Each object must contain 'prompt' (detailed description), and can include optional
-            'aspect_ratio', 'output_filetype', 'vector_engine', 'quality' and 'reference_images'.
+            'aspect_ratio', 'output_filetype', 'vector_engine', 'requirements', 'quality' and 'reference_images'.
           items:
             type: object
             properties:
@@ -401,7 +405,7 @@ skills:
                 type: string
                 description: |
                   Generation quality.
-                  For SVG output with vector_engine "llm": "max" lets the vector author reason longer
+                  For SVG output with vector_engine "llm" or "script": "max" lets the vector author reason longer
                   (for complex, multi-part drawings; costs more tokens).
                   For SVG output with vector_engine "recraft":
                     "default" uses Recraft V4.1 Vector (100 credits — good for web/UI use).
@@ -418,17 +422,37 @@ skills:
                   basic: false
                 type: string
                 description: |
-                  Only for output_filetype="svg": who draws the vector graphic.
-                  "llm" (default): a vector author model writes clean, editable SVG code, checks the
-                  rendered result against the request and corrects it automatically. Best for logos,
-                  icons, flat illustrations, diagrams, patterns, text, precise or mathematical shapes,
-                  embroidery/cutting motifs, and the only engine that can modify an existing graphic
-                  passed in reference_images. Billed by the tokens used (typically 10-80 credits).
+                  Only for output_filetype="svg": how the vector graphic is made.
+                  "llm" (default): a vector author model writes clean, editable SVG code directly.
+                  Best for logos, icons, flat illustrations, diagrams, text and organic hand-drawn
+                  shapes. Billed by the tokens used (typically 10-80 credits).
+                  "script": the author model writes a small deterministic program that computes the
+                  SVG and runs in a sandbox. Recommended whenever geometry should be calculated
+                  rather than drawn by hand: mathematical or parametric shapes, spirals, fractals,
+                  mandalas, exact symmetry, repeated or tiled patterns, many similar elements,
+                  smooth curve or colour transitions, charts from numbers. Billed by the tokens used
+                  plus 5 credits per started minute of sandbox time.
                   "recraft": Recraft V4.1 Vector, for richly detailed, painterly or decorative
                   illustrations where a traced look is fine (100 credits, or 300 with quality "max").
                   Cannot use reference_images.
-                enum: ["llm", "recraft"]
+                  "llm" and "script" can modify an existing graphic passed in reference_images.
+                enum: ["llm", "script", "recraft"]
                 default: "llm"
+              requirements:
+                x-ui:
+                  basic: false
+                type: array
+                description: |
+                  Only for output_filetype="svg". Optional list of short natural-language requirements
+                  the finished graphic must meet, each one checkable by looking at the picture
+                  (e.g. "exactly two variations side by side", "only solid closed fills, no
+                  gradients", "the name is written in uppercase", "nothing is cut off").
+                  When given, the rendered result is checked against each requirement and a clearly
+                  unmet one triggers an automatic correction (at most 2 rounds); each check and
+                  correction is billed by its tokens. Omit it for simple requests: then no check
+                  runs. Include the user's hard constraints here, not style wishes.
+                items:
+                  type: string
               reference_images:
                 x-ui:
                   basic: false
@@ -440,8 +464,9 @@ skills:
                   The server resolves all cryptographic and storage details automatically.
                   Supports up to 14 reference images. When provided, enables image-to-image
                   editing/style-transfer mode (Google Gemini: same endpoint; FLUX: switches
-                  to the 4B edit model). With output_filetype="svg" and vector_engine "llm": an SVG
-                  reference is modified from its source code, a pixel reference is redrawn as vector.
+                  to the 4B edit model). With output_filetype="svg" and vector_engine "llm" or "script": an SVG
+                  reference is modified from its source code (a script-made one always through its
+                  generator script), a pixel reference is redrawn as vector.
                   Ignored by vector_engine "recraft".
                 items:
                   type: string

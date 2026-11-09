@@ -1,10 +1,11 @@
-"""Vector author: validation, review-driven correction, fallbacks, drafts and token billing."""
+"""Vector author: validation, requirement review, correction, script engine, fallbacks and billing."""
 from types import SimpleNamespace
 
 import pytest
 
 from backend.apps.images import vector_author
 from backend.apps.images.tasks import generate_task
+from backend.apps.images.vector_script import ScriptRun, script_run_credits
 from backend.apps.images.vector_author import (
     InvalidSvgError,
     MAX_CORRECTION_ROUNDS,
@@ -13,7 +14,9 @@ from backend.apps.images.vector_author import (
     VectorUsage,
     author_svg,
     build_request_message,
+    extract_script,
     extract_svg,
+    normalize_requirements,
     partial_svg,
     validate_svg,
 )
@@ -51,8 +54,24 @@ def _review(*outcomes):
     return review_fn
 
 
+REQUIREMENTS = ["nothing is cut off", "the square is green"]
 ACCEPT = VectorReview(accepted=True, status="accepted", input_tokens=900)
-REJECT = VectorReview(accepted=False, status="rejected", feedback="parts are cut off", input_tokens=900)
+REJECT = VectorReview(
+    accepted=False, status="rejected", feedback="these requirements are not met: (1) nothing is cut off",
+    input_tokens=900, unmet=("nothing is cut off",),
+)
+SCRIPT = "import math\n\ndef build_svg():\n    return SVG\n"
+
+
+def _sandbox(*runs):
+    seen = []
+
+    async def script_fn(code, **kwargs):
+        seen.append(code)
+        return runs[min(len(seen) - 1, len(runs) - 1)]
+
+    script_fn.seen = seen
+    return script_fn
 
 
 # contract-test: supporting surface=rest_api assertions=images-generate.vector.validated-reviewed-corrected
@@ -116,8 +135,10 @@ async def test_first_model_draws_reports_drafts_and_records_usage(monkeypatch):
         drafts.append((svg, stage, attempt))
 
     result = await author_svg(
-        task_id="t", prompt="a red square", on_draft=on_draft, stream_fn=stream_fn, review_fn=review_fn,
+        task_id="t", prompt="a red square", requirements=REQUIREMENTS, on_draft=on_draft,
+        stream_fn=stream_fn, review_fn=review_fn,
     )
+    assert review_fn.seen[0]["requirements"] == REQUIREMENTS
 
     assert (result.svg, result.model_id, result.attempts, result.review_status) == (GOOD, "openai/gpt-6.1-sol", 1, "accepted")
     assert result.usage == [
@@ -137,13 +158,15 @@ async def test_first_model_draws_reports_drafts_and_records_usage(monkeypatch):
 async def test_rejected_draft_is_corrected_with_the_reviewer_feedback():
     stream_fn, review_fn = _stream(GOOD, BETTER), _review(REJECT, ACCEPT)
 
-    result = await author_svg(task_id="t", prompt="a square", quality="max", stream_fn=stream_fn, review_fn=review_fn)
+    result = await author_svg(
+        task_id="t", prompt="a square", quality="max", requirements=REQUIREMENTS, stream_fn=stream_fn, review_fn=review_fn,
+    )
 
     assert (result.svg, result.attempts, result.review_status) == (BETTER, 2, "accepted")
     correction = stream_fn.calls[1]["message_history"]
     assert [message["role"] for message in correction] == ["user", "assistant", "user"]
     assert correction[1]["content"] == GOOD
-    assert "parts are cut off" in correction[2]["content"]
+    assert "nothing is cut off" in correction[2]["content"]
     assert stream_fn.calls[1]["requested_reasoning_level"] == "HIGH"
     assert [entry.step for entry in result.usage] == ["drawing", "review", "correcting", "review"]
 
@@ -152,10 +175,13 @@ async def test_rejected_draft_is_corrected_with_the_reviewer_feedback():
 async def test_correction_stops_at_the_round_limit_and_delivers_the_last_valid_drawing():
     stream_fn, review_fn = _stream(GOOD, BETTER), _review(REJECT)
 
-    result = await author_svg(task_id="t", prompt="a square", stream_fn=stream_fn, review_fn=review_fn)
+    result = await author_svg(
+        task_id="t", prompt="a square", requirements=REQUIREMENTS, stream_fn=stream_fn, review_fn=review_fn,
+    )
 
     assert len(stream_fn.calls) == MAX_CORRECTION_ROUNDS + 1 == 3
     assert (result.svg, result.attempts, result.review_status) == (BETTER, 3, "rejected")
+    assert result.unmet_requirements == ("nothing is cut off",)
     assert len(result.usage) == 6
 
 
@@ -164,7 +190,9 @@ async def test_unsafe_draft_is_never_reviewed_or_delivered():
     unsafe = GOOD.replace("<rect", "<script>x</script><rect")
     stream_fn, review_fn = _stream(unsafe, GOOD), _review(ACCEPT)
 
-    result = await author_svg(task_id="t", prompt="a square", stream_fn=stream_fn, review_fn=review_fn)
+    result = await author_svg(
+        task_id="t", prompt="a square", requirements=REQUIREMENTS, stream_fn=stream_fn, review_fn=review_fn,
+    )
 
     assert (result.svg, result.attempts) == (GOOD, 2)
     assert len(review_fn.seen) == 1
@@ -176,7 +204,9 @@ async def test_unavailable_review_delivers_the_valid_drawing_without_review_cost
     stream_fn = _stream(GOOD)
     review_fn = _review(VectorReview(accepted=True, status="unavailable"))
 
-    result = await author_svg(task_id="t", prompt="a square", stream_fn=stream_fn, review_fn=review_fn)
+    result = await author_svg(
+        task_id="t", prompt="a square", requirements=REQUIREMENTS, stream_fn=stream_fn, review_fn=review_fn,
+    )
 
     assert (result.review_status, result.attempts) == ("unavailable", 1)
     assert [entry.step for entry in result.usage] == ["drawing"]
@@ -202,7 +232,10 @@ async def test_next_model_takes_over_when_the_first_fails_and_all_failing_raises
 async def test_modification_is_reviewed_as_a_modification():
     stream_fn, review_fn = _stream(BETTER), _review(ACCEPT)
 
-    await author_svg(task_id="t", prompt="make it green", source_svgs=[GOOD], stream_fn=stream_fn, review_fn=review_fn)
+    await author_svg(
+        task_id="t", prompt="make it green", requirements=REQUIREMENTS, source_svgs=[GOOD],
+        stream_fn=stream_fn, review_fn=review_fn,
+    )
 
     assert review_fn.seen[0]["is_modification"] is True
     assert GOOD in stream_fn.calls[0]["message_history"][0]["content"]
@@ -255,5 +288,100 @@ def test_svg_is_drawn_by_the_author_unless_recraft_is_requested():
     assert generate_task._resolve_vector_engine(None) == "llm"
     assert generate_task._resolve_vector_engine("anything") == "llm"
     assert generate_task._resolve_vector_engine("Recraft") == "recraft"
+    assert generate_task._resolve_vector_engine("script") == "script"
+    assert generate_task._resolve_image_billing_model_ref(None, "svg", "default", False, "script") == "openai/gpt-6.1-sol"
     assert generate_task._resolve_image_billing_model_ref(None, "svg", "default", False, "llm") == "openai/gpt-6.1-sol"
     assert generate_task._resolve_image_billing_model_ref(None, "svg", "max", False, "recraft").startswith("recraft/")
+
+
+# contract-test: direct surface=rest_api assertions=images-generate.vector.requirements-review
+async def test_without_requirements_no_review_call_is_made():
+    stream_fn, review_fn = _stream(GOOD), _review(REJECT)
+
+    result = await author_svg(task_id="t", prompt="a square", stream_fn=stream_fn, review_fn=review_fn)
+
+    assert review_fn.seen == []
+    assert (result.svg, result.attempts, result.review_status) == (GOOD, 1, "skipped")
+    assert [entry.step for entry in result.usage] == ["drawing"]
+
+
+# contract-test: supporting surface=rest_api assertions=images-generate.vector.requirements-review
+def test_requirements_are_trimmed_deduplicated_and_bounded():
+    assert normalize_requirements(None) == []
+    assert normalize_requirements("  two   variations ") == ["two variations"]
+    assert normalize_requirements(["a", "a", "", "b"]) == ["a", "b"]
+    assert len(normalize_requirements([f"r{index}" for index in range(20)])) == 8
+    message = build_request_message(
+        prompt="x", aspect_ratio="1:1", source_svgs=[], reference_images=[], requirements=["no gradients"],
+    )
+    assert "- no gradients" in message["content"]
+
+
+# contract-test: direct surface=rest_api assertions=images-generate.vector.script-engine
+async def test_script_engine_runs_the_generator_and_keeps_script_and_sandbox_time():
+    stream_fn, review_fn = _stream(f"```python\n{SCRIPT}```"), _review(ACCEPT)
+    script_fn, stages = _sandbox(ScriptRun(GOOD, 4.2)), []
+
+    async def on_draft(svg, stage, attempt):
+        stages.append((bool(svg), stage))
+
+    result = await author_svg(
+        task_id="t", prompt="a spiral", engine="script", requirements=REQUIREMENTS, on_draft=on_draft,
+        stream_fn=stream_fn, review_fn=review_fn, script_fn=script_fn,
+    )
+
+    assert stream_fn.calls[0]["system_prompt"] == vector_author.SCRIPT_SYSTEM_PROMPT
+    assert script_fn.seen == [SCRIPT.strip()]
+    assert (result.svg, result.script, result.engine, result.sandbox_seconds) == (GOOD, SCRIPT.strip(), "script", [4.2])
+    assert stages == [(False, "scripting"), (True, "checking")]
+    assert [entry.step for entry in result.usage] == ["scripting", "review"]
+
+
+# contract-test: direct surface=rest_api assertions=images-generate.vector.script-engine
+async def test_failing_script_is_corrected_from_its_error_and_every_run_is_counted():
+    stream_fn = _stream(SCRIPT, SCRIPT.replace("SVG", "DRAWING"))
+    script_fn = _sandbox(ScriptRun(None, 1.5, "NameError: name 'SVG' is not defined"), ScriptRun(GOOD, 2.0))
+
+    result = await author_svg(
+        task_id="t", prompt="a spiral", engine="script", stream_fn=stream_fn, review_fn=_review(ACCEPT),
+        script_fn=script_fn,
+    )
+
+    correction = stream_fn.calls[1]["message_history"]
+    assert correction[1]["content"] == SCRIPT.strip()
+    assert "NameError" in correction[2]["content"] and "Python module" in correction[2]["content"]
+    assert (result.svg, result.attempts, result.sandbox_seconds) == (GOOD, 2, [1.5, 2.0])
+    assert "DRAWING" in result.script
+
+
+# contract-test: direct surface=rest_api assertions=images-generate.vector.script-engine
+async def test_script_modification_starts_from_the_existing_generator():
+    stream_fn = _stream(SCRIPT)
+
+    await author_svg(
+        task_id="t", prompt="more turns", engine="script", source_script="def build_svg():\n    return OLD\n",
+        stream_fn=stream_fn, review_fn=_review(ACCEPT), script_fn=_sandbox(ScriptRun(GOOD, 1.0)),
+    )
+
+    assert "Existing generator script to modify:" in stream_fn.calls[0]["message_history"][0]["content"]
+    assert "return OLD" in stream_fn.calls[0]["message_history"][0]["content"]
+    assert extract_script("print('no entry point')") is None
+
+
+# contract-test: direct surface=rest_api assertions=images-generate.vector.token-metered-billing
+async def test_sandbox_time_and_a_flat_provider_fee_are_added_to_the_token_credits(monkeypatch):
+    async def pricing(model_id, _log_prefix):
+        return PRICES.get(model_id)
+
+    monkeypatch.setattr(generate_task, "_fetch_model_pricing_config", pricing)
+    usage = [VectorUsage("scripting", "openai/gpt-6.1-sol", 600, 3000)]
+
+    credits, details = await generate_task._vector_author_credits(usage, "[t]", [1.5, 61.0])
+    assert credits == 156 + 5 + 10
+    assert [call["credits"] for call in details["provider_calls"]] == [156.0, 5, 10]
+
+    review_only = [VectorUsage("review", "typesafe/jev-1.14", 900, 0)]
+    credits, details = await generate_task._vector_author_credits(review_only, "[t]", flat_credits=100)
+    assert credits == 103
+    assert details["provider_calls"][-1] == {"step": "provider_flat_fee", "credits": 100}
+    assert (script_run_credits(0), script_run_credits(0.1), script_run_credits(60), script_run_credits(60.1)) == (0, 5, 5, 10)

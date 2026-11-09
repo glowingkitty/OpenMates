@@ -18,7 +18,7 @@ import hashlib
 import base64
 import os
 from datetime import datetime, timezone
-from typing import Dict, Any, List, Tuple, Optional
+from typing import Dict, Any, List, Sequence, Tuple, Optional
 from io import BytesIO
 
 import httpx
@@ -49,10 +49,19 @@ from backend.shared.providers.recraft.recraft import (
 )
 from backend.core.api.app.services.s3.config import get_bucket_name
 from backend.apps.images.vector_author import (
+    MAX_CORRECTION_ROUNDS,
+    MAX_SOURCE_SVG_CHARS,
     VECTOR_AUTHOR_MODELS,
+    VECTOR_REVIEW_MODEL,
+    VectorAuthorError,
+    VectorAuthorResult,
     VectorUsage,
     author_svg,
+    normalize_requirements,
+    render_review_jpeg,
+    review_with_jev,
 )
+from backend.apps.images.vector_script import script_run_credits
 from backend.shared.python_utils.billing_utils import (
     MINIMUM_CREDITS_CHARGED,
     calculate_credits_from_tokens,
@@ -109,9 +118,14 @@ VECTOR_AUTHOR_ESTIMATE_INPUT_TOKENS = 1_500
 VECTOR_AUTHOR_ESTIMATE_OUTPUT_TOKENS = 8_000
 
 
+VECTOR_ENGINE_SCRIPT = "script"
+_VECTOR_ENGINES = (VECTOR_ENGINE_LLM, VECTOR_ENGINE_SCRIPT, VECTOR_ENGINE_RECRAFT)
+
+
 def _resolve_vector_engine(value: Any) -> str:
-    """SVG output is written by the LLM vector author unless Recraft is asked for."""
-    return VECTOR_ENGINE_RECRAFT if str(value or "").lower() == VECTOR_ENGINE_RECRAFT else VECTOR_ENGINE_LLM
+    """Who draws an SVG: the LLM author directly (default), a generator script, or Recraft."""
+    engine = str(value or "").lower()
+    return engine if engine in _VECTOR_ENGINES else VECTOR_ENGINE_LLM
 
 
 async def _estimate_vector_author_credits(log_prefix: str) -> int:
@@ -125,11 +139,16 @@ async def _estimate_vector_author_credits(log_prefix: str) -> int:
     ))
 
 
-async def _vector_author_credits(usage: List[VectorUsage], log_prefix: str) -> Tuple[int, Dict[str, Any]]:
-    """Price every provider call of one drawing from its reported tokens.
+async def _vector_author_credits(
+    usage: List[VectorUsage], log_prefix: str, sandbox_seconds: Sequence[float] = (),
+    flat_credits: int = 0,
+) -> Tuple[int, Dict[str, Any]]:
+    """Price everything one drawing used: model calls by tokens, sandbox runs by time.
 
-    The exact (fractional) credits of all calls are summed and rounded down once,
-    so several small calls are not each rounded up. A call without usage or
+    The exact (fractional) credits of all model calls are summed and rounded down
+    once, so several small calls are not each rounded up. Each sandbox run adds
+    the Code Run price per started minute, and ``flat_credits`` adds a flat
+    provider fee (Recraft) that preceded a review. A call without usage or
     without a price is an error, never free: the drawing is not delivered
     unbilled and the user is not charged a guessed amount.
     """
@@ -149,12 +168,23 @@ async def _vector_author_credits(usage: List[VectorUsage], log_prefix: str) -> T
         raw_credits += step_credits
         steps.append({"step": entry.step, "model_used": entry.model_id, "input_tokens": entry.input_tokens,
                       "output_tokens": entry.output_tokens, "credits": round(step_credits, 4)})
+    sandbox_credits = 0
+    for seconds in sandbox_seconds:
+        run_credits = script_run_credits(seconds)
+        sandbox_credits += run_credits
+        steps.append({"step": "script_run", "model_used": "e2b/sandbox", "duration_seconds": round(seconds, 2),
+                      "credits": run_credits})
+    if flat_credits:
+        steps.append({"step": "provider_flat_fee", "credits": flat_credits})
     details = {
         "input_tokens": sum(entry.input_tokens for entry in usage),
         "output_tokens": sum(entry.output_tokens for entry in usage),
         "provider_calls": steps,
     }
-    return max(MINIMUM_CREDITS_CHARGED, math.floor(raw_credits)), details
+    token_credits = math.floor(raw_credits)
+    if raw_credits > 0 and token_credits == 0:
+        token_credits = MINIMUM_CREDITS_CHARGED
+    return max(MINIMUM_CREDITS_CHARGED, token_credits + sandbox_credits + flat_credits), details
 
 
 def _resolve_image_billing_model_ref(
@@ -164,7 +194,7 @@ def _resolve_image_billing_model_ref(
     has_reference_images: bool,
     vector_engine: str = VECTOR_ENGINE_RECRAFT,
 ) -> Optional[str]:
-    if output_filetype == "svg" and vector_engine == VECTOR_ENGINE_LLM:
+    if output_filetype == "svg" and vector_engine in (VECTOR_ENGINE_LLM, VECTOR_ENGINE_SCRIPT):
         return VECTOR_AUTHOR_MODELS[0]
     if output_filetype == "svg":
         recraft_model_id = RECRAFT_MODEL_MAX if quality == "max" else RECRAFT_MODEL_DEFAULT
@@ -587,6 +617,7 @@ async def _decrypt_reference_images(
     user_vault_key_id: str,
     log_prefix: str,
     svg_sources: Optional[List[str]] = None,
+    script_sources: Optional[List[str]] = None,
 ) -> Tuple[List[bytes], List[str]]:
     """
     Fetch and decrypt reference images from the Redis embed cache for use as
@@ -686,6 +717,11 @@ async def _decrypt_reference_images(
                     svg_sources.append(embedded_code)
                     logger.info(f"{embed_log} Using SVG code embed as editable vector source")
                     continue
+
+                # A drawing made by the script engine carries its generator: that is the source to change.
+                generator = content.get("vector_script")
+                if script_sources is not None and isinstance(generator, str) and generator.strip():
+                    script_sources.append(generator)
 
                 vault_wrapped_aes_key = content.get("vault_wrapped_aes_key")
                 s3_base_url = content.get("s3_base_url")
@@ -848,6 +884,63 @@ def generate_image_draft_task(self, app_id: str, skill_id: str, arguments: Dict[
     )) if arguments.get("requests") else asyncio.run(_async_generate_image(self, app_id, skill_id, arguments))
 
 
+def _vector_result_fields(authored: VectorAuthorResult, vector_engine: str) -> Dict[str, Any]:
+    """Provenance of a vector drawing stored with the embed (and read back for later changes)."""
+    fields: Dict[str, Any] = {
+        "vector_engine": vector_engine,
+        "vector_review": authored.review_status,
+        "vector_attempts": authored.attempts,
+    }
+    if authored.unmet_requirements:
+        fields["vector_unmet_requirements"] = list(authored.unmet_requirements)
+    if authored.script:
+        fields["vector_script"] = authored.script
+    return fields
+
+
+async def _flat_image_credits(model_ref: str, log_prefix: str) -> int:
+    """Flat per-image price of a provider model; missing pricing is an error, not a guess."""
+    pricing_config = await _fetch_model_pricing_config(model_ref, log_prefix)
+    if not pricing_config:
+        raise RuntimeError(f"No pricing for image model {model_ref}")
+    return calculate_total_credits(pricing_config=pricing_config, units_processed=1)
+
+
+async def _review_and_follow_up_recraft_svg(
+    task: BaseServiceTask, svg: str, *, prompt: str, aspect_ratio: str, quality: str,
+    requirements: List[str], task_id: str, on_draft: Any,
+) -> VectorAuthorResult:
+    """Check a Recraft drawing against the requirements; let the LLM author fix clear misses."""
+    review = await review_with_jev(
+        svg=svg, prompt=prompt, requirements=requirements, is_modification=False,
+        secrets_manager=task._secrets_manager, task_id=task_id,
+    )
+    usage = [VectorUsage("review", VECTOR_REVIEW_MODEL, review.input_tokens, 0)] if review.input_tokens else []
+    reviewed = VectorAuthorResult(
+        svg=svg, model_id="recraft", attempts=1, review_status=review.status, usage=usage,
+        engine=VECTOR_ENGINE_RECRAFT, unmet_requirements=review.unmet,
+    )
+    if review.accepted:
+        return reviewed
+    follow_up_prompt = f"{prompt}\n\nThe current version has this problem: {review.feedback}. Fix it and keep the rest."
+    # A traced drawing that is too large to edit as source is redrawn from its rendering.
+    editable = len(svg) <= MAX_SOURCE_SVG_CHARS
+    try:
+        fixed = await author_svg(
+            task_id=task_id, prompt=follow_up_prompt, aspect_ratio=aspect_ratio, quality=quality,
+            requirements=requirements, source_svgs=[svg] if editable else [],
+            reference_images=[] if editable else [(render_review_jpeg(svg), "image/jpeg")],
+            secrets_manager=task._secrets_manager, on_draft=on_draft, max_attempts=MAX_CORRECTION_ROUNDS,
+        )
+    except VectorAuthorError as exc:
+        # The follow-up produced nothing usable: the Recraft drawing is delivered with what it misses.
+        logger.warning("[Task ID: %s] Recraft follow-up failed, delivering the original: %s", task_id, exc)
+        return reviewed
+    fixed.usage[:0] = usage
+    fixed.attempts += 1
+    return fixed
+
+
 class _VectorDraftPublisher:
     """Sends the SVG written so far to the client so the picture builds up while it is drawn.
 
@@ -924,8 +1017,11 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         style = arguments.get("style")
         # vector_engine: who draws an SVG — the LLM vector author (default) or Recraft.
         vector_engine = _resolve_vector_engine(arguments.get("vector_engine"))
-        use_vector_author = output_filetype == "svg" and vector_engine == VECTOR_ENGINE_LLM
+        use_vector_author = output_filetype == "svg" and vector_engine != VECTOR_ENGINE_RECRAFT
+        # Natural-language requirements a vector result is checked against (no review without them).
+        vector_requirements = normalize_requirements(arguments.get("requirements")) if output_filetype == "svg" else []
         reference_svg_sources: List[str] = []
+        reference_script_sources: List[str] = []
         # Reference images for image-to-image generation (resolved embed IDs from skill layer)
         reference_image_embed_ids: List[str] = arguments.get("reference_image_embed_ids") or []
         user_vault_key_id: Optional[str] = arguments.get("user_vault_key_id")
@@ -992,6 +1088,7 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
                         user_vault_key_id=user_vault_key_id,
                         log_prefix=log_prefix,
                         svg_sources=reference_svg_sources if use_vector_author else None,
+                        script_sources=reference_script_sources if use_vector_author else None,
                     )
                 )
                 logger.info(
@@ -1126,32 +1223,39 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
 
         metered_credits: Optional[int] = None
         metered_usage: Optional[Dict[str, Any]] = None
-        vector_review_status: Optional[str] = None
-        vector_attempts: Optional[int] = None
+        authored: Optional[VectorAuthorResult] = None
+        draft_publisher = _VectorDraftPublisher(
+            task, arguments=arguments, embed_id=embed_id, prompt=prompt, aspect_ratio=aspect_ratio,
+            user_id=user_id, chat_id=chat_id, message_id=message_id, log_prefix=log_prefix,
+        ) if output_filetype == "svg" and not external_request else None
+        on_draft = draft_publisher.publish if draft_publisher else None
         if use_vector_author:
-            # --- SVG branch: LLM vector author (writes, checks and corrects the SVG) ---
-            # A vector reference is edited from its SVG source; only pixel references
-            # are attached as images for the author to redraw.
-            pixel_references = [] if reference_svg_sources else list(
+            # --- SVG branch: vector author (writes the SVG or a generator script, checks, corrects) ---
+            # A script-made reference is changed through its generator and a vector
+            # reference through its SVG source; only pixel references are attached
+            # as images for the author to redraw.
+            source_script = reference_script_sources[0] if reference_script_sources else None
+            if source_script:
+                # A computed drawing is always changed through its generator: editing its
+                # (large) generated SVG by hand would cost far more and lose the structure.
+                vector_engine = VECTOR_ENGINE_SCRIPT
+            source_svgs = [] if source_script else reference_svg_sources
+            pixel_references = [] if (source_script or source_svgs) else list(
                 zip(reference_image_bytes_list, reference_image_mime_types)
-            )
-            draft_publisher = _VectorDraftPublisher(
-                task, arguments=arguments, embed_id=embed_id, prompt=prompt, aspect_ratio=aspect_ratio,
-                user_id=user_id, chat_id=chat_id, message_id=message_id, log_prefix=log_prefix,
             )
             authored = await author_svg(
                 task_id=str(task_id), prompt=str(prompt), aspect_ratio=aspect_ratio, quality=quality,
-                source_svgs=reference_svg_sources, reference_images=pixel_references,
-                secrets_manager=task._secrets_manager,
-                on_draft=None if external_request else draft_publisher.publish,
+                engine=vector_engine, requirements=vector_requirements,
+                source_svgs=source_svgs, reference_images=pixel_references, source_script=source_script,
+                secrets_manager=task._secrets_manager, on_draft=on_draft,
             )
             svg_bytes = authored.svg.encode("utf-8")
             model_ref = authored.model_id
             actual_model = authored.model_id
             display_model_id = authored.model_id.split("/")[-1]
-            vector_review_status = authored.review_status
-            vector_attempts = authored.attempts
-            metered_credits, metered_usage = await _vector_author_credits(authored.usage, log_prefix)
+            metered_credits, metered_usage = await _vector_author_credits(
+                authored.usage, log_prefix, authored.sandbox_seconds,
+            )
 
         elif output_filetype == "svg":
             # --- SVG branch: Recraft V4.1 Vector ---
@@ -1169,6 +1273,18 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             display_model_id = recraft_model_id
             # Override model_ref for billing so pricing is looked up from recraft.yml
             model_ref = f"recraft/{recraft_model_id}"
+            if vector_requirements:
+                # The Recraft drawing is checked against the requirements like any other;
+                # clearly unmet ones trigger a follow-up by the LLM vector author.
+                authored = await _review_and_follow_up_recraft_svg(
+                    task, svg_bytes.decode("utf-8"), prompt=str(prompt), aspect_ratio=aspect_ratio,
+                    quality=quality, requirements=vector_requirements, task_id=str(task_id), on_draft=on_draft,
+                )
+                svg_bytes = authored.svg.encode("utf-8")
+                metered_credits, metered_usage = await _vector_author_credits(
+                    authored.usage, log_prefix, authored.sandbox_seconds,
+                    flat_credits=await _flat_image_credits(model_ref, log_prefix),
+                )
 
         elif model_ref and "recraft" in model_ref:
             # --- Raster branch: Recraft V4.1 PNG/JPG ---
@@ -1589,8 +1705,7 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             # Used by the frontend to display thumbnails of the source images above the prompt.
             "input_embed_ids": reference_image_embed_ids or [],
             # LLM vector author only: how many drafts were written and how the last one was judged.
-            **({"vector_review": vector_review_status, "vector_attempts": vector_attempts}
-               if vector_review_status else {}),
+            **(_vector_result_fields(authored, vector_engine) if authored else {}),
             "provenance": {
                 "ai_generated": True,
                 "labeling": "xmp+c2pa" if output_filetype != "svg" else "account_metadata+preview_xmp_c2pa",
@@ -1700,6 +1815,9 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             "aspect_ratio": aspect_ratio,
             "output_filetype": output_filetype,
             "generated_at": generated_at,
+            # Tells the chat model how a vector drawing was made and which requirements it still misses.
+            **({key: value for key, value in _vector_result_fields(authored, vector_engine).items()
+                if key != "vector_script"} if authored else {}),
             **({"team_id": arguments["team_id"]} if arguments.get("team_id") else {}),
         }
         

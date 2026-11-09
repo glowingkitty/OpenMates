@@ -6441,6 +6441,9 @@
       "checking": {
         "text": "正在检查结果…"
       },
+      "scripting": {
+        "text": "正在编写生成脚本…"
+      },
       "correcting": {
         "text": "正在改进…"
       },

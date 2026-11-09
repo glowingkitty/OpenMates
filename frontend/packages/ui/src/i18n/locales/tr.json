@@ -6441,6 +6441,9 @@
       "checking": {
         "text": "Sonuç kontrol ediliyor…"
       },
+      "scripting": {
+        "text": "Oluşturucu betik yazılıyor…"
+      },
       "correcting": {
         "text": "İyileştiriliyor…"
       },

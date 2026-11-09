@@ -5,11 +5,24 @@ create:
   - id: logo-on-auto
     given: Alice leaves her model on Auto and asks for a logo for the coffee shop "Bean & Leaf" as SVG.
     when: The chat model calls images.generate with output_filetype svg and a short prompt.
-    then: The first author model writes the logo, the card shows it building up with the stage "drawing" and then "checking", and the finished SVG file replaces the draft. The chat answer comes from the ordinary routed model.
+    then: The first author model writes the logo, the card shows it building up with the stage "drawing", and the finished SVG file replaces the draft. No requirements were given, so no review call is made. The chat answer comes from the ordinary routed model.
   - id: painterly-illustration-with-recraft
     given: Bob asks for a richly detailed painterly vector illustration of a forest.
     when: The chat model sets vector_engine recraft.
     then: Recraft draws it at its flat price and no author or review call is made.
+
+script:
+  - id: computed-mandala
+    given: Dana asks for a mandala with 12-fold symmetry and a smooth colour transition from the centre outwards.
+    when: The chat model sets vector_engine script.
+    then: The author writes a generator module, the card shows the stage "scripting", the module runs in the sandbox without internet, and the computed SVG is delivered with its generator stored alongside.
+  - id: failing-script-is-corrected
+    script_runs: [name_error, valid]
+    expect: {attempts: 2, sandbox_runs_billed: 2, delivered_run: 2}
+  - id: change-script-made-graphic
+    given: Dana asks to use 16-fold symmetry instead.
+    when: The chat model passes the mandala's embed_ref in reference_images with vector_engine script.
+    then: The author receives the stored generator, changes the symmetry constant, and the new SVG is computed from the updated generator.
 
 modify:
   - id: change-generated-svg
@@ -22,18 +35,29 @@ modify:
     then: The author receives the picture as an image and draws it as vector shapes.
 
 correction:
-  - id: cut-off-draft-is-corrected
-    draft_reviews: [cut_off, none]
-    expect: {attempts: 2, delivered_draft: 2, review_status: accepted}
+  - id: embroidery-requirements-corrected
+    given: Alice asks for two variations of a fire-inspired tail to embroider as is; the chat model passes the requirements "exactly two variations side by side" and "only solid closed fills, no gradients".
+    requirement_reviews: [[met, clearly_unmet], [met, met]]
+    expect: {attempts: 2, delivered_draft: 2, review_status: accepted, follow_up_names: [only solid closed fills, no gradients]}
+  - id: no-requirements-no-review
+    requirements: []
+    expect: {attempts: 1, review_calls: 0, review_status: skipped}
+  - id: unsure-review-does-not-redraw
+    requirement_reviews: [[unsure]]
+    expect: {attempts: 1, review_status: accepted}
   - id: limit-reached-delivers-last-valid
-    draft_reviews: [wrong_content, text_problem, cut_off]
-    expect: {attempts: 3, delivered_draft: 3, review_status: rejected, further_corrections: 0}
+    requirement_reviews: [[clearly_unmet], [clearly_unmet], [clearly_unmet]]
+    expect: {attempts: 3, delivered_draft: 3, review_status: rejected, unmet_requirements_reported: true, further_corrections: 0}
   - id: unsafe-draft-never-delivered
-    drafts: [contains_script, valid]
+    drafts: [contains_script_element, valid]
     expect: {attempts: 2, delivered_draft: 2}
   - id: review-unavailable
-    draft_reviews: [unavailable]
+    requirement_reviews: [unavailable]
     expect: {attempts: 1, delivered_draft: 1, review_status: unavailable}
+  - id: recraft-result-fails-a-requirement
+    engine: recraft
+    requirement_reviews: [[clearly_unmet], [met]]
+    expect: {follow_up_engine: llm, follow_up_input: recraft_svg_source, charged: recraft_flat_price_plus_review_and_follow_up_tokens}
 
 billing:
   - id: one-draft-one-review
@@ -45,3 +69,9 @@ billing:
     provider_calls:
       - {step: drawing, input_tokens: 0, output_tokens: 0}
     expect: {request_fails: true, charged: 0}
+  - id: script-run
+    provider_calls:
+      - {step: scripting, input_tokens: 560, output_tokens: 3300}
+      - {step: review, input_tokens: 900, output_tokens: 0}
+      - {step: script_run, duration_seconds: 3.5}
+    expect: {charged: token_credits_rounded_down_once_plus_5_for_one_started_minute}

@@ -6441,6 +6441,9 @@
       "checking": {
         "text": "Memeriksa hasil…"
       },
+      "scripting": {
+        "text": "Menulis skrip pembuat…"
+      },
       "correcting": {
         "text": "Memperbaiki…"
       },

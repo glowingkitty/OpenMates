@@ -6441,6 +6441,9 @@
       "checking": {
         "text": "Sprawdzanie wyniku…"
       },
+      "scripting": {
+        "text": "Pisanie skryptu generującego…"
+      },
       "correcting": {
         "text": "Poprawianie…"
       },

@@ -6441,6 +6441,9 @@
       "checking": {
         "text": "結果を確認中…"
       },
+      "scripting": {
+        "text": "生成スクリプトを作成中…"
+      },
       "correcting": {
         "text": "改善中…"
       },

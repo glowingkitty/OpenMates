@@ -4829,6 +4829,7 @@ class EmbedService:
         "aes_nonce",             # AES-GCM nonce — resolved server-side
         "s3_base_url",           # S3 bucket URL — resolved server-side
         "files",                 # Nested s3_key per variant — resolved server-side
+        "vector_script",         # Generator source of a script-made SVG — read server-side for edits
         "content_hash",          # Internal dedup hash — not useful for LLM
         "encrypted_content",     # Client/Vault encrypted content — never for LLM
         "encrypted_diff",        # Client encrypted edit diff — never for LLM

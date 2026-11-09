@@ -6441,6 +6441,9 @@
       "checking": {
         "text": "Kontrola výsledku…"
       },
+      "scripting": {
+        "text": "Psaní generujícího skriptu…"
+      },
       "correcting": {
         "text": "Vylepšování…"
       },

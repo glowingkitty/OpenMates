@@ -53,8 +53,16 @@ class ImageGenerationRequestItem(BaseModel):
     )
     vector_engine: str = Field(
         default="llm",
-        description="Only for svg output: 'llm' (a vector author model writes, checks and corrects the SVG; "
-        "billed by tokens; can modify reference_images) or 'recraft' (Recraft V4.1 Vector, flat price).",
+        description="Only for svg output: 'llm' (a vector author model writes the SVG code; billed by tokens), "
+        "'script' (the author writes a deterministic generator script that runs in a sandbox; best for "
+        "mathematical or highly regular shapes; billed by tokens plus sandbox time) or 'recraft' "
+        "(Recraft V4.1 Vector, flat price).",
+    )
+    requirements: Optional[List[str]] = Field(
+        default=None,
+        description="Only for svg output: short, checkable natural-language requirements the result must meet. "
+        "When given, the rendered result is checked against each one and clearly unmet requirements are "
+        "corrected automatically; when omitted, no check runs.",
     )
     quality: str = Field(
         default="default",
@@ -273,6 +281,8 @@ class GenerateSkill(BaseSkill):
                 "quality": quality,
                 # Only read for SVG output: "llm" (vector author, default) or "recraft".
                 "vector_engine": str(req.get("vector_engine") or "llm").lower(),
+                # Natural-language requirements an SVG result is checked against (optional).
+                "requirements": req.get("requirements") or [],
                 "style": req.get("style"),
                 "user_id": user_id,
                 "chat_id": self._current_chat_id,

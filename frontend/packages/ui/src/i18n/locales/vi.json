@@ -6441,6 +6441,9 @@
       "checking": {
         "text": "Đang kiểm tra kết quả…"
       },
+      "scripting": {
+        "text": "Đang viết tập lệnh tạo ảnh…"
+      },
       "correcting": {
         "text": "Đang cải thiện…"
       },

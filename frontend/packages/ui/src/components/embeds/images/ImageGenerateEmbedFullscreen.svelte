@@ -31,7 +31,7 @@
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { hasMediaEncryptionMetadata } from '../../../services/encryption/mediaEncryption';
   import SvgEmbedImage from '../code/SvgEmbedImage.svelte';
-  import { readSvgDraft, shouldShowSvgDraft, svgDraftStageLabelKey } from './svgDraft';
+  import { readSvgDraft, shouldShowDraftStatusOnly, shouldShowSvgDraft, svgDraftStageLabelKey } from './svgDraft';
 
   /**
    * Type for files metadata from embed content
@@ -108,6 +108,7 @@
   // Live SVG drawing while the vector author is still working
   let svgDraftState = $derived(readSvgDraft(dc));
   let showSvgDraft = $derived(shouldShowSvgDraft(status, svgDraftState.draft));
+  let showDraftStatusOnly = $derived(shouldShowDraftStatusOnly(status, svgDraftState.draft, svgDraftState.stage));
   let draftStageLabelKey = $derived(svgDraftStageLabelKey(svgDraftState.stage));
   let skillIdProp = $derived<'generate' | 'generate_draft'>(typeof dc.skill_id === 'string' && dc.skill_id === 'generate_draft' ? 'generate_draft' : 'generate');
   let generatedAt = $derived(typeof dc.generated_at === 'string' ? dc.generated_at : undefined);
@@ -485,6 +486,10 @@
               {#if draftStageLabelKey}
                 <span class="svg-draft-stage" data-testid="image-generate-svg-draft-stage">{$text(draftStageLabelKey)}</span>
               {/if}
+            </div>
+          {:else if showDraftStatusOnly && draftStageLabelKey}
+            <div class="svg-draft draft-status" data-testid="image-generate-draft-status" data-stage={svgDraftState.stage}>
+              <span class="svg-draft-stage" data-testid="image-generate-svg-draft-stage">{$text(draftStageLabelKey)}</span>
             </div>
           {:else if fullImageUrl}
             <div class="image-wrapper">

@@ -6468,6 +6468,9 @@
       "checking": {
         "text": "Comprobando el resultado…"
       },
+      "scripting": {
+        "text": "Escribiendo el script generador…"
+      },
       "correcting": {
         "text": "Mejorando…"
       },

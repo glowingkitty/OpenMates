@@ -6441,6 +6441,9 @@
       "checking": {
         "text": "Kontrollerar resultatet…"
       },
+      "scripting": {
+        "text": "Skriver generatorskriptet…"
+      },
       "correcting": {
         "text": "Förbättrar…"
       },
