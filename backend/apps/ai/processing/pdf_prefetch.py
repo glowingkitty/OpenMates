@@ -123,8 +123,11 @@ async def _prefetch_one(
         return None
     matches = search.get("matches") or []
     pages = select_pages(matches)
-    logger.info("%s Prefetch %r: %d matching pages, chose %s (relevance %s)", log_prefix, ref, len(matches), pages,
-                [m.get("relevance") for m in matches[:MAX_PREFETCH_PAGES]])
+    best_rated = sorted(
+        ((m.get("relevance"), m.get("page_num")) for m in matches if m.get("relevance") is not None), reverse=True
+    )[:MAX_PREFETCH_PAGES]
+    logger.info("%s Prefetch %r for question %r: %d matching pages, chose %s (best rated: relevance/page %s)",
+                log_prefix, ref, question[:200], len(matches), pages, best_rated)
     if not pages:
         logger.info("%s No page of %r matches the question well enough to prefetch", log_prefix, ref)
         return None
