@@ -191988,7 +191988,7 @@ assertions:
     current_direct_proof: false
   sdk.migration.ordered-client-rollout:
     specification: surface.sdk@1
-    fingerprint: ca03d9ba266610a664f76f3958bfd18067aba90ffc7fd1263f07dd4f969de039
+    fingerprint: 19d8732003a76ee18ec51079b36b5fd77c661e3ff96d74506361ea088989332b
     direct_tests: []
     supporting_tests: []
     tests: []

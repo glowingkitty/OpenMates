@@ -260,7 +260,7 @@ tasks:
     create:
       - docs/migration/rust/capabilities.yml (curated; one entry per capability with web/apple/tui status, old paths, last commit)
       - validation in scripts/rust_migration_yaml.py - every status in the enum; rust-only cells list no existing old path; overview.yml shows per-shell counts of rust-only/stays-shell
-    delete: the web-port-ledger requirement - stop failing --check on unledgered routing functions; keep web-port-ledger.yml as a read-only historical file or delete it with its script (decide in the lane, note in the deploy message)
+    delete: the web-port-ledger requirement - stop failing --check on unledgered routing functions; web-port-ledger.yml stays as history until this task, which deletes it together with the ledger check and scripts/rust_web_port_ledger.py (decided 2026-11-09)
     verify: python3 scripts/rust_migration_yaml.py --check passes in the lane via sessions.py ci-source; pytest for scripts/tests touching these scripts
     done: deploy regenerates overview.yml with the capability metric; README and .claude/rules/client-core.md no longer need the "still enforced" caveat (remove it in the same deploy).
   - id: TASK-3
@@ -280,7 +280,7 @@ tasks:
       - specifications/surfaces/cli/specification.yml, specifications/surfaces/sdk/specification.yml (sdk.migration.ordered-client-rollout)
     change: make `openmates` resolve to the native binary; keep the npm CLI reachable through an explicit command or option; never fall back silently
     verify: ci_coordinator.py submit --mode selfhost and --mode rust-native-dev; the existing CLI E2E specs
-    done: fresh install runs native by default; fallback is documented and explicit; ordered-client-rollout wording updated with user approval (see open question Q-1).
+    done: fresh install runs native by default; fallback is documented and explicit; behavior matches sdk.migration.ordered-client-rollout (native default, explicit npm fallback for unverified commands).
   - id: TASK-5
     title: Apple step 2 - crypto+keys and auth-session through OpenMatesCore
     read: [TASK-1 output, apple/OpenMates/Sources/Core/Crypto/*.swift, apple/OpenMates/Sources/Core/Networking/NotificationPreviewCrypto.swift, packages/openmates-rust/src/crypto.rs, packages/openmates-rust/src/client/credentials.rs, apple/OpenMatesTests/CryptoFailureTests.swift, apple/OpenMatesTests/AuthSecurityParityTests.swift]
@@ -363,6 +363,4 @@ risks:
 
 open_questions:
   - id: Q-1
-    question: surface.sdk sdk.migration.ordered-client-rollout still says "complete and verify web before Apple" and "do not automatically replace the global command"; both conflict with the parallel Apple strangler and the native CLI default. Update that assertion with the user's approval.
-  - id: Q-2
-    question: Keep web-port-ledger.yml as history or delete it with its script in TASK-2.
+    question: Resolved 2026-11-09 - sdk.migration.ordered-client-rollout rewritten to the parallel web/Apple order and the native CLI default with explicit npm fallback.

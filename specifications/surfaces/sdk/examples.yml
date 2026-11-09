@@ -24,19 +24,19 @@ client_platforms:
     then: Rust applies the same reusable policy and owns the encrypted cache; platform adapters store only core ciphertext, and any retired shell store keeps its unsynced drafts, queued sends and recovery state until the core has migrated or re-synchronized them.
 
 client_rollout:
-  - id: unfinished-essential-native-flow-blocks-browser
-    given: The entirely Rust CLI/TUI still has an unresolved authentication, encrypted-chat, streaming/cancellation, persistence or sync/reconnect/recovery defect.
-    when: The migration considers starting browser/WASM integration.
-    then: The essential native flow is repaired and verified first; architecture approval or passing command-parser tests alone do not admit browser integration.
-  - id: essential-native-proof-admits-browser-with-parity-open
-    given: Essential native auth, encrypted chat, streaming/cancellation, persistence and sync/reconnect/recovery have exact-source evidence, while some app and CLI commands remain unported.
-    when: The verified Rust CLI is made available alongside the installed npm CLI for daily testing.
-    then: Browser/WASM integration begins immediately and exhaustive CLI parity continues as separate required work; the npm command and source stay available until explicit retirement acceptance.
+  - id: web-and-apple-move-in-parallel
+    given: Essential native flows are proven in the Rust CLI/TUI, the web drafts capability is being flipped, and the Apple UniFFI bridge spike has just passed on the macOS CI runner.
+    when: An agent starts moving Apple crypto and keys to the core.
+    then: The Apple lane proceeds without waiting for the full web migration; an Apple capability would have been refused if the bridge spike had not passed first.
+  - id: native-cli-default-with-explicit-fallback
+    given: The native Rust CLI is installed by default, and two app commands are not yet verified in it.
+    when: A user runs one of those two commands.
+    then: The user is told the command is not yet available natively and how to run it through the npm CLI explicitly; the npm CLI is never started silently, and it is retired only when no unverified commands remain and retirement is accepted.
 client_retirement:
   - id: accepted-clients-before-backend
-    given: CLI/TUI and the full web migration are verified, including the web before/after measurements.
-    when: Apple is migrated through the coordinated Mac workflow and all clients later receive explicit agent and user acceptance.
-    then: Verified superseded client code is removed after acceptance; only after every client and its cleanup is complete may a separately scoped backend Rust migration begin.
+    given: Every web and Apple capability is rust-only under the client-core done definition and the npm CLI fallback set is empty.
+    when: All clients receive explicit agent and user retirement acceptance.
+    then: The remaining superseded client code is removed; only after every client and its cleanup is complete may a separately scoped backend Rust migration begin.
 
 web_migration_performance:
   - id: compare-complete-cold-load

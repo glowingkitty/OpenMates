@@ -948,7 +948,7 @@ specifications:
     version: 1
     status: draft
     path: surfaces/sdk
-    fingerprint: dc4da52c3a91d78c6c6399f99d3b821e87a5b3acac039d1f2967133d7b0b6d99
+    fingerprint: 89530e01582d02e5a6c8537bd2fc3f32ee82bfa0dd1c577e35f2b16287664eed
     required_applies_to:
     - rest_api
     - cli
@@ -13037,7 +13037,7 @@ assertions:
     specification: surface.sdk@1
     specification_id: surface.sdk
     type: invariant
-    fingerprint: ca03d9ba266610a664f76f3958bfd18067aba90ffc7fd1263f07dd4f969de039
+    fingerprint: 19d8732003a76ee18ec51079b36b5fd77c661e3ff96d74506361ea088989332b
     required_applies_to:
     - rest_api
     - cli
