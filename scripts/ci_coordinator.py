@@ -31,6 +31,7 @@ OCCUPANCY_CACHE_SECONDS = 120
 MAX_OCCUPANCY_REQUESTS = 80
 ACTIVE_RUN_LOOKBACK_DAYS = 70
 LIGHTWEIGHT_MODES = frozenset({"component", "pytest", "vitest", "codex", "rust-check"})
+APPLE_MODES = frozenset({"apple-core", "apple-unit"})  # macos-26 runners, never lightweight
 RATE_RESERVE = 100
 ERROR_BACKOFF = 60
 UNCERTAIN_SECONDS = 600
@@ -550,6 +551,8 @@ class Queue:
             "rust-wasm",
             "rust-native-dev",
             "rust-check",
+            "apple-core",
+            "apple-unit",
         ):
             raise ValueError("Unknown CI mode")
         if proof_profile not in ("", "web-phone", "web-laptop") or (
@@ -632,6 +635,10 @@ class Queue:
             specs = _validate_rust_check(
                 specs, preparation, runtime_seed_job, capacity_configuration, case_title
             )
+        if mode in APPLE_MODES:
+            specs = _validate_apple(
+                mode, specs, preparation, runtime_seed_job, capacity_configuration, case_title
+            )
         if mode == "pytest":
             try:
                 from scripts.ci_pytest_targets import validate_pytest_targets
@@ -688,6 +695,8 @@ class Queue:
                 "rust-wasm",
                 "rust-native-dev",
                 "rust-check",
+                "apple-core",
+                "apple-unit",
                 "selfhost",
             )
             else specs
@@ -1440,6 +1449,17 @@ def _validate_rust_check(specs, preparation, runtime_seed_job, capacity, case_ti
     return validate_specs(specs)
 
 
+def _validate_apple(mode, specs, preparation, runtime_seed_job, capacity, case_title):
+    """Apple lanes take only their own targets and no preparation, seed or case filter."""
+    try:
+        from scripts.ci_apple import validate_specs
+    except ModuleNotFoundError:
+        from ci_apple import validate_specs
+    if preparation or runtime_seed_job or capacity or case_title:
+        raise ValueError("Apple lanes accept only their own targets")
+    return validate_specs(mode, specs)
+
+
 def enqueue_submission(
     queue: Queue,
     owner: str,
@@ -1506,6 +1526,10 @@ def enqueue_submission(
     if mode == "rust-check":
         specs = _validate_rust_check(
             specs, prepared_builds, runtime_seed_job, capacity_configuration, case_title
+        )
+    if mode in APPLE_MODES:
+        specs = _validate_apple(
+            mode, specs, prepared_builds, runtime_seed_job, capacity_configuration, case_title
         )
     selections = list(specs) if mode == "pytest" else sorted(set(specs))
     if mode in ("component", "e2e", "selfhost") and not selections:
@@ -1713,6 +1737,8 @@ def main():
             "rust-wasm",
             "rust-native-dev",
             "rust-check",
+            "apple-core",
+            "apple-unit",
         ],
         default="e2e",
     )
@@ -1868,6 +1894,8 @@ def main():
                 "rust-wasm",
                 "rust-native-dev",
                 "rust-check",
+                "apple-core",
+                "apple-unit",
             },
             capacity_configuration=capacity_configuration,
             case_title=args.case_title,

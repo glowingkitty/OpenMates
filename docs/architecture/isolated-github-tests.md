@@ -48,6 +48,31 @@ worker's actual queue configuration and records its queue names in
 `ci-environment.json`; missing or inconsistent queues fail startup instead of
 leaving detached generation jobs waiting indefinitely.
 
+## Apple lanes (macOS runners)
+
+`apple-core` and `apple-unit` run in the separate `apple` job of
+`isolated-tests.yml` on GitHub-hosted `macos-26` arm64 with Xcode 26.2
+(`DEVELOPER_DIR`, the version `apple/project.yml` pins). They use no secrets,
+accounts or runtime seeds, and are not lightweight (macOS runners are scarce, about 5 concurrent).
+`scripts/ci_apple.py` runs the steps and writes the usual `ci-results.json`;
+`ci_results.py` admits only `macos-26` GitHub-hosted runners for these modes.
+
+- `apple-core --spec all`: rustup 1.98.1, builds PairOpaqueBridge for the
+  iphonesimulator arm64 slice with its build-phase environment, runs the
+  PairOpaqueBridge and `openmates-rust` workspace tests natively on macOS, and
+  runs `swift test` on `apple/OpenMatesCore` only when that package exists
+  (otherwise a visible skipped row). Cargo state is cached on `Cargo.lock`.
+- `apple-unit --spec all` (or `OpenMatesTests/<Class>[/<test>]`): fetches the
+  pinned Whistle link inputs (`WhistleBridge/prepare-build.py --fetch`, cached on
+  `whistle-assets.lock.json`), then `xcodebuild test` of scheme `OpenMates_iOS`
+  on `iPhone 17` limited to `-only-testing OpenMatesTests`, unsigned. The
+  committed `OpenMates.xcodeproj` is used as is (no xcodegen). The `.xcresult`
+  bundle is uploaded with the result artifact. XCUITests are never run here.
+
+```sh
+python3 scripts/ci_coordinator.py submit --session SESSION --mode apple-core --spec all
+```
+
 ## Commands
 
 Focused worktree request, once the migration readiness checkpoint is published:
