@@ -266,6 +266,7 @@ references:
   then: The chat reference is ignored; only embed references are resolved and no chat content or metadata is supplied.
 suggestions:
 - id: conference-search
+  assertion_ids: [app-memories.suggestions.post-processor]
   given: The user asks for open source conferences in Europe next year and the assistant lists FOSDEM 2027 and others.
   when: Post-processing finishes.
   then: The Recommendations card offers at least one memory such as "Interested in open source conferences in Europe" and at least one workflow such as a weekly alert for new open source conference calls for papers, with dots for each recommendation and previous/next buttons; the follow-up chips below are unchanged.
@@ -274,10 +275,12 @@ suggestions:
   when: The post-processor recommends it.
   then: The card shows "Update Staging API" with a short summary; no memory text is shown.
 - id: mention-only-duplicate
+  assertion_ids: [app-memories.suggestions.no-duplicates]
   given: The user has a Mention only memory "Open source conferences" that was never sent to the server.
   when: Post-processing recommends creating "Open source conferences in Europe".
   then: The client shows it as an update of the existing memory instead of a new one.
 - id: existing-workflow
+  assertion_ids: [app-memories.suggestions.no-duplicates]
   given: The user already has a workflow "Weekly conference CFP alert".
   when: Post-processing would recommend creating a similar workflow.
   then: The card recommends updating the existing workflow.
@@ -286,6 +289,7 @@ suggestions:
   when: They leave without choosing Save, or choose Save after the memory changed on another device.
   then: The memory is unchanged and the recommendation stays in the chat; if it was edited elsewhere meanwhile, pressing Save reports a conflict and overwrites nothing.
 - id: saved-event
+  assertion_ids: [app-memories.suggestions.post-processor]
   given: The user opens a workflow recommendation, the editor opens beside the chat and they press Save.
   when: They look at the chat afterwards, also after reloading on another device.
   then: The recommendation is gone and the history shows "Workflow created" with its title; the link opens that workflow.

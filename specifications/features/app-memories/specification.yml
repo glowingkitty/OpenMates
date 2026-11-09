@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.app-memories
 version: 4
-status: draft
+status: approved
 title: Memories
 summary: Memories are free-form documents (title, memory, when to use, optional start and expiry, load mode) that replace
   every app-specific typed memory. Public app memories and authorized Project memories load automatically; private personal/team
@@ -434,7 +434,6 @@ assertions:
     that opens the entry (or says it no longer exists). These events are not sent to the AI.
   depends_on:
   - models.MemorySuggestion
-  - examples.suggestions
 - id: app-memories.suggestions.no-duplicates
   type: privacy
   must: Recommendations never duplicate an existing memory or workflow; a matching one is recommended as an update instead.
@@ -446,7 +445,6 @@ assertions:
     a match into an update. The server checks every new workflow recommendation against all of the user's workflows.
   depends_on:
   - models.MemorySuggestion
-  - examples.suggestions
 - id: app-memories.suggestions.billing
   type: behavior
   must: The update preview model request is charged normally and appears in billing and usage attributed to the chat where

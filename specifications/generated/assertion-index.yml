@@ -32764,7 +32764,7 @@ assertions:
     current_direct_proof: false
   app-memories.suggestions.post-processor:
     specification: feature.app-memories@4
-    fingerprint: 517fa880ad3cf7fec9bf56b5f067daf34181f5f1e534d3e1e6a9524df8623604
+    fingerprint: 0ba38da762928da1887186f03dabc0bdef97884f7b8a416d741ec519bda2ab61
     direct_tests:
     - &id4212
       path: frontend/apps/web_app/tests/components/chat-recommendations-components.spec.ts
@@ -33289,7 +33289,7 @@ assertions:
     current_direct_proof: false
   app-memories.suggestions.no-duplicates:
     specification: feature.app-memories@4
-    fingerprint: 1a980e9f1bda00cedf89ad3fce24298bd43abd68c31bb0dfe4871ff8e4b4c263
+    fingerprint: f928aaeec68bbbd432fc264ff0249ec78d3fb0b71346ad7343108e5c0d375bc6
     direct_tests:
     - &id4257
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
