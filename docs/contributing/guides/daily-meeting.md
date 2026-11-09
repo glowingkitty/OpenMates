@@ -99,7 +99,7 @@ from the assistant (idle at least 2 h, last 5 days; finished-work replies only w
 whose Task is Done or that were dismissed in the last 14 days are skipped). Each shows what it is
 waiting for (question, blocker, done), its Task if linked, and the last reply. The meeting goes
 through them one at a time; answers go into the `Chats:` lines of the decisions note. Replies are
-printed for the user to paste, never sent automatically. Data: `scripts/daily_meeting_waiting.py`.
+sent by the dev-server Claude to the chat itself (`send_message`); only chats that cannot be reached get a printed reply. Data: `scripts/daily_meeting_waiting.py`.
 
 ## Plain-language rule
 IDs, agent names and tasks are never mentioned bare in the briefing, the meeting or the decisions

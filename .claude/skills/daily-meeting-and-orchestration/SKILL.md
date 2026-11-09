@@ -84,7 +84,7 @@ Plain-language rule: whenever you report to the user (summaries, printed replies
 name every ID, agent or task with a few plain words first and the ID only in brackets after it; if a
 briefing line shows a bare ID, say what it is before using it.
 4b. **Chats** (the `Chats:` lines, from the briefing's "Chats waiting on you"): `reply: <text>`
-   → print the ready-to-paste reply for the user and do NOT send it to the chat; `park` →
+   → send the reply yourself to that chat (`send_message` to its Remote session, matched by title/last prompt; the user never pastes into chats you can answer), then report each result; if a chat cannot be reached, say so and print the reply; a reply that would need a production or other user-only action (e.g. 3FA SSH) is not carried out: report it to the user instead; `park` →
    parking-lot line; `archive`/`done` → archive the chat via `archive_session` when it has a
    session id, otherwise just record it; `keep` → nothing. Record every non-reply decision in
    `logs/daily-meetings/waiting-reviewed.json` (`{"<full session id>": "YYYY-MM-DD"}`, private)
