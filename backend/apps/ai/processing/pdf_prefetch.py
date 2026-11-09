@@ -37,6 +37,7 @@ MIN_QUERY_CHARS = 3
 SKILL_TIMEOUT_SECONDS = 20.0
 
 _FENCED_BLOCK = re.compile(r"```.*?```", re.DOTALL)
+_EMBED_LINK = re.compile(r"\[[^\]]*\]\(embed:[^)]*\)")  # "[!](embed:<ref>)" attachment markup
 _PAGE_SEPARATOR = re.compile(r"\n\n---\n\n(?=### Page \d+\n)")
 
 PREFETCH_HEADER = (
@@ -50,8 +51,8 @@ PREFETCH_FOOTER = "--- End pre-selected PDF pages ---"
 
 
 def question_from_message(content: str, refs: List[str]) -> str:
-    """The user's own words: embed blocks and file references removed."""
-    text = _FENCED_BLOCK.sub(" ", content)
+    """The user's own words: embed blocks, attachment links and file references removed."""
+    text = _EMBED_LINK.sub(" ", _FENCED_BLOCK.sub(" ", content))
     for ref in refs:
         text = text.replace(ref, " ")
     return " ".join(text.split())

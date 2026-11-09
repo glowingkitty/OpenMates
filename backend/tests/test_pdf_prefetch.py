@@ -79,6 +79,12 @@ def test_question_is_the_users_words_without_embed_blocks_or_file_names():
 
 
 # contract-test: supporting surface=rest_api assertions=pdf-processing.read.prefetch-relevant-pages
+def test_attachment_link_markup_never_reaches_the_search_query():
+    content = f"[!](embed:{MANUAL}) What is the maximum sewing speed? Cite the page. [!](embed:other-ref-123abc)"
+    assert question_from_message(content, [MANUAL]) == "What is the maximum sewing speed? Cite the page."
+
+
+# contract-test: supporting surface=rest_api assertions=pdf-processing.read.prefetch-relevant-pages
 def test_only_pdfs_named_in_the_current_message_are_used():
     cli_ref = "juki-mo654de-manual-pdf-a3a4a0d3-f56a-49-85afed"
     index = {MANUAL: "e1", "old.pdf": "e2", "photo.png": "e3", cli_ref: "e4"}
