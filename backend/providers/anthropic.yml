@@ -143,9 +143,9 @@ models:
       write_billing: separate
       eligible_hosts: [anthropic]
       source_url: https://platform.claude.com/docs/en/models/opus-5-5/overview
-      reviewed_on: "2026-10-08"
+      reviewed_on: "2026-11-09"
       status: verified_for_activation
-      expires_on: "2026-11-08"
+      expires_on: "2026-12-09"
       requires_cache_write_metric: true
       requires_cache_retention_metric: true
       cache_write_1h_hosts: [] # Current direct-API controls create only 5m entries.
@@ -224,9 +224,9 @@ models:
       write_billing: separate
       eligible_hosts: [anthropic]
       source_url: https://platform.claude.com/docs/en/models/sonnet-5-5/overview
-      reviewed_on: "2026-10-08"
+      reviewed_on: "2026-11-09"
       status: verified_for_activation
-      expires_on: "2026-11-08"
+      expires_on: "2026-12-09"
       requires_cache_write_metric: true
       requires_cache_retention_metric: true
       cache_write_1h_hosts: [] # Current direct-API controls create only 5m entries.
@@ -323,9 +323,9 @@ models:
       eligible_hosts:
       - anthropic
       source_url: https://platform.claude.com/docs/en/models/haiku-5-5/overview
-      reviewed_on: '2026-10-08'
+      reviewed_on: '2026-11-09'
       status: verified_for_activation
-      expires_on: '2026-11-08'
+      expires_on: '2026-12-09'
       requires_cache_write_metric: true
       requires_cache_retention_metric: true
       cache_write_1h_hosts: []
@@ -574,9 +574,9 @@ models:
       write_billing: separate
       eligible_hosts: [anthropic]
       source_url: https://platform.claude.com/docs/en/models/sonnet-5/overview
-      reviewed_on: "2026-10-08"
+      reviewed_on: "2026-11-09"
       status: verified_for_activation
-      expires_on: "2026-11-08"
+      expires_on: "2026-12-09"
       requires_cache_write_metric: true
       requires_cache_retention_metric: true
     costs:
@@ -734,9 +734,9 @@ models:
       write_billing: separate
       eligible_hosts: [anthropic, aws_bedrock]
       source_url: https://platform.claude.com/docs/en/models/sonnet-4-6/overview
-      reviewed_on: "2026-10-08"
+      reviewed_on: "2026-11-09"
       status: verified_for_activation
-      expires_on: "2026-11-08"
+      expires_on: "2026-12-09"
       requires_cache_write_metric: true
       requires_cache_retention_metric: false
       cache_write_1h_hosts: [] # Current Anthropic/Bedrock controls create only 5m entries.

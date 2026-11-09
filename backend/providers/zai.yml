@@ -59,9 +59,9 @@ models:
       write_billing: included_in_input
       eligible_hosts: [mistral]
       source_url: https://docs.mistral.ai/models/zai-glm-5-3
-      reviewed_on: "2026-10-10"
+      reviewed_on: "2026-11-09"
       status: verified_for_activation
-      expires_on: "2026-11-10"
+      expires_on: "2026-12-09"
     costs:
       input_per_million_token:
         price: 1.40

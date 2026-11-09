@@ -189,6 +189,19 @@ def is_cache_tariff_eligible(cache_policy: Dict[str, Any], inference_host: str |
     )
 
 
+def is_cache_review_lapsed(cache_policy: Dict[str, Any], inference_host: str | None) -> bool:
+    """True for a verified cache route whose evidence review deadline has passed.
+
+    Such a route may still read or write provider caches, so its whole reported
+    input is billed at the ordinary rate. Only routes that never had a verified
+    cache tariff keep the old native-input charge.
+    """
+    return bool(
+        cache_policy.get("status") == "expired_pending_review"
+        and (not cache_policy.get("eligible_hosts") or inference_host in cache_policy["eligible_hosts"])
+    )
+
+
 def is_cache_tariff_admissible(
     cache_policy: Dict[str, Any], inference_host: str | None, *, on_date: date | None = None,
 ) -> bool:
@@ -338,8 +351,9 @@ def calculate_token_category_credits(
     )
     cache_policy = model_pricing_details.get("cache_pricing", {})
     eligible_policy = is_cache_tariff_eligible(cache_policy, inference_host)
+    inclusive_policy = eligible_policy or is_cache_review_lapsed(cache_policy, inference_host)
     charged_output = (
-        output_tokens if eligible_policy or model_pricing_details.get("bill_reasoning_tokens") is True
+        output_tokens if inclusive_policy or model_pricing_details.get("bill_reasoning_tokens") is True
         else output_tokens if legacy_billable_output is None else legacy_billable_output
     )
     separate_writes = cache_policy.get("write_billing") == "separate"
@@ -376,10 +390,11 @@ def calculate_token_category_credits(
     if not active:
         # An enabled/eligible route with partial counters has already incurred
         # every *known* reported input category. Bill that inclusive total at
-        # the ordinary rate. Only disabled/ineligible routes retain the old
-        # native-input charge (exclusive of cache tokens on Anthropic/Bedrock).
+        # the ordinary rate, as does a verified route whose review has lapsed.
+        # Only disabled/ineligible routes retain the old native-input charge
+        # (exclusive of cache tokens on Anthropic/Bedrock).
         legacy_input = (
-            input_total if eligible_policy or legacy_billable_input is None
+            input_total if inclusive_policy or legacy_billable_input is None
             else legacy_billable_input
         )
         return {

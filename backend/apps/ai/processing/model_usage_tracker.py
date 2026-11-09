@@ -11,6 +11,7 @@ from backend.shared.python_utils.billing_utils import (
     calculate_token_category_credits,
     decimal_string,
     floor_raw_credits,
+    is_cache_review_lapsed,
     is_cache_tariff_eligible,
     select_customer_context_band,
     snapshot_model_tariff,
@@ -79,8 +80,15 @@ def build_model_usage_breakdown(
         input_tokens = int(bucket.get("input_tokens") or 0)
         output_tokens = int(bucket.get("output_tokens") or 0)
         legacy_output = bucket.get("legacy_billable_output_tokens")
+        cache_policy = tariff.get("cache_pricing", {})
+        inference_host = bucket.get("inference_host")
+        # A lapsed review bills the same inclusive totals as an eligible route.
+        eligible_policy = (
+            is_cache_tariff_eligible(cache_policy, inference_host)
+            or is_cache_review_lapsed(cache_policy, inference_host)
+        )
         charged_output = (
-            output_tokens if purpose == "summary" or tariff.get("bill_reasoning_tokens") is True or is_cache_tariff_eligible(tariff.get("cache_pricing", {}), bucket.get("inference_host")) or legacy_output is None
+            output_tokens if purpose == "summary" or tariff.get("bill_reasoning_tokens") is True or eligible_policy or legacy_output is None
             else int(legacy_output)
         )
         uncached = int(bucket.get("uncached_input_tokens", input_tokens))
@@ -111,7 +119,6 @@ def build_model_usage_breakdown(
             inference_host=bucket.get("inference_host"),
             legacy_billable_output=None if purpose == "summary" else legacy_output,
         )
-        eligible_policy = is_cache_tariff_eligible(tariff.get("cache_pricing", {}), bucket.get("inference_host"))
         if active:
             billed_input_tokens = (
                 uncached if tariff.get("cache_pricing", {}).get("write_billing") == "separate"

@@ -115,9 +115,9 @@ models:
       write_billing: separate
       eligible_hosts: [openai]
       source_url: https://developers.openai.com/api/docs/guides/prompt-caching
-      reviewed_on: "2026-10-08"
+      reviewed_on: "2026-11-09"
       status: verified_for_activation
-      expires_on: "2026-11-08"
+      expires_on: "2026-12-09"
       requires_cache_write_metric: true
     costs:
       input_per_million_token:
@@ -203,9 +203,9 @@ models:
       write_billing: separate
       eligible_hosts: [openai]
       source_url: https://developers.openai.com/api/docs/guides/prompt-caching
-      reviewed_on: "2026-10-08"
+      reviewed_on: "2026-11-09"
       status: verified_for_activation
-      expires_on: "2026-11-08"
+      expires_on: "2026-12-09"
       requires_cache_write_metric: true
     costs:
       input_per_million_token:
@@ -292,9 +292,9 @@ models:
       write_billing: separate
       eligible_hosts: [openai]
       source_url: https://developers.openai.com/api/docs/guides/prompt-caching
-      reviewed_on: "2026-10-08"
+      reviewed_on: "2026-11-09"
       status: verified_for_activation
-      expires_on: "2026-11-08"
+      expires_on: "2026-12-09"
       requires_cache_write_metric: true
     costs:
       input_per_million_token:
@@ -377,9 +377,9 @@ models:
       write_billing: separate
       eligible_hosts: [openai]
       source_url: https://developers.openai.com/api/docs/guides/prompt-caching
-      reviewed_on: "2026-10-08"
+      reviewed_on: "2026-11-09"
       status: verified_for_activation
-      expires_on: "2026-11-08"
+      expires_on: "2026-12-09"
       requires_cache_write_metric: true
     costs:
       input_per_million_token:

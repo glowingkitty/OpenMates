@@ -67,7 +67,6 @@ def test_same_manager_recomputes_catalog_prices_at_utc_boundary(monkeypatch):
 
 # contract-test: supporting surface=rest_api assertions=billing.models.unknown-promotion-expiry
 @pytest.mark.parametrize("provider,model_id,unit,guarantee", [
-    ("mistral", "mistral-large-4", 490, None),
     ("openai", "gpt-5.6-sol", 80, "2026-11-21"),
 ])
 def test_undated_sales_do_not_invent_end_dates(provider, model_id, unit, guarantee):
@@ -106,6 +105,20 @@ def test_actual_host_region_and_processing_tier_bound_discounts(host, region, ti
     result = resolve_model_tariff(route_fixture(), inference_host=host, region=region, processing_tier=tier, on_date=date(2026, 10, 14))
     assert bool(result.get("active_temporary_price")) is discount
     assert result["pricing"]["tokens"]["input"]["per_credit_unit"] == (200 if discount else 100)
+
+
+# contract-test: supporting surface=rest_api assertions=billing.models.scheduled-temporary-tariffs
+def test_closed_mistral_large_sale_returns_to_the_published_rate():
+    """The half-price sale ended; the single published price is the regular rate again."""
+    model = catalog_model("mistral", "mistral-large-4")
+    during = resolve_model_tariff(model, on_date=date(2026, 10, 14))
+    after = resolve_model_tariff(model, on_date=date(2026, 11, 9))
+    assert during["active_temporary_price"]["id"] == "half-price-sale-2026"
+    assert during["pricing"]["tokens"]["input"]["per_credit_unit"] == 490
+    assert "active_temporary_price" not in after
+    assert after["pricing"]["tokens"]["input"]["per_credit_unit"] == 476
+    assert after["costs"]["input_per_million_token"]["price"] == 0.70
+    assert after["costs"]["output_per_million_token"]["price"] == 2.10
 
 
 # contract-test: supporting surface=rest_api assertions=billing.models.scheduled-temporary-tariffs
@@ -204,6 +217,8 @@ def test_receipt_uses_frozen_sale_after_catalog_changes_and_settlement_replays(m
 
     monkeypatch.setattr("backend.shared.python_utils.billing_utils.date", AdmissionDay)
     model = catalog_model("mistral", "mistral-large-4")
+    # The catalog's cache review is renewed monthly; restore the review that was current during the sale.
+    model["cache_pricing"].update(reviewed_on="2026-10-08", expires_on="2026-11-08")
     frozen = snapshot_model_tariff(resolve_model_tariff(model, on_date=date(2026, 10, 14)))
     bucket = {
         "model_id": "mistral/mistral-large-4", "attempt_id": "paid-attempt-1", "tariff_snapshot": frozen,
@@ -244,3 +259,25 @@ def test_google_pro_full_request_context_boundary_without_cache_activation(host,
         model_pricing_details=model, inference_host=host,
     )
     assert float(supplier["cost_usd"]) == pytest.approx(input_total * input_cost / 1_000_000)
+
+
+# contract-test: supporting surface=rest_api assertions=billing.usage.receipt-token-breakdown
+def test_lapsed_cache_review_bills_all_reported_input_at_the_ordinary_rate():
+    """A lapsed review must not leave provider-cached input unbilled (Anthropic reports it separately)."""
+    model = catalog_model("anthropic", "claude-sonnet-5-5")
+    expiry = date.fromisoformat(model["cache_pricing"]["expires_on"])
+    lapsed = resolve_model_tariff(model, on_date=date.fromordinal(expiry.toordinal() + 1))
+    bucket = {
+        "model_id": "anthropic/claude-sonnet-5-5", "inference_host": "anthropic",
+        "usage_source": "provider_reported", "tariff_snapshot": snapshot_model_tariff(lapsed),
+        "input_tokens": 23243, "uncached_input_tokens": 89, "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 23154, "cache_creation_5m_input_tokens": 23154,
+        "cache_creation_1h_input_tokens": 0, "legacy_billable_input_tokens": 89,
+        "output_tokens": 4, "legacy_billable_output_tokens": 4,
+    }
+    entry = build_model_usage_breakdown([bucket], lambda *_args: lapsed)["entries"][0]
+    assert entry["billing_mode"] == "ordinary_input"
+    assert entry["billed_input_tokens"] == 23243
+    assert entry["category_credits"]["cache_write"] == "0"
+    input_unit = model["pricing"]["tokens"]["input"]["per_credit_unit"]
+    assert float(entry["category_credits"]["input"]) == pytest.approx(23243 / input_unit)
