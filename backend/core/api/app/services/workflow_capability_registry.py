@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any
 
 import yaml
 
+from backend.shared.app_packages.overlay import apply_app_package_overlay
 from backend.shared.python_schemas.app_metadata_schemas import skill_has_provider_support
 from backend.core.api.app.services.workflow_models import WorkflowCapability
 from backend.core.api.app.services.workflow_runtime_values import resolve_workflow_runtime_values
@@ -410,7 +411,8 @@ class _FilesystemWorkflowMetadataRegistry:
                     with app_file.open("r", encoding="utf-8") as handle:
                         metadata = yaml.safe_load(handle) or {}
                     if isinstance(metadata, dict):
-                        metadata_by_id[str(metadata.get("id") or app_file.parent.name)] = metadata
+                        app_id = str(metadata.get("id") or app_file.parent.name)
+                        metadata_by_id[app_id] = apply_app_package_overlay(app_id, metadata)
                 _filesystem_cache[apps_root] = (version, metadata_by_id)
             self._metadata = _filesystem_cache[apps_root][1]
 

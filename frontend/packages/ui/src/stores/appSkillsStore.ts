@@ -24,7 +24,7 @@
 
 import { appsMetadata } from '../data/appsMetadata';
 import { CONTENT_EMBED_CATALOG } from '../data/embedRegistry.generated';
-import type { AppMetadata } from '../types/apps';
+import type { AppMetadata, SkillMetadata } from '../types/apps';
 import { appHealthStore, getAppHealthStatus } from './appHealthStore';
 import type { AppHealthStatusValue } from './appHealthStore';
 import { derived, get, writable } from 'svelte/store';
@@ -135,6 +135,63 @@ function normalizeProviderNames(providers: unknown): string[] | undefined {
             return typeof name === 'string' ? name : '';
         })
         .filter(Boolean);
+}
+
+function runtimeSkillToMetadata(appId: string, runtimeSkill: Record<string, unknown>): SkillMetadata {
+    const id = String(runtimeSkill.id);
+    // /v1/apps/metadata returns resolved strings, not keys; keys follow the app.yml convention.
+    return {
+        id,
+        name_translation_key: `${appId}.${id}`,
+        description_translation_key: `${appId}.${id}.description`,
+        name: runtimeSkill.name,
+        description: runtimeSkill.description,
+        icon_image: runtimeSkill.icon_image,
+        pricing: runtimeSkill.pricing,
+        providers: normalizeProviderNames(runtimeSkill.providers) ?? [],
+    } as unknown as SkillMetadata;
+}
+
+/**
+ * Admit skills/apps the server reports at runtime but static build metadata omits
+ * (e.g. default_enabled: false skills that an operator installed providers for).
+ */
+function withRuntimeOnlyApps(
+    staticApps: Record<string, AppMetadata>,
+    runtimeApps: Record<string, AppMetadata> | null,
+): Record<string, AppMetadata> {
+    if (!runtimeApps) return staticApps;
+    const merged: Record<string, AppMetadata> = { ...staticApps };
+    for (const [appId, runtimeApp] of Object.entries(runtimeApps)) {
+        const runtimeSkills = (runtimeApp?.skills ?? []) as unknown as Record<string, unknown>[];
+        const existing = merged[appId];
+        if (!existing) {
+            if (!runtimeSkills.length) continue;
+            const raw = runtimeApp as unknown as Record<string, unknown>;
+            merged[appId] = {
+                id: appId,
+                name_translation_key: `apps.${appId}`,
+                description_translation_key: `apps.${appId}.description`,
+                name: raw.name as string | undefined,
+                description: raw.description as string | undefined,
+                icon_image: runtimeApp.icon_image,
+                category: runtimeApp.category,
+                skills: runtimeSkills.map(skill => runtimeSkillToMetadata(appId, skill)),
+                focus_modes: [],
+                providers: [],
+            };
+            continue;
+        }
+        const known = new Set((existing.skills ?? []).map(skill => skill.id));
+        const added = runtimeSkills.filter(skill => !known.has(String(skill.id)));
+        if (added.length) {
+            merged[appId] = {
+                ...existing,
+                skills: [...(existing.skills ?? []), ...added.map(skill => runtimeSkillToMetadata(appId, skill))],
+            };
+        }
+    }
+    return merged;
 }
 
 export const userAvailableSkillsStore = writable<UserAvailableSkillsState>(initialUserSkillsState);
@@ -249,7 +306,12 @@ class AppSkillsStore {
         const disabledById = featureAvailability.disabledById;
         const featureEnabled = (featureId: string): boolean => disabledById ? disabledById[featureId] !== true : true;
 
-        for (const [appId, appMetadata] of Object.entries(this.state.apps)) {
+        const userState = get(userAvailableSkillsStore);
+        const sourceApps = userState.initialized && userState.skillsByApp !== null
+            ? withRuntimeOnlyApps(this.state.apps, userState.appsById)
+            : this.state.apps;
+
+        for (const [appId, appMetadata] of Object.entries(sourceApps)) {
             if (!featureEnabled(`app:${appId}`)) {
                 continue;
             }

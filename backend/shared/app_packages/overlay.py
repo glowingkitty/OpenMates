@@ -1,0 +1,125 @@
+"""Overlay installed app package providers onto raw built-in app.yml data.
+
+Every metadata reader (skill registry build for the API and Celery workers,
+the feature availability manifest reader and the filesystem workflow metadata
+reader) calls ``apply_app_package_overlay`` on the raw app.yml dict before
+parsing it. The overlay is computed from the server's installation registry
+only; removing a package (or disabling app packages) and restarting yields the
+unmodified metadata again.
+
+Skills paused without any provider that receive a ``skill.requests@1`` provider
+are also switched to the generic ``InstalledProviderSkill`` class
+(``class_path``), keeping the original class path in ``delegated_class_path`` so
+the delegate can reuse the skill's request and response models. Every execution
+path resolves the class from this metadata, so no call site changes.
+"""
+from __future__ import annotations
+
+import copy
+from typing import Any, Dict, List
+
+from backend.shared.app_packages.generic_contract import (
+    DELEGATE_CLASS_PATH,
+    SKILL_REQUESTS_V1,
+    accepts_generic_contract,
+)
+from backend.shared.app_packages.loader import InstalledProvider, get_installed_packages
+
+
+def _extend_enum(schema: Any, values: List[str]) -> None:
+    if isinstance(schema, dict) and isinstance(schema.get("enum"), list):
+        schema["enum"].extend(value for value in values if value not in schema["enum"])
+
+
+def extend_provider_enums(schema: Any, values: List[str]) -> None:
+    """Add provider values to every ``provider`` / ``providers`` enum in a JSON schema."""
+    if isinstance(schema, list):
+        for item in schema:
+            extend_provider_enums(item, values)
+        return
+    if not isinstance(schema, dict):
+        return
+    properties = schema.get("properties")
+    if isinstance(properties, dict):
+        _extend_enum(properties.get("provider"), values)
+        providers = properties.get("providers")
+        if isinstance(providers, dict):
+            _extend_enum(providers.get("items"), values)
+    for value in schema.values():
+        if isinstance(value, (dict, list)):
+            extend_provider_enums(value, values)
+
+
+def installed_provider_entry(provider: InstalledProvider) -> Dict[str, Any]:
+    """Provider entry appended to the target skill's ``providers`` list."""
+    return {
+        "name": provider.provider_id,
+        "id": provider.provider_id,
+        "display_name": provider.name,
+        # Providers without declared secrets need no key; declared secrets are
+        # checked per call and by the availability helpers.
+        "no_api_key": not provider.secrets,
+        "installed": True,
+    }
+
+
+def _overlay_skill(skill: Dict[str, Any], providers: List[InstalledProvider]) -> None:
+    skill["providers"] = list(skill.get("providers") or []) + [installed_provider_entry(p) for p in providers]
+    skill.pop("default_enabled", None)
+    hints = list(dict.fromkeys(p.skill_hint for p in providers if p.skill_hint))
+    if hints:
+        skill["preprocessor_hint"] = " ".join(hints)
+    ids = [p.provider_id for p in providers]
+    if isinstance(skill.get("tool_schema"), dict):
+        extend_provider_enums(skill["tool_schema"], ids)
+    workflow = skill.get("workflow")
+    if isinstance(workflow, dict) and isinstance(workflow.get("output_schema"), dict):
+        extend_provider_enums(workflow["output_schema"], ids + [p.name for p in providers])
+
+
+def _overlay_delegated_skill(skill: Dict[str, Any], providers: List[InstalledProvider]) -> None:
+    """Serve a paused, provider-less skill through the generic delegate class."""
+    _overlay_skill(skill, providers)
+    if not any(p.skill_hint for p in providers):
+        # The built-in hint of a paused skill describes it as unavailable.
+        skill.pop("preprocessor_hint", None)
+    skill["delegated_class_path"] = str(skill["class_path"]).strip()
+    skill["class_path"] = DELEGATE_CLASS_PATH
+
+
+def apply_app_package_overlay(app_id: str, raw_config: Any) -> Any:
+    """Return ``raw_config`` with active installed providers merged in.
+
+    The input is never mutated; when no contribution targets this app the same
+    object is returned unchanged.
+    """
+    if not isinstance(raw_config, dict):
+        return raw_config
+    contributions = get_installed_packages().for_app(app_id)
+    if not contributions:
+        return raw_config
+    overlaid = copy.deepcopy(raw_config)
+    applied = False
+    for skill in overlaid.get("skills") or []:
+        if not isinstance(skill, dict):
+            continue
+        if skill.get("provider_contract"):
+            matching = [
+                p for p in contributions
+                if p.skill_id == str(skill.get("id")) and p.contract == skill["provider_contract"]
+            ]
+            if matching:
+                _overlay_skill(skill, matching)
+                applied = True
+        elif accepts_generic_contract(skill):
+            matching = [
+                p for p in contributions
+                if p.skill_id == str(skill.get("id")) and p.contract == SKILL_REQUESTS_V1
+            ]
+            if matching:
+                _overlay_delegated_skill(skill, matching)
+                applied = True
+    if applied:
+        overlaid.pop("default_enabled", None)
+        return overlaid
+    return raw_config

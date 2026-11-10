@@ -685,6 +685,15 @@ specifications:
     - sdks.pip
     - gui.web
     - gui.apple
+  feature.instance-app-packages:
+    version: 1
+    status: draft
+    path: features/instance-app-packages
+    fingerprint: 75ef6bb10f7e3377cd477e810314e7f9717946d7376af80af6635a6e11413334
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
   feature.interactive-html-visuals:
     version: 2
     status: draft
@@ -8745,6 +8754,69 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  instance-app-packages.manifest-validation:
+    specification: feature.instance-app-packages@1
+    specification_id: feature.instance-app-packages
+    type: security
+    fingerprint: 6c72336e908d1997b2d3931a54825ee3518c39169edb2e9aea4537aa37cb52d4
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  instance-app-packages.server-install:
+    specification: feature.instance-app-packages@1
+    specification_id: feature.instance-app-packages
+    type: behavior
+    fingerprint: 43d1fe2b6d38506c80f6818da28f8ed38b3dcca3195d7ac757c0635916b8c370
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  instance-app-packages.instance-availability:
+    specification: feature.instance-app-packages@1
+    specification_id: feature.instance-app-packages
+    type: behavior
+    fingerprint: ae046935c71e5f0e2b55c9e2e845d23bb5a67106e68f4181cc003a9fe6b78668
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  instance-app-packages.provider-contract:
+    specification: feature.instance-app-packages@1
+    specification_id: feature.instance-app-packages
+    type: behavior
+    fingerprint: cc21da4fdd95305045bb93e8f9d601210e8fdc35a5364a17abc875fe584c5193
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  instance-app-packages.isolated-runner:
+    specification: feature.instance-app-packages@1
+    specification_id: feature.instance-app-packages
+    type: security
+    fingerprint: 3a00669347a83993470908ab35d1356045479fc8b19c2e80996e999b45b987de
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  instance-app-packages.operator-secrets:
+    specification: feature.instance-app-packages@1
+    specification_id: feature.instance-app-packages
+    type: security
+    fingerprint: 5e60d71f37871a6aa18201b384b15098e8fbd3b86faad9d6f232e1e01ccae426
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  instance-app-packages.no-installed-provider-charges:
+    specification: feature.instance-app-packages@1
+    specification_id: feature.instance-app-packages
+    type: invariant
+    fingerprint: 9e5dacc71a104f7cf40d20ca5f5665c1ae898de62c91685cc9243818f00707b9
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
   interactive-html.render.live-preview-and-code-switch:
     specification: feature.interactive-html-visuals@2
     specification_id: feature.interactive-html-visuals

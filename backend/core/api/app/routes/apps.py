@@ -13,6 +13,8 @@ from fastapi import APIRouter, HTTPException, Request, Depends
 from pydantic import BaseModel, Field
 
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML, AppSkillDefinition, ProviderRef, skill_has_provider_support
+from backend.shared.app_packages.loader import is_installed_provider
+from backend.shared.app_packages.secrets import installed_provider_ready, ready_installed_provider_ids
 from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.limiter import limiter
@@ -122,6 +124,8 @@ async def _available_provider_ids(
             continue
         if await check_provider_api_key_available(provider_id, secrets_manager):
             available.add(provider_id)
+    # Operator-installed providers are usable only when their declared secrets resolve.
+    available.update(await ready_installed_provider_ids(secrets_manager))
     return available
 
 
@@ -253,8 +257,11 @@ async def is_skill_available(
     for provider_ref in skill.providers:
         provider_id = map_provider_name_to_id(provider_ref.name, app_id)
 
-        # Check configuration: API key available or no_api_key flag
-        if provider_ref.no_api_key:
+        # Installed app package providers: the server registry decides, and
+        # every declared secret must resolve (Vault kv/data/providers/<id>).
+        if is_installed_provider(app_id, skill.id, provider_ref.name):
+            is_configured = await installed_provider_ready(app_id, skill.id, provider_ref.name, secrets_manager)
+        elif provider_ref.no_api_key:
             is_configured = True
         else:
             is_configured = await check_provider_api_key_available(provider_id, secrets_manager)

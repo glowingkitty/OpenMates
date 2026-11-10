@@ -42,6 +42,8 @@ skills:
       Never retry another source or fall back to web search.
     class_path: |
       backend.apps.events.skills.search_skill.SearchSkill
+    # Operator-installed app packages may add providers implementing this contract.
+    provider_contract: events.search@1
     pricing:
       per_unit:
         credits: 30

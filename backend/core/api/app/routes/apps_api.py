@@ -35,6 +35,9 @@ from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.utils.config_manager import ConfigManager
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML, AppSkillDefinition, skill_has_provider_support
+from backend.shared.app_packages.loader import is_installed_provider
+from backend.shared.app_packages.billing import chargeable_request_units, even_request_charge_items
+from backend.shared.app_packages.secrets import installed_provider_ready
 from backend.shared.python_utils.billing_utils import calculate_total_credits
 from backend.shared.python_utils.skill_provider_attribution import resolve_skill_usage_provider_id
 from backend.shared.python_utils.app_skill_output_safety import (
@@ -722,6 +725,12 @@ async def is_skill_available(skill: AppSkillDefinition, app_id: str, secrets_man
 
     # Check if at least one provider has an available API key (or needs no key)
     for provider_ref in skill.providers:
+        # Installed app package providers: the server registry decides, and
+        # every declared secret must resolve.
+        if is_installed_provider(app_id, skill.id, provider_ref.name):
+            if await installed_provider_ready(app_id, skill.id, provider_ref.name, secrets_manager):
+                return True
+            continue
         # Providers marked with no_api_key=True (e.g., web scrapers) are always available
         if provider_ref.no_api_key:
             logger.debug(f"Skill '{skill.id}' is available - provider '{provider_ref.name}' does not require an API key")
@@ -1113,6 +1122,19 @@ async def call_app_skill(
         raise HTTPException(status_code=500, detail="Internal service error")
 
 
+def chargeable_skill_units(app_id: str, skill_id: str, input_data: Any, result_data: Any = None) -> int:
+    """Request units to charge: one per request, minus installed-provider-only groups.
+
+    Installed-only groups are identified from the server's app package registry
+    (backend/shared/app_packages/billing.py), never from flags in skill output.
+    """
+    requests = input_data.get("requests") if isinstance(input_data, dict) else None
+    request_count = len(requests) if isinstance(requests, list) else 1
+    if result_data is None:
+        return request_count
+    return chargeable_request_units(app_id, skill_id, request_count, result_data)
+
+
 def is_skill_execution_successful(result: Dict[str, Any]) -> bool:
     """
     Check if a skill execution was successful by examining the result structure.
@@ -1343,6 +1365,15 @@ async def calculate_skill_credits(
         # Fallback: if no requests array found, charge for single execution
         units_processed = 1
         logger.debug(f"Skill '{app_metadata.id}.{skill_id}' has no 'requests' array, charging for single execution")
+    if result_data is not None:
+        # Installed-provider-only groups (server registry decides) are never
+        # charged. Without such groups the built-in path below is unchanged.
+        exempt_units = units_processed - chargeable_request_units(resolved_app_id, skill_id, units_processed, result_data)
+        if exempt_units > 0:
+            units_processed -= exempt_units
+            if units_processed <= 0:
+                logger.info(f"Skill '{resolved_app_id}.{skill_id}' served only by installed providers; no credits charged")
+                return 0
     
     # Calculate credits
     if pricing_config:
@@ -2806,13 +2837,16 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                 
                 # Try to import models from the skill module if class_path exists
                 # This works for skills both with and without tool_schema
-                if captured_skill.class_path:
+                # A paused skill served by installed skill.requests@1 providers runs the
+                # generic delegate; its public models stay in the original skill module.
+                model_class_path = (captured_skill.delegated_class_path or captured_skill.class_path or "").strip()
+                if model_class_path:
                     try:
                         import importlib
                         # Import the skill module to get its models
                         # class_path is relative to backend/apps (e.g., "ai.skills.ask_skill.AskSkill")
                         # We need to convert to full module path: "backend.apps.ai.skills.ask_skill"
-                        module_path, class_name = captured_skill.class_path.rsplit('.', 1)
+                        module_path, class_name = model_class_path.rsplit('.', 1)
                         if not module_path.startswith('backend.'):
                             full_module_path = f"backend.apps.{module_path}"
                         else:
@@ -3158,13 +3192,6 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                         requested_credits=credits_charged,
                                     )
                                 
-                                # Calculate units_processed for usage tracking
-                                units_processed = None
-                                if isinstance(request_dict, dict) and "requests" in request_dict and isinstance(request_dict["requests"], list):
-                                    units_processed = len(request_dict["requests"])
-                                else:
-                                    units_processed = 1
-                                
                                 # Charge credits via internal API — one call per request.
                                 # This creates one usage entry per request instead of one combined
                                 # entry, so users can see individual requests in the usage detail view.
@@ -3186,12 +3213,9 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                         result,
                                     )
                                     if result_charge_items is None:
-                                        per_request_credits = credits_charged // units_processed if units_processed > 0 else credits_charged
-                                        credits_remainder = credits_charged - (per_request_credits * units_processed)
-                                        charge_items = [
-                                            (i, per_request_credits + (credits_remainder if i == units_processed - 1 else 0))
-                                            for i in range(units_processed)
-                                        ]
+                                        charge_items = even_request_charge_items(
+                                            captured_app_id, captured_skill.id, request_dict, result, credits_charged,
+                                        )
                                     else:
                                         charge_items = result_charge_items
 
@@ -3544,11 +3568,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                     )
                                 
                                 # Calculate units_processed for usage tracking
-                                units_processed = None
-                                if isinstance(request_body, dict) and "requests" in request_body and isinstance(request_body["requests"], list):
-                                    units_processed = len(request_body["requests"])
-                                else:
-                                    units_processed = 1
+                                units_processed = chargeable_skill_units(captured_app_id, captured_skill.id, request_body, result)
                                 
                                 if credits_charged > 0:
                                     user_id_hash = hashlib.sha256(user_info['user_id'].encode()).hexdigest()
@@ -3662,13 +3682,6 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                     requested_credits=credits_charged,
                                 )
                                 
-                                # Calculate units_processed for usage tracking
-                                units_processed = None
-                                if isinstance(request_data.input_data, dict) and "requests" in request_data.input_data and isinstance(request_data.input_data["requests"], list):
-                                    units_processed = len(request_data.input_data["requests"])
-                                else:
-                                    units_processed = 1
-                                
                                 # Charge credits via internal API — one call per request.
                                 # This creates one usage entry per request instead of one combined
                                 # entry, so users can see individual requests in the usage detail view.
@@ -3684,12 +3697,11 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                         result,
                                     )
                                     
-                                    # Calculate per-request credits (distribute evenly, remainder on last)
-                                    per_request_credits = credits_charged // units_processed if units_processed > 0 else credits_charged
-                                    credits_remainder = credits_charged - (per_request_credits * units_processed)
-                                    
-                                    for i in range(units_processed):
-                                        request_credits = per_request_credits + (credits_remainder if i == units_processed - 1 else 0)
+                                    # Per-request credits over the charged request indices
+                                    # (distribute evenly, remainder on last).
+                                    for i, request_credits in even_request_charge_items(
+                                        captured_app_id, captured_skill.id, request_data.input_data, result, credits_charged,
+                                    ):
                                         if request_credits <= 0:
                                             continue
                                         

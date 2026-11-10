@@ -29,7 +29,10 @@ fn switch(name: &str, family: &str) -> bool {
         .is_some_and(|flag| flag.arity_overrides.get(family).unwrap_or(&flag.arity) == "switch")
 }
 fn presence_value(name: &str, family: &str) -> bool {
-    catalog().flags.iter().find(|flag| flag.long == name)
+    catalog()
+        .flags
+        .iter()
+        .find(|flag| flag.long == name)
         .and_then(|flag| flag.arity_overrides.get(family))
         .is_some_and(|arity| arity == "optional_value_presence")
 }
@@ -37,10 +40,14 @@ const PRESENT: &str = "\0openmates_presence";
 fn presence_scalar(values: &[String]) -> Value {
     let mut current = Value::Null;
     for value in values {
-        if value == PRESENT { current = Value::Bool(true); }
-        else {
-            let text = current.as_str().filter(|text| !text.is_empty())
-                .map(|previous| format!("{previous}\n{value}")).unwrap_or_else(|| value.clone());
+        if value == PRESENT {
+            current = Value::Bool(true);
+        } else {
+            let text = current
+                .as_str()
+                .filter(|text| !text.is_empty())
+                .map(|previous| format!("{previous}\n{value}"))
+                .unwrap_or_else(|| value.clone());
             current = Value::String(text);
         }
     }
@@ -68,7 +75,10 @@ fn flag(name: &str, family: &str, global: bool) -> Arg {
     } else if presence_value(name, family) {
         // Bare presence is distinct from every explicit scalar, including
         // "true". The scoped adapter normalizes separated values to equals.
-        arg = arg.num_args(0..=1).require_equals(true).default_missing_value(PRESENT);
+        arg = arg
+            .num_args(0..=1)
+            .require_equals(true)
+            .default_missing_value(PRESENT);
     } else if boolean {
         arg = arg
             .num_args(0..=1)
@@ -295,7 +305,10 @@ where
     // Real exec argv cannot contain NUL. Enforce that same boundary for public
     // parse_from callers before private capture/default markers are introduced;
     // never echo a rejected argument, which may contain a credential.
-    if arguments.iter().any(|argument| argument.as_encoded_bytes().contains(&0)) {
+    if arguments
+        .iter()
+        .any(|argument| argument.as_encoded_bytes().contains(&0))
+    {
         return Err(parse_error("Command arguments must not contain NUL bytes."));
     }
     for argument in &mut arguments {
@@ -450,7 +463,10 @@ where
         // A bare `...` usage token repeats the preceding positional, as in
         // `chats delete <id1> [id2] [id3] ... [--yes]` (TS accepts any count).
         let open_text = record.skill_schema.is_some()
-            || record.usages.iter().any(|usage| usage.split_whitespace().any(|token| token == "..."))
+            || record
+                .usages
+                .iter()
+                .any(|usage| usage.split_whitespace().any(|token| token == "..."))
             || record.positionals.iter().any(|p| {
                 p.variadic || ["message", "text", "query", "prompt"].contains(&p.name.as_str())
             });
@@ -573,6 +589,65 @@ mod tests {
         }
     }
     #[test]
+    fn server_apps_subcommands_parse_with_switches_and_values() {
+        let parsed = parse_from([
+            "openmates",
+            "server",
+            "apps",
+            "install",
+            "./my-events-1.0.0.zip",
+            "--accept-server-execution",
+            "--no-restart",
+            "--json",
+        ])
+        .unwrap();
+        let invocation = parsed.invocation.unwrap();
+        assert_eq!(invocation.command_path(), "server apps install");
+        assert_eq!(invocation.positionals, ["./my-events-1.0.0.zip"]);
+        assert!(invocation.boolean("accept-server-execution"));
+        assert!(invocation.boolean("no-restart"));
+        let parsed = parse_from([
+            "openmates",
+            "server",
+            "apps",
+            "rollback",
+            "my.events",
+            "--to",
+            "1.0.0",
+        ])
+        .unwrap();
+        let invocation = parsed.invocation.unwrap();
+        assert_eq!(invocation.command_path(), "server apps rollback");
+        assert_eq!(invocation.positionals, ["my.events"]);
+        assert_eq!(invocation.text("to"), Some("1.0.0"));
+        for args in [
+            vec!["openmates", "server", "apps"],
+            vec!["openmates", "server", "apps", "list", "--json"],
+            vec!["openmates", "server", "apps", "inspect", "my.events"],
+            vec![
+                "openmates",
+                "server",
+                "apps",
+                "remove",
+                "my.events",
+                "--yes",
+            ],
+        ] {
+            assert!(parse_from(args).is_ok());
+        }
+        assert!(parse_from(["openmates", "server", "apps", "inspect", "a.b", "c.d"]).is_err());
+        assert!(
+            parse_from([
+                "openmates",
+                "server",
+                "apps",
+                "list",
+                "--definitely-unknown"
+            ])
+            .is_err()
+        );
+    }
+    #[test]
     fn help_is_local_and_unknown_commands_and_flags_fail() {
         let error = parse_from(["openmates", "server", "env", "--help"])
             .err()
@@ -584,7 +659,13 @@ mod tests {
     #[test]
     fn chats_delete_accepts_any_number_of_ids_like_typescript() {
         let ids = ["a1", "b2", "c3", "d4", "e5"];
-        let parsed = parse_from(["openmates", "chats", "delete"].into_iter().chain(ids).chain(["--yes"])).unwrap();
+        let parsed = parse_from(
+            ["openmates", "chats", "delete"]
+                .into_iter()
+                .chain(ids)
+                .chain(["--yes"]),
+        )
+        .unwrap();
         assert_eq!(parsed.invocation.unwrap().positionals, ids);
         // Fixed-arity commands still refuse extra positionals.
         assert!(parse_from(["openmates", "chats", "show", "a1", "b2"]).is_err());

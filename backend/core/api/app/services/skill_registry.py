@@ -47,6 +47,7 @@ from backend.core.api.app.services.feature_availability_service import (
     skill_feature_id,
 )
 from backend.core.api.app.utils.config_manager import ConfigManager
+from backend.shared.app_packages.overlay import apply_app_package_overlay
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML, skill_has_provider_support
 
 logger = logging.getLogger(__name__)
@@ -212,6 +213,9 @@ def build_skill_registry(
                         if "system_prompt" in instruction_fields:
                             existing.pop("systemprompt", None)
                         existing.update(instruction_fields)
+        # Operator-installed app package providers (off unless enabled) are
+        # merged before availability and parsing so every consumer sees them.
+        raw_config = apply_app_package_overlay(app_id, raw_config)
         raw_configs[app_id] = raw_config
         feature_definitions.extend(collect_feature_definitions_from_app_config(app_id, raw_config, source=app_yml_path))
 

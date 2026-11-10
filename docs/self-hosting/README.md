@@ -26,6 +26,7 @@ Run your own OpenMates instance with full control over your data and infrastruct
 - [Setup & Installation](setup.md) - CLI-first guide for installing and starting OpenMates on your own server
 - [Server Hardening](server-hardening.md) - Six baseline protections every public-facing OpenMates server should have
 - [Proton Mail Bridge](proton-bridge.md) - Connect a Proton Mail account for the mail search skill
+- [App Packages](app-packages.md) - Add your own providers to existing app skills, isolated and never charged
 
 The setup guide covers:
 

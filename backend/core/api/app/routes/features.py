@@ -14,6 +14,7 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
 import yaml
 
+from backend.shared.app_packages.overlay import apply_app_package_overlay
 from backend.core.api.app.services.feature_availability_service import (
     FeatureAvailabilityService,
     PLATFORM_FEATURES,
@@ -57,6 +58,7 @@ def _definitions_from_raw_manifests(apps_dir: str = APPS_DIR) -> list[Any]:
         except Exception:
             continue
         if isinstance(raw_config, dict):
+            raw_config = apply_app_package_overlay(app_id, raw_config)
             definitions.extend(collect_feature_definitions_from_app_config(app_id, raw_config, source=app_yml_path))
     return definitions
 

@@ -41,6 +41,8 @@ services:
       - apps-recommendations-data:/app/data/apps-recommendations
       # Changed: Mount the entire host 'backend' directory to '/app/backend' for development
       - ../../backend:/app/backend
+      - ${OPENMATES_APP_PACKAGES_DIR:-../../.openmates/app-packages}:/app-packages:ro # Operator-installed app packages (read-only)
+      - app-packages-runner-socket:/run/app-packages-runner:ro # Unix socket of app-packages-runner (callers only)
       # Mount for logs, assuming application logs to /app/logs
       - ./api/logs:/app/logs
       - ../../frontend/packages/ui/src/i18n/locales:/translations
@@ -278,6 +280,7 @@ services:
     volumes:
       - apps-recommendations-data:/app/data/apps-recommendations
       - ../../backend:/app/backend # Mounts host:backend to /app/backend
+      - ${OPENMATES_APP_PACKAGES_DIR:-../../.openmates/app-packages}:/app-packages:ro # Operator-installed app packages (read-only)
       # backend/apps and backend/shared are now accessible via /app/backend/apps and /app/backend/shared
       - ./api/logs:/app/logs # This maps host:backend/core/api/logs to /app/logs
       - vault-setup-data:/vault-data
@@ -450,6 +453,8 @@ services:
         --prefetch-multiplier=1
     volumes:
       - ../../backend:/app/backend
+      - ${OPENMATES_APP_PACKAGES_DIR:-../../.openmates/app-packages}:/app-packages:ro # Operator-installed app packages (read-only)
+      - app-packages-runner-socket:/run/app-packages-runner:ro # Unix socket of app-packages-runner (callers only)
       - ./api/logs:/app/logs
       - vault-setup-data:/vault-data
       - ../../frontend/packages/ui/src/i18n/locales:/translations
@@ -561,6 +566,8 @@ services:
         --prefetch-multiplier=1
     volumes:
       - ../../backend:/app/backend # Mounts host:backend to /app/backend
+      - ${OPENMATES_APP_PACKAGES_DIR:-../../.openmates/app-packages}:/app-packages:ro # Operator-installed app packages (read-only)
+      - app-packages-runner-socket:/run/app-packages-runner:ro # Unix socket of app-packages-runner (callers only)
       # Mount apps directory for hot-reloading during development
       # This overrides the code copied during Docker build
       - ../../backend/apps:/app/apps
@@ -629,6 +636,7 @@ services:
         --prefetch-multiplier=1
     volumes:
       - ../../backend:/app/backend # Mounts host:backend to /app/backend
+      - ${OPENMATES_APP_PACKAGES_DIR:-../../.openmates/app-packages}:/app-packages:ro # Operator-installed app packages (read-only)
       # Mount apps directory for hot-reloading during development
       # This overrides the code copied during Docker build
       - ../../backend/apps:/app/apps
@@ -694,6 +702,7 @@ services:
         --prefetch-multiplier=1
     volumes:
       - ../../backend:/app/backend # Mounts host:backend to /app/backend
+      - ${OPENMATES_APP_PACKAGES_DIR:-../../.openmates/app-packages}:/app-packages:ro # Operator-installed app packages (read-only)
       # Mount apps directory for hot-reloading during development
       # This overrides the code copied during Docker build
       - ../../backend/apps:/app/apps
@@ -759,6 +768,7 @@ services:
         --prefetch-multiplier=1
     volumes:
       - ../../backend:/app/backend
+      - ${OPENMATES_APP_PACKAGES_DIR:-../../.openmates/app-packages}:/app-packages:ro # Operator-installed app packages (read-only)
       - ../../backend/apps:/app/apps
       - ./api/logs:/app/logs
       - vault-setup-data:/vault-data
@@ -824,6 +834,7 @@ services:
         --prefetch-multiplier=1
     volumes:
       - ../../backend:/app/backend
+      - ${OPENMATES_APP_PACKAGES_DIR:-../../.openmates/app-packages}:/app-packages:ro # Operator-installed app packages (read-only)
       - ../../backend/apps:/app/apps
       - ./api/logs:/app/logs
       - vault-setup-data:/vault-data
@@ -885,6 +896,7 @@ services:
         --prefetch-multiplier=1
     volumes:
       - ../../backend:/app/backend
+      - ${OPENMATES_APP_PACKAGES_DIR:-../../.openmates/app-packages}:/app-packages:ro # Operator-installed app packages (read-only)
       - ../../backend/apps:/app/apps
       - ./api/logs:/app/logs
       - vault-setup-data:/vault-data
@@ -945,6 +957,7 @@ services:
         --prefetch-multiplier=1
     volumes:
       - ../../backend:/app/backend
+      - ${OPENMATES_APP_PACKAGES_DIR:-../../.openmates/app-packages}:/app-packages:ro # Operator-installed app packages (read-only)
       - ../../backend/apps:/app/apps
       - ./api/logs:/app/logs
       - vault-setup-data:/vault-data
@@ -1005,6 +1018,7 @@ services:
         --prefetch-multiplier=1
     volumes:
       - ../../backend:/app/backend
+      - ${OPENMATES_APP_PACKAGES_DIR:-../../.openmates/app-packages}:/app-packages:ro # Operator-installed app packages (read-only)
       - ../../backend/apps:/app/apps
       - ./api/logs:/app/logs
       - vault-setup-data:/vault-data
@@ -1066,6 +1080,7 @@ services:
         --prefetch-multiplier=1
     volumes:
       - ../../backend:/app/backend
+      - ${OPENMATES_APP_PACKAGES_DIR:-../../.openmates/app-packages}:/app-packages:ro # Operator-installed app packages (read-only)
       - ../../backend/apps:/app/apps
       - ./api/logs:/app/logs
       - vault-setup-data:/vault-data
@@ -1083,6 +1098,45 @@ services:
         condition: service_completed_successfully
       cms-setup:
         condition: service_completed_successfully
+
+  #########################################################################
+  ##### App Packages Runner (operator-installed provider code)
+  #########################################################################
+  # Executes operator-installed app package providers in isolation:
+  # no env_file, no Vault/database/cache access, not on the openmates network,
+  # packages mounted read-only, non-root, no capabilities, read-only rootfs.
+  # Its HTTP API is served only on a Unix socket in the dedicated
+  # app-packages-runner-socket volume (mounted by api, app-ai-worker and
+  # workflow-worker); its only network is app-packages-egress for internet access.
+  # Architecture: docs/architecture/apps/instance-app-packages.md
+  app-packages-runner:
+    container_name: app-packages-runner
+    image: python:3.13-slim
+    restart: unless-stopped
+    user: "65534:65534"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+      APP_PACKAGES_ROOT: /app-packages
+      APP_PACKAGES_RUNNER_SOCKET: /run/app-packages-runner/runner.sock
+    command: ["python3", "/runner/runner.py"]
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=256m
+    volumes:
+      - ../../backend/core/app_packages_runner:/runner:ro
+      - ${OPENMATES_APP_PACKAGES_DIR:-../../.openmates/app-packages}:/app-packages:ro
+      - app-packages-runner-socket:/run/app-packages-runner
+    networks:
+      - app-packages-egress
+    healthcheck:
+      test: ["CMD", "python3", "/runner/runner.py", "--healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   #########################################################################
   ##### In-Memory Cache (Dragonfly)
@@ -1534,8 +1588,25 @@ networks:
   openmates:
     external: true
     name: openmates
+  # Outbound internet access for installed providers (runner only).
+  app-packages-egress:
+    # Fixed name and subnet so operators can block private and link-local
+    # destinations from this subnet in DOCKER-USER (docs/self-hosting/app-packages.md).
+    name: openmates-app-packages-egress
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${OPENMATES_APP_PACKAGES_EGRESS_SUBNET:-10.250.71.0/24}
 
 volumes:
+  # Dedicated tmpfs volume holding only the app-packages-runner Unix socket.
+  # The runner (uid 65534) owns it; callers mount it read-only.
+  app-packages-runner-socket:
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: "uid=65534,gid=65534,mode=0755,size=1m,nosuid,nodev,noexec"
   apps-recommendations-data:
     labels:
       openmates.backup.exclude: "true"

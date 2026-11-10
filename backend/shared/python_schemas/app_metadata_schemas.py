@@ -73,6 +73,7 @@ class ProviderRef(BaseModel):
     name: str = Field(description="Internal provider identifier used for API key lookups (e.g., 'brave').")
     display_name: Optional[str] = Field(default=None, description="User-facing provider name shown in Apps (e.g., 'Google'). Defaults to name if not set.")
     no_api_key: bool = Field(default=False, description="Whether this supported API or licensed feed is available without credentials.")
+    installed: bool = Field(default=False, description="Display-only marker for a provider contributed by an operator-installed app package. Set only by the server-side app package overlay; billing and availability always consult the installation registry instead.")
 
 
 def skill_has_provider_support(skill: Any) -> bool:
@@ -124,6 +125,8 @@ class AppSkillDefinition(BaseModel):
     pricing: Optional[AppPricing] = None
     providers: Optional[List[ProviderRef]] = None  # Optional list of provider references — used for provider-level pricing lookup and availability checks
     provider_required: bool = Field(default=False, description="Whether execution requires at least one configured supported provider. Local-only skills may leave this false.")
+    provider_contract: Optional[str] = Field(default=None, pattern=r"^[a-z0-9_]+\.[a-z0-9_]+@[1-9][0-9]*$", description="Versioned provider contract (e.g. 'events.search@1') that operator-installed app package providers may implement for this skill.")
+    delegated_class_path: Optional[str] = Field(default=None, description="Original class_path of a paused skill served by operator-installed skill.requests@1 providers. Set only by the server-side app package overlay, which also points class_path at the generic delegate; never authored in app.yml.")
     icon_image: Optional[str] = Field(default=None, description="Filename of the skill icon shown in Apps settings.")
 
     @field_validator('providers', mode='before')

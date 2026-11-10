@@ -364,3 +364,5 @@ apple/.openmates-cross-client-control.lock
 # Private founder focus file (daily meeting). Lives only in the canonical checkout; never commit it.
 /FOCUS.md
 /GOALS.md
+# Operator-installed app packages (self-host; see docs/self-hosting/app-packages.md)
+.openmates/app-packages/

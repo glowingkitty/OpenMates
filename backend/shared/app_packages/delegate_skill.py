@@ -1,0 +1,295 @@
+"""Generic skill class for paused built-in skills served by installed providers.
+
+The app package overlay points ``class_path`` of an eligible skill (see
+``generic_contract.accepts_generic_contract``) at ``InstalledProviderSkill`` and
+keeps the original path in ``delegated_class_path``. This class:
+
+1. validates each request item with the original skill's request item model
+   (resolved from its module; plain JSON objects when none can be resolved);
+2. runs the installed ``skill.requests@1`` providers of this (app, skill) for
+   each item concurrently through the isolated runner, or only the providers
+   the item selects by id or name in ``provider`` / ``providers`` /
+   ``provider_platform``;
+3. merges each item's results round-robin across providers (stable registry
+   order, no server-side caps or sorting) and returns the standard grouped
+   response, built on the original skill's
+   response model defaults when one can be resolved.
+
+Provider failures become short safe per-group messages. Billing never reads
+this output: the registry decides (``billing.served_only_by_installed_providers``).
+Architecture: docs/architecture/apps/instance-app-packages.md ("Generic contract").
+"""
+from __future__ import annotations
+
+import asyncio
+import importlib
+import inspect
+import logging
+from dataclasses import dataclass
+from functools import lru_cache
+from types import ModuleType
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Type, get_args, get_origin
+
+from pydantic import BaseModel, ValidationError
+
+from backend.apps.base_skill import BaseSkill
+from backend.shared.app_packages.generic_contract import (
+    GENERIC_CONTRACTS,
+    PROVIDER_SELECTOR_FIELDS,
+)
+from backend.shared.app_packages.loader import InstalledProvider, get_installed_providers
+from backend.shared.app_packages.provider_dispatch import InstalledProviderOutcome, run_installed_providers
+
+logger = logging.getLogger(__name__)
+
+MAX_REQUESTS_PER_CALL = 10
+MAX_VALIDATION_ERRORS_SHOWN = 3
+UNAVAILABLE_ERROR = "No installed provider is available for this capability."
+TOO_MANY_REQUESTS_ERROR = f"At most {MAX_REQUESTS_PER_CALL} requests are served per call."
+
+
+class DelegateConfigurationError(RuntimeError):
+    """The skill metadata does not name a resolvable original skill class."""
+
+
+@dataclass(frozen=True)
+class OriginalSkillModels:
+    """Public models of the original skill used to validate input and shape output."""
+
+    item_model: Optional[Type[BaseModel]]
+    response_defaults: Dict[str, Any]
+
+
+# --------------------------------------------------------------------------
+# Original skill model resolution
+# --------------------------------------------------------------------------
+
+def _is_model(value: Any) -> bool:
+    return isinstance(value, type) and issubclass(value, BaseModel) and value is not BaseModel
+
+
+def _list_item_model(annotation: Any) -> Optional[Type[BaseModel]]:
+    """``List[X]`` / ``list[X]`` / ``Optional[List[X]]`` -> X when X is a model."""
+    if get_origin(annotation) in (list, List):
+        args = get_args(annotation)
+        return args[0] if args and _is_model(args[0]) else None
+    for arg in get_args(annotation):
+        found = _list_item_model(arg)
+        if found is not None:
+            return found
+    return None
+
+
+def _requests_item_model(model: Type[BaseModel]) -> Optional[Type[BaseModel]]:
+    field = model.model_fields.get("requests")
+    return _list_item_model(field.annotation) if field is not None else None
+
+
+def _module_models(module: ModuleType) -> List[Tuple[str, Type[BaseModel]]]:
+    return [
+        (name, value) for name, value in vars(module).items()
+        if _is_model(value) and value.__module__ == module.__name__
+    ]
+
+
+def _execute_item_model(skill_class: type) -> Optional[Type[BaseModel]]:
+    """Item model from a typed ``execute(request: XRequest)`` or ``execute(requests: List[X])``."""
+    execute = getattr(skill_class, "execute", None)
+    if execute is None:
+        return None
+    params = [p for name, p in inspect.signature(execute).parameters.items() if name != "self"]
+    first = next((p for p in params if p.default is inspect.Parameter.empty
+                  and p.kind not in (p.VAR_POSITIONAL, p.VAR_KEYWORD)), None)
+    if first is None or isinstance(first.annotation, str):
+        return None
+    if _is_model(first.annotation):
+        return _requests_item_model(first.annotation)
+    return _list_item_model(first.annotation)
+
+
+def _resolve_item_model(skill_class: type, module: ModuleType) -> Optional[Type[BaseModel]]:
+    from_signature = _execute_item_model(skill_class)
+    if from_signature is not None:
+        return from_signature
+    models = _module_models(module)
+    from_request = list(dict.fromkeys(
+        item for name, model in models if name.endswith("Request")
+        and (item := _requests_item_model(model)) is not None
+    ))
+    if len(from_request) == 1:
+        return from_request[0]
+    items = [model for name, model in models if name.endswith("RequestItem")]
+    return items[0] if len(items) == 1 else None
+
+
+def _resolve_response_defaults(module: ModuleType) -> Dict[str, Any]:
+    for name, model in _module_models(module):
+        if not name.endswith("Response") or "results" not in model.model_fields:
+            continue
+        try:
+            return model.model_validate({"results": []}).model_dump(mode="json")
+        except ValidationError:
+            logger.debug("[AppPackages] %s.%s needs more than results; not used as response base",
+                         module.__name__, name)
+    return {}
+
+
+@lru_cache(maxsize=64)
+def resolve_original_skill_models(class_path: str) -> OriginalSkillModels:
+    """Resolve the request item model and response defaults of the original skill class."""
+    module_path, _, class_name = class_path.strip().rpartition(".")
+    if not module_path:
+        raise DelegateConfigurationError(f"invalid delegated class path '{class_path}'")
+    if not module_path.startswith("backend."):
+        module_path = f"backend.apps.{module_path}"
+    try:
+        module = importlib.import_module(module_path)
+    except ImportError as exc:
+        raise DelegateConfigurationError(f"cannot import '{module_path}': {exc}") from exc
+    skill_class = getattr(module, class_name, None)
+    if not isinstance(skill_class, type):
+        raise DelegateConfigurationError(f"'{class_path}' is not a class")
+    item_model = _resolve_item_model(skill_class, module)
+    if item_model is None:
+        logger.info("[AppPackages] No request item model found for %s; items are passed as JSON objects", class_path)
+    return OriginalSkillModels(item_model=item_model, response_defaults=_resolve_response_defaults(module))
+
+
+# --------------------------------------------------------------------------
+# Request handling
+# --------------------------------------------------------------------------
+
+def _validation_message(exc: ValidationError) -> str:
+    parts = [
+        f"{'.'.join(str(part) for part in error.get('loc', ())) or 'request'}: {error.get('msg', 'invalid')}"
+        for error in exc.errors()[:MAX_VALIDATION_ERRORS_SHOWN]
+    ]
+    return "Invalid request: " + "; ".join(parts)
+
+
+def validate_request_item(item_model: Optional[Type[BaseModel]], raw: Any) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
+    """Return (contract input, None) or (None, safe error) for one request item."""
+    if not isinstance(raw, dict):
+        return None, "Invalid request: each request must be an object."
+    if item_model is None:
+        return dict(raw), None
+    try:
+        validated = item_model.model_validate(raw)
+    except ValidationError as exc:
+        return None, _validation_message(exc)
+    return validated.model_dump(mode="json", exclude_none=True), None
+
+
+def select_provider_ids(item: Dict[str, Any], providers: Sequence[InstalledProvider]) -> List[str]:
+    """Installed providers named by the item (id or display name), else every provider."""
+    lookup: Dict[str, str] = {}
+    for provider in providers:
+        lookup[provider.name.strip().casefold()] = provider.provider_id
+        lookup[provider.provider_id] = provider.provider_id
+    values: List[Any] = []
+    for field in PROVIDER_SELECTOR_FIELDS:
+        value = item.get(field)
+        values.extend(value if isinstance(value, list) else [value])
+    chosen = [lookup[key] for value in values if isinstance(value, str)
+              and (key := value.strip().casefold()) in lookup]
+    return list(dict.fromkeys(chosen)) or [provider.provider_id for provider in providers]
+
+
+def interleave_results(per_provider: Sequence[Sequence[Dict[str, Any]]]) -> List[Dict[str, Any]]:
+    """Round-robin merge: first result of each provider, then the second of each, ..."""
+    merged: List[Dict[str, Any]] = []
+    for position in range(max((len(results) for results in per_provider), default=0)):
+        merged.extend(results[position] for results in per_provider if position < len(results))
+    return merged
+
+
+def build_group(request_id: Any, outcomes: Sequence[InstalledProviderOutcome]) -> Dict[str, Any]:
+    """One grouped result; ``providers`` lists the ids that contributed results.
+
+    Results are interleaved round-robin across providers in their stable order
+    (registry order), so no single provider crowds out the others.
+    """
+    results = interleave_results([outcome.results for outcome in outcomes])
+    failures = list(dict.fromkeys(outcome.error for outcome in outcomes if outcome.error))
+    group: Dict[str, Any] = {
+        "id": request_id,
+        "results": results,
+        "providers": list(dict.fromkeys(result["provider_id"] for result in results)),
+    }
+    if failures and not results:
+        group["error"] = " ".join(failures)
+    elif failures:
+        group["warnings"] = failures
+    return group
+
+
+def _error_group(request_id: Any, message: str) -> Dict[str, Any]:
+    return {"id": request_id, "results": [], "providers": [], "error": message}
+
+
+def build_response(groups: List[Dict[str, Any]], providers: Sequence[InstalledProvider],
+                   response_defaults: Dict[str, Any]) -> Dict[str, Any]:
+    """Standard grouped skill response on top of the original response model defaults."""
+    names = {provider.provider_id: provider.name for provider in providers}
+    contributed = list(dict.fromkeys(pid for group in groups for pid in group.get("providers", [])))
+    shown = contributed or [provider.provider_id for provider in providers]
+    all_failed = bool(groups) and all(group.get("error") for group in groups)
+    errors = list(dict.fromkeys(group["error"] for group in groups if group.get("error")))
+    warnings = [warning for group in groups for warning in group.get("warnings", [])]
+    response: Dict[str, Any] = {
+        **response_defaults,
+        "results": groups,
+        "provider": ", ".join(names[pid] for pid in shown if pid in names) or "Unavailable",
+        "providers": contributed,
+        "error": "; ".join(errors) if all_failed else None,
+    }
+    if warnings:
+        response["warnings"] = list(dict.fromkeys(warnings))
+    if "success" in response_defaults:
+        response["success"] = not all_failed
+    return response
+
+
+class InstalledProviderSkill(BaseSkill):
+    """Serve a paused built-in skill through its installed ``skill.requests@1`` providers."""
+
+    @classmethod
+    def resolve_preview_metadata(cls, request: Dict[str, Any]) -> Dict[str, Any]:
+        # The serving providers are only known per request at execution time.
+        return {}
+
+    def _original_class_path(self) -> str:
+        definition = self.app.get_skill_by_id(self.skill_id) if self.app is not None else None
+        class_path = getattr(definition, "delegated_class_path", None)
+        if not isinstance(class_path, str) or not class_path.strip():
+            raise DelegateConfigurationError(f"{self.app_id}.{self.skill_id} has no delegated_class_path")
+        return class_path
+
+    def _providers(self) -> List[InstalledProvider]:
+        return [p for p in get_installed_providers(self.app_id, self.skill_id) if p.contract in GENERIC_CONTRACTS]
+
+    async def _serve_item(self, index: int, raw: Any, models: OriginalSkillModels,
+                          providers: Sequence[InstalledProvider], secrets_manager: Any) -> Dict[str, Any]:
+        request_id = raw.get("id") if isinstance(raw, dict) and raw.get("id") is not None else index + 1
+        if index >= MAX_REQUESTS_PER_CALL:
+            return _error_group(request_id, TOO_MANY_REQUESTS_ERROR)
+        if not providers:
+            return _error_group(request_id, UNAVAILABLE_ERROR)
+        contract_input, error = validate_request_item(models.item_model, raw)
+        if contract_input is None:
+            return _error_group(request_id, error or "Invalid request.")
+        outcomes = await run_installed_providers(
+            # Selectors are read from the raw item: the item model may not declare them.
+            self.app_id, self.skill_id, select_provider_ids(raw, providers), contract_input, secrets_manager,
+        )
+        return build_group(request_id, outcomes)
+
+    async def execute(self, requests: List[Dict[str, Any]], secrets_manager: Any = None,
+                      **kwargs: Any) -> Dict[str, Any]:
+        models = resolve_original_skill_models(self._original_class_path())
+        providers = self._providers()
+        items = [requests] if isinstance(requests, dict) else list(requests or [])
+        groups = list(await asyncio.gather(*(
+            self._serve_item(index, item, models, providers, secrets_manager) for index, item in enumerate(items)
+        )))
+        return build_response(groups, providers, models.response_defaults)

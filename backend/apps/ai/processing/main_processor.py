@@ -23,6 +23,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from toon_format import encode
 import yaml
+from backend.shared.app_packages.billing import is_installed_only_group
 from backend.shared.python_utils.recent_work_summary_client import authoritative_context_turn_id
 from backend.shared.python_utils.calendar_action_journal import calendar_undo_payload
 
@@ -3512,6 +3513,9 @@ async def _charge_skill_credits(
                 and not group.get("error")  # No error field
                 and group.get("status") not in ("error", "cancelled")
                 and group.get("results")    # Has non-empty results
+                # Groups served only by operator-installed providers (per the
+                # server registry, never skill output flags) are not charged.
+                and not is_installed_only_group(app_id, skill_id, group)
             )
             units_processed = successful_requests
             if successful_requests < total_requests:

@@ -29,6 +29,8 @@ from backend.apps.ai.skills.ask_skill import AskSkillRequest, AskSkillDefaultCon
 from pydantic import BaseModel, Field # For PreprocessingResult model
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML  # For type hinting
 from backend.shared.python_utils.provider_health import is_provider_healthy, map_provider_name_to_id
+from backend.shared.app_packages.loader import is_installed_provider
+from backend.shared.app_packages.secrets import installed_provider_ready
 from backend.shared.python_utils.model_availability import is_model_available
 
 # Import UserOverrides for @ mentioning syntax support
@@ -3035,6 +3037,12 @@ async def handle_preprocessing(
                         any_healthy = False
                         for provider_ref in skill.providers:
                             provider_id = map_provider_name_to_id(provider_ref.name, app_id)
+                            # Installed app package providers count only when
+                            # their declared secrets resolve on this server.
+                            if is_installed_provider(app_id, skill.id, provider_ref.name) and not await installed_provider_ready(
+                                app_id, skill.id, provider_ref.name, secrets_manager,
+                            ):
+                                continue
                             if await is_provider_healthy(provider_id, cache_service):
                                 any_healthy = True
                                 break

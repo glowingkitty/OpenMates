@@ -555,6 +555,14 @@ async def anonymous_app_skill(
     if not _anonymous_skill_result_succeeded(result):
         await service.release_reservation(operation_id, reason="skill_failed")
         return {"success": False, "data": safe_result, "credits_charged": 0}
+    from backend.shared.app_packages.billing import all_groups_installed_only
+    body_requests = body.get("requests") if isinstance(body, dict) else None
+    request_count = len(body_requests) if isinstance(body_requests, list) else 1
+    if all_groups_installed_only(app_id, skill_id, request_count, result):
+        # Every request group was served only by operator-installed providers
+        # (server registry decides). Mixed bodies keep the quoted charge.
+        await service.release_reservation(operation_id, reason="installed_provider")
+        return {"success": True, "data": safe_result, "credits_charged": 0}
     actual_credits = quoted_credits
     if (app_id, skill_id) == ("ai", "decide"):
         from backend.shared.python_utils.ai_decide import decision_result_credits

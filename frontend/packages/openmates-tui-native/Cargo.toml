@@ -74,6 +74,7 @@ cli = [
     "dep:time",
     "dep:resvg",
     "dep:sha1",
+    "dep:zip",
 ]
 
 [dependencies]
@@ -123,6 +124,7 @@ serde_yaml = { package = "yaml_serde", version = "=0.10.7", optional = true }
 time = { version = "0.3", features = ["formatting", "parsing", "serde", "local-offset"], optional = true }
 resvg = { version = "0.45", default-features = false, optional = true }
 sha1 = { version = "0.10", optional = true }
+zip = { version = "4", default-features = false, features = ["deflate"], optional = true }
 
 [dev-dependencies]
 tempfile = "3"

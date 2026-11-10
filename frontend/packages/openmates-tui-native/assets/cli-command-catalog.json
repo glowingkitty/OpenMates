@@ -21,7 +21,7 @@
     },
     {
       "path": "frontend/packages/openmates-cli/src/generated/appSkills.ts",
-      "sha256": "85df77e39656099ea8d3be8d480ccffeeb4b7856cc87a31a3cc6e56a77571486"
+      "sha256": "fff96a1192dd317aecab9e81855340ce3450731516c348c9671171835f0bcab5"
     },
     {
       "path": "frontend/packages/openmates-cli/src/generatedFiles.ts",
@@ -943,6 +943,7 @@
       "write-policy"
     ],
     "server": [
+      "accept-server-execution",
       "api-key",
       "api-url",
       "base-url",
@@ -985,6 +986,7 @@
       "model",
       "name",
       "no-enable",
+      "no-restart",
       "official-cloud",
       "openmates-cloud-path",
       "openmatescloud-path",
@@ -1008,6 +1010,7 @@
       "tail",
       "test",
       "timestamps",
+      "to",
       "tool-use",
       "tools",
       "until",
@@ -1303,6 +1306,19 @@
         "account": "switch",
         "settings": "switch"
       }
+    },
+    {
+      "long": "accept-server-execution",
+      "arity": "switch",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/server/apps.rs",
+          "line": 1,
+          "symbol": "execute"
+        }
+      ]
     },
     {
       "long": "accept-task-proposals",
@@ -12065,6 +12081,19 @@
       ]
     },
     {
+      "long": "no-restart",
+      "arity": "switch",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/server/apps.rs",
+          "line": 1,
+          "symbol": "execute"
+        }
+      ]
+    },
+    {
       "long": "no-task-update-jobs",
       "arity": "switch",
       "repeatable": true,
@@ -16095,6 +16124,11 @@
           "path": "frontend/packages/openmates-cli/src/server.ts",
           "line": 4895,
           "symbol": "printServerHelp"
+        },
+        {
+          "path": "frontend/packages/openmates-tui-native/src/server/apps.rs",
+          "line": 1,
+          "symbol": "execute"
         }
       ]
     },
@@ -18329,6 +18363,11 @@
           "path": "frontend/packages/openmates-cli/src/cli.ts",
           "line": 14734,
           "symbol": "printFinanceHelp"
+        },
+        {
+          "path": "frontend/packages/openmates-tui-native/src/server/apps.rs",
+          "line": 1,
+          "symbol": "execute"
         }
       ]
     },
@@ -19523,6 +19562,11 @@
           "path": "frontend/packages/openmates-cli/src/cli.ts",
           "line": 9362,
           "symbol": "SETTINGS_COMMANDS"
+        },
+        {
+          "path": "frontend/packages/openmates-tui-native/src/server/apps.rs",
+          "line": 1,
+          "symbol": "execute"
         }
       ],
       "arity_overrides": {
@@ -49665,6 +49709,295 @@
     {
       "path": [
         "server",
+        "apps"
+      ],
+      "summary": "List installed instance app packages",
+      "usages": [
+        "server apps"
+      ],
+      "positionals": [],
+      "flags": [
+        "api-key",
+        "api-url",
+        "help",
+        "json",
+        "profile",
+        "role"
+      ],
+      "source_locations": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/server/apps.rs",
+          "line": 1,
+          "symbol": "execute"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "server::execute",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/server.rs",
+        "owner": "native_server_worker"
+      },
+      "gaps": [
+        "Native-only command (no npm CLI counterpart); core servers only, platform verification pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "server",
+        "apps",
+        "list"
+      ],
+      "summary": "List installed instance app packages and their active versions",
+      "usages": [
+        "server apps list"
+      ],
+      "positionals": [],
+      "flags": [
+        "api-key",
+        "api-url",
+        "help",
+        "json",
+        "profile",
+        "role"
+      ],
+      "source_locations": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/server/apps.rs",
+          "line": 1,
+          "symbol": "execute"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "server::execute",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/server.rs",
+        "owner": "native_server_worker"
+      },
+      "gaps": [
+        "Native-only command (no npm CLI counterpart); core servers only, platform verification pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "server",
+        "apps",
+        "inspect"
+      ],
+      "summary": "Show an installed app package, its providers and secret status",
+      "usages": [
+        "server apps inspect <package-id>"
+      ],
+      "positionals": [
+        {
+          "name": "package-id",
+          "required": true,
+          "variadic": false,
+          "at": 3,
+          "synopsis": "<package-id>"
+        }
+      ],
+      "flags": [
+        "api-key",
+        "api-url",
+        "help",
+        "json",
+        "profile",
+        "role"
+      ],
+      "source_locations": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/server/apps.rs",
+          "line": 1,
+          "symbol": "execute"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "server::execute",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/server.rs",
+        "owner": "native_server_worker"
+      },
+      "gaps": [
+        "Native-only command (no npm CLI counterpart); core servers only, platform verification pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "server",
+        "apps",
+        "install"
+      ],
+      "summary": "Install or activate an app package from a local zip archive",
+      "usages": [
+        "server apps install <archive.zip> [--accept-server-execution] [--no-restart]"
+      ],
+      "positionals": [
+        {
+          "name": "archive_zip",
+          "required": true,
+          "variadic": false,
+          "at": 3,
+          "synopsis": "<archive.zip>"
+        }
+      ],
+      "flags": [
+        "accept-server-execution",
+        "api-key",
+        "api-url",
+        "help",
+        "json",
+        "no-restart",
+        "profile",
+        "role"
+      ],
+      "source_locations": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/server/apps.rs",
+          "line": 1,
+          "symbol": "execute"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "server::execute",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/server.rs",
+        "owner": "native_server_worker"
+      },
+      "gaps": [
+        "Native-only command (no npm CLI counterpart); core servers only, platform verification pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "server",
+        "apps",
+        "rollback"
+      ],
+      "summary": "Activate an earlier installed version of an app package",
+      "usages": [
+        "server apps rollback <package-id> [--to <version>] [--no-restart]"
+      ],
+      "positionals": [
+        {
+          "name": "package-id",
+          "required": true,
+          "variadic": false,
+          "at": 3,
+          "synopsis": "<package-id>"
+        }
+      ],
+      "flags": [
+        "api-key",
+        "api-url",
+        "help",
+        "json",
+        "no-restart",
+        "profile",
+        "role",
+        "to"
+      ],
+      "source_locations": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/server/apps.rs",
+          "line": 1,
+          "symbol": "execute"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "server::execute",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/server.rs",
+        "owner": "native_server_worker"
+      },
+      "gaps": [
+        "Native-only command (no npm CLI counterpart); core servers only, platform verification pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "server",
+        "apps",
+        "remove"
+      ],
+      "summary": "Remove an app package and all of its installed versions",
+      "usages": [
+        "server apps remove <package-id> --yes [--no-restart]"
+      ],
+      "positionals": [
+        {
+          "name": "package-id",
+          "required": true,
+          "variadic": false,
+          "at": 3,
+          "synopsis": "<package-id>"
+        }
+      ],
+      "flags": [
+        "api-key",
+        "api-url",
+        "help",
+        "json",
+        "no-restart",
+        "profile",
+        "role",
+        "yes"
+      ],
+      "source_locations": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/server/apps.rs",
+          "line": 1,
+          "symbol": "execute"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "server::execute",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/server.rs",
+        "owner": "native_server_worker"
+      },
+      "gaps": [
+        "Native-only command (no npm CLI counterpart); core servers only, platform verification pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "server",
         "backup"
       ],
       "summary": "server backup",
@@ -62840,9 +63173,9 @@
     "Remote command protection is Linux-specific; unsupported hosts must fail closed."
   ],
   "coverage": {
-    "command_patterns": 723,
-    "flags": 608,
-    "native_handlers_partial": 717,
+    "command_patterns": 729,
+    "flags": 610,
+    "native_handlers_partial": 723,
     "unsupported": 6,
     "feature_complete": false
   },

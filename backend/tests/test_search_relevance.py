@@ -621,7 +621,7 @@ async def test_events_ranked_search_keeps_candidate_pool_internal(monkeypatch) -
     monkeypatch.setattr(events_search, "rank_search_candidates", fake_rank)
     skill = object.__new__(events_search.SearchSkill)
 
-    _, results, error, _total, _providers = await skill._process_single_search_request(
+    _, results, error, _total, _providers, _warnings = await skill._process_single_search_request(
         {
             "query": "AI conference",
             "location": "Berlin",
@@ -643,7 +643,7 @@ async def test_events_ranked_search_keeps_candidate_pool_internal(monkeypatch) -
     assert results[0]["title"] == "Event 39"
 
     ranking_fails = True
-    _, fallback_results, error, _total, _providers = await skill._process_single_search_request(
+    _, fallback_results, error, _total, _providers, _warnings = await skill._process_single_search_request(
         {
             "query": "AI conference",
             "location": "Berlin",
@@ -710,7 +710,7 @@ async def test_events_ranked_search_omits_zero_score_instead_of_padding(monkeypa
     monkeypatch.setattr(events_search, "rank_search_candidates", fake_rank)
     skill = object.__new__(events_search.SearchSkill)
 
-    _, results, error, _total, _providers = await skill._process_single_search_request(
+    _, results, error, _total, _providers, _warnings = await skill._process_single_search_request(
         {
             "query": "robotics",
             "location": "Berlin",
