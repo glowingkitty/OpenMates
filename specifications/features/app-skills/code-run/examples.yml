@@ -416,3 +416,39 @@ semantic_risk_review:
   when: Jev assesses each exact request under existing confinement.
   then: The elevated/uncertain destructive request requires review despite its list match. A routine search
     keeps its existing permission behavior; a deterministically denied request remains denied.
+
+execution_targets:
+  - id: hosted-project-tests-run-in-e2b
+    assertion_ids: [code-run.execution.e2b-only]
+    given: Recipe Manager is stored in OpenMates and has no connected machine.
+    when: The assistant runs the recipe app's tests without naming a target.
+    then: The run starts in E2B. Nothing executes on OpenMates servers.
+  - id: remote-project-tests-run-on-the-machine
+    assertion_ids: [code-run.execution.e2b-only]
+    given: Alice's OpenMates repository is connected from her dev server, and she enabled the exact command npm test in her command list.
+    when: The assistant runs the tests for its dark-mode change without naming a target.
+    then: npm test runs confined on her dev server inside the chat's worktree. If the machine is offline the run fails visibly and does not move to E2B or the backend by itself.
+
+project_test_runs:
+  - id: server-then-browser-test
+    assertion_ids: [code-run.tests.project-snapshot]
+    given: Recipe Manager's web-app folder holds a Svelte app and tests/recipe-add.spec.ts.
+    when: The assistant runs the browser test.
+    then: The sandbox installs dependencies, starts the app, runs the test against it and stops. The result lists the file versions it ran against.
+  - id: stale-result-after-edit
+    assertion_ids: [code-run.tests.project-snapshot]
+    given: The recipe-add test passed for the current files.
+    when: Alice edits web-app/src/App.svelte by hand.
+    then: The earlier test result is marked stale for that file's new version, and the assistant does not create a commit from it.
+
+test_evidence:
+  - id: browser-test-video-and-timeline
+    assertion_ids: [code-run.tests.recorded-evidence]
+    given: recipe-add.spec.ts opens the app, fills the title, clicks Save and expects the recipe in the list, and marks the filled form as its preview step.
+    when: The test passes and Alice opens the test result embed.
+    then: The preview card shows the filled recipe form, not a blank page. Fullscreen plays the video next to the steps "open page", "fill title", "click save", "expect recipe in list" from top to bottom, and clicking "click save" jumps the video to that moment.
+  - id: cli-test-terminal-timeline
+    assertion_ids: [code-run.tests.recorded-evidence]
+    given: An end-to-end test runs "recipes add Pancakes" and then "recipes list" against a command-line program.
+    when: Alice opens the test result embed.
+    then: She sees each command followed by its output in a terminal-style timeline from top to bottom, with the failing step highlighted if one failed. A unit test run in the same Project shows only "12 passed, 0 failed" and its output.

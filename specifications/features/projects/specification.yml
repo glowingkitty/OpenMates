@@ -38,13 +38,17 @@ scope:
     after a twenty-minute wait expires.
   - A consistent split between Git-ignore discovery filtering, explicit exact-file inclusion, and non-overridable private-path
     denial across remote Project file operations.
+  - Automatic Project creation when a chat without a Project asks for a multi-file application, with the application's
+    files stored once and shown both in the chat and in the Project.
+  - Named Project commits over existing file revisions and a Project timeline of file changes and commits.
+  - One Git worktree and branch per chat for connected Git repositories, shared with that chat's sub-chats.
   excludes:
   - Automatically materializing every repository test as a Project item.
   - Copying linked objects into Project-owned records or changing their canonical lifecycle state.
   - Low-level remote filesystem bridge protocols, patch application algorithms, and command execution authority; observable
     file-write authorization, freshness, and recovery requirements are included.
-  - Automatic Git worktree creation, branch switching, merging, and worktree cleanup in the initial file-editing release;
-    remote edits target the connected folder directly.
+  - Unprompted merging or pushing of a chat's Git branch, and worktrees for connected folders that are not Git repositories;
+    those folders are edited directly.
   - Public APIs for raw Project ciphertext, raw keys, or server-side plaintext Project search.
   - Requiring one visual layout for every linked object type when equivalent responsive outcomes are preserved.
 relationships:
@@ -657,6 +661,49 @@ assertions:
     use .openmates/memories with the same title, memory, when-to-use, optional start/expiry and load-mode fields as personal Memories and are edited in a Project Memories tab; compatible legacy rules and facts documents remain readable without duplication.
   depends_on:
   - examples.project_memories
+- id: projects.creation.assistant-inferred
+  type: behavior
+  must: When a chat without an active Project asks the assistant to build a multi-file application such as a web app or
+    a native app, preprocessing decides that a new Project is needed and the Project is created without a confirmation
+    step. The chat shows a created-Project card with an undo control, the Project uses the Apply and show write policy,
+    and its default Work on (project) focus becomes active in that chat at once. A request for a single script or snippet
+    creates no Project. Undo removes the Project and its focus but leaves the chat and its embeds intact. Creation uses
+    the same client-side encryption and key wrapping as a Project created by the user; the server never receives the
+    Project key or plaintext name.
+  depends_on:
+  - examples.project_assistant_creation
+- id: projects.files.application-single-source
+  type: invariant
+  must: Each file of an application created in a Project chat is stored as exactly one encrypted embed that is both a
+    child of the chat's application embed and a Project file linked at its path under a dedicated subfolder such as web-app/.
+    A diff applied by the assistant in the chat and an edit made by a user in the Project view change that same embed and
+    extend the same revision history; no second copy exists to synchronize. The subfolder is an ordinary folder whose
+    files are visible, and the application card is shown at the top of that folder as the entry for starting and previewing
+    the application.
+  depends_on:
+  - models.ProjectItemLink
+  - examples.project_application_files
+- id: projects.history.native-commits
+  type: behavior
+  must: A Project commit is a named snapshot with a message that records the exact revision of every OpenMates-stored
+    file in the Project at that moment; it stores no second copy of file content. The Project has a timeline that lists
+    file changes and commits newest first with author (user or assistant), time and affected paths, and a commit can be
+    opened to see its files and restored as a whole, which creates new revisions rather than deleting later history.
+    The assistant creates a commit automatically after the required tests for its change pass; a failed or stale test
+    result creates none.
+  depends_on:
+  - examples.project_commits
+- id: projects.sources.chat-worktrees
+  type: behavior
+  must: For a connected Git repository, each chat that writes files or runs source-writing commands works in its own Git
+    worktree on its own branch named openmates/(chat slug), created from the repository's current branch on first write.
+    The chat's file tools, commands and tests resolve inside that worktree, and sub-chats use their parent chat's worktree.
+    The user's main checkout changes only through a merge. The assistant commits to the chat's branch automatically after
+    the required tests pass; merging into another branch and pushing to a remote always require explicit approval of that
+    exact action. Private-path, confinement, write-policy and expected-base rules apply inside the worktree unchanged. Connected
+    folders without Git are edited directly as before.
+  depends_on:
+  - examples.project_chat_worktrees
 applies_to:
   rest_api:
     required: true
@@ -774,5 +821,9 @@ examples:
   - project_item_presentation
   - project_uploads
   - project_document_creation
+  - project_assistant_creation
+  - project_application_files
+  - project_commits
+  - project_chat_worktrees
   - project_surface_parity
   - focus_auto_selection
