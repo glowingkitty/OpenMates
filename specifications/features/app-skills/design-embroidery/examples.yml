@@ -43,8 +43,8 @@ rework:
     when: It is converted at 60 mm width.
     then: >
       The fixed check reports the gradient, the live text and the small detail. One model rework returns a graphic
-      with flat colours and the text drawn larger as shapes. The result notes say "Gradient replaced by flat colours"
-      and "Small text enlarged". The charge includes that model call.
+      with flat colours and the text either drawn as shapes or left out. The result notes say "Gradients and filters
+      replaced by flat colours" and "Text redrawn as shapes or left out". The charge includes that model call.
   - id: instructions-trigger-rework
     given: A clean two-colour leaf graphic without findings.
     when: The assistant calls design.embroidery with instructions "sew the outline as a thick satin border".

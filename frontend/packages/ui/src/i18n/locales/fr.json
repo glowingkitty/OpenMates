@@ -7864,10 +7864,10 @@
             "text": "Les dégradés et filtres ont été remplacés par des couleurs unies"
           },
           "solved_live_text": {
-            "text": "Le texte a été converti en formes brodables"
+            "text": "Le texte a été redessiné en formes ou omis"
           },
           "solved_embedded_pixel_image": {
-            "text": "L'image en pixels intégrée a été redessinée en formes"
+            "text": "L'image en pixels intégrée a été redessinée en formes ou omise"
           },
           "solved_detail_below_1mm": {
             "text": "Les petits détails ont été agrandis ou omis"

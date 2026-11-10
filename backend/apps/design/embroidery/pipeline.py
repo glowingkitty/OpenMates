@@ -32,7 +32,7 @@ from backend.apps.design.embroidery.content import (
     build_finished_content,
 )
 from backend.apps.design.embroidery.request import parse_embroidery_request
-from backend.apps.design.embroidery.rework import rework_for_embroidery, rework_result_notes
+from backend.apps.design.embroidery.rework import needs_rework, rework_for_embroidery, rework_result_notes
 from backend.apps.design.embroidery.storage import (
     IncompleteEmbroideryFiles,
     require_complete_files,
@@ -94,6 +94,37 @@ async def _assert_can_generate(task: Any, *, embed_id: str, chat_id: Any, messag
         task._directus_service, embed_id=embed_id, chat_id=chat_id, message_id=message_id,
         owner_hash=hashlib.sha256(user_id.encode("utf-8")).hexdigest(),
     )
+
+
+async def _check_rework_convert(
+    task: Any, *, request: Any, svg: str, options: Any, api_key: str, template: str,
+) -> tuple[Any, Any, Any, float]:
+    """Check, optionally rework with the model, convert; returns total billed sandbox seconds.
+
+    Without findings or instructions no model runs and one sandbox session does check and
+    convert. Otherwise the check session is closed before the model call so the sandbox is
+    not billed while idle, and a second session converts the reworked graphic.
+    """
+    async def rework() -> Any:
+        return await rework_for_embroidery(
+            svg=svg, findings=check.findings, width_mm=request.width_mm,
+            instructions=request.instructions, task_id=str(task.request.id),
+            secrets_manager=task._secrets_manager,
+        )
+
+    async with open_embroidery_session(api_key=api_key, template=template) as first:
+        check = await first.check(svg, options)
+        reworking = needs_rework(check.findings, request.instructions)
+        if not reworking:
+            outcome = await rework()
+            run = await first.convert(outcome.svg, options)
+    # sandbox_seconds is final only once the session has closed.
+    if not reworking:
+        return check, outcome, run, float(first.sandbox_seconds)
+    outcome = await rework()
+    async with open_embroidery_session(api_key=api_key, template=template) as second:
+        run = await second.convert(outcome.svg, options)
+    return check, outcome, run, float(first.sandbox_seconds) + float(second.sandbox_seconds)
 
 
 async def run_embroidery(task: Any, app_id: str, skill_id: str, arguments: dict[str, Any]) -> dict[str, Any]:
@@ -167,15 +198,9 @@ async def run_embroidery(task: Any, app_id: str, skill_id: str, arguments: dict[
     options = EmbroideryOptions(width_mm=request.width_mm, hoop=request.hoop, fabric=request.fabric)
     api_key = await get_e2b_api_key_async(task._secrets_manager)
     try:
-        async with open_embroidery_session(api_key=api_key, template=template) as session:
-            check = await session.check(source.svg, options)
-            outcome = await rework_for_embroidery(
-                svg=source.svg, findings=check.findings, width_mm=request.width_mm,
-                instructions=request.instructions, task_id=str(task.request.id),
-                secrets_manager=task._secrets_manager,
-            )
-            run = await session.convert(outcome.svg, options)
-            sandbox_seconds = float(session.sandbox_seconds)
+        check, outcome, run, sandbox_seconds = await _check_rework_convert(
+            task, request=request, svg=source.svg, options=options, api_key=api_key, template=template,
+        )
     except EmbroideryError as exc:
         logger.info("%s Conversion failed with %s", log_prefix, exc.code)
         return await fail(exc.code, exc.user_message, title)

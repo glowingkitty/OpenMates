@@ -15,7 +15,7 @@
   import { fetchAndDecryptImage, getCachedImageUrl, createImageUrlOwner } from '../images/imageEmbedCrypto';
   import { hasMediaEncryptionMetadata } from '../../../services/encryption/mediaEncryption';
   import {
-    errorTranslationKey, formatCount, formatSize, readEmbroideryDesign,
+    EMBROIDERY_FABRIC_COLOUR, errorTranslationKey, formatCount, formatSize, readEmbroideryDesign,
   } from './embroideryDesign';
 
   interface Props {
@@ -87,7 +87,7 @@
   onEmbedDataUpdated={handleUpdated}
 >
   {#snippet details()}
-    <div class="embroidery-preview" data-testid="design-embroidery-preview" data-status={status}>
+    <div class="embroidery-preview" style:--embroidery-fabric={EMBROIDERY_FABRIC_COLOUR} data-testid="design-embroidery-preview" data-status={status}>
       {#if status === 'finished'}
         <ResultEmbedCard {title} mediaFit="contain">
           {#snippet media()}
@@ -115,15 +115,23 @@
 
 <style>
   .embroidery-preview { width: 100%; height: 100%; box-sizing: border-box; }
-  /* Pinned to the box (Safari cannot resolve height: 100% in a flex item) and never cropped. */
+  /* The whole media area is fabric-coloured; the stitch preview is always fully visible inside a padded box,
+     so neither the rounded card edge nor the bottom fade can crop it. */
+  .embroidery-preview :global(.card-media:has(.stitch-preview)) { background: var(--embroidery-fabric); }
+  .embroidery-preview :global(.card-media:has(.stitch-preview)::after) { display: none; }
   .stitch-preview {
     position: absolute;
     inset: 0;
     width: 100%;
     height: 100%;
+    box-sizing: border-box;
+    padding: var(--spacing-6);
     object-fit: contain;
-    background: var(--color-media-letterbox);
+    background: var(--embroidery-fabric);
   }
-  .placeholder { margin: 0; position: absolute; inset: 0; display: grid; place-items: center; text-align: center; font-size: var(--font-size-xxs); color: var(--color-font-secondary); background: var(--color-media-letterbox); }
-  .numbers { font-size: var(--font-size-xxs); color: var(--color-font-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .placeholder { margin: 0; position: absolute; inset: 0; display: grid; place-items: center; text-align: center; font-size: var(--font-size-xxs); color: var(--color-font-secondary); background: var(--embroidery-fabric); }
+  /* Numbers wrap onto a second line instead of truncating; swatches keep their own line. */
+  .embroidery-preview :global(.card-facts) { max-height: none; flex-direction: column; align-items: flex-start; gap: var(--spacing-3); }
+  .embroidery-preview :global(.card-copy h3) { -webkit-line-clamp: 3; line-clamp: 3; }
+  .numbers { display: block; max-width: 100%; font-size: var(--font-size-xxs); color: var(--color-font-secondary); white-space: normal; overflow-wrap: anywhere; }
 </style>

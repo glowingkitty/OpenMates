@@ -7864,10 +7864,10 @@
             "text": "Los degradados y filtros se sustituyeron por colores lisos"
           },
           "solved_live_text": {
-            "text": "El texto se convirtió en formas bordables"
+            "text": "El texto se redibujó como formas o se omitió"
           },
           "solved_embedded_pixel_image": {
-            "text": "La imagen de píxeles incrustada se redibujó como formas"
+            "text": "La imagen de píxeles incrustada se redibujó como formas o se omitió"
           },
           "solved_detail_below_1mm": {
             "text": "Los detalles pequeños se ampliaron o se omitieron"

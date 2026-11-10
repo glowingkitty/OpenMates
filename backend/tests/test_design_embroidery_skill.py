@@ -238,3 +238,26 @@ async def test_failed_child_is_sealed_under_parent_and_reported_with_its_reason(
     }]
     assert callback.await_args.kwargs["result_status"] == "failed"
     assert hashlib.sha256(b"user-1").hexdigest() == parent["user_id_hash"]
+
+
+# contract-test: supporting surface=rest_api assertions=design-embroidery.result.complete-and-truthful
+def test_slug_and_filename_labels_become_readable_titles() -> None:
+    title = result_title("simple-flat-three-colour-logo-of-a-fox-head-clean-geometric")
+    assert title == "Simple flat three colour logo of a fox head"
+    assert len(title) <= 48 and not title.endswith("…")
+    assert result_title("fox_head-logo.svg") == "Fox head logo"
+    assert variant_filename(title, "dst") == "simple-flat-three-colour-logo-of-a-fox-head.dst"
+
+
+# contract-test: supporting surface=rest_api assertions=design-embroidery.result.complete-and-truthful
+def test_natural_labels_are_kept_and_capped_at_a_word_boundary() -> None:
+    assert result_title("Fröhlicher Fuchs") == "Fröhlicher Fuchs"
+    long = result_title("A very friendly red fox sitting on a hill at sunrise with mist")
+    assert len(long) <= 48 and long == "A very friendly red fox sitting on a hill at"
+
+
+# contract-test: supporting surface=rest_api assertions=design-embroidery.result.complete-and-truthful
+def test_embed_label_is_derived_readable_from_the_source() -> None:
+    from backend.shared.python_utils.encrypted_embed_vectors import _label_from_content
+
+    assert _label_from_content({"title": "fox-head_logo.svg"}) == "Fox head logo"

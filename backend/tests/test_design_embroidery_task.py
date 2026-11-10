@@ -49,6 +49,7 @@ class World:
     convert_error: EmbroideryError | None = None
     sandbox_seconds: float = 21.0
     sessions: int = 0
+    events: list[str] = field(default_factory=list)
     session_kwargs: list[dict] = field(default_factory=list)
     checked: list[str] = field(default_factory=list)
     converted: list[tuple[str, Any]] = field(default_factory=list)
@@ -68,10 +69,11 @@ class FakeSession:
         world.sessions += 1
 
     async def __aenter__(self) -> "FakeSession":
+        self.world.events.append("open")
         return self
 
     async def __aexit__(self, *_exc: Any) -> None:
-        return None
+        self.world.events.append("close")
 
     @property
     def sandbox_seconds(self) -> float:
@@ -138,6 +140,7 @@ def world(monkeypatch: pytest.MonkeyPatch) -> World:
 
     async def author(**kwargs: Any) -> Any:
         state.author_calls.append(kwargs)
+        state.events.append("author")
         if isinstance(state.author_result, Exception):
             raise state.author_result
         return state.author_result
@@ -329,7 +332,7 @@ async def test_findings_trigger_exactly_one_rework_before_conversion(world: Worl
         svg=REWORKED_SVG, model_id="openai/gpt-6.1-sol", attempts=1, review_status="skipped",
         usage=[VectorUsage("drawing", "openai/gpt-6.1-sol", 4000, 3000)],
     )
-    world.sandbox_seconds = 48.0
+    world.sandbox_seconds = 24.0  # per session; two sessions are billed
 
     result = await _run(world)
 
@@ -343,9 +346,38 @@ async def test_findings_trigger_exactly_one_rework_before_conversion(world: Worl
     assert content["reworked"] is True
     codes = [note["code"] for note in content["notes"]]
     assert "solved_gradient_or_filter" in codes and "solved_live_text" in codes
-    # 48 s sandbox = 5 credits; 4000/1000 + 3000/100 = 34 token credits.
+    texts = {note["code"]: note["text"] for note in content["notes"]}
+    assert texts["solved_live_text"] == "Text redrawn as shapes or left out"
+    # 2 x 24 s sandbox = 5 credits; 4000/1000 + 3000/100 = 34 token credits.
     assert world.charges[0]["credits"] == 39
     assert result["billing_status"] == "charged"
+
+
+# contract-test: supporting surface=rest_api assertions=design-embroidery.billing.metered,design-embroidery.prepare.model-rework-only-when-needed
+@pytest.mark.asyncio
+async def test_sandbox_is_closed_before_the_model_rework_and_both_sessions_are_billed(world: World) -> None:
+    world.findings = [{"code": "live_text", "detail": "one <text> element"}]
+    world.author_result = VectorAuthorResult(
+        svg=REWORKED_SVG, model_id="openai/gpt-6.1-sol", attempts=1, review_status="skipped", usage=[],
+    )
+    world.sandbox_seconds = 30.0
+
+    await _run(world)
+
+    assert world.events == ["open", "close", "author", "open", "close"]
+    assert world.sessions == 2 and world.checked == [SOURCE_SVG]
+    assert world.converted[0][0] == REWORKED_SVG
+    assert world.charges[0]["usage_details"]["provider_calls"][-1]["duration_seconds"] == 60.0
+
+
+# contract-test: supporting surface=rest_api assertions=design-embroidery.billing.metered,design-embroidery.prepare.model-rework-only-when-needed
+@pytest.mark.asyncio
+async def test_no_rework_uses_one_sandbox_session_for_check_and_convert(world: World) -> None:
+    await _run(world)
+
+    assert world.events == ["open", "close"] and world.sessions == 1
+    assert world.author_calls == []
+    assert world.charges[0]["usage_details"]["provider_calls"][-1]["duration_seconds"] == 21.0
 
 
 # contract-test: direct surface=rest_api assertions=design-embroidery.prepare.model-rework-only-when-needed

@@ -9409,10 +9409,10 @@
             "text": "Farbverläufe und Filter wurden durch einfarbige Flächen ersetzt"
           },
           "solved_live_text": {
-            "text": "Text wurde in stickbare Formen umgewandelt"
+            "text": "Text wurde als Formen neu gezeichnet oder weggelassen"
           },
           "solved_embedded_pixel_image": {
-            "text": "Das eingebettete Pixelbild wurde als Formen neu gezeichnet"
+            "text": "Das eingebettete Pixelbild wurde als Formen neu gezeichnet oder weggelassen"
           },
           "solved_detail_below_1mm": {
             "text": "Kleine Details wurden vergrößert oder weggelassen"

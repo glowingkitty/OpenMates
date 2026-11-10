@@ -7837,10 +7837,10 @@
             "text": "Přechody a filtry byly nahrazeny plnými barvami"
           },
           "solved_live_text": {
-            "text": "Text byl převeden na tvary k vyšití"
+            "text": "Text byl překreslen jako tvary nebo vynechán"
           },
           "solved_embedded_pixel_image": {
-            "text": "Vložený rastrový obrázek byl překreslen jako tvary"
+            "text": "Vložený rastrový obrázek byl překreslen jako tvary nebo vynechán"
           },
           "solved_detail_below_1mm": {
             "text": "Drobné detaily byly zvětšeny nebo vynechány"

@@ -28,6 +28,7 @@ from backend.shared.python_utils.encrypted_embed_images import (
 from backend.shared.python_utils.fresh_upload_images import FreshUploadImageUnavailable
 from backend.shared.python_utils.image_reference_resolver import ImageReferenceUnavailable, load_owned_image_record
 from backend.shared.python_utils.media_encryption import decrypt_media_payload
+from backend.shared.python_utils.readable_title import readable_title
 
 # Kept equal to the largest SVG the vector author accepts (vector_author.MAX_SVG_CHARS).
 MAX_VECTOR_SOURCE_CHARS = 400_000
@@ -53,7 +54,7 @@ def _label_from_content(content: Mapping[str, Any]) -> str:
     for key in ("title", "prompt", "filename", "file_path"):
         value = content.get(key)
         if isinstance(value, str) and value.strip():
-            return " ".join(value.split())
+            return readable_title(value)
     return ""
 
 

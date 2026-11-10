@@ -7837,10 +7837,10 @@
             "text": "渐变和滤镜已替换为纯色"
           },
           "solved_live_text": {
-            "text": "文字已转换为可绣制的图形"
+            "text": "文字已重绘为图形或被省略"
           },
           "solved_embedded_pixel_image": {
-            "text": "嵌入的像素图像已重绘为图形"
+            "text": "嵌入的像素图像已重绘为图形或被省略"
           },
           "solved_detail_below_1mm": {
             "text": "过小的细节已放大或省略"

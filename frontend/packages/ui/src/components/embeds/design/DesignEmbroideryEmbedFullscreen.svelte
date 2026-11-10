@@ -20,7 +20,7 @@
   import { svgToDataUrl } from '../code/progressiveSvg';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import {
-    EMBROIDERY_MIN_WIDTH_MM, errorTranslationKey, formatCount, formatDuration, formatHoop, formatSize,
+    EMBROIDERY_FABRIC_COLOUR, EMBROIDERY_MIN_WIDTH_MM, errorTranslationKey, formatCount, formatDuration, formatHoop, formatSize,
     noteTranslationKey, readEmbroideryDesign, type EmbroideryFile, type EmbroiderySettings,
   } from './embroideryDesign';
 
@@ -47,6 +47,11 @@
   const skillName = $derived($text('app_skills.design.embroidery'));
   const title = $derived(design.title || skillName);
   const reason = $derived($text(errorTranslationKey(design.errorCode)));
+  /** Safe file name stem: letters, digits and dashes only. */
+  const downloadBaseName = $derived(
+    design.title.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48).replace(/-+$/, '') || 'embroidery-design',
+  );
   const hoopLabel = $derived(formatHoop(design.hoop));
 
   let view = $state<'stitches' | 'graphic'>('stitches');
@@ -183,7 +188,9 @@
           </div>
         {/if}
         {#if shownUrl}
-          <img src={shownUrl} alt={title} class="result-primary-media stitch-image" data-testid="design-embroidery-image" data-view={view} />
+          <div class="stage" class:fabric={view === 'stitches'} style:--embroidery-fabric={EMBROIDERY_FABRIC_COLOUR}>
+            <img src={shownUrl} alt={title} class="result-primary-media stitch-image" data-testid="design-embroidery-image" data-view={view} />
+          </div>
         {:else if mediaError}
           <p class="status" role="status">{$text('embeds.design.embroidery.preview_unavailable')}</p>
         {:else}
@@ -210,7 +217,7 @@
         {#if design.reworked}
           <p class="hint" data-testid="design-embroidery-reworked">{$text('embeds.design.embroidery.reworked_hint')}</p>
         {/if}
-        {#if embedId}<EmbroideryDownloads {embedId} baseName={design.title} />{/if}
+        <EmbroideryDownloads {design} baseName={downloadBaseName} />
         <EmbroiderySettingsForm
           widthMm={design.widthMm ?? EMBROIDERY_MIN_WIDTH_MM}
           hoop={design.hoop}
@@ -238,7 +245,10 @@
   }
   .switch button[aria-pressed="true"] { background: var(--color-button-primary); color: var(--color-font-button); }
   .switch button:focus-visible { outline: 2px solid var(--color-button-primary); outline-offset: 2px; }
+  .stage { width: 100%; border-radius: var(--radius-6); overflow: hidden; }
+  .stage.fabric { background: var(--embroidery-fabric); }
   .stitch-image { display: block; width: 100%; height: var(--result-media-height, 20rem); object-fit: contain; border-radius: var(--radius-6); background: var(--color-media-letterbox); }
+  .stage.fabric .stitch-image { background: transparent; }
     .reason { display: flex; flex-direction: column; gap: var(--spacing-2); width: min(100%, 34rem); box-sizing: border-box; padding: var(--spacing-8); border-radius: var(--radius-6); background: var(--color-grey-0); color: var(--color-font-primary); text-align: center; }
   .status { margin: 0; color: var(--color-font-secondary); }
   .embroidery-details { width: 100%; display: flex; flex-direction: column; gap: var(--spacing-10); }

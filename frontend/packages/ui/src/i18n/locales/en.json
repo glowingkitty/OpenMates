@@ -9438,10 +9438,10 @@
             "text": "Gradients and filters were replaced by flat colours"
           },
           "solved_live_text": {
-            "text": "Text was converted to stitched shapes"
+            "text": "Text was redrawn as shapes or left out"
           },
           "solved_embedded_pixel_image": {
-            "text": "The embedded pixel image was redrawn as shapes"
+            "text": "The embedded pixel image was redrawn as shapes or left out"
           },
           "solved_detail_below_1mm": {
             "text": "Small details were enlarged or left out"

@@ -7,6 +7,9 @@
  * crypto helpers need.
  */
 
+/** Colour of the fabric in the rendered stitch preview; media areas use it so no other colour shows around it. */
+export const EMBROIDERY_FABRIC_COLOUR = '#f4f1ea';
+
 export const EMBROIDERY_FORMATS = ['dst', 'pes', 'exp', 'jef', 'vp3'] as const;
 export type EmbroideryFormat = (typeof EMBROIDERY_FORMATS)[number];
 
@@ -91,6 +94,8 @@ export interface EmbroideryDesign {
   /** Direct media for component previews and store examples; skips S3 decryption. */
   previewImageUrl: string;
   preparedSvgText: string;
+  /** Bytes saved for any format by a component preview (no S3 there). */
+  previewDownloadText: string;
 }
 
 const HEX_COLOUR = /^#[0-9a-fA-F]{3,8}$/;
@@ -163,6 +168,7 @@ export function readEmbroideryDesign(
     errorCode: oneOf(c.error_code, EMBROIDERY_ERROR_CODES),
     previewImageUrl: string(c.previewImageUrl),
     preparedSvgText: string(c.preparedSvgText),
+    previewDownloadText: string(c.previewDownloadText),
   };
 }
 

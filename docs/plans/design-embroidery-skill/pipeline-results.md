@@ -56,6 +56,7 @@ Other sizes and fabrics:
 
 ## Decisions
 
+- **Sandbox during rework**: when the check needs a model rework, the check session is closed before the model call and a second session converts; E2B billed 65 s (2 started minutes) for a 40 s idle rework, about 25 s expected. Without rework one session does both.
 - **Overlaps**: a lower fill keeps only the part not covered by fills or satin
   above it, minus a 0.4 mm strip (`OVERLAP_MM`) that stays under the upper
   shape's edge, so fabric pull cannot open gaps. Fills also use Ink/Stitch

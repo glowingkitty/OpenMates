@@ -7837,10 +7837,10 @@
             "text": "Gradienty i filtry zastąpiono jednolitymi kolorami"
           },
           "solved_live_text": {
-            "text": "Tekst zamieniono na kształty do wyhaftowania"
+            "text": "Tekst narysowano od nowa jako kształty lub pominięto"
           },
           "solved_embedded_pixel_image": {
-            "text": "Osadzony obraz rastrowy narysowano od nowa jako kształty"
+            "text": "Osadzony obraz rastrowy narysowano od nowa jako kształty lub pominięto"
           },
           "solved_detail_below_1mm": {
             "text": "Małe detale powiększono lub pominięto"

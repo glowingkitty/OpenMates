@@ -118,7 +118,7 @@ async def _resolve(world: dict[str, Any], **overrides: Any) -> Any:
 async def test_persisted_generated_svg_resolves_through_owner_scoped_asset_index() -> None:
     world = _world()
     source = await _resolve(world)
-    assert source.svg == SVG and source.origin == ORIGIN_GENERATED and source.label == "fox-logo.svg"
+    assert source.svg == SVG and source.origin == ORIGIN_GENERATED and source.label == "Fox logo"
     world["internal"].assert_awaited_once_with(
         "POST", "internal/uploads/resolve-image", payload={"embed_id": EMBED_ID, "user_id": USER_ID},
     )

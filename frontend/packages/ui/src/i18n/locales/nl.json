@@ -7837,10 +7837,10 @@
             "text": "Kleurverlopen en filters zijn vervangen door effen kleuren"
           },
           "solved_live_text": {
-            "text": "Tekst is omgezet in borduurbare vormen"
+            "text": "Tekst is opnieuw getekend als vormen of weggelaten"
           },
           "solved_embedded_pixel_image": {
-            "text": "De ingesloten pixelafbeelding is opnieuw getekend als vormen"
+            "text": "De ingesloten pixelafbeelding is opnieuw getekend als vormen of weggelaten"
           },
           "solved_detail_below_1mm": {
             "text": "Kleine details zijn vergroot of weggelaten"

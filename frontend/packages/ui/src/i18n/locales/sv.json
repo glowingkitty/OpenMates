@@ -7837,10 +7837,10 @@
             "text": "Toningar och filter ersattes av enfärgade ytor"
           },
           "solved_live_text": {
-            "text": "Texten omvandlades till broderbara former"
+            "text": "Texten ritades om som former eller utelämnades"
           },
           "solved_embedded_pixel_image": {
-            "text": "Den inbäddade pixelbilden ritades om som former"
+            "text": "Den inbäddade pixelbilden ritades om som former eller utelämnades"
           },
           "solved_detail_below_1mm": {
             "text": "Små detaljer förstorades eller utelämnades"

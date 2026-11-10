@@ -7837,10 +7837,10 @@
             "text": "Dải màu chuyển và bộ lọc đã được thay bằng màu đơn sắc"
           },
           "solved_live_text": {
-            "text": "Văn bản đã được chuyển thành hình có thể thêu"
+            "text": "Văn bản đã được vẽ lại thành hình hoặc bị lược bỏ"
           },
           "solved_embedded_pixel_image": {
-            "text": "Ảnh điểm ảnh nhúng đã được vẽ lại thành hình"
+            "text": "Ảnh điểm ảnh nhúng đã được vẽ lại thành hình hoặc bị lược bỏ"
           },
           "solved_detail_below_1mm": {
             "text": "Các chi tiết nhỏ đã được phóng to hoặc bỏ đi"

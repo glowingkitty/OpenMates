@@ -134,8 +134,8 @@ def rework_result_notes(
     if reworked:
         solved_text = {
             "gradient_or_filter": "Gradients and filters replaced by flat colours",
-            "live_text": "Text converted to stitched shapes",
-            "embedded_pixel_image": "Embedded pixel image redrawn as shapes",
+            "live_text": "Text redrawn as shapes or left out",
+            "embedded_pixel_image": "Embedded pixel image redrawn as shapes or left out",
             "detail_below_1mm": "Small details enlarged or left out",
             "more_than_12_colours": "Colours reduced to at most 12 threads",
         }

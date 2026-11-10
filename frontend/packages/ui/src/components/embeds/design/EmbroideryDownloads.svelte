@@ -1,44 +1,55 @@
 <!--
   frontend/packages/ui/src/components/embeds/design/EmbroideryDownloads.svelte
 
-  One download per machine format. Each button asks the generated-assets route
-  for an owner-scoped download URL (the server names the file with the matching
-  extension), keeping its own loading and error state.
+  One download per machine format. Each file is fetched encrypted from storage
+  and decrypted in the browser with the embed's own key material (like the
+  stitch preview), then saved from a same-origin object URL so the browser
+  honours the suggested "<name>.<format>". Component previews carry inline text
+  (`previewDownloadText`) and need no network. Each button keeps its own
+  loading and error state.
 -->
 <script lang="ts">
   import { text } from '@repo/ui';
-  import { getApiEndpoint } from '../../../config/api';
-  import { EMBROIDERY_FORMATS, type EmbroideryFormat } from './embroideryDesign';
+  import { fetchAndDecryptImage } from '../images/imageEmbedCrypto';
+  import { hasMediaEncryptionMetadata } from '../../../services/encryption/mediaEncryption';
+  import { EMBROIDERY_FORMATS, type EmbroideryDesign, type EmbroideryFormat } from './embroideryDesign';
 
   interface Props {
-    embedId: string;
+    /** Per-format file descriptors and key material of the result. */
+    design: Pick<EmbroideryDesign, 'files' | 's3BaseUrl' | 'aesKey' | 'aesNonce' | 'previewDownloadText'>;
     /** File name without extension, used as the browser's suggested name. */
     baseName: string;
   }
-  let { embedId, baseName }: Props = $props();
+  let { design, baseName }: Props = $props();
 
   let loading = $state<Partial<Record<EmbroideryFormat, boolean>>>({});
   let failed = $state<Partial<Record<EmbroideryFormat, boolean>>>({});
 
+  async function readBytes(format: EmbroideryFormat): Promise<Blob> {
+    if (design.previewDownloadText) return new Blob([design.previewDownloadText]);
+    const file = design.files[format];
+    const nonce = file?.aes_nonce ?? design.aesNonce;
+    if (!file || !design.aesKey || !hasMediaEncryptionMetadata(file, nonce)) {
+      throw new Error(`Embroidery file ${format} is not available`);
+    }
+    // The helper labels the bytes as an image; only the bytes are used here.
+    const decrypted = await fetchAndDecryptImage(design.s3BaseUrl, file.s3_key, design.aesKey, nonce, file);
+    return new Blob([await decrypted.arrayBuffer()], { type: 'application/octet-stream' });
+  }
+
   async function download(format: EmbroideryFormat) {
-    if (!embedId || loading[format]) return;
+    if (loading[format]) return;
     loading = { ...loading, [format]: true };
     failed = { ...failed, [format]: false };
     try {
-      const response = await fetch(
-        getApiEndpoint(`/v1/generated-assets/${encodeURIComponent(embedId)}/files/${format}/download-url`),
-        { credentials: 'include' },
-      );
-      if (!response.ok) throw new Error(`Embroidery download unavailable (${response.status})`);
-      const result = await response.json() as { download_url?: string };
-      if (!result.download_url) throw new Error('Embroidery download URL missing');
+      const url = URL.createObjectURL(await readBytes(format));
       const link = document.createElement('a');
-      link.href = result.download_url;
-      link.rel = 'noopener noreferrer';
+      link.href = url;
       link.download = `${baseName || 'embroidery'}.${format}`;
       document.body.appendChild(link);
       link.click();
       link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
     } catch (caught) {
       console.warn('[EmbroideryDownloads] download failed:', format, caught);
       failed = { ...failed, [format]: true };

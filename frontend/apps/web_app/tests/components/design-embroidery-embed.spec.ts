@@ -8,14 +8,14 @@ import { waitForComponentPreview } from '../helpers/component-preview';
  *
  * Runs against the isolated component profile: every fixture carries inline
  * media (previewImageUrl / preparedSvgText), so nothing needs S3 or a backend.
- * Download requests and the follow-up interpretation request are intercepted
- * and asserted, never answered by a real service.
+ * Downloads use the inline `previewDownloadText` of the fixture (the real app
+ * fetches and decrypts the encrypted file from storage); the follow-up
+ * interpretation request is intercepted and asserted, never answered by a real service.
  */
 
 const PREVIEW = '/dev/preview/embeds/design/DesignEmbroideryEmbedPreview?chrome=0';
 const FULLSCREEN = '/dev/preview/embeds/design/DesignEmbroideryEmbedFullscreen?chrome=0';
 const FORMATS = ['dst', 'pes', 'exp', 'jef', 'vp3'] as const;
-const EMBED_ID = '5d1f0c52-8f3e-4d8a-9a52-3d2f7b9a41e6';
 const WIDTHS = [360, 1000];
 
 // contract-test: supporting surface=gui.web assertions=design-embroidery.result.view-and-download
@@ -36,7 +36,17 @@ for (const width of WIDTHS) {
       return { insideWidth: box.width <= media.width + 1, insideHeight: box.height <= media.height + 1 };
     });
     expect(bounds).toEqual({ insideWidth: true, insideHeight: true });
-    await expect(page.getByTestId('design-embroidery-numbers')).toHaveText('90 × 74 mm · 12,840 stitches');
+    const numbers = page.getByTestId('design-embroidery-numbers');
+    await expect(numbers).toHaveText('90 × 74 mm · 12,840 stitches');
+    const truncated = await numbers.evaluate((element) => element.scrollWidth > element.clientWidth);
+    expect(truncated).toBe(false);
+    const cardBox = await page.getByTestId('result-card-content').boundingBox();
+    const imageBox = await image.boundingBox();
+    expect(cardBox && imageBox).toBeTruthy();
+    expect(imageBox!.x).toBeGreaterThanOrEqual(cardBox!.x - 0.5);
+    expect(imageBox!.y).toBeGreaterThanOrEqual(cardBox!.y - 0.5);
+    expect(imageBox!.x + imageBox!.width).toBeLessThanOrEqual(cardBox!.x + cardBox!.width + 0.5);
+    expect(imageBox!.y + imageBox!.height).toBeLessThanOrEqual(cardBox!.y + cardBox!.height + 0.5);
     const swatches = page.getByTestId('design-embroidery-swatch');
     await expect(swatches).toHaveCount(3);
     await expect(swatches.first()).toHaveCSS('background-color', 'rgb(232, 116, 44)');
@@ -90,7 +100,14 @@ for (const width of WIDTHS) {
     await expect(page.getByTestId('design-embroidery-stitch-count')).toContainText('12,840');
     await expect(page.getByTestId('design-embroidery-thread-changes')).toContainText('3');
     await expect(page.getByTestId('design-embroidery-time')).toContainText('47 min');
-    await expect(page.getByTestId('design-embroidery-hoop-fit')).toContainText('Fits hoop 130 × 180 mm');
+    const hoopFit = page.getByTestId('design-embroidery-hoop-fit');
+    await expect(hoopFit).toContainText('Fits hoop 130 × 180 mm');
+    const hoopText = await hoopFit.locator('.fact-text').boundingBox();
+    const hoopIndicator = await hoopFit.locator('.state').boundingBox();
+    expect(hoopText && hoopIndicator).toBeTruthy();
+    const overlaps = hoopIndicator!.x < hoopText!.x + hoopText!.width && hoopText!.x < hoopIndicator!.x + hoopIndicator!.width
+      && hoopIndicator!.y < hoopText!.y + hoopText!.height && hoopText!.y < hoopIndicator!.y + hoopIndicator!.height;
+    expect(overlaps).toBe(false);
     await expect(page.getByTestId('design-embroidery-fabric-info')).toContainText('Normal');
 
     const threads = page.getByTestId('design-embroidery-thread');
@@ -143,36 +160,28 @@ test('opened view states when the design is too large for the hoop and omits the
 });
 
 // contract-test: supporting surface=gui.web assertions=design-embroidery.result.view-and-download
-test('a format download asks the owner-scoped route for that format and saves a file with its extension', async ({ page }) => {
-  const requested: string[] = [];
-  await page.route('**/v1/generated-assets/*/files/*/download-url', async (route) => {
-    requested.push(route.request().url());
-    const format = new URL(route.request().url()).pathname.split('/').at(-2);
-    await route.fulfill({ json: { download_url: `${new URL(route.request().url()).origin}/preview-embroidery.${format}` } });
-  });
-  await page.route('**/preview-embroidery.pes', async (route) => {
-    await route.fulfill({ body: '#PES0001', headers: { 'Content-Type': 'application/octet-stream', 'Content-Disposition': 'attachment; filename="Fox.pes"' } });
-  });
+test('a format download saves the decrypted file under a name with its extension', async ({ page }) => {
   await page.goto(`${FULLSCREEN}&variant=finished`);
   await waitForComponentPreview(page);
   const download = page.waitForEvent('download');
   await page.getByTestId('design-embroidery-download-pes').click();
   expect((await download).suggestedFilename()).toMatch(/\.pes$/);
-  expect(requested).toHaveLength(1);
-  expect(requested[0]).toContain(`/v1/generated-assets/${EMBED_ID}/files/pes/download-url`);
+  await expect(page.getByTestId('design-embroidery-download-pes')).toHaveAttribute('data-state', 'idle');
 });
 
 // contract-test: supporting surface=gui.web assertions=design-embroidery.result.view-and-download
 test('a failing download shows an error on that button only and can be retried', async ({ page }) => {
-  await page.route('**/v1/generated-assets/*/files/dst/download-url', route => route.fulfill({ status: 500, json: { detail: 'unavailable' } }));
-  await page.goto(`${FULLSCREEN}&variant=finished`);
+  await page.goto(`${FULLSCREEN}&variant=downloadUnavailable`);
   await waitForComponentPreview(page);
   const button = page.getByTestId('design-embroidery-download-dst');
   await button.click();
   await expect(button).toHaveAttribute('data-state', 'error');
   await expect(page.getByTestId('design-embroidery-download-dst-error')).toBeVisible();
   await expect(page.getByTestId('design-embroidery-download-pes')).toHaveAttribute('data-state', 'idle');
+  await expect(page.getByTestId('design-embroidery-download-pes-error')).toHaveCount(0);
   await expect(button).toBeEnabled();
+  await button.click();
+  await expect(button).toHaveAttribute('data-state', 'error');
 });
 
 // contract-test: supporting surface=gui.web assertions=design-embroidery.result.view-and-download

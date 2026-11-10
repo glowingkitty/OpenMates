@@ -7864,10 +7864,10 @@
             "text": "Gradienti e filtri sono stati sostituiti da colori pieni"
           },
           "solved_live_text": {
-            "text": "Il testo è stato convertito in forme ricamabili"
+            "text": "Il testo è stato ridisegnato come forme o omesso"
           },
           "solved_embedded_pixel_image": {
-            "text": "L'immagine a pixel incorporata è stata ridisegnata come forme"
+            "text": "L'immagine a pixel incorporata è stata ridisegnata come forme o omessa"
           },
           "solved_detail_below_1mm": {
             "text": "I piccoli dettagli sono stati ingranditi o omessi"

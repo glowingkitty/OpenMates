@@ -7837,10 +7837,10 @@
             "text": "Renk geçişleri ve filtreler düz renklerle değiştirildi"
           },
           "solved_live_text": {
-            "text": "Metin dikilebilir şekillere dönüştürüldü"
+            "text": "Metin şekiller olarak yeniden çizildi veya çıkarıldı"
           },
           "solved_embedded_pixel_image": {
-            "text": "Gömülü piksel görseli şekiller olarak yeniden çizildi"
+            "text": "Gömülü piksel görseli şekiller olarak yeniden çizildi veya çıkarıldı"
           },
           "solved_detail_below_1mm": {
             "text": "Küçük ayrıntılar büyütüldü veya dışarıda bırakıldı"

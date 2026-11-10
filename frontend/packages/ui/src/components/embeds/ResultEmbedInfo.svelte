@@ -121,7 +121,7 @@
         ><strong>{value}</strong>{#if caption}<small>{caption}</small
           >{/if}</span
       >{/if}
-    {#if infoState}<span class="state" class:yes={infoState === "yes"} class:no={infoState === "no"} aria-hidden="true">
+    {#if infoState}<span class="state" class:inline={value !== undefined} class:yes={infoState === "yes"} class:no={infoState === "no"} aria-hidden="true">
       <span class="clickable-icon" class:icon_check={infoState === "yes"} class:icon_close={infoState === "no"} class:icon_question={infoState === "unknown"}></span>
     </span>{/if}
   </button>
@@ -217,6 +217,18 @@
     background: var(--color-grey-60);
     color: var(--color-font-button);
 
+  }
+  /* With a text value the indicator sits in the normal flow after the text, never over it. */
+  .state.inline {
+    position: static;
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    border: 0;
+  }
+  .state.inline .clickable-icon {
+    width: 12px;
+    height: 12px;
   }
   .state.yes {
     background: var(--color-success);

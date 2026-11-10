@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Mapping
 
+from backend.shared.python_utils.readable_title import readable_title
 from backend.shared.python_utils.media_encryption import encrypt_media_variants, load_media_write_version
 
 MACHINE_FORMATS: tuple[str, ...] = ("dst", "pes", "exp", "jef", "vp3")
@@ -27,7 +28,6 @@ VARIANT_TYPES: dict[str, tuple[str, str]] = {
     "stitches": ("json", "application/json"),
 }
 DEFAULT_TITLE = "Embroidery design"
-MAX_TITLE_CHARS = 60
 
 
 class IncompleteEmbroideryFiles(RuntimeError):
@@ -45,14 +45,10 @@ class StoredEmbroideryFiles:
 
 
 def result_title(label: str) -> str:
-    """Short name from the source graphic's title, prompt or filename."""
+    """Readable title (at most ``MAX_TITLE_CHARS``) from the source graphic's title, prompt or filename."""
     text = " ".join(str(label or "").split())
     text = re.sub(r"\.(svg|png|jpe?g|webp)$", "", text, flags=re.IGNORECASE)
-    if not text:
-        return DEFAULT_TITLE
-    if len(text) <= MAX_TITLE_CHARS:
-        return text
-    return text[:MAX_TITLE_CHARS].rsplit(" ", 1)[0].rstrip(" ,.;:-") or text[:MAX_TITLE_CHARS]
+    return readable_title(text) or DEFAULT_TITLE
 
 
 def variant_filename(title: str, variant: str) -> str:

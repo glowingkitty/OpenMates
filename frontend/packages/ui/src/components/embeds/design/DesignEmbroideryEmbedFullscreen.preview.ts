@@ -40,5 +40,6 @@ export const variants = {
   }),
   hoopTooSmall: fixture({ ...FOX_RESULT, width_mm: 150, height_mm: 124, hoop: '100x100', fits_hoop: 'no' }),
   hoopNotChecked: fixture({ ...FOX_RESULT, hoop: 'none', fits_hoop: 'not_checked' }),
+  downloadUnavailable: fixture({ ...FOX_RESULT, previewDownloadText: '' }),
   noNotes: fixture({ ...FOX_RESULT, notes: [] }),
 };

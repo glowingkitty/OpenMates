@@ -7864,10 +7864,10 @@
             "text": "Gradientes e filtros foram substituídos por cores lisas"
           },
           "solved_live_text": {
-            "text": "O texto foi convertido em formas bordáveis"
+            "text": "O texto foi redesenhado como formas ou omitido"
           },
           "solved_embedded_pixel_image": {
-            "text": "A imagem de pixels incorporada foi redesenhada como formas"
+            "text": "A imagem de pixels incorporada foi redesenhada como formas ou omitida"
           },
           "solved_detail_below_1mm": {
             "text": "Detalhes pequenos foram ampliados ou omitidos"

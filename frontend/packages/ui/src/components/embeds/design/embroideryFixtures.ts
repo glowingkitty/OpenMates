@@ -6,7 +6,7 @@
 
 export const FOX_PREPARED_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 296" width="360" height="296"><path d="M180 40 L250 110 L300 90 L290 190 L240 255 L180 270 L120 255 L70 190 L60 90 L110 110 Z" fill="#e8742c"/><path d="M180 150 L225 205 L180 232 L135 205 Z" fill="#fbf4ea"/><circle cx="145" cy="130" r="12" fill="#2b2d42"/><circle cx="215" cy="130" r="12" fill="#2b2d42"/></svg>';
 
-export const FOX_STITCH_PREVIEW_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 296" width="360" height="296"><defs><pattern id="a" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(35)"><rect width="5" height="5" fill="#e8742c"/><rect width="5" height="1.6" fill="#b9561a"/></pattern><pattern id="b" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(-20)"><rect width="4" height="4" fill="#fbf4ea"/><rect width="4" height="1.3" fill="#d9cdb9"/></pattern><pattern id="c" width="3" height="3" patternUnits="userSpaceOnUse"><rect width="3" height="3" fill="#2b2d42"/><rect width="3" height="1" fill="#14151f"/></pattern></defs><rect width="360" height="296" fill="#f2efe8"/><path d="M180 40 L250 110 L300 90 L290 190 L240 255 L180 270 L120 255 L70 190 L60 90 L110 110 Z" fill="url(#a)" stroke="#8c3f0e" stroke-width="2"/><path d="M180 150 L225 205 L180 232 L135 205 Z" fill="url(#b)" stroke="#b8ab94" stroke-width="2"/><circle cx="145" cy="130" r="12" fill="url(#c)"/><circle cx="215" cy="130" r="12" fill="url(#c)"/></svg>';
+export const FOX_STITCH_PREVIEW_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 296" width="360" height="296"><defs><pattern id="a" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(35)"><rect width="5" height="5" fill="#e8742c"/><rect width="5" height="1.6" fill="#b9561a"/></pattern><pattern id="b" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(-20)"><rect width="4" height="4" fill="#fbf4ea"/><rect width="4" height="1.3" fill="#d9cdb9"/></pattern><pattern id="c" width="3" height="3" patternUnits="userSpaceOnUse"><rect width="3" height="3" fill="#2b2d42"/><rect width="3" height="1" fill="#14151f"/></pattern></defs><rect width="360" height="296" fill="#f4f1ea"/><path d="M180 40 L250 110 L300 90 L290 190 L240 255 L180 270 L120 255 L70 190 L60 90 L110 110 Z" fill="url(#a)" stroke="#8c3f0e" stroke-width="2"/><path d="M180 150 L225 205 L180 232 L135 205 Z" fill="url(#b)" stroke="#b8ab94" stroke-width="2"/><circle cx="145" cy="130" r="12" fill="url(#c)"/><circle cx="215" cy="130" r="12" fill="url(#c)"/></svg>';
 
 export const FOX_STITCH_PREVIEW_URL = `data:image/svg+xml,${encodeURIComponent(FOX_STITCH_PREVIEW_SVG)}`;
 
@@ -34,4 +34,5 @@ export const FOX_RESULT = {
   notes: [{ code: 'background_removed', text: 'Background left out' }],
   previewImageUrl: FOX_STITCH_PREVIEW_URL,
   preparedSvgText: FOX_PREPARED_SVG,
+  previewDownloadText: '#EMBROIDERY component preview file',
 };

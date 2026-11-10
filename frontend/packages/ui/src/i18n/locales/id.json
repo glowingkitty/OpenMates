@@ -7837,10 +7837,10 @@
             "text": "Gradasi dan filter diganti dengan warna polos"
           },
           "solved_live_text": {
-            "text": "Teks diubah menjadi bentuk yang bisa disulam"
+            "text": "Teks digambar ulang sebagai bentuk atau dihilangkan"
           },
           "solved_embedded_pixel_image": {
-            "text": "Gambar piksel yang tertanam digambar ulang sebagai bentuk"
+            "text": "Gambar piksel yang tertanam digambar ulang sebagai bentuk atau dihilangkan"
           },
           "solved_detail_below_1mm": {
             "text": "Detail kecil diperbesar atau dihilangkan"
