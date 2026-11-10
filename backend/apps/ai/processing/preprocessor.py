@@ -63,6 +63,7 @@ from backend.apps.ai.processing.ai_model_topic_routing import complete_ai_model_
 from backend.apps.ai.processing.model_routing import (
     HIGH_TIER,
     MERCURY_MODEL,
+    selects_media_generation,
     history_requires_non_text,
     automatic_model_candidates,
     automatic_model_allowed_servers,
@@ -2203,6 +2204,8 @@ async def _select_main_model(
                 continue
             if model_id == MERCURY_MODEL:
                 if has_image_upload_embed or history_requires_non_text(request_data.message_history):
+                    continue
+                if selects_media_generation(llm_analysis_args.get("relevant_app_skills")):
                     continue
                 # Avoid a known unavailable primary without a provider call.
                 # Recovery attempts recheck health at the dispatch boundary.

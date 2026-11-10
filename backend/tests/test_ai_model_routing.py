@@ -226,7 +226,7 @@ def _low_routing_provider_config(provider):
         "models": [{"id": "gemini-3.8-flash", "servers": [{"id": "google_ai_studio"}, {"id": "google"}]}]}
 
 
-@pytest.mark.parametrize("restriction", ["none", "image", "disabled_model", "disabled_server", "excluded_provider", "unhealthy", "unavailable"])
+@pytest.mark.parametrize("restriction", ["none", "image", "media_skill", "disabled_model", "disabled_server", "excluded_provider", "unhealthy", "unavailable"])
 # contract-test: supporting surface=rest_api assertions=ai-model-routing.defaults.google-tier-profiles
 def test_preprocessor_automatic_low_eligibility_and_disabled_selector(monkeypatch, restriction):
     import asyncio
@@ -247,7 +247,9 @@ def test_preprocessor_automatic_low_eligibility_and_disabled_selector(monkeypatc
         return restriction != "unhealthy"
     monkeypatch.setattr(preprocessor, "is_provider_healthy", healthy)
     result = asyncio.run(preprocessor._select_main_model(
-        {"complexity": "low", "china_model_sensitive": False}, request, skill, None, "test"))
+        {"complexity": "low", "china_model_sensitive": False,
+         "relevant_app_skills": ["images-generate"] if restriction == "media_skill" else ["web-search"]},
+        request, skill, None, "test"))
     expected = "inception/mercury-3" if restriction == "none" else "google/gemini-3.8-flash"
     assert result["selected_llm_for_main_id"] == expected
     assert result["selected_llm_thinking_level"] == ("MEDIUM" if restriction == "none" else "LOW")

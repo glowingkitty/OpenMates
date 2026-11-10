@@ -28610,7 +28610,7 @@ assertions:
     current_direct_proof: false
   ai-model-routing.defaults.google-tier-profiles:
     specification: feature.ai-model-routing@10
-    fingerprint: 383df45ae0475976d08b4ba0cce3c5bdd723611662b58c145f31197a968f3e58
+    fingerprint: d3bff6288709a1a3c62b9b2fc381f2b1f420cecc11edc07d321c8643cefdfe3a
     direct_tests:
     - &id3665
       path: backend/tests/test_ai_model_routing.py
@@ -28655,27 +28655,27 @@ assertions:
       surface: rest_api
     - &id3672
       path: backend/tests/test_ai_model_routing.py
-      line: 259
+      line: 261
       name: test_preprocessor_keeps_explicit_choices_and_medium_unchanged
       surface: rest_api
     - &id3673
       path: backend/tests/test_ai_model_routing.py
-      line: 281
+      line: 283
       name: test_dependency_free_low_resolution_bypasses_unavailable_mercury
       surface: rest_api
     - &id3674
       path: backend/tests/test_ai_model_routing.py
-      line: 298
+      line: 300
       name: test_automatic_low_never_substitutes_forbidden_gemini
       surface: rest_api
     - &id3675
       path: backend/tests/test_ai_model_routing.py
-      line: 319
+      line: 321
       name: test_low_selector_fails_closed_when_both_providers_excluded
       surface: rest_api
     - &id3676
       path: backend/tests/test_ai_model_routing.py
-      line: 326
+      line: 328
       name: test_low_routes_filter_disabled_google_host_without_losing_enabled_vertex
       surface: rest_api
     - &id3677
@@ -28862,12 +28862,12 @@ assertions:
     supporting_tests:
     - &id3698
       path: backend/tests/test_ai_model_routing.py
-      line: 338
+      line: 340
       name: test_invalid_explicit_selection_uses_permitted_automatic_recovery
       surface: rest_api
     - &id3699
       path: backend/tests/test_ai_model_routing.py
-      line: 363
+      line: 365
       name: test_disabled_automatic_selection_preserves_configured_primary
       surface: rest_api
     - &id3700
@@ -28986,7 +28986,7 @@ assertions:
     supporting_tests:
     - &id3712
       path: backend/tests/test_ai_model_routing.py
-      line: 387
+      line: 389
       name: test_mercury_reasoning_budget_is_effort_specific
       surface: rest_api
     - &id3713
@@ -29614,7 +29614,7 @@ assertions:
     supporting_tests:
     - &id3796
       path: backend/tests/test_ai_model_routing.py
-      line: 259
+      line: 261
       name: test_preprocessor_keeps_explicit_choices_and_medium_unchanged
       surface: rest_api
     - &id3797
