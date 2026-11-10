@@ -7936,6 +7936,15 @@
         "sewing_time": {
           "text": "Tempo de bordado estimado"
         },
+        "sewing_time_note": {
+          "text": "O tempo de bordado e o comprimento de linha são estimativas. Variam conforme a máquina e as suas configurações."
+        },
+        "thread_length": {
+          "text": "Linha necessária"
+        },
+        "thread_amount": {
+          "text": "{length} de linha"
+        },
         "fits_hoop": {
           "text": "Cabe no bastidor {hoop}"
         },
@@ -8079,6 +8088,9 @@
           },
           "border_added": {
             "text": "Borda de {mm} mm adicionada para costurar"
+          },
+          "sized_to_hoop": {
+            "text": "Tamanho ajustado para preencher o bastidor"
           },
           "solved_gradient_or_filter": {
             "text": "Gradientes e filtros foram substituídos por cores lisas"

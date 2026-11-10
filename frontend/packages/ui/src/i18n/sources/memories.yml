@@ -316,6 +316,11 @@ suggestion_failed:
   en: The preview could not be created. Please try again.
   de: Die Vorschau konnte nicht erstellt werden. Bitte versuche es erneut.
   verified_by_human: []
+suggestion_connection_problem:
+  context: Error toast when the preview request of a suggestion got no response, even after one automatic retry
+  en: Connection problem. The preview could not be created because the server was not reachable. Please check your connection and try again.
+  de: Verbindungsproblem. Die Vorschau konnte nicht erstellt werden, weil der Server nicht erreichbar war. Bitte prüfe deine Verbindung und versuche es erneut.
+  verified_by_human: []
 suggestion_not_found:
   context: Error toast when the Memory of a suggestion no longer exists
   en: This memory no longer exists.

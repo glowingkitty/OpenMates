@@ -7936,6 +7936,15 @@
         "sewing_time": {
           "text": "Temps de broderie estimé"
         },
+        "sewing_time_note": {
+          "text": "Le temps de broderie et la longueur de fil sont des estimations. Ils varient selon la machine et ses réglages."
+        },
+        "thread_length": {
+          "text": "Fil nécessaire"
+        },
+        "thread_amount": {
+          "text": "{length} de fil"
+        },
         "fits_hoop": {
           "text": "Tient dans le cercle {hoop}"
         },
@@ -8079,6 +8088,9 @@
           },
           "border_added": {
             "text": "Bordure de {mm} mm ajoutée pour la couture"
+          },
+          "sized_to_hoop": {
+            "text": "Taille ajustée pour remplir le cadre"
           },
           "solved_gradient_or_filter": {
             "text": "Les dégradés et filtres ont été remplacés par des couleurs unies"

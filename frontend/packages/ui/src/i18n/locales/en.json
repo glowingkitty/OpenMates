@@ -9510,6 +9510,15 @@
         "sewing_time": {
           "text": "Estimated sewing time"
         },
+        "sewing_time_note": {
+          "text": "Sewing time and thread length are estimates. They vary with the machine and its settings."
+        },
+        "thread_length": {
+          "text": "Thread needed"
+        },
+        "thread_amount": {
+          "text": "{length} of thread"
+        },
         "fits_hoop": {
           "text": "Fits hoop {hoop}"
         },
@@ -9653,6 +9662,9 @@
           },
           "border_added": {
             "text": "Border of {mm} mm added for sewing on"
+          },
+          "sized_to_hoop": {
+            "text": "Sized to fill the hoop"
           },
           "solved_gradient_or_filter": {
             "text": "Gradients and filters were replaced by flat colours"
@@ -15864,6 +15876,9 @@
     },
     "suggestion_failed": {
       "text": "The preview could not be created. Please try again."
+    },
+    "suggestion_connection_problem": {
+      "text": "Connection problem. The preview could not be created because the server was not reachable. Please check your connection and try again."
     },
     "suggestion_not_found": {
       "text": "This memory no longer exists."

@@ -7909,6 +7909,15 @@
         "sewing_time": {
           "text": "Thời gian thêu ước tính"
         },
+        "sewing_time_note": {
+          "text": "Thời gian thêu và chiều dài chỉ là ước tính. Chúng thay đổi theo máy và cài đặt của máy."
+        },
+        "thread_length": {
+          "text": "Lượng chỉ cần"
+        },
+        "thread_amount": {
+          "text": "{length} chỉ"
+        },
         "fits_hoop": {
           "text": "Vừa khung {hoop}"
         },
@@ -8052,6 +8061,9 @@
           },
           "border_added": {
             "text": "Đã thêm viền {mm} mm để may đính"
+          },
+          "sized_to_hoop": {
+            "text": "Đã chỉnh kích thước vừa kín khung thêu"
           },
           "solved_gradient_or_filter": {
             "text": "Dải màu chuyển và bộ lọc đã được thay bằng màu đơn sắc"

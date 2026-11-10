@@ -101,8 +101,15 @@ test.describe('chat recommendations', () => {
       };
     });
     const createDraftBodies: Array<Record<string, unknown>> = [];
+    let createDraftAttempts = 0;
     if (USE_MOCKS) {
       await page.route('**/v1/memory-suggestions/create-draft', async (route: Route) => {
+        createDraftAttempts += 1;
+        // First attempt: the connection fails before any response (Safari "Load failed"); the app retries once.
+        if (createDraftAttempts === 1) {
+          await route.abort('failed');
+          return;
+        }
         const body = route.request().postDataJSON() as Record<string, unknown>;
         createDraftBodies.push(body);
         const title = String(body.title);
@@ -173,6 +180,7 @@ test.describe('chat recommendations', () => {
       await expect(page.getByTestId('memory-draft-banner')).toBeVisible({ timeout: 60000 });
       await expect(page.getByTestId('rule-title')).toHaveValue(memoryTitle);
       if (USE_MOCKS) {
+        expect(createDraftAttempts).toBe(2);
         expect(createDraftBodies).toHaveLength(1);
         expect(createDraftBodies[0]).toMatchObject({ chat_id: chatId, title: memoryTitle });
         expect(String(createDraftBodies[0].summary)).not.toBe('');

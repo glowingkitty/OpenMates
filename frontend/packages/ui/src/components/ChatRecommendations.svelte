@@ -95,6 +95,7 @@
     const code = error instanceof RecommendationDraftError ? error.code : 'request_failed';
     if (code === 'insufficient_credits') return $text('memories.suggestion_insufficient_credits');
     if (code === 'memory_not_found') return $text('memories.suggestion_not_found');
+    if (code === 'network_unavailable') return $text('memories.suggestion_connection_problem');
     return $text('memories.suggestion_failed');
   }
 

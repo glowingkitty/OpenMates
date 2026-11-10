@@ -7909,6 +7909,15 @@
         "sewing_time": {
           "text": "Beräknad broderitid"
         },
+        "sewing_time_note": {
+          "text": "Broderitid och trådlängd är uppskattningar. De varierar med maskinen och dess inställningar."
+        },
+        "thread_length": {
+          "text": "Trådåtgång"
+        },
+        "thread_amount": {
+          "text": "{length} tråd"
+        },
         "fits_hoop": {
           "text": "Ryms i ramen {hoop}"
         },
@@ -8052,6 +8061,9 @@
           },
           "border_added": {
             "text": "Kant på {mm} mm tillagd för påsyning"
+          },
+          "sized_to_hoop": {
+            "text": "Storleken anpassad för att fylla bågen"
           },
           "solved_gradient_or_filter": {
             "text": "Toningar och filter ersattes av enfärgade ytor"

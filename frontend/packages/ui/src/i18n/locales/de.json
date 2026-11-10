@@ -9481,6 +9481,15 @@
         "sewing_time": {
           "text": "Geschätzte Stickzeit"
         },
+        "sewing_time_note": {
+          "text": "Stickzeit und Garnlänge sind Schätzungen. Sie hängen von der Maschine und ihren Einstellungen ab."
+        },
+        "thread_length": {
+          "text": "Garnbedarf"
+        },
+        "thread_amount": {
+          "text": "{length} Garn"
+        },
         "fits_hoop": {
           "text": "Passt in den Stickrahmen {hoop}"
         },
@@ -9624,6 +9633,9 @@
           },
           "border_added": {
             "text": "Rand von {mm} mm zum Aufnähen hinzugefügt"
+          },
+          "sized_to_hoop": {
+            "text": "Größe an den Rahmen angepasst"
           },
           "solved_gradient_or_filter": {
             "text": "Farbverläufe und Filter wurden durch einfarbige Flächen ersetzt"
@@ -15769,6 +15781,9 @@
     },
     "suggestion_failed": {
       "text": "Die Vorschau konnte nicht erstellt werden. Bitte versuche es erneut."
+    },
+    "suggestion_connection_problem": {
+      "text": "Verbindungsproblem. Die Vorschau konnte nicht erstellt werden, weil der Server nicht erreichbar war. Bitte prüfe deine Verbindung und versuche es erneut."
     },
     "suggestion_not_found": {
       "text": "Diese Erinnerung existiert nicht mehr."

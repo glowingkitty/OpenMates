@@ -6,7 +6,7 @@ vi.mock('../ruleDocumentService', () => ({ listPersonalRuleDocuments: vi.fn() })
 vi.mock('../../config/api', () => ({ getApiEndpoint: (path: string) => `https://api.test${path}` }));
 
 import {
-  NEW_MEMORY_DRAFT_ID, RECOMMENDATION_DRAFT_WIRE, RecommendationDraftError, buildWorkflowInstruction,
+  NETWORK_RETRY_DELAY_MS, NEW_MEMORY_DRAFT_ID, RECOMMENDATION_DRAFT_WIRE, RecommendationDraftError, buildWorkflowInstruction,
   latestTurn, newMemoryDraft, parseUpdatePreviewResponse, previewMessageText, requestCreateMemoryDraft,
   requestUpdatePreview, toPreviewMessages, updateMemoryDraft,
 } from '../recommendationDrafts';
@@ -75,6 +75,7 @@ describe('recommendation memory drafts', () => {
     expect(JSON.parse(String((init as RequestInit).body))).toEqual({
       chat_id: 'chat-1', title: 'Conference preferences', summary: 'Open source events',
       user_message: 'Which ones are in Germany?', assistant_response: 'FrOSCon in Sankt Augustin.',
+      request_id: expect.stringMatching(/\S/),
     });
   });
 
@@ -85,6 +86,59 @@ describe('recommendation memory drafts', () => {
     await expect(requestCreateMemoryDraft('c', { title: 't', summary: 's' })).rejects.toMatchObject({ code: 'insufficient_credits' });
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response('{"body":""}', { status: 200 }));
     await expect(requestCreateMemoryDraft('c', { title: 't', summary: 's' })).rejects.toMatchObject({ code: 'request_failed' });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=app-memories.suggestions.billing
+  it('retries once when the request gets no response and then succeeds', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(chatDB.getMessagesForChat).mockResolvedValue(turnMessages as never);
+      const generated = serializeRuleDocument({ title: 'Conference preferences', when_to_use: 'events', body: 'Likes FOSDEM', load_mode: 'ask_first' });
+      const fetchSpy = vi.spyOn(globalThis, 'fetch')
+        .mockRejectedValueOnce(new TypeError('Load failed'))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ title: 'Conference preferences', when_to_use: 'events', body: generated }), { status: 200 }));
+      const pending = requestCreateMemoryDraft('chat-1', { title: 'Conference preferences', summary: 'Open source events' });
+      await vi.advanceTimersByTimeAsync(NETWORK_RETRY_DELAY_MS);
+      await expect(pending).resolves.toMatchObject({ id: NEW_MEMORY_DRAFT_ID, is_new: true });
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      // Same request_id on both attempts: the server bills one user action at most once.
+      const ids = fetchSpy.mock.calls.map(call => JSON.parse(String((call[1] as RequestInit).body)).request_id);
+      expect(ids[0]).toMatch(/\S/);
+      expect(ids[1]).toBe(ids[0]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  // contract-test: supporting surface=gui.web assertions=app-memories.suggestions.billing
+  it('reports a connection problem after the single retry also gets no response', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(chatDB.getMessagesForChat).mockResolvedValue([] as never);
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('Load failed'));
+      const pending = requestCreateMemoryDraft('c', { title: 't', summary: 's' });
+      const outcome = expect(pending).rejects.toMatchObject({ code: 'network_unavailable' });
+      await vi.advanceTimersByTimeAsync(NETWORK_RETRY_DELAY_MS);
+      await outcome;
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  // contract-test: supporting surface=gui.web assertions=app-memories.suggestions.billing
+  it('reports a connection problem when the server refuses the retry as an already received request', async () => {
+    vi.mocked(chatDB.getMessagesForChat).mockResolvedValue([] as never);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{"detail":"duplicate_request"}', { status: 409 }));
+    await expect(requestCreateMemoryDraft('c', { title: 't', summary: 's' })).rejects.toMatchObject({ code: 'network_unavailable' });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=app-memories.suggestions.billing
+  it('never retries an HTTP error response, since the server may already have billed it', async () => {
+    vi.mocked(chatDB.getMessagesForChat).mockResolvedValue([] as never);
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 502 }));
+    await expect(requestCreateMemoryDraft('c', { title: 't', summary: 's' })).rejects.toMatchObject({ code: 'request_failed' });
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 
   // contract-test: supporting surface=gui.web assertions=app-memories.suggestions.post-processor
@@ -108,6 +162,7 @@ describe('recommendation memory drafts', () => {
     expect(JSON.parse(String((init as RequestInit).body))).toEqual({
       chat_id: 'chat-1', memory_id: 'personal:1', memory_markdown: memoryDocument,
       messages: [{ role: 'user', text: 'port is 8002' }],
+      request_id: expect.stringMatching(/\S/),
     });
     expect(parseUpdatePreviewResponse({ status: 'updated', body: 'new' })).toEqual({ status: 'updated', body: 'new' });
     expect(() => parseUpdatePreviewResponse({ status: 'updated' })).toThrow(RecommendationDraftError);

@@ -7909,6 +7909,15 @@
         "sewing_time": {
           "text": "Szacowany czas haftowania"
         },
+        "sewing_time_note": {
+          "text": "Czas haftowania i długość nici są szacunkowe. Zależą od maszyny i jej ustawień."
+        },
+        "thread_length": {
+          "text": "Potrzebna nić"
+        },
+        "thread_amount": {
+          "text": "{length} nici"
+        },
         "fits_hoop": {
           "text": "Mieści się w tamborku {hoop}"
         },
@@ -8052,6 +8061,9 @@
           },
           "border_added": {
             "text": "Dodano obwódkę {mm} mm do przyszycia"
+          },
+          "sized_to_hoop": {
+            "text": "Rozmiar dopasowany do tamborka"
           },
           "solved_gradient_or_filter": {
             "text": "Gradienty i filtry zastąpiono jednolitymi kolorami"

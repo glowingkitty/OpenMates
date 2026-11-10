@@ -7909,6 +7909,15 @@
         "sewing_time": {
           "text": "Geschatte borduurtijd"
         },
+        "sewing_time_note": {
+          "text": "Borduurtijd en garenlengte zijn schattingen. Ze verschillen per machine en instelling."
+        },
+        "thread_length": {
+          "text": "Benodigd garen"
+        },
+        "thread_amount": {
+          "text": "{length} garen"
+        },
         "fits_hoop": {
           "text": "Past in raam {hoop}"
         },
@@ -8052,6 +8061,9 @@
           },
           "border_added": {
             "text": "Rand van {mm} mm toegevoegd om op te naaien"
+          },
+          "sized_to_hoop": {
+            "text": "Formaat aangepast om de borduurring te vullen"
           },
           "solved_gradient_or_filter": {
             "text": "Kleurverlopen en filters zijn vervangen door effen kleuren"

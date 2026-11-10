@@ -16,9 +16,15 @@ export const RECOMMENDATION_DRAFT_WIRE = {
   createDraftPath: '/v1/memory-suggestions/create-draft',
   updatePreviewPath: '/v1/memory-suggestions/update-preview',
   insufficientCreditsStatus: 402,
+  /** The retried request_id was already received: the first delivery reached the server, its response was lost. */
+  duplicateRequestStatus: 409,
 } as const;
 
-export type RecommendationDraftFailure = 'insufficient_credits' | 'memory_not_found' | 'request_failed';
+export type RecommendationDraftFailure =
+  | 'insufficient_credits' | 'memory_not_found' | 'request_failed' | 'network_unavailable';
+
+/** Pause before the single automatic retry of a request that never got a response (e.g. a reconnecting phone). */
+export const NETWORK_RETRY_DELAY_MS = 1_500;
 
 export class RecommendationDraftError extends Error {
   constructor(readonly code: RecommendationDraftFailure) { super(code); }
@@ -135,11 +141,37 @@ export async function loadPersonalMemory(memoryId: string): Promise<EditableRule
   return found;
 }
 
-async function postBilled(path: string, body: unknown): Promise<unknown> {
-  const response = await fetch(getApiEndpoint(path), {
+/**
+ * One POST. A rejected fetch (no HTTP response at all, e.g. Safari "Load failed" while the
+ * connection is re-established) is retried once after a short pause; a second rejection is
+ * reported as `network_unavailable`. HTTP error statuses are never retried: the server may
+ * already have generated, and billed, the preview.
+ * Both attempts carry the same request_id; the server accepts an id once, so the retry can
+ * never be billed a second time. If the first attempt did arrive, the retry is refused
+ * (409) and reported as `network_unavailable` too.
+ */
+async function postBilled(path: string, body: object): Promise<unknown> {
+  const payload = JSON.stringify({ ...body, request_id: crypto.randomUUID() });
+  const send = () => fetch(getApiEndpoint(path), {
     method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    body: payload,
   });
+  let response: Response;
+  try {
+    response = await send();
+  } catch (firstError) {
+    console.warn('[Recommendations] Request got no response, retrying once', firstError);
+    await new Promise(resolve => setTimeout(resolve, NETWORK_RETRY_DELAY_MS));
+    try {
+      response = await send();
+    } catch (secondError) {
+      console.error('[Recommendations] Retry got no response either', secondError);
+      throw new RecommendationDraftError('network_unavailable');
+    }
+  }
+  if (response.status === RECOMMENDATION_DRAFT_WIRE.duplicateRequestStatus) {
+    throw new RecommendationDraftError('network_unavailable');
+  }
   if (response.status === RECOMMENDATION_DRAFT_WIRE.insufficientCreditsStatus) {
     throw new RecommendationDraftError('insufficient_credits');
   }

@@ -7909,6 +7909,15 @@
         "sewing_time": {
           "text": "Tahmini nakış süresi"
         },
+        "sewing_time_note": {
+          "text": "Nakış süresi ve iplik uzunluğu tahminidir. Makineye ve ayarlarına göre değişir."
+        },
+        "thread_length": {
+          "text": "Gereken iplik"
+        },
+        "thread_amount": {
+          "text": "{length} iplik"
+        },
         "fits_hoop": {
           "text": "{hoop} kasnağa sığar"
         },
@@ -8052,6 +8061,9 @@
           },
           "border_added": {
             "text": "Dikmek için {mm} mm kenarlık eklendi"
+          },
+          "sized_to_hoop": {
+            "text": "Kasnağı dolduracak şekilde boyutlandırıldı"
           },
           "solved_gradient_or_filter": {
             "text": "Renk geçişleri ve filtreler düz renklerle değiştirildi"

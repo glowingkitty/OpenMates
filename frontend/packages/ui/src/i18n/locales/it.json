@@ -7936,6 +7936,15 @@
         "sewing_time": {
           "text": "Tempo di ricamo stimato"
         },
+        "sewing_time_note": {
+          "text": "Il tempo di ricamo e la lunghezza del filo sono stime. Variano in base alla macchina e alle sue impostazioni."
+        },
+        "thread_length": {
+          "text": "Filo necessario"
+        },
+        "thread_amount": {
+          "text": "{length} di filo"
+        },
         "fits_hoop": {
           "text": "Entra nel telaio {hoop}"
         },
@@ -8079,6 +8088,9 @@
           },
           "border_added": {
             "text": "Bordo di {mm} mm aggiunto per la cucitura"
+          },
+          "sized_to_hoop": {
+            "text": "Dimensione adattata per riempire il telaio"
           },
           "solved_gradient_or_filter": {
             "text": "Gradienti e filtri sono stati sostituiti da colori pieni"

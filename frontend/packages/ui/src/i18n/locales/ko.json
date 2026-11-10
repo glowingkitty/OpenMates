@@ -7909,6 +7909,15 @@
         "sewing_time": {
           "text": "예상 자수 시간"
         },
+        "sewing_time_note": {
+          "text": "자수 시간과 실 길이는 추정치입니다. 기계와 설정에 따라 달라집니다."
+        },
+        "thread_length": {
+          "text": "필요한 실"
+        },
+        "thread_amount": {
+          "text": "실 {length}"
+        },
         "fits_hoop": {
           "text": "{hoop} 자수틀에 맞음"
         },
@@ -8052,6 +8061,9 @@
           },
           "border_added": {
             "text": "꿰매 붙일 수 있도록 {mm} mm 테두리를 추가했습니다"
+          },
+          "sized_to_hoop": {
+            "text": "자수틀에 꽉 차도록 크기를 맞췄습니다"
           },
           "solved_gradient_or_filter": {
             "text": "그라데이션과 필터가 단색으로 대체되었습니다"

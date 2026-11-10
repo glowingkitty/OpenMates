@@ -7909,6 +7909,15 @@
         "sewing_time": {
           "text": "Perkiraan waktu menyulam"
         },
+        "sewing_time_note": {
+          "text": "Waktu menyulam dan panjang benang adalah perkiraan. Keduanya bergantung pada mesin dan pengaturannya."
+        },
+        "thread_length": {
+          "text": "Benang yang dibutuhkan"
+        },
+        "thread_amount": {
+          "text": "{length} benang"
+        },
         "fits_hoop": {
           "text": "Muat di bingkai {hoop}"
         },
@@ -8052,6 +8061,9 @@
           },
           "border_added": {
             "text": "Tepi {mm} mm ditambahkan untuk dijahit"
+          },
+          "sized_to_hoop": {
+            "text": "Ukuran disesuaikan agar memenuhi pemidangan"
           },
           "solved_gradient_or_filter": {
             "text": "Gradasi dan filter diganti dengan warna polos"

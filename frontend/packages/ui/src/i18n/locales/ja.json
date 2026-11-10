@@ -7909,6 +7909,15 @@
         "sewing_time": {
           "text": "推定刺繍時間"
         },
+        "sewing_time_note": {
+          "text": "刺繍時間と糸の長さは目安です。ミシンと設定によって変わります。"
+        },
+        "thread_length": {
+          "text": "必要な糸"
+        },
+        "thread_amount": {
+          "text": "糸 {length}"
+        },
         "fits_hoop": {
           "text": "枠 {hoop} に収まります"
         },
@@ -8052,6 +8061,9 @@
           },
           "border_added": {
             "text": "縫い付け用に {mm} mm の縁取りを追加しました"
+          },
+          "sized_to_hoop": {
+            "text": "刺しゅう枠いっぱいのサイズにしました"
           },
           "solved_gradient_or_filter": {
             "text": "グラデーションとフィルターを単色に置き換えました"

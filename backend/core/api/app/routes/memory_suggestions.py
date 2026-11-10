@@ -7,6 +7,10 @@
 # Rate limited; refuses when the wallet is empty. The model request is charged
 # and attributed to the originating chat; the usage record holds token counts
 # and chat_id only. A false-positive ("unchanged") request is charged too.
+# Exactly-once: the client sends one request_id per user action and repeats it on
+# its automatic network retry. The first delivery claims the id; a second delivery
+# is refused with 409 before any model call or charge, so one action is never
+# billed twice. Only the id is kept (10 minutes), never text.
 # Spec: app-memories.suggestions.billing
 # test-file: backend/tests/test_memory_suggestions_route.py
 
@@ -30,6 +34,21 @@ from backend.core.api.app.utils.config_manager import config_manager
 router = APIRouter(prefix="/v1/memory-suggestions", tags=["Memory Suggestions"])
 logger = logging.getLogger(__name__)
 
+REQUEST_CLAIM_TTL_SECONDS = 600
+REQUEST_ID_PATTERN = r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+
+
+async def _claim_request(cache_service: Any, user_id_hash: str, request_id: Optional[str]) -> str:
+    """Return the operation suffix for one user action; refuse a second delivery of the same request_id."""
+    if request_id is None:
+        return str(uuid.uuid4())
+    client = await cache_service.client
+    key = f"memory_suggestion_request:{user_id_hash}:{request_id}"
+    if not await client.set(key, "1", nx=True, ex=REQUEST_CLAIM_TTL_SECONDS):
+        logger.info("Memory suggestion request refused as duplicate delivery")
+        raise HTTPException(status_code=409, detail="duplicate_request")
+    return request_id
+
 
 class PreviewMessage(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -43,6 +62,7 @@ class UpdatePreviewRequest(BaseModel):
     memory_id: str = Field(min_length=1, max_length=240)
     memory_markdown: str = Field(min_length=1, max_length=24_000, repr=False)
     messages: List[PreviewMessage] = Field(min_length=1, max_length=24, repr=False)
+    request_id: Optional[str] = Field(default=None, pattern=REQUEST_ID_PATTERN)
 
 
 @router.post("/update-preview", include_in_schema=False)
@@ -58,7 +78,7 @@ async def update_preview(request: Request, response: Response, body: UpdatePrevi
     if await billing.get_authoritative_personal_balance(user_id=user.id, user_id_hash=user_id_hash) < 1:
         raise HTTPException(status_code=402, detail="Insufficient credits")
     usage_events: List[Dict[str, Any]] = []
-    task_id = f"memory-update-preview-{uuid.uuid4()}"
+    task_id = f"memory-update-preview-{await _claim_request(state.cache_service, user_id_hash, body.request_id)}"
     try:
         updated, telemetry = await run_memory_update_preview(
             task_id=task_id, model_id=POSTPROCESSING_MODEL_ID, memory_markdown=body.memory_markdown,
@@ -85,6 +105,7 @@ class CreateDraftRequest(BaseModel):
     summary: str = Field(min_length=1, max_length=400, repr=False)
     user_message: str = Field(min_length=1, max_length=8_000, repr=False)
     assistant_response: str = Field(min_length=1, max_length=8_000, repr=False)
+    request_id: Optional[str] = Field(default=None, pattern=REQUEST_ID_PATTERN)
 
 
 @router.post("/create-draft", include_in_schema=False)
@@ -100,7 +121,7 @@ async def create_draft(request: Request, response: Response, body: CreateDraftRe
     if await billing.get_authoritative_personal_balance(user_id=user.id, user_id_hash=user_id_hash) < 1:
         raise HTTPException(status_code=402, detail="Insufficient credits")
     usage_events: List[Dict[str, Any]] = []
-    task_id = f"memory-create-draft-{uuid.uuid4()}"
+    task_id = f"memory-create-draft-{await _claim_request(state.cache_service, user_id_hash, body.request_id)}"
     try:
         draft, telemetry = await run_memory_create_draft(
             task_id=task_id, model_id=POSTPROCESSING_MODEL_ID, title=body.title, summary=body.summary,

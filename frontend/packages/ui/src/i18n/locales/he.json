@@ -7909,6 +7909,15 @@
         "sewing_time": {
           "text": "זמן רקמה משוער"
         },
+        "sewing_time_note": {
+          "text": "זמן הרקמה ואורך החוט הם הערכות. הם משתנים לפי המכונה והגדרותיה."
+        },
+        "thread_length": {
+          "text": "חוט נדרש"
+        },
+        "thread_amount": {
+          "text": "{length} חוט"
+        },
         "fits_hoop": {
           "text": "נכנס למסגרת {hoop}"
         },
@@ -8052,6 +8061,9 @@
           },
           "border_added": {
             "text": "נוספה שוליים של {mm} מ\"מ לתפירה"
+          },
+          "sized_to_hoop": {
+            "text": "הגודל הותאם למילוי החישוק"
           },
           "solved_gradient_or_filter": {
             "text": "מעברי צבע ומסננים הוחלפו בצבעים אחידים"

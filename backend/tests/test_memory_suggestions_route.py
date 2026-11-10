@@ -43,3 +43,45 @@ async def test_update_preview_rejects_foreign_chat_before_billing_or_llm(monkeyp
     with pytest.raises(HTTPException) as exc:
         await handler(_request(), None, _body("chat-of-bob"))
     assert exc.value.status_code == 404
+
+
+class _Redis:
+    def __init__(self):
+        self.keys = {}
+
+    async def set(self, key, value, nx=False, ex=None):
+        if nx and key in self.keys:
+            return None
+        self.keys[key] = (value, ex)
+        return True
+
+
+class _Cache:
+    def __init__(self):
+        self.redis = _Redis()
+
+    @property
+    async def client(self):
+        return self.redis
+
+
+# contract-test: supporting surface=rest_api assertions=app-memories.suggestions.billing
+@pytest.mark.anyio
+async def test_second_delivery_of_one_request_id_is_refused_before_llm_or_charge():
+    cache = _Cache()
+    request_id = "0b0e7c4e-2f4b-4c1d-9a56-3f1c2d4e5a6b"
+    assert await route._claim_request(cache, "hash-alice", request_id) == request_id
+    with pytest.raises(HTTPException) as exc:
+        await route._claim_request(cache, "hash-alice", request_id)
+    assert exc.value.status_code == 409
+    # Another user's identical id is independent; only the id is kept, with an expiry.
+    assert await route._claim_request(cache, "hash-bob", request_id) == request_id
+    assert all(value == ("1", route.REQUEST_CLAIM_TTL_SECONDS) for value in cache.redis.keys.values())
+
+
+# contract-test: supporting surface=rest_api assertions=app-memories.suggestions.billing
+@pytest.mark.anyio
+async def test_request_without_id_gets_a_fresh_operation_and_malformed_ids_are_rejected():
+    assert await route._claim_request(None, "hash-alice", None) != await route._claim_request(None, "hash-alice", None)
+    with pytest.raises(ValueError):
+        route.CreateDraftRequest(chat_id="c", title="t", summary="s", user_message="u", assistant_response="a", request_id="x")

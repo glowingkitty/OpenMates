@@ -7909,6 +7909,15 @@
         "sewing_time": {
           "text": "预计绣制时间"
         },
+        "sewing_time_note": {
+          "text": "绣制时间和用线长度均为估算值，会因机器及其设置而异。"
+        },
+        "thread_length": {
+          "text": "所需绣线"
+        },
+        "thread_amount": {
+          "text": "{length} 绣线"
+        },
         "fits_hoop": {
           "text": "适合 {hoop} 绣框"
         },
@@ -8052,6 +8061,9 @@
           },
           "border_added": {
             "text": "已添加 {mm} 毫米的缝边"
+          },
+          "sized_to_hoop": {
+            "text": "已按绣框大小放大"
           },
           "solved_gradient_or_filter": {
             "text": "渐变和滤镜已替换为纯色"

@@ -7909,6 +7909,15 @@
         "sewing_time": {
           "text": "Odhadovaný čas vyšívání"
         },
+        "sewing_time_note": {
+          "text": "Čas vyšívání a délka nitě jsou odhady. Liší se podle stroje a jeho nastavení."
+        },
+        "thread_length": {
+          "text": "Potřebná nit"
+        },
+        "thread_amount": {
+          "text": "{length} nitě"
+        },
         "fits_hoop": {
           "text": "Vejde se do rámu {hoop}"
         },
@@ -8052,6 +8061,9 @@
           },
           "border_added": {
             "text": "Přidán okraj {mm} mm pro přišití"
+          },
+          "sized_to_hoop": {
+            "text": "Velikost upravena tak, aby vyplnila rámeček"
           },
           "solved_gradient_or_filter": {
             "text": "Přechody a filtry byly nahrazeny plnými barvami"
