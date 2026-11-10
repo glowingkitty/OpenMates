@@ -276,3 +276,31 @@ def test_estimated_minutes_formula() -> None:
 # contract-test: supporting surface=rest_api assertions=design-embroidery.prepare.fixed-rules
 def test_uploaded_module_list_matches_package() -> None:
     assert sorted(UPLOADED_MODULES) == sorted(path.name for path in PACKAGE.glob("*.py"))
+
+
+# contract-test: supporting surface=rest_api assertions=design-embroidery.result.complete-and-truthful
+def test_preview_shows_light_threads_in_their_real_colour() -> None:
+    """Ink/Stitch renders cream thread yellow; the preview brings light threads back, others stay."""
+    pytest.importorskip("numpy")
+    image_module = pytest.importorskip("PIL.Image")
+    from backend.apps.design.embroidery_sandbox.preview import is_light_thread, restore_light_threads
+
+    assert is_light_thread("#fdf0e0") and is_light_thread("#ffffff")
+    assert not is_light_thread("#c4592a") and not is_light_thread("#3a7bd5")
+
+    dpi = 254  # one pixel per 0.1 mm
+    rows = [[x, y] for y in range(0, 101, 4) for x in ((0, 100) if (y // 4) % 2 == 0 else (100, 0))]
+    stitches = {"blocks": [
+        {"colour_hex": "#fdf0e0", "points": rows},
+        {"colour_hex": "#c4592a", "points": [[x + 150, y] for x, y in rows]},
+    ]}
+    render = image_module.new("RGBA", (251, 101), (0, 0, 0, 0))
+    render.paste((231, 203, 112, 255), (0, 0, 101, 101))    # cream as Ink/Stitch draws it
+    render.paste((181, 96, 59, 255), (150, 0, 251, 101))
+    fixed = restore_light_threads(render, stitches, dpi)
+
+    red, green, blue, alpha = fixed.getpixel((50, 50))
+    assert alpha == 255 and abs(red - green) < 20 and blue > 200, (red, green, blue)
+    assert blue / red == pytest.approx(0xE0 / 0xFD, abs=0.02)
+    assert fixed.getpixel((200, 50)) == (181, 96, 59, 255)
+    assert fixed.getpixel((125, 50))[3] == 0

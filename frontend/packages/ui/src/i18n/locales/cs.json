@@ -7752,6 +7752,12 @@
         "download": {
           "text": "Stáhnout"
         },
+        "download_all": {
+          "text": "Stáhnout všechny formáty (ZIP)"
+        },
+        "download_single": {
+          "text": "Nebo jen formát, který čte váš stroj:"
+        },
         "notes": {
           "text": "Poznámky"
         },

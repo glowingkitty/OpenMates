@@ -7752,6 +7752,12 @@
         "download": {
           "text": "İndir"
         },
+        "download_all": {
+          "text": "Tüm formatları indir (ZIP)"
+        },
+        "download_single": {
+          "text": "Veya yalnızca makinenizin okuduğu format:"
+        },
         "notes": {
           "text": "Notlar"
         },

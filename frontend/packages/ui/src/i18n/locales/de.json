@@ -9324,6 +9324,12 @@
         "download": {
           "text": "Herunterladen"
         },
+        "download_all": {
+          "text": "Alle Formate herunterladen (ZIP)"
+        },
+        "download_single": {
+          "text": "Oder nur das Format, das deine Maschine liest:"
+        },
         "notes": {
           "text": "Hinweise"
         },

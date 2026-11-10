@@ -82,6 +82,12 @@ Other sizes and fabrics:
   longest side (dpi 30-600), composited on fabric colour `#f4f1ea` and saved as WebP quality 72. Cost: about
   3.7 s at 150 dpi, 4.8 s at 300 dpi, so no Pillow fallback was needed.
   Product previews are 56-272 KB; the copies here are re-encoded at 900 px.
+- **Light threads in the preview**: Ink/Stitch renders thread colours with an HLS
+  lightness above 0.85 darker and more saturated (measured: cream `#fdf0e0` came
+  out as `#e7cb70`, white as `#c5c5c5`; page colour and thread palette make no
+  difference). `preview.py` marks the area of each light thread from the stitch
+  data and repaints it with the real thread colour, keeping the render's shading
+  (measured after: `#fdf0e0` area mean `#ede1d2`). Other threads are untouched.
 - **Estimated minutes**: ceil(stitches / 600 + thread changes x 1), minimum 1.
 - **Early abort**: stitch estimate = fill area x 0.41 / row spacing (x 1.4 on
   stretchy) + satin length / 0.4 x 2.6 + running length / 2 x 3 + 100 per element,

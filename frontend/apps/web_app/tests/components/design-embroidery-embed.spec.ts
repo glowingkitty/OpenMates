@@ -2,6 +2,7 @@ import { expect, test } from '../helpers/cookie-audit';
 import { waitForComponentPreview } from '../helpers/component-preview';
 
 // playwright-account: not_required reason=isolated_component_preview
+// proof-video: not_required reason=isolated_component_preview
 
 /*
  * design.embroidery result embed: card (preview) and opened view (fullscreen).
@@ -160,6 +161,51 @@ test('opened view states when the design is too large for the hoop and omits the
 });
 
 // contract-test: supporting surface=gui.web assertions=design-embroidery.result.view-and-download
+for (const width of [390, 1280]) {
+  test(`opened view offers an obvious download: top-bar button and a main button above the threads at ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`${FULLSCREEN}&variant=finished`);
+    await waitForComponentPreview(page);
+
+    const topBar = page.getByTestId('embed-download-button');
+    // A narrow top bar lists its actions under More, like every other result.
+    if (width < 600) await page.getByRole('button', { name: 'More', exact: true }).click();
+    await expect(topBar).toBeVisible();
+    const topDownload = page.waitForEvent('download');
+    await topBar.click();
+    expect((await topDownload).suggestedFilename()).toMatch(/\.zip$/);
+
+    const main = page.getByTestId('design-embroidery-download-all');
+    await main.scrollIntoViewIfNeeded();
+    await expect(main).toBeVisible();
+    await expect(main).toContainText('Download all formats (ZIP)');
+    const mainBox = await main.boundingBox();
+    const firstThread = await page.getByTestId('design-embroidery-thread').first().boundingBox();
+    const preview = await page.getByTestId('design-embroidery-image').boundingBox();
+    expect(mainBox && firstThread && preview).toBeTruthy();
+    expect(mainBox!.y).toBeGreaterThan(preview!.y + preview!.height - 1);
+    expect(mainBox!.y + mainBox!.height).toBeLessThanOrEqual(firstThread!.y);
+    expect(mainBox!.height).toBeGreaterThanOrEqual(44);
+    await testInfo.attach(`embroidery-download-cta-${width}`, { body: await page.screenshot(), contentType: 'image/png' });
+
+    const mainDownload = page.waitForEvent('download');
+    await main.click();
+    expect((await mainDownload).suggestedFilename()).toMatch(/\.zip$/);
+    await expect(main).toHaveAttribute('data-state', 'idle');
+  });
+}
+
+// contract-test: supporting surface=gui.web assertions=design-embroidery.result.view-and-download
+test('a failing download of all formats shows an error on the main button and saves nothing', async ({ page }) => {
+  await page.goto(`${FULLSCREEN}&variant=downloadUnavailable`);
+  await waitForComponentPreview(page);
+  const main = page.getByTestId('design-embroidery-download-all');
+  await main.click();
+  await expect(main).toHaveAttribute('data-state', 'error');
+  await expect(page.getByTestId('design-embroidery-download-all-error')).toBeVisible();
+});
+
+// contract-test: supporting surface=gui.web assertions=design-embroidery.result.view-and-download
 test('a format download saves the decrypted file under a name with its extension', async ({ page }) => {
   await page.goto(`${FULLSCREEN}&variant=finished`);
   await waitForComponentPreview(page);
@@ -228,6 +274,7 @@ for (const variant of ['error', 'nothingToSew']) {
       ? 'The design has too many stitches'
       : 'There is nothing to sew after leaving out the background');
     await expect(page.locator('[data-testid^="design-embroidery-download-"]')).toHaveCount(0);
+    await expect(page.getByTestId('embed-download-button')).toHaveCount(0);
     await expect(page.getByTestId('design-embroidery-settings')).toHaveCount(0);
     await expect(page.getByTestId('design-embroidery-thread')).toHaveCount(0);
     await testInfo.attach(`embroidery-failed-${variant}`, { body: await page.screenshot(), contentType: 'image/png' });

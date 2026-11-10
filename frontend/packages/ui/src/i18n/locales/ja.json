@@ -7752,6 +7752,12 @@
         "download": {
           "text": "ダウンロード"
         },
+        "download_all": {
+          "text": "すべての形式をダウンロード (ZIP)"
+        },
+        "download_single": {
+          "text": "または、お使いのミシンが読める形式のみ："
+        },
         "notes": {
           "text": "メモ"
         },

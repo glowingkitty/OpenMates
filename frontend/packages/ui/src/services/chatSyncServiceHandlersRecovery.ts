@@ -1735,6 +1735,7 @@ async function processRecoveryOutputsAvailable(
         deferredRecoveryOutputs.set(output.record_id, output);
         return;
       }
+      let waitsForParent = false;
       if ((error instanceof RecoveryCanonicalTransientError || error instanceof RecoveryParentVisibilityDeferredError) && canonicalRetryContext
         && !consumedCanonicalRetries.has(output.record_id)
         && pendingCanonicalRetries.size < MAX_PENDING_CANONICAL_RETRIES
@@ -1742,8 +1743,14 @@ async function processRecoveryOutputsAvailable(
         pendingCanonicalRetries.set(output.record_id, { output, ...canonicalRetryContext, generation,
           ...(error instanceof RecoveryParentVisibilityDeferredError ? { parentEmbedId: error.parentEmbedId } : {}),
         });
+        waitsForParent = error instanceof RecoveryParentVisibilityDeferredError;
       }
-      if (!(error instanceof RecoveryStaleJobError)) console.error("[ChatSyncService:Recovery] Output recovery failed:", {
+      // A child embed that arrived before its parent is queued and retried once the
+      // parent is acknowledged: an expected order, not a failed recovery.
+      if (waitsForParent) console.debug("[ChatSyncService:Recovery] Child output waits for its parent:", {
+        record_id: output.record_id, root_chat_id: output.root_chat_id, turn_id: output.turn_id,
+      });
+      else if (!(error instanceof RecoveryStaleJobError)) console.error("[ChatSyncService:Recovery] Output recovery failed:", {
         record_id: output.record_id, root_chat_id: output.root_chat_id, turn_id: output.turn_id,
       }, error);
     } finally {

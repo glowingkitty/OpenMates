@@ -160,6 +160,22 @@ test('assistant turns a vector graphic into embroidery files that show and downl
 		log(`downloaded file: ${filename} (${bytes} bytes)`);
 		await expect(overlay.getByTestId('design-embroidery-download-pes-error')).toHaveCount(0);
 		await screenshot(page, 'embroidery-pes-downloaded', { fullPage: false });
+
+		// The main call to action saves every format in one ZIP.
+		const allButton = overlay.getByTestId('design-embroidery-download-all');
+		await allButton.scrollIntoViewIfNeeded();
+		await expect(allButton).toBeVisible();
+		const zipPromise = page.waitForEvent('download', { timeout: 90_000 });
+		await allButton.click();
+		const zip = await zipPromise;
+		expect(zip.suggestedFilename().toLowerCase()).toMatch(/\.zip$/);
+		const zipPath = await zip.path();
+		expect(zipPath, 'ZIP download finished and was saved').toBeTruthy();
+		const zipBytes = fs.statSync(zipPath).size;
+		expect(zipBytes, 'ZIP holds the five machine files').toBeGreaterThan(bytes);
+		log(`downloaded file: ${zip.suggestedFilename()} (${zipBytes} bytes)`);
+		await expect(overlay.getByTestId('design-embroidery-download-all-error')).toHaveCount(0);
+		await screenshot(page, 'embroidery-all-downloaded', { fullPage: false });
 	} finally {
 		if (process.env.KEEP_EMBROIDERY_CHAT !== '1') {
 			if (await overlay.isVisible().catch(() => false)) {

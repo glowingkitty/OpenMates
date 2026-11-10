@@ -185,7 +185,7 @@ def run_convert(workdir: Path, options: Options, started: float) -> dict[str, ob
     timings["report"] = round(time.monotonic() - mark, 3)
 
     mark = time.monotonic()
-    (out / OUTPUT_NAMES["preview"]).write_bytes(to_webp(files["png"]))
+    (out / OUTPUT_NAMES["preview"]).write_bytes(to_webp(files["png"], stitches, dpi))
     timings["preview"] = round(time.monotonic() - mark, 3)
     timings["total"] = round(time.monotonic() - started, 3)
     return {"ok": True, "summary": summary, "findings": findings,

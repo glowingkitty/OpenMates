@@ -7752,6 +7752,12 @@
         "download": {
           "text": "Downloaden"
         },
+        "download_all": {
+          "text": "Alle formaten downloaden (ZIP)"
+        },
+        "download_single": {
+          "text": "Of alleen het formaat dat je machine leest:"
+        },
         "notes": {
           "text": "Opmerkingen"
         },

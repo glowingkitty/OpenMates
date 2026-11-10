@@ -7752,6 +7752,12 @@
         "download": {
           "text": "הורדה"
         },
+        "download_all": {
+          "text": "הורדת כל הפורמטים (ZIP)"
+        },
+        "download_single": {
+          "text": "או רק הפורמט שהמכונה שלך קוראת:"
+        },
         "notes": {
           "text": "הערות"
         },

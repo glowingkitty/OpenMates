@@ -4,63 +4,70 @@
   One download per machine format. Each file is fetched encrypted from storage
   and decrypted in the browser with the embed's own key material (like the
   stitch preview), then saved from a same-origin object URL so the browser
-  honours the suggested "<name>.<format>". Component previews carry inline text
-  (`previewDownloadText`) and need no network. Each button keeps its own
-  loading and error state.
+  honours the suggested "<name>.<format>". The first button saves all formats in
+  one ZIP; the opened view's top-bar download button triggers the same action.
+  Component previews carry inline text (`previewDownloadText`) and need no
+  network. Each button keeps its own loading and error state.
 -->
 <script lang="ts">
   import { text } from '@repo/ui';
-  import { fetchAndDecryptImage } from '../images/imageEmbedCrypto';
-  import { hasMediaEncryptionMetadata } from '../../../services/encryption/mediaEncryption';
-  import { EMBROIDERY_FORMATS, type EmbroideryDesign, type EmbroideryFormat } from './embroideryDesign';
+  import { EMBROIDERY_FORMATS, type EmbroideryFormat } from './embroideryDesign';
+  import {
+    downloadAllEmbroideryFiles, downloadEmbroideryFile, type EmbroideryDownloadSource,
+  } from './embroideryDownload';
 
   interface Props {
     /** Per-format file descriptors and key material of the result. */
-    design: Pick<EmbroideryDesign, 'files' | 's3BaseUrl' | 'aesKey' | 'aesNonce' | 'previewDownloadText'>;
+    design: EmbroideryDownloadSource;
     /** File name without extension, used as the browser's suggested name. */
     baseName: string;
   }
   let { design, baseName }: Props = $props();
 
-  let loading = $state<Partial<Record<EmbroideryFormat, boolean>>>({});
-  let failed = $state<Partial<Record<EmbroideryFormat, boolean>>>({});
+  type Target = EmbroideryFormat | 'all';
+  let loading = $state<Partial<Record<Target, boolean>>>({});
+  let failed = $state<Partial<Record<Target, boolean>>>({});
 
-  async function readBytes(format: EmbroideryFormat): Promise<Blob> {
-    if (design.previewDownloadText) return new Blob([design.previewDownloadText]);
-    const file = design.files[format];
-    const nonce = file?.aes_nonce ?? design.aesNonce;
-    if (!file || !design.aesKey || !hasMediaEncryptionMetadata(file, nonce)) {
-      throw new Error(`Embroidery file ${format} is not available`);
-    }
-    // The helper labels the bytes as an image; only the bytes are used here.
-    const decrypted = await fetchAndDecryptImage(design.s3BaseUrl, file.s3_key, design.aesKey, nonce, file);
-    return new Blob([await decrypted.arrayBuffer()], { type: 'application/octet-stream' });
-  }
-
-  async function download(format: EmbroideryFormat) {
-    if (loading[format]) return;
-    loading = { ...loading, [format]: true };
-    failed = { ...failed, [format]: false };
+  /** Also called by the opened view's top-bar download button. */
+  export async function download(target: Target) {
+    if (loading[target]) return;
+    loading = { ...loading, [target]: true };
+    failed = { ...failed, [target]: false };
     try {
-      const url = URL.createObjectURL(await readBytes(format));
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${baseName || 'embroidery'}.${format}`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 0);
+      if (target === 'all') await downloadAllEmbroideryFiles(design, baseName);
+      else await downloadEmbroideryFile(design, target, baseName);
     } catch (caught) {
-      console.warn('[EmbroideryDownloads] download failed:', format, caught);
-      failed = { ...failed, [format]: true };
+      console.warn('[EmbroideryDownloads] download failed:', target, caught);
+      failed = { ...failed, [target]: true };
     } finally {
-      loading = { ...loading, [format]: false };
+      loading = { ...loading, [target]: false };
     }
   }
 </script>
 
 <section class="downloads" data-testid="design-embroidery-downloads">
   <h4>{$text('embeds.design.embroidery.download')}</h4>
+  <div class="item all">
+    <button
+      type="button"
+      class="download primary"
+      class:failed={failed.all}
+      data-testid="design-embroidery-download-all"
+      data-state={loading.all ? 'loading' : failed.all ? 'error' : 'idle'}
+      disabled={loading.all}
+      aria-busy={loading.all ? 'true' : undefined}
+      onclick={() => download('all')}
+    >
+      <span class="clickable-icon icon_download" aria-hidden="true"></span>
+      {$text('embeds.design.embroidery.download_all')}
+    </button>
+    {#if failed.all}
+      <span class="error" role="alert" data-testid="design-embroidery-download-all-error">
+        {$text('embeds.action_failed')}
+      </span>
+    {/if}
+  </div>
+  <p class="or">{$text('embeds.design.embroidery.download_single')}</p>
   <div class="buttons">
     {#each EMBROIDERY_FORMATS as format (format)}
       <div class="item">
@@ -102,6 +109,12 @@
     cursor: pointer;
     transition: opacity var(--duration-fast) var(--easing-default);
   }
+  .item.all { margin-bottom: var(--spacing-6); }
+  .download.primary { display: inline-flex; align-items: center; justify-content: center; gap: var(--spacing-4); min-height: 52px; width: 100%; font-size: var(--font-size-p); }
+  .download.primary .clickable-icon { width: 20px; height: 20px; background: var(--color-font-button); }
+  .or { margin: 0 0 var(--spacing-4); font-size: var(--font-size-small); color: var(--color-font-secondary); }
+  .buttons .download { background: var(--color-grey-20); color: var(--color-font-primary); }
+  .buttons .download.failed { background: var(--color-error); color: var(--color-font-button); }
   .download:hover:not(:disabled) { opacity: 0.9; }
   .download:disabled { opacity: 0.6; cursor: progress; }
   .download:focus-visible { outline: 2px solid var(--color-button-primary); outline-offset: 3px; }

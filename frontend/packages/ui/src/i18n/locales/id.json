@@ -7752,6 +7752,12 @@
         "download": {
           "text": "Unduh"
         },
+        "download_all": {
+          "text": "Unduh semua format (ZIP)"
+        },
+        "download_single": {
+          "text": "Atau hanya format yang dibaca mesin Anda:"
+        },
         "notes": {
           "text": "Catatan"
         },

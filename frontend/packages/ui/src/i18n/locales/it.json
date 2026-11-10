@@ -7779,6 +7779,12 @@
         "download": {
           "text": "Scarica"
         },
+        "download_all": {
+          "text": "Scarica tutti i formati (ZIP)"
+        },
+        "download_single": {
+          "text": "Oppure solo il formato letto dalla tua macchina:"
+        },
         "notes": {
           "text": "Note"
         },

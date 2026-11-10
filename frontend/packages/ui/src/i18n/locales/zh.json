@@ -7752,6 +7752,12 @@
         "download": {
           "text": "下载"
         },
+        "download_all": {
+          "text": "下载全部格式 (ZIP)"
+        },
+        "download_single": {
+          "text": "或只下载您的机器支持的格式："
+        },
         "notes": {
           "text": "说明"
         },

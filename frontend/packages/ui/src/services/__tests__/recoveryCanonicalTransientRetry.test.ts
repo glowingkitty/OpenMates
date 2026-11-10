@@ -297,7 +297,7 @@ describe('confirmed child visibility depends on its acknowledged canonical paren
  it.each(['ready','still-missing','unauthorized-parent','wrong-parent','stale-parent','stale-session','owner-change'])('child-before-parent across discovery pages: %s',async(mode)=>{
   const child={...output,record_id:'child-record',subject_id:'child'};
   const parent={...output,record_id:'parent-record',subject_id:mode==='wrong-parent'?'unrelated':'parent'};
-  const {sent,service,emit}=setup({selectedOutputs:[child,parent]});
+  const {sent,service,emit,errors}=setup({selectedOutputs:[child,parent]});
   m.openOutput.mockImplementation(async()=>{
    const record=sent.filter(row=>row.type==='recovery_output_get').at(-1).record_id;
    const row=record===child.record_id?child:parent;
@@ -319,6 +319,8 @@ describe('confirmed child visibility depends on its acknowledged canonical paren
   await handleRecoveryOutputsAvailableImpl(service,{outputs:[child]});
   expect(sent.filter(row=>row.type==='store_embed')).toHaveLength(1);
   expect(sent.filter(row=>row.type==='recovery_output_ack_embed')).toHaveLength(0);
+  // The queued child waits for its parent; that is not reported as a failed recovery.
+  expect(errors).not.toHaveBeenCalled();
   // Terminal hydration alone must not consume the dependency-specific attempt.
   await handleRecoveryJobsAvailableImpl(service,{jobs:[job]});await vi.advanceTimersByTimeAsync(0);
   expect(sent.filter(row=>row.type==='recovery_output_get'&&row.record_id===child.record_id)).toHaveLength(1);

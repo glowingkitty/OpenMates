@@ -102,6 +102,9 @@
     }
   }
 
+  /** The downloads section; the top-bar download button saves all formats through it. */
+  let downloads = $state<ReturnType<typeof EmbroideryDownloads> | null>(null);
+
   function requestText(settings: EmbroiderySettings): string {
     return $text('embeds.design.embroidery.apply_request', {
       values: {
@@ -130,6 +133,7 @@
   embedHeaderSubtitle={finished ? formatSize(design) : skillName}
   showSkillIcon={true}
   {onClose}
+  onDownload={finished ? () => { void downloads?.download('all'); } : undefined}
   currentEmbedId={embedId}
   {hasPreviousEmbed}
   {hasNextEmbed}
@@ -202,6 +206,7 @@
   {#snippet detailContent({ requestFollowup, submitting })}
     {#if finished}
       <div class="embroidery-details">
+        <EmbroideryDownloads bind:this={downloads} {design} baseName={downloadBaseName} />
         <EmbroideryThreadList threads={design.threads} />
         {#if design.notes.length > 0}
           <section class="notes" data-testid="design-embroidery-notes">
@@ -217,7 +222,6 @@
         {#if design.reworked}
           <p class="hint" data-testid="design-embroidery-reworked">{$text('embeds.design.embroidery.reworked_hint')}</p>
         {/if}
-        <EmbroideryDownloads {design} baseName={downloadBaseName} />
         <EmbroiderySettingsForm
           widthMm={design.widthMm ?? EMBROIDERY_MIN_WIDTH_MM}
           hoop={design.hoop}

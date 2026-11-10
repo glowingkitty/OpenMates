@@ -9353,6 +9353,12 @@
         "download": {
           "text": "Download"
         },
+        "download_all": {
+          "text": "Download all formats (ZIP)"
+        },
+        "download_single": {
+          "text": "Or only the format your machine reads:"
+        },
         "notes": {
           "text": "Notes"
         },
