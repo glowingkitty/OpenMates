@@ -9,11 +9,11 @@ flag:
   default: 'off'
   flag_off_behavior: original TypeScript path, byte-identical build output (guarded in CI)
 summary:
-  total: 107076
-  done: 8296
+  total: 107088
+  done: 8304
   partial: 0
-  missing: 98780
-  percent: 7.7
+  missing: 98784
+  percent: 7.8
 worker_namespaces_installed_not_progress:
   installed: 17
   total: 17
@@ -21,11 +21,11 @@ worker_namespaces_installed_not_progress:
 port_ledger:
   unit: TS code lines
   portable_files: 449
-  portable_code_lines: 107076
-  ported_code_lines: 8296
-  percent: 7.7
+  portable_code_lines: 107088
+  ported_code_lines: 8304
+  percent: 7.8
   ported_by_proof:
-    e2e-flag-on: 4105
+    e2e-flag-on: 4113
     vectors: 3954
     none: 237
   files_with_ported_code: 93
@@ -36,7 +36,7 @@ port_ledger:
     code_lines: 9550
   bridge_excluded:
     files: 205
-    code_lines: 18290
+    code_lines: 18301
   slices:
   - id: rust-web-auth-session-lane-behind-vite-openmates-cd767f7
     commit: cd767f7058
@@ -217,7 +217,7 @@ port_ledger:
     date: '2026-11-07'
     proof: e2e-flag-on
     functions: 10
-    ts_code_lines: 98
+    ts_code_lines: 106
   - id: zip-export-and-account-export-v1-archive-assembl-c2aa4b1
     commit: c2aa4b1a9a
     date: '2026-11-07'

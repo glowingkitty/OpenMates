@@ -1,10 +1,12 @@
 // Page end of the shared Rust core Worker's `crypto` unit as a WebCryptoEndpoint.
 // Opens the namespace port (pre-bind: works logged out), buffers batches sent
 // before the port is ready, and reports one failure when the open is refused
-// or the shared Worker crashes. The client then opens a fresh unit on its next
-// call; there is no TypeScript fallback.
+// or the shared Worker stops: `shared_core_crashed` when it failed,
+// `shared_core_terminated` when it was stopped on purpose (idle retirement,
+// logout). The client then opens a fresh unit on its next call; there is no
+// TypeScript fallback.
 import type { SharedRustCore } from '../host/sharedCoreRegistry';
-import type { WebCryptoBatch, WebCryptoEndpoint, WebCryptoReplies } from './webCryptoClient';
+import { SHARED_CORE_TERMINATED, type WebCryptoBatch, type WebCryptoEndpoint, type WebCryptoReplies } from './webCryptoClient';
 
 export function createSharedCryptoEndpoint(core: SharedRustCore): WebCryptoEndpoint {
   let port: MessagePort | null = null;
@@ -28,7 +30,8 @@ export function createSharedCryptoEndpoint(core: SharedRustCore): WebCryptoEndpo
     settleOutstanding(null);
     for (const listener of failureListeners) listener(error);
   };
-  const stopCrashWatch = core.onCrash(() => fail(new Error('shared_core_crashed')));
+  const stopCrashWatch = core.onCrash((stop) =>
+    fail(new Error(stop === 'terminated' ? SHARED_CORE_TERMINATED : 'shared_core_crashed')));
 
   core.openUnit('crypto').then(
     (opened) => {

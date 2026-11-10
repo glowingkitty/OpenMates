@@ -83,10 +83,24 @@ describe('shared core client', () => {
 		workers[0].crash();
 		await expect(pending).rejects.toMatchObject({ code: 'shared_core_crashed' });
 		expect(crashed).toHaveBeenCalledTimes(1);
+		expect(crashed).toHaveBeenCalledWith('crashed');
 		expect(workers[0].terminated).toBe(true);
 		expect(core.generation).toBeNull();
 		await expect(core.openUnit('crypto')).rejects.toMatchObject({ code: 'unit_unavailable' });
 		expect(workers).toHaveLength(2);
+	});
+
+	// contract-test: supporting surface=gui.web assertions=apps.execution.direct-shared-contract
+	it('tells listeners that a planned terminate is not a crash', async () => {
+		const workers: ReturnType<typeof fakeWorker>[] = [];
+		const core = createSharedCoreClient(() => { const worker = fakeWorker({}); workers.push(worker); return worker; });
+		await core.prewarm();
+		const stopped = vi.fn();
+		core.onCrash(stopped);
+		core.terminate();
+		expect(stopped).toHaveBeenCalledTimes(1);
+		expect(stopped).toHaveBeenCalledWith('terminated');
+		expect(workers[0].terminated).toBe(true);
 	});
 
 	// contract-test: supporting surface=gui.web assertions=apps.execution.direct-shared-contract

@@ -5,6 +5,7 @@
 import { webcrypto } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import {
+	SHARED_CORE_TERMINATED,
 	WEB_CRYPTO_BULK_CHUNK,
 	WebCryptoClient,
 	type WebCryptoBatch,
@@ -13,7 +14,7 @@ import {
 } from '../crypto/webCryptoClient';
 import { createCryptoUnit, installCryptoUnit } from '../crypto/cryptoUnitInstaller';
 import { createSharedCryptoEndpoint } from '../crypto/sharedCryptoEndpoint';
-import { SharedCoreError, type SharedRustCore } from '../host/sharedCoreRegistry';
+import { SharedCoreError, type SharedCoreStop, type SharedRustCore } from '../host/sharedCoreRegistry';
 
 const KEY = new Uint8Array(32).fill(7);
 const OTHER_KEY = new Uint8Array(32).fill(9);
@@ -216,6 +217,51 @@ describe('web crypto client batching', () => {
 		errors.mockRestore();
 	});
 
+	it('counts and reports a crash as an error', async () => {
+		const first = loopback();
+		const client = new WebCryptoClient(() => first.endpoint);
+		const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+		await client.call('decryptChatContent', new Uint8Array(KEY), 'a');
+		first.fail(new Error('shared_core_crashed'));
+		expect(errors).toHaveBeenCalledTimes(1);
+		expect(client.stats.workerErrors).toBe(1);
+		errors.mockRestore();
+	});
+
+	it('treats a planned shared core stop as a normal close, not as a failed unit', async () => {
+		const first = loopback();
+		const second = loopback();
+		const factory = vi.fn<() => WebCryptoEndpoint>().mockReturnValueOnce(first.endpoint).mockReturnValueOnce(second.endpoint);
+		const client = new WebCryptoClient(factory);
+		const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+		const warnings = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+		await client.call('decryptChatContent', new Uint8Array(KEY), 'a');
+		first.fail(new Error(SHARED_CORE_TERMINATED));
+		expect(errors).not.toHaveBeenCalled();
+		expect(warnings).not.toHaveBeenCalled();
+		expect(client.stats.workerErrors).toBe(0);
+		await expect(client.call('decryptChatContent', new Uint8Array(KEY), 'b')).resolves.toBe('plain:b');
+		expect(factory).toHaveBeenCalledTimes(2);
+		errors.mockRestore();
+		warnings.mockRestore();
+	});
+
+	it('warns about calls a planned shared core stop cut off and rejects them', async () => {
+		const first = loopback();
+		const client = new WebCryptoClient(() => ({ ...first.endpoint, send: () => undefined }));
+		const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+		const warnings = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+		const pending = client.call('decryptChatContent', new Uint8Array(KEY), 'a');
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		first.fail(new Error(SHARED_CORE_TERMINATED));
+		await expect(pending).rejects.toThrow(SHARED_CORE_TERMINATED);
+		expect(errors).not.toHaveBeenCalled();
+		expect(warnings).toHaveBeenCalledTimes(1);
+		expect(client.stats.workerErrors).toBe(0);
+		errors.mockRestore();
+		warnings.mockRestore();
+	});
+
 	it('does not start a unit just to clear caches', async () => {
 		const factory = vi.fn(() => loopback().endpoint);
 		const client = new WebCryptoClient(factory);
@@ -227,13 +273,13 @@ describe('web crypto client batching', () => {
 });
 
 function fakeCore(open: () => Promise<MessagePort>, hold: () => () => void = () => () => undefined) {
-	const crash = new Set<() => void>();
+	const crash = new Set<(stop: SharedCoreStop) => void>();
 	const core = {
 		openUnit: vi.fn(open),
 		hold,
-		onCrash: (listener: () => void) => { crash.add(listener); return () => crash.delete(listener); }
+		onCrash: (listener: (stop: SharedCoreStop) => void) => { crash.add(listener); return () => crash.delete(listener); }
 	} as unknown as SharedRustCore;
-	return { core, crash: () => { for (const listener of crash) listener(); } };
+	return { core, crash: (stop: SharedCoreStop = 'crashed') => { for (const listener of crash) listener(stop); } };
 }
 
 describe('shared crypto endpoint', () => {
@@ -279,6 +325,18 @@ describe('shared crypto endpoint', () => {
 		crashing.crash();
 		crashing.crash();
 		expect(onCrash).toHaveBeenCalledTimes(1);
+		expect(onCrash.mock.calls[0][0].message).toBe('shared_core_crashed');
+		channel.port2.close();
+	});
+
+	it('reports a planned shared core stop with its own reason', async () => {
+		const channel = new MessageChannel();
+		const stopping = fakeCore(async () => channel.port1);
+		const onStop = vi.fn();
+		createSharedCryptoEndpoint(stopping.core).onFailure(onStop);
+		stopping.crash('terminated');
+		expect(onStop).toHaveBeenCalledTimes(1);
+		expect(onStop.mock.calls[0][0].message).toBe(SHARED_CORE_TERMINATED);
 		channel.port2.close();
 	});
 });

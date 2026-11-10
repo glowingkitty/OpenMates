@@ -22,6 +22,7 @@
 		panelState, // Import the new central panel state store
 		settingsDeepLink,
 		activeChatStore, // Import for deep linking
+		activeChatUrlRevision,
 		dispatchEmbedFullscreen,
 		setCanonicalFullscreenRoute, // Import for embed deep linking
 		embedFullscreenRouteStore,
@@ -1570,6 +1571,9 @@
 	$effect(() => {
 		const activeChatComponent = activeChat;
 		const storeChatId = $activeChatStore;
+		// With the Rust core the address bar follows a selection asynchronously; look again once it
+		// has settled, because a kept hash (Workflow handoff) is only readable then.
+		void $activeChatUrlRevision;
 		const hashChatId = activeChatStore.getChatIdFromHash();
 		const activeChatId = storeChatId || hashChatId;
 		if (

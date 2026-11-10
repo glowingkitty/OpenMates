@@ -59,7 +59,8 @@ export interface WebCryptoReplies { version: 1; responses: WebCryptoResponse[] }
 /**
  * Page end of the crypto unit. `send` may be called before the port is open
  * (the endpoint buffers); `onReplies` receives every reply batch; `onFailure`
- * fires once when the unit can no longer answer (open refused, Worker crash).
+ * fires once when the unit can no longer answer (open refused, Worker crash,
+ * or `SHARED_CORE_TERMINATED` when the shared Worker was stopped on purpose).
  */
 export interface WebCryptoEndpoint {
   send(batch: WebCryptoBatch): void;
@@ -68,6 +69,8 @@ export interface WebCryptoEndpoint {
   close(): void;
 }
 export type WebCryptoEndpointFactory = () => WebCryptoEndpoint;
+/** Failure message of a unit whose shared Worker was stopped on purpose (idle retirement, logout). */
+export const SHARED_CORE_TERMINATED = 'shared_core_terminated';
 
 export type ChatContentResult = string | null | { fingerprintMismatch: string };
 export interface ShareKeyResult {
@@ -164,8 +167,18 @@ export class WebCryptoClient {
   }
 
   private fail(error: Error): void {
-    this.stats.workerErrors += 1;
-    console.error('[RustWebCrypto] Crypto unit failed; its pending Rust crypto calls reject', error);
+    // A planned stop of the shared Worker is not a fault of the unit: the next call opens a fresh
+    // one. Only calls the stop cut off are worth a warning; a crash stays an error.
+    if (error.message === SHARED_CORE_TERMINATED) {
+      if (this.pending.size > 0) {
+        console.warn(`[RustWebCrypto] Shared core was stopped on purpose; ${this.pending.size} pending Rust crypto calls reject`);
+      } else {
+        console.debug('[RustWebCrypto] Crypto unit closed with the planned shared core stop; the next call opens a fresh one');
+      }
+    } else {
+      this.stats.workerErrors += 1;
+      console.error('[RustWebCrypto] Crypto unit failed; its pending Rust crypto calls reject', error);
+    }
     for (const waiter of this.pending.values()) waiter.reject(error);
     this.pending.clear();
     this.bulkMembers.clear();

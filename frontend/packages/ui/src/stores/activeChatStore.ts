@@ -52,6 +52,21 @@ const RUST_URL_PLAN: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1" 
   !(typeof localStorage !== "undefined" && localStorage.getItem("openmates_rust_core_chatstate") === "ts");
 /** Serialises Rust-planned updates so facts are read in call order. */
 let rustUrlQueue: Promise<void> = Promise.resolve();
+/**
+ * The shared core answers a URL plan asynchronously, so for a moment the address bar still
+ * carries the previous chat. Until the queued plans are applied, hash readers get the chat the
+ * last selection asked for; otherwise a just-closed chat is reopened from its stale hash and a
+ * just-selected chat is dropped as a stale navigation target.
+ */
+let pendingHashSelection: { chatId: string | null } | null = null;
+let pendingHashUpdates = 0;
+
+/**
+ * Advances each time queued Rust URL plans have been applied and the address bar is current
+ * again. A plan may keep the hash (Workflow handoff, Apps route), so effects that fall back to
+ * the hash read this to look at the real hash once it has settled. Never advances flag-off.
+ */
+export const activeChatUrlRevision = writable(0);
 
 /**
  * Facts of one URL update, read from the current location. Chat navigation uses
@@ -110,13 +125,21 @@ function applyUrlPlan(plan: UrlPlan, targetHash: string) {
 function updateUrlHash(chatId: string | null) {
   if (!browser) return;
   if (RUST_URL_PLAN) {
+    pendingHashUpdates += 1;
+    pendingHashSelection = { chatId };
     rustUrlQueue = rustUrlQueue
       .then(async () => {
         const facts = urlPlanFacts(chatId);
         const { chatStateCall } = await import("../services/rustCore/chatState/chatListUnitClient");
         applyUrlPlan(await chatStateCall("selectionUrlPlan", facts), facts.targetHash);
       })
-      .catch((error) => console.error("[activeChatStore] Rust URL plan failed", error));
+      .catch((error) => console.error("[activeChatStore] Rust URL plan failed", error))
+      .finally(() => {
+        pendingHashUpdates -= 1;
+        if (pendingHashUpdates > 0) return;
+        pendingHashSelection = null;
+        activeChatUrlRevision.update((revision) => revision + 1);
+      });
     return;
   }
   const facts = urlPlanFacts(chatId);
@@ -139,6 +162,7 @@ export function isProgrammaticHashUpdate(): boolean {
  */
 function readChatIdFromHash(): string | null {
   if (!browser) return null;
+  if (pendingHashSelection) return pendingHashSelection.chatId;
   return getHashParam(window.location.hash, "chat-id") || null;
 }
 

@@ -9,8 +9,9 @@
  * Supervision: a Worker `error`/`messageerror` marks the realm crashed, rejects
  * every pending control request with `shared_core_crashed`, drops the bound
  * generation, notifies `onCrash` listeners (units must treat their ports as
- * dead) and terminates the Worker. `terminate()` (logout / account switch hard
- * stop) notifies the same listeners. The next request respawns a fresh Worker.
+ * dead) and terminates the Worker. `terminate()` (idle retirement, logout /
+ * account switch hard stop) notifies the same listeners; each listener is told
+ * which of the two happened. The next request respawns a fresh Worker.
  * There is no TypeScript fallback.
  *
  * Unit ports: every `createUnitPort` over a port this client opened is ended
@@ -40,6 +41,9 @@ export class SharedCoreError extends Error {
 	}
 }
 
+/** Why the shared Worker stopped: it failed (`crashed`) or was stopped on purpose (`terminated`). */
+export type SharedCoreStop = 'crashed' | 'terminated';
+
 export interface OpenUnitOptions {
 	/** Extra ports in their documented positions (core: ports[1] is the recovery port). */
 	extraPorts?: MessagePort[];
@@ -59,8 +63,11 @@ export interface SharedRustCore {
 	prewarm(signal?: AbortSignal): Promise<void>;
 	/** Current bound generation, null when unbound or after a crash. */
 	readonly generation: number | null;
-	/** Subscribes to crash notifications; returns the unsubscribe function. */
-	onCrash(listener: () => void): () => void;
+	/**
+	 * Subscribes to Worker stops, a crash and a planned `terminate()` alike (unit ports are dead
+	 * either way); the listener gets the reason. Returns the unsubscribe function.
+	 */
+	onCrash(listener: (stop: SharedCoreStop) => void): () => void;
 	/** Terminates the Worker (logout / account switch hard stop). Later calls respawn. */
 	terminate(): void;
 	/**
@@ -88,7 +95,7 @@ export function createSharedCoreClient(
 	options: { timeoutMs?: number } = {}
 ): SharedRustCore {
 	const timeoutMs = options.timeoutMs ?? SHARED_CORE_CONTROL_TIMEOUT_MS;
-	const crashListeners = new Set<() => void>();
+	const crashListeners = new Set<(stop: SharedCoreStop) => void>();
 	const pending = new Map<number, Pending>();
 	let worker: SharedWorkerEndpoint | null = null;
 	let generation: number | null = null;
@@ -131,7 +138,7 @@ export function createSharedCoreClient(
 		failed.terminate();
 		failAll('shared_core_crashed');
 		retirePorts('unit_retired');
-		for (const listener of [...crashListeners]) listener();
+		for (const listener of [...crashListeners]) listener('crashed');
 	}
 	function endpoint(): SharedWorkerEndpoint {
 		if (worker) return worker;
@@ -247,7 +254,7 @@ export function createSharedCoreClient(
 			active?.terminate();
 			failAll('shared_core_terminated');
 			retirePorts('unit_retired');
-			if (active) for (const listener of [...crashListeners]) listener();
+			if (active) for (const listener of [...crashListeners]) listener('terminated');
 		}
 	};
 }
