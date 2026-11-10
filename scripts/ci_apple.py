@@ -1,7 +1,7 @@
 """Apple lanes for the isolated GitHub runner (`ci_coordinator.py submit --mode apple-core|apple-unit|apple-ui`).
 
-All modes run on a GitHub-hosted `macos-26` arm64 runner with Xcode 26.2 (the
-version apple/project.yml pins), never on the shared dev host.
+All modes run on a GitHub-hosted `macos-26` arm64 runner with Xcode 26.6 (the
+version the release Mac builds with), never on the shared dev host.
 
   apple-core   target `all`: build PairOpaqueBridge for the iOS simulator slice
                with the Xcode build-phase semantics, run the openmates-sdk (packages/openmates-rust) and

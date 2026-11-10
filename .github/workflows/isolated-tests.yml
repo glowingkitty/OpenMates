@@ -1155,7 +1155,8 @@ jobs:
           retention-days: 7
           path: subject/docs/images/user-guide/apps/**/*.jpg
   apple:
-    # Apple lanes run on GitHub-hosted arm64 macOS with the Xcode that apple/project.yml pins.
+    # Apple lanes run on GitHub-hosted arm64 macOS with the Xcode the release Mac uses (26.6);
+    # the older 26.2 rejects code that Xcode compiles there (stricter `sending` checks).
     # They use no secrets, accounts or runtime seeds; macOS minutes are free for this public repo.
     # apple-unit and apple-ui share the Xcode steps (every `inputs.mode != 'apple-core'` step).
     if: github.event_name == 'workflow_dispatch' && startsWith(inputs.mode, 'apple-')
@@ -1171,7 +1172,7 @@ jobs:
       OPENMATES_CI_SOURCE_ROOT: ${{ github.workspace }}/subject
       CI_HARNESS_COMMIT: ${{ inputs.harness_commit || github.sha }}
       CI_SPECS_JSON: ${{ inputs.specs_json }}
-      DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         timeout-minutes: 15
@@ -1252,7 +1253,7 @@ jobs:
           echo "BUILD_COMMIT_SHA=$EXPECTED_SOURCE" >> "$GITHUB_ENV"
       - name: Select Xcode and report toolchain
         run: |
-          test -d "$DEVELOPER_DIR" || { echo "::error::Xcode 26.2 missing at $DEVELOPER_DIR"; ls /Applications | grep -i xcode; exit 1; }
+          test -d "$DEVELOPER_DIR" || { echo "::error::Xcode 26.6 missing at $DEVELOPER_DIR"; ls /Applications | grep -i xcode; exit 1; }
           xcodebuild -version
           xcrun simctl list devices available | grep -i "iPhone 17" | head -3 || true
       - name: Install Rust toolchain

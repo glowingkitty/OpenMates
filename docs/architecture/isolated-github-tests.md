@@ -51,8 +51,8 @@ leaving detached generation jobs waiting indefinitely.
 ## Apple lanes (macOS runners)
 
 `apple-core`, `apple-unit` and `apple-ui` run in the separate `apple` job of
-`isolated-tests.yml` on GitHub-hosted `macos-26` arm64 with Xcode 26.2
-(`DEVELOPER_DIR`, the version `apple/project.yml` pins). They use no secrets,
+`isolated-tests.yml` on GitHub-hosted `macos-26` arm64 with Xcode 26.6
+(`DEVELOPER_DIR`, the version the release Mac builds with). They use no secrets,
 accounts or runtime seeds, and are not lightweight (macOS runners are scarce, about 5 concurrent).
 `scripts/ci_apple.py` runs the steps and writes the usual `ci-results.json`;
 `ci_results.py` admits only `macos-26` GitHub-hosted runners for these modes.
