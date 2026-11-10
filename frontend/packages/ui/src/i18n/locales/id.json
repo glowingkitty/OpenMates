@@ -844,6 +844,12 @@
         "description": {
           "text": "Temukan ikon SVG sumber terbuka dari koleksi Iconify."
         }
+      },
+      "embroidery": {
+        "text": "Bordir",
+        "description": {
+          "text": "Ubah grafik vektor menjadi file mesin bordir dengan pratinjau jahitan."
+        }
       }
     },
     "electronics": {
@@ -7686,6 +7692,179 @@
     },
     "slides_no_content": {
       "text": "Belum ada slide."
+    },
+    "design": {
+      "embroidery": {
+        "threads": {
+          "text": "Benang"
+        },
+        "stitches_unit": {
+          "text": "tusuk"
+        },
+        "stitches": {
+          "text": "Tusukan"
+        },
+        "size": {
+          "text": "Ukuran"
+        },
+        "thread_changes": {
+          "text": "Pergantian benang"
+        },
+        "sewing_time": {
+          "text": "Perkiraan waktu menyulam"
+        },
+        "fits_hoop": {
+          "text": "Muat di bingkai {hoop}"
+        },
+        "too_large_for_hoop": {
+          "text": "Terlalu besar untuk bingkai {hoop}"
+        },
+        "fabric": {
+          "text": "Kain"
+        },
+        "fabric_light": {
+          "text": "Ringan"
+        },
+        "fabric_normal": {
+          "text": "Normal"
+        },
+        "fabric_stretchy": {
+          "text": "Elastis"
+        },
+        "hoop": {
+          "text": "Bingkai"
+        },
+        "hoop_none": {
+          "text": "Tanpa bingkai"
+        },
+        "width": {
+          "text": "Lebar (mm)"
+        },
+        "width_range": {
+          "text": "Masukkan lebar antara {min} dan {max} mm."
+        },
+        "apply": {
+          "text": "Terapkan"
+        },
+        "change_settings": {
+          "text": "Ubah pengaturan"
+        },
+        "download": {
+          "text": "Unduh"
+        },
+        "notes": {
+          "text": "Catatan"
+        },
+        "reworked_hint": {
+          "text": "Grafik disesuaikan untuk sulaman sebelum tusukan dibuat."
+        },
+        "view": {
+          "text": "Jenis pratinjau"
+        },
+        "view_stitches": {
+          "text": "Tusukan"
+        },
+        "view_graphic": {
+          "text": "Grafik"
+        },
+        "converting": {
+          "text": "Mengonversi ke tusukan…"
+        },
+        "failed": {
+          "text": "Konversi gagal"
+        },
+        "preview_unavailable": {
+          "text": "Pratinjau tusukan tidak dapat dimuat."
+        },
+        "apply_request": {
+          "text": "Konversi ulang desain sulaman ini: lebar {width} mm, bingkai {hoop}, kain {fabric}."
+        },
+        "error": {
+          "generic": {
+            "text": "Desain ini tidak dapat dikonversi."
+          },
+          "unreadable_svg": {
+            "text": "Grafik tidak dapat dibaca."
+          },
+          "nothing_to_sew": {
+            "text": "Setelah latar belakang dihilangkan, tidak ada yang bisa disulam."
+          },
+          "too_many_stitches": {
+            "text": "Desain memiliki terlalu banyak tusukan. Coba ukuran lebih kecil atau grafik yang lebih sederhana."
+          },
+          "timeout": {
+            "text": "Konversi terlalu lama dan dihentikan."
+          },
+          "sandbox_failed": {
+            "text": "Konversi tidak dapat diselesaikan. Silakan coba lagi."
+          },
+          "invalid_source": {
+            "text": "Sumbernya bukan grafik vektor. Buat grafik vektor terlebih dahulu."
+          }
+        },
+        "note": {
+          "background_removed": {
+            "text": "Latar belakang dihilangkan"
+          },
+          "tiny_details_removed": {
+            "text": "Detail yang terlalu kecil untuk disulam dihilangkan ({count})"
+          },
+          "lines_running": {
+            "text": "Garis yang lebih tipis dari 1 mm disulam sebagai satu garis jahitan tipis"
+          },
+          "gradient_flattened": {
+            "text": "Gradasi warna disulam dengan satu warna polos"
+          },
+          "effects_ignored": {
+            "text": "Efek blur, bayangan, dan mask dihilangkan"
+          },
+          "image_left_out": {
+            "text": "Gambar piksel yang tertanam dihilangkan"
+          },
+          "text_left_out": {
+            "text": "Teks yang tidak digambar sebagai bentuk dihilangkan"
+          },
+          "rotate_for_hoop": {
+            "text": "Putar desain 90 derajat agar muat di bingkai"
+          },
+          "rework_failed": {
+            "text": "Desain tidak dapat disesuaikan secara otomatis, jadi dikonversi apa adanya"
+          },
+          "instructions_applied": {
+            "text": "Permintaanmu telah diterapkan"
+          },
+          "solved_gradient_or_filter": {
+            "text": "Gradasi dan filter diganti dengan warna polos"
+          },
+          "solved_live_text": {
+            "text": "Teks diubah menjadi bentuk yang bisa disulam"
+          },
+          "solved_embedded_pixel_image": {
+            "text": "Gambar piksel yang tertanam digambar ulang sebagai bentuk"
+          },
+          "solved_detail_below_1mm": {
+            "text": "Detail kecil diperbesar atau dihilangkan"
+          },
+          "solved_more_than_12_colours": {
+            "text": "Warna dikurangi menjadi maksimal 12 benang"
+          },
+          "unsolved_gradient_or_filter": {
+            "text": "Masih berisi gradasi atau filter; hasilnya mungkin tidak rapi di bagian itu"
+          },
+          "unsolved_live_text": {
+            "text": "Masih berisi teks asli; hasilnya mungkin tidak rapi di bagian itu"
+          },
+          "unsolved_embedded_pixel_image": {
+            "text": "Masih berisi gambar piksel tertanam; hasilnya mungkin tidak rapi di bagian itu"
+          },
+          "unsolved_detail_below_1mm": {
+            "text": "Masih berisi detail lebih kecil dari 1 mm; hasilnya mungkin tidak rapi di bagian itu"
+          },
+          "unsolved_more_than_12_colours": {
+            "text": "Masih berisi lebih dari 12 warna benang; hasilnya mungkin tidak rapi di bagian itu"
+          }
+        }
+      }
     }
   },
   "embeds_input": {},
@@ -15370,6 +15549,16 @@
       "banner": {
         "sample_data": {
           "text": "Data contoh — beginilah tampilan hasil asli dari skill ini."
+        }
+      },
+      "design": {
+        "embroidery": {
+          "1": {
+            "text": "Logo rubah untuk topi, 90 mm"
+          },
+          "2": {
+            "text": "Emblem rubah pada kain elastis, 60 mm"
+          }
         }
       }
     },

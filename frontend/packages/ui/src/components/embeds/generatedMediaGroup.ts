@@ -4,7 +4,8 @@ export function isGeneratedMediaSkill(appId: unknown, skillId: unknown): boolean
   return (
     (appId === 'images' && ['generate', 'generate_draft', 'vectorize'].includes(skillId)) ||
     (appId === 'audio' && ['generate', 'speak'].includes(skillId)) ||
-    (['music', 'videos', 'models3d'].includes(appId) && skillId === 'generate')
+    (['music', 'videos', 'models3d'].includes(appId) && skillId === 'generate') ||
+    (appId === 'design' && skillId === 'embroidery')
   );
 }
 

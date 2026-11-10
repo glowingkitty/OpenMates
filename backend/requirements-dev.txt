@@ -20,3 +20,10 @@ pytest-asyncio==1.3.0
 
 # Execute Redis allowance scripts locally without a shared service.
 fakeredis[lua]==2.38.0
+
+# Geometry of the design.embroidery sandbox pipeline (backend/apps/design/embroidery_sandbox).
+# These run only inside the E2B embroidery template in production; they are test-only
+# here so test_embroidery_geometry.py runs in CI instead of skipping. Keep the pins
+# equal to PIP_PACKAGES in backend/scripts/build_embroidery_template.py.
+shapely==2.1.1
+svgelements==1.9.6

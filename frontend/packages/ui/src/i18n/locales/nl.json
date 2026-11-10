@@ -844,6 +844,12 @@
         "description": {
           "text": "Vind open-source SVG-iconen uit Iconify-collecties."
         }
+      },
+      "embroidery": {
+        "text": "Borduren",
+        "description": {
+          "text": "Zet een vectorafbeelding om in borduurmachinebestanden met steekvoorbeeld."
+        }
       }
     },
     "electronics": {
@@ -7686,6 +7692,179 @@
     },
     "slides_no_content": {
       "text": "Nog geen dia's."
+    },
+    "design": {
+      "embroidery": {
+        "threads": {
+          "text": "Garens"
+        },
+        "stitches_unit": {
+          "text": "steken"
+        },
+        "stitches": {
+          "text": "Steken"
+        },
+        "size": {
+          "text": "Formaat"
+        },
+        "thread_changes": {
+          "text": "Garenwisselingen"
+        },
+        "sewing_time": {
+          "text": "Geschatte borduurtijd"
+        },
+        "fits_hoop": {
+          "text": "Past in raam {hoop}"
+        },
+        "too_large_for_hoop": {
+          "text": "Te groot voor raam {hoop}"
+        },
+        "fabric": {
+          "text": "Stof"
+        },
+        "fabric_light": {
+          "text": "Licht"
+        },
+        "fabric_normal": {
+          "text": "Normaal"
+        },
+        "fabric_stretchy": {
+          "text": "Rekbaar"
+        },
+        "hoop": {
+          "text": "Borduurraam"
+        },
+        "hoop_none": {
+          "text": "Geen raam"
+        },
+        "width": {
+          "text": "Breedte (mm)"
+        },
+        "width_range": {
+          "text": "Voer een breedte in van {min} tot {max} mm."
+        },
+        "apply": {
+          "text": "Toepassen"
+        },
+        "change_settings": {
+          "text": "Instellingen wijzigen"
+        },
+        "download": {
+          "text": "Downloaden"
+        },
+        "notes": {
+          "text": "Opmerkingen"
+        },
+        "reworked_hint": {
+          "text": "De afbeelding is vóór het borduren aangepast voor borduurwerk."
+        },
+        "view": {
+          "text": "Soort voorbeeld"
+        },
+        "view_stitches": {
+          "text": "Steken"
+        },
+        "view_graphic": {
+          "text": "Afbeelding"
+        },
+        "converting": {
+          "text": "Omzetten naar steken…"
+        },
+        "failed": {
+          "text": "Omzetten mislukt"
+        },
+        "preview_unavailable": {
+          "text": "Het stekenvoorbeeld kon niet worden geladen."
+        },
+        "apply_request": {
+          "text": "Zet dit borduurontwerp opnieuw om: breedte {width} mm, borduurraam {hoop}, stof {fabric}."
+        },
+        "error": {
+          "generic": {
+            "text": "Dit ontwerp kon niet worden omgezet."
+          },
+          "unreadable_svg": {
+            "text": "De afbeelding kon niet worden gelezen."
+          },
+          "nothing_to_sew": {
+            "text": "Zonder de achtergrond blijft er niets te borduren over."
+          },
+          "too_many_stitches": {
+            "text": "Het ontwerp heeft te veel steken. Probeer een kleiner formaat of een eenvoudigere afbeelding."
+          },
+          "timeout": {
+            "text": "Het omzetten duurde te lang en is gestopt."
+          },
+          "sandbox_failed": {
+            "text": "Het omzetten kon niet worden voltooid. Probeer het opnieuw."
+          },
+          "invalid_source": {
+            "text": "De bron is geen vectorafbeelding. Maak eerst een vectorafbeelding."
+          }
+        },
+        "note": {
+          "background_removed": {
+            "text": "Achtergrond weggelaten"
+          },
+          "tiny_details_removed": {
+            "text": "Details die te klein zijn om te borduren zijn weggelaten ({count})"
+          },
+          "lines_running": {
+            "text": "Lijnen dunner dan 1 mm worden geborduurd als een dunne steeklijn"
+          },
+          "gradient_flattened": {
+            "text": "Kleurverlopen worden in één effen kleur geborduurd"
+          },
+          "effects_ignored": {
+            "text": "Vervagings-, schaduw- en maskereffecten zijn weggelaten"
+          },
+          "image_left_out": {
+            "text": "Een ingesloten pixelafbeelding is weggelaten"
+          },
+          "text_left_out": {
+            "text": "Tekst die niet als vormen is getekend is weggelaten"
+          },
+          "rotate_for_hoop": {
+            "text": "Draai het ontwerp 90 graden zodat het in het borduurraam past"
+          },
+          "rework_failed": {
+            "text": "Het ontwerp kon niet automatisch worden aangepast en is daarom ongewijzigd omgezet"
+          },
+          "instructions_applied": {
+            "text": "Je wensen zijn toegepast"
+          },
+          "solved_gradient_or_filter": {
+            "text": "Kleurverlopen en filters zijn vervangen door effen kleuren"
+          },
+          "solved_live_text": {
+            "text": "Tekst is omgezet in borduurbare vormen"
+          },
+          "solved_embedded_pixel_image": {
+            "text": "De ingesloten pixelafbeelding is opnieuw getekend als vormen"
+          },
+          "solved_detail_below_1mm": {
+            "text": "Kleine details zijn vergroot of weggelaten"
+          },
+          "solved_more_than_12_colours": {
+            "text": "Het aantal kleuren is verminderd tot maximaal 12 garens"
+          },
+          "unsolved_gradient_or_filter": {
+            "text": "Bevat nog kleurverlopen of filters; het resultaat borduurt daar mogelijk niet netjes"
+          },
+          "unsolved_live_text": {
+            "text": "Bevat nog echte tekst; het resultaat borduurt daar mogelijk niet netjes"
+          },
+          "unsolved_embedded_pixel_image": {
+            "text": "Bevat nog een ingesloten pixelafbeelding; het resultaat borduurt daar mogelijk niet netjes"
+          },
+          "unsolved_detail_below_1mm": {
+            "text": "Bevat nog details kleiner dan 1 mm; het resultaat borduurt daar mogelijk niet netjes"
+          },
+          "unsolved_more_than_12_colours": {
+            "text": "Bevat nog meer dan 12 garenkleuren; het resultaat borduurt daar mogelijk niet netjes"
+          }
+        }
+      }
     }
   },
   "embeds_input": {},
@@ -15370,6 +15549,16 @@
       "banner": {
         "sample_data": {
           "text": "Voorbeeldgegevens — zo zien echte resultaten van deze skill eruit."
+        }
+      },
+      "design": {
+        "embroidery": {
+          "1": {
+            "text": "Vossenlogo voor een pet, 90 mm"
+          },
+          "2": {
+            "text": "Vossenbadge op rekbare stof, 60 mm"
+          }
         }
       }
     },

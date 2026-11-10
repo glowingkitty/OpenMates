@@ -844,6 +844,12 @@
         "description": {
           "text": "Iconify コレクションからオープンソースの SVG アイコンを探します。"
         }
+      },
+      "embroidery": {
+        "text": "刺しゅう",
+        "description": {
+          "text": "ベクター画像を、ステッチプレビュー付きの刺しゅうミシン用ファイルに変換します。"
+        }
       }
     },
     "electronics": {
@@ -7686,6 +7692,179 @@
     },
     "slides_no_content": {
       "text": "まだスライドがありません。"
+    },
+    "design": {
+      "embroidery": {
+        "threads": {
+          "text": "糸"
+        },
+        "stitches_unit": {
+          "text": "針"
+        },
+        "stitches": {
+          "text": "ステッチ数"
+        },
+        "size": {
+          "text": "サイズ"
+        },
+        "thread_changes": {
+          "text": "糸替え"
+        },
+        "sewing_time": {
+          "text": "推定刺繍時間"
+        },
+        "fits_hoop": {
+          "text": "枠 {hoop} に収まります"
+        },
+        "too_large_for_hoop": {
+          "text": "枠 {hoop} には大きすぎます"
+        },
+        "fabric": {
+          "text": "生地"
+        },
+        "fabric_light": {
+          "text": "薄手"
+        },
+        "fabric_normal": {
+          "text": "標準"
+        },
+        "fabric_stretchy": {
+          "text": "ストレッチ"
+        },
+        "hoop": {
+          "text": "枠"
+        },
+        "hoop_none": {
+          "text": "枠なし"
+        },
+        "width": {
+          "text": "幅（mm）"
+        },
+        "width_range": {
+          "text": "幅は {min}〜{max} mm で入力してください。"
+        },
+        "apply": {
+          "text": "適用"
+        },
+        "change_settings": {
+          "text": "設定を変更"
+        },
+        "download": {
+          "text": "ダウンロード"
+        },
+        "notes": {
+          "text": "メモ"
+        },
+        "reworked_hint": {
+          "text": "刺繍用に図を調整してからステッチを作成しました。"
+        },
+        "view": {
+          "text": "プレビューの種類"
+        },
+        "view_stitches": {
+          "text": "ステッチ"
+        },
+        "view_graphic": {
+          "text": "図"
+        },
+        "converting": {
+          "text": "ステッチに変換中…"
+        },
+        "failed": {
+          "text": "変換に失敗しました"
+        },
+        "preview_unavailable": {
+          "text": "ステッチのプレビューを読み込めませんでした。"
+        },
+        "apply_request": {
+          "text": "この刺繍デザインをもう一度変換してください：幅 {width} mm、枠 {hoop}、生地 {fabric}。"
+        },
+        "error": {
+          "generic": {
+            "text": "このデザインを変換できませんでした。"
+          },
+          "unreadable_svg": {
+            "text": "図を読み取れませんでした。"
+          },
+          "nothing_to_sew": {
+            "text": "背景を除くと刺繍するものが残りません。"
+          },
+          "too_many_stitches": {
+            "text": "ステッチ数が多すぎます。サイズを小さくするか、より単純な図にしてください。"
+          },
+          "timeout": {
+            "text": "変換に時間がかかりすぎたため停止しました。"
+          },
+          "sandbox_failed": {
+            "text": "変換を完了できませんでした。もう一度お試しください。"
+          },
+          "invalid_source": {
+            "text": "元データはベクター画像ではありません。先にベクター画像を作成してください。"
+          }
+        },
+        "note": {
+          "background_removed": {
+            "text": "背景を除外しました"
+          },
+          "tiny_details_removed": {
+            "text": "刺繍するには小さすぎる細部は省略しました（{count}）"
+          },
+          "lines_running": {
+            "text": "1 mm未満の細い線は細いステッチラインで刺繍します"
+          },
+          "gradient_flattened": {
+            "text": "グラデーションは単色で刺繍します"
+          },
+          "effects_ignored": {
+            "text": "ぼかし・影・マスクの効果は省略しました"
+          },
+          "image_left_out": {
+            "text": "埋め込まれたピクセル画像は省略しました"
+          },
+          "text_left_out": {
+            "text": "図形として描かれていない文字は省略しました"
+          },
+          "rotate_for_hoop": {
+            "text": "デザインを90度回転すると刺繍枠に収まります"
+          },
+          "rework_failed": {
+            "text": "デザインを自動調整できなかったため、そのまま変換しました"
+          },
+          "instructions_applied": {
+            "text": "ご希望を反映しました"
+          },
+          "solved_gradient_or_filter": {
+            "text": "グラデーションとフィルターを単色に置き換えました"
+          },
+          "solved_live_text": {
+            "text": "文字を刺繍できる図形に変換しました"
+          },
+          "solved_embedded_pixel_image": {
+            "text": "埋め込まれたピクセル画像を図形として描き直しました"
+          },
+          "solved_detail_below_1mm": {
+            "text": "小さな細部を拡大するか省略しました"
+          },
+          "solved_more_than_12_colours": {
+            "text": "色数を最大12色の糸に減らしました"
+          },
+          "unsolved_gradient_or_filter": {
+            "text": "グラデーションまたはフィルターが残っており、その部分はきれいに刺繍できない可能性があります"
+          },
+          "unsolved_live_text": {
+            "text": "文字がそのまま残っており、その部分はきれいに刺繍できない可能性があります"
+          },
+          "unsolved_embedded_pixel_image": {
+            "text": "埋め込まれたピクセル画像が残っており、その部分はきれいに刺繍できない可能性があります"
+          },
+          "unsolved_detail_below_1mm": {
+            "text": "1 mm未満の細部が残っており、その部分はきれいに刺繍できない可能性があります"
+          },
+          "unsolved_more_than_12_colours": {
+            "text": "糸の色が12色を超えたままで、その部分はきれいに刺繍できない可能性があります"
+          }
+        }
+      }
     }
   },
   "embeds_input": {},
@@ -15370,6 +15549,16 @@
       "banner": {
         "sample_data": {
           "text": "サンプルデータ — このスキルの実際の結果は、このように表示されます。"
+        }
+      },
+      "design": {
+        "embroidery": {
+          "1": {
+            "text": "キャップ用のキツネロゴ、90 mm"
+          },
+          "2": {
+            "text": "ストレッチ生地のキツネワッペン、60 mm"
+          }
         }
       }
     },

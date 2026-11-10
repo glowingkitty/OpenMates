@@ -844,6 +844,12 @@
         "description": {
           "text": "Iconify 컬렉션에서 오픈소스 SVG 아이콘을 찾으세요."
         }
+      },
+      "embroidery": {
+        "text": "자수",
+        "description": {
+          "text": "벡터 그래픽을 스티치 미리보기가 포함된 자수기 파일로 변환합니다."
+        }
       }
     },
     "electronics": {
@@ -7686,6 +7692,179 @@
     },
     "slides_no_content": {
       "text": "아직 슬라이드가 없습니다."
+    },
+    "design": {
+      "embroidery": {
+        "threads": {
+          "text": "실"
+        },
+        "stitches_unit": {
+          "text": "땀"
+        },
+        "stitches": {
+          "text": "스티치 수"
+        },
+        "size": {
+          "text": "크기"
+        },
+        "thread_changes": {
+          "text": "실 교체"
+        },
+        "sewing_time": {
+          "text": "예상 자수 시간"
+        },
+        "fits_hoop": {
+          "text": "{hoop} 자수틀에 맞음"
+        },
+        "too_large_for_hoop": {
+          "text": "{hoop} 자수틀에는 너무 큼"
+        },
+        "fabric": {
+          "text": "원단"
+        },
+        "fabric_light": {
+          "text": "얇음"
+        },
+        "fabric_normal": {
+          "text": "보통"
+        },
+        "fabric_stretchy": {
+          "text": "신축성"
+        },
+        "hoop": {
+          "text": "자수틀"
+        },
+        "hoop_none": {
+          "text": "자수틀 없음"
+        },
+        "width": {
+          "text": "너비(mm)"
+        },
+        "width_range": {
+          "text": "너비를 {min}~{max}mm 사이로 입력하세요."
+        },
+        "apply": {
+          "text": "적용"
+        },
+        "change_settings": {
+          "text": "설정 변경"
+        },
+        "download": {
+          "text": "다운로드"
+        },
+        "notes": {
+          "text": "참고"
+        },
+        "reworked_hint": {
+          "text": "스티치를 만들기 전에 그래픽을 자수에 맞게 조정했습니다."
+        },
+        "view": {
+          "text": "미리보기 유형"
+        },
+        "view_stitches": {
+          "text": "스티치"
+        },
+        "view_graphic": {
+          "text": "그래픽"
+        },
+        "converting": {
+          "text": "스티치로 변환 중…"
+        },
+        "failed": {
+          "text": "변환 실패"
+        },
+        "preview_unavailable": {
+          "text": "스티치 미리보기를 불러올 수 없습니다."
+        },
+        "apply_request": {
+          "text": "이 자수 디자인을 다시 변환해 주세요: 너비 {width}mm, 자수틀 {hoop}, 원단 {fabric}."
+        },
+        "error": {
+          "generic": {
+            "text": "이 디자인을 변환할 수 없습니다."
+          },
+          "unreadable_svg": {
+            "text": "그래픽을 읽을 수 없습니다."
+          },
+          "nothing_to_sew": {
+            "text": "배경을 제외하면 수놓을 내용이 없습니다."
+          },
+          "too_many_stitches": {
+            "text": "스티치가 너무 많습니다. 크기를 줄이거나 더 단순한 그래픽을 사용해 보세요."
+          },
+          "timeout": {
+            "text": "변환 시간이 너무 오래 걸려 중단되었습니다."
+          },
+          "sandbox_failed": {
+            "text": "변환을 완료하지 못했습니다. 다시 시도해 주세요."
+          },
+          "invalid_source": {
+            "text": "원본이 벡터 그래픽이 아닙니다. 먼저 벡터 그래픽을 만드세요."
+          }
+        },
+        "note": {
+          "background_removed": {
+            "text": "배경 제외됨"
+          },
+          "tiny_details_removed": {
+            "text": "자수하기에 너무 작은 세부 요소는 제외되었습니다({count})"
+          },
+          "lines_running": {
+            "text": "1mm보다 가는 선은 얇은 스티치 선으로 자수됩니다"
+          },
+          "gradient_flattened": {
+            "text": "그라데이션은 단색으로 자수됩니다"
+          },
+          "effects_ignored": {
+            "text": "흐림, 그림자, 마스크 효과는 제외되었습니다"
+          },
+          "image_left_out": {
+            "text": "포함된 픽셀 이미지는 제외되었습니다"
+          },
+          "text_left_out": {
+            "text": "도형으로 그려지지 않은 텍스트는 제외되었습니다"
+          },
+          "rotate_for_hoop": {
+            "text": "디자인을 90도 돌리면 자수틀에 들어갑니다"
+          },
+          "rework_failed": {
+            "text": "디자인을 자동으로 조정하지 못해 그대로 변환했습니다"
+          },
+          "instructions_applied": {
+            "text": "요청하신 내용이 반영되었습니다"
+          },
+          "solved_gradient_or_filter": {
+            "text": "그라데이션과 필터가 단색으로 대체되었습니다"
+          },
+          "solved_live_text": {
+            "text": "텍스트가 자수할 수 있는 도형으로 변환되었습니다"
+          },
+          "solved_embedded_pixel_image": {
+            "text": "포함된 픽셀 이미지가 도형으로 다시 그려졌습니다"
+          },
+          "solved_detail_below_1mm": {
+            "text": "작은 세부 요소가 확대되거나 제외되었습니다"
+          },
+          "solved_more_than_12_colours": {
+            "text": "색상이 최대 12개의 실로 줄어들었습니다"
+          },
+          "unsolved_gradient_or_filter": {
+            "text": "그라데이션이나 필터가 남아 있어 해당 부분이 깔끔하게 자수되지 않을 수 있습니다"
+          },
+          "unsolved_live_text": {
+            "text": "텍스트가 그대로 남아 있어 해당 부분이 깔끔하게 자수되지 않을 수 있습니다"
+          },
+          "unsolved_embedded_pixel_image": {
+            "text": "포함된 픽셀 이미지가 남아 있어 해당 부분이 깔끔하게 자수되지 않을 수 있습니다"
+          },
+          "unsolved_detail_below_1mm": {
+            "text": "1mm보다 작은 세부 요소가 남아 있어 해당 부분이 깔끔하게 자수되지 않을 수 있습니다"
+          },
+          "unsolved_more_than_12_colours": {
+            "text": "실 색상이 아직 12개를 넘어 해당 부분이 깔끔하게 자수되지 않을 수 있습니다"
+          }
+        }
+      }
     }
   },
   "embeds_input": {},
@@ -15370,6 +15549,16 @@
       "banner": {
         "sample_data": {
           "text": "샘플 데이터 — 이 스킬의 실제 결과는 이와 같습니다."
+        }
+      },
+      "design": {
+        "embroidery": {
+          "1": {
+            "text": "모자용 여우 로고, 90mm"
+          },
+          "2": {
+            "text": "신축성 원단의 여우 패치, 60mm"
+          }
         }
       }
     },

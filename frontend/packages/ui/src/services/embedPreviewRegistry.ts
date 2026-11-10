@@ -713,6 +713,14 @@ resolvers.set("models3d-generated-model", async ({ embedId, decodedContent, embe
   } };
 });
 
+resolvers.set("design-embroidery", async ({ embedId, decodedContent, embedData, onFullscreen }) => {
+  const { default: component } = await import('../components/embeds/design/DesignEmbroideryEmbedPreview.svelte');
+  return { component, props: {
+    id: embedId, content: decodedContent,
+    status: normalizeStatus(embedData.status ?? decodedContent.status), onFullscreen,
+  } };
+});
+
 // An app-skill-use generation parent has no media file of its own. Resolve it
 // as a group card; concrete generated_* children keep their leaf previews.
 for (const [appId, skillIds, leafKey] of [
@@ -721,6 +729,7 @@ for (const [appId, skillIds, leafKey] of [
   ['music', ['generate'], 'music-generated-music'],
   ['videos', ['generate'], 'videos-generated-video'],
   ['models3d', ['generate'], 'models3d-generated-model'],
+  ['design', ['embroidery'], 'design-embroidery'],
 ] as const) {
   const leafResolver = resolvers.get(leafKey);
   for (const skillId of skillIds) {

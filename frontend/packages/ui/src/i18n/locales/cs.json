@@ -844,6 +844,12 @@
         "description": {
           "text": "Najděte open-source SVG ikony z kolekcí Iconify."
         }
+      },
+      "embroidery": {
+        "text": "Výšivka",
+        "description": {
+          "text": "Převeďte vektorovou grafiku na soubory pro vyšívací stroj s náhledem stehů."
+        }
       }
     },
     "electronics": {
@@ -7686,6 +7692,179 @@
     },
     "slides_no_content": {
       "text": "Zatím žádné snímky."
+    },
+    "design": {
+      "embroidery": {
+        "threads": {
+          "text": "Nitě"
+        },
+        "stitches_unit": {
+          "text": "stehů"
+        },
+        "stitches": {
+          "text": "Stehy"
+        },
+        "size": {
+          "text": "Velikost"
+        },
+        "thread_changes": {
+          "text": "Výměny nití"
+        },
+        "sewing_time": {
+          "text": "Odhadovaný čas vyšívání"
+        },
+        "fits_hoop": {
+          "text": "Vejde se do rámu {hoop}"
+        },
+        "too_large_for_hoop": {
+          "text": "Příliš velké pro rám {hoop}"
+        },
+        "fabric": {
+          "text": "Látka"
+        },
+        "fabric_light": {
+          "text": "Lehká"
+        },
+        "fabric_normal": {
+          "text": "Běžná"
+        },
+        "fabric_stretchy": {
+          "text": "Elastická"
+        },
+        "hoop": {
+          "text": "Rám"
+        },
+        "hoop_none": {
+          "text": "Bez rámu"
+        },
+        "width": {
+          "text": "Šířka (mm)"
+        },
+        "width_range": {
+          "text": "Zadejte šířku od {min} do {max} mm."
+        },
+        "apply": {
+          "text": "Použít"
+        },
+        "change_settings": {
+          "text": "Změnit nastavení"
+        },
+        "download": {
+          "text": "Stáhnout"
+        },
+        "notes": {
+          "text": "Poznámky"
+        },
+        "reworked_hint": {
+          "text": "Grafika byla před vytvořením stehů upravena pro vyšívání."
+        },
+        "view": {
+          "text": "Typ náhledu"
+        },
+        "view_stitches": {
+          "text": "Stehy"
+        },
+        "view_graphic": {
+          "text": "Grafika"
+        },
+        "converting": {
+          "text": "Převádí se na stehy…"
+        },
+        "failed": {
+          "text": "Převod selhal"
+        },
+        "preview_unavailable": {
+          "text": "Náhled stehů se nepodařilo načíst."
+        },
+        "apply_request": {
+          "text": "Převeď tento vyšívací návrh znovu: šířka {width} mm, rám {hoop}, látka {fabric}."
+        },
+        "error": {
+          "generic": {
+            "text": "Tento návrh se nepodařilo převést."
+          },
+          "unreadable_svg": {
+            "text": "Grafiku se nepodařilo přečíst."
+          },
+          "nothing_to_sew": {
+            "text": "Po vynechání pozadí není co vyšívat."
+          },
+          "too_many_stitches": {
+            "text": "Návrh má příliš mnoho stehů. Zkuste menší velikost nebo jednodušší grafiku."
+          },
+          "timeout": {
+            "text": "Převod trval příliš dlouho a byl zastaven."
+          },
+          "sandbox_failed": {
+            "text": "Převod se nepodařilo dokončit. Zkuste to znovu."
+          },
+          "invalid_source": {
+            "text": "Zdroj není vektorová grafika. Nejprve vytvořte vektorovou grafiku."
+          }
+        },
+        "note": {
+          "background_removed": {
+            "text": "Pozadí vynecháno"
+          },
+          "tiny_details_removed": {
+            "text": "Detaily příliš malé na vyšití byly vynechány ({count})"
+          },
+          "lines_running": {
+            "text": "Čáry tenčí než 1 mm se vyšívají jako tenká stehová linka"
+          },
+          "gradient_flattened": {
+            "text": "Barevné přechody se vyšívají jednou plnou barvou"
+          },
+          "effects_ignored": {
+            "text": "Efekty rozmazání, stínu a masky byly vynechány"
+          },
+          "image_left_out": {
+            "text": "Vložený rastrový obrázek byl vynechán"
+          },
+          "text_left_out": {
+            "text": "Text, který není nakreslen jako tvary, byl vynechán"
+          },
+          "rotate_for_hoop": {
+            "text": "Otočte vzor o 90 stupňů, aby se vešel do rámu"
+          },
+          "rework_failed": {
+            "text": "Vzor se nepodařilo automaticky upravit, proto byl převeden beze změny"
+          },
+          "instructions_applied": {
+            "text": "Vaše přání byla zohledněna"
+          },
+          "solved_gradient_or_filter": {
+            "text": "Přechody a filtry byly nahrazeny plnými barvami"
+          },
+          "solved_live_text": {
+            "text": "Text byl převeden na tvary k vyšití"
+          },
+          "solved_embedded_pixel_image": {
+            "text": "Vložený rastrový obrázek byl překreslen jako tvary"
+          },
+          "solved_detail_below_1mm": {
+            "text": "Drobné detaily byly zvětšeny nebo vynechány"
+          },
+          "solved_more_than_12_colours": {
+            "text": "Počet barev byl snížen na nejvýše 12 nití"
+          },
+          "unsolved_gradient_or_filter": {
+            "text": "Stále obsahuje přechody nebo filtry; výsledek se tam nemusí vyšít čistě"
+          },
+          "unsolved_live_text": {
+            "text": "Stále obsahuje živý text; výsledek se tam nemusí vyšít čistě"
+          },
+          "unsolved_embedded_pixel_image": {
+            "text": "Stále obsahuje vložený rastrový obrázek; výsledek se tam nemusí vyšít čistě"
+          },
+          "unsolved_detail_below_1mm": {
+            "text": "Stále obsahuje detaily menší než 1 mm; výsledek se tam nemusí vyšít čistě"
+          },
+          "unsolved_more_than_12_colours": {
+            "text": "Stále obsahuje více než 12 barev nití; výsledek se tam nemusí vyšít čistě"
+          }
+        }
+      }
     }
   },
   "embeds_input": {},
@@ -15370,6 +15549,16 @@
       "banner": {
         "sample_data": {
           "text": "Ukázková data — takto vypadají skutečné výsledky této dovednosti."
+        }
+      },
+      "design": {
+        "embroidery": {
+          "1": {
+            "text": "Logo lišky na čepici, 90 mm"
+          },
+          "2": {
+            "text": "Nášivka lišky na elastické látce, 60 mm"
+          }
         }
       }
     },

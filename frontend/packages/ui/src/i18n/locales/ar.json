@@ -844,6 +844,12 @@
         "description": {
           "text": "ابحث عن أيقونات SVG مفتوحة المصدر من مجموعات Iconify."
         }
+      },
+      "embroidery": {
+        "text": "تطريز",
+        "description": {
+          "text": "حوّل رسمًا متجهيًا إلى ملفات لآلة التطريز مع معاينة للغرز."
+        }
       }
     },
     "electronics": {
@@ -7686,6 +7692,179 @@
     },
     "slides_no_content": {
       "text": "لا توجد شرائح بعد."
+    },
+    "design": {
+      "embroidery": {
+        "threads": {
+          "text": "الخيوط"
+        },
+        "stitches_unit": {
+          "text": "غرزة"
+        },
+        "stitches": {
+          "text": "الغرز"
+        },
+        "size": {
+          "text": "الحجم"
+        },
+        "thread_changes": {
+          "text": "تغييرات الخيط"
+        },
+        "sewing_time": {
+          "text": "وقت التطريز المقدّر"
+        },
+        "fits_hoop": {
+          "text": "يناسب إطار {hoop}"
+        },
+        "too_large_for_hoop": {
+          "text": "أكبر من إطار {hoop}"
+        },
+        "fabric": {
+          "text": "القماش"
+        },
+        "fabric_light": {
+          "text": "خفيف"
+        },
+        "fabric_normal": {
+          "text": "عادي"
+        },
+        "fabric_stretchy": {
+          "text": "مطاطي"
+        },
+        "hoop": {
+          "text": "الإطار"
+        },
+        "hoop_none": {
+          "text": "بدون إطار"
+        },
+        "width": {
+          "text": "العرض (مم)"
+        },
+        "width_range": {
+          "text": "أدخل عرضًا بين {min} و{max} مم."
+        },
+        "apply": {
+          "text": "تطبيق"
+        },
+        "change_settings": {
+          "text": "تغيير الإعدادات"
+        },
+        "download": {
+          "text": "تنزيل"
+        },
+        "notes": {
+          "text": "ملاحظات"
+        },
+        "reworked_hint": {
+          "text": "تم تعديل الرسم ليناسب التطريز قبل إنشاء الغرز."
+        },
+        "view": {
+          "text": "نوع المعاينة"
+        },
+        "view_stitches": {
+          "text": "الغرز"
+        },
+        "view_graphic": {
+          "text": "الرسم"
+        },
+        "converting": {
+          "text": "جارٍ التحويل إلى غرز…"
+        },
+        "failed": {
+          "text": "فشل التحويل"
+        },
+        "preview_unavailable": {
+          "text": "تعذّر تحميل معاينة الغرز."
+        },
+        "apply_request": {
+          "text": "حوّل تصميم التطريز هذا مرة أخرى: العرض {width} مم، الإطار {hoop}، القماش {fabric}."
+        },
+        "error": {
+          "generic": {
+            "text": "تعذّر تحويل هذا التصميم."
+          },
+          "unreadable_svg": {
+            "text": "تعذّرت قراءة الرسم."
+          },
+          "nothing_to_sew": {
+            "text": "لا يوجد ما يمكن تطريزه بعد إزالة الخلفية."
+          },
+          "too_many_stitches": {
+            "text": "يحتوي التصميم على غرز كثيرة جدًا. جرّب حجمًا أصغر أو رسمًا أبسط."
+          },
+          "timeout": {
+            "text": "استغرق التحويل وقتًا طويلًا فتم إيقافه."
+          },
+          "sandbox_failed": {
+            "text": "تعذّر إكمال التحويل. حاول مرة أخرى."
+          },
+          "invalid_source": {
+            "text": "المصدر ليس رسمًا متجهيًا. أنشئ رسمًا متجهيًا أولًا."
+          }
+        },
+        "note": {
+          "background_removed": {
+            "text": "تم استبعاد الخلفية"
+          },
+          "tiny_details_removed": {
+            "text": "تم استبعاد التفاصيل الصغيرة جدًا للتطريز ({count})"
+          },
+          "lines_running": {
+            "text": "الخطوط الأرفع من 1 مم تُطرَّز كخط غرز رفيع"
+          },
+          "gradient_flattened": {
+            "text": "التدرجات اللونية تُطرَّز بلون واحد ثابت"
+          },
+          "effects_ignored": {
+            "text": "تم استبعاد تأثيرات التمويه والظل والقناع"
+          },
+          "image_left_out": {
+            "text": "تم استبعاد صورة بكسلات مضمّنة"
+          },
+          "text_left_out": {
+            "text": "تم استبعاد النص غير المرسوم كأشكال"
+          },
+          "rotate_for_hoop": {
+            "text": "أدِر التصميم 90 درجة ليناسب إطار التطريز"
+          },
+          "rework_failed": {
+            "text": "تعذّر تعديل التصميم تلقائيًا، لذلك تم تحويله كما هو"
+          },
+          "instructions_applied": {
+            "text": "تم تطبيق رغباتك"
+          },
+          "solved_gradient_or_filter": {
+            "text": "تم استبدال التدرجات والمرشحات بألوان ثابتة"
+          },
+          "solved_live_text": {
+            "text": "تم تحويل النص إلى أشكال قابلة للتطريز"
+          },
+          "solved_embedded_pixel_image": {
+            "text": "تمت إعادة رسم صورة البكسلات المضمّنة كأشكال"
+          },
+          "solved_detail_below_1mm": {
+            "text": "تم تكبير التفاصيل الصغيرة أو استبعادها"
+          },
+          "solved_more_than_12_colours": {
+            "text": "تم تقليل الألوان إلى 12 خيطًا كحد أقصى"
+          },
+          "unsolved_gradient_or_filter": {
+            "text": "لا يزال يحتوي على تدرجات أو مرشحات؛ وقد لا يُطرَّز الناتج بشكل نظيف هناك"
+          },
+          "unsolved_live_text": {
+            "text": "لا يزال يحتوي على نص غير محوَّل؛ وقد لا يُطرَّز الناتج بشكل نظيف هناك"
+          },
+          "unsolved_embedded_pixel_image": {
+            "text": "لا تزال تحتوي على صورة بكسلات مضمّنة؛ وقد لا يُطرَّز الناتج بشكل نظيف هناك"
+          },
+          "unsolved_detail_below_1mm": {
+            "text": "لا تزال تحتوي على تفاصيل أصغر من 1 مم؛ وقد لا يُطرَّز الناتج بشكل نظيف هناك"
+          },
+          "unsolved_more_than_12_colours": {
+            "text": "لا يزال يحتوي على أكثر من 12 لون خيط؛ وقد لا يُطرَّز الناتج بشكل نظيف هناك"
+          }
+        }
+      }
     }
   },
   "embeds_input": {},
@@ -15370,6 +15549,16 @@
       "banner": {
         "sample_data": {
           "text": "بيانات تجريبية — هكذا تبدو النتائج الحقيقية لهذه المهارة."
+        }
+      },
+      "design": {
+        "embroidery": {
+          "1": {
+            "text": "شعار ثعلب لقبعة، 90 مم"
+          },
+          "2": {
+            "text": "رقعة ثعلب على قماش مطاطي، 60 مم"
+          }
         }
       }
     },

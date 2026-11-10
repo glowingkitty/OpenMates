@@ -844,6 +844,12 @@
         "description": {
           "text": "从 Iconify 图标库中查找开源 SVG 图标。"
         }
+      },
+      "embroidery": {
+        "text": "刺绣",
+        "description": {
+          "text": "将矢量图形转换为带针迹预览的刺绣机文件。"
+        }
       }
     },
     "electronics": {
@@ -7686,6 +7692,179 @@
     },
     "slides_no_content": {
       "text": "还没有幻灯片。"
+    },
+    "design": {
+      "embroidery": {
+        "threads": {
+          "text": "绣线"
+        },
+        "stitches_unit": {
+          "text": "针"
+        },
+        "stitches": {
+          "text": "针数"
+        },
+        "size": {
+          "text": "尺寸"
+        },
+        "thread_changes": {
+          "text": "换线次数"
+        },
+        "sewing_time": {
+          "text": "预计绣制时间"
+        },
+        "fits_hoop": {
+          "text": "适合 {hoop} 绣框"
+        },
+        "too_large_for_hoop": {
+          "text": "超出 {hoop} 绣框"
+        },
+        "fabric": {
+          "text": "面料"
+        },
+        "fabric_light": {
+          "text": "轻薄"
+        },
+        "fabric_normal": {
+          "text": "普通"
+        },
+        "fabric_stretchy": {
+          "text": "弹性"
+        },
+        "hoop": {
+          "text": "绣框"
+        },
+        "hoop_none": {
+          "text": "不使用绣框"
+        },
+        "width": {
+          "text": "宽度（毫米）"
+        },
+        "width_range": {
+          "text": "请输入 {min} 到 {max} 毫米之间的宽度。"
+        },
+        "apply": {
+          "text": "应用"
+        },
+        "change_settings": {
+          "text": "更改设置"
+        },
+        "download": {
+          "text": "下载"
+        },
+        "notes": {
+          "text": "说明"
+        },
+        "reworked_hint": {
+          "text": "这张图形在绣制前已针对刺绣做了调整。"
+        },
+        "view": {
+          "text": "预览类型"
+        },
+        "view_stitches": {
+          "text": "针迹"
+        },
+        "view_graphic": {
+          "text": "图形"
+        },
+        "converting": {
+          "text": "正在转换为针迹…"
+        },
+        "failed": {
+          "text": "转换失败"
+        },
+        "preview_unavailable": {
+          "text": "无法加载针迹预览。"
+        },
+        "apply_request": {
+          "text": "请重新转换这个刺绣设计：宽度 {width} 毫米，绣框 {hoop}，面料 {fabric}。"
+        },
+        "error": {
+          "generic": {
+            "text": "无法转换此设计。"
+          },
+          "unreadable_svg": {
+            "text": "无法读取该图形。"
+          },
+          "nothing_to_sew": {
+            "text": "去掉背景后没有可绣的内容。"
+          },
+          "too_many_stitches": {
+            "text": "设计的针数过多。请尝试更小的尺寸或更简单的图形。"
+          },
+          "timeout": {
+            "text": "转换耗时过长，已停止。"
+          },
+          "sandbox_failed": {
+            "text": "转换未能完成。请重试。"
+          },
+          "invalid_source": {
+            "text": "来源不是矢量图形。请先创建矢量图形。"
+          }
+        },
+        "note": {
+          "background_removed": {
+            "text": "已去除背景"
+          },
+          "tiny_details_removed": {
+            "text": "太小而无法绣制的细节已省略（{count}）"
+          },
+          "lines_running": {
+            "text": "细于 1 毫米的线条绣成细针迹线"
+          },
+          "gradient_flattened": {
+            "text": "渐变色绣成单一纯色"
+          },
+          "effects_ignored": {
+            "text": "模糊、阴影和蒙版效果已省略"
+          },
+          "image_left_out": {
+            "text": "嵌入的像素图像已省略"
+          },
+          "text_left_out": {
+            "text": "未转为图形的文字已省略"
+          },
+          "rotate_for_hoop": {
+            "text": "将图案旋转 90 度即可放入绣框"
+          },
+          "rework_failed": {
+            "text": "无法自动调整图案，因此按原样转换"
+          },
+          "instructions_applied": {
+            "text": "已按你的要求调整"
+          },
+          "solved_gradient_or_filter": {
+            "text": "渐变和滤镜已替换为纯色"
+          },
+          "solved_live_text": {
+            "text": "文字已转换为可绣制的图形"
+          },
+          "solved_embedded_pixel_image": {
+            "text": "嵌入的像素图像已重绘为图形"
+          },
+          "solved_detail_below_1mm": {
+            "text": "过小的细节已放大或省略"
+          },
+          "solved_more_than_12_colours": {
+            "text": "颜色已减少到最多 12 种线"
+          },
+          "unsolved_gradient_or_filter": {
+            "text": "仍含有渐变或滤镜，此处可能无法绣得整齐"
+          },
+          "unsolved_live_text": {
+            "text": "仍含有未转曲的文字，此处可能无法绣得整齐"
+          },
+          "unsolved_embedded_pixel_image": {
+            "text": "仍含有嵌入的像素图像，此处可能无法绣得整齐"
+          },
+          "unsolved_detail_below_1mm": {
+            "text": "仍含有小于 1 毫米的细节，此处可能无法绣得整齐"
+          },
+          "unsolved_more_than_12_colours": {
+            "text": "仍超过 12 种线色，此处可能无法绣得整齐"
+          }
+        }
+      }
     }
   },
   "embeds_input": {},
@@ -15370,6 +15549,16 @@
       "banner": {
         "sample_data": {
           "text": "示例数据 — 这就是此技能真实结果的样子。"
+        }
+      },
+      "design": {
+        "embroidery": {
+          "1": {
+            "text": "帽子用狐狸标志，90 毫米"
+          },
+          "2": {
+            "text": "弹性面料上的狐狸布贴，60 毫米"
+          }
         }
       }
     },

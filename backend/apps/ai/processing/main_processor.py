@@ -1349,6 +1349,7 @@ ASYNC_SKILLS = ASYNC_SKILL_INLINE_WAIT_SKILLS | {
     ("audio", "speak"),
     ("code", "run"),
     ("code", "image_to_html"),
+    ("design", "embroidery"),
     ("images", "generate"),
     ("images", "generate_draft"),
     ("images", "vectorize"),

@@ -844,6 +844,12 @@
         "description": {
           "text": "Encontre ícones SVG de código aberto nas coleções do Iconify."
         }
+      },
+      "embroidery": {
+        "text": "Bordado",
+        "description": {
+          "text": "Transforme um gráfico vetorial em arquivos para máquina de bordar com prévia dos pontos."
+        }
       }
     },
     "electronics": {
@@ -7713,6 +7719,179 @@
     },
     "slides_no_content": {
       "text": "Ainda não há slides."
+    },
+    "design": {
+      "embroidery": {
+        "threads": {
+          "text": "Linhas"
+        },
+        "stitches_unit": {
+          "text": "pontos"
+        },
+        "stitches": {
+          "text": "Pontos"
+        },
+        "size": {
+          "text": "Tamanho"
+        },
+        "thread_changes": {
+          "text": "Trocas de linha"
+        },
+        "sewing_time": {
+          "text": "Tempo de bordado estimado"
+        },
+        "fits_hoop": {
+          "text": "Cabe no bastidor {hoop}"
+        },
+        "too_large_for_hoop": {
+          "text": "Grande demais para o bastidor {hoop}"
+        },
+        "fabric": {
+          "text": "Tecido"
+        },
+        "fabric_light": {
+          "text": "Leve"
+        },
+        "fabric_normal": {
+          "text": "Normal"
+        },
+        "fabric_stretchy": {
+          "text": "Elástico"
+        },
+        "hoop": {
+          "text": "Bastidor"
+        },
+        "hoop_none": {
+          "text": "Sem bastidor"
+        },
+        "width": {
+          "text": "Largura (mm)"
+        },
+        "width_range": {
+          "text": "Insira uma largura de {min} a {max} mm."
+        },
+        "apply": {
+          "text": "Aplicar"
+        },
+        "change_settings": {
+          "text": "Alterar configurações"
+        },
+        "download": {
+          "text": "Baixar"
+        },
+        "notes": {
+          "text": "Observações"
+        },
+        "reworked_hint": {
+          "text": "O gráfico foi ajustado para bordado antes de gerar os pontos."
+        },
+        "view": {
+          "text": "Tipo de visualização"
+        },
+        "view_stitches": {
+          "text": "Pontos"
+        },
+        "view_graphic": {
+          "text": "Gráfico"
+        },
+        "converting": {
+          "text": "Convertendo em pontos…"
+        },
+        "failed": {
+          "text": "A conversão falhou"
+        },
+        "preview_unavailable": {
+          "text": "Não foi possível carregar a prévia dos pontos."
+        },
+        "apply_request": {
+          "text": "Converta este design de bordado novamente: largura {width} mm, bastidor {hoop}, tecido {fabric}."
+        },
+        "error": {
+          "generic": {
+            "text": "Não foi possível converter este design."
+          },
+          "unreadable_svg": {
+            "text": "Não foi possível ler o gráfico."
+          },
+          "nothing_to_sew": {
+            "text": "Não sobra nada para bordar depois de remover o fundo."
+          },
+          "too_many_stitches": {
+            "text": "O design tem pontos demais. Tente um tamanho menor ou um gráfico mais simples."
+          },
+          "timeout": {
+            "text": "A conversão demorou demais e foi interrompida."
+          },
+          "sandbox_failed": {
+            "text": "Não foi possível concluir a conversão. Tente novamente."
+          },
+          "invalid_source": {
+            "text": "A fonte não é um gráfico vetorial. Crie primeiro um gráfico vetorial."
+          }
+        },
+        "note": {
+          "background_removed": {
+            "text": "Fundo omitido"
+          },
+          "tiny_details_removed": {
+            "text": "Detalhes pequenos demais para bordar foram omitidos ({count})"
+          },
+          "lines_running": {
+            "text": "Linhas mais finas que 1 mm são bordadas como uma linha fina de pontos"
+          },
+          "gradient_flattened": {
+            "text": "Gradientes são bordados em uma única cor lisa"
+          },
+          "effects_ignored": {
+            "text": "Efeitos de desfoque, sombra e máscara foram omitidos"
+          },
+          "image_left_out": {
+            "text": "Uma imagem de pixels incorporada foi omitida"
+          },
+          "text_left_out": {
+            "text": "O texto que não está desenhado como formas foi omitido"
+          },
+          "rotate_for_hoop": {
+            "text": "Gire o desenho 90 graus para caber no bastidor"
+          },
+          "rework_failed": {
+            "text": "Não foi possível ajustar o desenho automaticamente, então ele foi convertido como está"
+          },
+          "instructions_applied": {
+            "text": "Seus pedidos foram aplicados"
+          },
+          "solved_gradient_or_filter": {
+            "text": "Gradientes e filtros foram substituídos por cores lisas"
+          },
+          "solved_live_text": {
+            "text": "O texto foi convertido em formas bordáveis"
+          },
+          "solved_embedded_pixel_image": {
+            "text": "A imagem de pixels incorporada foi redesenhada como formas"
+          },
+          "solved_detail_below_1mm": {
+            "text": "Detalhes pequenos foram ampliados ou omitidos"
+          },
+          "solved_more_than_12_colours": {
+            "text": "As cores foram reduzidas a no máximo 12 linhas"
+          },
+          "unsolved_gradient_or_filter": {
+            "text": "Ainda contém gradientes ou filtros; o resultado pode não ficar limpo ali"
+          },
+          "unsolved_live_text": {
+            "text": "Ainda contém texto editável; o resultado pode não ficar limpo ali"
+          },
+          "unsolved_embedded_pixel_image": {
+            "text": "Ainda contém uma imagem de pixels incorporada; o resultado pode não ficar limpo ali"
+          },
+          "unsolved_detail_below_1mm": {
+            "text": "Ainda contém detalhes menores que 1 mm; o resultado pode não ficar limpo ali"
+          },
+          "unsolved_more_than_12_colours": {
+            "text": "Ainda contém mais de 12 cores de linha; o resultado pode não ficar limpo ali"
+          }
+        }
+      }
     }
   },
   "embeds_input": {},
@@ -15397,6 +15576,16 @@
       "banner": {
         "sample_data": {
           "text": "Dados de exemplo — é assim que os resultados reais desta skill se parecem."
+        }
+      },
+      "design": {
+        "embroidery": {
+          "1": {
+            "text": "Logotipo de raposa para um boné, 90 mm"
+          },
+          "2": {
+            "text": "Patch de raposa em tecido elástico, 60 mm"
+          }
         }
       }
     },

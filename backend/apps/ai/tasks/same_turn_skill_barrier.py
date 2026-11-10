@@ -27,6 +27,7 @@ _MEDIA_CHILD_LIMITS = {
     ("audio", "speak"): (600, 3),
     ("videos", "generate"): (1800, 1),
     ("models3d", "generate"): (900, 1),
+    ("design", "embroidery"): (480, 1),
 }
 _OTHER_HARD_LIMITS = {
     ("videos", "create"): 1260,
@@ -214,7 +215,7 @@ def _generated_ref_bindings(
     successful_child = False
 
     def add_parent(ref: Any, embed_id: Any) -> None:
-        if app_id not in {"images", "audio", "music", "videos", "models3d"}:
+        if app_id not in {"images", "audio", "music", "videos", "models3d", "design"}:
             return
         if not isinstance(embed_id, str):
             return
@@ -384,7 +385,7 @@ async def restore_ordered_tool_results(request: Any, checkpoint: dict[str, Any])
         payload, _ = sanitize_text_payload_for_ascii_smuggling(payload)
         if job.get("app_id") in {"images", "audio", "music", "videos", "models3d"} or (
             job.get("app_id") == "code" and job.get("skill_id") == "image_to_html"
-        ):
+        ) or (job.get("app_id") == "design" and job.get("skill_id") == "embroidery"):
             refs, aliases = _generated_ref_bindings(
                 payload.get("results") or [], app_id=job.get("app_id"),
                 metadata=payload.get("request_metadata"),

@@ -203,6 +203,7 @@ TASK_CONFIG = [
     {'name': 'usage',       'module': 'backend.core.api.app.tasks.usage_archive_tasks'},  # Usage archive tasks
     {'name': 'app_images',  'module': 'backend.apps.images.tasks'},  # Image generation tasks
     {'name': 'app_images',  'module': 'backend.apps.models3d.tasks'},  # 3D generation tasks share media worker resources
+    {'name': 'app_images',  'module': 'backend.apps.design.tasks'},  # design.embroidery shares media worker resources
     {'name': 'app_music',   'module': 'backend.apps.music.tasks'},  # Music generation tasks
     {'name': 'app_music',   'module': 'backend.apps.audio.tasks'},  # Audio generate/speak tasks share music worker resources
     {'name': 'app_music',   'module': 'backend.apps.audio.assistant_speech.segment_task'},

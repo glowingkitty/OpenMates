@@ -71,7 +71,7 @@
 </script>
 
 <UnifiedEmbedPreview
-  {id} {appId} {skillId} skillIconName={appId === 'models3d' ? '3dmodels' : appId}
+  {id} {appId} {skillId} skillIconName={appId === 'models3d' ? '3dmodels' : appId === 'design' ? 'embroidery' : appId}
   {status} {skillName} {taskId} {isMobile} {onFullscreen}
   onEmbedDataUpdated={handleUpdated}
   customStatusText={count > 0 ? `${count} · ${$text('apps_workspace.results')}` : undefined}

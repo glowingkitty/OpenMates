@@ -1,0 +1,162 @@
+schema_version: 1
+id: feature.app-skill.design-embroidery
+version: 1
+status: draft
+title: Design Embroidery Skill
+summary: >
+  Design Embroidery turns a vector graphic that already exists in the chat into
+  files an embroidery machine can sew. The graphic is first prepared for thread,
+  then converted to stitches by Ink/Stitch in an isolated sandbox, and delivered
+  as one result with a stitch preview, the thread list, the key numbers and a
+  download for every machine format.
+
+inherits:
+  - architecture.app-skill-execution@1
+
+scope:
+  includes:
+    - design.embroidery calls made by the assistant in first-party chats originating from CLI, npm SDK, pip SDK, web, or Apple clients.
+    - Vector sources the server can read; a vector graphic made by images.generate or images.vectorize and an SVG code embed written in the chat.
+    - Preparation of the graphic for embroidery, by fixed rules and, only when those cannot solve a finding, by one model rework.
+    - Stitch generation and export to DST, PES, EXP, JEF and VP3 by Ink/Stitch inside a sandbox without internet access.
+    - The result embed; stitch preview, thread list, size, stitch count, thread changes, estimated sewing time, notes and per-format downloads.
+    - Billing of sandbox time and model rework.
+  excludes:
+    - Pixel images and uploaded SVG files as a direct source; a pixel image is first turned into a vector graphic by images.vectorize or images.generate.
+    - Editing single shapes, stitch types, stitch angles or thread order by direct manipulation in the result view.
+    - Sending the file to a machine, machine-specific hoop detection, and any guarantee of sewing quality on a particular fabric.
+    - Standalone public or developer REST access; the skill needs the chat's embed context.
+
+models:
+  EmbroideryRequest:
+    source:
+      type: embed_ref
+      required: true
+      constraints: {exact_conversation_reference: true, vector_graphic_only: true}
+    width_mm:
+      type: number
+      required: false
+      constraints: {min: 20, max: 400, default: 100, aspect_ratio_preserved: true}
+    hoop:
+      type: enum
+      required: false
+      values: ["100x100", "130x180", "160x260", "200x300", none]
+      default: none
+    fabric:
+      type: enum
+      required: false
+      values: [light, normal, stretchy]
+      default: normal
+    instructions:
+      type: string
+      required: false
+      constraints: {max_chars: 500, natural_language_design_wishes: true}
+
+  Preparation:
+    fixed_rules:
+      type: ordered_rule_list
+      required: true
+      values: [scale_to_width, drop_full_canvas_background, remove_hidden_overlap, group_same_thread_colour, wide_line_to_satin, thin_line_to_running_stitch, fabric_preset]
+    rework_findings:
+      type: finding_list
+      required: true
+      values: [gradient_or_filter, live_text, embedded_pixel_image, detail_below_1mm, more_than_12_colours]
+    max_rework_rounds:
+      type: integer
+      required: true
+      constraints: {value: 1}
+
+  EmbroideryResult:
+    files:
+      type: stored_file_set
+      required: true
+      values: [dst, pes, exp, jef, vp3, preview, prepared_svg, stitches]
+    threads:
+      type: ordered_list
+      required: true
+      constraints: {sewing_order: true, each: [colour_hex, name, stitch_count]}
+    width_mm: {type: number, required: true}
+    height_mm: {type: number, required: true}
+    stitch_count: {type: integer, required: true}
+    thread_changes: {type: integer, required: true}
+    estimated_minutes: {type: integer, required: true}
+    fits_hoop:
+      type: enum
+      required: true
+      values: ["yes", "no", not_checked]
+    notes:
+      type: list
+      required: true
+      constraints: {plain_language: true, names_every_change_made_to_the_design: true}
+
+  Sandbox:
+    runtime:
+      type: isolated_runtime
+      required: true
+      constraints: {internet: false, run_limit_seconds: 180, credits_per_started_minute: 5}
+    limits:
+      type: design_limits
+      required: true
+      constraints: {max_stitches: 150000, max_source_svg_chars: 400000}
+
+assertions:
+  - id: design-embroidery.request.vector-source
+    type: behavior
+    must: design.embroidery accepts the exact reference of a vector graphic visible in the conversation, either a generated or vectorized SVG image or an SVG code embed, and resolves it server-side. A pixel image, an uploaded file whose vector source is not kept, or an unknown reference fails explicitly and tells the assistant to create a vector graphic first; nothing is converted and nothing is charged.
+    depends_on: [models.EmbroideryRequest.source, examples.convert, examples.invalid_source]
+  - id: design-embroidery.prepare.fixed-rules
+    type: behavior
+    must: Before stitches are generated the graphic is prepared by fixed rules, always in the same order and with the same result for the same input. It is scaled to the requested width keeping its proportions; a shape that only fills the whole canvas as background is left out; parts of a shape hidden under another shape are cut away so no area is sewn twice; shapes of the same thread colour are sewn together wherever the stacking of the design allows it, so the number of thread changes is as low as the design permits; lines 1 mm and wider become satin bands and thinner lines become running stitches; the fabric preset sets stitch density, underlay and pull compensation. Every change that alters what the user will see is named in the notes.
+    depends_on: [models.Preparation.fixed_rules, models.EmbroideryRequest, examples.prepare]
+  - id: design-embroidery.prepare.model-rework-only-when-needed
+    type: behavior
+    must: A model reworks the graphic only when the fixed check finds something the rules cannot solve (a gradient or filter, live text, an embedded pixel image, details smaller than 1 mm, more than 12 thread colours) or when the request carries instructions. The rework returns a complete SVG that is validated and prepared by the same fixed rules; there is at most one rework round. When the reworked graphic still has such a finding, the conversion continues with the best valid graphic and the notes name what could not be solved. A graphic without findings and without instructions is converted without any model call.
+    depends_on: [models.Preparation.rework_findings, models.Preparation.max_rework_rounds, examples.rework]
+  - id: design-embroidery.convert.sandbox-inkstitch
+    type: invariant
+    must: Stitch generation and export run only inside an isolated sandbox without internet access, never in an API or worker process, and are stopped after 180 seconds. One conversion always produces all five machine formats (DST, PES, EXP, JEF, VP3) from the same stitch plan. A design that exceeds 150000 stitches, cannot be read, or contains nothing to sew fails explicitly instead of delivering partial files.
+    depends_on: [models.Sandbox, models.EmbroideryResult.files, examples.convert, examples.failure]
+  - id: design-embroidery.result.complete-and-truthful
+    type: invariant
+    must: A finished result carries the five machine files, a stitch preview rendered from the generated stitches, the prepared graphic, the threads in sewing order with colour, name and stitch count, the real sewn width and height in millimetres, the stitch count, the number of thread changes, an estimated sewing time, whether it fits the chosen hoop, and the notes. Every number describes the delivered files, never the source graphic or the request. A result is never shown as finished while any of the five files is missing.
+    depends_on: [models.EmbroideryResult, examples.convert]
+  - id: design-embroidery.result.view-and-download
+    type: behavior
+    must: The result card shows the stitch preview, the size and the stitch count; while converting it shows that the conversion is running. Opened, the result shows the large stitch preview with a switch to the prepared graphic, the thread list in sewing order, the numbers, the hoop fit and the notes, and one download per machine format whose saved file carries the matching file extension. A failed conversion shows the reason in plain words and offers no downloads. The size, hoop and fabric shown can be changed there; applying a change asks the assistant for a new conversion of the same graphic and leaves the existing result untouched.
+    depends_on: [models.EmbroideryResult, models.EmbroideryRequest, examples.view]
+  - id: design-embroidery.privacy.stored-like-generated-media
+    type: privacy
+    must: The source graphic leaves the platform only to the sandbox and, when a rework is needed, to the authoring model; every sandbox is destroyed when the conversion ends. Result files are stored encrypted like other generated media, belong to the requesting user, and are downloadable only by a signed-in owner or through the chat's existing sharing rules.
+    depends_on: [models.Sandbox.runtime, models.EmbroideryResult.files, examples.convert]
+  - id: design-embroidery.billing.metered
+    type: invariant
+    must: A conversion is charged 5 credits per started minute of sandbox time plus, when a model reworked the graphic, that call's reported tokens at that model's price. A conversion that fails before any file is delivered is not charged. The platform minimum charge applies.
+    depends_on: [models.Sandbox.runtime, examples.billing]
+  - id: design-embroidery.surface.semantic-parity
+    type: parity
+    must: First-party chats originating from CLI, npm SDK, pip SDK, web, or Apple trigger the same preparation, conversion, result content and billing; a client without a dedicated result view still lists the files, numbers and notes.
+    depends_on: [models.EmbroideryRequest, models.EmbroideryResult, examples.convert]
+
+applies_to:
+  rest_api:
+    required: false
+    role: design.embroidery is not a standalone public or developer API because it needs the chat's embed context to read the source graphic.
+  cli:
+    required: true
+    role: CLI chats trigger the skill through the chat pipeline and list the result files, numbers and notes.
+  sdks:
+    required: true
+    role: SDK chats trigger the skill through the chat pipeline and receive the same result content.
+    implementations:
+      npm: {required: true}
+      pip: {required: true}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: true}
+
+examples:
+  file: examples.yml
+  required_groups: [convert, invalid_source, prepare, rework, failure, view, billing]

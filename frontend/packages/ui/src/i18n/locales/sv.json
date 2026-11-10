@@ -844,6 +844,12 @@
         "description": {
           "text": "Hitta SVG-ikoner med öppen källkod från Iconify-samlingar."
         }
+      },
+      "embroidery": {
+        "text": "Broderi",
+        "description": {
+          "text": "Gör om en vektorgrafik till filer för broderimaskiner med förhandsvisning av stygnen."
+        }
       }
     },
     "electronics": {
@@ -7686,6 +7692,179 @@
     },
     "slides_no_content": {
       "text": "Inga bilder än."
+    },
+    "design": {
+      "embroidery": {
+        "threads": {
+          "text": "Trådar"
+        },
+        "stitches_unit": {
+          "text": "stygn"
+        },
+        "stitches": {
+          "text": "Stygn"
+        },
+        "size": {
+          "text": "Storlek"
+        },
+        "thread_changes": {
+          "text": "Trådbyten"
+        },
+        "sewing_time": {
+          "text": "Beräknad broderitid"
+        },
+        "fits_hoop": {
+          "text": "Ryms i ramen {hoop}"
+        },
+        "too_large_for_hoop": {
+          "text": "För stor för ramen {hoop}"
+        },
+        "fabric": {
+          "text": "Tyg"
+        },
+        "fabric_light": {
+          "text": "Lätt"
+        },
+        "fabric_normal": {
+          "text": "Normalt"
+        },
+        "fabric_stretchy": {
+          "text": "Stretchigt"
+        },
+        "hoop": {
+          "text": "Ram"
+        },
+        "hoop_none": {
+          "text": "Ingen ram"
+        },
+        "width": {
+          "text": "Bredd (mm)"
+        },
+        "width_range": {
+          "text": "Ange en bredd mellan {min} och {max} mm."
+        },
+        "apply": {
+          "text": "Använd"
+        },
+        "change_settings": {
+          "text": "Ändra inställningar"
+        },
+        "download": {
+          "text": "Ladda ner"
+        },
+        "notes": {
+          "text": "Anteckningar"
+        },
+        "reworked_hint": {
+          "text": "Grafiken justerades för broderi innan stygnen skapades."
+        },
+        "view": {
+          "text": "Förhandsvisningstyp"
+        },
+        "view_stitches": {
+          "text": "Stygn"
+        },
+        "view_graphic": {
+          "text": "Grafik"
+        },
+        "converting": {
+          "text": "Omvandlar till stygn…"
+        },
+        "failed": {
+          "text": "Omvandlingen misslyckades"
+        },
+        "preview_unavailable": {
+          "text": "Förhandsvisningen av stygnen kunde inte laddas."
+        },
+        "apply_request": {
+          "text": "Konvertera den här broderidesignen igen: bredd {width} mm, ram {hoop}, tyg {fabric}."
+        },
+        "error": {
+          "generic": {
+            "text": "Designen kunde inte omvandlas."
+          },
+          "unreadable_svg": {
+            "text": "Grafiken kunde inte läsas."
+          },
+          "nothing_to_sew": {
+            "text": "Efter att bakgrunden tagits bort finns inget att brodera."
+          },
+          "too_many_stitches": {
+            "text": "Designen har för många stygn. Prova en mindre storlek eller en enklare grafik."
+          },
+          "timeout": {
+            "text": "Omvandlingen tog för lång tid och avbröts."
+          },
+          "sandbox_failed": {
+            "text": "Omvandlingen kunde inte slutföras. Försök igen."
+          },
+          "invalid_source": {
+            "text": "Källan är inte en vektorgrafik. Skapa först en vektorgrafik."
+          }
+        },
+        "note": {
+          "background_removed": {
+            "text": "Bakgrunden utelämnades"
+          },
+          "tiny_details_removed": {
+            "text": "Detaljer som var för små att brodera utelämnades ({count})"
+          },
+          "lines_running": {
+            "text": "Linjer tunnare än 1 mm broderas som en tunn stygnlinje"
+          },
+          "gradient_flattened": {
+            "text": "Toningar broderas i en enda enfärgad nyans"
+          },
+          "effects_ignored": {
+            "text": "Oskärpa-, skugg- och maskeffekter utelämnades"
+          },
+          "image_left_out": {
+            "text": "En inbäddad pixelbild utelämnades"
+          },
+          "text_left_out": {
+            "text": "Text som inte är ritad som former utelämnades"
+          },
+          "rotate_for_hoop": {
+            "text": "Vrid designen 90 grader så att den passar i ramen"
+          },
+          "rework_failed": {
+            "text": "Designen kunde inte justeras automatiskt och konverterades därför som den är"
+          },
+          "instructions_applied": {
+            "text": "Dina önskemål har tillämpats"
+          },
+          "solved_gradient_or_filter": {
+            "text": "Toningar och filter ersattes av enfärgade ytor"
+          },
+          "solved_live_text": {
+            "text": "Texten omvandlades till broderbara former"
+          },
+          "solved_embedded_pixel_image": {
+            "text": "Den inbäddade pixelbilden ritades om som former"
+          },
+          "solved_detail_below_1mm": {
+            "text": "Små detaljer förstorades eller utelämnades"
+          },
+          "solved_more_than_12_colours": {
+            "text": "Färgerna minskades till högst 12 trådar"
+          },
+          "unsolved_gradient_or_filter": {
+            "text": "Innehåller fortfarande toningar eller filter; resultatet kanske inte broderas rent där"
+          },
+          "unsolved_live_text": {
+            "text": "Innehåller fortfarande text; resultatet kanske inte broderas rent där"
+          },
+          "unsolved_embedded_pixel_image": {
+            "text": "Innehåller fortfarande en inbäddad pixelbild; resultatet kanske inte broderas rent där"
+          },
+          "unsolved_detail_below_1mm": {
+            "text": "Innehåller fortfarande detaljer mindre än 1 mm; resultatet kanske inte broderas rent där"
+          },
+          "unsolved_more_than_12_colours": {
+            "text": "Innehåller fortfarande fler än 12 trådfärger; resultatet kanske inte broderas rent där"
+          }
+        }
+      }
     }
   },
   "embeds_input": {},
@@ -15370,6 +15549,16 @@
       "banner": {
         "sample_data": {
           "text": "Exempeldata — så här ser riktiga resultat från den här färdigheten ut."
+        }
+      },
+      "design": {
+        "embroidery": {
+          "1": {
+            "text": "Rävlogga för en keps, 90 mm"
+          },
+          "2": {
+            "text": "Rävlapp på stretchigt tyg, 60 mm"
+          }
         }
       }
     },

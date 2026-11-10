@@ -222,6 +222,17 @@ specifications:
     - sdks.pip
     - gui.web
     - gui.apple
+  feature.app-skill.design-embroidery:
+    version: 1
+    status: draft
+    path: features/app-skills/design-embroidery
+    fingerprint: 83595e7891cefdda689d59e1a96c83266b359129590019087261015e330b8e6d
+    required_applies_to:
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   feature.app-skill.events-search:
     version: 1
     status: draft
@@ -4179,6 +4190,105 @@ assertions:
     fingerprint: c75f89cd58ef86e46868bb6fd7235b825cd1b12069038df5a43463efb364b889
     required_applies_to:
     - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  design-embroidery.request.vector-source:
+    specification: feature.app-skill.design-embroidery@1
+    specification_id: feature.app-skill.design-embroidery
+    type: behavior
+    fingerprint: 201e2ff7d815a37caaa2f4a98df0dee020737819c5fd6471d7b5535c80b704ba
+    required_applies_to:
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  design-embroidery.prepare.fixed-rules:
+    specification: feature.app-skill.design-embroidery@1
+    specification_id: feature.app-skill.design-embroidery
+    type: behavior
+    fingerprint: 087711268c126a2c1b12e55cbee3c35455df33e15067b546d80b4fb6e60dbe6d
+    required_applies_to:
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  design-embroidery.prepare.model-rework-only-when-needed:
+    specification: feature.app-skill.design-embroidery@1
+    specification_id: feature.app-skill.design-embroidery
+    type: behavior
+    fingerprint: 46ac6968ec6bd7e99827baec74a559b1ca2df8a90474b09b41b060e9af20a159
+    required_applies_to:
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  design-embroidery.convert.sandbox-inkstitch:
+    specification: feature.app-skill.design-embroidery@1
+    specification_id: feature.app-skill.design-embroidery
+    type: invariant
+    fingerprint: fe755965bb890f61d31cf5a1b93a98a36642e19fec27252519cf78927532aa75
+    required_applies_to:
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  design-embroidery.result.complete-and-truthful:
+    specification: feature.app-skill.design-embroidery@1
+    specification_id: feature.app-skill.design-embroidery
+    type: invariant
+    fingerprint: f893904d5df294aa3a1d5a40b9dd618fcb4adb80678283365f51063242354fee
+    required_applies_to:
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  design-embroidery.result.view-and-download:
+    specification: feature.app-skill.design-embroidery@1
+    specification_id: feature.app-skill.design-embroidery
+    type: behavior
+    fingerprint: 0d4af1260fd010a78b7efb98498e9175ef62e27f54185e585e743a88d353deb8
+    required_applies_to:
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  design-embroidery.privacy.stored-like-generated-media:
+    specification: feature.app-skill.design-embroidery@1
+    specification_id: feature.app-skill.design-embroidery
+    type: privacy
+    fingerprint: 30c450ddb8e2daeddc7009e86f8e49c4595e26e2dcdf406ec1d2b49b0fe97f9b
+    required_applies_to:
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  design-embroidery.billing.metered:
+    specification: feature.app-skill.design-embroidery@1
+    specification_id: feature.app-skill.design-embroidery
+    type: invariant
+    fingerprint: 6baeb82560d26cc29a42c24204f9d083d8d55654606ea94acaab91fef26e0777
+    required_applies_to:
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  design-embroidery.surface.semantic-parity:
+    specification: feature.app-skill.design-embroidery@1
+    specification_id: feature.app-skill.design-embroidery
+    type: parity
+    fingerprint: 200f1643437ea20410b31a7bdcb55722188d95955397c00de27f0edede34c4e4
+    required_applies_to:
     - cli
     - sdks.npm
     - sdks.pip

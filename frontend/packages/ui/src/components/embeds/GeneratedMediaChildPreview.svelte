@@ -17,7 +17,7 @@
   let renderError = $state(false);
   const childType = $derived({
     images: 'generated_image', audio: 'generated_audio', music: 'generated_music',
-    videos: 'generated_video', models3d: 'generated_model',
+    videos: 'generated_video', models3d: 'generated_model', design: 'embroidery_design',
   }[appId] || 'app_skill_use');
 
   $effect(() => {

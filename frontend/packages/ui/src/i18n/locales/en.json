@@ -847,6 +847,12 @@
         "description": {
           "text": "Find open-source SVG icons from Iconify collections."
         }
+      },
+      "embroidery": {
+        "text": "Embroidery",
+        "description": {
+          "text": "Turn a vector graphic into embroidery machine files with a stitch preview."
+        }
       }
     },
     "electronics": {
@@ -9287,6 +9293,179 @@
     },
     "slides_no_content": {
       "text": "No slides yet."
+    },
+    "design": {
+      "embroidery": {
+        "threads": {
+          "text": "Threads"
+        },
+        "stitches_unit": {
+          "text": "stitches"
+        },
+        "stitches": {
+          "text": "Stitches"
+        },
+        "size": {
+          "text": "Size"
+        },
+        "thread_changes": {
+          "text": "Thread changes"
+        },
+        "sewing_time": {
+          "text": "Estimated sewing time"
+        },
+        "fits_hoop": {
+          "text": "Fits hoop {hoop}"
+        },
+        "too_large_for_hoop": {
+          "text": "Too large for hoop {hoop}"
+        },
+        "fabric": {
+          "text": "Fabric"
+        },
+        "fabric_light": {
+          "text": "Light"
+        },
+        "fabric_normal": {
+          "text": "Normal"
+        },
+        "fabric_stretchy": {
+          "text": "Stretchy"
+        },
+        "hoop": {
+          "text": "Hoop"
+        },
+        "hoop_none": {
+          "text": "No hoop"
+        },
+        "width": {
+          "text": "Width (mm)"
+        },
+        "width_range": {
+          "text": "Enter a width from {min} to {max} mm."
+        },
+        "apply": {
+          "text": "Apply"
+        },
+        "change_settings": {
+          "text": "Change settings"
+        },
+        "download": {
+          "text": "Download"
+        },
+        "notes": {
+          "text": "Notes"
+        },
+        "reworked_hint": {
+          "text": "The graphic was adjusted for embroidery before stitching."
+        },
+        "view": {
+          "text": "Preview type"
+        },
+        "view_stitches": {
+          "text": "Stitches"
+        },
+        "view_graphic": {
+          "text": "Graphic"
+        },
+        "converting": {
+          "text": "Converting to stitches…"
+        },
+        "failed": {
+          "text": "Conversion failed"
+        },
+        "preview_unavailable": {
+          "text": "The stitch preview could not be loaded."
+        },
+        "apply_request": {
+          "text": "Convert this embroidery design again: width {width} mm, hoop {hoop}, fabric {fabric}."
+        },
+        "error": {
+          "generic": {
+            "text": "This design could not be converted."
+          },
+          "unreadable_svg": {
+            "text": "The graphic could not be read."
+          },
+          "nothing_to_sew": {
+            "text": "There is nothing to sew after leaving out the background."
+          },
+          "too_many_stitches": {
+            "text": "The design has too many stitches. Try a smaller size or a simpler graphic."
+          },
+          "timeout": {
+            "text": "The conversion took too long and was stopped."
+          },
+          "sandbox_failed": {
+            "text": "The conversion could not be completed. Please try again."
+          },
+          "invalid_source": {
+            "text": "The source is not a vector graphic. Create a vector graphic first."
+          }
+        },
+        "note": {
+          "background_removed": {
+            "text": "Background left out"
+          },
+          "tiny_details_removed": {
+            "text": "Details too small to sew were left out ({count})"
+          },
+          "lines_running": {
+            "text": "Lines thinner than 1 mm are sewn as a thin stitch line"
+          },
+          "gradient_flattened": {
+            "text": "Gradients are sewn in one flat colour"
+          },
+          "effects_ignored": {
+            "text": "Blur, shadow and mask effects were left out"
+          },
+          "image_left_out": {
+            "text": "An embedded pixel image was left out"
+          },
+          "text_left_out": {
+            "text": "Text that is not drawn as shapes was left out"
+          },
+          "rotate_for_hoop": {
+            "text": "Turn the design by 90 degrees to fit the hoop"
+          },
+          "rework_failed": {
+            "text": "The design could not be adjusted automatically, so it was converted as it is"
+          },
+          "instructions_applied": {
+            "text": "Your wishes were applied"
+          },
+          "solved_gradient_or_filter": {
+            "text": "Gradients and filters were replaced by flat colours"
+          },
+          "solved_live_text": {
+            "text": "Text was converted to stitched shapes"
+          },
+          "solved_embedded_pixel_image": {
+            "text": "The embedded pixel image was redrawn as shapes"
+          },
+          "solved_detail_below_1mm": {
+            "text": "Small details were enlarged or left out"
+          },
+          "solved_more_than_12_colours": {
+            "text": "Colours were reduced to at most 12 threads"
+          },
+          "unsolved_gradient_or_filter": {
+            "text": "Still contains gradients or filters; the result may not sew cleanly there"
+          },
+          "unsolved_live_text": {
+            "text": "Still contains live text; the result may not sew cleanly there"
+          },
+          "unsolved_embedded_pixel_image": {
+            "text": "Still contains an embedded pixel image; the result may not sew cleanly there"
+          },
+          "unsolved_detail_below_1mm": {
+            "text": "Still contains details smaller than 1 mm; the result may not sew cleanly there"
+          },
+          "unsolved_more_than_12_colours": {
+            "text": "Still contains more than 12 thread colours; the result may not sew cleanly there"
+          }
+        }
+      }
     }
   },
   "embeds_input": {
@@ -18696,6 +18875,16 @@
       "banner": {
         "sample_data": {
           "text": "Sample data — this is what real results from this skill look like."
+        }
+      },
+      "design": {
+        "embroidery": {
+          "1": {
+            "text": "Fox logo for a cap, 90 mm"
+          },
+          "2": {
+            "text": "Fox patch on stretchy fabric, 60 mm"
+          }
         }
       }
     },

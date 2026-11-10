@@ -179,6 +179,14 @@ successful dispatch alone never counts as an output. Recipe and icon results
 also use authored references, with exact trusted aliases repaired before the
 final answer is persisted.
 
+`design.embroidery` follows the same parent/child pattern on the shared
+`app_images` worker. It converts one SVG into machine files in an E2B
+sandbox (template from `E2B_EMBROIDERY_TEMPLATE`). It publishes one
+`embroidery_design` child with eight encrypted variants, and each variant
+downloads under its own filename. A conversion that fails after the source is
+resolved still publishes a failed child with an `error_code` and is not charged.
+The parent records it as a failure rather than an output.
+
 Voice calls retain their current behavior. Integrating this job lifecycle with
 conversation pauses and spoken result announcements is deferred for a separate
 architecture discussion.

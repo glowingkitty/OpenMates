@@ -844,6 +844,12 @@
         "description": {
           "text": "Iconify koleksiyonlarından açık kaynak SVG simgeleri bulun."
         }
+      },
+      "embroidery": {
+        "text": "Nakış",
+        "description": {
+          "text": "Bir vektör grafiği, dikiş önizlemeli nakış makinesi dosyalarına dönüştürün."
+        }
       }
     },
     "electronics": {
@@ -7686,6 +7692,179 @@
     },
     "slides_no_content": {
       "text": "Henüz slayt yok."
+    },
+    "design": {
+      "embroidery": {
+        "threads": {
+          "text": "İplikler"
+        },
+        "stitches_unit": {
+          "text": "dikiş"
+        },
+        "stitches": {
+          "text": "Dikişler"
+        },
+        "size": {
+          "text": "Boyut"
+        },
+        "thread_changes": {
+          "text": "İplik değişimleri"
+        },
+        "sewing_time": {
+          "text": "Tahmini nakış süresi"
+        },
+        "fits_hoop": {
+          "text": "{hoop} kasnağa sığar"
+        },
+        "too_large_for_hoop": {
+          "text": "{hoop} kasnak için çok büyük"
+        },
+        "fabric": {
+          "text": "Kumaş"
+        },
+        "fabric_light": {
+          "text": "Hafif"
+        },
+        "fabric_normal": {
+          "text": "Normal"
+        },
+        "fabric_stretchy": {
+          "text": "Esnek"
+        },
+        "hoop": {
+          "text": "Kasnak"
+        },
+        "hoop_none": {
+          "text": "Kasnak yok"
+        },
+        "width": {
+          "text": "Genişlik (mm)"
+        },
+        "width_range": {
+          "text": "{min} ile {max} mm arasında bir genişlik girin."
+        },
+        "apply": {
+          "text": "Uygula"
+        },
+        "change_settings": {
+          "text": "Ayarları değiştir"
+        },
+        "download": {
+          "text": "İndir"
+        },
+        "notes": {
+          "text": "Notlar"
+        },
+        "reworked_hint": {
+          "text": "Grafik, dikişler oluşturulmadan önce nakışa uygun hale getirildi."
+        },
+        "view": {
+          "text": "Önizleme türü"
+        },
+        "view_stitches": {
+          "text": "Dikişler"
+        },
+        "view_graphic": {
+          "text": "Grafik"
+        },
+        "converting": {
+          "text": "Dikişlere dönüştürülüyor…"
+        },
+        "failed": {
+          "text": "Dönüştürme başarısız"
+        },
+        "preview_unavailable": {
+          "text": "Dikiş önizlemesi yüklenemedi."
+        },
+        "apply_request": {
+          "text": "Bu nakış tasarımını yeniden dönüştür: genişlik {width} mm, kasnak {hoop}, kumaş {fabric}."
+        },
+        "error": {
+          "generic": {
+            "text": "Bu tasarım dönüştürülemedi."
+          },
+          "unreadable_svg": {
+            "text": "Grafik okunamadı."
+          },
+          "nothing_to_sew": {
+            "text": "Arka plan çıkarılınca işlenecek bir şey kalmıyor."
+          },
+          "too_many_stitches": {
+            "text": "Tasarımda çok fazla dikiş var. Daha küçük bir boyut veya daha basit bir grafik deneyin."
+          },
+          "timeout": {
+            "text": "Dönüştürme çok uzun sürdüğü için durduruldu."
+          },
+          "sandbox_failed": {
+            "text": "Dönüştürme tamamlanamadı. Lütfen tekrar deneyin."
+          },
+          "invalid_source": {
+            "text": "Kaynak bir vektör grafik değil. Önce bir vektör grafik oluşturun."
+          }
+        },
+        "note": {
+          "background_removed": {
+            "text": "Arka plan dışarıda bırakıldı"
+          },
+          "tiny_details_removed": {
+            "text": "Nakışlanamayacak kadar küçük ayrıntılar dışarıda bırakıldı ({count})"
+          },
+          "lines_running": {
+            "text": "1 mm'den ince çizgiler ince bir dikiş hattı olarak işlenir"
+          },
+          "gradient_flattened": {
+            "text": "Renk geçişleri tek düz renkle işlenir"
+          },
+          "effects_ignored": {
+            "text": "Bulanıklık, gölge ve maske efektleri dışarıda bırakıldı"
+          },
+          "image_left_out": {
+            "text": "Gömülü bir piksel görseli dışarıda bırakıldı"
+          },
+          "text_left_out": {
+            "text": "Şekil olarak çizilmemiş metin dışarıda bırakıldı"
+          },
+          "rotate_for_hoop": {
+            "text": "Tasarımı çembere sığması için 90 derece çevirin"
+          },
+          "rework_failed": {
+            "text": "Tasarım otomatik olarak düzenlenemedi, bu yüzden olduğu gibi dönüştürüldü"
+          },
+          "instructions_applied": {
+            "text": "İsteklerin uygulandı"
+          },
+          "solved_gradient_or_filter": {
+            "text": "Renk geçişleri ve filtreler düz renklerle değiştirildi"
+          },
+          "solved_live_text": {
+            "text": "Metin dikilebilir şekillere dönüştürüldü"
+          },
+          "solved_embedded_pixel_image": {
+            "text": "Gömülü piksel görseli şekiller olarak yeniden çizildi"
+          },
+          "solved_detail_below_1mm": {
+            "text": "Küçük ayrıntılar büyütüldü veya dışarıda bırakıldı"
+          },
+          "solved_more_than_12_colours": {
+            "text": "Renkler en fazla 12 ipliğe düşürüldü"
+          },
+          "unsolved_gradient_or_filter": {
+            "text": "Hâlâ renk geçişi veya filtre içeriyor; sonuç orada temiz işlenmeyebilir"
+          },
+          "unsolved_live_text": {
+            "text": "Hâlâ canlı metin içeriyor; sonuç orada temiz işlenmeyebilir"
+          },
+          "unsolved_embedded_pixel_image": {
+            "text": "Hâlâ gömülü bir piksel görseli içeriyor; sonuç orada temiz işlenmeyebilir"
+          },
+          "unsolved_detail_below_1mm": {
+            "text": "Hâlâ 1 mm'den küçük ayrıntılar içeriyor; sonuç orada temiz işlenmeyebilir"
+          },
+          "unsolved_more_than_12_colours": {
+            "text": "Hâlâ 12'den fazla iplik rengi içeriyor; sonuç orada temiz işlenmeyebilir"
+          }
+        }
+      }
     }
   },
   "embeds_input": {},
@@ -15370,6 +15549,16 @@
       "banner": {
         "sample_data": {
           "text": "Örnek veriler — bu yeteneğin gerçek sonuçları böyle görünür."
+        }
+      },
+      "design": {
+        "embroidery": {
+          "1": {
+            "text": "Şapka için tilki logosu, 90 mm"
+          },
+          "2": {
+            "text": "Esnek kumaşta tilki yaması, 60 mm"
+          }
         }
       }
     },

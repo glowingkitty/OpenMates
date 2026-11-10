@@ -844,6 +844,12 @@
         "description": {
           "text": "Tìm biểu tượng SVG mã nguồn mở từ các bộ sưu tập Iconify."
         }
+      },
+      "embroidery": {
+        "text": "Thêu",
+        "description": {
+          "text": "Chuyển đồ họa vector thành tệp cho máy thêu kèm bản xem trước mũi thêu."
+        }
       }
     },
     "electronics": {
@@ -7686,6 +7692,179 @@
     },
     "slides_no_content": {
       "text": "Chưa có trang chiếu nào."
+    },
+    "design": {
+      "embroidery": {
+        "threads": {
+          "text": "Chỉ"
+        },
+        "stitches_unit": {
+          "text": "mũi thêu"
+        },
+        "stitches": {
+          "text": "Số mũi thêu"
+        },
+        "size": {
+          "text": "Kích thước"
+        },
+        "thread_changes": {
+          "text": "Số lần đổi chỉ"
+        },
+        "sewing_time": {
+          "text": "Thời gian thêu ước tính"
+        },
+        "fits_hoop": {
+          "text": "Vừa khung {hoop}"
+        },
+        "too_large_for_hoop": {
+          "text": "Quá lớn cho khung {hoop}"
+        },
+        "fabric": {
+          "text": "Vải"
+        },
+        "fabric_light": {
+          "text": "Mỏng nhẹ"
+        },
+        "fabric_normal": {
+          "text": "Thông thường"
+        },
+        "fabric_stretchy": {
+          "text": "Co giãn"
+        },
+        "hoop": {
+          "text": "Khung thêu"
+        },
+        "hoop_none": {
+          "text": "Không khung"
+        },
+        "width": {
+          "text": "Chiều rộng (mm)"
+        },
+        "width_range": {
+          "text": "Nhập chiều rộng từ {min} đến {max} mm."
+        },
+        "apply": {
+          "text": "Áp dụng"
+        },
+        "change_settings": {
+          "text": "Đổi cài đặt"
+        },
+        "download": {
+          "text": "Tải xuống"
+        },
+        "notes": {
+          "text": "Ghi chú"
+        },
+        "reworked_hint": {
+          "text": "Hình đã được điều chỉnh cho phù hợp với thêu trước khi tạo mũi thêu."
+        },
+        "view": {
+          "text": "Kiểu xem trước"
+        },
+        "view_stitches": {
+          "text": "Mũi thêu"
+        },
+        "view_graphic": {
+          "text": "Hình"
+        },
+        "converting": {
+          "text": "Đang chuyển thành mũi thêu…"
+        },
+        "failed": {
+          "text": "Chuyển đổi thất bại"
+        },
+        "preview_unavailable": {
+          "text": "Không thể tải bản xem trước mũi thêu."
+        },
+        "apply_request": {
+          "text": "Hãy chuyển đổi lại thiết kế thêu này: chiều rộng {width} mm, khung {hoop}, vải {fabric}."
+        },
+        "error": {
+          "generic": {
+            "text": "Không thể chuyển đổi thiết kế này."
+          },
+          "unreadable_svg": {
+            "text": "Không thể đọc hình này."
+          },
+          "nothing_to_sew": {
+            "text": "Sau khi bỏ nền thì không còn gì để thêu."
+          },
+          "too_many_stitches": {
+            "text": "Thiết kế có quá nhiều mũi thêu. Hãy thử kích thước nhỏ hơn hoặc hình đơn giản hơn."
+          },
+          "timeout": {
+            "text": "Quá trình chuyển đổi mất quá lâu nên đã bị dừng."
+          },
+          "sandbox_failed": {
+            "text": "Không thể hoàn tất chuyển đổi. Vui lòng thử lại."
+          },
+          "invalid_source": {
+            "text": "Nguồn không phải hình vector. Hãy tạo hình vector trước."
+          }
+        },
+        "note": {
+          "background_removed": {
+            "text": "Đã bỏ phần nền"
+          },
+          "tiny_details_removed": {
+            "text": "Các chi tiết quá nhỏ để thêu đã được bỏ ({count})"
+          },
+          "lines_running": {
+            "text": "Các đường mảnh hơn 1 mm được thêu thành một đường mũi chỉ mảnh"
+          },
+          "gradient_flattened": {
+            "text": "Dải màu chuyển được thêu bằng một màu đơn sắc"
+          },
+          "effects_ignored": {
+            "text": "Các hiệu ứng làm mờ, đổ bóng và mặt nạ đã được bỏ"
+          },
+          "image_left_out": {
+            "text": "Ảnh điểm ảnh nhúng đã được bỏ"
+          },
+          "text_left_out": {
+            "text": "Văn bản không được vẽ thành hình đã được bỏ"
+          },
+          "rotate_for_hoop": {
+            "text": "Xoay thiết kế 90 độ để vừa với khung thêu"
+          },
+          "rework_failed": {
+            "text": "Không thể tự động điều chỉnh thiết kế nên đã chuyển đổi nguyên trạng"
+          },
+          "instructions_applied": {
+            "text": "Yêu cầu của bạn đã được áp dụng"
+          },
+          "solved_gradient_or_filter": {
+            "text": "Dải màu chuyển và bộ lọc đã được thay bằng màu đơn sắc"
+          },
+          "solved_live_text": {
+            "text": "Văn bản đã được chuyển thành hình có thể thêu"
+          },
+          "solved_embedded_pixel_image": {
+            "text": "Ảnh điểm ảnh nhúng đã được vẽ lại thành hình"
+          },
+          "solved_detail_below_1mm": {
+            "text": "Các chi tiết nhỏ đã được phóng to hoặc bỏ đi"
+          },
+          "solved_more_than_12_colours": {
+            "text": "Số màu đã được giảm xuống tối đa 12 loại chỉ"
+          },
+          "unsolved_gradient_or_filter": {
+            "text": "Vẫn còn dải màu chuyển hoặc bộ lọc; kết quả có thể không thêu gọn ở đó"
+          },
+          "unsolved_live_text": {
+            "text": "Vẫn còn văn bản chưa chuyển thành hình; kết quả có thể không thêu gọn ở đó"
+          },
+          "unsolved_embedded_pixel_image": {
+            "text": "Vẫn còn ảnh điểm ảnh nhúng; kết quả có thể không thêu gọn ở đó"
+          },
+          "unsolved_detail_below_1mm": {
+            "text": "Vẫn còn chi tiết nhỏ hơn 1 mm; kết quả có thể không thêu gọn ở đó"
+          },
+          "unsolved_more_than_12_colours": {
+            "text": "Vẫn còn hơn 12 màu chỉ; kết quả có thể không thêu gọn ở đó"
+          }
+        }
+      }
     }
   },
   "embeds_input": {},
@@ -15370,6 +15549,16 @@
       "banner": {
         "sample_data": {
           "text": "Dữ liệu mẫu — đây là giao diện kết quả thực tế từ kỹ năng này."
+        }
+      },
+      "design": {
+        "embroidery": {
+          "1": {
+            "text": "Logo con cáo cho mũ lưỡi trai, 90 mm"
+          },
+          "2": {
+            "text": "Miếng vá cáo trên vải co giãn, 60 mm"
+          }
         }
       }
     },

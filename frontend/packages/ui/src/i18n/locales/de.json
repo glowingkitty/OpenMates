@@ -847,6 +847,12 @@
         "description": {
           "text": "Finde Open-Source-SVG-Icons aus Iconify-Sammlungen."
         }
+      },
+      "embroidery": {
+        "text": "Stickerei",
+        "description": {
+          "text": "Wandle eine Vektorgrafik in Stickmaschinen-Dateien mit Stichvorschau um."
+        }
       }
     },
     "electronics": {
@@ -9258,6 +9264,179 @@
     },
     "slides_no_content": {
       "text": "Noch keine Folien."
+    },
+    "design": {
+      "embroidery": {
+        "threads": {
+          "text": "Garne"
+        },
+        "stitches_unit": {
+          "text": "Stiche"
+        },
+        "stitches": {
+          "text": "Stiche"
+        },
+        "size": {
+          "text": "Größe"
+        },
+        "thread_changes": {
+          "text": "Garnwechsel"
+        },
+        "sewing_time": {
+          "text": "Geschätzte Stickzeit"
+        },
+        "fits_hoop": {
+          "text": "Passt in den Stickrahmen {hoop}"
+        },
+        "too_large_for_hoop": {
+          "text": "Zu groß für den Stickrahmen {hoop}"
+        },
+        "fabric": {
+          "text": "Stoff"
+        },
+        "fabric_light": {
+          "text": "Leicht"
+        },
+        "fabric_normal": {
+          "text": "Normal"
+        },
+        "fabric_stretchy": {
+          "text": "Dehnbar"
+        },
+        "hoop": {
+          "text": "Stickrahmen"
+        },
+        "hoop_none": {
+          "text": "Kein Stickrahmen"
+        },
+        "width": {
+          "text": "Breite (mm)"
+        },
+        "width_range": {
+          "text": "Gib eine Breite von {min} bis {max} mm ein."
+        },
+        "apply": {
+          "text": "Anwenden"
+        },
+        "change_settings": {
+          "text": "Einstellungen ändern"
+        },
+        "download": {
+          "text": "Herunterladen"
+        },
+        "notes": {
+          "text": "Hinweise"
+        },
+        "reworked_hint": {
+          "text": "Die Grafik wurde vor dem Sticken für die Stickerei angepasst."
+        },
+        "view": {
+          "text": "Vorschauart"
+        },
+        "view_stitches": {
+          "text": "Stiche"
+        },
+        "view_graphic": {
+          "text": "Grafik"
+        },
+        "converting": {
+          "text": "Wird in Stiche umgewandelt …"
+        },
+        "failed": {
+          "text": "Umwandlung fehlgeschlagen"
+        },
+        "preview_unavailable": {
+          "text": "Die Stichvorschau konnte nicht geladen werden."
+        },
+        "apply_request": {
+          "text": "Wandle dieses Stickdesign erneut um: Breite {width} mm, Stickrahmen {hoop}, Stoff {fabric}."
+        },
+        "error": {
+          "generic": {
+            "text": "Dieses Design konnte nicht umgewandelt werden."
+          },
+          "unreadable_svg": {
+            "text": "Die Grafik konnte nicht gelesen werden."
+          },
+          "nothing_to_sew": {
+            "text": "Nach dem Weglassen des Hintergrunds bleibt nichts zum Sticken übrig."
+          },
+          "too_many_stitches": {
+            "text": "Das Design hat zu viele Stiche. Versuche eine kleinere Größe oder eine einfachere Grafik."
+          },
+          "timeout": {
+            "text": "Die Umwandlung hat zu lange gedauert und wurde abgebrochen."
+          },
+          "sandbox_failed": {
+            "text": "Die Umwandlung konnte nicht abgeschlossen werden. Bitte versuche es erneut."
+          },
+          "invalid_source": {
+            "text": "Die Quelle ist keine Vektorgrafik. Erstelle zuerst eine Vektorgrafik."
+          }
+        },
+        "note": {
+          "background_removed": {
+            "text": "Hintergrund weggelassen"
+          },
+          "tiny_details_removed": {
+            "text": "Zu kleine Details zum Sticken wurden weggelassen ({count})"
+          },
+          "lines_running": {
+            "text": "Linien unter 1 mm werden als dünne Stichlinie gestickt"
+          },
+          "gradient_flattened": {
+            "text": "Farbverläufe werden in einer einzigen Farbe gestickt"
+          },
+          "effects_ignored": {
+            "text": "Weichzeichner-, Schatten- und Maskeneffekte wurden weggelassen"
+          },
+          "image_left_out": {
+            "text": "Ein eingebettetes Pixelbild wurde weggelassen"
+          },
+          "text_left_out": {
+            "text": "Text, der nicht als Formen gezeichnet ist, wurde weggelassen"
+          },
+          "rotate_for_hoop": {
+            "text": "Drehe das Motiv um 90 Grad, damit es in den Rahmen passt"
+          },
+          "rework_failed": {
+            "text": "Das Motiv konnte nicht automatisch angepasst werden und wurde unverändert umgewandelt"
+          },
+          "instructions_applied": {
+            "text": "Deine Wünsche wurden umgesetzt"
+          },
+          "solved_gradient_or_filter": {
+            "text": "Farbverläufe und Filter wurden durch einfarbige Flächen ersetzt"
+          },
+          "solved_live_text": {
+            "text": "Text wurde in stickbare Formen umgewandelt"
+          },
+          "solved_embedded_pixel_image": {
+            "text": "Das eingebettete Pixelbild wurde als Formen neu gezeichnet"
+          },
+          "solved_detail_below_1mm": {
+            "text": "Kleine Details wurden vergrößert oder weggelassen"
+          },
+          "solved_more_than_12_colours": {
+            "text": "Die Farben wurden auf höchstens 12 Garne reduziert"
+          },
+          "unsolved_gradient_or_filter": {
+            "text": "Enthält noch Farbverläufe oder Filter; das Ergebnis lässt sich dort evtl. nicht sauber sticken"
+          },
+          "unsolved_live_text": {
+            "text": "Enthält noch Text als Text; das Ergebnis lässt sich dort evtl. nicht sauber sticken"
+          },
+          "unsolved_embedded_pixel_image": {
+            "text": "Enthält noch ein eingebettetes Pixelbild; das Ergebnis lässt sich dort evtl. nicht sauber sticken"
+          },
+          "unsolved_detail_below_1mm": {
+            "text": "Enthält noch Details unter 1 mm; das Ergebnis lässt sich dort evtl. nicht sauber sticken"
+          },
+          "unsolved_more_than_12_colours": {
+            "text": "Enthält noch mehr als 12 Garnfarben; das Ergebnis lässt sich dort evtl. nicht sauber sticken"
+          }
+        }
+      }
     }
   },
   "embeds_input": {
@@ -18085,6 +18264,16 @@
       "banner": {
         "sample_data": {
           "text": "Beispieldaten — so sehen echte Ergebnisse dieses Skills aus."
+        }
+      },
+      "design": {
+        "embroidery": {
+          "1": {
+            "text": "Fuchs-Logo für eine Kappe, 90 mm"
+          },
+          "2": {
+            "text": "Fuchs-Aufnäher auf dehnbarem Stoff, 60 mm"
+          }
         }
       }
     },

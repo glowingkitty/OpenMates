@@ -72,7 +72,7 @@ import { renderShoppingSearch, renderShoppingProduct } from '../components/embed
 import { renderJobsSearch, renderJobResult } from '../components/embeds/jobs/jobsEmbedText';
 import { renderHostingSearch, renderHostingDomain } from '../components/embeds/hosting/hostingEmbedText';
 import { renderElectronicsSearch, renderElectronicsComponent, renderPcbSchematic } from '../components/embeds/electronics/electronicsEmbedText';
-import { renderDesignIconResult, renderDesignIconSearch } from '../components/embeds/design/designEmbedText';
+import { renderDesignEmbroidery, renderDesignIconResult, renderDesignIconSearch } from '../components/embeds/design/designEmbedText';
 import { renderNutritionSearch, renderNutritionRecipe } from '../components/embeds/nutrition/nutritionEmbedText';
 import { renderNewsSearch } from '../components/embeds/news/newsEmbedText';
 import { renderDoc } from '../components/embeds/docs/docsEmbedText';
@@ -212,6 +212,7 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:hosting:search_domains': renderHostingSearch,
 	'app:electronics:search_components': renderElectronicsSearch,
 	'app:design:search_icons': renderDesignIconSearch,
+	'app:design:embroidery': renderGenericAppSkill,
 	'app:nutrition:search_recipes': renderNutritionSearch,
 	'app:events:search': renderEventsSearch,
 	'app:videos:search': renderVideosSearch,
@@ -327,6 +328,7 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'electronics-pcb-schematic': renderPcbSchematic,
 	'electronics-component': renderElectronicsComponent,
 	'design-icon-result': renderDesignIconResult,
+	'design-embroidery': renderDesignEmbroidery,
 	'nutrition-recipe': renderNutritionRecipe,
 	'weather-day': renderWeatherDay,
 	'business-company-financial-result': renderCompanyFinancialResult,

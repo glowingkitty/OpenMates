@@ -844,6 +844,12 @@
         "description": {
           "text": "Znajdź ikony SVG open source z kolekcji Iconify."
         }
+      },
+      "embroidery": {
+        "text": "Haft",
+        "description": {
+          "text": "Zamień grafikę wektorową na pliki dla hafciarki z podglądem ściegów."
+        }
       }
     },
     "electronics": {
@@ -7686,6 +7692,179 @@
     },
     "slides_no_content": {
       "text": "Brak slajdów."
+    },
+    "design": {
+      "embroidery": {
+        "threads": {
+          "text": "Nici"
+        },
+        "stitches_unit": {
+          "text": "ściegów"
+        },
+        "stitches": {
+          "text": "Ściegi"
+        },
+        "size": {
+          "text": "Rozmiar"
+        },
+        "thread_changes": {
+          "text": "Zmiany nici"
+        },
+        "sewing_time": {
+          "text": "Szacowany czas haftowania"
+        },
+        "fits_hoop": {
+          "text": "Mieści się w tamborku {hoop}"
+        },
+        "too_large_for_hoop": {
+          "text": "Za duży na tamborek {hoop}"
+        },
+        "fabric": {
+          "text": "Tkanina"
+        },
+        "fabric_light": {
+          "text": "Lekka"
+        },
+        "fabric_normal": {
+          "text": "Zwykła"
+        },
+        "fabric_stretchy": {
+          "text": "Rozciągliwa"
+        },
+        "hoop": {
+          "text": "Tamborek"
+        },
+        "hoop_none": {
+          "text": "Bez tamborka"
+        },
+        "width": {
+          "text": "Szerokość (mm)"
+        },
+        "width_range": {
+          "text": "Podaj szerokość od {min} do {max} mm."
+        },
+        "apply": {
+          "text": "Zastosuj"
+        },
+        "change_settings": {
+          "text": "Zmień ustawienia"
+        },
+        "download": {
+          "text": "Pobierz"
+        },
+        "notes": {
+          "text": "Uwagi"
+        },
+        "reworked_hint": {
+          "text": "Grafika została dostosowana do haftu przed utworzeniem ściegów."
+        },
+        "view": {
+          "text": "Rodzaj podglądu"
+        },
+        "view_stitches": {
+          "text": "Ściegi"
+        },
+        "view_graphic": {
+          "text": "Grafika"
+        },
+        "converting": {
+          "text": "Konwertowanie na ściegi…"
+        },
+        "failed": {
+          "text": "Konwersja nie powiodła się"
+        },
+        "preview_unavailable": {
+          "text": "Nie udało się wczytać podglądu ściegów."
+        },
+        "apply_request": {
+          "text": "Przekonwertuj ten wzór haftu ponownie: szerokość {width} mm, tamborek {hoop}, tkanina {fabric}."
+        },
+        "error": {
+          "generic": {
+            "text": "Nie udało się przekonwertować tego wzoru."
+          },
+          "unreadable_svg": {
+            "text": "Nie udało się odczytać grafiki."
+          },
+          "nothing_to_sew": {
+            "text": "Po pominięciu tła nie zostaje nic do wyhaftowania."
+          },
+          "too_many_stitches": {
+            "text": "Wzór ma zbyt wiele ściegów. Spróbuj mniejszego rozmiaru lub prostszej grafiki."
+          },
+          "timeout": {
+            "text": "Konwersja trwała zbyt długo i została zatrzymana."
+          },
+          "sandbox_failed": {
+            "text": "Nie udało się ukończyć konwersji. Spróbuj ponownie."
+          },
+          "invalid_source": {
+            "text": "Źródło nie jest grafiką wektorową. Najpierw utwórz grafikę wektorową."
+          }
+        },
+        "note": {
+          "background_removed": {
+            "text": "Pominięto tło"
+          },
+          "tiny_details_removed": {
+            "text": "Pominięto detale zbyt małe do wyhaftowania ({count})"
+          },
+          "lines_running": {
+            "text": "Linie cieńsze niż 1 mm są wyhaftowane jako cienka linia ściegu"
+          },
+          "gradient_flattened": {
+            "text": "Gradienty są wyhaftowane jednym jednolitym kolorem"
+          },
+          "effects_ignored": {
+            "text": "Pominięto efekty rozmycia, cienia i maski"
+          },
+          "image_left_out": {
+            "text": "Pominięto osadzony obraz rastrowy"
+          },
+          "text_left_out": {
+            "text": "Pominięto tekst, który nie jest narysowany jako kształty"
+          },
+          "rotate_for_hoop": {
+            "text": "Obróć wzór o 90 stopni, aby zmieścił się w tamborku"
+          },
+          "rework_failed": {
+            "text": "Nie udało się automatycznie dostosować wzoru, więc został przekonwertowany bez zmian"
+          },
+          "instructions_applied": {
+            "text": "Twoje życzenia zostały uwzględnione"
+          },
+          "solved_gradient_or_filter": {
+            "text": "Gradienty i filtry zastąpiono jednolitymi kolorami"
+          },
+          "solved_live_text": {
+            "text": "Tekst zamieniono na kształty do wyhaftowania"
+          },
+          "solved_embedded_pixel_image": {
+            "text": "Osadzony obraz rastrowy narysowano od nowa jako kształty"
+          },
+          "solved_detail_below_1mm": {
+            "text": "Małe detale powiększono lub pominięto"
+          },
+          "solved_more_than_12_colours": {
+            "text": "Zmniejszono liczbę kolorów do maksymalnie 12 nici"
+          },
+          "unsolved_gradient_or_filter": {
+            "text": "Nadal zawiera gradienty lub filtry; w tych miejscach haft może wyjść niedokładnie"
+          },
+          "unsolved_live_text": {
+            "text": "Nadal zawiera tekst; w tych miejscach haft może wyjść niedokładnie"
+          },
+          "unsolved_embedded_pixel_image": {
+            "text": "Nadal zawiera osadzony obraz rastrowy; w tych miejscach haft może wyjść niedokładnie"
+          },
+          "unsolved_detail_below_1mm": {
+            "text": "Nadal zawiera detale mniejsze niż 1 mm; w tych miejscach haft może wyjść niedokładnie"
+          },
+          "unsolved_more_than_12_colours": {
+            "text": "Nadal zawiera ponad 12 kolorów nici; w tych miejscach haft może wyjść niedokładnie"
+          }
+        }
+      }
     }
   },
   "embeds_input": {},
@@ -15370,6 +15549,16 @@
       "banner": {
         "sample_data": {
           "text": "Przykładowe dane — tak wyglądają rzeczywiste wyniki tej umiejętności."
+        }
+      },
+      "design": {
+        "embroidery": {
+          "1": {
+            "text": "Logo lisa na czapkę, 90 mm"
+          },
+          "2": {
+            "text": "Naszywka z lisem na elastycznej tkaninie, 60 mm"
+          }
         }
       }
     },

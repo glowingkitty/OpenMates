@@ -8,6 +8,7 @@
   import MusicGenerateEmbedFullscreen from './music/MusicGenerateEmbedFullscreen.svelte';
   import VideoGenerateEmbedFullscreen from './videos/VideoGenerateEmbedFullscreen.svelte';
   import Model3DGenerateEmbedFullscreen from './models3d/Model3DGenerateEmbedFullscreen.svelte';
+  import DesignEmbroideryEmbedFullscreen from './design/DesignEmbroideryEmbedFullscreen.svelte';
   import { generatedMediaChildIds } from './generatedMediaGroup';
   import type { EmbedFullscreenRawData } from '../../types/embedFullscreen';
 
@@ -57,7 +58,7 @@
 
 <SearchResultsTemplate
   testId="generated-media-group-fullscreen"
-  {appId} {skillId} skillIconName={appId === 'models3d' ? '3dmodels' : appId}
+  {appId} {skillId} skillIconName={appId === 'models3d' ? '3dmodels' : appId === 'design' ? 'embroidery' : appId}
   embedHeaderTitle={skillName} embedHeaderSubtitle={subtitle}
   {onClose} currentEmbedId={embedId} {embedIds}
   childEmbedTransformer={childFromContent}
@@ -91,6 +92,10 @@
         onNavigatePrevious={nav.onPrevious} onNavigateNext={nav.onNext} />
     {:else if appId === 'models3d'}
       <Model3DGenerateEmbedFullscreen data={childData} embedId={nav.result.embed_id} onClose={nav.onClose}
+        hasPreviousEmbed={nav.hasPrevious} hasNextEmbed={nav.hasNext}
+        onNavigatePrevious={nav.onPrevious} onNavigateNext={nav.onNext} />
+    {:else if appId === 'design'}
+      <DesignEmbroideryEmbedFullscreen data={childData} embedId={nav.result.embed_id} onClose={nav.onClose}
         hasPreviousEmbed={nav.hasPrevious} hasNextEmbed={nav.hasNext}
         onNavigatePrevious={nav.onPrevious} onNavigateNext={nav.onNext} />
     {/if}

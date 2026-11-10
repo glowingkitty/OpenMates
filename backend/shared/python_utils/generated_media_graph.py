@@ -24,6 +24,8 @@ MEDIA_CHILD_TYPES = {
     "music": "generated_music",
     "videos": "generated_video",
     "models3d": "generated_model",
+    # design has one generated output type; search_icons results are not media children.
+    "design": "embroidery_design",
 }
 
 # Match the former per-output Celery soft limits. A batch keeps every advertised
@@ -37,6 +39,8 @@ PER_CHILD_TIMEOUT_SECONDS = {
     ("music", "generate"): 900,
     ("videos", "generate"): 1800,
     ("models3d", "generate"): 900,
+    # 180 s sandbox limit plus one model rework, below the task's 420 s soft limit.
+    ("design", "embroidery"): 400,
 }
 
 active_media_batch_child: ContextVar[bool] = ContextVar("active_media_batch_child", default=False)
@@ -48,6 +52,9 @@ COMPLETION_RESULT_FIELDS = frozenset({
     "id", "type", "prompt", "text_preview", "model", "provider_model",
     "provider", "mode", "generation_type", "duration_seconds", "aspect_ratio",
     "resolution", "filename", "output_filetype", "billing_status", "generated_at", "input_embed_ids",
+    # design.embroidery: the numbers, threads and notes the assistant reports to the user.
+    "title", "width_mm", "height_mm", "stitch_count", "thread_changes", "estimated_minutes",
+    "hoop", "fits_hoop", "fabric", "reworked", "threads", "notes",
 })
 
 _INLINE_CARD_SKILLS = frozenset({("nutrition", "search_recipes"), ("design", "search_icons")})
@@ -55,7 +62,7 @@ _GENERATED_OUTPUT_SKILLS = frozenset({
     ("images", "generate"), ("images", "generate_draft"), ("images", "vectorize"),
     ("audio", "generate"), ("audio", "speak"), ("music", "generate"),
     ("videos", "generate"), ("videos", "create"), ("models3d", "generate"),
-    ("code", "image_to_html"),
+    ("code", "image_to_html"), ("design", "embroidery"),
 })
 _OUTPUT_REF_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._~:-]{0,127}\Z")
 _MARKDOWN_EMBED_LINK = re.compile(
@@ -361,6 +368,10 @@ async def run_generated_media_batch(
     if child_timeout is None:
         raise ValueError("Generated media batch has no bounded child timeout")
     children: list[dict[str, Any]] = []
+    # A producer may publish a failed child that shows its reason (status "failed"
+    # plus child_published). It is sealed under the parent like any child but
+    # reported to the assistant as a failure with its plain-language reason.
+    failed_children: list[dict[str, Any]] = []
     failures: list[dict[str, Any]] = []
     for index, request in enumerate(requests):
         if not isinstance(request, dict):
@@ -383,6 +394,20 @@ async def run_generated_media_batch(
                 )
             finally:
                 active_media_batch_child.reset(token)
+            if isinstance(result, dict) and result.get("status") == "failed" and result.get("child_published") is True:
+                failed_children.append({
+                    "request_index": index,
+                    "child_embed_id": child_id,
+                    "embed_ref": generated_media_embed_ref(app_id, child_id),
+                    "result": result,
+                    "failed": True,
+                })
+                failures.append({
+                    "request_index": index,
+                    "error": str(result.get("error") or "Generation failed"),
+                    **({"error_code": str(result["error_code"])} if result.get("error_code") else {}),
+                })
+                continue
             if not isinstance(result, dict) or result.get("status") != "finished":
                 failures.append({"request_index": index, "error": "Generation did not finish"})
                 continue
@@ -405,7 +430,7 @@ async def run_generated_media_batch(
             user_id = str(arguments["user_id"])
             await finalize_generated_media_parent(
                 service, parent_embed_id=parent_id, app_id=app_id, skill_id=skill_id,
-                children=children, failures=failures,
+                children=[*children, *failed_children], failures=failures,
                 input_embed_ids=list(dict.fromkeys(
                     source_id for request in requests if isinstance(request, dict)
                     for source_id in request.get("input_embed_ids", []) if isinstance(source_id, str)
@@ -436,6 +461,7 @@ async def run_generated_media_batch(
                     "parent_embed_id": parent_id,
                     "parent_embed_ref": generated_media_parent_ref(app_id, parent_id),
                     "request_index": row["request_index"], "status": "error", "error": row["error"],
+                    **({"error_code": row["error_code"]} if row.get("error_code") else {}),
                 }
                 for row in failures
             ]
@@ -556,7 +582,7 @@ async def finalize_generated_media_parent(
         )])),
     }
     if failures:
-        content["partial_failure"] = bool(child_ids)
+        content["partial_failure"] = any(not row.get("failed") for row in ordered)
         content["error"] = f"{len(failures)} output(s) could not be generated"
     await embed_service.send_embed_data_to_client(
         embed_id=parent_embed_id,

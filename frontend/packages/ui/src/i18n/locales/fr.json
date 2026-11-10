@@ -844,6 +844,12 @@
         "description": {
           "text": "Trouvez des icônes SVG open source dans les collections Iconify."
         }
+      },
+      "embroidery": {
+        "text": "Broderie",
+        "description": {
+          "text": "Transformez un graphique vectoriel en fichiers pour machine à broder avec aperçu des points."
+        }
       }
     },
     "electronics": {
@@ -7713,6 +7719,179 @@
     },
     "slides_no_content": {
       "text": "Pas encore de diapositives."
+    },
+    "design": {
+      "embroidery": {
+        "threads": {
+          "text": "Fils"
+        },
+        "stitches_unit": {
+          "text": "points"
+        },
+        "stitches": {
+          "text": "Points"
+        },
+        "size": {
+          "text": "Taille"
+        },
+        "thread_changes": {
+          "text": "Changements de fil"
+        },
+        "sewing_time": {
+          "text": "Temps de broderie estimé"
+        },
+        "fits_hoop": {
+          "text": "Tient dans le cercle {hoop}"
+        },
+        "too_large_for_hoop": {
+          "text": "Trop grand pour le cercle {hoop}"
+        },
+        "fabric": {
+          "text": "Tissu"
+        },
+        "fabric_light": {
+          "text": "Léger"
+        },
+        "fabric_normal": {
+          "text": "Normal"
+        },
+        "fabric_stretchy": {
+          "text": "Extensible"
+        },
+        "hoop": {
+          "text": "Cercle"
+        },
+        "hoop_none": {
+          "text": "Sans cercle"
+        },
+        "width": {
+          "text": "Largeur (mm)"
+        },
+        "width_range": {
+          "text": "Saisissez une largeur de {min} à {max} mm."
+        },
+        "apply": {
+          "text": "Appliquer"
+        },
+        "change_settings": {
+          "text": "Modifier les réglages"
+        },
+        "download": {
+          "text": "Télécharger"
+        },
+        "notes": {
+          "text": "Remarques"
+        },
+        "reworked_hint": {
+          "text": "Le graphisme a été adapté à la broderie avant la couture."
+        },
+        "view": {
+          "text": "Type d'aperçu"
+        },
+        "view_stitches": {
+          "text": "Points"
+        },
+        "view_graphic": {
+          "text": "Graphisme"
+        },
+        "converting": {
+          "text": "Conversion en points…"
+        },
+        "failed": {
+          "text": "Échec de la conversion"
+        },
+        "preview_unavailable": {
+          "text": "L'aperçu des points n'a pas pu être chargé."
+        },
+        "apply_request": {
+          "text": "Convertis à nouveau ce motif de broderie : largeur {width} mm, cercle {hoop}, tissu {fabric}."
+        },
+        "error": {
+          "generic": {
+            "text": "Ce motif n'a pas pu être converti."
+          },
+          "unreadable_svg": {
+            "text": "Le graphisme n'a pas pu être lu."
+          },
+          "nothing_to_sew": {
+            "text": "Il ne reste rien à broder après suppression de l'arrière-plan."
+          },
+          "too_many_stitches": {
+            "text": "Le motif compte trop de points. Essaie une taille plus petite ou un graphisme plus simple."
+          },
+          "timeout": {
+            "text": "La conversion a pris trop de temps et a été arrêtée."
+          },
+          "sandbox_failed": {
+            "text": "La conversion n'a pas pu aboutir. Réessaie."
+          },
+          "invalid_source": {
+            "text": "La source n'est pas un graphisme vectoriel. Crée d'abord un graphisme vectoriel."
+          }
+        },
+        "note": {
+          "background_removed": {
+            "text": "Arrière-plan omis"
+          },
+          "tiny_details_removed": {
+            "text": "Les détails trop petits pour être brodés ont été omis ({count})"
+          },
+          "lines_running": {
+            "text": "Les lignes de moins de 1 mm sont brodées en une fine ligne de points"
+          },
+          "gradient_flattened": {
+            "text": "Les dégradés sont brodés d'une seule couleur unie"
+          },
+          "effects_ignored": {
+            "text": "Les effets de flou, d'ombre et de masque ont été omis"
+          },
+          "image_left_out": {
+            "text": "Une image en pixels intégrée a été omise"
+          },
+          "text_left_out": {
+            "text": "Le texte qui n'est pas dessiné en formes a été omis"
+          },
+          "rotate_for_hoop": {
+            "text": "Tournez le motif de 90 degrés pour qu'il tienne dans le cadre"
+          },
+          "rework_failed": {
+            "text": "Le motif n'a pas pu être ajusté automatiquement et a été converti tel quel"
+          },
+          "instructions_applied": {
+            "text": "Vos souhaits ont été appliqués"
+          },
+          "solved_gradient_or_filter": {
+            "text": "Les dégradés et filtres ont été remplacés par des couleurs unies"
+          },
+          "solved_live_text": {
+            "text": "Le texte a été converti en formes brodables"
+          },
+          "solved_embedded_pixel_image": {
+            "text": "L'image en pixels intégrée a été redessinée en formes"
+          },
+          "solved_detail_below_1mm": {
+            "text": "Les petits détails ont été agrandis ou omis"
+          },
+          "solved_more_than_12_colours": {
+            "text": "Les couleurs ont été réduites à 12 fils au maximum"
+          },
+          "unsolved_gradient_or_filter": {
+            "text": "Contient encore des dégradés ou des filtres ; le résultat risque de ne pas être net à cet endroit"
+          },
+          "unsolved_live_text": {
+            "text": "Contient encore du texte non converti ; le résultat risque de ne pas être net à cet endroit"
+          },
+          "unsolved_embedded_pixel_image": {
+            "text": "Contient encore une image en pixels intégrée ; le résultat risque de ne pas être net à cet endroit"
+          },
+          "unsolved_detail_below_1mm": {
+            "text": "Contient encore des détails de moins de 1 mm ; le résultat risque de ne pas être net à cet endroit"
+          },
+          "unsolved_more_than_12_colours": {
+            "text": "Contient encore plus de 12 couleurs de fil ; le résultat risque de ne pas être net à cet endroit"
+          }
+        }
+      }
     }
   },
   "embeds_input": {},
@@ -15397,6 +15576,16 @@
       "banner": {
         "sample_data": {
           "text": "Données d'exemple — voici à quoi ressemblent les résultats réels de cette skill."
+        }
+      },
+      "design": {
+        "embroidery": {
+          "1": {
+            "text": "Logo de renard pour une casquette, 90 mm"
+          },
+          "2": {
+            "text": "Écusson de renard sur tissu extensible, 60 mm"
+          }
         }
       }
     },

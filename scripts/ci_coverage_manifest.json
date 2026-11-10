@@ -22,6 +22,13 @@
         "components/web-browse-embeds.spec.ts"
       ]
     },
+    "design_embroidery_embed_preview": {
+      "execution": "e2e",
+      "enabling_work": "Account-free Vite-only bare embroidery result card and opened view. Fixtures carry inline preview media; download-URL and follow-up requests are intercepted and asserted. No backend, E2B sandbox, account credentials or AI inference. The real conversion is verified separately against the sandbox template and in chat.",
+      "specs": [
+        "components/design-embroidery-embed.spec.ts"
+      ]
+    },
     "web_pii_local_trial": {
       "execution": "e2e",
       "enabling_work": "Account-free bare composer and Privacy settings; real pinned local inference, persisted enhanced opt-out/basic fallback, brokered content-free licensing, self-hosted verified assets, native worker CSP network denial, offline warm inference and download recovery. No OpenMates chat inference, paid provider, backend or account credentials.",
@@ -985,7 +992,8 @@
       "enabling_work": "Run only on the coordinated dev stack with isolated provisioned test accounts, bounded disposable Team credits and real inference; never dispatch to CI.",
       "specs": [
         "teams-chat-collaboration-real.spec.ts",
-        "vector-graphic-chat.spec.ts"
+        "vector-graphic-chat.spec.ts",
+        "design-embroidery-chat.spec.ts"
       ]
     },
     "real_stripe_sandbox_settlement": {

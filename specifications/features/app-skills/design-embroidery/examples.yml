@@ -1,0 +1,92 @@
+schema_version: 1
+specification: feature.app-skill.design-embroidery@1
+
+convert:
+  - id: generated-logo-to-machine-files
+    given: The assistant drew a three-colour fox logo as a vector graphic earlier in the chat.
+    when: The user asks "make this ready for our embroidery machine, 9 cm wide" and the assistant calls design.embroidery with that graphic and width_mm 90.
+    then: >
+      One result appears with a stitch preview of the fox, the size 90 x 74 mm, the stitch count, three threads in
+      sewing order, an estimated sewing time, and downloads for DST, PES, EXP, JEF and VP3. No model was called for
+      the preparation because the graphic had no findings. The same result content arrives in a CLI chat.
+  - id: svg-code-embed-as-source
+    given: The assistant wrote a simple star as an SVG code block in the chat a minute ago.
+    when: The assistant calls design.embroidery with the reference of that code embed and no width.
+    then: The star is converted at the default width of 100 mm and the result lists all five machine files.
+
+invalid_source:
+  - id: photo-is-not-a-vector
+    given: The user uploaded a photo "dog.jpg".
+    when: The assistant calls design.embroidery with dog.jpg as source.
+    then: >
+      The call fails with the message that embroidery needs a vector graphic and that the image must first be turned
+      into one. No sandbox is started, no result with downloads appears and no credits are charged.
+
+prepare:
+  - id: overlap-background-and-colour-order
+    given: >
+      A graphic with a cream square covering the whole canvas, a yellow circle, a red heart lying fully on the
+      circle, and 24 small stars in 6 colours that do not touch each other.
+    when: It is converted with default settings.
+    then: >
+      The cream square is not sewn and the notes say "Background left out". The yellow circle has no stitches under
+      the heart. The 24 stars are sewn in 6 thread changes, one per colour, instead of 24. Converting the same
+      graphic again gives the same stitch count and thread order.
+  - id: lines-by-width
+    given: A graphic with a 2.5 mm wide blue wave and a 0.4 mm dark frame.
+    when: It is converted.
+    then: The wave is sewn as a satin band about 2.5 mm wide and the frame as a single running-stitch line.
+
+rework:
+  - id: gradient-and-tiny-text
+    given: A badge graphic with a blue-to-green gradient and a line of live text 0.8 mm high.
+    when: It is converted at 60 mm width.
+    then: >
+      The fixed check reports the gradient, the live text and the small detail. One model rework returns a graphic
+      with flat colours and the text drawn larger as shapes. The result notes say "Gradient replaced by flat colours"
+      and "Small text enlarged". The charge includes that model call.
+  - id: instructions-trigger-rework
+    given: A clean two-colour leaf graphic without findings.
+    when: The assistant calls design.embroidery with instructions "sew the outline as a thick satin border".
+    then: One model rework applies the wish before the fixed rules run, and the notes mention the changed outline.
+
+failure:
+  - id: too-many-stitches
+    given: A dense full-area illustration requested at 400 mm width.
+    when: The stitch plan would exceed 150000 stitches.
+    then: >
+      The result shows that the design is too large to sew in one piece and suggests a smaller width. No machine
+      files are offered and nothing is charged.
+  - id: nothing-to-sew
+    given: A graphic that contains only a full-canvas background rectangle.
+    when: It is converted.
+    then: The result fails with "Nothing to sew after leaving out the background" and offers no downloads.
+
+view:
+  - id: open-result-and-download-pes
+    given: A finished fox result in a web chat.
+    when: The user opens it and presses the PES download.
+    then: >
+      The opened view shows the large stitch preview, a switch to the prepared graphic, three thread rows with colour
+      swatch, name and stitch count, the numbers, "Fits hoop 130 x 180 mm", and five downloads. The browser saves a
+      file ending in ".pes".
+  - id: change-size-starts-new-conversion
+    given: The same opened fox result at 90 mm.
+    when: The user changes the width to 60 mm, picks the fabric "stretchy" and applies.
+    then: >
+      A follow-up request for a new conversion of the same graphic at 60 mm for stretchy fabric is sent to the
+      assistant. The 90 mm result stays in the chat unchanged and a second result appears when the new conversion ends.
+  - id: failed-result
+    given: A conversion that failed because the design had too many stitches.
+    when: The user looks at the result card and opens it.
+    then: The card and the opened view show the reason in plain words and no download buttons.
+
+billing:
+  - id: plain-conversion-one-minute
+    given: A conversion without model rework that keeps the sandbox running for 21 seconds.
+    when: The result is delivered.
+    then: The user is charged 5 credits.
+  - id: rework-adds-tokens
+    given: A conversion with one model rework and 48 seconds of sandbox time.
+    when: The result is delivered.
+    then: The user is charged 5 credits plus the credits for that model call's reported input and output tokens.

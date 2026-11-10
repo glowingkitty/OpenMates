@@ -359,6 +359,8 @@ export class GroupRenderer implements EmbedRenderer {
         this.renderRegistryPreviewComponent(item, embedData, decodedContent, content)],
       ["models3d-generated-model", (item, embedData, decodedContent, content) =>
         this.renderRegistryPreviewComponent(item, embedData, decodedContent, content)],
+      ["design-embroidery", (item, embedData, decodedContent, content) =>
+        this.renderRegistryPreviewComponent(item, embedData, decodedContent, content)],
       [
         "web-website",
         (item, embedData, decodedContent, content) =>

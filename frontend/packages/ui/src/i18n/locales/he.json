@@ -844,6 +844,12 @@
         "description": {
           "text": "מצא אייקוני SVG בקוד פתוח מאוספי Iconify."
         }
+      },
+      "embroidery": {
+        "text": "רקמה",
+        "description": {
+          "text": "הפוך גרפיקה וקטורית לקובצי מכונת רקמה עם תצוגה מקדימה של התפרים."
+        }
       }
     },
     "electronics": {
@@ -7686,6 +7692,179 @@
     },
     "slides_no_content": {
       "text": "עדיין אין שקפים."
+    },
+    "design": {
+      "embroidery": {
+        "threads": {
+          "text": "חוטים"
+        },
+        "stitches_unit": {
+          "text": "תפרים"
+        },
+        "stitches": {
+          "text": "תפרים"
+        },
+        "size": {
+          "text": "גודל"
+        },
+        "thread_changes": {
+          "text": "החלפות חוט"
+        },
+        "sewing_time": {
+          "text": "זמן רקמה משוער"
+        },
+        "fits_hoop": {
+          "text": "נכנס למסגרת {hoop}"
+        },
+        "too_large_for_hoop": {
+          "text": "גדול מדי למסגרת {hoop}"
+        },
+        "fabric": {
+          "text": "בד"
+        },
+        "fabric_light": {
+          "text": "קל"
+        },
+        "fabric_normal": {
+          "text": "רגיל"
+        },
+        "fabric_stretchy": {
+          "text": "אלסטי"
+        },
+        "hoop": {
+          "text": "מסגרת"
+        },
+        "hoop_none": {
+          "text": "ללא מסגרת"
+        },
+        "width": {
+          "text": "רוחב (מ\"מ)"
+        },
+        "width_range": {
+          "text": "הזינו רוחב בין {min} ל-{max} מ\"מ."
+        },
+        "apply": {
+          "text": "החלה"
+        },
+        "change_settings": {
+          "text": "שינוי הגדרות"
+        },
+        "download": {
+          "text": "הורדה"
+        },
+        "notes": {
+          "text": "הערות"
+        },
+        "reworked_hint": {
+          "text": "הגרפיקה הותאמה לרקמה לפני יצירת התפרים."
+        },
+        "view": {
+          "text": "סוג תצוגה מקדימה"
+        },
+        "view_stitches": {
+          "text": "תפרים"
+        },
+        "view_graphic": {
+          "text": "גרפיקה"
+        },
+        "converting": {
+          "text": "ממיר לתפרים…"
+        },
+        "failed": {
+          "text": "ההמרה נכשלה"
+        },
+        "preview_unavailable": {
+          "text": "לא ניתן היה לטעון את התצוגה המקדימה של התפרים."
+        },
+        "apply_request": {
+          "text": "המר שוב את עיצוב הרקמה הזה: רוחב {width} מ\"מ, מסגרת {hoop}, בד {fabric}."
+        },
+        "error": {
+          "generic": {
+            "text": "לא ניתן היה להמיר את העיצוב הזה."
+          },
+          "unreadable_svg": {
+            "text": "לא ניתן היה לקרוא את הגרפיקה."
+          },
+          "nothing_to_sew": {
+            "text": "אחרי הסרת הרקע לא נשאר מה לרקום."
+          },
+          "too_many_stitches": {
+            "text": "בעיצוב יש יותר מדי תפרים. נסו גודל קטן יותר או גרפיקה פשוטה יותר."
+          },
+          "timeout": {
+            "text": "ההמרה ארכה זמן רב מדי ונעצרה."
+          },
+          "sandbox_failed": {
+            "text": "לא ניתן היה להשלים את ההמרה. נסו שוב."
+          },
+          "invalid_source": {
+            "text": "המקור אינו גרפיקה וקטורית. צרו קודם גרפיקה וקטורית."
+          }
+        },
+        "note": {
+          "background_removed": {
+            "text": "הרקע הושמט"
+          },
+          "tiny_details_removed": {
+            "text": "פרטים קטנים מדי לרקמה הושמטו ({count})"
+          },
+          "lines_running": {
+            "text": "קווים דקים מ-1 מ\"מ נרקמים כקו תפר דק"
+          },
+          "gradient_flattened": {
+            "text": "מעברי צבע נרקמים בצבע אחיד אחד"
+          },
+          "effects_ignored": {
+            "text": "אפקטי טשטוש, צל ומסכה הושמטו"
+          },
+          "image_left_out": {
+            "text": "תמונת פיקסלים משובצת הושמטה"
+          },
+          "text_left_out": {
+            "text": "טקסט שאינו מצויר כצורות הושמט"
+          },
+          "rotate_for_hoop": {
+            "text": "סובבו את העיצוב ב-90 מעלות כדי שיתאים למסגרת"
+          },
+          "rework_failed": {
+            "text": "לא ניתן היה להתאים את העיצוב אוטומטית ולכן הוא הומר כמות שהוא"
+          },
+          "instructions_applied": {
+            "text": "הבקשות שלך יושמו"
+          },
+          "solved_gradient_or_filter": {
+            "text": "מעברי צבע ומסננים הוחלפו בצבעים אחידים"
+          },
+          "solved_live_text": {
+            "text": "הטקסט הומר לצורות שניתן לרקום"
+          },
+          "solved_embedded_pixel_image": {
+            "text": "תמונת הפיקסלים המשובצת צוירה מחדש כצורות"
+          },
+          "solved_detail_below_1mm": {
+            "text": "פרטים קטנים הוגדלו או הושמטו"
+          },
+          "solved_more_than_12_colours": {
+            "text": "הצבעים צומצמו ל-12 חוטים לכל היותר"
+          },
+          "unsolved_gradient_or_filter": {
+            "text": "עדיין יש מעברי צבע או מסננים; ייתכן שהתוצאה לא תירקם שם בצורה נקייה"
+          },
+          "unsolved_live_text": {
+            "text": "עדיין יש טקסט חי; ייתכן שהתוצאה לא תירקם שם בצורה נקייה"
+          },
+          "unsolved_embedded_pixel_image": {
+            "text": "עדיין יש תמונת פיקסלים משובצת; ייתכן שהתוצאה לא תירקם שם בצורה נקייה"
+          },
+          "unsolved_detail_below_1mm": {
+            "text": "עדיין יש פרטים קטנים מ-1 מ\"מ; ייתכן שהתוצאה לא תירקם שם בצורה נקייה"
+          },
+          "unsolved_more_than_12_colours": {
+            "text": "עדיין יש יותר מ-12 צבעי חוט; ייתכן שהתוצאה לא תירקם שם בצורה נקייה"
+          }
+        }
+      }
     }
   },
   "embeds_input": {},
@@ -15370,6 +15549,16 @@
       "banner": {
         "sample_data": {
           "text": "נתוני דוגמה — כך נראות תוצאות אמיתיות מהמיומנות הזו."
+        }
+      },
+      "design": {
+        "embroidery": {
+          "1": {
+            "text": "לוגו שועל לכובע, 90 מ\"מ"
+          },
+          "2": {
+            "text": "טלאי שועל על בד אלסטי, 60 מ\"מ"
+          }
         }
       }
     },

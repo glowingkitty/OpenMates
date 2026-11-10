@@ -30,6 +30,12 @@
     type EmbedSourceChatContext,
   } from "../../types/embedFullscreen";
 
+  /** Sends text as the same follow-up turn the composer would send for this result. */
+  interface ResultFollowupChannel {
+    requestFollowup: (value: string) => Promise<boolean>;
+    submitting: boolean;
+  }
+
   type Props = Omit<ComponentProps<typeof UnifiedEmbedFullscreen>, "content" | "fixedBottom" | "floatingBottom"> & {
     authoring?: AuthoredResultMetadata;
     /** Where sources/observed-at/credits are shown: under the summary (default) or as a bottom Sources section. */
@@ -38,7 +44,8 @@
     result: Record<string, unknown>;
     summary?: Snippet;
     media?: Snippet;
-    detailContent?: Snippet;
+    /** Receives the follow-up channel so detail controls can send ordinary follow-up turns. */
+    detailContent?: Snippet<[ResultFollowupChannel]>;
     identity?: Snippet;
     mediaLayout?: "standard" | "immersive";
     mapCenter?: { lat: number; lon: number };
@@ -231,7 +238,7 @@
         </div>
       {/if}
       {#if identity}<div class="result-identity-content">{@render identity()}</div>{/if}
-      {#if detailContent}<div class="result-detail-content">{@render detailContent()}</div>{/if}
+      {#if detailContent}<div class="result-detail-content">{@render detailContent({ requestFollowup: (value) => submitFollowup(value, []), submitting })}</div>{/if}
       {#if authoring && authoringPlacement === "bottom"}<div class="result-sources-content" data-testid="result-sources"><AuthoredResultContextInfo {authoring} section /></div>{/if}
     </div>
   {/snippet}

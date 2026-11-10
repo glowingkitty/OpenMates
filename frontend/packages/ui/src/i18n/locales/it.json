@@ -844,6 +844,12 @@
         "description": {
           "text": "Trova icone SVG open source dalle raccolte Iconify."
         }
+      },
+      "embroidery": {
+        "text": "Ricamo",
+        "description": {
+          "text": "Trasforma una grafica vettoriale in file per macchine da ricamo con anteprima dei punti."
+        }
       }
     },
     "electronics": {
@@ -7713,6 +7719,179 @@
     },
     "slides_no_content": {
       "text": "Ancora nessuna diapositiva."
+    },
+    "design": {
+      "embroidery": {
+        "threads": {
+          "text": "Fili"
+        },
+        "stitches_unit": {
+          "text": "punti"
+        },
+        "stitches": {
+          "text": "Punti"
+        },
+        "size": {
+          "text": "Dimensioni"
+        },
+        "thread_changes": {
+          "text": "Cambi di filo"
+        },
+        "sewing_time": {
+          "text": "Tempo di ricamo stimato"
+        },
+        "fits_hoop": {
+          "text": "Entra nel telaio {hoop}"
+        },
+        "too_large_for_hoop": {
+          "text": "Troppo grande per il telaio {hoop}"
+        },
+        "fabric": {
+          "text": "Tessuto"
+        },
+        "fabric_light": {
+          "text": "Leggero"
+        },
+        "fabric_normal": {
+          "text": "Normale"
+        },
+        "fabric_stretchy": {
+          "text": "Elastico"
+        },
+        "hoop": {
+          "text": "Telaio"
+        },
+        "hoop_none": {
+          "text": "Nessun telaio"
+        },
+        "width": {
+          "text": "Larghezza (mm)"
+        },
+        "width_range": {
+          "text": "Inserisci una larghezza da {min} a {max} mm."
+        },
+        "apply": {
+          "text": "Applica"
+        },
+        "change_settings": {
+          "text": "Modifica impostazioni"
+        },
+        "download": {
+          "text": "Scarica"
+        },
+        "notes": {
+          "text": "Note"
+        },
+        "reworked_hint": {
+          "text": "La grafica è stata adattata al ricamo prima di creare i punti."
+        },
+        "view": {
+          "text": "Tipo di anteprima"
+        },
+        "view_stitches": {
+          "text": "Punti"
+        },
+        "view_graphic": {
+          "text": "Grafica"
+        },
+        "converting": {
+          "text": "Conversione in punti…"
+        },
+        "failed": {
+          "text": "Conversione non riuscita"
+        },
+        "preview_unavailable": {
+          "text": "Impossibile caricare l'anteprima dei punti."
+        },
+        "apply_request": {
+          "text": "Converti di nuovo questo design di ricamo: larghezza {width} mm, telaio {hoop}, tessuto {fabric}."
+        },
+        "error": {
+          "generic": {
+            "text": "Non è stato possibile convertire questo design."
+          },
+          "unreadable_svg": {
+            "text": "Non è stato possibile leggere la grafica."
+          },
+          "nothing_to_sew": {
+            "text": "Senza lo sfondo non resta nulla da ricamare."
+          },
+          "too_many_stitches": {
+            "text": "Il design ha troppi punti. Prova una dimensione più piccola o una grafica più semplice."
+          },
+          "timeout": {
+            "text": "La conversione ha richiesto troppo tempo ed è stata interrotta."
+          },
+          "sandbox_failed": {
+            "text": "Non è stato possibile completare la conversione. Riprova."
+          },
+          "invalid_source": {
+            "text": "La sorgente non è una grafica vettoriale. Crea prima una grafica vettoriale."
+          }
+        },
+        "note": {
+          "background_removed": {
+            "text": "Sfondo escluso"
+          },
+          "tiny_details_removed": {
+            "text": "I dettagli troppo piccoli da ricamare sono stati omessi ({count})"
+          },
+          "lines_running": {
+            "text": "Le linee più sottili di 1 mm vengono ricamate come una sottile linea di punti"
+          },
+          "gradient_flattened": {
+            "text": "I gradienti vengono ricamati in un unico colore pieno"
+          },
+          "effects_ignored": {
+            "text": "Gli effetti di sfocatura, ombra e maschera sono stati omessi"
+          },
+          "image_left_out": {
+            "text": "Un'immagine a pixel incorporata è stata omessa"
+          },
+          "text_left_out": {
+            "text": "Il testo non disegnato come forme è stato omesso"
+          },
+          "rotate_for_hoop": {
+            "text": "Ruota il disegno di 90 gradi per farlo entrare nel telaio"
+          },
+          "rework_failed": {
+            "text": "Non è stato possibile adattare automaticamente il disegno, quindi è stato convertito così com'è"
+          },
+          "instructions_applied": {
+            "text": "Le tue richieste sono state applicate"
+          },
+          "solved_gradient_or_filter": {
+            "text": "Gradienti e filtri sono stati sostituiti da colori pieni"
+          },
+          "solved_live_text": {
+            "text": "Il testo è stato convertito in forme ricamabili"
+          },
+          "solved_embedded_pixel_image": {
+            "text": "L'immagine a pixel incorporata è stata ridisegnata come forme"
+          },
+          "solved_detail_below_1mm": {
+            "text": "I piccoli dettagli sono stati ingranditi o omessi"
+          },
+          "solved_more_than_12_colours": {
+            "text": "I colori sono stati ridotti a un massimo di 12 fili"
+          },
+          "unsolved_gradient_or_filter": {
+            "text": "Contiene ancora gradienti o filtri; il risultato potrebbe non essere pulito in quel punto"
+          },
+          "unsolved_live_text": {
+            "text": "Contiene ancora testo non convertito; il risultato potrebbe non essere pulito in quel punto"
+          },
+          "unsolved_embedded_pixel_image": {
+            "text": "Contiene ancora un'immagine a pixel incorporata; il risultato potrebbe non essere pulito in quel punto"
+          },
+          "unsolved_detail_below_1mm": {
+            "text": "Contiene ancora dettagli inferiori a 1 mm; il risultato potrebbe non essere pulito in quel punto"
+          },
+          "unsolved_more_than_12_colours": {
+            "text": "Contiene ancora più di 12 colori di filo; il risultato potrebbe non essere pulito in quel punto"
+          }
+        }
+      }
     }
   },
   "embeds_input": {},
@@ -15397,6 +15576,16 @@
       "banner": {
         "sample_data": {
           "text": "Dati di esempio — ecco come appaiono i risultati reali di questa skill."
+        }
+      },
+      "design": {
+        "embroidery": {
+          "1": {
+            "text": "Logo di volpe per un cappellino, 90 mm"
+          },
+          "2": {
+            "text": "Patch di volpe su tessuto elastico, 60 mm"
+          }
         }
       }
     },
