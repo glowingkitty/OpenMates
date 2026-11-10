@@ -27,9 +27,7 @@
   import { getProviderIconUrl } from '../../../data/providerIcons';
   import { hasMediaEncryptionMetadata } from '../../../services/encryption/mediaEncryption';
   import SvgEmbedImage from '../code/SvgEmbedImage.svelte';
-  import { chatSyncService } from '../../../services/chatSyncService';
-  import { decodeToonContent } from '../../../services/embedResolver';
-  import { EMPTY_SVG_DRAFT, childDraftContent, mergeSvgDraft, readSvgDraft, shouldShowDraftStatusOnly, shouldShowSvgDraft, svgDraftStageLabelKey, type SvgDraftStage, type SvgDraftState } from './svgDraft';
+  import { EMPTY_SVG_DRAFT, mergeSvgDraft, readSvgDraft, shouldShowDraftStatusOnly, shouldShowSvgDraft, svgDraftStageLabelKey, type SvgDraftStage, type SvgDraftState } from './svgDraft';
   
   /**
    * Image embed content structure from the backend
@@ -167,21 +165,8 @@
     return () => observer?.disconnect();
   });
   
-  // Live drafts arrive as processing updates of the child image embed, while
-  // this card is mounted for the parent skill placeholder (see childDraftContent).
-  async function handleChildDraft(event: Event) {
-    const toon = childDraftContent((event as CustomEvent).detail, id);
-    if (!toon || status !== 'processing') return;
-    const decoded = await decodeToonContent(toon);
-    if (decoded && status === 'processing') {
-      svgDraftState = mergeSvgDraft(svgDraftState, readSvgDraft(decoded as Record<string, unknown>));
-    }
-  }
-  chatSyncService.addEventListener('embedUpdated', handleChildDraft);
-
   // Cleanup: release cached blob URL references on unmount
   onDestroy(() => {
-    chatSyncService.removeEventListener('embedUpdated', handleChildDraft);
     releaseOwnedImages();
     if (retainedS3Key) {
       releaseCachedImage(retainedS3Key);
