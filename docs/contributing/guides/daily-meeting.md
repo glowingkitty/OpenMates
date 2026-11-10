@@ -123,7 +123,8 @@ a done-when and a date) and a `Last weekly review:` line. Tasks that serve a mil
 `milestone:<name>`. The briefing shows GOALS.md, per-milestone Task progress (against a snapshot about a week
 old) and drift warnings (review overdue, high-priority Tasks without a milestone, a milestone with open
 high-priority Tasks and no movement). Every day the meeting asks which milestone today's top task serves; on
-Mondays Block 6 is the goals block (about 10 minutes, replacing the backlog cleanup): on track? still the right
+Mondays Block 6 is the goals block (about 10 minutes, replacing the backlog cleanup; if Monday's was missed or no
+review exists yet, it is due on the next meeting until a `Last weekly review:` date in the current week is recorded): on track? still the right
 milestone (the mission and goals once a quarter or when asked)? the next milestone split into 3-7 Tasks and the
 week's priority order. Data: `scripts/daily_meeting_goals.py`.
 

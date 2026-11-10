@@ -86,15 +86,28 @@ def drift_warnings(progress: dict, goals_text: str, today: date) -> list[str]:
     return warnings
 
 
+def block_due(reviewed: date | None, today: date) -> tuple[bool, str]:
+    """The weekly goals block runs on Monday, or on the first later meeting if this week has no review yet."""
+    week_start = today - timedelta(days=today.weekday())
+    if reviewed and reviewed >= week_start:
+        return False, f"done this week ({reviewed.isoformat()})"
+    if today.weekday() == 0:
+        return True, "Monday"
+    if reviewed is None:
+        return True, "no weekly goals review has happened yet: the first one confirms or corrects the draft"
+    return True, f"Monday's goals block was missed (last review {reviewed.isoformat()})"
+
+
 def collect(root: Path, out: Path, tasks: list[dict] | None, today: date) -> dict:
     text = read_private(root / "GOALS.md")
     reviewed = last_review(text)
+    due, reason = block_due(reviewed, today)
     progress = milestone_progress(tasks, week_old_snapshot(out, today))
     settings = read_private(out / "meeting-settings.md", 3000)
     log_lines = read_private(out / "meeting-changelog.md", 4000).strip().splitlines()[-8:]
     return {
         "goals_file": text, "exists": bool(text), "last_review": reviewed.isoformat() if reviewed else "",
-        "is_monday": today.weekday() == 0, "progress": progress,
+        "is_monday": today.weekday() == 0, "block_due": due, "block_reason": reason, "progress": progress,
         "warnings": drift_warnings(progress, text, today),
         "meeting_settings": settings.strip(), "meeting_changelog": log_lines,
     }

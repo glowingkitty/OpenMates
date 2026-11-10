@@ -54,8 +54,12 @@ def test_goals_section_marks_monday_and_adjustments_are_injected():
             "progress": {"milestones": {}, "baseline": "none"}, "meeting_settings": "Be brief.",
             "meeting_changelog": ["- 2026-11-09 shorter"]}
     monday = "\n".join(briefing._goals_section(data, MONDAY))
-    assert "Monday: run the goals block" in monday and "review overdue" in monday and "no Task carries a milestone label" in monday
-    assert "Not a Monday" in "\n".join(briefing._goals_section(data, TUESDAY))
+    assert "run the weekly goals block (Block 6) today" in monday and "Weekly goals block is due today" in monday
+    assert "review overdue" in monday and "no Task carries a milestone label" in monday
+    assert "Weekly goals block not due today" in "\n".join(briefing._goals_section(data, TUESDAY))
+    carried = "\n".join(briefing._goals_section({**data, "block_due": True, "block_reason": "Monday's goals block was missed"}, TUESDAY))
+    assert "Weekly goals block is due today** (Monday's goals block was missed)" in carried
+    assert "Weekly goals block not due today" in "\n".join(briefing._goals_section({**data, "block_due": False}, MONDAY))
     assert "Be brief." in "\n".join(briefing._meeting_adjustments(data)) and briefing._meeting_adjustments({}) == []
 
 
@@ -65,3 +69,13 @@ def test_meeting_script_has_goals_block_retro_and_structured_tables():
     assert "| Action | Reminder (exact title) | List | New due | New title | Notes |" in script
     assert "| Action | Task (exact title) | New title | Priority | Status | Label | Due | Description |" in script
     assert "Goals:" in script and "Meeting: <" in script and "milestone does today's top task serve" in script
+
+
+def test_goals_block_is_due_on_monday_and_carries_over_until_reviewed():
+    tuesday, monday = date(2026, 11, 10), date(2026, 11, 9)
+    assert goals.block_due(None, tuesday)[0] and "first one" in goals.block_due(None, tuesday)[1]
+    assert goals.block_due(date(2026, 11, 2), monday) == (True, "Monday")
+    missed = goals.block_due(date(2026, 11, 2), tuesday)
+    assert missed[0] and "missed" in missed[1]
+    assert goals.block_due(tuesday, date(2026, 11, 12))[0] is False
+    assert goals.block_due(monday, monday)[0] is False

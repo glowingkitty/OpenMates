@@ -99,7 +99,7 @@ briefing line shows a bare ID, say what it is before using it.
    `GOALS.md` (repo root of the canonical checkout, private, gitignored, never committed): `add`/`edit`
    milestones with their done-when and date, `done` moves a milestone to the done list with the date,
    `drop` removes it with a one-line reason, mission/goal rows only when the note says so. Set the
-   `Last weekly review: <date>` line whenever the Monday block ran. Tasks created for a milestone carry
+   `Last weekly review: <date>` line whenever the weekly goals block ran (Monday, or the carried-over day). Tasks created for a milestone carry
    the label `milestone:<name>` (use the `Label` column of the Task table); add one reminder with a
    time on the milestone's due date. Update the "Current milestone" line in FOCUS.md.
 4c. **Meeting** (the `Meeting:` line): `adopt`/`adjust` a change: small tuning (order, length, wording,

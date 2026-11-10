@@ -158,13 +158,14 @@ days so no day is overloaded.
   - **Block 5 — Parking lot and week goals.** Additions/removals and week-goal changes. \
 Read back anything parked during the meeting.
   - **Block 6 on Mondays — Goals and milestones (about 10 minutes; this replaces the backlog \
-cleanup).** Follow the "Goals and milestones" section: (1) is the current milestone on track — \
+cleanup).** It also runs on the first later meeting of the week when Monday's was missed: the \
+"Goals and milestones" section then says "Weekly goals block is due today". Follow that section: (1) is the current milestone on track — \
 use the progress evidence and the drift warnings; (2) is it still the right milestone, and once \
 a quarter or when asked, are the mission and the (at most 3) goals still right; (3) split the \
 next milestone into 3-7 concrete Tasks (plain title, priority, done-criterion) and agree the \
 priority order for the week. One question at a time, with your recommendation. If energy is \
 1-2, shrink it to three questions: on track? blocked? is the top priority still right?
-  - **Block 6 on other days — Backlog cleanup (optional, max 5 minutes, skip if energy is low or the \
+  - **Block 6 on days without a due goals block — Backlog cleanup (optional, max 5 minutes, skip if energy is low or the \
 meeting already ran 20 minutes).** The meeting also keeps the to-do lists healthy. Take \
 **one** batch in groups of 3-5 related items (one question per group, with your \
 recommendation): which can be **closed or deleted** (obsolete, done, no longer wanted), \
@@ -318,10 +319,15 @@ def _waiting_section(waiting: dict) -> list[str]:
 
 def _goals_section(goals: dict, today: date) -> list[str]:
     """Mission, goals and milestones (GOALS.md) with progress evidence; the Monday block runs on this."""
-    monday = today.weekday() == 0
-    out = ["", "## Goals and milestones" + (" — **Monday: run the goals block (Block 6) today**" if monday else ""), ""]
+    due = goals.get("block_due", today.weekday() == 0) if goals else False
+    out = ["", "## Goals and milestones" + (" — **run the weekly goals block (Block 6) today**" if due else ""), ""]
     if not goals:
         return out + ["_Goals data unavailable._", ""]
+    if due:
+        out += [f"**Weekly goals block is due today** ({goals.get('block_reason') or 'Monday'}). It replaces the "
+                "backlog cleanup. If GOALS.md is still marked as a draft, first confirm or correct the mission, the "
+                "goals and the milestones (names, done-when, dates), then split the current milestone into Tasks "
+                "and agree this week's priority order.", ""]
     for warning in goals.get("warnings", []):
         out.append(f"> **⚠** {warning}")
     if goals.get("warnings"):
@@ -339,8 +345,8 @@ def _goals_section(goals: dict, today: date) -> list[str]:
     if loose.get("count"):
         out.append(f"- {loose['count']} open high-priority Tasks without a milestone, e.g. " + "; ".join(loose["examples"][:4]))
     out.append("")
-    if not monday:
-        out.append("_Not a Monday: only ask which milestone today's top task serves._")
+    if not due:
+        out.append("_Weekly goals block not due today: only ask which milestone today's top task serves._")
         out.append("")
     return out
 
