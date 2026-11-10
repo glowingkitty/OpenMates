@@ -19,7 +19,8 @@ checks:
   - Two-user web E2E in isolated CI for a document, a sheet and a deck - concurrent edits, presence, reconnect merge, assistant edit while another member types, restore for everyone.
 decisions:
   - CRDT, not operational transform, because the server must not read content.
-  - Yjs format with yrs in the Rust core is the working assumption; the Phase 0 spike confirms or replaces it before editors are built.
-  - Sync, crypto and merge logic live in the Rust client core; web code only binds editors to it.
+  - Yjs format with yrs in the Rust core, confirmed by the Phase 0 spike (spike.md).
+  - "The Rust core holds the authoritative replica of each open item and owns structure, merge, assistant diffs, undo, versions, persistence, crypto and sync. Sheet and slides editors send typed operations to the core and render its view model; no TypeScript schema accessors for sheets or slides. A JS Yjs mirror on the main thread is allowed only for rich-text typing (document editor, slide text boxes) and only exchanges update bytes with the core. Apple calls the core directly without a mirror (user decision 2026-11-10; replaces spike architecture b for sheets and slides)."
+  - Sheet formulas are stored in id form inside the shared model and shown as A1; the markdown table the assistant edits stays A1 (spike recommendation, adopted as default).
   - Editors are built on the shared model from the start and ship single-user first; multi-user is switched on in Phase 3 (user decision 2026-11-10).
   - Live editing is for Team and Project members with write access; share links stay view-only (user decision 2026-11-10).

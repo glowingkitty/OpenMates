@@ -732,7 +732,7 @@ specifications:
     version: 1
     status: draft
     path: features/live-collaboration
-    fingerprint: 548ece332713c1e871026a5f680790c784b5d4b584c6a59b94104989dc2fb141
+    fingerprint: ce58689f06d1ace62c42acfdc05b3cc7d5f5647de7f312e96f15dd9d186ea1e4
     required_applies_to:
     - rest_api
     - sdks.rust
@@ -9086,6 +9086,15 @@ assertions:
     specification_id: feature.live-collaboration
     type: behavior
     fingerprint: 3a5d03822da7217bea380bae6788ed1eab52281775d171b2b0e2f2edede3b410
+    required_applies_to:
+    - rest_api
+    - sdks.rust
+    - gui.web
+  live-collab.core.one-shared-model:
+    specification: feature.live-collaboration@1
+    specification_id: feature.live-collaboration
+    type: invariant
+    fingerprint: 4dfb74581c8498b805dbc77762bdb4f49446349695e02ced219013fdaa5f811e
     required_applies_to:
     - rest_api
     - sdks.rust

@@ -44,6 +44,11 @@ capability inventory and status: `docs/plans/client-core-one-core-three-shells/p
   logic in TypeScript or Swift, including "temporary" duplicates for speed.
   Exception: a defect fix in not-yet-migrated shell code, marked
   `shell-only: bugfix-in-frozen-code <capability>` in the deploy message.
+  Exception (live collaboration, `feature.live-collaboration`
+  `live-collab.core.one-shared-model`): the web shell may keep a third-party Yjs
+  mirror on the main thread for rich-text typing only (document editor, slide
+  text boxes); it exchanges update bytes with the core and holds no OpenMates
+  logic. Sheets and slides editors send typed operations to the core.
 - Parity vectors (old vs new output) as a completion gate. They are debugging aids.
 - Partial twins: a lane that adds a Rust path but leaves the old path in place
   has not finished. `rust-twin`/`rust-default` are unfinished states.

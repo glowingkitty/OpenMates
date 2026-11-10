@@ -90,6 +90,23 @@ assertions:
       members who contributed. Restoring a snapshot changes the item for all
       members at once and is itself added as a new version.
     depends_on: [examples.versions]
+  - id: live-collab.core.one-shared-model
+    type: invariant
+    must: >
+      The shared client core holds the authoritative copy of every open
+      document, sheet and deck and owns everything that decides its content:
+      the item's structure, merging, applying assistant edits, undo history,
+      versions, saving, encryption and sync. The sheet and slides editors change
+      an item only by sending the core named operations such as "set cell" or
+      "move element" and draw what the core reports back; a drag is previewed
+      locally and committed when it ends. Only for typing rich text (the
+      document editor and text boxes on slides) may the web app keep a mirror
+      of the item next to the editor; the mirror exchanges opaque change bytes
+      with the core and contains no OpenMates rules, so nothing in it decides a
+      conflict, a permission or what is saved. Clients that call the core
+      directly, such as the Apple apps, use no mirror, and no editing rule is
+      written a second time for them.
+    depends_on: [examples.core]
 
 applies_to:
   rest_api: {required: true, role: Relay and storage of encrypted changes and relay of encrypted presence over the existing WebSocket sync.}
@@ -108,4 +125,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [sync, presence, privacy, access, offline, assistant, versions]
+  required_groups: [sync, presence, privacy, access, offline, assistant, versions, core]

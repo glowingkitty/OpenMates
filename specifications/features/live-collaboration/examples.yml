@@ -54,3 +54,13 @@ versions:
     given: A shared sheet has versions from Monday by Alice and from Tuesday by Bob and Carol.
     when: Alice restores Monday's version while Bob has the sheet open.
     then: Bob's sheet changes to Monday's content at once, and the timeline shows a new version "restored by Alice" after Tuesday's.
+
+core:
+  - id: moving-a-slide-element
+    given: Alice has a deck open in the web editor and drags the chart on slide 3 to the right.
+    when: She releases the mouse.
+    then: While dragging, the chart follows the pointer on her screen only. On release the web app sends one "move element" operation to the client core; the core changes the deck, saves and syncs it, and Bob sees the chart at the new position. No web code decided how the move merges with Bob's simultaneous resize of the same chart.
+  - id: same-rules-on-every-client
+    given: The web app keeps a mirror for typing in a document, and a client that calls the core directly has none.
+    when: The same assistant edit, the same undo and the same simultaneous edits by two members are applied on both clients.
+    then: Both end with identical content, because the result is computed by the same core code on each; the mirror on web only passed change bytes between the editor and the core.

@@ -320,3 +320,15 @@ CARGO_TARGET_DIR=/tmp/om-crdt-wasm RUSTFLAGS='--cfg getrandom_backend="wasm_js"'
 2. Approve id-based formula storage for sheets. It changes how formulas are stored
    inside the shared model, while the markdown table the assistant edits stays A1.
    Recommendation: yes.
+
+## Decision recorded 2026-11-10
+
+Decision 1 was narrowed by the user because Apple support follows and editing
+logic must not be written twice. The Rust core (yrs) holds the authoritative
+replica of every open item. Sheets and slides editors send typed operations to
+the core ("set cell", "move element") and render its view model; the TypeScript
+schema accessors proposed in section 3 are not built. A JS Yjs mirror on the main
+thread exists only for rich-text typing (document editor, slide text boxes) and
+only exchanges update bytes with the core. Apple calls the core directly and
+needs no mirror. Unproven: typing latency of the mirror-to-core loop in a browser.
+Decision 2 (id-based formulas) is adopted as the default.

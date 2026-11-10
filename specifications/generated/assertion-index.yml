@@ -122118,6 +122118,14 @@ assertions:
     tests: []
     surfaces: {}
     current_direct_proof: false
+  live-collab.core.one-shared-model:
+    specification: feature.live-collaboration@1
+    fingerprint: 4dfb74581c8498b805dbc77762bdb4f49446349695e02ced219013fdaa5f811e
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
   marketing-landing.independent-scroll:
     specification: feature.marketing-landing@12
     fingerprint: cd027fbb30b6c14a8084372f995d7f83cec4c13bac143f4a80cf6a972e0ecf06
