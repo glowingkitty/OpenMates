@@ -64,14 +64,16 @@ models:
         output:
           per_credit_unit: 8 # 333.33 / 40.00 = 8.33 -> 8
     cache_pricing:
-      enabled: false
+      enabled: true
       write_billing: separate
       eligible_hosts: [anthropic]
       source_url: https://platform.claude.com/docs/en/models/fable-5-2/overview
       reviewed_on: "2026-11-10"
-      status: proposed_pending_provider_evidence
+      status: verified_for_activation
+      expires_on: "2026-12-10"
       requires_cache_write_metric: true
       requires_cache_retention_metric: true
+      cache_write_1h_hosts: [] # Current direct-API controls create only 5m entries.
     costs:
       input_per_million_token:
         price: 8.00

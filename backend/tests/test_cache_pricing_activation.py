@@ -16,7 +16,7 @@ ACTIVE = {
     "google": {"gemini-3.7-flash", "gemini-3.8-flash"},
     "openai": {"gpt-6-astra", "gpt-6.1-sol", "gpt-6-luna", "gpt-5.6-terra"},
     "anthropic": {
-        "claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5",
+        "claude-fable-5-2", "claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5",
         "claude-sonnet-5", "claude-sonnet-4-6",
     },
     "mistral": {"mistral-large-4", "mistral-small-latest"},
