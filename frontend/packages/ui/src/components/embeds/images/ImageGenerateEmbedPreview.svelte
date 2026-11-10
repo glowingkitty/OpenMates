@@ -156,6 +156,8 @@
   let versionReady = $state(!EMBED_VERSIONS_ENABLED || explicitVersion);
   let latestHeadContent: Record<string, unknown> | null = null;
   let versionRun = 0;
+  // The card showed a pinned version newer than the head: its mount data is an older version's.
+  let waitedForHead = false;
   let versionBadge = $derived(versionBadgeLabel(shownVersion, headVersion));
 
   // Decrypted thumbnail URLs for input (reference) images — keyed by embed ID
@@ -383,7 +385,7 @@
     if (!messageId || explicitVersion) return;
     const run = ++versionRun;
     try {
-      const view = await resolveImageVersionView(messageId, id, sourceChatId);
+      const view = await resolveImageVersionView(messageId, id, sourceChatId, { headContent: waitedForHead && !latestHeadContent });
       if (run !== versionRun) return;
       if (!view) {
         shownVersion = undefined;
@@ -395,10 +397,14 @@
       shownVersion = view.version;
       headVersion = view.headVersion;
       if (view.waitingForHead) {
-        // The message pins a version this device stores with the next head update.
+        // The message pins a version this device stores with the next head update;
+        // messageEmbedVersion re-resolves the card once the head reached it.
+        waitedForHead = true;
+        latestHeadContent = null;
         versionReady = false;
         return;
       }
+      waitedForHead = false;
       if (view.content) {
         storeResolved = true;
         localStatus = 'finished';

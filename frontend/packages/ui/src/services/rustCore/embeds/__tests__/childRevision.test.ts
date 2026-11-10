@@ -164,6 +164,27 @@ describe('child revision handlers', () => {
 		const bound = handlers({}, { embed_versions_by_message: () => JSON.stringify([{ message_id: 'm1', version: 1, pinned_here: false }]) });
 		expect(await bound.embedVersionsByMessage({ messages: [], embedId: EMBED })).toEqual([{ message_id: 'm1', version: 1, pinned_here: false }]);
 	});
+
+	// contract-test: direct surface=gui.web assertions=images-generate.revision.message-shows-its-version
+	it('keeps a stored child head the core finds newer than a synced row, and asks only for stored heads', async () => {
+		idb.heads.set(REF, headAt(3));
+		const regresses = vi.fn((stored: string, incoming: string) =>
+			(JSON.parse(incoming).version_number ?? 1) < JSON.parse(stored).version_number);
+		const h = handlers({}, { embed_synced_head_regresses: regresses });
+		const older = { embed_id: EMBED, parent_embed_id: 'parent-1', version_number: 2 };
+		const kept = await h.embedSyncedHeadsKept({ rows: [
+			{ embedId: EMBED, incoming: older },
+			{ embedId: 'not-stored', incoming: { embed_id: 'not-stored', parent_embed_id: 'parent-1', version_number: 1 } }
+		] });
+		expect(kept).toEqual([EMBED]);
+		// The stored row goes to Rust as stored; a row this device does not hold is never compared.
+		expect(regresses).toHaveBeenCalledTimes(1);
+		expect(regresses).toHaveBeenCalledWith(JSON.stringify(headAt(3)), JSON.stringify(older));
+		expect(await h.embedSyncedHeadsKept({ rows: [{ embedId: EMBED, incoming: { ...older, version_number: 3 } }] })).toEqual([]);
+		await expect(handlers({}).embedSyncedHeadsKept({ rows: [{ embedId: EMBED, incoming: older }] }))
+			.rejects.toMatchObject({ code: 'embed_revision_binding_missing' });
+		await expect(h.embedSyncedHeadsKept({ rows: 'x' })).rejects.toMatchObject({ code: 'embed_write_bad_rows' });
+	});
 });
 
 describe('runChildRevision', () => {

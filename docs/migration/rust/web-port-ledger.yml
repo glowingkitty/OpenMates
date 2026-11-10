@@ -799,3 +799,15 @@ slices:
   - file: frontend/packages/ui/src/services/contextEntryEvents.ts
     functions: [listenForWorkflowRecommendationSaves, parseContextEntryContent, recordContextEntrySaved, withoutPresentationOnlyEvents,
       writeContextEntryMessage]
+- id: image-version-synced-head-guard
+  commit: 83617a0e8b
+  date: '2026-11-10'
+  title: 'fix(images): a synced row never lowers a local generated image head version'
+  rust: [packages/openmates-rust/src/client/embed_pinned_version.rs, packages/openmates-rust/src/client/embed_child_revision_tests.rs]
+  vectors: [frontend/packages/ui/src/services/rustCore/embeds/__tests__/childRevision.test.ts]
+  e2e: [frontend/apps/web_app/tests/vector-graphic-chat.spec.ts]
+  notes: The decision whether an incoming row would lower a child head lives in Rust (unit op embedSyncedHeadsKept);
+    the TS function only asks the Worker and skips the kept rows.
+  ts:
+  - file: frontend/packages/ui/src/services/embedStore.ts
+    functions: [keptNewerChildHeads]

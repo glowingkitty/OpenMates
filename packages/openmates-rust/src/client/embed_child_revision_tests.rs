@@ -692,3 +692,30 @@ async fn fetched_version_page_is_cached_as_confirmed_local_rows() {
         Err("protocol")
     );
 }
+
+// contract-test: supporting surface=sdks.rust assertions=images-generate.revision.message-shows-its-version
+#[test]
+fn a_synced_row_never_lowers_a_child_head_version() {
+    let head = |version: Value| json!({"embed_id": "image-1", "parent_embed_id": "parent-1", "version_number": version});
+    let server = |version: Value| json!({"embed_id": "image-1", "version_number": version});
+    // The device wrote v3; a server read still at v2 (or without a version) keeps it.
+    assert!(pinned::synced_head_regresses(&head(json!(3)), &server(json!(2))).unwrap());
+    assert!(pinned::synced_head_regresses(&head(json!(3)), &server(Value::Null)).unwrap());
+    // Same or newer versions are written as before.
+    assert!(!pinned::synced_head_regresses(&head(json!(3)), &server(json!(3))).unwrap());
+    assert!(!pinned::synced_head_regresses(&head(json!(2)), &server(json!(3))).unwrap());
+    // Root embeds keep the old overwrite behaviour.
+    let root = json!({"embed_id": "image-1", "version_number": 3});
+    assert!(!pinned::synced_head_regresses(&root, &server(json!(1))).unwrap());
+    assert!(matches!(
+        pinned::synced_head_regresses(
+            &head(json!(3)),
+            &json!({"embed_id": "other", "version_number": 1})
+        ),
+        Err(Error::Protocol)
+    ));
+    assert!(matches!(
+        pinned::synced_head_regresses(&head(json!(3)), &server(json!("2"))),
+        Err(Error::Protocol)
+    ));
+}

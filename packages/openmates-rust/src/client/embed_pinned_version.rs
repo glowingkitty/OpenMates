@@ -148,6 +148,38 @@ pub fn head_version(head: &Value) -> Result<i64> {
     stored_version(head.as_object().ok_or(Error::Protocol)?)
 }
 
+/// True when storing `incoming` (a row from sync or a server read) over the
+/// stored child head `stored` would lower its version: the shell then keeps
+/// the stored row. Only child embeds (`parent_embed_id` set) advance through
+/// local revisions, and a server row can still be at version N while this
+/// device already holds the N+1 head it wrote. Messages pinning N+1 would
+/// otherwise wait for a head this device had and lost. Equal or higher
+/// incoming versions, and every root embed, are written as before.
+///
+/// # Errors
+/// `Error::Protocol` for a non-object row, rows of different embeds or a
+/// malformed `version_number`.
+pub fn synced_head_regresses(stored: &Value, incoming: &Value) -> Result<bool> {
+    let stored = stored.as_object().ok_or(Error::Protocol)?;
+    let incoming = incoming.as_object().ok_or(Error::Protocol)?;
+    fn id(row: &Map<String, Value>) -> Option<&str> {
+        row.get("embed_id").and_then(Value::as_str)
+    }
+    if let (Some(a), Some(b)) = (id(stored), id(incoming))
+        && a != b
+    {
+        return Err(Error::Protocol);
+    }
+    let child = stored
+        .get("parent_embed_id")
+        .and_then(Value::as_str)
+        .is_some_and(|parent| !parent.is_empty());
+    if !child {
+        return Ok(false);
+    }
+    Ok(stored_version(incoming)? < stored_version(stored)?)
+}
+
 /// Content of version `version` of `embed_id`: the head's content when it is
 /// the head version, else the `embed_diffs` chain from the latest snapshot at
 /// or below `version` up to it (a child's row K is a full snapshot, so that is

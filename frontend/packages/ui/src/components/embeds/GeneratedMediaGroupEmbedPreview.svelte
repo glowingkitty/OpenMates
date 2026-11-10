@@ -35,6 +35,9 @@
     id, appId, skillId, status, resultCount, childEmbedIds = [], prompt: promptProp, error = '',
     taskId, isMobile = false, onFullscreen,
   }: Props = $props();
+  // The card is mounted once; later status changes of the parent arrive as updates.
+  let liveStatus = $state<Props['status'] | undefined>(undefined);
+  const shownStatus = $derived(liveStatus ?? status);
   let currentCount = $state<number | undefined>(undefined);
   let currentError = $state<string | undefined>(undefined);
   let currentChildIds = $state<string[] | undefined>(undefined);
@@ -51,6 +54,9 @@
   function handleUpdated(data: { decodedContent: Record<string, unknown> | null }) {
     const content = data.decodedContent;
     if (!content) return;
+    if (content.status === 'processing' || content.status === 'finished' || content.status === 'error' || content.status === 'cancelled') {
+      liveStatus = content.status;
+    }
     currentCount = Math.max(
       typeof content.result_count === 'number' ? content.result_count : 0,
       generatedMediaChildIds(content).length,
@@ -78,8 +84,8 @@
   // the child image embed while this parent card is the one on screen. Until a
   // draft has something to look at, the card shows the request instead.
   let svgDraftState = $state<SvgDraftState>(EMPTY_SVG_DRAFT);
-  const showSvgDraft = $derived(status === 'processing' && hasDrawableSvg(svgDraftState.draft));
-  const showRequest = $derived(status === 'processing' && !showSvgDraft && !!prompt);
+  const showSvgDraft = $derived(shownStatus === 'processing' && hasDrawableSvg(svgDraftState.draft));
+  const showRequest = $derived(shownStatus === 'processing' && !showSvgDraft && !!prompt);
   const draftStageLabelKey = $derived(svgDraftStageLabelKey(svgDraftState.stage));
   const modelLabel = $derived(request.model ? imageGenerationAttribution(request.model) : undefined);
   const FADE_MS = 350;
@@ -100,6 +106,7 @@
   {id} {appId} {skillId} skillIconName={appId === 'models3d' ? '3dmodels' : appId === 'design' ? 'embroidery' : appId}
   {status} {skillName} {taskId} {isMobile} {onFullscreen}
   onEmbedDataUpdated={handleUpdated}
+  onStatusChanged={(next) => { liveStatus = next; }}
   customStatusText={count > 0 ? `${count} · ${$text('apps_workspace.results')}` : undefined}
 >
   {#snippet details()}

@@ -13,8 +13,8 @@
  * a conflict). Nothing here decides a key, hash, version, row or marker.
  * Read: `embedVersionContent` opens version K from the stored head and rows;
  * `cacheVersionPage` stores the rows Rust validated from a fetched page;
- * `embedHeadVersion`, `embedVersionsByMessage` and `embedPinnedEmbeds` are the
- * core's version rules.
+ * `embedHeadVersion`, `embedSyncedHeadsKept`, `embedVersionsByMessage` and
+ * `embedPinnedEmbeds` are the core's version rules.
  */
 import { UnitRefusal, type UnitHandlers } from '../host/unitPort';
 import {
@@ -230,6 +230,22 @@ export function createChildRevisionHandlers(deps: ChildRevisionDeps): UnitHandle
 			const version = await rust(() => headVersion(JSON.stringify(head)));
 			// The parent id only routes the key load; the version comes from the core.
 			return { version, parent_embed_id: typeof head.parent_embed_id === 'string' && head.parent_embed_id ? head.parent_embed_id : null };
+		},
+		async embedSyncedHeadsKept(payload) {
+			const rows = (payload as { rows?: unknown } | null)?.rows;
+			if (!Array.isArray(rows)) throw new UnitRefusal('embed_write_bad_rows');
+			const regresses = free<boolean>('embed_synced_head_regresses');
+			const db = await openDb();
+			const kept: string[] = [];
+			for (const candidate of rows as Array<{ embedId?: unknown; incoming?: unknown }>) {
+				const embedId = text(candidate?.embedId, 'embed_id');
+				if (typeof candidate.incoming !== 'object' || candidate.incoming === null) throw new UnitRefusal('embed_write_bad_row');
+				const stored = await getEmbedEntry(db, `embed:${embedId}`);
+				if (!stored) continue;
+				const incoming = JSON.stringify(candidate.incoming);
+				if (await rust(() => regresses(JSON.stringify(stored), incoming))) kept.push(embedId);
+			}
+			return kept;
 		},
 		async embedVersionsByMessage(payload) {
 			const request = payload as { messages?: unknown; embedId?: unknown } | null;

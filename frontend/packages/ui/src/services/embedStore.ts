@@ -1282,6 +1282,7 @@ export class EmbedStore {
       writeGuard?: () => void;
     },
   ): Promise<void> {
+    if ((await this.keptNewerChildHeads([{ contentRef, data: encryptedData }])).has(contentRef)) return;
     const normalizedType = this.normalizeEmbedType(type as unknown as string);
     let pendingChildRefIndex: unknown;
 
@@ -1548,10 +1549,12 @@ export class EmbedStore {
     }>,
   ): Promise<void> {
     if (items.length === 0) return;
+    const kept = await this.keptNewerChildHeads(items);
 
     // Build entries and populate memory cache
     const entries: EmbedStoreEntry[] = [];
     for (const item of items) {
+      if (kept.has(item.contentRef)) continue;
       const normalizedType = this.normalizeEmbedType(
         item.type as unknown as string,
       );
@@ -2567,6 +2570,41 @@ export class EmbedStore {
    * @param contentRef - The embed reference key
    * @returns The raw stored data (may be encrypted) with parent_embed_id and embed_ids if present
    */
+  /**
+   * Content refs whose stored child head is newer than the row about to be
+   * written over it (`images-generate.revision.message-shows-its-version`): a
+   * synced or fetched server row can still be at version N while this device
+   * already stored the N+1 head it wrote, and replacing it would leave every
+   * message pinning N+1 waiting for a head it had. The comparison is the core's
+   * (`keptStoredHeads`); only child rows are asked, in one Worker request.
+   * VITE_OPENMATES_RUST_CORE builds only; other builds write as before.
+   */
+  private async keptNewerChildHeads(
+    items: ReadonlyArray<{ contentRef: string; data: Record<string, unknown> }>,
+  ): Promise<Set<string>> {
+    if (import.meta.env.VITE_OPENMATES_RUST_CORE !== "1") return new Set();
+    const candidates = items.flatMap(({ contentRef, data }) => {
+      const parent = data.parent_embed_id;
+      if (typeof parent !== "string" || !parent) return [];
+      const embedId = typeof data.embed_id === "string" && data.embed_id ? data.embed_id : contentRef.replace(/^embed:/, "");
+      const version = typeof data.version_number === "number" ? data.version_number : null;
+      return [{ contentRef, embedId, incoming: { embed_id: embedId, parent_embed_id: parent, version_number: version } }];
+    });
+    if (candidates.length === 0) return new Set();
+    try {
+      const { keptStoredHeads } = await import("./rustCore/embeds/messageEmbedVersion");
+      const kept = await keptStoredHeads(candidates.map(({ embedId, incoming }) => ({ embedId, incoming })));
+      const refs = new Set(candidates.filter(({ embedId }) => kept.has(embedId)).map(({ contentRef }) => contentRef));
+      for (const ref of refs) console.debug("[EmbedStore] Kept newer local child head over an older synced row:", ref);
+      return refs;
+    } catch (error) {
+      // The guard only prevents a version regression; a sync write must not be
+      // lost because the Worker cannot answer, so the row is written as before.
+      console.error("[EmbedStore] Child head version guard unavailable:", (error as { code?: unknown })?.code ?? error);
+      return new Set();
+    }
+  }
+
   async getRawEntry(
     contentRef: string,
   ): Promise<{

@@ -281,6 +281,14 @@ child_revision = {
 - Returns `version_number` of a stored head, with missing meaning 1. Rejects with `protocol` when malformed.
 - Shells must not read `version_number` themselves.
 
+`embed_synced_head_regresses(stored_head_json, incoming_json) -> bool` (free function)
+- True when a synced or fetched server row would lower the version of the stored child head (`parent_embed_id`
+  set); the shell then keeps the stored row. A server row can still be at N while this device holds the N+1 head it
+  wrote. Root embeds and equal or newer rows return false. Rejects with `protocol` for rows of different embeds or a
+  malformed version.
+- A card whose message pins a version above the local head waits; the web shell re-reads the heads it waits for on
+  every stored-embed change and re-resolves the cards once the head reached the pinned version.
+
 `BrowserEmbedWriter.embed_version_content(embed_id, version, head_json, rows_json) -> string`
 - Returns the plaintext TOON of version K.
 - When K is the head version, the content is the head's. Otherwise it comes from the `embed_diffs` chain from the

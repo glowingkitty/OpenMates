@@ -8,7 +8,7 @@
  * The Rust core (`BrowserEmbedWriter.prepare_child_revision`,
  * `adopt_child_revision_row`, `embed_version_content`, `cache_version_page`,
  * free functions `embed_versions_by_message`, `embed_pinned_embeds`,
- * `embed_head_version`) decides every row, hash, key, version and durability
+ * `embed_head_version`, `embed_synced_head_regresses`) decides every row, hash, key, version and durability
  * marker. These types only carry its results across the unit port; local rows,
  * entries and key wrappers never leave the Worker.
  */
@@ -27,6 +27,13 @@ export interface ChildRevisionFunctions {
 	embed_versions_by_message?(messagesJson: string, embedId: string): string;
 	embed_pinned_embeds?(parentContent: string): string;
 	embed_head_version?(storedHeadJson: string): number;
+	embed_synced_head_regresses?(storedHeadJson: string, incomingJson: string): boolean;
+}
+
+/** A row sync or a server read is about to store over `embed:<embedId>` (only the fields the core compares). */
+export interface SyncedHeadCandidate {
+	embedId: string;
+	incoming: { embed_id: string; parent_embed_id?: string | null; version_number?: number | null };
 }
 
 /** One step of `child_revision.steps` as the page sees it (the local half stays in the Worker). */
@@ -90,6 +97,8 @@ export type ChildRevisionProtocol = {
 	cacheVersionPage: { request: { embedId: string; page: unknown }; response: number };
 	/** Stored head's version (core `embed_head_version`) and parent; null when no row is stored. */
 	embedHeadVersion: { request: { embedId: string }; response: { version: number; parent_embed_id: string | null } | null };
+	/** Ids whose stored child head is newer than the incoming row (core `synced_head_regresses`): keep the stored row. */
+	embedSyncedHeadsKept: { request: { rows: SyncedHeadCandidate[] }; response: string[] };
 	embedVersionsByMessage: { request: { messages: MessageParentsInput[]; embedId: string }; response: MessageImageVersion[] };
 	embedPinnedEmbeds: { request: { parentContent: string }; response: PinnedEmbed[] };
 };

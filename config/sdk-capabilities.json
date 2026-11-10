@@ -6000,6 +6000,7 @@
             "client.embed_pinned_version.cache_version_page",
             "client.embed_pinned_version.head_version",
             "client.embed_pinned_version.pinned_embeds",
+            "client.embed_pinned_version.synced_head_regresses",
             "client.embed_pinned_version.version_content",
             "client.embed_pinned_version.versions_by_message",
             "client.embed_write.normalize_to_unix_seconds",

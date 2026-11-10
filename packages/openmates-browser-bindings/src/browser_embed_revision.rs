@@ -102,6 +102,16 @@ impl BrowserEmbedWriter {
 pub fn embed_head_version(stored_head_json: &str) -> Result<f64, JsValue> {
     Ok(pinned::head_version(&parse(stored_head_json)?).map_err(code)? as f64)
 }
+/// True when `incoming_json` (a synced or fetched server row) would lower the
+/// version of the stored child head `stored_head_json`; the shell keeps the
+/// stored row then.
+#[wasm_bindgen]
+pub fn embed_synced_head_regresses(
+    stored_head_json: &str,
+    incoming_json: &str,
+) -> Result<bool, JsValue> {
+    pinned::synced_head_regresses(&parse(stored_head_json)?, &parse(incoming_json)?).map_err(code)
+}
 /// `pinned_embeds` of one decrypted `app_skill_use` parent content:
 /// JSON `[{embed_id, version, embed_ref?, previous_version?}]`.
 #[wasm_bindgen]

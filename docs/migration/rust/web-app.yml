@@ -9,10 +9,10 @@ flag:
   default: 'off'
   flag_off_behavior: original TypeScript path, byte-identical build output (guarded in CI)
 summary:
-  total: 107188
-  done: 8310
+  total: 107214
+  done: 8333
   partial: 0
-  missing: 98878
+  missing: 98881
   percent: 7.8
 worker_namespaces_installed_not_progress:
   installed: 18
@@ -21,22 +21,22 @@ worker_namespaces_installed_not_progress:
 port_ledger:
   unit: TS code lines
   portable_files: 449
-  portable_code_lines: 107188
-  ported_code_lines: 8310
+  portable_code_lines: 107214
+  ported_code_lines: 8333
   percent: 7.8
   ported_by_proof:
-    e2e-flag-on: 4112
+    e2e-flag-on: 4135
     vectors: 3961
     none: 237
   files_with_ported_code: 93
-  routing_functions: 365
+  routing_functions: 366
   functions_counted_at_decision_sites_only: 44
   non_portable:
     files: 55
     code_lines: 9550
   bridge_excluded:
     files: 214
-    code_lines: 19169
+    code_lines: 19226
   slices:
   - id: rust-web-auth-session-lane-behind-vite-openmates-cd767f7
     commit: cd767f7058
@@ -374,6 +374,12 @@ port_ledger:
     proof: e2e-flag-on
     functions: 8
     ts_code_lines: 90
+  - id: image-version-synced-head-guard
+    commit: 83617a0e8b
+    date: '2026-11-10'
+    proof: e2e-flag-on
+    functions: 1
+    ts_code_lines: 23
 e2e_specs_in_repo: [web-rust-core-apps.spec.ts, web-rust-core-auth.spec.ts, web-rust-core-bench.spec.ts, web-rust-core-chat-recommendations-flow.spec.ts,
   web-rust-core-chat.spec.ts, web-rust-core-chatstate-fork-conversation.spec.ts, web-rust-core-chatstate-hidden-chats-flow.spec.ts,
   web-rust-core-chatstate-message-highlights.spec.ts, web-rust-core-chatstate.spec.ts, web-rust-core-composer.spec.ts,
@@ -462,8 +468,8 @@ units:
     call (Rust `embed_write::read`, its three fields in one batched WebCrypto call). The unit holds no account state,
     so it is a pre-bind namespace like `crypto`: the embed key arrives per request (as the crypto...'
   typescript_fallback: none declared (4 files)
-  unit_tests: [childRevision.test.ts, embedKeyResolution.test.ts, embedUnits.test.ts, messageParentIds.test.ts,
-    readOps.test.ts]
+  unit_tests: [childRevision.test.ts, embedKeyResolution.test.ts, embedUnits.test.ts, messageEmbedVersion.test.ts,
+    messageParentIds.test.ts, readOps.test.ts]
   e2e_specs: [web-rust-core-embeds.spec.ts]
   vectors: [packages/openmates-rust/src/toon_decode_ts_vectors.json]
   open_gaps: [Embed RSS +1..+77 MB vs TypeScript in the embeds bench (noisy); see performance-history.yml.]
@@ -478,8 +484,8 @@ units:
     and the revision-history decisions (embedWriteAdapter.ts sequences them); this unit persists the prepared rows
     (embe...
   typescript_fallback: none declared (4 files)
-  unit_tests: [childRevision.test.ts, embedKeyResolution.test.ts, embedUnits.test.ts, messageParentIds.test.ts,
-    readOps.test.ts]
+  unit_tests: [childRevision.test.ts, embedKeyResolution.test.ts, embedUnits.test.ts, messageEmbedVersion.test.ts,
+    messageParentIds.test.ts, readOps.test.ts]
   e2e_specs: [web-rust-core-embeds.spec.ts]
   vectors: []
   open_gaps: [Streamed write is wired for send_embed_data only.]

@@ -17,7 +17,7 @@
  */
 import { writable } from 'svelte/store';
 import { UnitPortError } from '../host/unitPort';
-import type { MessageParentsInput, PinnedEmbed } from './childRevisionProtocol';
+import type { MessageParentsInput, PinnedEmbed, SyncedHeadCandidate } from './childRevisionProtocol';
 import type { StoredRowResult } from './embedDataProtocol';
 import { appSkillParentIds, type OrderedMessage } from './messageParentIds';
 
@@ -45,6 +45,15 @@ const parentContents = new Map<string, Promise<string | null>>();
 /** Versions are immutable once stored, so a version's plaintext can be reused (bounded, in memory only). */
 const versionContents = new Map<string, Promise<string>>();
 const keysLoaded = new WeakMap<object, Set<string>>();
+/**
+ * Embeds a card shows at a pinned version newer than this device's head
+ * (`waitingForHead`), with the highest version waited for. The head arrives
+ * later through a write or sync that need not dispatch `embedUpdated` for this
+ * card, so every stored-embed change re-reads these heads (core rule) and
+ * cards re-resolve once one reached its version.
+ */
+const waitingHeads = new Map<string, number>();
+let headCheckTimer: ReturnType<typeof setTimeout> | null = null;
 
 function bump(): void {
 	generation += 1;
@@ -63,9 +72,34 @@ function scheduleRefresh(): void {
 	}, REFRESH_DEBOUNCE_MS);
 }
 
+/** Re-reads the heads cards wait for; bumps once any reached its pinned version. */
+async function recheckWaitingHeads(): Promise<void> {
+	let reached = false;
+	for (const [embedId, wanted] of [...waitingHeads]) {
+		const head = await embedHead(embedId);
+		if (head && head.version >= wanted && waitingHeads.get(embedId) === wanted) {
+			waitingHeads.delete(embedId);
+			reached = true;
+		}
+	}
+	if (reached) bump();
+}
+
+function scheduleHeadCheck(): void {
+	if (waitingHeads.size === 0 || headCheckTimer) return;
+	headCheckTimer = setTimeout(() => {
+		headCheckTimer = null;
+		recheckWaitingHeads().catch((error: unknown) => {
+			console.error('[messageEmbedVersion] Waiting head unreadable:', (error as { code?: unknown })?.code ?? error);
+		});
+	}, REFRESH_DEBOUNCE_MS);
+}
+
 async function listenForEmbedUpdates(): Promise<void> {
 	if (listening) return;
 	listening = true;
+	const { embedAvailabilityVersion } = await import('../../embedStore');
+	embedAvailabilityVersion.subscribe(scheduleHeadCheck);
 	const { chatSyncService } = await import('../../chatSyncService');
 	chatSyncService.addEventListener('embedUpdated', (event: Event) => {
 		const detail = (event as CustomEvent<{ embed_id?: unknown; status?: unknown }>).detail;
@@ -154,7 +188,23 @@ export async function embedVersionForMessage(messageId: string, embedId: string)
 	const own = versions.find((entry) => entry.message_id === messageId);
 	if (!own) throw new UnitPortError('embed_version_message_missing');
 	const head = await unit.request('embedHeadVersion', { embedId });
-	return { version: own.version, headVersion: head?.version ?? 1, pinnedHere: own.pinned_here };
+	const headVersion = head?.version ?? 1;
+	if (own.version > headVersion) {
+		waitingHeads.set(embedId, Math.max(own.version, waitingHeads.get(embedId) ?? 0));
+		console.debug('[messageEmbedVersion] Card waits for head', { embedId, messageId, pinned: own.version, head: head?.version ?? null });
+		scheduleHeadCheck();
+	}
+	return { version: own.version, headVersion, pinnedHere: own.pinned_here };
+}
+
+/**
+ * Of rows sync or a server read is about to store over local child heads, the
+ * ids whose stored head the core keeps because the row would lower its
+ * version (`synced_head_regresses`). Empty in builds without the core.
+ */
+export async function keptStoredHeads(rows: SyncedHeadCandidate[]): Promise<Set<string>> {
+	if (!EMBED_VERSIONS_ENABLED || rows.length === 0) return new Set();
+	return new Set(await (await writer()).unit.request('embedSyncedHeadsKept', { rows }));
 }
 
 /** Pins of one decrypted parent content (empty in builds without the core or without pins). */
@@ -237,6 +287,7 @@ export function publishedChatId(): string | null {
 export function clearEmbedVersionCaches(): void {
 	versionContents.clear();
 	parentContents.clear();
+	waitingHeads.clear();
 	order = { chatId: null, messages: [] };
 	parentsByMessage = new Map();
 }

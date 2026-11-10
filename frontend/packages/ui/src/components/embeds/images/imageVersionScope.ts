@@ -49,13 +49,18 @@ export async function findMessageId(element: Element, frames = MESSAGE_LOOKUP_FR
 	return messageIdOf(element);
 }
 
-/** Resolve what a card in message `messageId` shows for `embedId`; null outside a published chat. */
-export async function resolveImageVersionView(messageId: string, embedId: string, chatId: string | null): Promise<ImageVersionView | null> {
+/**
+ * Resolve what a card in message `messageId` shows for `embedId`; null outside a
+ * published chat. `headContent`: also open the head's content when the message
+ * shows the head (a card that waited for the head holds an older version's data).
+ */
+export async function resolveImageVersionView(messageId: string, embedId: string, chatId: string | null,
+	options: { headContent?: boolean } = {}): Promise<ImageVersionView | null> {
 	const resolved = await embedVersionForMessage(messageId, embedId);
 	if (!resolved) return null;
 	const { version, headVersion } = resolved;
-	if (version === headVersion) return { version, headVersion, waitingForHead: false, content: null };
 	if (version > headVersion) return { version, headVersion, waitingForHead: true, content: null };
+	if (version === headVersion && !options.headContent) return { version, headVersion, waitingForHead: false, content: null };
 	const lookupChat = chatId ?? publishedChatId();
 	if (!lookupChat) return null;
 	const content = await decodeToonContent(await embedContentAtVersion(lookupChat, embedId, version));
