@@ -724,7 +724,7 @@ resolvers.set("design-embroidery", async ({ embedId, decodedContent, embedData, 
 // An app-skill-use generation parent has no media file of its own. Resolve it
 // as a group card; concrete generated_* children keep their leaf previews.
 for (const [appId, skillIds, leafKey] of [
-  ['images', ['generate', 'generate_draft', 'vectorize'], 'images-generated-image'],
+  ['images', ['generate', 'generate_draft', 'vectorize', 'modify'], 'images-generated-image'],
   ['audio', ['generate', 'speak'], 'audio-generated-audio'],
   ['music', ['generate'], 'music-generated-music'],
   ['videos', ['generate'], 'videos-generated-video'],

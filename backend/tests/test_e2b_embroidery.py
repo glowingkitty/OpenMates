@@ -273,3 +273,44 @@ def test_invalid_options_are_rejected() -> None:
 # contract-test: supporting surface=rest_api assertions=design-embroidery.convert.sandbox-inkstitch
 def test_pipeline_files_contains_every_uploaded_module() -> None:
     assert set(pipeline_files()) == set(UPLOADED_MODULES)
+
+
+# contract-test: supporting surface=rest_api assertions=design-embroidery.prepare.sew-on-border
+def test_border_options_are_sent_only_when_set_and_validated() -> None:
+    assert "border_mm" not in EmbroideryOptions().as_dict()
+    assert EmbroideryOptions(border_mm=3).as_dict() == {
+        "width_mm": 100.0, "hoop": "none", "fabric": "normal", "border_mm": 3.0, "border_colour": "#000000"}
+    for options in (EmbroideryOptions(border_mm=0.5), EmbroideryOptions(border_mm=9),
+                    EmbroideryOptions(border_mm=True), EmbroideryOptions(border_mm=3, border_colour="black")):
+        with pytest.raises(ValueError):
+            options.as_dict()
+
+
+# contract-test: supporting surface=rest_api assertions=design-embroidery.prepare.sew-on-border,design-embroidery.result.complete-and-truthful
+def test_border_width_and_transparent_preview_come_back_with_the_run() -> None:
+    def convert_with_border(sandbox: FakeSandbox, workdir: str):
+        ok_convert(sandbox, workdir)
+        result = json.loads(sandbox.store[f"{workdir}/result.json"])
+        result["summary"] = {**result["summary"], "border_mm": 3.0}
+        sandbox.store[f"{workdir}/result.json"] = json.dumps(result).encode()
+        return SimpleNamespace(exit_code=0)
+
+    async def scenario(on_run):
+        session, _ = make_session(on_run)
+        async with session:
+            return await session.convert(SVG, EmbroideryOptions(border_mm=3.0))
+
+    run = asyncio.run(scenario(convert_with_border))
+    assert run.summary["border_mm"] == 3.0
+    assert run.files["preview_transparent"] == b"preview_transparent-bytes"
+
+    def convert_with_text_border(sandbox: FakeSandbox, workdir: str):
+        ok_convert(sandbox, workdir)
+        result = json.loads(sandbox.store[f"{workdir}/result.json"])
+        result["summary"] = {**result["summary"], "border_mm": "3"}
+        sandbox.store[f"{workdir}/result.json"] = json.dumps(result).encode()
+        return SimpleNamespace(exit_code=0)
+
+    with pytest.raises(EmbroideryError) as error:
+        asyncio.run(scenario(convert_with_text_border))
+    assert error.value.code == "sandbox_failed"

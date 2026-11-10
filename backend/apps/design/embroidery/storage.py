@@ -1,4 +1,4 @@
-"""Encrypted storage of the eight design.embroidery result files.
+"""Encrypted storage of the nine design.embroidery result files.
 
 All variants share one AES key per result, are encrypted like other generated
 media (``encrypt_media_variants``) and carry their own download filename and
@@ -18,12 +18,13 @@ from backend.shared.python_utils.readable_title import readable_title
 from backend.shared.python_utils.media_encryption import encrypt_media_variants, load_media_write_version
 
 MACHINE_FORMATS: tuple[str, ...] = ("dst", "pes", "exp", "jef", "vp3")
-RESULT_VARIANTS: tuple[str, ...] = (*MACHINE_FORMATS, "preview", "prepared_svg", "stitches")
+RESULT_VARIANTS: tuple[str, ...] = (*MACHINE_FORMATS, "preview", "preview_transparent", "prepared_svg", "stitches")
 
 # variant -> (file extension, MIME type)
 VARIANT_TYPES: dict[str, tuple[str, str]] = {
     **{name: (name, "application/octet-stream") for name in MACHINE_FORMATS},
     "preview": ("webp", "image/webp"),
+    "preview_transparent": ("png", "image/png"),
     "prepared_svg": ("svg", "image/svg+xml"),
     "stitches": ("json", "application/json"),
 }
@@ -56,13 +57,13 @@ def variant_filename(title: str, variant: str) -> str:
     extension = VARIANT_TYPES[variant][0]
     ascii_title = unicodedata.normalize("NFKD", title).encode("ascii", "ignore").decode()
     slug = re.sub(r"[^a-z0-9]+", "-", ascii_title.casefold()).strip("-")[:48].rstrip("-")
-    suffix = "-preview" if variant == "preview" else "-prepared" if variant == "prepared_svg" else (
-        "-stitches" if variant == "stitches" else "")
+    suffix = {"preview": "-preview", "preview_transparent": "-preview-transparent",
+              "prepared_svg": "-prepared", "stitches": "-stitches"}.get(variant, "")
     return f"{slug or 'embroidery-design'}{suffix}.{extension}"
 
 
 def require_complete_files(files: Mapping[str, bytes]) -> dict[str, bytes]:
-    """Return the eight result files in order; raise when one is missing or empty."""
+    """Return the nine result files in order; raise when one is missing or empty."""
     missing = [name for name in RESULT_VARIANTS if not isinstance(files.get(name), (bytes, bytearray)) or not files[name]]
     if missing:
         raise IncompleteEmbroideryFiles(f"Embroidery conversion returned no {', '.join(missing)} file")

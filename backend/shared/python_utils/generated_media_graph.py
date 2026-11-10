@@ -34,6 +34,8 @@ PER_CHILD_TIMEOUT_SECONDS = {
     ("images", "generate"): 600,
     ("images", "generate_draft"): 600,
     ("images", "vectorize"): 180,
+    # Up to three author/review rounds per model plus model fallback; each sandbox run stops at 60 s.
+    ("images", "modify"): 600,
     ("audio", "generate"): 600,
     ("audio", "speak"): 600,
     ("music", "generate"): 900,
@@ -52,6 +54,8 @@ COMPLETION_RESULT_FIELDS = frozenset({
     "id", "type", "prompt", "text_preview", "model", "provider_model",
     "provider", "mode", "generation_type", "duration_seconds", "aspect_ratio",
     "resolution", "filename", "output_filetype", "billing_status", "generated_at", "input_embed_ids",
+    # images.modify: how the result was checked, so the assistant can name unmet requirements.
+    "review_status", "unmet_requirements", "attempts", "changed_from_program",
     # design.embroidery: the numbers, threads and notes the assistant reports to the user.
     "title", "width_mm", "height_mm", "stitch_count", "thread_changes", "estimated_minutes",
     "hoop", "fits_hoop", "fabric", "reworked", "threads", "notes",
@@ -61,7 +65,7 @@ COMPLETION_RESULT_FIELDS = frozenset({
 
 _INLINE_CARD_SKILLS = frozenset({("nutrition", "search_recipes"), ("design", "search_icons")})
 _GENERATED_OUTPUT_SKILLS = frozenset({
-    ("images", "generate"), ("images", "generate_draft"), ("images", "vectorize"),
+    ("images", "generate"), ("images", "generate_draft"), ("images", "vectorize"), ("images", "modify"),
     ("audio", "generate"), ("audio", "speak"), ("music", "generate"),
     ("videos", "generate"), ("videos", "create"), ("models3d", "generate"),
     ("code", "image_to_html"), ("design", "embroidery"),

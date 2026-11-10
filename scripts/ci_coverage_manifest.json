@@ -29,6 +29,13 @@
         "components/design-embroidery-embed.spec.ts"
       ]
     },
+    "images_modify_embed_preview": {
+      "execution": "e2e",
+      "enabling_work": "Account-free Vite-only bare image card and opened view in the images.modify states (steps, draft picture, finished, unmet requirements, failed). Fixtures carry a tiny inline synthetic JPEG. No backend, E2B sandbox, account credentials or AI inference. The real edit is verified separately against the sandbox template and in chat.",
+      "specs": [
+        "components/images-modify-embed.spec.ts"
+      ]
+    },
     "web_pii_local_trial": {
       "execution": "e2e",
       "enabling_work": "Account-free bare composer and Privacy settings; real pinned local inference, persisted enhanced opt-out/basic fallback, brokered content-free licensing, self-hosted verified assets, native worker CSP network denial, offline warm inference and download recovery. No OpenMates chat inference, paid provider, backend or account credentials.",

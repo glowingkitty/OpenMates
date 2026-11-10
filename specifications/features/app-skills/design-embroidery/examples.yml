@@ -37,6 +37,36 @@ prepare:
     when: It is converted.
     then: The wave is sewn as a satin band about 2.5 mm wide and the frame as a single running-stitch line.
 
+border:
+  - id: flame-patch-with-black-border
+    given: >
+      An orange flame ornament with dark spots, with curled ends whose inner openings are 4 to 9 mm wide at the
+      sewn size.
+    when: The assistant calls design.embroidery with width_mm 120 and border_mm 3.
+    then: >
+      A black band exactly 3 mm wide runs around the whole flame and is sewn first; the flame overlaps it slightly.
+      The openings narrower than 6 mm are filled black, the wider ones stay open. The result is 126 mm wide, lists
+      black as the first thread and its notes say "Border of 3 mm added for sewing on". The transparent stitch
+      preview shows the flame with its border and nothing around it.
+  - id: no-border-by-default
+    given: The same flame ornament.
+    when: The assistant calls design.embroidery with width_mm 120 and no border_mm.
+    then: The result is 120 mm wide, has no black thread for a border and its notes do not mention a border.
+
+fit_hoop:
+  - id: tall-ornament-fills-the-200x300-hoop
+    given: >
+      A tall flame ornament, about 90 mm wide and 170 mm high as drawn, and a user who owns a 200 x 300 mm hoop
+      and wants the piece as large as possible with a thin black border.
+    when: The assistant calls design.embroidery with hoop "200x300", fit_hoop true and border_mm 3.
+    then: >
+      The result is about 298 mm high and about 160 mm wide including the border, which is still 3 mm wide. It
+      fits the hoop and its notes say "Sized to fill the hoop" and "Border of 3 mm added for sewing on".
+  - id: fit-without-a-hoop-is-rejected
+    given: The same ornament.
+    when: The assistant calls design.embroidery with fit_hoop true and no hoop.
+    then: Nothing is converted or charged; the assistant is told that fit_hoop needs a hoop.
+
 rework:
   - id: gradient-and-tiny-text
     given: A badge graphic with a blue-to-green gradient and a line of live text 0.8 mm high.
@@ -68,13 +98,14 @@ view:
     when: The user opens it and presses the PES download.
     then: >
       The opened view shows the large stitch preview, a switch to the prepared graphic, three thread rows with colour
-      swatch, name and stitch count, the numbers, "Fits hoop 130 x 180 mm", and five downloads. The browser saves a
-      file ending in ".pes".
+      swatch, name and stitch count, the numbers, "Fits hoop 130 x 180 mm", a large "Download all formats (ZIP)"
+      button directly under the preview and five single-format downloads. The browser saves a file ending in ".pes";
+      pressing the large button saves one ".zip" file holding all five machine files.
   - id: change-size-starts-new-conversion
     given: The same opened fox result at 90 mm.
-    when: The user changes the width to 60 mm, picks the fabric "stretchy" and applies.
+    when: The user changes the width to 60 mm, picks the fabric "stretchy", sets the border to 3 mm and applies.
     then: >
-      A follow-up request for a new conversion of the same graphic at 60 mm for stretchy fabric is sent to the
+      A follow-up request for a new conversion of the same graphic at 60 mm for stretchy fabric with a 3 mm border is sent to the
       assistant. The 90 mm result stays in the chat unchanged and a second result appears when the new conversion ends.
   - id: failed-result
     given: A conversion that failed because the design had too many stitches.

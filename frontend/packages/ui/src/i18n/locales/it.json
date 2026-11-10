@@ -1120,6 +1120,23 @@
           }
         }
       },
+      "modify": {
+        "text": "Modifica",
+        "description": {
+          "text": "Combina, posiziona, ritaglia, ridimensiona e regola con precisione le immagini della chat, senza inventare nuovi contenuti."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Metti il mio ricamo sulla schiena della giacca in questa foto"
+          },
+          "2": {
+            "text": "Crea un collage di queste cinque foto con spazi bianchi uguali"
+          },
+          "3": {
+            "text": "Ritaglia questa foto a quadrato attorno al faro e rendi i colori un po' più caldi"
+          }
+        }
+      },
       "search": {
         "text": "Cerca",
         "description": {
@@ -6532,6 +6549,29 @@
     "image_generate_draft": {
       "text": "Genera bozza"
     },
+    "image_modify": {
+      "writing": {
+        "text": "Scrittura della modifica…"
+      },
+      "running": {
+        "text": "Esecuzione…"
+      },
+      "checking": {
+        "text": "Controllo del risultato…"
+      },
+      "correcting": {
+        "text": "Correzione…"
+      },
+      "attempt": {
+        "text": "tentativo {n}"
+      },
+      "unmet_title": {
+        "text": "Non del tutto soddisfatto"
+      },
+      "title": {
+        "text": "Immagine modificata"
+      }
+    },
     "context_menu": {
       "view": {
         "text": "Visualizza"
@@ -7962,6 +8002,21 @@
         "apply_request": {
           "text": "Converti di nuovo questo design di ricamo: larghezza {width} mm, telaio {hoop}, tessuto {fabric}."
         },
+        "border": {
+          "text": "Bordo"
+        },
+        "border_none": {
+          "text": "Nessuno"
+        },
+        "border_mm": {
+          "text": "{width} mm"
+        },
+        "apply_request_border": {
+          "text": "Aggiungi un bordo di {width} mm per cucirlo."
+        },
+        "apply_request_no_border": {
+          "text": "Ometti il bordo."
+        },
         "error": {
           "generic": {
             "text": "Non è stato possibile convertire questo design."
@@ -8015,6 +8070,9 @@
           },
           "instructions_applied": {
             "text": "Le tue richieste sono state applicate"
+          },
+          "border_added": {
+            "text": "Bordo di {mm} mm aggiunto per la cucitura"
           },
           "solved_gradient_or_filter": {
             "text": "Gradienti e filtri sono stati sostituiti da colori pieni"

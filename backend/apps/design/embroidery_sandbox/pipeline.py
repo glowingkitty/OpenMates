@@ -21,11 +21,12 @@ import time
 import zipfile
 from pathlib import Path
 
+from .border import BORDER_INDEX, apply_border
 from .geometry import Prepared, check, prepare
-from .limits import MAX_STITCHES, RUN_LIMIT_SECONDS, Options, PipelineError, hoop_fit
+from .limits import MAX_STITCHES, RUN_LIMIT_SECONDS, Options, PipelineError, hoop_fit, hoop_fit_width
 from .prepared_svg import write_prepared_svg
 from .presets import fill_params
-from .preview import render_dpi, to_webp
+from .preview import render_dpi, to_transparent_png, to_webp
 from .stitch_report import build_report, stitches_json
 from .svg_source import SourceScan, findings_from_scan, scan_source
 
@@ -33,22 +34,31 @@ INKSTITCH = "/opt/inkstitch/bin/inkstitch"
 MACHINE_FORMATS = ("dst", "pes", "exp", "jef", "vp3")
 OUTPUT_NAMES = {
     "dst": "design.dst", "pes": "design.pes", "exp": "design.exp", "jef": "design.jef", "vp3": "design.vp3",
-    "preview": "preview.webp", "prepared_svg": "prepared.svg", "stitches": "stitches.json",
+    "preview": "preview.webp", "preview_transparent": "preview-transparent.png",
+    "prepared_svg": "prepared.svg", "stitches": "stitches.json",
 }
 # Stitch estimate used to fail early instead of running Ink/Stitch into the time
-# limit: tatami fill incl. underlay ~ FILL_FACTOR / row_spacing stitches per mm^2
-# plus ~SHAPE_OVERHEAD stitches per element (locks, underlay edges, travel).
-# Calibrated on the fixtures (within ~10 % at 100 mm). Fills grow with the area
-# but satin, running stitch and per-shape overhead grow with the length, so the
-# estimate is a little low for very large detailed designs. Ink/Stitch computes
-# 850-1,000 stitches per second on 2 vCPU (measured: 71,822 stitches in 84 s), so
-# besides the 150,000 limit a design whose estimate cannot finish in the time
-# left at MIN_STITCHES_PER_SECOND fails as too_many_stitches at once instead of
-# running into the time limit. 06_illustration at 400 mm (estimate 129,771) ran
-# past 175 s, so the rate is set below the measured one: in practice designs
-# above ~115,000 estimated stitches fail early.
-FILL_FACTOR = 0.41
-SHAPE_OVERHEAD = 100
+# limit. A fill costs stitches for its area (tatami rows incl. underlay,
+# AREA_FACTOR / row_spacing per mm^2), for its outline (row ends, edge runs of
+# the underlay and travel along the edge, OUTLINE_STITCHES_PER_MM over outer and
+# hole outlines) and a little per separate part (locks). Counting the outline is
+# what makes narrow bands, spotted and many-island designs come out right: a
+# 3 mm sew-on border or a leopard pattern has several times the outline of a
+# compact shape of the same area. Fitted on 17 real conversions (fixtures 01-06,
+# fox, islands, flame and a spotted ornament; 7,000-47,000 stitches, 90-300 mm,
+# with and without a 3 or 6 mm border): every estimate is within 3.1 % of the
+# sewn count. The earlier area-only estimate was up to 52 % low on the spotted
+# ornament.
+# Speed: Ink/Stitch computes 170-1,400 stitches per second on 2 vCPU depending on
+# the outline complexity, so besides the 150,000 limit a design whose estimate
+# cannot finish in the time left at MIN_STITCHES_PER_SECOND fails as
+# too_many_stitches at once instead of running into the time limit.
+AREA_FACTOR = 0.36
+OUTLINE_STITCHES_PER_MM = 3.09
+STITCHES_PER_FILL_PART = 2.2
+SATIN_STITCHES_PER_MM = 6.4
+RUNNING_STITCHES_PER_MM = 0.97
+STITCHES_PER_LINE = 8
 MIN_STITCHES_PER_SECOND = 700
 # Stretchy fabric sews a second crossed fill underlay: measured 12,653 stitches
 # for 03_stars_background at 120 mm against 9,419 estimated without this factor.
@@ -75,16 +85,25 @@ def _scan_notes(scan: SourceScan) -> list[dict[str, str]]:
 
 
 def _estimate_stitches(prepared: Prepared, fabric: str) -> int:
-    density = FILL_FACTOR / float(fill_params(fabric, 0.0)["row_spacing_mm"]) * (1 + FILL_UNDERLAY_EXTRA[fabric])
-    total = float(SHAPE_OVERHEAD * len(prepared.shapes))
+    density = AREA_FACTOR / float(fill_params(fabric, 0.0)["row_spacing_mm"]) * (1 + FILL_UNDERLAY_EXTRA[fabric])
+    total = 0.0
     for shape in prepared.shapes:
         if shape.kind == "fill":
-            total += shape.geom.area * density
+            parts = len(getattr(shape.geom, "geoms", [shape.geom]))
+            total += (shape.geom.area * density + shape.geom.length * OUTLINE_STITCHES_PER_MM
+                      + parts * STITCHES_PER_FILL_PART)
         elif shape.kind == "satin":
-            total += shape.geom.length / 0.4 * 2.6
+            total += shape.geom.length * SATIN_STITCHES_PER_MM + STITCHES_PER_LINE
         else:
-            total += shape.geom.length / 2.0 * 3
+            total += shape.geom.length * RUNNING_STITCHES_PER_MM + STITCHES_PER_LINE
     return int(total)
+
+
+def _estimate_terms(prepared: Prepared) -> list[list[object]]:
+    """Per shape: colour, kind, border flag, area mm2, outline length mm, separate parts."""
+    return [[shape.colour, shape.kind, shape.index == BORDER_INDEX, round(shape.geom.area, 1),
+             round(shape.geom.length, 1), len(getattr(shape.geom, "geoms", [shape.geom]))]
+            for shape in prepared.shapes]
 
 
 def _run_inkstitch(svg_path: Path, dpi: int, deadline: float) -> tuple[dict[str, bytes], float]:
@@ -142,7 +161,16 @@ def run_convert(workdir: Path, options: Options, started: float) -> dict[str, ob
     timings["check"] = round(time.monotonic() - mark, 3)
 
     mark = time.monotonic()
-    prepared = prepare(svg_text, scan, options.width_mm)
+    bordered = options.border_mm is not None
+    start_colour = options.border_colour if bordered else None
+    prepared = prepare(svg_text, scan, options.width_mm, start_colour)
+    if options.fit_hoop:
+        fitted = hoop_fit_width(prepared.width_mm, prepared.height_mm,
+                                2 * float(options.border_mm) if bordered else 0.0, options.hoop)
+        prepared = prepare(svg_text, scan, fitted, start_colour)
+        prepared.notes.append({"code": "sized_to_hoop", "text": "Sized to fill the hoop"})
+    if bordered:
+        prepared = apply_border(prepared, float(options.border_mm), options.border_colour)
     findings += prepared.findings
     estimate = _estimate_stitches(prepared, options.fabric)
     if estimate > MAX_STITCHES:
@@ -178,6 +206,7 @@ def run_convert(workdir: Path, options: Options, started: float) -> dict[str, ob
         "stitch_count": summary["stitch_count"], "thread_changes": summary["thread_changes"],
         "estimated_minutes": summary["estimated_minutes"], "fits_hoop": fits,
         "threads": summary["threads"], "notes": notes,
+        **({"border_mm": options.border_mm} if bordered else {}),
     }
     for fmt in MACHINE_FORMATS:
         (out / OUTPUT_NAMES[fmt]).write_bytes(files[fmt])
@@ -186,12 +215,14 @@ def run_convert(workdir: Path, options: Options, started: float) -> dict[str, ob
 
     mark = time.monotonic()
     (out / OUTPUT_NAMES["preview"]).write_bytes(to_webp(files["png"], stitches, dpi))
+    (out / OUTPUT_NAMES["preview_transparent"]).write_bytes(to_transparent_png(files["png"], stitches, dpi))
     timings["preview"] = round(time.monotonic() - mark, 3)
     timings["total"] = round(time.monotonic() - started, 3)
     return {"ok": True, "summary": summary, "findings": findings,
             "files": {key: f"out/{name}" for key, name in OUTPUT_NAMES.items()},
             "metrics": {"jumps": jumps, "timings": timings, "render_dpi": dpi,
                         "shapes_sewn": len(prepared.shapes), **prepared.technical, "estimated_stitches": estimate,
+                        "estimate_terms": _estimate_terms(prepared),
                         "trims": sum(1 for shape in prepared.shapes if shape.trim_after)}}
 
 

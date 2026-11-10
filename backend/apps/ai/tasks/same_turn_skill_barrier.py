@@ -22,6 +22,7 @@ _MEDIA_CHILD_LIMITS = {
     ("images", "generate"): (600, 5),
     ("images", "generate_draft"): (600, 5),
     ("images", "vectorize"): (180, 1),
+    ("images", "modify"): (720, 1),
     ("music", "generate"): (900, 5),
     ("audio", "generate"): (600, 5),
     ("audio", "speak"): (600, 3),

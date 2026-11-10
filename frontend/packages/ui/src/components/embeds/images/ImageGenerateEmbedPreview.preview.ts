@@ -6,6 +6,8 @@
  * Access at: /dev/preview/embeds/images/ImageGenerateEmbedPreview
  */
 
+import { MODIFY_PROMPT, SAMPLE_MODIFY_DRAFT, SAMPLE_MODIFY_RESULT_URL } from './imageModifyFixtures';
+
 /** Default props — shows a finished image generation (without actual image data) */
 const defaultProps = {
 	id: 'preview-image-gen-1',
@@ -76,6 +78,61 @@ export const variants = {
 		status: 'processing' as const,
 		svgDraft: '',
 		draftStage: 'scripting' as const,
+		isMobile: false
+	},
+
+	/** images.modify: author is writing the editing steps. */
+	modifyWriting: {
+		id: 'preview-image-modify-writing',
+		skillId: 'modify' as const,
+		model: 'gpt-6.1-sol',
+		prompt: MODIFY_PROMPT,
+		status: 'processing' as const,
+		modifyProgress: { stage: 'writing' as const, attempt: 1, draft: '' },
+		isMobile: false
+	},
+
+	/** images.modify: first computed picture shown as draft while it is checked. */
+	modifyCheckingWithDraft: {
+		id: 'preview-image-modify-checking',
+		skillId: 'modify' as const,
+		model: 'gpt-6.1-sol',
+		prompt: MODIFY_PROMPT,
+		status: 'processing' as const,
+		modifyProgress: { stage: 'checking' as const, attempt: 1, draft: SAMPLE_MODIFY_DRAFT },
+		isMobile: false
+	},
+
+	/** images.modify: second attempt, correcting after an unmet requirement. */
+	modifyCorrecting: {
+		id: 'preview-image-modify-correcting',
+		skillId: 'modify' as const,
+		model: 'gpt-6.1-sol',
+		prompt: MODIFY_PROMPT,
+		status: 'processing' as const,
+		modifyProgress: { stage: 'correcting' as const, attempt: 2, draft: SAMPLE_MODIFY_DRAFT },
+		isMobile: false
+	},
+
+	/** images.modify: finished result is a normal image. */
+	modifyFinished: {
+		id: 'preview-image-modify-finished',
+		skillId: 'modify' as const,
+		model: 'gpt-6.1-sol',
+		prompt: MODIFY_PROMPT,
+		previewImageUrl: SAMPLE_MODIFY_RESULT_URL,
+		status: 'finished' as const,
+		isMobile: false
+	},
+
+	/** images.modify: failed without a picture. */
+	modifyFailed: {
+		id: 'preview-image-modify-failed',
+		skillId: 'modify' as const,
+		model: 'gpt-6.1-sol',
+		prompt: MODIFY_PROMPT,
+		status: 'error' as const,
+		error: 'The edit could not be completed',
 		isMobile: false
 	},
 

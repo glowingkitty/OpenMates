@@ -29,6 +29,9 @@ class EmbroiderySkill(BaseSkill):
         hoop: str | None = None,
         fabric: str | None = None,
         instructions: str | None = None,
+        border_mm: float | None = None,
+        border_colour: str | None = None,
+        fit_hoop: bool | None = None,
         **kwargs: Any,
     ) -> dict[str, Any]:
         if not self.celery_producer:
@@ -37,6 +40,7 @@ class EmbroiderySkill(BaseSkill):
         try:
             request = parse_embroidery_request(
                 width_mm=width_mm, hoop=hoop, fabric=fabric, instructions=instructions,
+                border_mm=border_mm, border_colour=border_colour, fit_hoop=fit_hoop,
             )
         except ValueError as exc:
             return {"error": str(exc)}
@@ -60,6 +64,9 @@ class EmbroiderySkill(BaseSkill):
             "hoop": request.hoop,
             "fabric": request.fabric,
             "instructions": request.instructions,
+            **({"border_mm": request.border_mm, "border_colour": request.border_colour}
+               if request.border_mm is not None else {}),
+            **({"fit_hoop": True} if request.fit_hoop else {}),
             "input_embed_ids": [source_embed_id],
             "user_id": kwargs.get("user_id"),
             "user_vault_key_id": kwargs.get("user_vault_key_id"),

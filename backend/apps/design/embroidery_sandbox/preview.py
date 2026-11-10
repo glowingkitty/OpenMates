@@ -1,4 +1,6 @@
-"""Turn Ink/Stitch's realistic stitch render into the delivered WebP preview (Pillow).
+"""Turn Ink/Stitch's realistic stitch render into the delivered previews (Pillow, numpy).
+
+The same render, cut free from its page, is delivered as a transparent PNG.
 
 Ink/Stitch darkens and saturates light thread colours in its render so they stay
 visible on a white page: cream thread comes out yellow and white thread grey.
@@ -14,9 +16,15 @@ import io
 import math
 
 import numpy as np
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFilter
 
 MAX_PREVIEW_PX = 1200
+# Longest side of the transparent PNG preview (for placing the design on other pictures).
+MAX_TRANSPARENT_PX = 1600
+# Ink/Stitch renders on the opaque page colour (FABRIC_RGB). For the transparent preview
+# a pixel this close to it (largest channel difference) is page, this far is thread.
+PAGE_TOLERANCE = 6.0
+OPAQUE_DISTANCE = 48.0
 FABRIC_RGB = (244, 241, 234)
 WEBP_QUALITY = 72
 # Ink/Stitch alters thread colours above this HLS lightness in its render.
@@ -91,12 +99,52 @@ def restore_light_threads(image: Image.Image, stitches: dict[str, object], dpi: 
         pixels[..., :3][mask] = shade[:, None] * thread[None, :]
     return Image.fromarray(pixels.astype(np.uint8), "RGBA")
 
-def to_webp(png: bytes, stitches: dict[str, object] | None = None, dpi: int = 0) -> bytes:
-    """Correct light thread colours, place the render on fabric colour, cap its size and encode WebP."""
+def _corrected_render(png: bytes, stitches: dict[str, object] | None, dpi: int) -> Image.Image:
     with Image.open(io.BytesIO(png)) as source:
         image = source.convert("RGBA")
     if stitches is not None and dpi > 0:
         image = restore_light_threads(image, stitches, dpi)
+    return image
+
+def _thread_alpha(raw: Image.Image, stitches: dict[str, object], dpi: int) -> Image.Image:
+    """Opacity of the stitches in Ink/Stitch's render, which is drawn on an opaque fabric-coloured page.
+
+    Inside the area the stitches cover (shrunk by one pixel) everything is
+    thread. At its edge the opacity follows how far a pixel is from the page
+    colour, so anti-aliased thread edges stay soft and the page disappears;
+    outside the area (grown by one pixel) nothing is kept. Light threads are
+    darkened in the raw render, so no thread is mistaken for the page.
+    """
+    areas = Image.fromarray(((_thread_areas(raw.size, stitches, dpi) > 0) * 255).astype(np.uint8), "L")
+    inner = np.asarray(areas.filter(ImageFilter.MinFilter(3)), dtype=np.float32) / 255
+    outer = np.asarray(areas.filter(ImageFilter.MaxFilter(3)), dtype=np.float32) / 255
+    rgb = np.asarray(raw.convert("RGB"), dtype=np.float32)
+    distance = np.abs(rgb - np.asarray(FABRIC_RGB, dtype=np.float32)).max(axis=2)
+    keyed = np.clip((distance - PAGE_TOLERANCE) / (OPAQUE_DISTANCE - PAGE_TOLERANCE), 0.0, 1.0)
+    alpha = np.maximum(inner, keyed) * outer
+    return Image.fromarray((alpha * 255).round().astype(np.uint8), "L")
+
+def to_transparent_png(png: bytes, stitches: dict[str, object], dpi: int) -> bytes:
+    """The stitch render without the page: light threads corrected, transparent around, PNG."""
+    with Image.open(io.BytesIO(png)) as source:
+        raw = source.convert("RGBA")
+    alpha = _thread_alpha(raw, stitches, dpi)
+    image = restore_light_threads(raw, stitches, dpi)
+    # A soft edge pixel is thread blended with the page: take the page back out.
+    opacity = np.asarray(alpha, dtype=np.float32)[..., None] / 255
+    pixels = np.asarray(image.convert("RGB"), dtype=np.float32)
+    page = np.asarray(FABRIC_RGB, dtype=np.float32)
+    unblended = np.where(opacity > 0, (pixels - (1 - opacity) * page) / np.maximum(opacity, 1e-3), pixels)
+    image = Image.fromarray(np.clip(unblended, 0, 255).round().astype(np.uint8), "RGB")
+    image.putalpha(alpha)
+    image.thumbnail((MAX_TRANSPARENT_PX, MAX_TRANSPARENT_PX), Image.Resampling.LANCZOS)
+    output = io.BytesIO()
+    image.save(output, format="PNG", optimize=True)
+    return output.getvalue()
+
+def to_webp(png: bytes, stitches: dict[str, object] | None = None, dpi: int = 0) -> bytes:
+    """Correct light thread colours, place the render on fabric colour, cap its size and encode WebP."""
+    image = _corrected_render(png, stitches, dpi)
     background = Image.new("RGBA", image.size, FABRIC_RGB + (255,))
     background.alpha_composite(image)
     flat = background.convert("RGB")

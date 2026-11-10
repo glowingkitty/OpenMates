@@ -1120,6 +1120,23 @@
           }
         }
       },
+      "modify": {
+        "text": "編集",
+        "description": {
+          "text": "チャット内の画像を、新しい内容を作り出すことなく、正確に合成・配置・切り抜き・サイズ変更・調整します。"
+        },
+        "how_to_use": {
+          "1": {
+            "text": "この写真のジャケットの背中に私の刺しゅうデザインを配置して"
+          },
+          "2": {
+            "text": "この5枚の写真で、白い余白が均等なコラージュを作って"
+          },
+          "3": {
+            "text": "この写真を灯台を中心に正方形に切り抜いて、色を少し暖かくして"
+          }
+        }
+      },
       "search": {
         "text": "検索",
         "description": {
@@ -6505,6 +6522,29 @@
     "image_generate_draft": {
       "text": "下書き生成"
     },
+    "image_modify": {
+      "writing": {
+        "text": "編集内容を作成中…"
+      },
+      "running": {
+        "text": "実行中…"
+      },
+      "checking": {
+        "text": "結果を確認中…"
+      },
+      "correcting": {
+        "text": "修正中…"
+      },
+      "attempt": {
+        "text": "{n} 回目"
+      },
+      "unmet_title": {
+        "text": "完全には満たせませんでした"
+      },
+      "title": {
+        "text": "編集した画像"
+      }
+    },
     "context_menu": {
       "view": {
         "text": "表示"
@@ -7935,6 +7975,21 @@
         "apply_request": {
           "text": "この刺繍デザインをもう一度変換してください：幅 {width} mm、枠 {hoop}、生地 {fabric}。"
         },
+        "border": {
+          "text": "縁取り"
+        },
+        "border_none": {
+          "text": "なし"
+        },
+        "border_mm": {
+          "text": "{width} mm"
+        },
+        "apply_request_border": {
+          "text": "縫い付け用に幅 {width} mm の縁取りを追加してください。"
+        },
+        "apply_request_no_border": {
+          "text": "縁取りは付けないでください。"
+        },
         "error": {
           "generic": {
             "text": "このデザインを変換できませんでした。"
@@ -7988,6 +8043,9 @@
           },
           "instructions_applied": {
             "text": "ご希望を反映しました"
+          },
+          "border_added": {
+            "text": "縫い付け用に {mm} mm の縁取りを追加しました"
           },
           "solved_gradient_or_filter": {
             "text": "グラデーションとフィルターを単色に置き換えました"

@@ -11,6 +11,8 @@
     EMPTY_GENERATION_REQUEST, EMPTY_SVG_DRAFT, childDraftContent, hasDrawableSvg, mergeSvgDraft,
     readGenerationRequest, readSvgDraft, svgDraftStageLabelKey, type GenerationRequestInfo, type SvgDraftState,
   } from './images/svgDraft';
+  import ImageModifyProgress from './images/ImageModifyProgress.svelte';
+  import { EMPTY_IMAGE_MODIFY, isModifySkill, mergeImageModify, readImageModify, type ImageModifyState } from './images/imageDraft';
   import UnifiedEmbedPreview from './UnifiedEmbedPreview.svelte';
   import GeneratedMediaThumbnails from './GeneratedMediaThumbnails.svelte';
   import { generatedMediaChildIds } from './generatedMediaGroup';
@@ -89,6 +91,8 @@
   const draftStageLabelKey = $derived(svgDraftStageLabelKey(svgDraftState.stage));
   const modelLabel = $derived(request.model ? imageGenerationAttribution(request.model) : undefined);
   const FADE_MS = 350;
+  let modifyState = $state<ImageModifyState>(EMPTY_IMAGE_MODIFY);
+  const showModify = $derived(appId === 'images' && isModifySkill(skillId) && shownStatus === 'processing' && (!!modifyState.stage || !!modifyState.draft));
 
   async function handleChildDraft(event: Event) {
     const toon = childDraftContent((event as CustomEvent).detail, id);
@@ -97,6 +101,7 @@
     if (!decoded) return;
     request = readGenerationRequest(decoded, request);
     svgDraftState = mergeSvgDraft(svgDraftState, readSvgDraft(decoded));
+    modifyState = mergeImageModify(modifyState, readImageModify(decoded));
   }
   chatSyncService.addEventListener('embedUpdated', handleChildDraft);
   onDestroy(() => chatSyncService.removeEventListener('embedUpdated', handleChildDraft));
@@ -111,7 +116,11 @@
 >
   {#snippet details()}
     <div class="generated-media-parent" data-testid="generated-media-parent-preview">
-      {#if showSvgDraft || showRequest}
+      {#if showModify}
+        <div class="working" data-testid="image-modify-card">
+          <ImageModifyProgress state={modifyState} title={prompt || skillName} />
+        </div>
+      {:else if showSvgDraft || showRequest}
         <!-- Request and picture share one box so the picture can fade in over the fading text. -->
         <div class="working">
           {#if showSvgDraft}

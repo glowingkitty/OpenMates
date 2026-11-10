@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.app-skill.design-embroidery
 version: 1
-status: approved
+status: draft
 title: Design Embroidery Skill
 summary: >
   Design Embroidery turns a vector graphic that already exists in the chat into
@@ -47,6 +47,18 @@ models:
       required: false
       values: [light, normal, stretchy]
       default: normal
+    border_mm:
+      type: number
+      required: false
+      constraints: {min: 1, max: 8, default: no_border, counted_at_sewn_size: true}
+    border_colour:
+      type: colour_hex
+      required: false
+      constraints: {default: "#000000", used_only_with_border_mm: true}
+    fit_hoop:
+      type: boolean
+      required: false
+      constraints: {default: false, needs_a_hoop: true, replaces_width_mm: true}
     instructions:
       type: string
       required: false
@@ -56,7 +68,7 @@ models:
     fixed_rules:
       type: ordered_rule_list
       required: true
-      values: [scale_to_width, drop_full_canvas_background, remove_hidden_overlap, group_same_thread_colour, wide_line_to_satin, thin_line_to_running_stitch, fabric_preset]
+      values: [scale_to_width, drop_full_canvas_background, remove_hidden_overlap, sew_on_border, group_same_thread_colour, wide_line_to_satin, thin_line_to_running_stitch, fabric_preset]
     rework_findings:
       type: finding_list
       required: true
@@ -70,13 +82,14 @@ models:
     files:
       type: stored_file_set
       required: true
-      values: [dst, pes, exp, jef, vp3, preview, prepared_svg, stitches]
+      values: [dst, pes, exp, jef, vp3, preview, preview_transparent, prepared_svg, stitches]
     threads:
       type: ordered_list
       required: true
       constraints: {sewing_order: true, each: [colour_hex, name, stitch_count]}
     width_mm: {type: number, required: true}
     height_mm: {type: number, required: true}
+    border_mm: {type: number, required: false}
     stitch_count: {type: integer, required: true}
     thread_changes: {type: integer, required: true}
     estimated_minutes: {type: integer, required: true}
@@ -108,6 +121,14 @@ assertions:
     type: behavior
     must: Before stitches are generated the graphic is prepared by fixed rules, always in the same order and with the same result for the same input. It is scaled to the requested width keeping its proportions; a shape that only fills the whole canvas as background is left out; parts of a shape hidden under another shape are cut away so no area is sewn twice; shapes of the same thread colour are sewn together wherever the stacking of the design allows it, so the number of thread changes is as low as the design permits; lines 1 mm and wider become satin bands and thinner lines become running stitches; the fabric preset sets stitch density, underlay and pull compensation. Every change that alters what the user will see is named in the notes.
     depends_on: [models.Preparation.fixed_rules, models.EmbroideryRequest, examples.prepare]
+  - id: design-embroidery.prepare.sew-on-border
+    type: behavior
+    must: When the request carries border_mm, the design gets a border for sewing it onto a garment. The border is the outline of the whole design grown outward by exactly that many millimetres at the sewn size, in border_colour (black when none is given), sewn before everything else as one filled area that the design slightly overlaps, so no fabric shows between border and design. Openings and gaps of the design narrower than twice the border width are filled by the border; wider ones stay open. The requested width_mm is the width of the design without the border, so the sewn size, the hoop check and every number of the result include the border. The notes name the border and its width. Without border_mm nothing is added.
+    depends_on: [models.EmbroideryRequest.border_mm, models.EmbroideryRequest.border_colour, models.Preparation.fixed_rules, examples.border]
+  - id: design-embroidery.prepare.fill-the-hoop
+    type: behavior
+    must: When the request carries fit_hoop together with a hoop, the design is made as large as that hoop allows instead of using width_mm. It keeps its proportions; when it gets larger turned by 90 degrees it is sized for that and the notes advise turning it. A sew-on border keeps its requested width in millimetres and counts as part of the size. One millimetre stays free on every side of the hoop, so the sewn result fits the hoop. The notes say that the design was sized to fill the hoop. fit_hoop without a hoop is rejected before anything runs, with the reason.
+    depends_on: [models.EmbroideryRequest.fit_hoop, models.EmbroideryRequest.hoop, models.EmbroideryRequest.border_mm, examples.fit_hoop]
   - id: design-embroidery.prepare.model-rework-only-when-needed
     type: behavior
     must: A model reworks the graphic only when the fixed check finds something the rules cannot solve (a gradient or filter, live text, an embedded pixel image, details smaller than 1 mm, more than 12 thread colours) or when the request carries instructions. The rework returns a complete SVG that is validated and prepared by the same fixed rules; there is at most one rework round. When the reworked graphic still has such a finding, the conversion continues with the best valid graphic and the notes name what could not be solved. A graphic without findings and without instructions is converted without any model call.
@@ -118,11 +139,11 @@ assertions:
     depends_on: [models.Sandbox, models.EmbroideryResult.files, examples.convert, examples.failure]
   - id: design-embroidery.result.complete-and-truthful
     type: invariant
-    must: A finished result carries the five machine files, a stitch preview rendered from the generated stitches, the prepared graphic, the threads in sewing order with colour, name and stitch count, the real sewn width and height in millimetres, the stitch count, the number of thread changes, an estimated sewing time, whether it fits the chosen hoop, and the notes. Every number describes the delivered files, never the source graphic or the request. A result is never shown as finished while any of the five files is missing.
+    must: A finished result carries the five machine files, a stitch preview rendered from the generated stitches (once on fabric colour for viewing and once with a transparent background for placing it on other pictures), the prepared graphic, the threads in sewing order with colour, name and stitch count, the real sewn width and height in millimetres, the stitch count, the number of thread changes, an estimated sewing time, whether it fits the chosen hoop, and the notes. Every number describes the delivered files, never the source graphic or the request. A result is never shown as finished while any of the five files is missing.
     depends_on: [models.EmbroideryResult, examples.convert]
   - id: design-embroidery.result.view-and-download
     type: behavior
-    must: The result card shows the stitch preview, the size and the stitch count; while converting it shows that the conversion is running. Opened, the result shows the large stitch preview with a switch to the prepared graphic, the thread list in sewing order, the numbers, the hoop fit and the notes, and one download per machine format whose saved file carries the matching file extension. A failed conversion shows the reason in plain words and offers no downloads. The size, hoop and fabric shown can be changed there; applying a change asks the assistant for a new conversion of the same graphic and leaves the existing result untouched.
+    must: The result card shows the stitch preview, the size and the stitch count; while converting it shows that the conversion is running. Opened, the result shows the large stitch preview with a switch to the prepared graphic, the thread list in sewing order, the numbers, the hoop fit and the notes, one clearly visible download that saves all five machine files together as one ZIP file, and one download per machine format whose saved file carries the matching file extension. A failed conversion shows the reason in plain words and offers no downloads. The size, hoop, fabric and border shown can be changed there; applying a change asks the assistant for a new conversion of the same graphic and leaves the existing result untouched.
     depends_on: [models.EmbroideryResult, models.EmbroideryRequest, examples.view]
   - id: design-embroidery.privacy.stored-like-generated-media
     type: privacy
@@ -159,4 +180,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [convert, invalid_source, prepare, rework, failure, view, billing]
+  required_groups: [convert, invalid_source, prepare, border, fit_hoop, rework, failure, view, billing]

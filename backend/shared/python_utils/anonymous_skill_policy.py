@@ -18,7 +18,7 @@ ACCOUNT_STATE_APPS = frozenset({
 BACKGROUND_OR_FILE_SKILLS = frozenset({
     ("audio", "generate"), ("audio", "speak"), ("audio", "transcribe"),
     ("code", "run"), ("code", "image_to_html"), ("design", "embroidery"),
-    ("images", "generate"), ("images", "generate_draft"), ("images", "vectorize"),
+    ("images", "generate"), ("images", "generate_draft"), ("images", "vectorize"), ("images", "modify"),
     ("models3d", "generate"), ("music", "generate"),
     ("social_media", "search"), ("social_media", "get-posts"),
     ("videos", "generate"), ("videos", "create"),

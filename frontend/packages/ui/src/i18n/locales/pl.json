@@ -1120,6 +1120,23 @@
           }
         }
       },
+      "modify": {
+        "text": "Edytuj",
+        "description": {
+          "text": "Dokładnie łącz, umieszczaj, przycinaj, skaluj i dostosowuj obrazy z czatu, bez wymyślania nowych treści."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Umieść mój wzór haftu na plecach kurtki na tym zdjęciu"
+          },
+          "2": {
+            "text": "Zrób kolaż z tych pięciu zdjęć z równymi białymi odstępami"
+          },
+          "3": {
+            "text": "Przytnij to zdjęcie do kwadratu wokół latarni i zrób kolory trochę cieplejsze"
+          }
+        }
+      },
       "search": {
         "text": "Szukaj",
         "description": {
@@ -6505,6 +6522,29 @@
     "image_generate_draft": {
       "text": "Generuj szkic"
     },
+    "image_modify": {
+      "writing": {
+        "text": "Pisanie edycji…"
+      },
+      "running": {
+        "text": "Uruchamianie…"
+      },
+      "checking": {
+        "text": "Sprawdzanie wyniku…"
+      },
+      "correcting": {
+        "text": "Poprawianie…"
+      },
+      "attempt": {
+        "text": "próba {n}"
+      },
+      "unmet_title": {
+        "text": "Nie w pełni spełnione"
+      },
+      "title": {
+        "text": "Edytowany obraz"
+      }
+    },
     "context_menu": {
       "view": {
         "text": "Wyświetl"
@@ -7935,6 +7975,21 @@
         "apply_request": {
           "text": "Przekonwertuj ten wzór haftu ponownie: szerokość {width} mm, tamborek {hoop}, tkanina {fabric}."
         },
+        "border": {
+          "text": "Obwódka"
+        },
+        "border_none": {
+          "text": "Brak"
+        },
+        "border_mm": {
+          "text": "{width} mm"
+        },
+        "apply_request_border": {
+          "text": "Dodaj obwódkę {width} mm do przyszycia."
+        },
+        "apply_request_no_border": {
+          "text": "Pomiń obwódkę."
+        },
         "error": {
           "generic": {
             "text": "Nie udało się przekonwertować tego wzoru."
@@ -7988,6 +8043,9 @@
           },
           "instructions_applied": {
             "text": "Twoje życzenia zostały uwzględnione"
+          },
+          "border_added": {
+            "text": "Dodano obwódkę {mm} mm do przyszycia"
           },
           "solved_gradient_or_filter": {
             "text": "Gradienty i filtry zastąpiono jednolitymi kolorami"

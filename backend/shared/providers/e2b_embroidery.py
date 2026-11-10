@@ -14,6 +14,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import shlex
 import time
 from dataclasses import dataclass, field
@@ -38,13 +39,19 @@ COMMAND_GRACE_SECONDS = 15
 SANDBOX_LIFETIME_SECONDS = 900
 MAX_SOURCE_SVG_CHARS = 400_000
 MAX_FILE_BYTES = 25_000_000
-FILE_KEYS = ("dst", "pes", "exp", "jef", "vp3", "preview", "prepared_svg", "stitches")
+FILE_KEYS = ("dst", "pes", "exp", "jef", "vp3", "preview", "preview_transparent", "prepared_svg", "stitches")
 SUMMARY_KEYS = ("width_mm", "height_mm", "stitch_count", "thread_changes", "estimated_minutes",
                 "fits_hoop", "threads", "notes")
+# Present only when a sew-on border was added.
+OPTIONAL_SUMMARY_KEYS = ("border_mm",)
 FINDING_CODES = {"gradient_or_filter", "live_text", "embedded_pixel_image", "detail_below_1mm",
                  "more_than_12_colours"}
 HOOPS = {"100x100", "130x180", "160x260", "200x300", "none"}
 FABRICS = {"light", "normal", "stretchy"}
+MIN_BORDER_MM = 1.0
+MAX_BORDER_MM = 8.0
+DEFAULT_BORDER_COLOUR = "#000000"
+HEX_COLOUR_RE = re.compile(r"^#[0-9a-f]{6}$")
 ERROR_CODES = {"unreadable_svg", "nothing_to_sew", "too_many_stitches", "timeout", "sandbox_failed"}
 TIMEOUT_EXIT_CODES = {124, 137}
 # Started in the background right after creation: the first Ink/Stitch launch and
@@ -59,6 +66,9 @@ class EmbroideryOptions:
     width_mm: float = 100.0
     hoop: str = "none"        # "100x100" | "130x180" | "160x260" | "200x300" | "none"
     fabric: str = "normal"    # "light" | "normal" | "stretchy"
+    border_mm: float | None = None  # sew-on border width at the sewn size; None = no border
+    border_colour: str = DEFAULT_BORDER_COLOUR  # "#rrggbb", used only with border_mm
+    fit_hoop: bool = False    # size the design (with its border) to fill the hoop; width_mm is then ignored
 
     def as_dict(self) -> dict[str, object]:
         if isinstance(self.width_mm, bool) or not isinstance(self.width_mm, (int, float)):
@@ -69,7 +79,20 @@ class EmbroideryOptions:
             raise ValueError(f"unknown hoop {self.hoop!r}")
         if self.fabric not in FABRICS:
             raise ValueError(f"unknown fabric {self.fabric!r}")
-        return {"width_mm": float(self.width_mm), "hoop": self.hoop, "fabric": self.fabric}
+        options: dict[str, object] = {"width_mm": float(self.width_mm), "hoop": self.hoop, "fabric": self.fabric}
+        if self.border_mm is not None:
+            if isinstance(self.border_mm, bool) or not isinstance(self.border_mm, (int, float)):
+                raise ValueError("border_mm must be a number")
+            if not MIN_BORDER_MM <= float(self.border_mm) <= MAX_BORDER_MM:
+                raise ValueError(f"border_mm must be between {MIN_BORDER_MM:g} and {MAX_BORDER_MM:g}")
+            if not HEX_COLOUR_RE.match(self.border_colour):
+                raise ValueError("border_colour must be a lowercase hex colour like #000000")
+            options.update(border_mm=float(self.border_mm), border_colour=self.border_colour)
+        if self.fit_hoop:
+            if self.hoop == "none":
+                raise ValueError("fit_hoop needs a hoop")
+            options["fit_hoop"] = True
+        return options
 
 
 @dataclass
@@ -131,8 +154,11 @@ def _validate_findings(raw: object) -> list[dict]:
 
 
 def _validate_summary(raw: object) -> dict:
-    if not isinstance(raw, dict) or set(raw) != set(SUMMARY_KEYS):
+    if not isinstance(raw, dict) or not set(SUMMARY_KEYS) <= set(raw) <= {*SUMMARY_KEYS, *OPTIONAL_SUMMARY_KEYS}:
         raise EmbroideryError("sandbox_failed", "The converter returned an incomplete summary.")
+    border = raw.get("border_mm")
+    if "border_mm" in raw and (isinstance(border, bool) or not isinstance(border, (int, float))):
+        raise EmbroideryError("sandbox_failed", "The converter returned an invalid border width.")
     numbers_ok = all(isinstance(raw[key], (int, float)) and not isinstance(raw[key], bool)
                      for key in ("width_mm", "height_mm"))
     ints_ok = all(isinstance(raw[key], int) and not isinstance(raw[key], bool) and raw[key] >= 0

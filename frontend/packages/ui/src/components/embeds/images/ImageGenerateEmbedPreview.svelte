@@ -32,6 +32,8 @@
   import { EMBED_VERSIONS_ENABLED, embedVersionGeneration } from '../../../services/rustCore/embeds/messageEmbedVersion';
   import { findMessageId, rememberFullscreenVersion, resolveImageVersionView, versionBadgeLabel } from './imageVersionScope';
   import { EMPTY_SVG_DRAFT, mergeSvgDraft, readSvgDraft, shouldShowDraftStatusOnly, shouldShowSvgDraft, svgDraftStageLabelKey, type SvgDraftStage, type SvgDraftState } from './svgDraft';
+  import ImageModifyProgress from './ImageModifyProgress.svelte';
+  import { EMPTY_IMAGE_MODIFY, isModifySkill, mergeImageModify, readImageModify, type ImageModifyState } from './imageDraft';
   
   /**
    * Image embed content structure from the backend
@@ -66,7 +68,7 @@
     /** Unique embed ID */
     id: string;
     /** Skill identifier ('generate' or 'generate_draft') - determines display title */
-    skillId?: 'generate' | 'generate_draft';
+    skillId?: 'generate' | 'generate_draft' | 'modify';
     /** Image prompt */
     prompt?: string;
     /** Model ID used for generation (e.g., "flux-schnell", "gemini-3-pro-image-preview") */
@@ -96,6 +98,8 @@
     previewImageUrl?: string;
     /** Initial partial/complete SVG source while a vector image is being drawn */
     svgDraft?: string;
+    /** images.modify progress while processing (step, attempt, draft picture) */
+    modifyProgress?: ImageModifyState;
     /** Initial drawing stage */
     draftStage?: SvgDraftStage;
     /** Version this card shows (previews; in a chat message the Rust core decides it) */
@@ -119,6 +123,7 @@
     taskId: taskIdProp,
     isMobile = false,
     onFullscreen,
+    modifyProgress: modifyProgressProp,
     inputEmbedIds: inputEmbedIdsProp,
     previewImageUrl: previewImageUrlProp,
     svgDraft: svgDraftProp,
@@ -143,6 +148,7 @@
   let localTaskId = $state<string | undefined>(undefined);
   let localInputEmbedIds = $state<string[] | undefined>(undefined);
   let svgDraftState = $state<SvgDraftState>(EMPTY_SVG_DRAFT);
+  let modifyState = $state<ImageModifyState>(EMPTY_IMAGE_MODIFY);
 
   // Message-scoped version (images-generate.revision.message-shows-its-version):
   // a card in a chat message shows the version valid at that message, which the
@@ -218,6 +224,7 @@
       localTaskId = taskIdProp;
       localInputEmbedIds = inputEmbedIdsProp;
       svgDraftState = { draft: svgDraftProp ?? '', stage: draftStageProp, attempt: undefined };
+      modifyState = modifyProgressProp ?? EMPTY_IMAGE_MODIFY;
       // Direct image URL for store examples — bypasses S3 decrypt
       if (previewImageUrlProp && !imageUrl) imageUrl = previewImageUrlProp;
     }
@@ -235,6 +242,8 @@
   let aesKey = $derived(localAesKey);
   let aesNonce = $derived(localAesNonce);
   let inputEmbedIds = $derived(localInputEmbedIds);
+  let isModify = $derived(isModifySkill(skillIdProp));
+  let showModifyProgress = $derived(isModify && status === 'processing' && (!!modifyState.stage || !!modifyState.draft));
   let showSvgDraft = $derived(shouldShowSvgDraft(status, svgDraftState.draft));
   let showDraftStatusOnly = $derived(shouldShowDraftStatusOnly(status, svgDraftState.draft, svgDraftState.stage));
   let draftStageLabelKey = $derived(svgDraftStageLabelKey(svgDraftState.stage));
@@ -252,7 +261,7 @@
   let skillName = $derived(
     skillIdProp === 'generate_draft'
       ? $text('embeds.image_generate_draft')
-      : $text('common.generate')
+      : isModify ? $text('embeds.image_modify.title') : $text('common.generate')
   );
   
   
@@ -334,6 +343,9 @@
       hasContent: !!data.decodedContent
     });
     
+    // images.modify: step and draft picture while running, dropped once it ends
+    if (data.status !== 'processing') modifyState = EMPTY_IMAGE_MODIFY;
+    else if (data.decodedContent) modifyState = mergeImageModify(modifyState, readImageModify(data.decodedContent));
     // Update status
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error') {
       localStatus = data.status;
@@ -463,7 +475,7 @@
   onEmbedDataUpdated={handleEmbedDataUpdated}
 >
   {#snippet details({ isMobile: isMobileSnippet })}
-    <ResultEmbedCard title={prompt || skillName} sourceLabel={modelDisplayName} faviconUrl={modelIconUrl} mediaOnly={status === 'finished' && !!imageUrl && !error} mediaFit="contain">
+    <ResultEmbedCard title={prompt || skillName} sourceLabel={isModify ? $text('embeds.image_modify.title') : modelDisplayName} faviconUrl={isModify ? undefined : modelIconUrl} mediaOnly={status === 'finished' && !!imageUrl && !error} mediaFit="contain">
       {#snippet media()}
     <div class="image-preview" class:mobile={isMobileSnippet} bind:this={containerRef} data-embed-version={shownVersion ?? 1}>
       {#if status === 'finished' && !error && imageUrl}
@@ -483,6 +495,8 @@
           <span class="error-icon-small">!</span>
           <span>{imageError}</span>
         </div>
+      {:else if showModifyProgress}
+        <ImageModifyProgress state={modifyState} title={prompt || skillName} card />
       {:else if showSvgDraft}
         <!-- Vector author is still drawing: render the partial SVG progressively -->
         <div

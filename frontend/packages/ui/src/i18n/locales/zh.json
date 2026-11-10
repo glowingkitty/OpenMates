@@ -1120,6 +1120,23 @@
           }
         }
       },
+      "modify": {
+        "text": "编辑",
+        "description": {
+          "text": "精确地组合、放置、裁剪、缩放和调整聊天中的图片，不会凭空添加新内容。"
+        },
+        "how_to_use": {
+          "1": {
+            "text": "把我的刺绣图案放到这张照片里夹克的背面"
+          },
+          "2": {
+            "text": "用这五张照片做一张拼贴，白色间隔宽度一致"
+          },
+          "3": {
+            "text": "把这张照片裁成以灯塔为中心的正方形，并让颜色稍微暖一点"
+          }
+        }
+      },
       "search": {
         "text": "搜索",
         "description": {
@@ -6505,6 +6522,29 @@
     "image_generate_draft": {
       "text": "生成草稿"
     },
+    "image_modify": {
+      "writing": {
+        "text": "正在编写编辑步骤…"
+      },
+      "running": {
+        "text": "正在运行…"
+      },
+      "checking": {
+        "text": "正在检查结果…"
+      },
+      "correcting": {
+        "text": "正在修正…"
+      },
+      "attempt": {
+        "text": "第 {n} 次尝试"
+      },
+      "unmet_title": {
+        "text": "未完全满足"
+      },
+      "title": {
+        "text": "编辑后的图片"
+      }
+    },
     "context_menu": {
       "view": {
         "text": "查看"
@@ -7935,6 +7975,21 @@
         "apply_request": {
           "text": "请重新转换这个刺绣设计：宽度 {width} 毫米，绣框 {hoop}，面料 {fabric}。"
         },
+        "border": {
+          "text": "边框"
+        },
+        "border_none": {
+          "text": "无"
+        },
+        "border_mm": {
+          "text": "{width} 毫米"
+        },
+        "apply_request_border": {
+          "text": "添加 {width} 毫米的边框，用于缝在布料上。"
+        },
+        "apply_request_no_border": {
+          "text": "不要边框。"
+        },
         "error": {
           "generic": {
             "text": "无法转换此设计。"
@@ -7988,6 +8043,9 @@
           },
           "instructions_applied": {
             "text": "已按你的要求调整"
+          },
+          "border_added": {
+            "text": "已添加 {mm} 毫米的缝边"
           },
           "solved_gradient_or_filter": {
             "text": "渐变和滤镜已替换为纯色"

@@ -144,6 +144,8 @@ async def run_embroidery(task: Any, app_id: str, skill_id: str, arguments: dict[
     request = parse_embroidery_request(
         width_mm=arguments.get("width_mm"), hoop=arguments.get("hoop"),
         fabric=arguments.get("fabric"), instructions=arguments.get("instructions"),
+        border_mm=arguments.get("border_mm"), border_colour=arguments.get("border_colour"),
+        fit_hoop=arguments.get("fit_hoop"),
     )
     user_id_hash = hashlib.sha256(user_id.encode("utf-8")).hexdigest()
 
@@ -195,7 +197,9 @@ async def run_embroidery(task: Any, app_id: str, skill_id: str, arguments: dict[
             svg_chars=len(source.svg), rework_possible=True, rework_model=VECTOR_AUTHOR_MODELS[0],
         ),
     )
-    options = EmbroideryOptions(width_mm=request.width_mm, hoop=request.hoop, fabric=request.fabric)
+    options = EmbroideryOptions(width_mm=request.width_mm, hoop=request.hoop, fabric=request.fabric,
+                                border_mm=request.border_mm, border_colour=request.border_colour,
+                                fit_hoop=request.fit_hoop)
     api_key = await get_e2b_api_key_async(task._secrets_manager)
     try:
         check, outcome, run, sandbox_seconds = await _check_rework_convert(

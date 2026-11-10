@@ -89,9 +89,10 @@ Other sizes and fabrics:
   data and repaints it with the real thread colour, keeping the render's shading
   (measured after: `#fdf0e0` area mean `#ede1d2`). Other threads are untouched.
 - **Estimated minutes**: ceil(stitches / 600 + thread changes x 1), minimum 1.
-- **Early abort**: stitch estimate = fill area x 0.41 / row spacing (x 1.4 on
-  stretchy) + satin length / 0.4 x 2.6 + running length / 2 x 3 + 100 per element,
-  within about 10 % of the real counts. Over 150,000, or more than fits into the
+- **Early abort**: stitch estimate = fill area x 0.36 / row spacing (x 1.4 on
+  stretchy) + fill outline length (outer and hole outlines) x 3.09 + 2.2 per
+  separate fill part + satin length x 6.4 + running length x 0.97 + 8 per line,
+  within 3.1 % of the real counts on 17 measured conversions (see below). Over 150,000, or more than fits into the
   time left at 700 stitches/s (after 10 s fixed cost), fails as
   `too_many_stitches` before Ink/Stitch starts. The pipeline stops itself 5 s
   before the provider's 180 s hard kill so it can still report `timeout`.
@@ -102,3 +103,94 @@ Other sizes and fabrics:
 `previews/before-03_stars_background.webp` and
 `previews/before-06_illustration.webp` for comparison (background sewn,
 stars sewn twice over it, 26/52 thread changes).
+
+## Sew-on border
+
+Assertion `design-embroidery.prepare.sew-on-border`; code in
+`embroidery_sandbox/border.py`. Measured 2026-11-10 in real E2B sandboxes
+(template `openmates-embroidery`) with the worktree pipeline, 120 mm wide, normal
+fabric. Motifs: an orange flame ornament with sharp spikes, four curls whose
+inner openings are 4.0 / 5.2 / 7.2 / 9.6 mm wide and 40 dark spots each holding a
+magenta spot; the simple fox head (orange, cream muzzle, near-black ears, eyes
+and nose); two islands 4 mm apart with a satin wave, a running zigzag, a satin
+ring and a running line.
+
+Geometry: silhouette = union of fills, satin bands (with caps) and running lines
+widened to 0.3 mm each side. Outline = silhouette grown by `border_mm` with round
+joins; this equals a morphological closing (grow then shrink by `b`) followed by
+the growth, so every gap or opening narrower than `2 b` is filled and a wider one
+keeps an opening `2 b` narrower. Slits under 1 mm left by the growth are closed.
+Border fill = outline minus the silhouette shrunk by 0.45 mm, so it covers the
+band, the filled gaps and a 0.45 mm strip under the design's edge, never the
+whole design. It is sewn first; design shapes in the border colour that can be
+sewn at once follow without a thread change. Band width measured from the
+outer edge of the border to the design in the prepared SVG.
+
+| Motif | Border | Sewn size mm | Stitches (estimate) | Threads in sewing order (stitches) | Pipeline s / sandbox s | Band width min / median / max mm |
+|---|---|---|---|---|---|---|
+| Flame | none | 120.2 x 219.8 | 28750 (27663) | orange 21548, dark 5354, magenta 1848 | 41.8 / 48.4 | - |
+| Flame | 3 mm black | 126.2 x 226.0 | 38966 (37218) | black 10316, orange 21163, dark 5460, magenta 2027 | 60.9 / 66.5 | 2.99 / 3.00 / 3.25 |
+| Flame | 6 mm `#1d3557` | 132.2 x 231.8 | 40794 (39675) | navy 12376, orange 21023, dark 5397, magenta 1998 | 67.5 / 75.0 | 5.98 / 6.00 / 6.14 |
+| Fox | none | 120.0 x 134.2 | 15049 (12872) | orange 10580, cream 2552, near-black `#111111` 1917 | 12.9 / 19.9 | - |
+| Fox | 3 mm black | 126.2 x 140.2 | 19539 (17355) | black 4468, orange 10593, cream 2561, near-black `#111111` 1917 | 18.9 / 25.1 | 2.99 / 3.00 / 3.04 |
+| Islands | none | 120.0 x 58.4 | 9191 (8862) | blue, teal, yellow, red, white, black (6 threads) | 8.7 / 13.8 | - |
+| Islands | 3 mm black | 126.4 x 64.2 | 13188 (12636) | black 3652 first, then the same 6 threads | 13.1 / 20.5 | 2.99 / 3.00 / 3.25 |
+
+Sandbox seconds of the bordered runs include about 1 s of measuring. Maximum
+band widths above `b` are the filled concave corners (flame spikes, the gap
+between the islands).
+
+Checked in the previews: with 3 mm the flame's 4.0 and 5.2 mm curl openings are
+filled, the 7.2 and 9.6 mm ones stay open (narrowed by 6 mm); with 6 mm all four
+are filled. The 4 mm gap between the islands is filled, giving one border. No
+fabric shows between border and design; the border is sewn under the design only
+in the 0.45 mm strip (plus 2.5 mm² at the flame's spike tips, which are thinner
+than the strip). Width and height grow by `2 b` within 0.2 mm.
+
+Stitch estimate: the first estimate counted only the fill area (with an extra
+factor for the border band) and was 33-52 % low on a spotted ornament with 68
+small islands, because short rows, edge runs and travel grow with the outline,
+not the area. The estimate now counts area and outline length (formula under
+"Early abort"). Measured against real conversions:
+
+| Design | Sewn size mm | Real stitches | Estimate | Error | Old estimate |
+| --- | --- | --- | --- | --- | --- |
+| 01_single_shape, 100 mm | 100.4 x 92.6 | 8,644 | 8,722 | +0.9 % | +2.8 % |
+| 02_overlapping_fills, 100 mm | 100.4 x 87.8 | 11,229 | 11,145 | -0.7 % | -10.1 % |
+| 03_stars_background, 100 mm | 100.4 x 99.8 | 7,072 | 6,885 | -2.6 % | -2.9 % |
+| 03_stars_background, border 3 | 106.4 x 106.0 | 16,228 | 16,011 | -1.3 % | -0.7 % |
+| 05_logo, 100 mm | 100.4 x 100.4 | 6,817 | 6,852 | +0.5 % | -7.7 % |
+| 06_illustration, 100 mm | 100.4 x 90.8 | 13,904 | 13,493 | -3.0 % | -0.2 % |
+| 06_illustration, 200 mm | 200.4 x 181.4 | 40,497 | 39,966 | -1.3 % | -8.1 % |
+| fox, 120 mm | 120.0 x 134.2 | 15,049 | 15,114 | +0.4 % | -14.5 % |
+| fox, border 3 | 126.2 x 140.2 | 19,539 | 19,903 | +1.9 % | -11.2 % |
+| islands, 120 mm | 120.0 x 58.4 | 9,191 | 9,418 | +2.5 % | -3.6 % |
+| islands, border 3 | 126.4 x 64.2 | 13,188 | 13,329 | +1.1 % | -4.2 % |
+| flame, 120 mm | 120.2 x 219.8 | 28,750 | 28,055 | -2.4 % | -3.8 % |
+| flame, border 3 | 126.2 x 226.0 | 38,966 | 38,023 | -2.4 % | -4.5 % |
+| flame, border 6 | 132.2 x 231.8 | 40,794 | 40,656 | -0.3 % | -2.7 % |
+| spotted ornament, 90 mm | 90.0 x 170.8 | 14,887 | 14,420 | -3.1 % | -52.5 % |
+| spotted ornament, border 3 | 96.0 x 176.8 | 22,862 | 22,808 | -0.2 % | -33.3 % |
+| spotted ornament, fit 200x300, border 3 | 159.8 x 298.4 | 47,067 | 46,855 | -0.5 % | -28.4 % |
+
+The estimates are the fitted formula applied to the measured shapes. Ink/Stitch
+speed varies far more than the stitch count: 171 stitches/s (stars with border)
+to 1,364 stitches/s; the hoop-filling spotted ornament needed 125 s of Ink/Stitch
+and 150 s of sandbox time, close to the 180 s limit.
+
+Fill the hoop (`fit_hoop`, assertion `design-embroidery.prepare.fill-the-hoop`):
+the design is prepared once to learn its proportions, then sized so the design
+plus border fills the hoop minus 1 mm on every side (turned by 90 degrees when
+that is larger). The spotted ornament in the 200x300 hoop with a 3 mm border
+sews at 159.8 x 298.4 mm, border band 2.99-3.37 mm (median 3.00).
+
+Transparent preview (`preview_transparent`, PNG, longest side capped at 1600 px;
+the render itself is about 1200 px): Ink/Stitch renders on an opaque page in the
+page colour whatever `inkscape:pageopacity` says (tested 0 and no named view:
+both opaque). The PNG therefore keeps the area covered by stitches (from the
+stitch data, shrunk by 1 px) fully opaque, gives edge pixels an opacity from
+their distance to the page colour (6 = page, 48 = thread) and takes the page
+colour back out of soft edge pixels; nothing outside the stitch area (grown by 1
+px) is kept. Light threads are corrected as in the WebP preview. Measured: 37-46 %
+of the pixels fully transparent, below 0.2 % partly transparent, no page halo on
+a blue background.

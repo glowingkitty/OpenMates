@@ -1120,6 +1120,23 @@
           }
         }
       },
+      "modify": {
+        "text": "Bewerken",
+        "description": {
+          "text": "Combineer, plaats, snijd bij, schaal en pas afbeeldingen uit de chat exact aan, zonder nieuwe inhoud te verzinnen."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Zet mijn borduurontwerp op de rug van de jas op deze foto"
+          },
+          "2": {
+            "text": "Maak een collage van deze vijf foto's met gelijke witte tussenruimtes"
+          },
+          "3": {
+            "text": "Snijd deze foto bij tot een vierkant rond de vuurtoren en maak de kleuren iets warmer"
+          }
+        }
+      },
       "search": {
         "text": "Zoeken",
         "description": {
@@ -6505,6 +6522,29 @@
     "image_generate_draft": {
       "text": "Concept genereren"
     },
+    "image_modify": {
+      "writing": {
+        "text": "Bewerking wordt geschreven…"
+      },
+      "running": {
+        "text": "Wordt uitgevoerd…"
+      },
+      "checking": {
+        "text": "Resultaat controleren…"
+      },
+      "correcting": {
+        "text": "Corrigeren…"
+      },
+      "attempt": {
+        "text": "poging {n}"
+      },
+      "unmet_title": {
+        "text": "Niet volledig voldaan"
+      },
+      "title": {
+        "text": "Bewerkte afbeelding"
+      }
+    },
     "context_menu": {
       "view": {
         "text": "Bekijken"
@@ -7935,6 +7975,21 @@
         "apply_request": {
           "text": "Zet dit borduurontwerp opnieuw om: breedte {width} mm, borduurraam {hoop}, stof {fabric}."
         },
+        "border": {
+          "text": "Rand"
+        },
+        "border_none": {
+          "text": "Geen"
+        },
+        "border_mm": {
+          "text": "{width} mm"
+        },
+        "apply_request_border": {
+          "text": "Voeg een rand van {width} mm toe om op te naaien."
+        },
+        "apply_request_no_border": {
+          "text": "Laat de rand weg."
+        },
         "error": {
           "generic": {
             "text": "Dit ontwerp kon niet worden omgezet."
@@ -7988,6 +8043,9 @@
           },
           "instructions_applied": {
             "text": "Je wensen zijn toegepast"
+          },
+          "border_added": {
+            "text": "Rand van {mm} mm toegevoegd om op te naaien"
           },
           "solved_gradient_or_filter": {
             "text": "Kleurverlopen en filters zijn vervangen door effen kleuren"

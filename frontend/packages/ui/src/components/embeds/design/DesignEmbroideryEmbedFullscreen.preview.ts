@@ -41,5 +41,11 @@ export const variants = {
   hoopTooSmall: fixture({ ...FOX_RESULT, width_mm: 150, height_mm: 124, hoop: '100x100', fits_hoop: 'no' }),
   hoopNotChecked: fixture({ ...FOX_RESULT, hoop: 'none', fits_hoop: 'not_checked' }),
   downloadUnavailable: fixture({ ...FOX_RESULT, previewDownloadText: '' }),
+  withBorder: fixture({
+    ...FOX_RESULT, border_mm: 3,
+    threads: [{ colour_hex: '#000000', name: 'Madeira 1000', stitch_count: 2400 }, ...FOX_RESULT.threads],
+    thread_changes: 4,
+    notes: [...FOX_RESULT.notes, { code: 'border_added', mm: 3, text: 'Border of 3 mm added for sewing on' }],
+  }),
   noNotes: fixture({ ...FOX_RESULT, notes: [] }),
 };

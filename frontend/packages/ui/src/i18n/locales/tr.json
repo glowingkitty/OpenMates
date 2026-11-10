@@ -1120,6 +1120,23 @@
           }
         }
       },
+      "modify": {
+        "text": "Düzenle",
+        "description": {
+          "text": "Sohbetteki resimleri yeni içerik uydurmadan tam olarak birleştirin, yerleştirin, kırpın, boyutlandırın ve ayarlayın."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Nakış tasarımımı bu fotoğraftaki ceketin sırtına yerleştir"
+          },
+          "2": {
+            "text": "Bu beş fotoğraftan eşit beyaz boşluklu bir kolaj yap"
+          },
+          "3": {
+            "text": "Bu fotoğrafı deniz fenerinin etrafında kare olarak kırp ve renkleri biraz daha sıcak yap"
+          }
+        }
+      },
       "search": {
         "text": "Ara",
         "description": {
@@ -6505,6 +6522,29 @@
     "image_generate_draft": {
       "text": "Taslak oluştur"
     },
+    "image_modify": {
+      "writing": {
+        "text": "Düzenleme yazılıyor…"
+      },
+      "running": {
+        "text": "Çalıştırılıyor…"
+      },
+      "checking": {
+        "text": "Sonuç kontrol ediliyor…"
+      },
+      "correcting": {
+        "text": "Düzeltiliyor…"
+      },
+      "attempt": {
+        "text": "{n}. deneme"
+      },
+      "unmet_title": {
+        "text": "Tam karşılanamadı"
+      },
+      "title": {
+        "text": "Düzenlenen görsel"
+      }
+    },
     "context_menu": {
       "view": {
         "text": "Görüntüle"
@@ -7935,6 +7975,21 @@
         "apply_request": {
           "text": "Bu nakış tasarımını yeniden dönüştür: genişlik {width} mm, kasnak {hoop}, kumaş {fabric}."
         },
+        "border": {
+          "text": "Kenarlık"
+        },
+        "border_none": {
+          "text": "Yok"
+        },
+        "border_mm": {
+          "text": "{width} mm"
+        },
+        "apply_request_border": {
+          "text": "Dikmek için {width} mm'lik bir kenarlık ekle."
+        },
+        "apply_request_no_border": {
+          "text": "Kenarlığı çıkar."
+        },
         "error": {
           "generic": {
             "text": "Bu tasarım dönüştürülemedi."
@@ -7988,6 +8043,9 @@
           },
           "instructions_applied": {
             "text": "İsteklerin uygulandı"
+          },
+          "border_added": {
+            "text": "Dikmek için {mm} mm kenarlık eklendi"
           },
           "solved_gradient_or_filter": {
             "text": "Renk geçişleri ve filtreler düz renklerle değiştirildi"

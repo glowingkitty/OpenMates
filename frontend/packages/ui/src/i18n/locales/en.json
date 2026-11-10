@@ -1123,6 +1123,23 @@
           }
         }
       },
+      "modify": {
+        "text": "Modify",
+        "description": {
+          "text": "Combine, place, crop, resize and adjust pictures from the chat exactly, without inventing new content."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Put my embroidery design on the back of the jacket in this photo"
+          },
+          "2": {
+            "text": "Make a collage of these five photos with equal white gaps"
+          },
+          "3": {
+            "text": "Crop this photo to a square around the lighthouse and make the colours a little warmer"
+          }
+        }
+      },
       "search": {
         "text": "Search",
         "description": {
@@ -7946,6 +7963,29 @@
     "image_generate_draft": {
       "text": "Generate Draft"
     },
+    "image_modify": {
+      "writing": {
+        "text": "Writing the edit…"
+      },
+      "running": {
+        "text": "Running it…"
+      },
+      "checking": {
+        "text": "Checking the result…"
+      },
+      "correcting": {
+        "text": "Correcting…"
+      },
+      "attempt": {
+        "text": "attempt {n}"
+      },
+      "unmet_title": {
+        "text": "Not fully met"
+      },
+      "title": {
+        "text": "Edited image"
+      }
+    },
     "context_menu": {
       "view": {
         "text": "View"
@@ -9536,6 +9576,21 @@
         "apply_request": {
           "text": "Convert this embroidery design again: width {width} mm, hoop {hoop}, fabric {fabric}."
         },
+        "border": {
+          "text": "Border"
+        },
+        "border_none": {
+          "text": "None"
+        },
+        "border_mm": {
+          "text": "{width} mm"
+        },
+        "apply_request_border": {
+          "text": "Add a {width} mm border for sewing on."
+        },
+        "apply_request_no_border": {
+          "text": "Leave out the border."
+        },
         "error": {
           "generic": {
             "text": "This design could not be converted."
@@ -9589,6 +9644,9 @@
           },
           "instructions_applied": {
             "text": "Your wishes were applied"
+          },
+          "border_added": {
+            "text": "Border of {mm} mm added for sewing on"
           },
           "solved_gradient_or_filter": {
             "text": "Gradients and filters were replaced by flat colours"

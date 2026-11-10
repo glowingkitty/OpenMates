@@ -280,3 +280,42 @@ for (const variant of ['error', 'nothingToSew']) {
     await testInfo.attach(`embroidery-failed-${variant}`, { body: await page.screenshot(), contentType: 'image/png' });
   });
 }
+
+// contract-test: supporting surface=gui.web assertions=design-embroidery.result.view-and-download
+for (const width of [390, 1280]) {
+  test(`opened view shows the sew-on border among the numbers at ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`${FULLSCREEN}&variant=withBorder`);
+    await waitForComponentPreview(page);
+    await expect(page.getByTestId('design-embroidery-border-info')).toContainText('3 mm');
+    await expect(page.getByTestId('design-embroidery-border-info')).toContainText('Border');
+    await expect(page.getByTestId('design-embroidery-note').filter({ hasText: 'Border of 3 mm added for sewing on' })).toHaveCount(1);
+    await expect(page.getByTestId('design-embroidery-thread').first()).toContainText('Madeira 1000');
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(overflow).toBeLessThanOrEqual(0);
+    await testInfo.attach(`embroidery-border-${width}`, { body: await page.screenshot(), contentType: 'image/png' });
+  });
+}
+
+// contract-test: supporting surface=gui.web assertions=design-embroidery.result.view-and-download
+test('choosing a border in the settings and applying names the border width in the follow-up', async ({ page }) => {
+  await page.route('**/v1/apps/workspace/interpret', route => route.fulfill({ status: 503, json: { detail: 'isolated component request' } }));
+  await page.goto(`${FULLSCREEN}&variant=finished`);
+  await waitForComponentPreview(page);
+  const border = page.getByTestId('design-embroidery-border');
+  await border.scrollIntoViewIfNeeded();
+  await expect(border).toHaveValue('0');
+  await border.selectOption('4');
+  const pending = page.waitForRequest('**/v1/apps/workspace/interpret');
+  await page.getByTestId('design-embroidery-apply').click();
+  const request = (await pending).postDataJSON();
+  expect(request.text).toBe('Convert this embroidery design again: width 90 mm, hoop 130 × 180 mm, fabric normal. Add a 4 mm border for sewing on.');
+});
+
+// contract-test: supporting surface=gui.web assertions=design-embroidery.result.view-and-download
+test('a result without a border shows no border number', async ({ page }) => {
+  await page.goto(`${FULLSCREEN}&variant=finished`);
+  await waitForComponentPreview(page);
+  await expect(page.getByTestId('design-embroidery-size')).toBeVisible();
+  await expect(page.getByTestId('design-embroidery-border-info')).toHaveCount(0);
+});

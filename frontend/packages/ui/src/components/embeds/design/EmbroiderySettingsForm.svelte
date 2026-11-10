@@ -9,7 +9,7 @@
   import { untrack } from 'svelte';
   import { text } from '@repo/ui';
   import {
-    EMBROIDERY_FABRICS, EMBROIDERY_HOOPS, EMBROIDERY_MAX_WIDTH_MM, EMBROIDERY_MIN_WIDTH_MM,
+    EMBROIDERY_BORDERS_MM, EMBROIDERY_FABRICS, EMBROIDERY_HOOPS, EMBROIDERY_MAX_WIDTH_MM, EMBROIDERY_MIN_WIDTH_MM,
     formatHoop, type EmbroideryFabric, type EmbroideryHoop, type EmbroiderySettings,
   } from './embroideryDesign';
 
@@ -17,24 +17,30 @@
     widthMm: number;
     hoop: EmbroideryHoop;
     fabric: EmbroideryFabric;
+    borderMm: number;
     submitting: boolean;
     onApply: (settings: EmbroiderySettings) => void;
   }
-  let { widthMm, hoop, fabric, submitting, onApply }: Props = $props();
+  let { widthMm, hoop, fabric, borderMm, submitting, onApply }: Props = $props();
 
   // The form starts from the opened result and then belongs to the user.
   let width = $state(untrack(() => Math.round(widthMm)));
   let selectedHoop = $state<EmbroideryHoop>(untrack(() => hoop));
   let selectedFabric = $state<EmbroideryFabric>(untrack(() => fabric));
+  let selectedBorder = $state<number>(untrack(() => borderMm));
   const widthValid = $derived(
     Number.isFinite(width) && width >= EMBROIDERY_MIN_WIDTH_MM && width <= EMBROIDERY_MAX_WIDTH_MM,
+  );
+  // A current border outside the offered widths stays selectable so it is never lost silently.
+  const borderOptions = $derived(
+    (EMBROIDERY_BORDERS_MM as readonly number[]).includes(borderMm) ? [...EMBROIDERY_BORDERS_MM] : [...EMBROIDERY_BORDERS_MM, borderMm].sort((a, b) => a - b),
   );
   const uid = $props.id();
 
   function apply(event: SubmitEvent) {
     event.preventDefault();
     if (!widthValid || submitting) return;
-    onApply({ widthMm: Math.round(width), hoop: selectedHoop, fabric: selectedFabric });
+    onApply({ widthMm: Math.round(width), hoop: selectedHoop, fabric: selectedFabric, borderMm: selectedBorder });
   }
 </script>
 
@@ -68,6 +74,14 @@
       <select id={`${uid}-fabric`} bind:value={selectedFabric} data-testid="design-embroidery-fabric">
         {#each EMBROIDERY_FABRICS as option (option)}
           <option value={option}>{$text(`embeds.design.embroidery.fabric_${option}`)}</option>
+        {/each}
+      </select>
+    </label>
+    <label for={`${uid}-border`}>
+      <span>{$text('embeds.design.embroidery.border')}</span>
+      <select id={`${uid}-border`} bind:value={selectedBorder} data-testid="design-embroidery-border">
+        {#each borderOptions as option (option)}
+          <option value={option}>{option === 0 ? $text('embeds.design.embroidery.border_none') : $text('embeds.design.embroidery.border_mm', { values: { width: option } })}</option>
         {/each}
       </select>
     </label>
@@ -115,6 +129,6 @@
   }
   .apply:disabled { opacity: 0.5; cursor: not-allowed; }
   @container (min-width: 28rem) {
-    .fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
 </style>

@@ -1120,6 +1120,23 @@
           }
         }
       },
+      "modify": {
+        "text": "Modificar",
+        "description": {
+          "text": "Combina, coloca, recorta, redimensiona y ajusta imágenes del chat con exactitud, sin inventar contenido nuevo."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Pon mi diseño de bordado en la espalda de la chaqueta de esta foto"
+          },
+          "2": {
+            "text": "Haz un collage con estas cinco fotos con espacios blancos iguales"
+          },
+          "3": {
+            "text": "Recorta esta foto en un cuadrado alrededor del faro y haz los colores un poco más cálidos"
+          }
+        }
+      },
       "search": {
         "text": "Buscar",
         "description": {
@@ -6532,6 +6549,29 @@
     "image_generate_draft": {
       "text": "Generar borrador"
     },
+    "image_modify": {
+      "writing": {
+        "text": "Escribiendo la edición…"
+      },
+      "running": {
+        "text": "Ejecutándolo…"
+      },
+      "checking": {
+        "text": "Comprobando el resultado…"
+      },
+      "correcting": {
+        "text": "Corrigiendo…"
+      },
+      "attempt": {
+        "text": "intento {n}"
+      },
+      "unmet_title": {
+        "text": "No se cumplió del todo"
+      },
+      "title": {
+        "text": "Imagen editada"
+      }
+    },
     "context_menu": {
       "view": {
         "text": "Ver"
@@ -7962,6 +8002,21 @@
         "apply_request": {
           "text": "Convierte de nuevo este diseño de bordado: ancho {width} mm, bastidor {hoop}, tela {fabric}."
         },
+        "border": {
+          "text": "Borde"
+        },
+        "border_none": {
+          "text": "Ninguno"
+        },
+        "border_mm": {
+          "text": "{width} mm"
+        },
+        "apply_request_border": {
+          "text": "Añade un borde de {width} mm para coser."
+        },
+        "apply_request_no_border": {
+          "text": "Omite el borde."
+        },
         "error": {
           "generic": {
             "text": "No se pudo convertir este diseño."
@@ -8015,6 +8070,9 @@
           },
           "instructions_applied": {
             "text": "Se aplicaron tus deseos"
+          },
+          "border_added": {
+            "text": "Se añadió un borde de {mm} mm para coserlo"
           },
           "solved_gradient_or_filter": {
             "text": "Los degradados y filtros se sustituyeron por colores lisos"

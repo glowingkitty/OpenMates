@@ -24,7 +24,12 @@ export interface EmbroiderySettings {
   widthMm: number;
   hoop: EmbroideryHoop;
   fabric: EmbroideryFabric;
+  /** Sew-on border width in mm; 0 means no border. */
+  borderMm: number;
 }
+
+/** Border widths offered in the settings; 0 means none. */
+export const EMBROIDERY_BORDERS_MM = [0, 2, 3, 4, 6] as const;
 
 export const EMBROIDERY_MIN_WIDTH_MM = 20;
 export const EMBROIDERY_MAX_WIDTH_MM = 400;
@@ -42,7 +47,8 @@ export const EMBROIDERY_FINDINGS = [
 /** Every note code that can reach the user: sandbox notes, rework notes, one solved_/unsolved_ pair per finding. */
 export const EMBROIDERY_NOTE_CODES = [
   'background_removed', 'tiny_details_removed', 'lines_running', 'gradient_flattened', 'effects_ignored',
-  'image_left_out', 'text_left_out', 'rotate_for_hoop', 'rework_failed', 'instructions_applied',
+  'image_left_out', 'text_left_out', 'rotate_for_hoop', 'rework_failed', 'instructions_applied', 'border_added',
+  'sized_to_hoop',
   ...EMBROIDERY_FINDINGS.map((finding) => `solved_${finding}`),
   ...EMBROIDERY_FINDINGS.map((finding) => `unsolved_${finding}`),
 ] as const;
@@ -67,6 +73,8 @@ export interface EmbroideryNote {
   text: string;
   /** Whole number some translations insert, for example the left-out detail count. */
   count: number | null;
+  /** Border width in mm of the `border_added` note. */
+  mm: number | null;
 }
 
 export interface EmbroideryDesign {
@@ -80,6 +88,8 @@ export interface EmbroideryDesign {
   hoop: EmbroideryHoop;
   fitsHoop: 'yes' | 'no' | 'not_checked';
   fabric: EmbroideryFabric | null;
+  /** Sew-on border width in mm; 0 when the result has no border. */
+  borderMm: number;
   reworked: boolean;
   threads: EmbroideryThread[];
   notes: EmbroideryNote[];
@@ -124,7 +134,7 @@ function readThreads(value: unknown): EmbroideryThread[] {
 
 function readNotes(value: unknown): EmbroideryNote[] {
   if (!Array.isArray(value)) return [];
-  return value.filter(isRecord).map((row) => ({ code: string(row.code), text: string(row.text), count: num(row.count) }))
+  return value.filter(isRecord).map((row) => ({ code: string(row.code), text: string(row.text), count: num(row.count), mm: num(row.mm) }))
     .filter((note) => note.code || note.text);
 }
 
@@ -156,6 +166,7 @@ export function readEmbroideryDesign(
     hoop: oneOf(c.hoop, EMBROIDERY_HOOPS) ?? 'none',
     fitsHoop: oneOf(c.fits_hoop, ['yes', 'no', 'not_checked'] as const) ?? 'not_checked',
     fabric: oneOf(c.fabric, EMBROIDERY_FABRICS),
+    borderMm: (num(c.border_mm) ?? 0) > 0 ? Math.round(num(c.border_mm) ?? 0) : 0,
     reworked: c.reworked === true,
     threads: readThreads(c.threads),
     notes: readNotes(c.notes),

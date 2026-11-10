@@ -224,9 +224,9 @@ specifications:
     - gui.apple
   feature.app-skill.design-embroidery:
     version: 1
-    status: approved
+    status: draft
     path: features/app-skills/design-embroidery
-    fingerprint: 9438ef234457ece9ff13eb4f54423cb6d6dbe3aceb4da8c347f35166def8387c
+    fingerprint: aef325aff434d4698b3f1c640e2b78dc1a097e1c177e52cd0a3efced62c8fbb0
     required_applies_to:
     - cli
     - sdks.npm
@@ -287,6 +287,17 @@ specifications:
     fingerprint: 34601073e11449e4af5eaea0d6aa514412bd5efefc1029e277240e5ff443facd
     required_applies_to:
     - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  feature.app-skill.images-modify:
+    version: 1
+    status: draft
+    path: features/app-skills/images-modify
+    fingerprint: c413006e2475d0b6a6edc9075f9713e803f70d7c5b7cf6ee54e241f0682261d4
+    required_applies_to:
     - cli
     - sdks.npm
     - sdks.pip
@@ -4219,7 +4230,29 @@ assertions:
     specification: feature.app-skill.design-embroidery@1
     specification_id: feature.app-skill.design-embroidery
     type: behavior
-    fingerprint: 087711268c126a2c1b12e55cbee3c35455df33e15067b546d80b4fb6e60dbe6d
+    fingerprint: ce080686064fb62763b083d252db8914b1efb9849982a450beead21d5cbee356
+    required_applies_to:
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  design-embroidery.prepare.sew-on-border:
+    specification: feature.app-skill.design-embroidery@1
+    specification_id: feature.app-skill.design-embroidery
+    type: behavior
+    fingerprint: 76a762c75f78a9fa66ad58060d169561de9a0e9dea3373b8da815683a1330d9b
+    required_applies_to:
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  design-embroidery.prepare.fill-the-hoop:
+    specification: feature.app-skill.design-embroidery@1
+    specification_id: feature.app-skill.design-embroidery
+    type: behavior
+    fingerprint: eebd8a0c0aede50a45e87588e86a62005261fd62e46206e1d9bc388a8b89c630
     required_applies_to:
     - cli
     - sdks.npm
@@ -4241,7 +4274,7 @@ assertions:
     specification: feature.app-skill.design-embroidery@1
     specification_id: feature.app-skill.design-embroidery
     type: invariant
-    fingerprint: fe755965bb890f61d31cf5a1b93a98a36642e19fec27252519cf78927532aa75
+    fingerprint: 79d76c87d877483c7454b5601f7c5c43021a361e68b8e9c62b4881818be6f22d
     required_applies_to:
     - cli
     - sdks.npm
@@ -4252,7 +4285,7 @@ assertions:
     specification: feature.app-skill.design-embroidery@1
     specification_id: feature.app-skill.design-embroidery
     type: invariant
-    fingerprint: f893904d5df294aa3a1d5a40b9dd618fcb4adb80678283365f51063242354fee
+    fingerprint: bec537458db1185fb48011441ff0a5d2da4a453118abb3060da898e1cff37d13
     required_applies_to:
     - cli
     - sdks.npm
@@ -4263,7 +4296,7 @@ assertions:
     specification: feature.app-skill.design-embroidery@1
     specification_id: feature.app-skill.design-embroidery
     type: behavior
-    fingerprint: 0d4af1260fd010a78b7efb98498e9175ef62e27f54185e585e743a88d353deb8
+    fingerprint: 752f18198f80e629429be946ecf4511262e5dd90268c5da81845a91610c0ed87
     required_applies_to:
     - cli
     - sdks.npm
@@ -4274,7 +4307,7 @@ assertions:
     specification: feature.app-skill.design-embroidery@1
     specification_id: feature.app-skill.design-embroidery
     type: privacy
-    fingerprint: 30c450ddb8e2daeddc7009e86f8e49c4595e26e2dcdf406ec1d2b49b0fe97f9b
+    fingerprint: f3a54b1dfeab93642f9b8916cc3ea062fa064bb2a1d38d187f8b3640b44be9b1
     required_applies_to:
     - cli
     - sdks.npm
@@ -4296,7 +4329,7 @@ assertions:
     specification: feature.app-skill.design-embroidery@1
     specification_id: feature.app-skill.design-embroidery
     type: parity
-    fingerprint: 200f1643437ea20410b31a7bdcb55722188d95955397c00de27f0edede34c4e4
+    fingerprint: f539965fc3c52263187796a9a5faee21d32acbb088beb599b7c3309e5fe80f48
     required_applies_to:
     - cli
     - sdks.npm
@@ -4760,6 +4793,116 @@ assertions:
     fingerprint: debf78a971e338fcb86e7c99b9ccd658d5d84db59f076df8dbdba2c1ffda0a01
     required_applies_to:
     - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  images-modify.request.pictures-from-the-chat:
+    specification: feature.app-skill.images-modify@1
+    specification_id: feature.app-skill.images-modify
+    type: behavior
+    fingerprint: e68e1884b034c18abfb1cb1bb25513847b32292647584de1e1358e7e7f643c46
+    required_applies_to:
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  images-modify.author.program-not-pixels:
+    specification: feature.app-skill.images-modify@1
+    specification_id: feature.app-skill.images-modify
+    type: behavior
+    fingerprint: 3cab0d4545a36fea98b387feaa602cdfae93b003148812eb9938eafa4fdc31da
+    required_applies_to:
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  images-modify.sandbox.isolated-run:
+    specification: feature.app-skill.images-modify@1
+    specification_id: feature.app-skill.images-modify
+    type: invariant
+    fingerprint: 53ce88250d36993e11169335d22df991644c29ff1ba503fea84cb0bd64106985
+    required_applies_to:
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  images-modify.review.requirements-checked:
+    specification: feature.app-skill.images-modify@1
+    specification_id: feature.app-skill.images-modify
+    type: behavior
+    fingerprint: e3106e9509a170818b704524d39c7a27aea301aef1173bacff03d0d7987755e5
+    required_applies_to:
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  images-modify.progress.shown-while-running:
+    specification: feature.app-skill.images-modify@1
+    specification_id: feature.app-skill.images-modify
+    type: behavior
+    fingerprint: a46ac15ac9a945e79674e617b0b6b8c65491544d6fa2352946bde0122afe390b
+    required_applies_to:
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  images-modify.result.normal-image:
+    specification: feature.app-skill.images-modify@1
+    specification_id: feature.app-skill.images-modify
+    type: behavior
+    fingerprint: 7f80fb408476a4128c279a36354500ff1ea6707dd34952f3fe8d9eb28fdcf93b
+    required_applies_to:
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  images-modify.routing.exact-or-generative:
+    specification: feature.app-skill.images-modify@1
+    specification_id: feature.app-skill.images-modify
+    type: behavior
+    fingerprint: 54e9a9ac59599d03b0f955f74a683d3b20c544db557b9c5c40f660cbc96d93d2
+    required_applies_to:
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  images-modify.safety.same-as-generated-media:
+    specification: feature.app-skill.images-modify@1
+    specification_id: feature.app-skill.images-modify
+    type: privacy
+    fingerprint: 3fefc659706babbb8d168239d6bbc3cdf503a69968f18724f73b6b3df71087a4
+    required_applies_to:
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  images-modify.billing.metered:
+    specification: feature.app-skill.images-modify@1
+    specification_id: feature.app-skill.images-modify
+    type: invariant
+    fingerprint: da52991de2d5078cca925c57a185a236639e1ee141ba1312e705ad558188e488
+    required_applies_to:
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  images-modify.surface.semantic-parity:
+    specification: feature.app-skill.images-modify@1
+    specification_id: feature.app-skill.images-modify
+    type: parity
+    fingerprint: a6e5432c9585f31b537b2f7ca5d12d83113f1542f32224615218843e0f21d579
+    required_applies_to:
     - cli
     - sdks.npm
     - sdks.pip

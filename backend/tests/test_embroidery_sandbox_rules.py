@@ -106,6 +106,18 @@ def test_options_validate_ranges_and_enums() -> None:
             Options.from_dict(bad)
 
 
+# contract-test: supporting surface=rest_api assertions=design-embroidery.prepare.sew-on-border
+def test_border_options_are_optional_bounded_and_black_by_default() -> None:
+    assert Options.from_dict({}).border_mm is None
+    options = Options.from_dict({"border_mm": 3})
+    assert options.border_mm == 3.0 and options.border_colour == "#000000"
+    assert Options.from_dict({"border_mm": 8, "border_colour": "#1D3557"}).border_colour == "#1d3557"
+    for bad in ({"border_mm": 0.9}, {"border_mm": 8.5}, {"border_mm": True}, {"border_mm": "3"},
+                {"border_mm": 3, "border_colour": "navy"}):
+        with pytest.raises(ValueError):
+            Options.from_dict(bad)
+
+
 # contract-test: supporting surface=rest_api assertions=design-embroidery.prepare.fixed-rules
 def test_source_size_limit_is_unreadable_svg() -> None:
     check_source_size("x" * MAX_SOURCE_SVG_CHARS)
@@ -191,6 +203,20 @@ def test_order_respects_stacking_and_defers_unfinishable_colours() -> None:
     order = plan_order(items, deps)
     assert order.index(1) < order.index(2) < order.index(3)
     assert colour_changes([items[i].colour for i in order]) == 2
+
+
+# contract-test: supporting surface=rest_api assertions=design-embroidery.prepare.sew-on-border
+def test_shapes_in_the_border_colour_follow_the_border_without_a_thread_change() -> None:
+    items = [
+        OrderItem(0, "orange", "fill", (5, 5)),   # head
+        OrderItem(1, "black", "fill", (0, 0)),    # free ear
+        OrderItem(2, "black", "fill", (5, 6)),    # eye on the head
+    ]
+    deps = {2: {0}}
+    order = plan_order(items, deps, start_colour="black")
+    assert order == [1, 0, 2]
+    assert colour_changes(["black", *(items[i].colour for i in order)]) == 2
+    assert plan_order(items, deps, start_colour="red") == plan_order(items, deps)
 
 
 # contract-test: supporting surface=rest_api assertions=design-embroidery.prepare.fixed-rules
@@ -304,3 +330,32 @@ def test_preview_shows_light_threads_in_their_real_colour() -> None:
     assert blue / red == pytest.approx(0xE0 / 0xFD, abs=0.02)
     assert fixed.getpixel((200, 50)) == (181, 96, 59, 255)
     assert fixed.getpixel((125, 50))[3] == 0
+
+
+# contract-test: supporting surface=rest_api assertions=design-embroidery.prepare.sew-on-border,design-embroidery.result.complete-and-truthful
+def test_transparent_preview_drops_the_page_and_keeps_the_stitches() -> None:
+    """Ink/Stitch renders on an opaque fabric-coloured page; the transparent PNG keeps only the thread."""
+    pytest.importorskip("numpy")
+    image_module = pytest.importorskip("PIL.Image")
+    import io
+
+    from backend.apps.design.embroidery_sandbox.preview import FABRIC_RGB, to_transparent_png
+
+    dpi = 254  # one pixel per 0.1 mm
+    rows = [[x, y] for y in range(0, 101, 4) for x in ((0, 100) if (y // 4) % 2 == 0 else (100, 0))]
+    stitches = {"blocks": [{"colour_hex": "#000000", "points": rows}]}
+    render = image_module.new("RGBA", (201, 201), FABRIC_RGB + (255,))
+    render.paste((20, 20, 20, 255), (50, 50, 151, 151))
+    with image_module.open(io.BytesIO(to_transparent_png(_png(render), stitches, dpi))) as result:
+        result = result.convert("RGBA")
+    assert result.size == (201, 201)
+    assert result.getpixel((5, 5))[3] == 0          # page: transparent
+    assert result.getpixel((100, 100)) == (20, 20, 20, 255)  # thread: unchanged and opaque
+
+
+def _png(image) -> bytes:
+    import io
+
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG")
+    return buffer.getvalue()

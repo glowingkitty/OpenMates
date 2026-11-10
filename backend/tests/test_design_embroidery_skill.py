@@ -51,6 +51,50 @@ def test_request_defaults_and_bounds() -> None:
             parse_embroidery_request(**bad)
 
 
+# contract-test: supporting surface=rest_api assertions=design-embroidery.prepare.sew-on-border
+def test_border_is_optional_bounded_and_black_by_default() -> None:
+    assert parse_embroidery_request().border_mm is None
+    request = parse_embroidery_request(border_mm=3)
+    assert request.border_mm == 3.0 and request.border_colour == "#000000"
+    assert parse_embroidery_request(border_mm="8", border_colour="#E8451F").border_colour == "#e8451f"
+    for bad in ({"border_mm": 0.5}, {"border_mm": 9}, {"border_mm": True}, {"border_mm": "thick"},
+                {"border_mm": 3, "border_colour": "black"}, {"border_mm": 3, "border_colour": "#12345"}):
+        with pytest.raises(ValueError):
+            parse_embroidery_request(**bad)
+
+
+# contract-test: supporting surface=rest_api assertions=design-embroidery.prepare.fill-the-hoop
+def test_fit_hoop_is_off_by_default_and_needs_a_hoop() -> None:
+    assert parse_embroidery_request().fit_hoop is False
+    assert parse_embroidery_request(hoop="200x300", fit_hoop=True, border_mm=3).fit_hoop is True
+    assert parse_embroidery_request(hoop="200x300", fit_hoop=False).fit_hoop is False
+    with pytest.raises(ValueError, match="fit_hoop needs a hoop"):
+        parse_embroidery_request(fit_hoop=True)
+    with pytest.raises(ValueError, match="fit_hoop must be true or false"):
+        parse_embroidery_request(hoop="200x300", fit_hoop="yes")
+
+
+# contract-test: supporting surface=rest_api assertions=design-embroidery.prepare.sew-on-border
+@pytest.mark.asyncio
+async def test_skill_dispatches_the_border_only_when_requested(monkeypatch) -> None:
+    dispatched: list[dict] = []
+
+    async def dispatch(**kwargs: Any) -> str:
+        dispatched.append(kwargs)
+        return "task-1"
+
+    monkeypatch.setattr(embroidery_skill, "execute_skill_via_celery", dispatch)
+    index = {"fox-logo.svg": "source-embed-1"}
+    await _skill().execute(source="fox-logo.svg", border_mm=3, file_path_index=index)
+    await _skill().execute(source="fox-logo.svg", file_path_index=index)
+    with_border, without = (call["arguments"] for call in dispatched)
+    assert with_border["border_mm"] == 3.0 and with_border["border_colour"] == "#000000"
+    assert with_border["requests"][0]["border_mm"] == 3.0
+    assert "border_mm" not in without and "border_colour" not in without
+    bad = await _skill().execute(source="fox-logo.svg", border_mm=12, file_path_index=index)
+    assert "border_mm" in bad["error"] and len(dispatched) == 2
+
+
 # contract-test: direct surface=rest_api assertions=design-embroidery.request.vector-source
 @pytest.mark.asyncio
 async def test_skill_resolves_source_and_dispatches_one_registered_request(monkeypatch) -> None:

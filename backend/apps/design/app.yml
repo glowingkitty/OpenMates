@@ -148,6 +148,7 @@ embed_types:
       - {name: fits_hoop, type: string}
       - {name: fabric, type: string}
       - {name: reworked, type: boolean}
+      - {name: border_mm, type: number}
       - {name: threads, type: array, required: true}
       - {name: notes, type: array, required: true}
       - {name: files, type: object, required: true}
@@ -300,7 +301,9 @@ skills:
           minimum: 20
           maximum: 400
           default: 100
-          description: Sewn width in millimetres; the height follows the graphic's proportions.
+          description: >
+            Sewn width of the design in millimetres, without a sew-on border;
+            the height follows the graphic's proportions.
         hoop:
           x-ui:
             basic: false
@@ -308,6 +311,16 @@ skills:
           enum: ["100x100", "130x180", "160x260", "200x300", "none"]
           default: none
           description: Embroidery hoop in millimetres to check the fit against, or none.
+        fit_hoop:
+          x-ui:
+            basic: false
+          type: boolean
+          default: false
+          description: >
+            Set true when the user wants the design as large as their hoop
+            allows ("fill the hoop", "use the full size"). The design, including
+            a sew-on border, is then sized to fill the chosen hoop (turned by 90
+            degrees when that is larger) and width_mm is ignored. Needs hoop.
         fabric:
           x-ui:
             basic: false
@@ -315,6 +328,27 @@ skills:
           enum: [light, normal, stretchy]
           default: normal
           description: Fabric type; sets stitch density, underlay and pull compensation.
+        border_mm:
+          x-ui:
+            basic: false
+          type: number
+          minimum: 1
+          maximum: 8
+          description: >
+            Optional sew-on border in millimetres: a filled band around the whole
+            design, sewn first. Set it (typically 3) when the user wants a patch or
+            wants to sew the piece onto a garment; leave it out otherwise. width_mm
+            stays the design width without the border, so the result is wider by
+            twice this value.
+        border_colour:
+          x-ui:
+            basic: false
+          type: string
+          pattern: "^#[0-9a-fA-F]{6}$"
+          default: "#000000"
+          description: >
+            Thread colour of the sew-on border as #rrggbb (black when not given).
+            Only used together with border_mm.
         instructions:
           x-ui:
             basic: false

@@ -1123,6 +1123,23 @@
           }
         }
       },
+      "modify": {
+        "text": "Bearbeiten",
+        "description": {
+          "text": "Bilder aus dem Chat exakt kombinieren, platzieren, zuschneiden, skalieren und anpassen, ohne neue Inhalte zu erfinden."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Setze mein Stickmotiv auf den Rücken der Jacke auf diesem Foto"
+          },
+          "2": {
+            "text": "Mach aus diesen fünf Fotos eine Collage mit gleich breiten weißen Abständen"
+          },
+          "3": {
+            "text": "Schneide dieses Foto quadratisch um den Leuchtturm zu und mach die Farben etwas wärmer"
+          }
+        }
+      },
       "search": {
         "text": "Suchen",
         "description": {
@@ -7917,6 +7934,29 @@
     "image_generate_draft": {
       "text": "Entwurf generieren"
     },
+    "image_modify": {
+      "writing": {
+        "text": "Änderung wird geschrieben…"
+      },
+      "running": {
+        "text": "Wird ausgeführt…"
+      },
+      "checking": {
+        "text": "Ergebnis wird geprüft…"
+      },
+      "correcting": {
+        "text": "Wird korrigiert…"
+      },
+      "attempt": {
+        "text": "Versuch {n}"
+      },
+      "unmet_title": {
+        "text": "Nicht vollständig erfüllt"
+      },
+      "title": {
+        "text": "Bearbeitetes Bild"
+      }
+    },
     "context_menu": {
       "view": {
         "text": "Anzeigen"
@@ -9507,6 +9547,21 @@
         "apply_request": {
           "text": "Wandle dieses Stickdesign erneut um: Breite {width} mm, Stickrahmen {hoop}, Stoff {fabric}."
         },
+        "border": {
+          "text": "Rand"
+        },
+        "border_none": {
+          "text": "Keiner"
+        },
+        "border_mm": {
+          "text": "{width} mm"
+        },
+        "apply_request_border": {
+          "text": "Füge einen {width} mm breiten Rand zum Aufnähen hinzu."
+        },
+        "apply_request_no_border": {
+          "text": "Lass den Rand weg."
+        },
         "error": {
           "generic": {
             "text": "Dieses Design konnte nicht umgewandelt werden."
@@ -9560,6 +9615,9 @@
           },
           "instructions_applied": {
             "text": "Deine Wünsche wurden umgesetzt"
+          },
+          "border_added": {
+            "text": "Rand von {mm} mm zum Aufnähen hinzugefügt"
           },
           "solved_gradient_or_filter": {
             "text": "Farbverläufe und Filter wurden durch einfarbige Flächen ersetzt"

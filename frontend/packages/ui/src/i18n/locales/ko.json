@@ -1120,6 +1120,23 @@
           }
         }
       },
+      "modify": {
+        "text": "편집",
+        "description": {
+          "text": "새로운 내용을 만들어 내지 않고 채팅의 이미지를 정확하게 합성, 배치, 자르기, 크기 조정, 보정합니다."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "이 사진 속 재킷 등에 내 자수 디자인을 넣어줘"
+          },
+          "2": {
+            "text": "이 사진 다섯 장으로 흰 간격이 같은 콜라주를 만들어줘"
+          },
+          "3": {
+            "text": "이 사진을 등대를 중심으로 정사각형으로 자르고 색을 조금 더 따뜻하게 해줘"
+          }
+        }
+      },
       "search": {
         "text": "검색",
         "description": {
@@ -6505,6 +6522,29 @@
     "image_generate_draft": {
       "text": "초안 생성"
     },
+    "image_modify": {
+      "writing": {
+        "text": "편집 내용 작성 중…"
+      },
+      "running": {
+        "text": "실행 중…"
+      },
+      "checking": {
+        "text": "결과 확인 중…"
+      },
+      "correcting": {
+        "text": "수정 중…"
+      },
+      "attempt": {
+        "text": "{n}번째 시도"
+      },
+      "unmet_title": {
+        "text": "완전히 충족되지 않음"
+      },
+      "title": {
+        "text": "편집된 이미지"
+      }
+    },
     "context_menu": {
       "view": {
         "text": "보기"
@@ -7935,6 +7975,21 @@
         "apply_request": {
           "text": "이 자수 디자인을 다시 변환해 주세요: 너비 {width}mm, 자수틀 {hoop}, 원단 {fabric}."
         },
+        "border": {
+          "text": "테두리"
+        },
+        "border_none": {
+          "text": "없음"
+        },
+        "border_mm": {
+          "text": "{width}mm"
+        },
+        "apply_request_border": {
+          "text": "꿰매 붙일 수 있도록 {width}mm 테두리를 추가해 주세요."
+        },
+        "apply_request_no_border": {
+          "text": "테두리는 넣지 마세요."
+        },
         "error": {
           "generic": {
             "text": "이 디자인을 변환할 수 없습니다."
@@ -7988,6 +8043,9 @@
           },
           "instructions_applied": {
             "text": "요청하신 내용이 반영되었습니다"
+          },
+          "border_added": {
+            "text": "꿰매 붙일 수 있도록 {mm} mm 테두리를 추가했습니다"
           },
           "solved_gradient_or_filter": {
             "text": "그라데이션과 필터가 단색으로 대체되었습니다"

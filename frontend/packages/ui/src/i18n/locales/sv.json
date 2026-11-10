@@ -1120,6 +1120,23 @@
           }
         }
       },
+      "modify": {
+        "text": "Redigera",
+        "description": {
+          "text": "Kombinera, placera, beskär, skala och justera bilder från chatten exakt, utan att hitta på nytt innehåll."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Sätt mitt broderimotiv på ryggen av jackan på det här fotot"
+          },
+          "2": {
+            "text": "Gör ett collage av de här fem fotona med lika breda vita mellanrum"
+          },
+          "3": {
+            "text": "Beskär det här fotot till en kvadrat runt fyren och gör färgerna lite varmare"
+          }
+        }
+      },
       "search": {
         "text": "Sök",
         "description": {
@@ -6505,6 +6522,29 @@
     "image_generate_draft": {
       "text": "Generera utkast"
     },
+    "image_modify": {
+      "writing": {
+        "text": "Skriver ändringen…"
+      },
+      "running": {
+        "text": "Kör det…"
+      },
+      "checking": {
+        "text": "Kontrollerar resultatet…"
+      },
+      "correcting": {
+        "text": "Korrigerar…"
+      },
+      "attempt": {
+        "text": "försök {n}"
+      },
+      "unmet_title": {
+        "text": "Inte helt uppfyllt"
+      },
+      "title": {
+        "text": "Redigerad bild"
+      }
+    },
     "context_menu": {
       "view": {
         "text": "Visa"
@@ -7935,6 +7975,21 @@
         "apply_request": {
           "text": "Konvertera den här broderidesignen igen: bredd {width} mm, ram {hoop}, tyg {fabric}."
         },
+        "border": {
+          "text": "Kant"
+        },
+        "border_none": {
+          "text": "Ingen"
+        },
+        "border_mm": {
+          "text": "{width} mm"
+        },
+        "apply_request_border": {
+          "text": "Lägg till en kant på {width} mm för påsyning."
+        },
+        "apply_request_no_border": {
+          "text": "Utelämna kanten."
+        },
         "error": {
           "generic": {
             "text": "Designen kunde inte omvandlas."
@@ -7988,6 +8043,9 @@
           },
           "instructions_applied": {
             "text": "Dina önskemål har tillämpats"
+          },
+          "border_added": {
+            "text": "Kant på {mm} mm tillagd för påsyning"
           },
           "solved_gradient_or_filter": {
             "text": "Toningar och filter ersattes av enfärgade ytor"

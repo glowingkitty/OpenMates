@@ -47,8 +47,12 @@ def _closure(colour: str, available_done: set[int], items: dict[int, OrderItem],
     return count
 
 
-def plan_order(items: list[OrderItem], deps: dict[int, set[int]]) -> list[int]:
-    """Return item indexes in sewing order. ``deps[i]`` must be sewn before ``i``."""
+def plan_order(items: list[OrderItem], deps: dict[int, set[int]], start_colour: str | None = None) -> list[int]:
+    """Return item indexes in sewing order. ``deps[i]`` must be sewn before ``i``.
+
+    ``start_colour`` is the thread sewn just before these items (a sew-on
+    border), so available items of that colour come first.
+    """
     by_index = {item.index: item for item in items}
     remaining = set(by_index)
     unknown = {dep for wanted in deps.values() for dep in wanted} - remaining
@@ -56,7 +60,7 @@ def plan_order(items: list[OrderItem], deps: dict[int, set[int]]) -> list[int]:
         raise ValueError(f"dependencies reference unknown shapes {sorted(unknown)}")
     done: set[int] = set()
     order: list[int] = []
-    current_colour: str | None = None
+    current_colour: str | None = start_colour
     position: tuple[float, float] | None = None
     while remaining:
         available = [index for index in remaining if deps.get(index, set()) <= done]

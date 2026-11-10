@@ -56,6 +56,7 @@ class World:
     author_calls: list[dict] = field(default_factory=list)
     author_result: Any = None
     published: list[dict] = field(default_factory=list)
+    summary: dict = field(default_factory=lambda: dict(SUMMARY))
     charges: list[dict] = field(default_factory=list)
     uploads: dict[str, bytes] = field(default_factory=dict)
     indexed: list[dict] = field(default_factory=list)
@@ -88,7 +89,7 @@ class FakeSession:
         if self.world.convert_error:
             raise self.world.convert_error
         files = {name: f"{name}-bytes".encode() for name in RESULT_VARIANTS}
-        return EmbroideryRun(summary=dict(SUMMARY), files=files, findings=list(self.world.remaining))
+        return EmbroideryRun(summary=dict(self.world.summary), files=files, findings=list(self.world.remaining))
 
 
 class FakeS3:
@@ -233,7 +234,11 @@ async def test_generated_svg_converts_without_model_call_and_delivers_every_file
     assert set(result["files"]) == set(RESULT_VARIANTS)
     content = world.published[-1]["content"]
     assert content["status"] == "finished" and content["type"] == "embroidery_design"
-    assert set(content["files"]) == {"dst", "pes", "exp", "jef", "vp3", "preview", "prepared_svg", "stitches"}
+    assert set(content["files"]) == {"dst", "pes", "exp", "jef", "vp3", "preview", "preview_transparent",
+                                     "prepared_svg", "stitches"}
+    assert content["files"]["preview_transparent"]["mime_type"] == "image/png"
+    assert content["files"]["preview_transparent"]["filename"] == "fox-logo-preview-transparent.png"
+    assert "border_mm" not in content and "border_mm" not in result
     for key in ("title", "width_mm", "height_mm", "stitch_count", "thread_changes", "estimated_minutes", "hoop",
                 "fits_hoop", "fabric", "reworked", "threads", "notes", "s3_base_url", "aes_key",
                 "vault_wrapped_aes_key", "generated_at", "source_embed_ref", "input_embed_ids", "billing_status"):
@@ -249,6 +254,21 @@ async def test_generated_svg_converts_without_model_call_and_delivers_every_file
     assert content["source_embed_ref"] == "fox-logo.svg" and content["input_embed_ids"] == ["source-embed-1"]
     assert content["files"]["pes"]["filename"] == "fox-logo.pes"
     assert content["files"]["pes"]["mime_type"] == "application/octet-stream"
+
+
+# contract-test: supporting surface=rest_api assertions=design-embroidery.prepare.sew-on-border
+@pytest.mark.asyncio
+async def test_border_request_reaches_the_sandbox_and_its_width_reaches_the_result(world: World) -> None:
+    world.summary = {**SUMMARY, "width_mm": 96.0, "border_mm": 3.0, "notes": [
+        {"code": "border_added", "mm": 3.0, "text": "Border of 3 mm added for sewing on"}]}
+    result = await _run(world, border_mm=3, border_colour="#1D3557")
+
+    assert world.converted[0][1] == EmbroideryOptions(width_mm=90.0, hoop="130x180", fabric="normal",
+                                                      border_mm=3.0, border_colour="#1d3557")
+    content = world.published[-1]["content"]
+    assert content["border_mm"] == 3.0 and result["border_mm"] == 3.0
+    assert content["width_mm"] == 96.0
+    assert content["notes"] == [{"code": "border_added", "text": "Border of 3 mm added for sewing on", "mm": 3.0}]
 
 
 # contract-test: direct surface=rest_api assertions=design-embroidery.request.vector-source

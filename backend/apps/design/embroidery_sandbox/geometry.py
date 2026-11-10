@@ -64,7 +64,7 @@ class Prepared:
     shapes: list[Shape2D]
     width_mm: float
     height_mm: float
-    notes: list[dict[str, str | int]] = field(default_factory=list)
+    notes: list[dict[str, str | int | float]] = field(default_factory=list)
     findings: list[dict[str, str]] = field(default_factory=list)
     colour_count: int = 0
     shape_count: int = 0
@@ -261,7 +261,7 @@ def _scale(source: _Source, width_mm: float) -> tuple[float, float]:
     return width_mm, (y1 - y0) * factor
 
 
-def _clean_area(geom: BaseGeometry) -> BaseGeometry:
+def clean_area(geom: BaseGeometry) -> BaseGeometry:
     """Remove slivers and crumbs that cannot be sewn (opening + minimum area)."""
     if geom.is_empty:
         return geom
@@ -325,7 +325,7 @@ def _cut_overlaps(shapes: list[Shape2D]) -> tuple[list[Shape2D], int, int]:
                 visible = shape.geom.difference(covered.buffer(-OVERLAP_MM, join_style="mitre"))
                 if visible.area < shape.geom.area - 0.01:
                     cut += 1
-            cleaned = _clean_area(visible)
+            cleaned = clean_area(visible)
             if cleaned.is_empty:
                 # Something stayed visible but was too small or thin to sew.
                 lost += 1 if visible.area >= 0.05 else 0
@@ -415,13 +415,25 @@ def _merge_blocks(shapes: list[Shape2D]) -> list[Shape2D]:
             continue
         candidate = merged[target]
         merged[target] = Shape2D(candidate.index, candidate.colour, "fill",
-                                 _clean_area(candidate.geom.union(shape.geom)),
+                                 clean_area(candidate.geom.union(shape.geom)),
                                  flattened_paint=candidate.flattened_paint or shape.flattened_paint)
     return merged
 
 
-def prepare(svg_text: str, scan: SourceScan, width_mm: float) -> Prepared:
-    """Apply the fixed rules and return the shapes in sewing order with notes."""
+def finish_order(ordered: list[Shape2D]) -> None:
+    """Fill angles and trims for shapes in their final sewing order."""
+    _assign_angles(ordered)
+    for shape, following in zip(ordered, ordered[1:]):
+        shape.trim_after = (shape.colour == following.colour
+                            and shape.geom.distance(following.geom) > TRIM_DISTANCE_MM)
+
+
+def prepare(svg_text: str, scan: SourceScan, width_mm: float, start_colour: str | None = None) -> Prepared:
+    """Apply the fixed rules and return the shapes in sewing order with notes.
+
+    ``start_colour`` is the thread already in the machine (a sew-on border's), so
+    shapes of that colour that can be sewn at once come first.
+    """
     source, dropped, width, height = load_and_scale(svg_text, scan, width_mm)
     notes: list[dict[str, str | int]] = []
     technical: dict[str, int] = {}
@@ -441,12 +453,9 @@ def prepare(svg_text: str, scan: SourceScan, width_mm: float) -> Prepared:
     naive_changes = colour_changes([shape.colour for shape in shapes])
     deps = _dependencies(shapes)
     items = [OrderItem(k, shape.colour, shape.kind, shape.centre()) for k, shape in enumerate(shapes)]
-    ordered = [shapes[k] for k in plan_order(items, deps)]
+    ordered = [shapes[k] for k in plan_order(items, deps, start_colour=start_colour)]
     ordered = _merge_blocks(ordered)
-    _assign_angles(ordered)
-    for shape, following in zip(ordered, ordered[1:]):
-        shape.trim_after = (shape.colour == following.colour
-                            and shape.geom.distance(following.geom) > TRIM_DISTANCE_MM)
+    finish_order(ordered)
     grouped_changes = colour_changes([shape.colour for shape in ordered])
     technical["thread_changes_naive"] = naive_changes
     technical["thread_changes_grouped"] = grouped_changes

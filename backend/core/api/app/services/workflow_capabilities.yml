@@ -658,6 +658,9 @@ capabilities:
   images.vectorize:
     available: false
     unavailable_reason: WORKFLOW_FILE_OR_EMBED_INPUT_REQUIRED
+  images.modify:
+    available: false
+    unavailable_reason: WORKFLOW_FILE_OR_EMBED_INPUT_REQUIRED
   images.generate_draft:
     available: true
     execution_mode: async_job

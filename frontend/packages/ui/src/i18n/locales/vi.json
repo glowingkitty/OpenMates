@@ -1120,6 +1120,23 @@
           }
         }
       },
+      "modify": {
+        "text": "Chỉnh sửa",
+        "description": {
+          "text": "Kết hợp, đặt, cắt, đổi kích thước và điều chỉnh chính xác hình ảnh trong cuộc trò chuyện mà không tạo thêm nội dung mới."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Đặt mẫu thêu của tôi lên lưng áo khoác trong ảnh này"
+          },
+          "2": {
+            "text": "Tạo ảnh ghép từ năm bức ảnh này với khoảng trắng đều nhau"
+          },
+          "3": {
+            "text": "Cắt ảnh này thành hình vuông quanh ngọn hải đăng và làm màu ấm hơn một chút"
+          }
+        }
+      },
       "search": {
         "text": "Tìm kiếm",
         "description": {
@@ -6505,6 +6522,29 @@
     "image_generate_draft": {
       "text": "Tạo bản nháp"
     },
+    "image_modify": {
+      "writing": {
+        "text": "Đang viết bước chỉnh sửa…"
+      },
+      "running": {
+        "text": "Đang chạy…"
+      },
+      "checking": {
+        "text": "Đang kiểm tra kết quả…"
+      },
+      "correcting": {
+        "text": "Đang sửa…"
+      },
+      "attempt": {
+        "text": "lần thử {n}"
+      },
+      "unmet_title": {
+        "text": "Chưa đáp ứng đầy đủ"
+      },
+      "title": {
+        "text": "Ảnh đã chỉnh sửa"
+      }
+    },
     "context_menu": {
       "view": {
         "text": "Xem"
@@ -7935,6 +7975,21 @@
         "apply_request": {
           "text": "Hãy chuyển đổi lại thiết kế thêu này: chiều rộng {width} mm, khung {hoop}, vải {fabric}."
         },
+        "border": {
+          "text": "Viền"
+        },
+        "border_none": {
+          "text": "Không"
+        },
+        "border_mm": {
+          "text": "{width} mm"
+        },
+        "apply_request_border": {
+          "text": "Hãy thêm viền {width} mm để may lên vải."
+        },
+        "apply_request_no_border": {
+          "text": "Hãy bỏ viền."
+        },
         "error": {
           "generic": {
             "text": "Không thể chuyển đổi thiết kế này."
@@ -7988,6 +8043,9 @@
           },
           "instructions_applied": {
             "text": "Yêu cầu của bạn đã được áp dụng"
+          },
+          "border_added": {
+            "text": "Đã thêm viền {mm} mm để may đính"
           },
           "solved_gradient_or_filter": {
             "text": "Dải màu chuyển và bộ lọc đã được thay bằng màu đơn sắc"

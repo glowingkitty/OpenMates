@@ -1,0 +1,92 @@
+schema_version: 1
+specification: feature.app-skill.images-modify@1
+
+request:
+  - id: photo-and-embroidery-result
+    given: Mia uploaded "back.jpg", a photo of a person from behind in a black jacket, and the chat holds a finished embroidery result of a flame ornament.
+    when: The assistant calls images.modify with both references and the instructions "put the flame on the middle of the back, about a third of the jacket's width, upright".
+    then: >
+      The photo is read in its full resolution and the embroidery result as its stitch preview without background.
+      Reduced copies go to the author model, the full files only to the sandbox, and the finished picture is stored
+      encrypted in Mia's account.
+  - id: seven-pictures-rejected
+    given: The chat holds seven holiday photos.
+    when: The assistant calls images.modify with all seven for a collage.
+    then: The call fails with the message that at most six pictures can be combined; no model and no sandbox is used and nothing is charged.
+
+compose:
+  - id: motif-on-outfit
+    given: The photo "back.jpg" (3024 x 4032 px) and the flame stitch preview.
+    when: images.modify runs with the instructions from the request example.
+    then: >
+      The author writes a program that scales the flame to about a third of the jacket width, places it on the centre
+      of the back and writes one picture. The result is 3024 x 4032 px; everything outside the flame is identical to
+      the photo. A CLI chat receives the same finished image.
+  - id: collage-of-five
+    given: Five photos of different sizes.
+    when: The assistant asks for "a collage, one large picture on the left and four small ones in a 2 x 2 grid on the right, white gaps of equal width".
+    then: One picture with all five photos in that layout is delivered; no photo is distorted.
+
+single:
+  - id: crop-and-grade
+    given: One landscape photo.
+    when: The assistant asks for "crop to a square around the lighthouse, slightly warmer colours, a little more contrast".
+    then: A square picture is delivered whose content is the cropped area of the original with the colour change applied; nothing new is drawn into it.
+
+correct:
+  - id: requirement-not-met-then-corrected
+    given: The motif-on-outfit request with the requirement "the flame lies completely on the black back panel and does not cover the hood".
+    when: The first computed picture places the flame partly over the hood.
+    then: >
+      The review marks the requirement as clearly not met, the author receives the picture and the reason, writes a
+      corrected program, and the second picture is delivered. The result is marked as corrected and two sandbox runs
+      are billed.
+  - id: program-crashes-once
+    given: A crop request.
+    when: The first program stops with an error because it reads a picture name that does not exist.
+    then: The error text goes back to the author, the corrected program runs, and its picture is delivered.
+  - id: still-unmet-after-last-round
+    given: A collage request with the requirement "all faces are fully visible".
+    when: The requirement is still judged as not met after two corrections.
+    then: The last valid collage is delivered and the assistant is told that "all faces are fully visible" could not be confirmed.
+
+progress:
+  - id: steps-and-draft
+    given: The motif-on-outfit request with one requirement, opened in a web chat.
+    when: The request runs.
+    then: >
+      The card first shows the two input pictures with "Writing the editing steps", then "Running", then the first
+      computed picture with "Checking", and finally the finished image. The draft picture is gone after a reload
+      while the request still runs; only the finished image is stored.
+
+change:
+  - id: move-it-up
+    given: The finished outfit picture from ten minutes ago.
+    when: Mia says "move the flame a bit higher" and the assistant calls images.modify with the finished picture.
+    then: >
+      The author receives the stored program, changes the position, and the program runs again on the original
+      photo and stitch preview. The new picture is as sharp as the first one and shows one flame, not two.
+  - id: program-no-longer-kept
+    given: A modified picture from three days ago.
+    when: The assistant passes it to images.modify with "make it black and white".
+    then: The picture is treated as an ordinary input picture and a new program converts it.
+
+routing:
+  - id: exact-wish
+    given: A photo and a logo.
+    when: The user asks "put the logo in the bottom right corner, small".
+    then: The assistant calls images.modify.
+  - id: generative-wish
+    given: A front photo of a jacket and a logo.
+    when: The user asks "show me the jacket from the side with the logo on the sleeve".
+    then: The assistant calls images.generate with both pictures as reference images, because a new view must be invented.
+
+billing:
+  - id: one-round-no-review
+    given: A crop request without requirements; one author call and one sandbox run of 4 seconds.
+    when: The image is delivered.
+    then: The user is charged the credits for that author call's reported tokens plus 5 credits.
+  - id: failed-request
+    given: A request whose three programs all fail.
+    when: The request ends without a picture.
+    then: Nothing is charged.

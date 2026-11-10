@@ -1120,6 +1120,23 @@
           }
         }
       },
+      "modify": {
+        "text": "Modifier",
+        "description": {
+          "text": "Combinez, placez, recadrez, redimensionnez et ajustez précisément les images du chat, sans inventer de nouveau contenu."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Place mon motif de broderie dans le dos de la veste sur cette photo"
+          },
+          "2": {
+            "text": "Fais un collage de ces cinq photos avec des espaces blancs égaux"
+          },
+          "3": {
+            "text": "Recadre cette photo en carré autour du phare et rends les couleurs un peu plus chaudes"
+          }
+        }
+      },
       "search": {
         "text": "Rechercher",
         "description": {
@@ -6532,6 +6549,29 @@
     "image_generate_draft": {
       "text": "Générer un brouillon"
     },
+    "image_modify": {
+      "writing": {
+        "text": "Rédaction de la modification…"
+      },
+      "running": {
+        "text": "Exécution…"
+      },
+      "checking": {
+        "text": "Vérification du résultat…"
+      },
+      "correcting": {
+        "text": "Correction…"
+      },
+      "attempt": {
+        "text": "essai {n}"
+      },
+      "unmet_title": {
+        "text": "Pas entièrement respecté"
+      },
+      "title": {
+        "text": "Image modifiée"
+      }
+    },
     "context_menu": {
       "view": {
         "text": "Voir"
@@ -7962,6 +8002,21 @@
         "apply_request": {
           "text": "Convertis à nouveau ce motif de broderie : largeur {width} mm, cercle {hoop}, tissu {fabric}."
         },
+        "border": {
+          "text": "Bordure"
+        },
+        "border_none": {
+          "text": "Aucune"
+        },
+        "border_mm": {
+          "text": "{width} mm"
+        },
+        "apply_request_border": {
+          "text": "Ajoute une bordure de {width} mm pour la couture."
+        },
+        "apply_request_no_border": {
+          "text": "Omets la bordure."
+        },
         "error": {
           "generic": {
             "text": "Ce motif n'a pas pu être converti."
@@ -8015,6 +8070,9 @@
           },
           "instructions_applied": {
             "text": "Vos souhaits ont été appliqués"
+          },
+          "border_added": {
+            "text": "Bordure de {mm} mm ajoutée pour la couture"
           },
           "solved_gradient_or_filter": {
             "text": "Les dégradés et filtres ont été remplacés par des couleurs unies"

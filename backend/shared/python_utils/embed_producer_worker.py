@@ -23,7 +23,7 @@ PROTECTED_EMBED_TASK_NAMES = frozenset({
     "apps.audio.tasks.skill_generate", "apps.audio.tasks.skill_speak",
     "apps.code.tasks.skill_image_to_html", "apps.docs.tasks.generate_docx",
     "apps.images.tasks.skill_generate", "apps.images.tasks.skill_generate_draft",
-    "apps.images.tasks.skill_vectorize", "apps.models3d.tasks.skill_generate",
+    "apps.images.tasks.skill_vectorize", "apps.images.tasks.skill_modify", "apps.models3d.tasks.skill_generate",
     "apps.music.tasks.skill_generate", "apps.social_media.tasks.skill_search",
     "apps.social_media.tasks.skill_get-posts", "apps.videos.tasks.skill_generate",
     "apps.videos.tasks.render_remotion",

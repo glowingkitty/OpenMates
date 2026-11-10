@@ -106,13 +106,16 @@
   let downloads = $state<ReturnType<typeof EmbroideryDownloads> | null>(null);
 
   function requestText(settings: EmbroiderySettings): string {
-    return $text('embeds.design.embroidery.apply_request', {
+    const base = $text('embeds.design.embroidery.apply_request', {
       values: {
         width: settings.widthMm,
         hoop: settings.hoop === 'none' ? $text('embeds.design.embroidery.hoop_none') : formatHoop(settings.hoop),
         fabric: $text(`embeds.design.embroidery.fabric_${settings.fabric}`).toLocaleLowerCase(),
       },
     });
+    if (settings.borderMm > 0) return `${base} ${$text('embeds.design.embroidery.apply_request_border', { values: { width: settings.borderMm } })}`;
+    if (design.borderMm > 0) return `${base} ${$text('embeds.design.embroidery.apply_request_no_border')}`;
+    return base;
   }
 
   /** Visible result metadata only: never keys, nonces or storage paths. */
@@ -120,7 +123,7 @@
     title: design.title, width_mm: design.widthMm, height_mm: design.heightMm,
     stitch_count: design.stitchCount, thread_changes: design.threadChanges,
     estimated_minutes: design.estimatedMinutes, hoop: design.hoop, fits_hoop: design.fitsHoop,
-    fabric: design.fabric, source_embed_ref: design.sourceEmbedRef || undefined,
+    fabric: design.fabric, border_mm: design.borderMm || undefined, source_embed_ref: design.sourceEmbedRef || undefined,
   });
 </script>
 
@@ -169,6 +172,9 @@
       {#if design.fabric}
         <ResultEmbedInfo icon="shirt" label={$text('embeds.design.embroidery.fabric')} value={$text(`embeds.design.embroidery.fabric_${design.fabric}`)} testId="design-embroidery-fabric-info" />
       {/if}
+      {#if design.borderMm > 0}
+        <ResultEmbedInfo icon="square-dashed" label={$text('embeds.design.embroidery.border')} value={`${$text('embeds.design.embroidery.border')} ${$text('embeds.design.embroidery.border_mm', { values: { width: design.borderMm } })}`} testId="design-embroidery-border-info" />
+      {/if}
     {/if}
   {/snippet}
   {#snippet media()}
@@ -214,7 +220,7 @@
             <ul>
               {#each design.notes as note, index (index)}
                 {@const key = noteTranslationKey(note.code)}
-                <li data-testid="design-embroidery-note">{key ? $text(key, { values: { count: note.count ?? 0 } }) : note.text}</li>
+                <li data-testid="design-embroidery-note">{key ? $text(key, { values: { count: note.count ?? 0, mm: note.mm ?? 0 } }) : note.text}</li>
               {/each}
             </ul>
           </section>
@@ -226,6 +232,7 @@
           widthMm={design.widthMm ?? EMBROIDERY_MIN_WIDTH_MM}
           hoop={design.hoop}
           fabric={design.fabric ?? 'normal'}
+          borderMm={design.borderMm}
           {submitting}
           onApply={(settings) => { void requestFollowup(requestText(settings)); }}
         />

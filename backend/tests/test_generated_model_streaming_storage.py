@@ -700,15 +700,19 @@ async def test_chunked_master_rejects_invalid_key_and_unsafe_filename_before_str
         )
 
 
-# contract-test: direct surface=rest_api assertions=design-embroidery.result.view-and-download
-@pytest.mark.asyncio
-@pytest.mark.parametrize(("variant", "filename", "mime_type"), [
+_EMBROIDERY_VARIANT_DOWNLOADS = [
     ("pes", "fox-logo.pes", "application/octet-stream"),
     ("dst", "fox-logo.dst", "application/octet-stream"),
     ("preview", "fox-logo-preview.webp", "image/webp"),
+    ("preview_transparent", "fox-logo-preview-transparent.png", "image/png"),
     ("prepared_svg", "fox-logo-prepared.svg", "image/svg+xml"),
     ("stitches", "fox-logo-stitches.json", "application/json"),
-])
+]
+
+
+# contract-test: direct surface=rest_api assertions=design-embroidery.result.view-and-download
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("variant", "filename", "mime_type"), _EMBROIDERY_VARIANT_DOWNLOADS)
 async def test_embroidery_variant_downloads_with_its_own_filename_and_type(variant, filename, mime_type) -> None:
     key = b"\x74" * 32
     nonce = b"\x36" * 12

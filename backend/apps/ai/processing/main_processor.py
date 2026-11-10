@@ -1358,6 +1358,7 @@ ASYNC_SKILLS = ASYNC_SKILL_INLINE_WAIT_SKILLS | {
     ("images", "generate"),
     ("images", "generate_draft"),
     ("images", "vectorize"),
+    ("images", "modify"),
     ("models3d", "generate"),
     ("music", "generate"),
     ("videos", "create"),

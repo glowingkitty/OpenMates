@@ -23,7 +23,7 @@ INVALID_SOURCE_MESSAGE = (
 # Fields the assistant receives when the conversion ends (also allowed by generated_media_graph).
 SUMMARY_FIELDS: tuple[str, ...] = (
     "title", "width_mm", "height_mm", "stitch_count", "thread_changes", "estimated_minutes",
-    "hoop", "fits_hoop", "fabric", "reworked", "threads", "notes",
+    "hoop", "fits_hoop", "fabric", "reworked", "threads", "notes", "border_mm",
 )
 
 
@@ -46,11 +46,14 @@ def _threads(summary: Mapping[str, Any]) -> list[dict[str, Any]]:
 
 
 def _note(row: Mapping[str, Any]) -> dict[str, Any]:
-    """Note as ``{code, text}`` plus the whole-number ``count`` that its translation needs."""
+    """Note as ``{code, text}`` plus the number its translation needs: a whole ``count`` or the border ``mm``."""
     note: dict[str, Any] = {"code": str(row.get("code") or ""), "text": str(row.get("text") or "")}
     count = row.get("count")
     if isinstance(count, int) and not isinstance(count, bool):
         note["count"] = count
+    mm = row.get("mm")
+    if isinstance(mm, (int, float)) and not isinstance(mm, bool):
+        note["mm"] = mm
     return note
 
 
@@ -81,6 +84,7 @@ def build_finished_content(
     fits_hoop = summary.get("fits_hoop")
     if fits_hoop not in ("yes", "no", "not_checked"):
         raise ValueError("Embroidery summary has an invalid fits_hoop value")
+    border = {"border_mm": _number(summary, "border_mm")} if "border_mm" in summary else {}
     return {
         "app_id": "design",
         "skill_id": skill_id,
@@ -98,6 +102,7 @@ def build_finished_content(
         "reworked": reworked,
         "threads": _threads(summary),
         "notes": _notes(summary.get("notes"), extra_notes),
+        **border,
         "files": dict(files_metadata),
         "s3_base_url": s3_base_url,
         "aes_key": aes_key_b64,

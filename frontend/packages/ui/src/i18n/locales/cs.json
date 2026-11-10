@@ -1120,6 +1120,23 @@
           }
         }
       },
+      "modify": {
+        "text": "Upravit",
+        "description": {
+          "text": "Přesně kombinujte, umisťujte, ořezávejte, měňte velikost a upravujte obrázky z chatu, aniž by se vymýšlel nový obsah."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Umísti můj vyšívaný motiv na záda bundy na této fotce"
+          },
+          "2": {
+            "text": "Udělej z těchto pěti fotek koláž se stejně širokými bílými mezerami"
+          },
+          "3": {
+            "text": "Ořízni tuto fotku na čtverec kolem majáku a udělej barvy trochu teplejší"
+          }
+        }
+      },
       "search": {
         "text": "Hledat",
         "description": {
@@ -6505,6 +6522,29 @@
     "image_generate_draft": {
       "text": "Generovat návrh"
     },
+    "image_modify": {
+      "writing": {
+        "text": "Psaní úpravy…"
+      },
+      "running": {
+        "text": "Spouštění…"
+      },
+      "checking": {
+        "text": "Kontrola výsledku…"
+      },
+      "correcting": {
+        "text": "Opravování…"
+      },
+      "attempt": {
+        "text": "pokus {n}"
+      },
+      "unmet_title": {
+        "text": "Nesplněno úplně"
+      },
+      "title": {
+        "text": "Upravený obrázek"
+      }
+    },
     "context_menu": {
       "view": {
         "text": "Zobrazit"
@@ -7935,6 +7975,21 @@
         "apply_request": {
           "text": "Převeď tento vyšívací návrh znovu: šířka {width} mm, rám {hoop}, látka {fabric}."
         },
+        "border": {
+          "text": "Okraj"
+        },
+        "border_none": {
+          "text": "Žádný"
+        },
+        "border_mm": {
+          "text": "{width} mm"
+        },
+        "apply_request_border": {
+          "text": "Přidej okraj {width} mm pro přišití."
+        },
+        "apply_request_no_border": {
+          "text": "Vynech okraj."
+        },
         "error": {
           "generic": {
             "text": "Tento návrh se nepodařilo převést."
@@ -7988,6 +8043,9 @@
           },
           "instructions_applied": {
             "text": "Vaše přání byla zohledněna"
+          },
+          "border_added": {
+            "text": "Přidán okraj {mm} mm pro přišití"
           },
           "solved_gradient_or_filter": {
             "text": "Přechody a filtry byly nahrazeny plnými barvami"

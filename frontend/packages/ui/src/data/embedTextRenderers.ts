@@ -239,6 +239,7 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:images:search': renderImagesSearch,
 	'app:images:view': renderImage,
 	'app:images:vectorize': renderGenericAppSkill,
+	'app:images:modify': renderImageGenerate,
 	'app:music:generate': renderMusicGenerate,
 	'app:health:search_appointments': renderHealthSearch,
 	'app:health:create_report': renderGenericAppSkill,

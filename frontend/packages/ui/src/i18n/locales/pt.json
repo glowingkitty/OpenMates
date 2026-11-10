@@ -1120,6 +1120,23 @@
           }
         }
       },
+      "modify": {
+        "text": "Modificar",
+        "description": {
+          "text": "Combine, posicione, recorte, redimensione e ajuste imagens do chat com exatidão, sem inventar conteúdo novo."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Coloque meu bordado nas costas da jaqueta nesta foto"
+          },
+          "2": {
+            "text": "Faça uma colagem destas cinco fotos com espaços brancos iguais"
+          },
+          "3": {
+            "text": "Recorte esta foto em um quadrado ao redor do farol e deixe as cores um pouco mais quentes"
+          }
+        }
+      },
       "search": {
         "text": "Pesquisar",
         "description": {
@@ -6532,6 +6549,29 @@
     "image_generate_draft": {
       "text": "Gerar rascunho"
     },
+    "image_modify": {
+      "writing": {
+        "text": "Escrevendo a edição…"
+      },
+      "running": {
+        "text": "Executando…"
+      },
+      "checking": {
+        "text": "Verificando o resultado…"
+      },
+      "correcting": {
+        "text": "Corrigindo…"
+      },
+      "attempt": {
+        "text": "tentativa {n}"
+      },
+      "unmet_title": {
+        "text": "Não totalmente atendido"
+      },
+      "title": {
+        "text": "Imagem editada"
+      }
+    },
     "context_menu": {
       "view": {
         "text": "Ver"
@@ -7962,6 +8002,21 @@
         "apply_request": {
           "text": "Converta este design de bordado novamente: largura {width} mm, bastidor {hoop}, tecido {fabric}."
         },
+        "border": {
+          "text": "Borda"
+        },
+        "border_none": {
+          "text": "Nenhuma"
+        },
+        "border_mm": {
+          "text": "{width} mm"
+        },
+        "apply_request_border": {
+          "text": "Adicione uma borda de {width} mm para costurar."
+        },
+        "apply_request_no_border": {
+          "text": "Omita a borda."
+        },
         "error": {
           "generic": {
             "text": "Não foi possível converter este design."
@@ -8015,6 +8070,9 @@
           },
           "instructions_applied": {
             "text": "Seus pedidos foram aplicados"
+          },
+          "border_added": {
+            "text": "Borda de {mm} mm adicionada para costurar"
           },
           "solved_gradient_or_filter": {
             "text": "Gradientes e filtros foram substituídos por cores lisas"
