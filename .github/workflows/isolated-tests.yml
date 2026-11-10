@@ -81,7 +81,7 @@ on:
         type: string
         default: ''
       web_rust_core:
-        description: Build the web app with the Rust client core on for any e2e spec ('true' or 'false')
+        description: Run the web app with the Rust client core on for any e2e or component spec ('true' or 'false')
         type: string
         default: 'false'
 permissions:
@@ -125,7 +125,8 @@ jobs:
       # edit; the lane scripts still validate the exact targets they support.
       # Opt-in shared Rust core in the web app: web-rust-core-* specs build the
       # WASM package and a VITE_OPENMATES_RUST_CORE=1 web app in the same job.
-      CI_LANE_WEB_RUST_CORE: ${{ inputs.mode == 'e2e' && (startsWith(inputs.specs_json, '["web-rust-core-') || inputs.web_rust_core == 'true') }}
+      # Component mode with web_rust_core serves the same package from vite dev.
+      CI_LANE_WEB_RUST_CORE: ${{ (inputs.mode == 'e2e' && (startsWith(inputs.specs_json, '["web-rust-core-') || inputs.web_rust_core == 'true')) || (inputs.mode == 'component' && inputs.web_rust_core == 'true') }}
       CI_LANE_RUST_BROWSER: ${{ inputs.mode == 'e2e' && (startsWith(inputs.specs_json, '["rust-core-') || inputs.specs_json == '["web-essential-startup-performance.spec.ts"]') }}
       CI_LANE_RUST_PRODUCTION_BROWSER: ${{ inputs.mode == 'e2e' && (startsWith(inputs.specs_json, '["rust-core-') || inputs.specs_json == '["web-essential-startup-performance.spec.ts"]') && inputs.specs_json != '["rust-core-browser-session.spec.ts"]' && inputs.specs_json != '["rust-core-browser-password-entry.spec.ts"]' }}
       CI_LANE_RUST_BROWSER_CLI: ${{ inputs.mode == 'e2e' && (startsWith(inputs.specs_json, '["rust-core-') || inputs.specs_json == '["web-essential-startup-performance.spec.ts"]') && inputs.specs_json != '["rust-core-browser-session.spec.ts"]' && inputs.specs_json != '["rust-core-browser-password-entry.spec.ts"]' && !contains(inputs.specs_json, 'rust-core-production-') && !contains(inputs.specs_json, 'rust-core-ordinary-login-retention') }}

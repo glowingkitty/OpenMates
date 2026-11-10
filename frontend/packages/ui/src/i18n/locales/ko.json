@@ -7714,6 +7714,117 @@
     "slides_timer_reset": {
       "text": "타이머 초기화"
     },
+    "slides_editor_title": {
+      "text": "슬라이드 편집 중"
+    },
+    "slides_editor_loading": {
+      "text": "편집기를 여는 중…"
+    },
+    "slides_editor_unavailable": {
+      "text": "지금은 여기서 이 프레젠테이션을 편집할 수 없습니다."
+    },
+    "slides_editor_change_failed": {
+      "text": "변경 사항을 적용할 수 없습니다."
+    },
+    "slides_editor_toolbar": {
+      "text": "슬라이드 편집 도구"
+    },
+    "slides_editor_undo": {
+      "text": "실행 취소"
+    },
+    "slides_editor_redo": {
+      "text": "다시 실행"
+    },
+    "slides_editor_add_text": {
+      "text": "텍스트 추가"
+    },
+    "slides_editor_bring_forward": {
+      "text": "앞으로"
+    },
+    "slides_editor_send_backward": {
+      "text": "뒤로"
+    },
+    "slides_editor_new_text": {
+      "text": "새 텍스트"
+    },
+    "slides_editor_element": {
+      "text": "요소"
+    },
+    "slides_editor_text_box": {
+      "text": "슬라이드 텍스트"
+    },
+    "slides_editor_font_size": {
+      "text": "글꼴 크기"
+    },
+    "slides_editor_smaller": {
+      "text": "텍스트 작게"
+    },
+    "slides_editor_larger": {
+      "text": "텍스트 크게"
+    },
+    "slides_editor_bold": {
+      "text": "굵게"
+    },
+    "slides_editor_align": {
+      "text": "정렬"
+    },
+    "slides_editor_align_left": {
+      "text": "왼쪽"
+    },
+    "slides_editor_align_center": {
+      "text": "가운데"
+    },
+    "slides_editor_align_right": {
+      "text": "오른쪽"
+    },
+    "slides_editor_align_justify": {
+      "text": "양쪽 맞춤"
+    },
+    "slides_editor_color": {
+      "text": "텍스트 색상"
+    },
+    "slides_editor_color_foreground": {
+      "text": "텍스트"
+    },
+    "slides_editor_color_accent": {
+      "text": "강조"
+    },
+    "slides_editor_color_accent_2": {
+      "text": "보조 강조"
+    },
+    "slides_editor_color_muted": {
+      "text": "흐리게"
+    },
+    "slides_editor_color_surface": {
+      "text": "표면"
+    },
+    "slides_editor_color_background": {
+      "text": "배경"
+    },
+    "slides_editor_custom_color": {
+      "text": "사용자 지정 색상"
+    },
+    "slides_editor_slide_actions": {
+      "text": "슬라이드 작업"
+    },
+    "slides_editor_add_slide": {
+      "text": "슬라이드 추가"
+    },
+    "slides_editor_duplicate_slide": {
+      "text": "복제"
+    },
+    "slides_editor_delete_slide": {
+      "text": "슬라이드 삭제"
+    },
+    "slides_editor_move_left": {
+      "text": "슬라이드를 앞으로 이동"
+    },
+    "slides_editor_move_right": {
+      "text": "슬라이드를 뒤로 이동"
+    },
+    "slides_editor_notes_placeholder": {
+      "text": "발표 중에 나만 보는 메모"
+    },
     "design": {
       "embroidery": {
         "threads": {

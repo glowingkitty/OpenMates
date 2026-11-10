@@ -7714,6 +7714,117 @@
     "slides_timer_reset": {
       "text": "Đặt lại đồng hồ"
     },
+    "slides_editor_title": {
+      "text": "Đang chỉnh sửa trang chiếu"
+    },
+    "slides_editor_loading": {
+      "text": "Đang mở trình chỉnh sửa…"
+    },
+    "slides_editor_unavailable": {
+      "text": "Hiện không thể chỉnh sửa bản trình bày này tại đây."
+    },
+    "slides_editor_change_failed": {
+      "text": "Không thể áp dụng thay đổi đó."
+    },
+    "slides_editor_toolbar": {
+      "text": "Công cụ chỉnh sửa trang chiếu"
+    },
+    "slides_editor_undo": {
+      "text": "Hoàn tác"
+    },
+    "slides_editor_redo": {
+      "text": "Làm lại"
+    },
+    "slides_editor_add_text": {
+      "text": "Thêm văn bản"
+    },
+    "slides_editor_bring_forward": {
+      "text": "Đưa lên"
+    },
+    "slides_editor_send_backward": {
+      "text": "Đưa xuống"
+    },
+    "slides_editor_new_text": {
+      "text": "Văn bản mới"
+    },
+    "slides_editor_element": {
+      "text": "Phần tử"
+    },
+    "slides_editor_text_box": {
+      "text": "Văn bản trang chiếu"
+    },
+    "slides_editor_font_size": {
+      "text": "Cỡ chữ"
+    },
+    "slides_editor_smaller": {
+      "text": "Chữ nhỏ hơn"
+    },
+    "slides_editor_larger": {
+      "text": "Chữ lớn hơn"
+    },
+    "slides_editor_bold": {
+      "text": "In đậm"
+    },
+    "slides_editor_align": {
+      "text": "Căn lề"
+    },
+    "slides_editor_align_left": {
+      "text": "Trái"
+    },
+    "slides_editor_align_center": {
+      "text": "Giữa"
+    },
+    "slides_editor_align_right": {
+      "text": "Phải"
+    },
+    "slides_editor_align_justify": {
+      "text": "Căn đều"
+    },
+    "slides_editor_color": {
+      "text": "Màu chữ"
+    },
+    "slides_editor_color_foreground": {
+      "text": "Văn bản"
+    },
+    "slides_editor_color_accent": {
+      "text": "Nhấn"
+    },
+    "slides_editor_color_accent_2": {
+      "text": "Nhấn phụ"
+    },
+    "slides_editor_color_muted": {
+      "text": "Nhạt"
+    },
+    "slides_editor_color_surface": {
+      "text": "Bề mặt"
+    },
+    "slides_editor_color_background": {
+      "text": "Nền"
+    },
+    "slides_editor_custom_color": {
+      "text": "Màu tùy chỉnh"
+    },
+    "slides_editor_slide_actions": {
+      "text": "Thao tác trang chiếu"
+    },
+    "slides_editor_add_slide": {
+      "text": "Thêm trang chiếu"
+    },
+    "slides_editor_duplicate_slide": {
+      "text": "Nhân bản"
+    },
+    "slides_editor_delete_slide": {
+      "text": "Xóa trang chiếu"
+    },
+    "slides_editor_move_left": {
+      "text": "Chuyển trang chiếu lên trước"
+    },
+    "slides_editor_move_right": {
+      "text": "Chuyển trang chiếu ra sau"
+    },
+    "slides_editor_notes_placeholder": {
+      "text": "Ghi chú chỉ bạn thấy khi trình chiếu"
+    },
     "design": {
       "embroidery": {
         "threads": {

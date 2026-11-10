@@ -81,6 +81,16 @@ pub enum DeckOperation {
         /// Element id.
         element_id: String,
     },
+    /// Move an element to a new paint-order position within its slide (z-order: the
+    /// last element is drawn on top; indices past the end move it to the top).
+    MoveElement {
+        /// Slide id.
+        slide_id: String,
+        /// Element id.
+        element_id: String,
+        /// Target position in the slide's element order.
+        to_index: usize,
+    },
     /// Add an empty slide with a fresh `s<n>` id.
     AddSlide {
         /// Position; `None` appends.

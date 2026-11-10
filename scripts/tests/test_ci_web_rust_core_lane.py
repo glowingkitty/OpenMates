@@ -19,6 +19,8 @@ def test_lane_selector_is_scoped_to_web_rust_core_specs():
     assert "inputs.mode == 'e2e'" in selector
     assert "startsWith(inputs.specs_json, '[\"web-rust-core-')" in selector
     assert "inputs.web_rust_core == 'true'" in selector
+    # Component specs opt in only through the explicit input, never by name.
+    assert "(inputs.mode == 'component' && inputs.web_rust_core == 'true')" in selector
 
 
 # contract-test: infrastructure

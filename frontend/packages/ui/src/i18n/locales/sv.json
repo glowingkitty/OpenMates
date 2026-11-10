@@ -7714,6 +7714,117 @@
     "slides_timer_reset": {
       "text": "Nollställ timern"
     },
+    "slides_editor_title": {
+      "text": "Redigerar bilder"
+    },
+    "slides_editor_loading": {
+      "text": "Öppnar redigeraren…"
+    },
+    "slides_editor_unavailable": {
+      "text": "Den här presentationen kan inte redigeras här just nu."
+    },
+    "slides_editor_change_failed": {
+      "text": "Ändringen kunde inte tillämpas."
+    },
+    "slides_editor_toolbar": {
+      "text": "Verktyg för att redigera bilder"
+    },
+    "slides_editor_undo": {
+      "text": "Ångra"
+    },
+    "slides_editor_redo": {
+      "text": "Gör om"
+    },
+    "slides_editor_add_text": {
+      "text": "Lägg till text"
+    },
+    "slides_editor_bring_forward": {
+      "text": "Framåt"
+    },
+    "slides_editor_send_backward": {
+      "text": "Bakåt"
+    },
+    "slides_editor_new_text": {
+      "text": "Ny text"
+    },
+    "slides_editor_element": {
+      "text": "Element"
+    },
+    "slides_editor_text_box": {
+      "text": "Bildtext"
+    },
+    "slides_editor_font_size": {
+      "text": "Teckenstorlek"
+    },
+    "slides_editor_smaller": {
+      "text": "Mindre text"
+    },
+    "slides_editor_larger": {
+      "text": "Större text"
+    },
+    "slides_editor_bold": {
+      "text": "Fetstil"
+    },
+    "slides_editor_align": {
+      "text": "Justering"
+    },
+    "slides_editor_align_left": {
+      "text": "Vänster"
+    },
+    "slides_editor_align_center": {
+      "text": "Centrerad"
+    },
+    "slides_editor_align_right": {
+      "text": "Höger"
+    },
+    "slides_editor_align_justify": {
+      "text": "Marginaljusterad"
+    },
+    "slides_editor_color": {
+      "text": "Textfärg"
+    },
+    "slides_editor_color_foreground": {
+      "text": "Text"
+    },
+    "slides_editor_color_accent": {
+      "text": "Accent"
+    },
+    "slides_editor_color_accent_2": {
+      "text": "Andra accent"
+    },
+    "slides_editor_color_muted": {
+      "text": "Dämpad"
+    },
+    "slides_editor_color_surface": {
+      "text": "Yta"
+    },
+    "slides_editor_color_background": {
+      "text": "Bakgrund"
+    },
+    "slides_editor_custom_color": {
+      "text": "Egen färg"
+    },
+    "slides_editor_slide_actions": {
+      "text": "Bildåtgärder"
+    },
+    "slides_editor_add_slide": {
+      "text": "Lägg till bild"
+    },
+    "slides_editor_duplicate_slide": {
+      "text": "Duplicera"
+    },
+    "slides_editor_delete_slide": {
+      "text": "Ta bort bild"
+    },
+    "slides_editor_move_left": {
+      "text": "Flytta bilden tidigare"
+    },
+    "slides_editor_move_right": {
+      "text": "Flytta bilden senare"
+    },
+    "slides_editor_notes_placeholder": {
+      "text": "Anteckningar som bara du ser när du presenterar"
+    },
     "design": {
       "embroidery": {
         "threads": {

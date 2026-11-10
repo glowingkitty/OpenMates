@@ -7714,6 +7714,117 @@
     "slides_timer_reset": {
       "text": "टाइमर रीसेट करें"
     },
+    "slides_editor_title": {
+      "text": "स्लाइड संपादित हो रही हैं"
+    },
+    "slides_editor_loading": {
+      "text": "संपादक खुल रहा है…"
+    },
+    "slides_editor_unavailable": {
+      "text": "यह प्रस्तुति अभी यहाँ संपादित नहीं की जा सकती।"
+    },
+    "slides_editor_change_failed": {
+      "text": "यह बदलाव लागू नहीं हो सका।"
+    },
+    "slides_editor_toolbar": {
+      "text": "स्लाइड संपादन उपकरण"
+    },
+    "slides_editor_undo": {
+      "text": "पूर्ववत करें"
+    },
+    "slides_editor_redo": {
+      "text": "फिर से करें"
+    },
+    "slides_editor_add_text": {
+      "text": "टेक्स्ट जोड़ें"
+    },
+    "slides_editor_bring_forward": {
+      "text": "आगे लाएँ"
+    },
+    "slides_editor_send_backward": {
+      "text": "पीछे भेजें"
+    },
+    "slides_editor_new_text": {
+      "text": "नया टेक्स्ट"
+    },
+    "slides_editor_element": {
+      "text": "तत्व"
+    },
+    "slides_editor_text_box": {
+      "text": "स्लाइड टेक्स्ट"
+    },
+    "slides_editor_font_size": {
+      "text": "फ़ॉन्ट आकार"
+    },
+    "slides_editor_smaller": {
+      "text": "छोटा टेक्स्ट"
+    },
+    "slides_editor_larger": {
+      "text": "बड़ा टेक्स्ट"
+    },
+    "slides_editor_bold": {
+      "text": "बोल्ड"
+    },
+    "slides_editor_align": {
+      "text": "संरेखण"
+    },
+    "slides_editor_align_left": {
+      "text": "बाएँ"
+    },
+    "slides_editor_align_center": {
+      "text": "बीच में"
+    },
+    "slides_editor_align_right": {
+      "text": "दाएँ"
+    },
+    "slides_editor_align_justify": {
+      "text": "दोनों ओर संरेखित"
+    },
+    "slides_editor_color": {
+      "text": "टेक्स्ट का रंग"
+    },
+    "slides_editor_color_foreground": {
+      "text": "टेक्स्ट"
+    },
+    "slides_editor_color_accent": {
+      "text": "एक्सेंट"
+    },
+    "slides_editor_color_accent_2": {
+      "text": "दूसरा एक्सेंट"
+    },
+    "slides_editor_color_muted": {
+      "text": "हल्का"
+    },
+    "slides_editor_color_surface": {
+      "text": "सतह"
+    },
+    "slides_editor_color_background": {
+      "text": "पृष्ठभूमि"
+    },
+    "slides_editor_custom_color": {
+      "text": "कस्टम रंग"
+    },
+    "slides_editor_slide_actions": {
+      "text": "स्लाइड क्रियाएँ"
+    },
+    "slides_editor_add_slide": {
+      "text": "स्लाइड जोड़ें"
+    },
+    "slides_editor_duplicate_slide": {
+      "text": "डुप्लिकेट करें"
+    },
+    "slides_editor_delete_slide": {
+      "text": "स्लाइड हटाएँ"
+    },
+    "slides_editor_move_left": {
+      "text": "स्लाइड को पहले ले जाएँ"
+    },
+    "slides_editor_move_right": {
+      "text": "स्लाइड को बाद में ले जाएँ"
+    },
+    "slides_editor_notes_placeholder": {
+      "text": "नोट्स जो प्रस्तुति के दौरान केवल आप देखते हैं"
+    },
     "design": {
       "embroidery": {
         "threads": {

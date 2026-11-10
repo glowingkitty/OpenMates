@@ -74,6 +74,11 @@ def canonical_root(root: Path) -> Path:
     return (root / common).resolve().parent
 
 
+# Modes whose web app can be built or served with the Rust client core on: E2E
+# builds it, the Vite-only component profile serves it from `vite dev`.
+WEB_RUST_CORE_MODES = ("e2e", "component")
+
+
 def harness_commit(root: Path) -> str:
     """Resolve the deployed harness, with HEAD for isolated repository fixtures."""
     for ref in ("refs/heads/dev^{commit}", "HEAD^{commit}"):
@@ -540,8 +545,8 @@ class Queue:
         runtime_seed_job: str = "",
         web_rust_core: bool = False,
     ) -> dict:
-        if web_rust_core and mode != "e2e":
-            raise ValueError("Web Rust core option requires --mode e2e")
+        if web_rust_core and mode not in WEB_RUST_CORE_MODES:
+            raise ValueError("Web Rust core option requires --mode e2e or component")
         if not owner or not re.fullmatch(r"[0-9a-f]{40}", source):
             raise ValueError("Owner and full immutable source commit are required")
         if mode not in (
@@ -1506,8 +1511,8 @@ def enqueue_submission(
         raise ValueError(
             "Case filter requires the exact recovery spec and approved test title"
         )
-    if web_rust_core and mode != "e2e":
-        raise ValueError("Web Rust core option requires --mode e2e")
+    if web_rust_core and mode not in WEB_RUST_CORE_MODES:
+        raise ValueError("Web Rust core option requires --mode e2e or component")
     if prepared_builds and (source_root is None or mode not in ("e2e", "visual-smoke")):
         raise ValueError("Prepared builds require an E2E/visual source root")
     if runtime_seed_job and (mode not in {"backend-probe", "e2e"} or prepared_builds):
@@ -1794,7 +1799,7 @@ def main():
     submit.add_argument(
         "--web-rust-core",
         action="store_true",
-        help="e2e only: build the web app with the Rust client core on (wasm package + VITE_OPENMATES_RUST_CORE=1)",
+        help="e2e or component only: run the web app with the Rust client core on (wasm package + VITE_OPENMATES_RUST_CORE=1)",
     )
     priority = sub.add_parser("prioritize")
     priority.add_argument("id")

@@ -143,6 +143,29 @@ pub(crate) fn apply_operation(
                 element_id: copy.id,
             })
         }
+        DeckOperation::MoveElement {
+            slide_id,
+            element_id,
+            to_index,
+        } => {
+            let slide = ctx.slide(&slide_id)?;
+            let from = slide
+                .elements
+                .iter()
+                .position(|e| e.id == element_id)
+                .ok_or_else(|| DeckError::ElementNotFound(element_id.clone()))?;
+            let to = to_index.min(slide.elements.len() - 1);
+            if from == to {
+                return Ok(DeckOutcome::Unchanged);
+            }
+            // Same as MoveSlide: drop every copy of the id, then insert before the
+            // element that follows it in the effective order.
+            let refs = ctx.refs(txn, &slide_id)?;
+            remove_id(txn, &refs.order, &element_id);
+            let index = raw_insert_index(txn, &refs.order, &refs.elements, to);
+            refs.order.insert(txn, index, element_id);
+            Ok(DeckOutcome::Applied)
+        }
         DeckOperation::AddSlide { index, layout } => {
             if model.slides.len() >= MAX_SLIDES {
                 return Err(DeckError::LimitReached("200 slides per deck"));

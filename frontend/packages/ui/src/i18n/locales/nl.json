@@ -7714,6 +7714,117 @@
     "slides_timer_reset": {
       "text": "Timer resetten"
     },
+    "slides_editor_title": {
+      "text": "Dia's bewerken"
+    },
+    "slides_editor_loading": {
+      "text": "Editor wordt geopend…"
+    },
+    "slides_editor_unavailable": {
+      "text": "Deze presentatie kan hier nu niet worden bewerkt."
+    },
+    "slides_editor_change_failed": {
+      "text": "Die wijziging kon niet worden toegepast."
+    },
+    "slides_editor_toolbar": {
+      "text": "Hulpmiddelen voor dia's bewerken"
+    },
+    "slides_editor_undo": {
+      "text": "Ongedaan maken"
+    },
+    "slides_editor_redo": {
+      "text": "Opnieuw"
+    },
+    "slides_editor_add_text": {
+      "text": "Tekst toevoegen"
+    },
+    "slides_editor_bring_forward": {
+      "text": "Naar voren"
+    },
+    "slides_editor_send_backward": {
+      "text": "Naar achteren"
+    },
+    "slides_editor_new_text": {
+      "text": "Nieuwe tekst"
+    },
+    "slides_editor_element": {
+      "text": "Element"
+    },
+    "slides_editor_text_box": {
+      "text": "Diatekst"
+    },
+    "slides_editor_font_size": {
+      "text": "Tekengrootte"
+    },
+    "slides_editor_smaller": {
+      "text": "Kleinere tekst"
+    },
+    "slides_editor_larger": {
+      "text": "Grotere tekst"
+    },
+    "slides_editor_bold": {
+      "text": "Vet"
+    },
+    "slides_editor_align": {
+      "text": "Uitlijning"
+    },
+    "slides_editor_align_left": {
+      "text": "Links"
+    },
+    "slides_editor_align_center": {
+      "text": "Midden"
+    },
+    "slides_editor_align_right": {
+      "text": "Rechts"
+    },
+    "slides_editor_align_justify": {
+      "text": "Uitgevuld"
+    },
+    "slides_editor_color": {
+      "text": "Tekstkleur"
+    },
+    "slides_editor_color_foreground": {
+      "text": "Tekst"
+    },
+    "slides_editor_color_accent": {
+      "text": "Accent"
+    },
+    "slides_editor_color_accent_2": {
+      "text": "Tweede accent"
+    },
+    "slides_editor_color_muted": {
+      "text": "Gedempt"
+    },
+    "slides_editor_color_surface": {
+      "text": "Vlak"
+    },
+    "slides_editor_color_background": {
+      "text": "Achtergrond"
+    },
+    "slides_editor_custom_color": {
+      "text": "Aangepaste kleur"
+    },
+    "slides_editor_slide_actions": {
+      "text": "Dia-acties"
+    },
+    "slides_editor_add_slide": {
+      "text": "Dia toevoegen"
+    },
+    "slides_editor_duplicate_slide": {
+      "text": "Dupliceren"
+    },
+    "slides_editor_delete_slide": {
+      "text": "Dia verwijderen"
+    },
+    "slides_editor_move_left": {
+      "text": "Dia naar voren verplaatsen"
+    },
+    "slides_editor_move_right": {
+      "text": "Dia naar achteren verplaatsen"
+    },
+    "slides_editor_notes_placeholder": {
+      "text": "Notities die alleen jij ziet tijdens het presenteren"
+    },
     "design": {
       "embroidery": {
         "threads": {

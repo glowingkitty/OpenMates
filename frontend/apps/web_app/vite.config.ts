@@ -3,12 +3,14 @@ import { defineConfig } from 'vite';
 import path from 'path';
 import { docsPlugin } from './scripts/vite-plugin-docs.js';
 import { piiRuntimePlugin } from './scripts/prepare-pii-runtime.mjs';
-import { rustCoreAssetsPlugin } from './scripts/vite-plugin-rust-core.mjs';
+import { rustCoreAssetsPlugin, rustCorePackageDirectory } from './scripts/vite-plugin-rust-core.mjs';
 
 // Opt-in shared Rust core (WASM) for the web app. Build-time only: when unset the
 // constant below folds to '' and every `=== '1'` guard plus its dynamic import is
 // removed from the bundle, so default builds are unchanged.
 const rustCoreEnabled = process.env.VITE_OPENMATES_RUST_CORE === '1';
+// `vite dev` (component previews) serves the wasm package from outside the app root.
+const rustCorePackage = rustCorePackageDirectory();
 
 export default defineConfig({
 	plugins: [rustCoreAssetsPlugin(), sveltekit(), docsPlugin(), piiRuntimePlugin()],
@@ -35,7 +37,8 @@ export default defineConfig({
 				'.',
 				'../shared',
 				'../../../api',
-				'../../packages/ui'
+				'../../packages/ui',
+				...(rustCorePackage ? [rustCorePackage] : [])
 			]
 		}
 	},

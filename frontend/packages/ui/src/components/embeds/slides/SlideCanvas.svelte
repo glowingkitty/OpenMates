@@ -113,7 +113,7 @@
           data-element-id={element.id}
         >
           {#if element.type === 'text'}
-            <div class="text-body" style={textStyle(entry)}>{@render inline(element.content)}</div>
+            <div class="text-body" data-testid="slide-text" style={textStyle(entry)}>{@render inline(element.content)}</div>
           {:else if element.type === 'image'}
             <SlideImageElement embedRef={element.ref} alt={element.alt} fit={element.fit} />
           {:else if element.type === 'video'}

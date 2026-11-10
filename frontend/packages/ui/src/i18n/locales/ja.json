@@ -7714,6 +7714,117 @@
     "slides_timer_reset": {
       "text": "タイマーをリセット"
     },
+    "slides_editor_title": {
+      "text": "スライドを編集中"
+    },
+    "slides_editor_loading": {
+      "text": "エディターを開いています…"
+    },
+    "slides_editor_unavailable": {
+      "text": "現在このスライドはここで編集できません。"
+    },
+    "slides_editor_change_failed": {
+      "text": "この変更を適用できませんでした。"
+    },
+    "slides_editor_toolbar": {
+      "text": "スライド編集ツール"
+    },
+    "slides_editor_undo": {
+      "text": "元に戻す"
+    },
+    "slides_editor_redo": {
+      "text": "やり直す"
+    },
+    "slides_editor_add_text": {
+      "text": "テキストを追加"
+    },
+    "slides_editor_bring_forward": {
+      "text": "前面へ"
+    },
+    "slides_editor_send_backward": {
+      "text": "背面へ"
+    },
+    "slides_editor_new_text": {
+      "text": "新しいテキスト"
+    },
+    "slides_editor_element": {
+      "text": "要素"
+    },
+    "slides_editor_text_box": {
+      "text": "スライドのテキスト"
+    },
+    "slides_editor_font_size": {
+      "text": "フォントサイズ"
+    },
+    "slides_editor_smaller": {
+      "text": "文字を小さく"
+    },
+    "slides_editor_larger": {
+      "text": "文字を大きく"
+    },
+    "slides_editor_bold": {
+      "text": "太字"
+    },
+    "slides_editor_align": {
+      "text": "配置"
+    },
+    "slides_editor_align_left": {
+      "text": "左揃え"
+    },
+    "slides_editor_align_center": {
+      "text": "中央揃え"
+    },
+    "slides_editor_align_right": {
+      "text": "右揃え"
+    },
+    "slides_editor_align_justify": {
+      "text": "両端揃え"
+    },
+    "slides_editor_color": {
+      "text": "文字の色"
+    },
+    "slides_editor_color_foreground": {
+      "text": "テキスト"
+    },
+    "slides_editor_color_accent": {
+      "text": "アクセント"
+    },
+    "slides_editor_color_accent_2": {
+      "text": "第2アクセント"
+    },
+    "slides_editor_color_muted": {
+      "text": "控えめ"
+    },
+    "slides_editor_color_surface": {
+      "text": "サーフェス"
+    },
+    "slides_editor_color_background": {
+      "text": "背景"
+    },
+    "slides_editor_custom_color": {
+      "text": "カスタムカラー"
+    },
+    "slides_editor_slide_actions": {
+      "text": "スライドの操作"
+    },
+    "slides_editor_add_slide": {
+      "text": "スライドを追加"
+    },
+    "slides_editor_duplicate_slide": {
+      "text": "複製"
+    },
+    "slides_editor_delete_slide": {
+      "text": "スライドを削除"
+    },
+    "slides_editor_move_left": {
+      "text": "スライドを前へ移動"
+    },
+    "slides_editor_move_right": {
+      "text": "スライドを後ろへ移動"
+    },
+    "slides_editor_notes_placeholder": {
+      "text": "発表中にあなただけが見えるメモ"
+    },
     "design": {
       "embroidery": {
         "threads": {

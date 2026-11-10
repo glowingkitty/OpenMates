@@ -1986,6 +1986,72 @@ def wait_component_web(child):
     raise RuntimeError("Component Vite server did not become ready")
 
 
+COMPONENT_WARMUP_TIMEOUT_MS = 180_000
+COMPONENT_WARMUP_DEFAULT_ROUTE = "/dev/preview/embeds/slides/SlideCanvas"
+# One headless Chromium visit: Vite optimises dependencies and transforms the
+# preview graph on first request, which GET / does not trigger. With the Rust
+# core lane on, idle network after mounting also covers the wasm package load.
+COMPONENT_WARMUP_SCRIPT = r"""
+const { chromium } = require('@playwright/test');
+const [url, timeout, core] = [process.argv[1], Number(process.argv[2]), process.argv[3] === '1'];
+(async () => {
+  const started = Date.now();
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    let wasm = false;
+    page.context().on('response', (r) => { if (r.url().includes('.wasm')) wasm = true; });
+    await page.goto(url, { timeout });
+    await page.waitForSelector('[data-testid=component-preview-canvas][data-preview-ready=true]', { timeout: Math.max(1, timeout - (Date.now() - started)) });
+    if (core) await page.waitForLoadState('networkidle', { timeout: Math.max(1, timeout - (Date.now() - started)) });
+    console.log(`component warm-up ready in ${Date.now() - started} ms${core ? ` (wasm response seen: ${wasm})` : ''}`);
+  } finally {
+    await browser.close();
+  }
+})().catch((error) => {
+  console.error(`component warm-up failed: ${error && error.message ? error.message : error}`);
+  process.exit(1);
+});
+"""
+
+
+def component_warmup_route(specs: list[str]) -> str:
+    """First preview route named in the first component spec, else a small default."""
+    for name in specs[:1]:
+        found = re.search(
+            r"/dev/preview/[A-Za-z0-9_/.-]+", (WEB / "tests" / name).read_text()
+        )
+        if found and not found.group(0).endswith("/"):
+            return found.group(0)
+    return COMPONENT_WARMUP_DEFAULT_ROUTE
+
+
+def warm_component_preview(specs: list[str]) -> None:
+    """Pay the cold Vite (and wasm) cost once before the first test's timeout runs."""
+    url = f"{APP}{component_warmup_route(specs)}?chrome=0"
+    core = os.environ.get("CI_LANE_WEB_RUST_CORE") == "true"
+    result = subprocess.run(
+        [
+            pinned_node(),
+            "-e",
+            COMPONENT_WARMUP_SCRIPT,
+            url,
+            str(COMPONENT_WARMUP_TIMEOUT_MS),
+            "1" if core else "0",
+        ],
+        cwd=WEB,
+        capture_output=True,
+        text=True,
+        timeout=COMPONENT_WARMUP_TIMEOUT_MS / 1000 + 60,
+    )
+    print((result.stdout + result.stderr).strip(), flush=True)
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Component preview warm-up did not reach data-preview-ready=true at {url} "
+            f"within {COMPONENT_WARMUP_TIMEOUT_MS // 1000} s (see ci-web.log for Vite errors)"
+        )
+
+
 def verify_shared_dev_rejected():
     for host in ("api.dev.openmates.org", "app.dev.openmates.org"):
         if set(socket.gethostbyname_ex(host)[2]) != {"127.0.0.2"}:
@@ -2409,6 +2475,8 @@ def run_e2e(
         try:
             if child is not None:
                 (wait_component_web if component else wait_web)(child)
+            if component:
+                warm_component_preview(specs)
             performance_metadata = {}
             if (
                 child is not None

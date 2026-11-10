@@ -7714,6 +7714,117 @@
     "slides_timer_reset": {
       "text": "Сбросить таймер"
     },
+    "slides_editor_title": {
+      "text": "Редактирование слайдов"
+    },
+    "slides_editor_loading": {
+      "text": "Открываем редактор…"
+    },
+    "slides_editor_unavailable": {
+      "text": "Сейчас эту презентацию нельзя редактировать здесь."
+    },
+    "slides_editor_change_failed": {
+      "text": "Не удалось применить это изменение."
+    },
+    "slides_editor_toolbar": {
+      "text": "Инструменты редактирования слайдов"
+    },
+    "slides_editor_undo": {
+      "text": "Отменить"
+    },
+    "slides_editor_redo": {
+      "text": "Повторить"
+    },
+    "slides_editor_add_text": {
+      "text": "Добавить текст"
+    },
+    "slides_editor_bring_forward": {
+      "text": "Вперёд"
+    },
+    "slides_editor_send_backward": {
+      "text": "Назад"
+    },
+    "slides_editor_new_text": {
+      "text": "Новый текст"
+    },
+    "slides_editor_element": {
+      "text": "Элемент"
+    },
+    "slides_editor_text_box": {
+      "text": "Текст слайда"
+    },
+    "slides_editor_font_size": {
+      "text": "Размер шрифта"
+    },
+    "slides_editor_smaller": {
+      "text": "Меньше текст"
+    },
+    "slides_editor_larger": {
+      "text": "Больше текст"
+    },
+    "slides_editor_bold": {
+      "text": "Жирный"
+    },
+    "slides_editor_align": {
+      "text": "Выравнивание"
+    },
+    "slides_editor_align_left": {
+      "text": "По левому краю"
+    },
+    "slides_editor_align_center": {
+      "text": "По центру"
+    },
+    "slides_editor_align_right": {
+      "text": "По правому краю"
+    },
+    "slides_editor_align_justify": {
+      "text": "По ширине"
+    },
+    "slides_editor_color": {
+      "text": "Цвет текста"
+    },
+    "slides_editor_color_foreground": {
+      "text": "Текст"
+    },
+    "slides_editor_color_accent": {
+      "text": "Акцент"
+    },
+    "slides_editor_color_accent_2": {
+      "text": "Второй акцент"
+    },
+    "slides_editor_color_muted": {
+      "text": "Приглушённый"
+    },
+    "slides_editor_color_surface": {
+      "text": "Поверхность"
+    },
+    "slides_editor_color_background": {
+      "text": "Фон"
+    },
+    "slides_editor_custom_color": {
+      "text": "Свой цвет"
+    },
+    "slides_editor_slide_actions": {
+      "text": "Действия со слайдом"
+    },
+    "slides_editor_add_slide": {
+      "text": "Добавить слайд"
+    },
+    "slides_editor_duplicate_slide": {
+      "text": "Дублировать"
+    },
+    "slides_editor_delete_slide": {
+      "text": "Удалить слайд"
+    },
+    "slides_editor_move_left": {
+      "text": "Переместить слайд раньше"
+    },
+    "slides_editor_move_right": {
+      "text": "Переместить слайд позже"
+    },
+    "slides_editor_notes_placeholder": {
+      "text": "Заметки, которые видите только вы во время показа"
+    },
     "design": {
       "embroidery": {
         "threads": {

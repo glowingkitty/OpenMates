@@ -15,8 +15,8 @@ summary:
   missing: 98838
   percent: 7.8
 worker_namespaces_installed_not_progress:
-  installed: 17
-  total: 17
+  installed: 18
+  total: 18
   note: 'Worker namespaces installed (not progress): a namespace can be installed while most of its TS still runs.'
 port_ledger:
   unit: TS code lines
@@ -35,8 +35,8 @@ port_ledger:
     files: 55
     code_lines: 9550
   bridge_excluded:
-    files: 205
-    code_lines: 18301
+    files: 209
+    code_lines: 18592
   slices:
   - id: rust-web-auth-session-lane-behind-vite-openmates-cd767f7
     commit: cd767f7058
@@ -675,3 +675,20 @@ units:
     The flag-on composer spec records one unpaired keystroke-to-highlight sample; no paired TS arm yet.]
   spec_assertions: [pii.composer.detect-redact-exclude, pii.outbound.known-original-rewrite, pii.message.owner-local-reveal]
   spec_gaps: ['Paste classification, code/URL embed services and upload privacy have no assertion.']
+- namespace: deckDocument
+  status: installed
+  pre_bind: true
+  installer: frontend/packages/ui/src/services/rustCore/deckDocument/deckDocumentUnit.ts
+  what_moved: 'Each install owns one Rust `DeckDocumentTable` (the open deck replicas of that unit port) and frees
+    it when the port is disposed (unbind, crash recovery or Worker teardown), so replicas never outlive their page
+    connection. Marshalling only: the handlers forward to the table and parse its JSON; every decision is Rust''s.'
+  typescript_fallback: none declared (1 file)
+  unit_tests: [deckDocumentSharedUnit.test.ts, deckDocumentWire.test.ts]
+  e2e_specs: []
+  vectors: [packages/openmates-rust/src/client/shared_items/deck_wire_fixture.json]
+  open_gaps: ['Foundation only; no editor UI calls the unit yet, so no flag-on browser spec proves the real wasm
+      path (added with the slides editor lane).', No join-from-peer open (empty replica + applyUpdate); collaboration
+      transport is a later live-collaboration phase.]
+  spec_assertions: [live-collab.core.one-shared-model]
+  spec_gaps: [The slides editor direct-manipulation assertions are not exercised on web until the editor binds the
+      unit.]

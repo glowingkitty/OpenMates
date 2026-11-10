@@ -676,6 +676,16 @@ export function parseSlidesMarkup(source: unknown, options: ParseOptions = {}): 
   };
 }
 
+/**
+ * Inline content of one text box (the core's `rich_text` value) as nodes, with the
+ * same inert parsing and tag whitelist as the deck parser. Used by the editor, which
+ * renders the core's DeckView instead of a parsed markup string.
+ */
+export function parseInlineMarkup(markup: string): InlineNode[] {
+  if (!markup) return [];
+  return richText(new DOMParser().parseFromString(markup, 'text/html').body);
+}
+
 /** Highest build step of a slide (0 when nothing builds in). */
 export function maxStep(slide: Slide): number {
   return slide.elements.reduce((max, element) => Math.max(max, element.step), 0);

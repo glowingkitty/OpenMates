@@ -302,3 +302,17 @@ units:
     rust_paths:
     - packages/openmates-rust/src/web_composer/*.rs
     - packages/openmates-browser-bindings/src/browser_composer.rs
+  deckDocument:
+    specs: []
+    vectors:
+    - packages/openmates-rust/src/client/shared_items/deck_wire_fixture.json
+    open_gaps:
+    - Foundation only; no editor UI calls the unit yet, so no flag-on browser spec proves the real wasm path (added with the slides editor lane).
+    - No join-from-peer open (empty replica + applyUpdate); collaboration transport is a later live-collaboration phase.
+    spec_assertions:
+    - live-collab.core.one-shared-model
+    spec_gaps:
+    - The slides editor direct-manipulation assertions are not exercised on web until the editor binds the unit.
+    rust_paths:
+    - packages/openmates-rust/src/client/shared_items/deck_handles.rs
+    - packages/openmates-browser-bindings/src/browser_deck_document.rs

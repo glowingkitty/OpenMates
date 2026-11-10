@@ -2,7 +2,7 @@
  * Preview mock data for SlidesDeckEmbedFullscreen.
  * Access at: /dev/preview/embeds/slides/SlidesDeckEmbedFullscreen
  */
-import { hostileDeck, sampleDeck } from './slidesPreviewFixture';
+import { hostileDeck, normalisedEditorDeck, sampleDeck } from './slidesPreviewFixture';
 
 function content(markup: string, title: string, aspect: string, slideCount: number) {
   return { decodedContent: { slides_markup: markup, title, slide_count: slideCount, aspect } };
@@ -22,5 +22,7 @@ export const variants = {
   aspect4x3: { ...defaultProps, data: content(sampleDeck('4:3'), 'Quarterly review', '4:3', 4) },
   withNavigation: { ...defaultProps, hasPreviousEmbed: true, hasNextEmbed: true, onNavigatePrevious: () => {}, onNavigateNext: () => {} },
   hostile: { ...defaultProps, data: content(hostileDeck, 'Hostile', '16:9', 1) },
-  empty: { ...defaultProps, data: content('', '', '16:9', 0) }
+  empty: { ...defaultProps, data: content('', '', '16:9', 0) },
+  /** Normalised markup the Rust core opens: Edit is available with the core build. */
+  editable: { ...defaultProps, data: content(normalisedEditorDeck, 'Quarterly review', '16:9', 3) }
 };

@@ -7714,6 +7714,117 @@
     "slides_timer_reset": {
       "text": "אפס טיימר"
     },
+    "slides_editor_title": {
+      "text": "עריכת שקפים"
+    },
+    "slides_editor_loading": {
+      "text": "פותח את העורך…"
+    },
+    "slides_editor_unavailable": {
+      "text": "לא ניתן לערוך את המצגת הזו כאן כרגע."
+    },
+    "slides_editor_change_failed": {
+      "text": "לא ניתן היה להחיל את השינוי."
+    },
+    "slides_editor_toolbar": {
+      "text": "כלי עריכת שקפים"
+    },
+    "slides_editor_undo": {
+      "text": "בטל"
+    },
+    "slides_editor_redo": {
+      "text": "בצע שוב"
+    },
+    "slides_editor_add_text": {
+      "text": "הוסף טקסט"
+    },
+    "slides_editor_bring_forward": {
+      "text": "קדימה"
+    },
+    "slides_editor_send_backward": {
+      "text": "אחורה"
+    },
+    "slides_editor_new_text": {
+      "text": "טקסט חדש"
+    },
+    "slides_editor_element": {
+      "text": "רכיב"
+    },
+    "slides_editor_text_box": {
+      "text": "טקסט השקף"
+    },
+    "slides_editor_font_size": {
+      "text": "גודל גופן"
+    },
+    "slides_editor_smaller": {
+      "text": "טקסט קטן יותר"
+    },
+    "slides_editor_larger": {
+      "text": "טקסט גדול יותר"
+    },
+    "slides_editor_bold": {
+      "text": "מודגש"
+    },
+    "slides_editor_align": {
+      "text": "יישור"
+    },
+    "slides_editor_align_left": {
+      "text": "שמאל"
+    },
+    "slides_editor_align_center": {
+      "text": "מרכז"
+    },
+    "slides_editor_align_right": {
+      "text": "ימין"
+    },
+    "slides_editor_align_justify": {
+      "text": "מיושר לשני הצדדים"
+    },
+    "slides_editor_color": {
+      "text": "צבע הטקסט"
+    },
+    "slides_editor_color_foreground": {
+      "text": "טקסט"
+    },
+    "slides_editor_color_accent": {
+      "text": "הדגשה"
+    },
+    "slides_editor_color_accent_2": {
+      "text": "הדגשה שנייה"
+    },
+    "slides_editor_color_muted": {
+      "text": "מעומעם"
+    },
+    "slides_editor_color_surface": {
+      "text": "משטח"
+    },
+    "slides_editor_color_background": {
+      "text": "רקע"
+    },
+    "slides_editor_custom_color": {
+      "text": "צבע מותאם"
+    },
+    "slides_editor_slide_actions": {
+      "text": "פעולות שקף"
+    },
+    "slides_editor_add_slide": {
+      "text": "הוסף שקף"
+    },
+    "slides_editor_duplicate_slide": {
+      "text": "שכפל"
+    },
+    "slides_editor_delete_slide": {
+      "text": "מחק שקף"
+    },
+    "slides_editor_move_left": {
+      "text": "הזז את השקף אחורה"
+    },
+    "slides_editor_move_right": {
+      "text": "הזז את השקף קדימה"
+    },
+    "slides_editor_notes_placeholder": {
+      "text": "הערות שרק אתה רואה בזמן ההצגה"
+    },
     "design": {
       "embroidery": {
         "threads": {

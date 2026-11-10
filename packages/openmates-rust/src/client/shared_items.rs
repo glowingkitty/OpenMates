@@ -8,6 +8,7 @@
 pub mod deck;
 mod deck_apply;
 pub mod deck_error;
+pub mod deck_handles;
 mod deck_inline;
 pub mod deck_markup;
 pub mod deck_operations;
@@ -25,6 +26,8 @@ pub use deck_values::{DeckAspect, ElementKind};
 
 #[cfg(test)]
 mod deck_convergence_tests;
+#[cfg(test)]
+mod deck_handles_tests;
 #[cfg(test)]
 mod deck_markup_tests;
 #[cfg(test)]

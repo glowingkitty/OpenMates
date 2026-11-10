@@ -1061,7 +1061,8 @@
         "components/result-preview-standard.spec.ts",
         "components/grouped-result-preview.spec.ts",
         "components/slides-deck-embed.spec.ts",
-        "components/slides-presenter.spec.ts"
+        "components/slides-presenter.spec.ts",
+        "components/slides-editor.spec.ts"
       ]
     },
     "chat_message_timeline": {

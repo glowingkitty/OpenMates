@@ -40,8 +40,8 @@ areas:
       cleared: embedReady is inconclusive (2026-11-08-embedReady-01)', 'perf gate not cleared: rss is inconclusive
       (2026-11-08-rss-01)', 'perf gate not cleared: send draftSaveP95Ms is rust_worse (2026-11-08-send-02)']
   worker_namespaces_installed_not_progress:
-    installed: 17
-    total: 17
+    installed: 18
+    total: 18
 - id: shared_client
   title: Shared client-side code (Rust, non-operation SDK capabilities)
   priority_rank: 1

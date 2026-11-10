@@ -7714,6 +7714,117 @@
     "slides_timer_reset": {
       "text": "Zamanlayıcıyı sıfırla"
     },
+    "slides_editor_title": {
+      "text": "Slaytlar düzenleniyor"
+    },
+    "slides_editor_loading": {
+      "text": "Düzenleyici açılıyor…"
+    },
+    "slides_editor_unavailable": {
+      "text": "Bu sunu şu anda burada düzenlenemiyor."
+    },
+    "slides_editor_change_failed": {
+      "text": "Bu değişiklik uygulanamadı."
+    },
+    "slides_editor_toolbar": {
+      "text": "Slayt düzenleme araçları"
+    },
+    "slides_editor_undo": {
+      "text": "Geri al"
+    },
+    "slides_editor_redo": {
+      "text": "Yinele"
+    },
+    "slides_editor_add_text": {
+      "text": "Metin ekle"
+    },
+    "slides_editor_bring_forward": {
+      "text": "Öne getir"
+    },
+    "slides_editor_send_backward": {
+      "text": "Geri gönder"
+    },
+    "slides_editor_new_text": {
+      "text": "Yeni metin"
+    },
+    "slides_editor_element": {
+      "text": "Öğe"
+    },
+    "slides_editor_text_box": {
+      "text": "Slayt metni"
+    },
+    "slides_editor_font_size": {
+      "text": "Yazı tipi boyutu"
+    },
+    "slides_editor_smaller": {
+      "text": "Daha küçük metin"
+    },
+    "slides_editor_larger": {
+      "text": "Daha büyük metin"
+    },
+    "slides_editor_bold": {
+      "text": "Kalın"
+    },
+    "slides_editor_align": {
+      "text": "Hizalama"
+    },
+    "slides_editor_align_left": {
+      "text": "Sola"
+    },
+    "slides_editor_align_center": {
+      "text": "Orta"
+    },
+    "slides_editor_align_right": {
+      "text": "Sağ"
+    },
+    "slides_editor_align_justify": {
+      "text": "İki yana yasla"
+    },
+    "slides_editor_color": {
+      "text": "Metin rengi"
+    },
+    "slides_editor_color_foreground": {
+      "text": "Metin"
+    },
+    "slides_editor_color_accent": {
+      "text": "Vurgu"
+    },
+    "slides_editor_color_accent_2": {
+      "text": "İkinci vurgu"
+    },
+    "slides_editor_color_muted": {
+      "text": "Soluk"
+    },
+    "slides_editor_color_surface": {
+      "text": "Yüzey"
+    },
+    "slides_editor_color_background": {
+      "text": "Arka plan"
+    },
+    "slides_editor_custom_color": {
+      "text": "Özel renk"
+    },
+    "slides_editor_slide_actions": {
+      "text": "Slayt işlemleri"
+    },
+    "slides_editor_add_slide": {
+      "text": "Slayt ekle"
+    },
+    "slides_editor_duplicate_slide": {
+      "text": "Çoğalt"
+    },
+    "slides_editor_delete_slide": {
+      "text": "Slaytı sil"
+    },
+    "slides_editor_move_left": {
+      "text": "Slaytı öne taşı"
+    },
+    "slides_editor_move_right": {
+      "text": "Slaytı geri taşı"
+    },
+    "slides_editor_notes_placeholder": {
+      "text": "Sunum sırasında yalnızca sizin gördüğünüz notlar"
+    },
     "design": {
       "embroidery": {
         "threads": {

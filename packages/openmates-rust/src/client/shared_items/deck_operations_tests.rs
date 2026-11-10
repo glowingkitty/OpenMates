@@ -271,6 +271,101 @@ fn elements_are_added_duplicated_and_deleted_with_fresh_ids() {
     );
 }
 
+fn element_ids(deck: &DeckDocument, slide: &str) -> Vec<String> {
+    deck.model()
+        .slides
+        .into_iter()
+        .find(|s| s.id == slide)
+        .map(|s| s.elements.into_iter().map(|e| e.id).collect())
+        .expect("slide exists")
+}
+
+// contract-test: supporting surface=sdks.rust assertions=slides.editor.direct-manipulation
+#[test]
+fn elements_change_paint_order_and_the_order_saves_and_undoes() {
+    let mut deck = deck();
+    let start = element_ids(&deck, "s1");
+    assert_eq!(start, ["e1", "e2", "e3", "e4", "e5", "e6", "e7", "e8"]);
+    // Bring forward one step, then to the top (index past the end).
+    apply(
+        &mut deck,
+        DeckOperation::MoveElement {
+            slide_id: "s1".into(),
+            element_id: "e2".into(),
+            to_index: 2,
+        },
+    );
+    assert_eq!(
+        element_ids(&deck, "s1"),
+        ["e1", "e3", "e2", "e4", "e5", "e6", "e7", "e8"]
+    );
+    apply(
+        &mut deck,
+        DeckOperation::MoveElement {
+            slide_id: "s1".into(),
+            element_id: "e1".into(),
+            to_index: 99,
+        },
+    );
+    assert_eq!(
+        element_ids(&deck, "s1"),
+        ["e3", "e2", "e4", "e5", "e6", "e7", "e8", "e1"]
+    );
+    // Send to the back.
+    apply(
+        &mut deck,
+        DeckOperation::MoveElement {
+            slide_id: "s1".into(),
+            element_id: "e8".into(),
+            to_index: 0,
+        },
+    );
+    let moved = element_ids(&deck, "s1");
+    assert_eq!(moved, ["e8", "e3", "e2", "e4", "e5", "e6", "e7", "e1"]);
+    // Already there: valid, no undo step.
+    assert_eq!(
+        apply(
+            &mut deck,
+            DeckOperation::MoveElement {
+                slide_id: "s1".into(),
+                element_id: "e8".into(),
+                to_index: 0,
+            },
+        ),
+        DeckOutcome::Unchanged
+    );
+    // The paint order is the element order of the saved markup.
+    let markup = deck.to_markup().expect("saves");
+    let reopened = DeckDocument::from_markup(&markup, 9).expect("normalised");
+    assert_eq!(element_ids(&reopened, "s1"), moved);
+    assert_eq!(
+        reopened.model().slides[0].elements[7],
+        element(&deck, "s1", "e1")
+    );
+
+    assert!(deck.undo());
+    assert_eq!(
+        element_ids(&deck, "s1"),
+        ["e3", "e2", "e4", "e5", "e6", "e7", "e8", "e1"]
+    );
+    assert!(deck.undo() && deck.undo());
+    assert_eq!(element_ids(&deck, "s1"), start);
+    assert!(deck.redo());
+    assert_eq!(
+        element_ids(&deck, "s1"),
+        ["e1", "e3", "e2", "e4", "e5", "e6", "e7", "e8"]
+    );
+
+    let missing = deck
+        .apply(DeckOperation::MoveElement {
+            slide_id: "s1".into(),
+            element_id: "nope".into(),
+            to_index: 0,
+        })
+        .expect_err("unknown element");
+    assert_eq!(missing.code(), "slides_element_not_found");
+}
+
 #[test]
 fn slides_are_added_duplicated_reordered_and_deleted() {
     let mut deck = deck();

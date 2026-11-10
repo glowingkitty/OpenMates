@@ -9315,6 +9315,117 @@
     "slides_timer_reset": {
       "text": "Reset timer"
     },
+    "slides_editor_title": {
+      "text": "Editing slides"
+    },
+    "slides_editor_loading": {
+      "text": "Opening the editor…"
+    },
+    "slides_editor_unavailable": {
+      "text": "This deck can't be edited here right now."
+    },
+    "slides_editor_change_failed": {
+      "text": "That change couldn't be applied."
+    },
+    "slides_editor_toolbar": {
+      "text": "Slide editing tools"
+    },
+    "slides_editor_undo": {
+      "text": "Undo"
+    },
+    "slides_editor_redo": {
+      "text": "Redo"
+    },
+    "slides_editor_add_text": {
+      "text": "Add text"
+    },
+    "slides_editor_bring_forward": {
+      "text": "Forward"
+    },
+    "slides_editor_send_backward": {
+      "text": "Backward"
+    },
+    "slides_editor_new_text": {
+      "text": "New text"
+    },
+    "slides_editor_element": {
+      "text": "Element"
+    },
+    "slides_editor_text_box": {
+      "text": "Slide text"
+    },
+    "slides_editor_font_size": {
+      "text": "Font size"
+    },
+    "slides_editor_smaller": {
+      "text": "Smaller text"
+    },
+    "slides_editor_larger": {
+      "text": "Larger text"
+    },
+    "slides_editor_bold": {
+      "text": "Bold"
+    },
+    "slides_editor_align": {
+      "text": "Alignment"
+    },
+    "slides_editor_align_left": {
+      "text": "Left"
+    },
+    "slides_editor_align_center": {
+      "text": "Center"
+    },
+    "slides_editor_align_right": {
+      "text": "Right"
+    },
+    "slides_editor_align_justify": {
+      "text": "Justified"
+    },
+    "slides_editor_color": {
+      "text": "Text color"
+    },
+    "slides_editor_color_foreground": {
+      "text": "Text"
+    },
+    "slides_editor_color_accent": {
+      "text": "Accent"
+    },
+    "slides_editor_color_accent_2": {
+      "text": "Second accent"
+    },
+    "slides_editor_color_muted": {
+      "text": "Muted"
+    },
+    "slides_editor_color_surface": {
+      "text": "Surface"
+    },
+    "slides_editor_color_background": {
+      "text": "Background"
+    },
+    "slides_editor_custom_color": {
+      "text": "Custom color"
+    },
+    "slides_editor_slide_actions": {
+      "text": "Slide actions"
+    },
+    "slides_editor_add_slide": {
+      "text": "Add slide"
+    },
+    "slides_editor_duplicate_slide": {
+      "text": "Duplicate"
+    },
+    "slides_editor_delete_slide": {
+      "text": "Delete slide"
+    },
+    "slides_editor_move_left": {
+      "text": "Move slide earlier"
+    },
+    "slides_editor_move_right": {
+      "text": "Move slide later"
+    },
+    "slides_editor_notes_placeholder": {
+      "text": "Notes only you see while presenting"
+    },
     "design": {
       "embroidery": {
         "threads": {

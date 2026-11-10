@@ -5,8 +5,9 @@
   strip of slide thumbnails, previous/next buttons and arrow keys (build steps
   advance before the slide changes) and the shared version timeline. While the
   deck still streams only completed slides are shown. Present starts a local
-  presentation (SlidesPresentation); no editor or export yet (later phases of the
-  slides-core plan).
+  presentation (SlidesPresentation). With the Rust core build, Edit opens the
+  manual editor (SlidesEditor, deck held by the core); Done shows the edited deck.
+  Saving the edit as a new embed version and export are later slides-core steps.
 -->
 <script lang="ts">
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
@@ -18,6 +19,7 @@
   import { inlineToPlainText, maxStep, parseSlidesMarkup } from './slidesMarkup';
   import { text } from '@repo/ui';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
+  import type SlidesEditorComponent from './SlidesEditor.svelte';
 
   interface Props {
     data: EmbedFullscreenRawData;
@@ -55,7 +57,9 @@
   let latestMarkup = $derived(typeof dc.slides_markup === 'string' ? dc.slides_markup : '');
   /** Markup of a version picked in the timeline; null shows the latest. */
   let selectedMarkup = $state<string | null>(null);
-  let markup = $derived(selectedMarkup ?? latestMarkup);
+  /** Markup the editor returned with Done; shown until the embed itself changes. */
+  let editedMarkup = $state<string | null>(null);
+  let markup = $derived(selectedMarkup ?? editedMarkup ?? latestMarkup);
   let streaming = $derived(data.embedData?.status === 'processing');
   let versionNumber = $derived(
     typeof dc.version_number === 'number' ? dc.version_number : (data.embedData?.version_number ?? 1)
@@ -128,8 +132,36 @@
     presenting = null;
   }
 
+  /** Editing needs the deck replica of the Rust core (shared Worker), so only that build offers it. */
+  const canEdit = import.meta.env.VITE_OPENMATES_RUST_CORE === '1';
+  /** Loaded on first Edit so builds without the core never ship the editor. */
+  let Editor = $state<typeof SlidesEditorComponent | null>(null);
+  let editing = $state(false);
+
+  async function startEditing() {
+    if (!canEdit) return;
+    Editor ??= (await import('./SlidesEditor.svelte')).default;
+    editing = true;
+  }
+
+  function saveEdit(edited: string) {
+    // Shown at once; persisting it as the embed's next version is not wired yet.
+    editedMarkup = edited;
+    selectedMarkup = null;
+  }
+
+  function stopEditing() {
+    editing = false;
+  }
+
+  $effect(() => {
+    // A new version of the embed (stream, restore) replaces a local edit.
+    void latestMarkup;
+    editedMarkup = null;
+  });
+
   function onKeydown(event: KeyboardEvent) {
-    if (presenting) return;
+    if (presenting || editing) return;
     const target = event.target as HTMLElement | null;
     if (target && (target.isContentEditable || /^(input|textarea|select)$/i.test(target.tagName))) return;
     if (event.key === 'ArrowRight' || event.key === 'ArrowDown' || event.key === 'PageDown') {
@@ -216,7 +248,14 @@
 >
   {#snippet content()}
     <div class="deck-viewer" data-testid="slides-deck-fullscreen" data-slide-index={index}>
-      {#if deck && current}
+      {#if editing && Editor}
+        <Editor
+          {markup}
+          initialSlideId={current?.id}
+          onSave={saveEdit}
+          onExit={stopEditing}
+        />
+      {:else if deck && current}
         <div class="stage" bind:this={stageEl} style:max-width={stageMaxWidth}>
           {#key current.id}
             <SlideCanvas
@@ -259,6 +298,11 @@
           <button type="button" class="present-button" data-testid="slides-present-presenter-view" onclick={startPresenterView}>
             {$text('embeds.slides_presenter_view')}
           </button>
+          {#if canEdit && !streaming}
+            <button type="button" class="present-button" data-testid="slides-edit" onclick={startEditing}>
+              {$text('common.edit')}
+            </button>
+          {/if}
         </div>
         {#if popupBlocked}
           <p class="popup-blocked" role="status" data-testid="slides-popup-blocked">{$text('embeds.slides_popup_blocked')}</p>

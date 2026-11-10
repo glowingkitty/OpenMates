@@ -7714,6 +7714,117 @@
     "slides_timer_reset": {
       "text": "รีเซ็ตตัวจับเวลา"
     },
+    "slides_editor_title": {
+      "text": "กำลังแก้ไขสไลด์"
+    },
+    "slides_editor_loading": {
+      "text": "กำลังเปิดตัวแก้ไข…"
+    },
+    "slides_editor_unavailable": {
+      "text": "ไม่สามารถแก้ไขงานนำเสนอนี้ที่นี่ได้ในขณะนี้"
+    },
+    "slides_editor_change_failed": {
+      "text": "ไม่สามารถใช้การเปลี่ยนแปลงนั้นได้"
+    },
+    "slides_editor_toolbar": {
+      "text": "เครื่องมือแก้ไขสไลด์"
+    },
+    "slides_editor_undo": {
+      "text": "เลิกทำ"
+    },
+    "slides_editor_redo": {
+      "text": "ทำซ้ำ"
+    },
+    "slides_editor_add_text": {
+      "text": "เพิ่มข้อความ"
+    },
+    "slides_editor_bring_forward": {
+      "text": "นำไปข้างหน้า"
+    },
+    "slides_editor_send_backward": {
+      "text": "ส่งไปข้างหลัง"
+    },
+    "slides_editor_new_text": {
+      "text": "ข้อความใหม่"
+    },
+    "slides_editor_element": {
+      "text": "องค์ประกอบ"
+    },
+    "slides_editor_text_box": {
+      "text": "ข้อความในสไลด์"
+    },
+    "slides_editor_font_size": {
+      "text": "ขนาดตัวอักษร"
+    },
+    "slides_editor_smaller": {
+      "text": "ข้อความเล็กลง"
+    },
+    "slides_editor_larger": {
+      "text": "ข้อความใหญ่ขึ้น"
+    },
+    "slides_editor_bold": {
+      "text": "ตัวหนา"
+    },
+    "slides_editor_align": {
+      "text": "การจัดแนว"
+    },
+    "slides_editor_align_left": {
+      "text": "ซ้าย"
+    },
+    "slides_editor_align_center": {
+      "text": "กึ่งกลาง"
+    },
+    "slides_editor_align_right": {
+      "text": "ขวา"
+    },
+    "slides_editor_align_justify": {
+      "text": "เต็มแนว"
+    },
+    "slides_editor_color": {
+      "text": "สีข้อความ"
+    },
+    "slides_editor_color_foreground": {
+      "text": "ข้อความ"
+    },
+    "slides_editor_color_accent": {
+      "text": "สีเน้น"
+    },
+    "slides_editor_color_accent_2": {
+      "text": "สีเน้นที่สอง"
+    },
+    "slides_editor_color_muted": {
+      "text": "จาง"
+    },
+    "slides_editor_color_surface": {
+      "text": "พื้นผิว"
+    },
+    "slides_editor_color_background": {
+      "text": "พื้นหลัง"
+    },
+    "slides_editor_custom_color": {
+      "text": "สีที่กำหนดเอง"
+    },
+    "slides_editor_slide_actions": {
+      "text": "การทำงานกับสไลด์"
+    },
+    "slides_editor_add_slide": {
+      "text": "เพิ่มสไลด์"
+    },
+    "slides_editor_duplicate_slide": {
+      "text": "ทำสำเนา"
+    },
+    "slides_editor_delete_slide": {
+      "text": "ลบสไลด์"
+    },
+    "slides_editor_move_left": {
+      "text": "ย้ายสไลด์ไปก่อนหน้า"
+    },
+    "slides_editor_move_right": {
+      "text": "ย้ายสไลด์ไปถัดไป"
+    },
+    "slides_editor_notes_placeholder": {
+      "text": "บันทึกที่มีเพียงคุณเห็นขณะนำเสนอ"
+    },
     "design": {
       "embroidery": {
         "threads": {

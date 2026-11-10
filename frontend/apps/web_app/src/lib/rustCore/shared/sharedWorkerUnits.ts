@@ -27,4 +27,5 @@ export const SHARED_UNIT_INSTALLERS: UnitInstallers = Object.freeze({
 	sendPrep: (context) => import('@openmates/ui/src/services/rustCore/send/sendPrepUnit').then((unit) => unit.installSendPrepUnit(context)),
 	settings: (context) => import('@openmates/ui/src/services/rustCore/settings/settingsUnit').then((unit) => unit.installSettingsUnit(context)),
 	composer: (context) => import('@openmates/ui/src/services/rustCore/composer/composerUnit').then((unit) => unit.installComposerUnit(context)),
+	deckDocument: (context) => import('@openmates/ui/src/services/rustCore/deckDocument/deckDocumentUnit').then((unit) => unit.installDeckDocumentUnit(context)),
 });
