@@ -84,9 +84,15 @@ export function svgDraftStageLabelKey(stage: SvgDraftStage | undefined): string 
  * Merge a processing update into the current draft state. A stage-only update
  * (empty draft) updates the stage but keeps the earlier picture; only the
  * `scripting` stage clears it, because a new script attempt has no picture yet.
+ * A draft without any shape never replaces a picture that has shapes.
  */
 export function mergeSvgDraft(prev: SvgDraftState, next: SvgDraftState): SvgDraftState {
-  if (next.draft || next.stage === 'scripting') return next;
+  if (next.stage === 'scripting') return next;
+  if (next.draft) {
+    // A new attempt starts with a header-only draft: keep the last picture until the new one has shapes.
+    if (hasDrawableSvg(next.draft) || !hasDrawableSvg(prev.draft)) return next;
+    return { draft: prev.draft, stage: next.stage ?? prev.stage, attempt: next.attempt ?? prev.attempt };
+  }
   if (!next.stage) return prev;
   return { draft: prev.draft, stage: next.stage, attempt: next.attempt ?? prev.attempt };
 }

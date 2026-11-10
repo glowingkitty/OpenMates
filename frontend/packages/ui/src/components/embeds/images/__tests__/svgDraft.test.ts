@@ -56,6 +56,15 @@ describe('svgDraft helpers', () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=images-generate.vector.progressive-drafts
+  it('keeps the last picture while a correction attempt has no shapes yet', () => {
+    const picture = { draft: '<svg><path d="M0 0"/></svg>', stage: 'checking' as const, attempt: 1 };
+    const header = { draft: '<svg viewBox="0 0 1 1">', stage: 'correcting' as const, attempt: 2 };
+    expect(mergeSvgDraft(picture, header)).toEqual({ draft: picture.draft, stage: 'correcting', attempt: 2 });
+    const redrawn = { draft: '<svg><rect width="1" height="1"/>', stage: 'correcting' as const, attempt: 2 };
+    expect(mergeSvgDraft(picture, redrawn)).toBe(redrawn);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=images-generate.vector.progressive-drafts
   it('accepts a processing draft of a child image embed for the parent card only', () => {
     const detail = { embed_id: 'child', parent_embed_id: 'card', status: 'processing', content: 'svg_draft: x' };
     expect(childDraftContent(detail, 'card')).toBe('svg_draft: x');

@@ -88,7 +88,7 @@ assertions:
     depends_on: [models.VectorAuthoring.sandbox, examples.script]
   - id: images-generate.vector.references-vector-and-pixel
     type: behavior
-    must: reference_images given with an llm or script vector request are handed to the author in their native form; an SVG reference (a generated vector graphic or an SVG code embed) as its source text to be modified in place, a script-made graphic always as its stored generator (the change is then made with the script engine whichever engine was asked for), a pixel image as an image to redraw or use as visual reference. Parts of an existing graphic that the request does not mention stay unchanged. An SVG too large to edit as source fails that attempt explicitly instead of being cut off.
+    must: reference_images given with an llm or script vector request are handed to the author in their native form; an SVG reference (a generated vector graphic or an SVG code embed) as its source text to be modified in place, a script-made graphic always as its stored generator (the change is then made with the script engine whichever engine was asked for), a pixel image as an image to redraw or use as visual reference. Parts of an existing graphic that the request does not mention stay unchanged. An SVG too large to edit as source fails that attempt explicitly instead of being cut off. A generated graphic stays readable as a reference for 24 hours after it was made, also after the chat stored it encrypted. When any named reference cannot be loaded the request fails explicitly without a charge; it is never drawn without its reference.
     depends_on: [models.VectorRequest.reference_images, examples.modify]
   - id: images-generate.vector.requirements-review
     type: behavior
