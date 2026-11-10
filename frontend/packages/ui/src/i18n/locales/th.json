@@ -7693,6 +7693,27 @@
     "slides_no_content": {
       "text": "ยังไม่มีสไลด์"
     },
+    "slides_present": {
+      "text": "นำเสนอ"
+    },
+    "slides_presenter_view": {
+      "text": "มุมมองผู้นำเสนอ"
+    },
+    "slides_exit_presentation": {
+      "text": "ออกจากการนำเสนอ"
+    },
+    "slides_popup_blocked": {
+      "text": "เบราว์เซอร์บล็อกหน้าต่างที่สอง จึงนำเสนอในหน้าต่างนี้แทน"
+    },
+    "slides_speaker_notes": {
+      "text": "บันทึกของผู้พูด"
+    },
+    "slides_no_notes": {
+      "text": "สไลด์นี้ไม่มีบันทึก"
+    },
+    "slides_timer_reset": {
+      "text": "รีเซ็ตตัวจับเวลา"
+    },
     "design": {
       "embroidery": {
         "threads": {

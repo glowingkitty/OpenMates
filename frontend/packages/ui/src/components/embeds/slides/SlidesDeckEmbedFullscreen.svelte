@@ -4,14 +4,17 @@
   Read-only fullscreen viewer of a slide deck embed: the current slide large, a
   strip of slide thumbnails, previous/next buttons and arrow keys (build steps
   advance before the slide changes) and the shared version timeline. While the
-  deck still streams only completed slides are shown. No editor, presenter view
-  or export yet (later phases of the slides-core plan).
+  deck still streams only completed slides are shown. Present starts a local
+  presentation (SlidesPresentation); no editor or export yet (later phases of the
+  slides-core plan).
 -->
 <script lang="ts">
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import EmbedVersionTimeline from '../shared/EmbedVersionTimeline.svelte';
   import EmbedChevron from '../EmbedChevron.svelte';
   import SlideCanvas from './SlideCanvas.svelte';
+  import SlidesPresentation from './SlidesPresentation.svelte';
+  import { newPresentSessionId, openAudienceWindow } from './slidesPresentation';
   import { inlineToPlainText, maxStep, parseSlidesMarkup } from './slidesMarkup';
   import { text } from '@repo/ui';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
@@ -102,7 +105,31 @@
     step = 0;
   }
 
+  /** Set while presenting; `popup` is the audience window in presenter mode. */
+  let presenting = $state<{ mode: 'single' | 'presenter'; sessionId: string; popup: Window | null } | null>(null);
+  let popupBlocked = $state(false);
+
+  function startPresenting() {
+    popupBlocked = false;
+    presenting = { mode: 'single', sessionId: '', popup: null };
+  }
+
+  /** Opens the audience window inside this click handler (popup blockers need the gesture). */
+  function startPresenterView() {
+    const sessionId = newPresentSessionId();
+    const popup = openAudienceWindow(sessionId);
+    popupBlocked = popup === null;
+    presenting = popup
+      ? { mode: 'presenter', sessionId, popup }
+      : { mode: 'single', sessionId: '', popup: null };
+  }
+
+  function stopPresenting() {
+    presenting = null;
+  }
+
   function onKeydown(event: KeyboardEvent) {
+    if (presenting) return;
     const target = event.target as HTMLElement | null;
     if (target && (target.isContentEditable || /^(input|textarea|select)$/i.test(target.tagName))) return;
     if (event.key === 'ArrowRight' || event.key === 'ArrowDown' || event.key === 'PageDown') {
@@ -225,6 +252,18 @@
           ><EmbedChevron direction="next" /></button>
         </div>
 
+        <div class="present-actions">
+          <button type="button" class="present-button primary" data-testid="slides-present" onclick={startPresenting}>
+            {$text('embeds.slides_present')}
+          </button>
+          <button type="button" class="present-button" data-testid="slides-present-presenter-view" onclick={startPresenterView}>
+            {$text('embeds.slides_presenter_view')}
+          </button>
+        </div>
+        {#if popupBlocked}
+          <p class="popup-blocked" role="status" data-testid="slides-popup-blocked">{$text('embeds.slides_popup_blocked')}</p>
+        {/if}
+
         <div class="strip" role="list" aria-label={$text('embeds.slides_strip_label')}>
           {#each slides as slide, position (slide.id)}
             <button
@@ -244,6 +283,18 @@
         </div>
       {:else}
         <div class="empty-state"><p>{$text('embeds.slides_no_content')}</p></div>
+      {/if}
+
+      {#if presenting && deck}
+        <SlidesPresentation
+          markup={markup}
+          startIndex={index}
+          mode={presenting.mode}
+          popup={presenting.popup}
+          sessionId={presenting.sessionId}
+          notice={popupBlocked ? $text('embeds.slides_popup_blocked') : ''}
+          onExit={stopPresenting}
+        />
       {/if}
 
       {#if embedId && versionNumber > 1}
@@ -324,6 +375,40 @@
     cursor: default;
   }
 
+  .present-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--spacing-4);
+  }
+
+  .present-button {
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: var(--spacing-3) var(--spacing-8);
+    border: 0;
+    border-radius: var(--radius-5);
+    background: var(--color-grey-0);
+    color: var(--color-font-primary);
+    box-shadow: 0 0 0 1px var(--color-grey-30);
+    font-size: var(--font-size-small);
+    cursor: pointer;
+  }
+
+  .present-button.primary {
+    background: var(--color-button-primary);
+    color: var(--color-grey-0);
+    box-shadow: none;
+  }
+
+  .popup-blocked {
+    margin: 0;
+    color: var(--color-font-secondary);
+    font-size: var(--font-size-small);
+    text-align: center;
+  }
+
   .strip {
     display: flex;
     gap: var(--spacing-4);
@@ -352,6 +437,8 @@
 
   .strip-item.active {
     border-color: var(--color-primary-start);
+    /* Clearly stronger than the focus ring a previously clicked thumbnail keeps. */
+    box-shadow: 0 0 0 2px var(--color-primary-start);
   }
 
   .strip-item :global(.slide-viewport) {

@@ -7693,6 +7693,27 @@
     "slides_no_content": {
       "text": "Nog geen dia's."
     },
+    "slides_present": {
+      "text": "Presenteren"
+    },
+    "slides_presenter_view": {
+      "text": "Presentatorweergave"
+    },
+    "slides_exit_presentation": {
+      "text": "Presentatie afsluiten"
+    },
+    "slides_popup_blocked": {
+      "text": "Je browser blokkeerde het tweede venster. De presentatie loopt in dit venster."
+    },
+    "slides_speaker_notes": {
+      "text": "Spreekernotities"
+    },
+    "slides_no_notes": {
+      "text": "Geen notities bij deze dia."
+    },
+    "slides_timer_reset": {
+      "text": "Timer resetten"
+    },
     "design": {
       "embroidery": {
         "threads": {

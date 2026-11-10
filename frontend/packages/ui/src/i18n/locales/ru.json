@@ -7693,6 +7693,27 @@
     "slides_no_content": {
       "text": "Слайдов пока нет."
     },
+    "slides_present": {
+      "text": "Показать"
+    },
+    "slides_presenter_view": {
+      "text": "Режим докладчика"
+    },
+    "slides_exit_presentation": {
+      "text": "Выйти из презентации"
+    },
+    "slides_popup_blocked": {
+      "text": "Браузер заблокировал второе окно. Презентация идёт в этом окне."
+    },
+    "slides_speaker_notes": {
+      "text": "Заметки докладчика"
+    },
+    "slides_no_notes": {
+      "text": "Для этого слайда нет заметок."
+    },
+    "slides_timer_reset": {
+      "text": "Сбросить таймер"
+    },
     "design": {
       "embroidery": {
         "threads": {

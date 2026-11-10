@@ -9265,6 +9265,27 @@
     "slides_no_content": {
       "text": "Noch keine Folien."
     },
+    "slides_present": {
+      "text": "Präsentieren"
+    },
+    "slides_presenter_view": {
+      "text": "Referentenansicht"
+    },
+    "slides_exit_presentation": {
+      "text": "Präsentation beenden"
+    },
+    "slides_popup_blocked": {
+      "text": "Dein Browser hat das zweite Fenster blockiert. Die Präsentation läuft stattdessen in diesem Fenster."
+    },
+    "slides_speaker_notes": {
+      "text": "Sprechernotizen"
+    },
+    "slides_no_notes": {
+      "text": "Keine Notizen für diese Folie."
+    },
+    "slides_timer_reset": {
+      "text": "Timer zurücksetzen"
+    },
     "design": {
       "embroidery": {
         "threads": {

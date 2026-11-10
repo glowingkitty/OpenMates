@@ -7693,6 +7693,27 @@
     "slides_no_content": {
       "text": "Chưa có trang chiếu nào."
     },
+    "slides_present": {
+      "text": "Trình chiếu"
+    },
+    "slides_presenter_view": {
+      "text": "Chế độ người trình bày"
+    },
+    "slides_exit_presentation": {
+      "text": "Thoát trình chiếu"
+    },
+    "slides_popup_blocked": {
+      "text": "Trình duyệt đã chặn cửa sổ thứ hai. Đang trình chiếu trong cửa sổ này."
+    },
+    "slides_speaker_notes": {
+      "text": "Ghi chú của người trình bày"
+    },
+    "slides_no_notes": {
+      "text": "Trang chiếu này không có ghi chú."
+    },
+    "slides_timer_reset": {
+      "text": "Đặt lại đồng hồ"
+    },
     "design": {
       "embroidery": {
         "threads": {

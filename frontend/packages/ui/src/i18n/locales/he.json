@@ -7693,6 +7693,27 @@
     "slides_no_content": {
       "text": "עדיין אין שקפים."
     },
+    "slides_present": {
+      "text": "הצג"
+    },
+    "slides_presenter_view": {
+      "text": "תצוגת מציג"
+    },
+    "slides_exit_presentation": {
+      "text": "צא מההצגה"
+    },
+    "slides_popup_blocked": {
+      "text": "הדפדפן חסם את החלון השני. ההצגה מתבצעת בחלון זה."
+    },
+    "slides_speaker_notes": {
+      "text": "הערות מרצה"
+    },
+    "slides_no_notes": {
+      "text": "אין הערות לשקף זה."
+    },
+    "slides_timer_reset": {
+      "text": "אפס טיימר"
+    },
     "design": {
       "embroidery": {
         "threads": {

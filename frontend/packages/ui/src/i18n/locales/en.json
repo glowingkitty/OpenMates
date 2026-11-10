@@ -9294,6 +9294,27 @@
     "slides_no_content": {
       "text": "No slides yet."
     },
+    "slides_present": {
+      "text": "Present"
+    },
+    "slides_presenter_view": {
+      "text": "Presenter view"
+    },
+    "slides_exit_presentation": {
+      "text": "Exit presentation"
+    },
+    "slides_popup_blocked": {
+      "text": "Your browser blocked the second window. Presenting in this window instead."
+    },
+    "slides_speaker_notes": {
+      "text": "Speaker notes"
+    },
+    "slides_no_notes": {
+      "text": "No notes for this slide."
+    },
+    "slides_timer_reset": {
+      "text": "Reset timer"
+    },
     "design": {
       "embroidery": {
         "threads": {

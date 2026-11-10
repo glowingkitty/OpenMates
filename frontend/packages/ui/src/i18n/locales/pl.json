@@ -7693,6 +7693,27 @@
     "slides_no_content": {
       "text": "Brak slajdów."
     },
+    "slides_present": {
+      "text": "Prezentuj"
+    },
+    "slides_presenter_view": {
+      "text": "Widok prezentera"
+    },
+    "slides_exit_presentation": {
+      "text": "Zakończ prezentację"
+    },
+    "slides_popup_blocked": {
+      "text": "Przeglądarka zablokowała drugie okno. Prezentacja trwa w tym oknie."
+    },
+    "slides_speaker_notes": {
+      "text": "Notatki prelegenta"
+    },
+    "slides_no_notes": {
+      "text": "Brak notatek do tego slajdu."
+    },
+    "slides_timer_reset": {
+      "text": "Zresetuj stoper"
+    },
     "design": {
       "embroidery": {
         "threads": {

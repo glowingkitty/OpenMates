@@ -7720,6 +7720,27 @@
     "slides_no_content": {
       "text": "Pas encore de diapositives."
     },
+    "slides_present": {
+      "text": "Présenter"
+    },
+    "slides_presenter_view": {
+      "text": "Vue présentateur"
+    },
+    "slides_exit_presentation": {
+      "text": "Quitter la présentation"
+    },
+    "slides_popup_blocked": {
+      "text": "Votre navigateur a bloqué la seconde fenêtre. La présentation se fait dans cette fenêtre."
+    },
+    "slides_speaker_notes": {
+      "text": "Notes du présentateur"
+    },
+    "slides_no_notes": {
+      "text": "Aucune note pour cette diapositive."
+    },
+    "slides_timer_reset": {
+      "text": "Réinitialiser le minuteur"
+    },
     "design": {
       "embroidery": {
         "threads": {

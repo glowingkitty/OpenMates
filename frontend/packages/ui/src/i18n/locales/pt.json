@@ -7720,6 +7720,27 @@
     "slides_no_content": {
       "text": "Ainda não há slides."
     },
+    "slides_present": {
+      "text": "Apresentar"
+    },
+    "slides_presenter_view": {
+      "text": "Visão do apresentador"
+    },
+    "slides_exit_presentation": {
+      "text": "Sair da apresentação"
+    },
+    "slides_popup_blocked": {
+      "text": "Seu navegador bloqueou a segunda janela. A apresentação será feita nesta janela."
+    },
+    "slides_speaker_notes": {
+      "text": "Notas do apresentador"
+    },
+    "slides_no_notes": {
+      "text": "Não há notas para este slide."
+    },
+    "slides_timer_reset": {
+      "text": "Reiniciar cronômetro"
+    },
     "design": {
       "embroidery": {
         "threads": {

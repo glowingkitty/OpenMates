@@ -61,6 +61,8 @@ pub mod assistant_speech;
 pub mod embed_version;
 pub mod embed_write;
 pub mod saved_embed;
+#[doc(hidden)]
+pub mod shared_items;
 mod saved_embed_selector;
 mod focus;
 mod incognito;

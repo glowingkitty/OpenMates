@@ -7693,6 +7693,27 @@
     "slides_no_content": {
       "text": "Inga bilder än."
     },
+    "slides_present": {
+      "text": "Presentera"
+    },
+    "slides_presenter_view": {
+      "text": "Presentatörsvy"
+    },
+    "slides_exit_presentation": {
+      "text": "Avsluta presentationen"
+    },
+    "slides_popup_blocked": {
+      "text": "Webbläsaren blockerade det andra fönstret. Presentationen visas i det här fönstret."
+    },
+    "slides_speaker_notes": {
+      "text": "Talarmanus"
+    },
+    "slides_no_notes": {
+      "text": "Inga anteckningar för den här bilden."
+    },
+    "slides_timer_reset": {
+      "text": "Nollställ timern"
+    },
     "design": {
       "embroidery": {
         "threads": {

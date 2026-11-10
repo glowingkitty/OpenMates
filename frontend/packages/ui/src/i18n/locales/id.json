@@ -7693,6 +7693,27 @@
     "slides_no_content": {
       "text": "Belum ada slide."
     },
+    "slides_present": {
+      "text": "Presentasikan"
+    },
+    "slides_presenter_view": {
+      "text": "Tampilan presenter"
+    },
+    "slides_exit_presentation": {
+      "text": "Keluar dari presentasi"
+    },
+    "slides_popup_blocked": {
+      "text": "Browser memblokir jendela kedua. Presentasi berjalan di jendela ini."
+    },
+    "slides_speaker_notes": {
+      "text": "Catatan presenter"
+    },
+    "slides_no_notes": {
+      "text": "Tidak ada catatan untuk slide ini."
+    },
+    "slides_timer_reset": {
+      "text": "Atur ulang timer"
+    },
     "design": {
       "embroidery": {
         "threads": {

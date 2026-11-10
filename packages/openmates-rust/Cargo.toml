@@ -47,6 +47,9 @@ unicode-normalization = "0.1"
 regex = "1"
 icu_collator = { version = "=2.3.1", default-features = false, features = ["compiled_data"] }
 icu_locale_core = { version = "=2.3.0", features = ["alloc"] }
+# Yjs v1 CRDT engine for live documents, sheets and decks (plan live-collaboration-crdt;
+# pinned: pre-1.0, upgrade deliberately).
+yrs = "=0.28.1"
 
 [dev-dependencies]
 tempfile = "3"

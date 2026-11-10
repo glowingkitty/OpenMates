@@ -7693,6 +7693,27 @@
     "slides_no_content": {
       "text": "まだスライドがありません。"
     },
+    "slides_present": {
+      "text": "プレゼン開始"
+    },
+    "slides_presenter_view": {
+      "text": "発表者ビュー"
+    },
+    "slides_exit_presentation": {
+      "text": "プレゼンを終了"
+    },
+    "slides_popup_blocked": {
+      "text": "ブラウザが2つ目のウィンドウをブロックしました。このウィンドウで発表します。"
+    },
+    "slides_speaker_notes": {
+      "text": "スピーカーノート"
+    },
+    "slides_no_notes": {
+      "text": "このスライドにノートはありません。"
+    },
+    "slides_timer_reset": {
+      "text": "タイマーをリセット"
+    },
     "design": {
       "embroidery": {
         "threads": {

@@ -15,12 +15,14 @@ export function sampleDeck(aspect: '16:9' | '16:10' | '4:3' = '16:9'): string {
     <text id="e3" role="title">Highlights</text>
     <text id="e4" role="body" animate="fade"><ul><li>Revenue up <b>18%</b></li><li>Two new regions</li><li>Churn <i>down</i></li></ul></text>
     <shape id="e5" kind="rect" fill="accent" x="120" y="220" w="400" h="12"/>
+    <notes>Stress the eighteen percent.</notes>
   </slide>
   <slide id="s3" layout="two-column">
     <text id="e6" role="title">Plan</text>
     <text id="e7" role="body">Build</text>
     <text id="e8" role="body" step="1" animate="appear">Launch</text>
     <video id="e9" src="youtube:abc123xyz" x="1000" y="600" w="600" h="338"/>
+    <notes>Mention the discount only if asked.</notes>
   </slide>
   <slide id="s4" layout="quote">
     <text id="e10" role="quote">Make it work, then make it right.</text>

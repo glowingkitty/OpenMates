@@ -7693,6 +7693,27 @@
     "slides_no_content": {
       "text": "아직 슬라이드가 없습니다."
     },
+    "slides_present": {
+      "text": "발표"
+    },
+    "slides_presenter_view": {
+      "text": "발표자 보기"
+    },
+    "slides_exit_presentation": {
+      "text": "발표 종료"
+    },
+    "slides_popup_blocked": {
+      "text": "브라우저가 두 번째 창을 차단했습니다. 이 창에서 발표합니다."
+    },
+    "slides_speaker_notes": {
+      "text": "발표자 노트"
+    },
+    "slides_no_notes": {
+      "text": "이 슬라이드에는 노트가 없습니다."
+    },
+    "slides_timer_reset": {
+      "text": "타이머 초기화"
+    },
     "design": {
       "embroidery": {
         "threads": {

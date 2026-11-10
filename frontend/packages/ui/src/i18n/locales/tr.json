@@ -7693,6 +7693,27 @@
     "slides_no_content": {
       "text": "Henüz slayt yok."
     },
+    "slides_present": {
+      "text": "Sun"
+    },
+    "slides_presenter_view": {
+      "text": "Sunucu görünümü"
+    },
+    "slides_exit_presentation": {
+      "text": "Sunumdan çık"
+    },
+    "slides_popup_blocked": {
+      "text": "Tarayıcınız ikinci pencereyi engelledi. Sunum bu pencerede yapılıyor."
+    },
+    "slides_speaker_notes": {
+      "text": "Konuşmacı notları"
+    },
+    "slides_no_notes": {
+      "text": "Bu slayt için not yok."
+    },
+    "slides_timer_reset": {
+      "text": "Zamanlayıcıyı sıfırla"
+    },
     "design": {
       "embroidery": {
         "threads": {

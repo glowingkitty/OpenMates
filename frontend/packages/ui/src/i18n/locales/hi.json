@@ -7693,6 +7693,27 @@
     "slides_no_content": {
       "text": "अभी कोई स्लाइड नहीं है।"
     },
+    "slides_present": {
+      "text": "प्रस्तुत करें"
+    },
+    "slides_presenter_view": {
+      "text": "प्रस्तुतकर्ता दृश्य"
+    },
+    "slides_exit_presentation": {
+      "text": "प्रस्तुति समाप्त करें"
+    },
+    "slides_popup_blocked": {
+      "text": "आपके ब्राउज़र ने दूसरी विंडो रोक दी। प्रस्तुति इसी विंडो में चल रही है।"
+    },
+    "slides_speaker_notes": {
+      "text": "वक्ता के नोट्स"
+    },
+    "slides_no_notes": {
+      "text": "इस स्लाइड के लिए कोई नोट नहीं है।"
+    },
+    "slides_timer_reset": {
+      "text": "टाइमर रीसेट करें"
+    },
     "design": {
       "embroidery": {
         "threads": {

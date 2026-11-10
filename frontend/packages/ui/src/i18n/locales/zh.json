@@ -7693,6 +7693,27 @@
     "slides_no_content": {
       "text": "还没有幻灯片。"
     },
+    "slides_present": {
+      "text": "演示"
+    },
+    "slides_presenter_view": {
+      "text": "演讲者视图"
+    },
+    "slides_exit_presentation": {
+      "text": "退出演示"
+    },
+    "slides_popup_blocked": {
+      "text": "你的浏览器拦截了第二个窗口，改为在此窗口中演示。"
+    },
+    "slides_speaker_notes": {
+      "text": "演讲者备注"
+    },
+    "slides_no_notes": {
+      "text": "这张幻灯片没有备注。"
+    },
+    "slides_timer_reset": {
+      "text": "重置计时器"
+    },
     "design": {
       "embroidery": {
         "threads": {

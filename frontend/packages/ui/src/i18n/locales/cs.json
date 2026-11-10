@@ -7693,6 +7693,27 @@
     "slides_no_content": {
       "text": "Zatím žádné snímky."
     },
+    "slides_present": {
+      "text": "Prezentovat"
+    },
+    "slides_presenter_view": {
+      "text": "Zobrazení přednášejícího"
+    },
+    "slides_exit_presentation": {
+      "text": "Ukončit prezentaci"
+    },
+    "slides_popup_blocked": {
+      "text": "Prohlížeč zablokoval druhé okno. Prezentace běží v tomto okně."
+    },
+    "slides_speaker_notes": {
+      "text": "Poznámky řečníka"
+    },
+    "slides_no_notes": {
+      "text": "K tomuto snímku nejsou poznámky."
+    },
+    "slides_timer_reset": {
+      "text": "Vynulovat časovač"
+    },
     "design": {
       "embroidery": {
         "threads": {

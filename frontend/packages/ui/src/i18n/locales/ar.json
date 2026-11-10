@@ -7693,6 +7693,27 @@
     "slides_no_content": {
       "text": "لا توجد شرائح بعد."
     },
+    "slides_present": {
+      "text": "عرض"
+    },
+    "slides_presenter_view": {
+      "text": "عرض المقدّم"
+    },
+    "slides_exit_presentation": {
+      "text": "إنهاء العرض"
+    },
+    "slides_popup_blocked": {
+      "text": "حظر المتصفح النافذة الثانية. يتم العرض في هذه النافذة."
+    },
+    "slides_speaker_notes": {
+      "text": "ملاحظات المقدّم"
+    },
+    "slides_no_notes": {
+      "text": "لا توجد ملاحظات لهذه الشريحة."
+    },
+    "slides_timer_reset": {
+      "text": "إعادة ضبط المؤقت"
+    },
     "design": {
       "embroidery": {
         "threads": {
