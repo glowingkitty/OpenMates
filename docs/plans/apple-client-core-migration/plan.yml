@@ -1,0 +1,228 @@
+schema_version: 2
+profile: concise
+id: apple-client-core-migration
+title: Apple Apps on the Shared Rust Client Core
+status: approved
+
+goal: >
+  (User request 2026-11-10.) Move the native Apple apps completely onto the shared
+  Rust client core (crate openmates-sdk) so that transport, sync, crypto, cache,
+  send, streaming and recovery run once in Rust off the main thread, Swift keeps
+  only UI, platform APIs and Keychain storage, and the Apple performance problems
+  (slow cold start, slow chat opening, main-thread stalls) are fixed. Verification
+  runs on GitHub macos-26 through the apple-core, apple-unit and apple-ui CI modes.
+  Performance is measured before and after with the same seeded encrypted fixture.
+
+parent: docs/plans/client-core-one-core-three-shells/plan.yml  # this Plan executes its Apple column (TASK-1, TASK-5..TASK-9) and refines it with the 2026-11-10 findings
+contract: specifications/architecture/client-core/specification.yml (draft)
+task: TASK-8258
+
+scope:
+  in:
+    - UniFFI binding crate packages/openmates-apple-bindings and the Swift package apple/OpenMatesCore.
+    - Core additions every shell needs and only the TUI has today (runtime ownership, encrypted cache behind a byte-store adapter, session restore, view-model actor with an update listener).
+    - Replacing the Swift implementations listed per step and deleting them in the same deploy.
+    - A seeded encrypted performance fixture and before/after measurements.
+    - Extending the apple-core CI lane to build the framework and the Swift package.
+  out:
+    - UI redesign or web parity work.
+    - Web shell flips (owned by the web Rust core chat).
+    - Passkey ceremony UI and other platform APIs (stay Swift).
+    - TestFlight release; real-account checks on the Mac are run only when the user asks or a step's done definition needs one.
+
+# ---------------------------------------------------------------------------
+# Findings 2026-11-10 that change the parent Plan's Apple tasks.
+# ---------------------------------------------------------------------------
+findings:
+  - id: F-1
+    text: >
+      The core has no shell-facing runtime. Client is `async fn(&mut self)` on an
+      ambient tokio runtime, exchanges tokio channels and serde_json::Value, and
+      has no storage root. The encrypted cache (envelope, AES-GCM/AAD, sections,
+      epochs, locks), session restore orchestration and the view-model actor live
+      in frontend/packages/openmates-tui-native (storage.rs, storage_sections.rs,
+      runtime_store.rs, session_runtime.rs, runtime.rs). Binding Apple to the core
+      as-is would force Swift to reimplement them, which the client-core rule forbids.
+    consequence: Step A2 lifts these into the core behind a byte-store trait before any Apple sync work; the TUI rebinds to the lifted code in the same lane (no twin).
+  - id: F-2
+    text: The core only has the OPAQUE receiver role (pairing.rs PairReceiver). Apple also uses the server and registration roles (approve another device, PairV2Runtime.swift) and derivePasswordV2 through PairOpaqueBridge.
+    consequence: Step A1 adds the missing OPAQUE roles to the core pairing module; only then is PairOpaqueBridge deleted.
+  - id: F-3
+    text: SyncManager.swift is dead code. The real phased-sync handling is in MainAppView.processSyncEvent and its helpers (about MainAppView.swift 6584-7330), plus ChatViewModel.loadSyncedChat and decryptMessagesForDisplay.
+    consequence: Step A4 moves that logic out of MainAppView/ChatViewModel; SyncManager.swift is deleted at once as dead code.
+  - id: F-4
+    text: >
+      Measured causes of slowness are all on the main actor: SwiftData reads and
+      writes on mainContext with one fetch per chat; every WebSocket frame hops to
+      the main actor, is JSON-decoded twice and is processed strictly serially;
+      metadata and message decrypt run field by field with actor hops and a
+      Keychain master-key read per chat. Recorded: about 17 s startup, 14.7 s
+      initial sync, 153 REST loads and 461 first paints in one cold process.
+    consequence: A3 (batched decrypt in the core, one call per batch, off main) gives the first measurable gain; A4 removes the rest.
+  - id: F-5
+    text: No CI test measures encrypted cold start or chat open. ChatOpeningScalabilityUITests uses plaintext fixtures and skips WebSocket, crypto and SwiftData.
+    consequence: Step A0 adds a seeded encrypted fixture and timing test that runs without secrets on macos-26.
+  - id: F-6
+    text: apple-core CI builds neither the app nor a framework and installs no aarch64-apple-ios target; uniffi is not yet a dependency; ClientIdentity has no Apple variant; the Apple crate must leave the workflow-yaml feature off.
+    consequence: Step A1 extends ci_apple.py and the workflow job, adds ClientIdentity::Apple.
+  - id: F-7
+    text: SwiftData stores plaintext columns (title, content, renderDocumentJSON, piiMappingsJSON) next to ciphertext.
+    consequence: A4 never migrates plaintext into the core cache; server content is re-synced, only local-only state (drafts, queued sends, checkpoints, last-opened chat) is migrated, and the SwiftData files are deleted after the check passes.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: The binding crate owns one multi-thread tokio runtime and one actor task that owns the Client. Swift sees async functions (UniFFI async) and one listener interface for updates; it hops to @MainActor once at the view-model boundary.
+  - id: D-2
+    status: active
+    decision: The core cache is persisted through a byte-store trait (get/put/delete/list of opaque keys and ciphertext). Apple implements it with files in the app group container (complete-until-first-unlock protection); the TUI implements it with its existing files. Schema, encryption, partitioning and fences are core code.
+  - id: D-3
+    status: active
+    decision: The Xcode build links one static library built per build for the active platform and architecture by a pre-build script phase (build-xcframework.sh --xcode-phase, pinned 1.98.1 toolchain), as the old pairing bridge did. The generated Swift, C header and modulemap are committed under apple/OpenMatesCore and compiled into the app targets; CI fails when they are stale (build-xcframework.sh --check-bindings). The xcframework is built only in CI to prove every slice compiles.
+  - id: D-4
+    status: active
+    decision: Watch stays on its Swift runtime until A7. In A1 the Watch target gets the framework's watchOS slices only for the pairing functions (same build-std recipe as today); if those slices cannot be built with the full core, the pairing functions are built from a minimal feature set of the binding crate.
+  - id: D-5
+    status: active
+    decision: Order is A0 baseline, A1 bridge, A2 core shell runtime, A3 crypto+keys+auth, A4 sync+cache+list+window, A5 send+stream+recovery, A6 remaining capabilities, A7 Watch. Each Apple step deletes the Swift it replaces.
+
+acceptance_criteria:
+  - id: AC-1
+    text: Each step deletes the Swift implementation it replaces in the same deploy (no flag, no fallback) and the parity tests of that subject.
+    required: true
+  - id: AC-2
+    text: apple-core, apple-unit and the step's apple-ui selectors are green on macos-26 for the exact deployed commit; rust-check and sdk-conformance are green for core changes.
+    required: true
+  - id: AC-3
+    text: The parent Plan's capability inventory (or docs/migration/rust/capabilities.yml once it exists) records the new Apple status with the commit.
+    required: true
+  - id: AC-4
+    text: The seeded encrypted performance test reports cold load, chat-list decrypt and chat-open timings on macos-26; after A3 and A4 the numbers are recorded next to the A0 baseline and are not worse.
+    required: true
+  - id: AC-5
+    text: No unsynced local state is lost in A4 (seeded SwiftData store with a draft, a queued send and a recovery checkpoint migrates; XCTest proves it).
+    required: true
+
+verifications:
+  - id: V-RUST
+    kind: command
+    covers: [AC-2]
+    command: ci_coordinator.py submit --mode rust-check and --mode sdk-conformance via sessions.py ci-source, then ci_coordinator.py wait
+  - id: V-APPLE
+    kind: command
+    covers: [AC-2]
+    command: ci_coordinator.py submit --mode apple-core --spec all; --mode apple-unit --spec OpenMatesTests[/<Class>]; --mode apple-ui --spec OpenMatesUITests/<Class>
+  - id: V-PERF
+    kind: command
+    covers: [AC-4]
+    command: ci_coordinator.py submit --mode apple-unit --spec OpenMatesTests/NativeEncryptedSyncPerformanceTests; timings are read from the job log lines starting with APPLE_PERF
+  - id: V-DELETE
+    kind: command
+    covers: [AC-1]
+    command: git grep for each deleted type name returns nothing outside comments
+
+tasks:
+  - id: A0
+    title: Performance baseline - seeded encrypted fixture and timing test
+    create:
+      - apple/OpenMatesTests/NativeEncryptedSyncPerformanceTests.swift (600 chats with encrypted title/summary/category and wrapped chat keys, one chat with 1000 encrypted messages; measures key bulk load, chat-list metadata decrypt, SwiftData persist, cold load from disk, chat open of a 50-message window; prints APPLE_PERF name=<phase> ms=<n> n=<count>)
+    note: Uses the current Swift path (ChatKeyManager, CryptoManager, OfflineStore, ChatStore). No timing assertions beyond a generous ceiling; the numbers are the product. The same fixture later drives the core path.
+    done: The test runs green in apple-unit on macos-26 and the baseline numbers are recorded in results.md of this Plan.
+  - id: A1
+    title: Bridge - openmates-apple-bindings, OpenMatesCore, PairOpaqueBridge retired (parent TASK-1)
+    create:
+      - packages/openmates-apple-bindings (workspace member, staticlib + lib, UniFFI proc macros, owns the runtime; surface - version, async probe, credential snapshot emit/ack with an in-memory store, password v2 derivation, OPAQUE operations)
+      - packages/openmates-apple-bindings/build-xcframework.sh
+      - apple/OpenMatesCore (Swift package - binaryTarget plus the generated Swift)
+      - apple/OpenMatesTests/OpenMatesCoreBridgeTests.swift (version, async delivery off main with result applied on MainActor, cancellation, credential round trip, OPAQUE register/login round trip, password v2 vector)
+    change:
+      - packages/openmates-rust/src/pairing.rs gains the server and registration OPAQUE roles now in apple/PairOpaqueBridge/src/lib.rs, with tests ported from it and its interop vectors
+      - ClientIdentity::Apple
+      - apple/project.yml - OpenMatesCore package for OpenMates and OpenMatesWatch, pre-build script building the framework; PairOpaque.swift calls OpenMatesCore
+      - scripts/ci_apple.py and the workflow apple job - build the xcframework, swift test, device target
+    delete: apple/PairOpaqueBridge and its script phases, linker flags and workspace exclusion
+    done: apple-core and apple-unit green; framework size and app size delta recorded; Watch builds (D-4).
+  - id: A2
+    title: Core shell runtime (Rust; unblocks every later Apple step)
+    split:
+      - (a) byte-store trait and core-owned encrypted cache, lifted from tui-native storage.rs/storage_sections.rs/runtime_store.rs; TUI rebinds
+      - (b) session restore and credential persistence orchestration, lifted from tui-native session_runtime.rs; TUI rebinds
+      - (c) view-model actor - commands in, typed updates out (chat list, chat window, stream events, sync phase progress), lifted from tui-native runtime.rs Actor/Request/Reply; TUI rebinds
+    done: TUI suite, rust-check and sdk-conformance green; tui-native no longer contains cache policy or the lifted orchestration; the binding crate exposes the actor over UniFFI with a listener.
+  - id: A3
+    title: Crypto, keys and auth session through the core (parent TASK-5)
+    delete: CryptoManager.swift, ChatKeyManager.swift, ChatRecoveryV2Envelope.swift, ShareLinkCrypto.swift, crypto in NotificationPreviewCrypto.swift, PasswordV2Keys logic, the matching parity tests
+    note: Batched calls only (one call decrypts a list of chats or a message window). Measure the notification service extension's peak memory with the framework linked. KeychainHelper stays and stores the credential snapshot.
+    done: AC-1..AC-4 for crypto-keys and auth-session.
+  - id: A4
+    title: Sync, cache, chat list and chat window in the core - the performance fix (parent TASK-6)
+    split:
+      - (a) transport and phased sync - WebSocketManager routing, MainAppView.processSyncEvent and helpers, SyncManager.swift (dead) deleted
+      - (b) cache - OfflineStore, ChatStore persistence, OfflineSyncBridge, NativeWorkspaceOfflineCache replaced by the byte-store adapter; local-only state migrated (AC-5)
+      - (c) chat list and chat window view models bound in MainAppView and ChatViewModel; ChatMessageWindowClient deleted
+    done: AC-1..AC-5; cold start to usable chat list and chat open faster than the A0 baseline; ChatOpeningScalabilityUITests green.
+  - id: A5
+    title: Send, streaming and completion recovery (parent TASK-7)
+    done: AC-1..AC-3; BackgroundChatSender, StreamingClient, the recovery coordinators and queues deleted; share extension and background entry points call the core.
+  - id: A6
+    title: Remaining capabilities, one lane each (parent TASK-8)
+    split: [drafts, search, settings, projects-tasks-teams, embeds, transfer, composer-parse, apps-skills, anonymous-public-chats]
+    done: AC-1..AC-3 per capability.
+  - id: A7
+    title: Watch runtime onto the core (parent TASK-9)
+    done: WatchChatRuntime logic deleted and Watch UI tests green, or the user accepts keeping Watch on Swift with a recorded reason.
+
+risks:
+  - id: R-1
+    risk: A2 touches tui-native and core files that other running chats edit.
+    mitigation: Additive core modules first; the TUI rebinding is a small, late change per lane, deployed quickly; check agent_peers before each lane.
+  - id: R-2
+    risk: Each Apple verification needs a macos-26 CI run (20-60 minutes); no local Apple build exists on the dev server.
+    mitigation: Compile and test the binding crate on Linux first (cargo check/test through heavy_slot); batch Swift changes per CI run.
+  - id: R-3
+    risk: The full core may not build for watchOS arm64_32 (ring, mio).
+    mitigation: D-4.
+  - id: R-4
+    risk: Binary size and extension memory with the full core linked.
+    mitigation: Record size in A1; measure the notification extension in A3; a reduced feature set for extensions if needed.
+  - id: R-5
+    risk: Data loss when SwiftData is retired.
+    mitigation: AC-5 and client-core.cache.safe-store-retirement.
+
+# ---------------------------------------------------------------------------
+# Status and resume notes (2026-11-10, session fe65, TASK-8258). Only this Plan
+# folder is deployed. All code below is uncommitted in the worktree
+# .openmates-agent-worktrees/agent-fe65; resume there (managed worktrees
+# inactive for more than 7 days may be cleaned up).
+# ---------------------------------------------------------------------------
+progress:
+  A0:
+    state: verified in CI, not deployed
+    evidence: apple-unit job 4d080f3d (run 42850250569) green; numbers in results.md
+    files: [apple/OpenMatesTests/NativeEncryptedSyncPerformanceTests.swift, apple/OpenMates.xcodeproj/project.pbxproj (registration; the same file carries the A1 edits, so it deploys with A1)]
+    follow_up: The isolated crypto and storage phases cost a few seconds, not the recorded 14-17 s. A4 needs an end-to-end cold-start measurement (seeded sync fed through the pipeline) in addition.
+  A1_rust:
+    state: done, Rust tests green on Linux (12 binding tests, 10 pairing tests), no CI run yet
+    files: [packages/openmates-apple-bindings/, packages/openmates-rust/src/pairing.rs, packages/openmates-rust/src/pairing/, packages/openmates-rust/tests/crypto_fixtures/pairing_v2_authorizer.json, packages/openmates-rust/src/client.rs (ClientIdentity::Apple), config/sdk-capabilities.json, Cargo.toml, Cargo.lock]
+    notes:
+      - UniFFI 0.32.2 Swift does not forward Task cancellation; Swift passes a CoreCancellation handle inside withTaskCancellationHandler.
+      - Never run `cargo fmt -p openmates-sdk` (it reformats about 485 untouched files); use rustfmt on touched files.
+      - PairV2Context, PairV2Crypto (bundle seal/open) and PasswordV2Keys.proof are still Swift; they move in A3.
+  A1_apple:
+    state: partly done, never compiled, no CI run
+    done:
+      - apple/project.yml and project.pbxproj switched to the "Build OpenMatesCore" phase, link flags and include path; generated bindings added to iOS, macOS and Watch sources
+      - PairOpaque.swift and PairV2Runtime.swift call the generated functions
+      - apple/OpenMatesCore/ (README, generated Swift, header, modulemap); apple/OpenMatesTests/OpenMatesCoreBridgeTests.swift (7 tests)
+      - build-xcframework.sh has --xcode-phase, --watch, --check-bindings, --update-bindings; bindings check passes
+      - docs in apple/AGENTS.md, apple/CLAUDE.md, .claude/rules/client-core.md
+    remaining_in_order:
+      - scripts/code_quality_guard.py exemption (800-line limit and the TODO check) for apple/OpenMatesCore/Sources/OpenMatesCore/OpenMatesCore.swift, with its test
+      - delete apple/PairOpaqueBridge/ and the root Cargo.toml exclude; fix scripts/apple_testflight_release.py SOURCE_INPUTS, scripts/security_monitoring/inventory.py line 53, apple/LocalModelBridge/test_prepare.py, docs/architecture/isolated-github-tests.md and their tests; gitignore .tmp/apple-core-cargo and .tmp/apple-core-rustup; git grep for pairopaquebridge and openmates_pair_opaque returns nothing
+      - scripts/ci_apple.py, the apple job in .github/workflows/isolated-tests.yml and scripts/tests/test_ci_apple.py (apple-core - toolchain 1.98.1 with ios, ios-sim, darwin and watch targets, cargo test for openmates-sdk and openmates-apple-bindings, build-xcframework.sh --watch as its own step, --check-bindings; apple-unit and apple-ui - Rust available to the script phase, cache paths renamed)
+      - pytest for the touched scripts, YAML validity, plan_validate
+      - sessions.py ci-source, then submit apple-core (all), apple-unit (OpenMatesCoreBridgeTests, PasswordV2KDFTests, WatchPairLoginRuntimeTests, NativeEncryptedSyncPerformanceTests) and rust-check; fix what fails; record framework and app size
+      - deploy A0 and A1 together; update the parent Plan inventory note
+    unproven: [Watch arm64_32 build of the full core (fallback - minimal pairing crate for the Watch), macOS symbol localization next to Tokenizers, Swift 6 compile of the generated file and the new tests, linking]
+  A2_to_A7:
+    state: not started
