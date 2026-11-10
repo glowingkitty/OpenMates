@@ -59,3 +59,19 @@ export function mergeSvgDraft(prev: SvgDraftState, next: SvgDraftState): SvgDraf
 export function shouldShowDraftStatusOnly(status: string, draft: string, stage: SvgDraftStage | undefined): boolean {
   return status === 'processing' && draft.trim().length === 0 && svgDraftStageLabelKey(stage) !== null;
 }
+
+/**
+ * Plain TOON content of a live draft that belongs to this card, or null.
+ *
+ * Drafts are sent as `processing` updates of the child image embed, while the
+ * card on screen is its parent skill placeholder, so the card accepts updates
+ * addressed to itself or to one of its children.
+ */
+export function childDraftContent(
+  detail: { embed_id?: unknown; parent_embed_id?: unknown; status?: unknown; content?: unknown } | null | undefined,
+  cardEmbedId: string,
+): string | null {
+  if (!detail || detail.status !== 'processing' || !cardEmbedId) return null;
+  if (detail.parent_embed_id !== cardEmbedId || detail.embed_id === cardEmbedId) return null;
+  return typeof detail.content === 'string' && detail.content.length > 0 ? detail.content : null;
+}

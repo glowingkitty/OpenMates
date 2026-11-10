@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mergeSvgDraft, readSvgDraft, shouldShowSvgDraft, svgDraftStageLabelKey } from '../svgDraft';
+import { childDraftContent, mergeSvgDraft, readSvgDraft, shouldShowSvgDraft, svgDraftStageLabelKey } from '../svgDraft';
 
 describe('svgDraft helpers', () => {
   // contract-test: supporting surface=gui.web assertions=images-generate.vector.progressive-drafts
@@ -50,5 +50,15 @@ describe('svgDraft helpers', () => {
     });
     expect(mergeSvgDraft(prev, { draft: '', stage: undefined, attempt: undefined })).toBe(prev);
     expect(mergeSvgDraft(prev, { draft: '<svg><g/>', stage: 'drawing', attempt: 1 }).draft).toBe('<svg><g/>');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=images-generate.vector.progressive-drafts
+  it('accepts a processing draft of a child image embed for the parent card only', () => {
+    const detail = { embed_id: 'child', parent_embed_id: 'card', status: 'processing', content: 'svg_draft: x' };
+    expect(childDraftContent(detail, 'card')).toBe('svg_draft: x');
+    expect(childDraftContent(detail, 'other-card')).toBeNull();
+    expect(childDraftContent({ ...detail, status: 'finished' }, 'card')).toBeNull();
+    expect(childDraftContent({ ...detail, content: '' }, 'card')).toBeNull();
+    expect(childDraftContent({ ...detail, embed_id: 'card' }, 'card')).toBeNull();
   });
 });
