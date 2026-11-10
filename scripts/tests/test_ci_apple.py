@@ -47,3 +47,5 @@ def test_apple_unit_plan_selects_only_the_unit_target():
     assert "-parallel-testing-enabled" not in command
     assert "/out/OpenMatesTests.xcresult" in command
     assert "ENABLE_USER_SCRIPT_SANDBOXING=NO" in command
+    assert command[command.index("-test-timeouts-enabled") + 1] == "YES"
+    assert command[command.index("-maximum-test-execution-time-allowance") + 1] == "300"

@@ -34,6 +34,7 @@ UNIT_TARGET = "OpenMatesTests"
 UNIT_SPEC = re.compile(r"OpenMatesTests(?:/[A-Za-z_][A-Za-z0-9_]*){0,2}")
 UI_SPEC = re.compile(r"OpenMatesUITests(?:/[A-Za-z_][A-Za-z0-9_]*){1,2}")
 MAX_UI_SPECS = 40
+TEST_ALLOWANCE_SECONDS = 300  # per test; the longest real UI flow waits about 90 s
 XCODE_MODES = ("apple-unit", "apple-ui")
 RESULT_BUNDLES = {"apple-unit": "OpenMatesTests.xcresult", "apple-ui": "OpenMatesUITests.xcresult"}
 RUST_TEST_FLAGS = ["--locked", "--lib", "--bins", "--tests"]
@@ -127,6 +128,13 @@ def xcode_plan(mode: str, results: Path, specs: list[str]) -> list[Step]:
         "-clonedSourcePackagesDirPath", str(results / "SourcePackages"),
         "-resultBundlePath", str(results / RESULT_BUNDLES[mode]),
         "-skipPackagePluginValidation", "-skipMacroValidation",
+    ]
+    # A test that never returns (for example audio playback without an output device on the
+    # runner) is failed after its allowance instead of stalling the lane until the job timeout.
+    command += [
+        "-test-timeouts-enabled", "YES",
+        "-default-test-execution-time-allowance", str(TEST_ALLOWANCE_SECONDS),
+        "-maximum-test-execution-time-allowance", str(TEST_ALLOWANCE_SECONDS),
     ]
     if mode == "apple-ui":
         # One simulator, one test at a time: UI tests share the app's on-device state.

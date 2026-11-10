@@ -68,6 +68,8 @@ accounts or runtime seeds, and are not lightweight (macOS runners are scarce, ab
   on `iPhone 17` limited to `-only-testing OpenMatesTests`, unsigned. The
   committed `OpenMates.xcodeproj` is used as is (no xcodegen). The `.xcresult`
   bundle is uploaded with the result artifact. XCUITests are never run here.
+  Each test has a 300 s allowance (`-test-timeouts-enabled`), so a hung test fails
+  instead of stalling the lane; the same applies to `apple-ui`.
 - `apple-ui --spec OpenMatesUITests/<Class>[/<test>]` (one or more, never `all`):
   the same generated inputs, then `xcodebuild test` of exactly those XCUITests on
   `iPhone 17`, serially. The app is the Debug build, so tests that reach a server
