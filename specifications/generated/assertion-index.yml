@@ -92764,7 +92764,7 @@ assertions:
       surface: gui.web
     - &id11739
       path: frontend/apps/web_app/tests/web-rust-core-sync.spec.ts
-      line: 43
+      line: 44
       name: phased sync decisions run on the shared Rust sync unit and existing chats
         still sync and decrypt
       surface: gui.web
@@ -193289,7 +193289,7 @@ assertions:
       surface: gui.web
     - &id24563
       path: frontend/apps/web_app/tests/web-rust-core-sync.spec.ts
-      line: 43
+      line: 44
       name: phased sync decisions run on the shared Rust sync unit and existing chats
         still sync and decrypt
       surface: gui.web
@@ -194612,7 +194612,7 @@ assertions:
       surface: gui.web
     - &id24742
       path: frontend/apps/web_app/tests/web-rust-core-sync.spec.ts
-      line: 43
+      line: 44
       name: phased sync decisions run on the shared Rust sync unit and existing chats
         still sync and decrypt
       surface: gui.web

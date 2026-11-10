@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- Playwright helpers expose CommonJS exports. */
+// proof-video: not_required reason=visual_smoke_not_needed (sync policy parity; the UI is unchanged, the Playwright video is kept)
 /**
  * Opt-in shared Rust core (WASM) — web chat-sync decision policy on the shared
  * Worker `sync` unit, VITE_OPENMATES_RUST_CORE=1 build.
@@ -49,10 +50,36 @@ test('phased sync decisions run on the shared Rust sync unit and existing chats 
 	const syncErrors: string[] = [];
 	page.on('console', (msg: any) => {
 		const text = msg.text();
-		if (/\[ChatSyncService\].*(Error|Failed)|sync_merge_unsettled|UnitPortError/.test(text)) syncErrors.push(text.slice(0, 300));
+		if (/\[ChatSyncService\].*(Error|Failed)|sync_merge_unsettled|UnitPortError|DataCloneError/.test(text)) syncErrors.push(text.slice(0, 300));
 	});
+	// A request the page cannot post to the shared Worker (for example reactive state passed
+	// uncopied) surfaces as an uncaught DataCloneError, not as a console line.
+	page.on('pageerror', (error: Error) => {
+		if (/DataCloneError|could not be cloned/.test(String(error))) syncErrors.push(String(error).slice(0, 300));
+	});
+	let phasedSyncRequests = 0;
+	page.on('websocket', (socket: any) => socket.on('framesent', (frame: any) => {
+		try {
+			if (JSON.parse(String(frame.payload)).type === 'phased_sync_request') phasedSyncRequests += 1;
+		} catch {
+			// Ignore non-protocol frames.
+		}
+	}));
 	await page.goto(getE2EDebugUrl('/'));
 	await loginToTestAccount(page, log, screenshot);
+
+	// A fresh login puts the account owner in the profile before auth flips, so the work that
+	// starts on that transition runs for the right owner: the first account sync is requested
+	// (not silently dropped) and the Rust core session is admitted instead of refused. Admission is
+	// the local session (no server call) or, when that is not possible, the server-checked one.
+	await expect.poll(() => phasedSyncRequests, { timeout: 30000, message: 'the first account sync is requested after a fresh login' }).toBeGreaterThanOrEqual(1);
+	const rustMarks = (pattern: string) => page.evaluate((source: string) => performance.getEntriesByType('mark')
+		.filter((mark) => mark.name.startsWith('openmates:rust:')).map((mark) => mark.name.slice('openmates:rust:'.length))
+		.filter((stage) => new RegExp(source).test(stage)), pattern);
+	await expect.poll(() => rustMarks('session-'), { timeout: 30000, message: 'the Rust core session is admitted on a fresh login' })
+		.toEqual(expect.arrayContaining([expect.stringMatching(/^(local-)?session-ready$/)]));
+	expect(await rustMarks('^session-failed-'), 'no refused Rust core admission after a fresh login').toEqual([]);
+
 	await sendMessage(page, withMockMarker('Please explain how photosynthesis works in detail.', 'chat_flow_capital', 'fast'), log, screenshot, 'sync-send');
 	const chatIdOf = () => page.url().match(/chat-id=([a-f0-9-]{36})/)?.[1] ?? null;
 	await expect.poll(chatIdOf, { timeout: 30000 }).not.toBeNull();
@@ -63,6 +90,15 @@ test('phased sync decisions run on the shared Rust sync unit and existing chats 
 	// frame check runs on the sync unit.
 	await expect.poll(() => page.evaluate(() => (window as any).__openmatesRustSyncStats?.()?.ops?.recoveryContextFrame ?? 0),
 		{ message: 'admission context frame check decided by the Rust sync unit', timeout: 30000 }).toBeGreaterThan(0);
+	// The login Worker may be retired while no account is bound yet (idle after the password step).
+	// Once the account is admitted the shared core keeps its Worker: a retirement after that point
+	// would fail the crypto and core calls the page has in flight.
+	const retiredAfterAdmission = await page.evaluate(() => {
+		const marks = performance.getEntriesByType('mark').filter((mark) => mark.name.startsWith('openmates:rust:'));
+		const admitted = marks.find((mark) => /:(local-)?session-ready$/.test(mark.name));
+		return marks.filter((mark) => mark.name.endsWith(':auth-realm-retired') && admitted !== undefined && mark.startTime > admitted.startTime).length;
+	});
+	expect(retiredAfterAdmission, 'the shared core is not shut down after the account was admitted').toBe(0);
 
 	const samples: Record<'ts' | 'rust', Record<string, unknown>[]> = { ts: [], rust: [] };
 	try {
