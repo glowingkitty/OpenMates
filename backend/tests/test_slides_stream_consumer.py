@@ -98,3 +98,61 @@ async def test_unified_diff_changes_one_slide_and_deck_is_renormalised() -> None
     assert 'src="embed:revenue-chart"' in markup  # untouched slide kept as is
     assert service.updated.slide_count == 2
     assert normalise_slides_markup(markup).markup == markup
+
+
+class _PassThroughEncryption:
+    async def encrypt_with_user_key(self, plaintext: str, _key_id: str):
+        return f"encrypted:{len(plaintext)}", "v1"
+
+
+class _DeckServiceHost:
+    """Minimal EmbedService stand-in recording what the deck mixin sends to clients."""
+
+    def __init__(self) -> None:
+        self.sent = []
+        self.cache = {}
+        self.encryption_service = _PassThroughEncryption()
+
+    async def update_deck_embed_content(self, **kwargs) -> bool:
+        from backend.core.api.app.services.slides_embed_service import SlidesEmbedMixin
+
+        return await SlidesEmbedMixin.update_deck_embed_content(self, **kwargs)
+
+    def _generate_direct_embed_ref(self, *_args) -> str:
+        return "q3-results-AbC"
+
+    async def _cache_embed(self, embed_id, data, *_args) -> None:
+        self.cache[embed_id] = data
+
+    async def _get_cached_embed(self, embed_id, *_args):
+        return self.cache.get(embed_id)
+
+    async def _get_cached_embed_toon(self, *_args):
+        return None
+
+    def _schedule_embed_persistence_fallback(self, _embed_id) -> None:
+        return None
+
+    async def send_embed_data_to_client(self, **kwargs) -> None:
+        self.sent.append(kwargs)
+
+
+# contract-test: direct surface=rest_api assertions=slides.assistant.create-and-diff-edit
+@pytest.mark.anyio
+async def test_new_deck_is_sent_with_catalog_identity_and_a_version_one_snapshot() -> None:
+    from backend.core.api.app.services.slides_embed_service import SlidesEmbedMixin
+
+    host = _DeckServiceHost()
+    deck = normalise_slides_markup(VALID)
+    result = await SlidesEmbedMixin.create_deck_embed(
+        host, chat_id="chat-1", message_id="message-1", user_id="user-1",
+        user_id_hash="hash-1", user_vault_key_id="vault-1", deck=deck,
+    )
+    assert result is not None
+    assert [event["status"] for event in host.sent] == ["processing", "finished"]
+    for event in host.sent:
+        # Clients reject a chat embed head without its app and skill identity.
+        assert (event["app_id"], event["skill_id"], event["version_number"]) == ("slides", "deck", 1)
+    finished = host.sent[-1]
+    assert finished["content_hash"]
+    assert [(row["version_number"], row["snapshot"]) for row in finished["version_history_rows"]] == [(1, deck.markup)]

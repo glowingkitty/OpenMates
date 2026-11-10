@@ -20,7 +20,9 @@ from backend.shared.python_utils.slides_markup import NormalisedDeck
 logger = logging.getLogger(__name__)
 
 
-def deck_embed_content(deck: NormalisedDeck, embed_ref: Optional[str], status: str) -> Dict[str, Any]:
+def deck_embed_content(
+    deck: NormalisedDeck, embed_ref: Optional[str], status: str, version_number: int = 1
+) -> Dict[str, Any]:
     """Stored/streamed TOON payload for a deck embed."""
     return {
         "type": "deck",
@@ -32,6 +34,8 @@ def deck_embed_content(deck: NormalisedDeck, embed_ref: Optional[str], status: s
         "aspect": deck.aspect,
         "embed_ref": embed_ref,
         "status": status,
+        "schema_version": 1,
+        "version_number": version_number,
     }
 
 
@@ -83,7 +87,8 @@ class SlidesEmbedMixin:
             embed_id=embed_id, embed_type="deck", content_toon=placeholder_toon,
             chat_id=chat_id, message_id=message_id, user_id=user_id,
             user_id_hash=user_id_hash, status="processing", task_id=task_id,
-            is_private=False, is_shared=False, created_at=now, updated_at=now,
+            is_private=False, is_shared=False, version_number=1,
+            created_at=now, updated_at=now, app_id="slides", skill_id="deck",
             log_prefix=log_prefix,
         )
         updated = await self.update_deck_embed_content(
@@ -123,18 +128,30 @@ class SlidesEmbedMixin:
             existing_ref = (decode(existing_toon) or {}).get("embed_ref")
         embed_ref = existing_ref or self._generate_direct_embed_ref("deck", embed_id, {"title": deck.title})
 
-        updated_toon = encode(deck_embed_content(deck, embed_ref, status))
+        # Same version contract as the other diff-editable direct embeds: the head
+        # always carries a version number and content hash, and version 1 is
+        # recorded as a snapshot so the timeline and later diffs have a base.
+        next_version = version_number or int(cached_embed.get("version_number") or 1)
+        if content_hash is None and status == "finished":
+            content_hash = hashlib.sha256(deck.markup.encode("utf-8")).hexdigest()
+        if status == "finished" and next_version == 1 and not version_history_rows:
+            version_history_rows = [{
+                "embed_id": embed_id, "version_number": 1,
+                "snapshot": deck.markup, "created_at": int(datetime.now().timestamp()),
+            }]
+
+        updated_toon = encode(deck_embed_content(deck, embed_ref, status, next_version))
         encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
             updated_toon, user_vault_key_id
         )
         updated_embed_data = {
             **cached_embed,
             "encrypted_content": encrypted_content,
+            "type": "deck",
             "status": status,
+            "version_number": next_version,
             "updated_at": int(datetime.now().timestamp()),
         }
-        if version_number is not None:
-            updated_embed_data["version_number"] = version_number
         if content_hash is not None:
             updated_embed_data["content_hash"] = content_hash
 
@@ -145,8 +162,9 @@ class SlidesEmbedMixin:
             task_id=cached_embed.get("hashed_task_id"),
             is_private=cached_embed.get("is_private", False),
             is_shared=cached_embed.get("is_shared", False),
-            version_number=version_number, content_hash=content_hash,
+            version_number=next_version, content_hash=content_hash,
             version_history_rows=version_history_rows,
+            app_id="slides", skill_id="deck",
             created_at=cached_embed.get("created_at"),
             updated_at=updated_embed_data["updated_at"], log_prefix=log_prefix,
             check_cache_status=False,
