@@ -1878,7 +1878,7 @@ async def _recover_jev_preprocessing(
 async def _select_main_model(
     llm_analysis_args: Dict[str, Any], request_data: AskSkillRequest,
     skill_config: AskSkillDefaultConfig, user_overrides: Optional[UserOverrides],
-    log_prefix: str,
+    log_prefix: str, selected_app_ids: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """Resolve the answer model once from the public first-stage decisions."""
     raw_complexity = llm_analysis_args.get("complexity")
@@ -2205,7 +2205,7 @@ async def _select_main_model(
             if model_id == MERCURY_MODEL:
                 if has_image_upload_embed or history_requires_non_text(request_data.message_history):
                     continue
-                if selects_media_generation(llm_analysis_args.get("relevant_app_skills")):
+                if selects_media_generation(selected_app_ids, llm_analysis_args.get("relevant_app_skills")):
                     continue
                 # Avoid a known unavailable primary without a provider call.
                 # Recovery attempts recheck health at the dispatch boundary.
@@ -2674,7 +2674,10 @@ async def handle_preprocessing(
                         available_category_ids=[mate.category for mate in mates],
                     ) or "general_knowledge"
                     selected_mate = selected_mate or next((mate for mate in mates if mate.category == category), None)
-                    model = await _select_main_model(decisions, request_data, skill_config, user_overrides, log_prefix)
+                    model = await _select_main_model(
+                        decisions, request_data, skill_config, user_overrides, log_prefix,
+                        selected_app_ids=routing_result.get("selected_app_ids"),
+                    )
                     project_early_feedback.update(
                         category=category, mate_id=selected_mate.id if selected_mate else None,
                         model_id=model["selected_llm_for_main_id"], model_name=model["selected_llm_for_main_name"],
@@ -3220,6 +3223,7 @@ async def handle_preprocessing(
             early_decisions = early_routing["early_decisions"]
             early_model_selection = await _select_main_model(
                 early_decisions, request_data, skill_config, user_overrides, log_prefix,
+                selected_app_ids=selected_app_ids,
             )
             if explicit_mate:
                 early_category = explicit_mate.category
