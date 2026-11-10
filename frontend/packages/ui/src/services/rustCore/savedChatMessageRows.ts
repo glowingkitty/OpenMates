@@ -13,7 +13,7 @@ import type { LocalChatReadback, SavedChatReadback, SavedReadCursor } from "./sa
 
 /** Fixed refusal codes. Log these only; never content or identifiers. */
 export type RustHistoryRefusalCode =
-  | "team_chat" | "shared_chat" | "unsynced_chat" | "unsupported_view"
+  | "team_chat" | "shared_chat" | "unsynced_chat" | "local_fixture_chat" | "unsupported_view"
   | "unsupported_role" | "unsupported_message_status" | "unsupported_queue_state"
   | "unsupported_pii_mapping" | "anchor_not_found";
 

@@ -57,6 +57,9 @@ export function declareRustChatHistorySource(ready: Promise<unknown>): void {
   declared = settled;
 }
 
+/** The chat id shape the core's read requests accept (see `localCursorUuid` in protocol.ts). */
+const CORE_CHAT_ID = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;
+
 const FIXED_CODE = /^[a-z_]{1,40}$/;
 export function rustFailureCode(error: unknown): string {
   return error instanceof Error && FIXED_CODE.test(error.message) ? error.message : "other";
@@ -84,6 +87,9 @@ export async function readRustChatHistoryWindow(chat: Chat, input: {
     // A chat this client is still creating is not server-readable yet; its
     // optimistic local rows stay with the TS send path.
     if (input.localInitialPending || !(Number(chat.messages_v ?? 0) > 0)) throw new RustHistoryRefusal("unsynced_chat");
+    // The core addresses saved chats by UUID. Only local E2E fixture chats carry another id; they
+    // exist in this browser alone, so there is no server copy for the core to read either.
+    if (!CORE_CHAT_ID.test(chat.chat_id)) throw new RustHistoryRefusal("local_fixture_chat");
     const result = await source.readWindow({ chatId: chat.chat_id, anchorMessageId: input.anchorMessageId });
     mark(`rust:${result.window.messages.length}`);
     if (typeof document !== "undefined") document.documentElement.dataset.rustCoreHistorySource = result.source;

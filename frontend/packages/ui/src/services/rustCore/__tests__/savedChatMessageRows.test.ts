@@ -124,6 +124,9 @@ describe('readRustChatHistoryWindow', () => {
     expect((await readRustChatHistoryWindow(chat, input))?.window.messages).toHaveLength(2);
     expect(await readRustChatHistoryWindow({ ...chat, team_id: 'team' } as Chat, input)).toBeNull();
     expect(await readRustChatHistoryWindow({ ...chat, messages_v: 0 } as Chat, input)).toBeNull();
+    // A local E2E fixture chat has no UUID the core could address; it stays with the TS path.
+    expect(await readRustChatHistoryWindow({ ...chat, chat_id: 'e2e-chat-response-parity' } as Chat, input)).toBeNull();
+    expect(console.info).toHaveBeenLastCalledWith('[RustCore] saved chat history refused:', 'local_fixture_chat');
     expect(readWindow).toHaveBeenCalledTimes(1);
     readWindow.mockRejectedValueOnce(new RustHistoryRefusal('unsupported_view'));
     expect(await readRustChatHistoryWindow(chat, input)).toBeNull();

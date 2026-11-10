@@ -94227,12 +94227,12 @@ assertions:
       surface: gui.web
     - &id12142
       path: frontend/packages/ui/src/services/rustCore/__tests__/savedChatMessageRows.test.ts
-      line: 136
+      line: 139
       name: waits for a declared source instead of racing its install
       surface: gui.web
     - &id12143
       path: frontend/packages/ui/src/services/rustCore/__tests__/savedChatMessageRows.test.ts
-      line: 150
+      line: 153
       name: keeps the TS path when a declared install provides no source
       surface: gui.web
     - &id12144
@@ -195036,12 +195036,12 @@ assertions:
       surface: gui.web
     - &id24823
       path: frontend/packages/ui/src/services/rustCore/__tests__/savedChatMessageRows.test.ts
-      line: 136
+      line: 139
       name: waits for a declared source instead of racing its install
       surface: gui.web
     - &id24824
       path: frontend/packages/ui/src/services/rustCore/__tests__/savedChatMessageRows.test.ts
-      line: 150
+      line: 153
       name: keeps the TS path when a declared install provides no source
       surface: gui.web
     - &id24825
