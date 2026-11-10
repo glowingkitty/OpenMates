@@ -307,6 +307,20 @@ def test_null_optional_fields_use_model_defaults():
 
 
 # contract-test: direct surface=rest_api assertions=instance-app-packages.provider-contract
+def test_provider_list_follows_the_original_response_model():
+    travel = yaml.safe_load((APP_DIR.parent / "travel" / "app.yml").read_text(encoding="utf-8"))
+    class_path = next(s for s in travel["skills"] if s["id"] == "search_connections")["class_path"]
+    models = delegate_skill.resolve_original_skill_models(str(class_path).strip())
+    assert models.provider_objects is True
+    provider = SimpleNamespace(provider_id="my_provider", name="My provider")
+    group = {"id": 1, "results": [{"title": "a"}], "providers": ["my_provider"]}
+    response = delegate_skill.build_response([group], [provider], models.response_defaults, models.provider_objects)
+    assert response["providers"] == [{"id": "my_provider", "name": "My provider"}]
+    plain = delegate_skill.build_response([group], [provider], {})
+    assert plain["providers"] == ["my_provider"]
+
+
+# contract-test: direct surface=rest_api assertions=instance-app-packages.provider-contract
 def test_original_models_are_resolved_from_skill_module():
     models = delegate_skill.resolve_original_skill_models(str(_skill_of(_raw_health())["class_path"]))
     assert models.item_model.__name__ == "SearchAppointmentsRequestItem"

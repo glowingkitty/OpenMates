@@ -58,6 +58,8 @@ class OriginalSkillModels:
 
     item_model: Optional[Type[BaseModel]]
     response_defaults: Dict[str, Any]
+    # True when the original response lists providers as {"id", "name"} objects.
+    provider_objects: bool = False
 
 
 # --------------------------------------------------------------------------
@@ -122,16 +124,31 @@ def _resolve_item_model(skill_class: type, module: ModuleType) -> Optional[Type[
     return items[0] if len(items) == 1 else None
 
 
-def _resolve_response_defaults(module: ModuleType) -> Dict[str, Any]:
+def _accepts(model: Type[BaseModel], payload: Dict[str, Any]) -> bool:
+    try:
+        model.model_validate(payload)
+    except ValidationError:
+        return False
+    return True
+
+
+def _resolve_response_shape(module: ModuleType) -> Tuple[Dict[str, Any], bool]:
+    """Response defaults and whether the original model lists providers as objects."""
     for name, model in _module_models(module):
         if not name.endswith("Response") or "results" not in model.model_fields:
             continue
         try:
-            return model.model_validate({"results": []}).model_dump(mode="json")
+            defaults = model.model_validate({"results": []}).model_dump(mode="json")
         except ValidationError:
             logger.debug("[AppPackages] %s.%s needs more than results; not used as response base",
                          module.__name__, name)
-    return {}
+            continue
+        provider_objects = (
+            not _accepts(model, {"results": [], "providers": ["p"]})
+            and _accepts(model, {"results": [], "providers": [{"id": "p", "name": "P"}]})
+        )
+        return defaults, provider_objects
+    return {}, False
 
 
 @lru_cache(maxsize=64)
@@ -152,7 +169,9 @@ def resolve_original_skill_models(class_path: str) -> OriginalSkillModels:
     item_model = _resolve_item_model(skill_class, module)
     if item_model is None:
         logger.info("[AppPackages] No request item model found for %s; items are passed as JSON objects", class_path)
-    return OriginalSkillModels(item_model=item_model, response_defaults=_resolve_response_defaults(module))
+    response_defaults, provider_objects = _resolve_response_shape(module)
+    return OriginalSkillModels(item_model=item_model, response_defaults=response_defaults,
+                               provider_objects=provider_objects)
 
 
 # --------------------------------------------------------------------------
@@ -230,7 +249,7 @@ def _error_group(request_id: Any, message: str) -> Dict[str, Any]:
 
 
 def build_response(groups: List[Dict[str, Any]], providers: Sequence[InstalledProvider],
-                   response_defaults: Dict[str, Any]) -> Dict[str, Any]:
+                   response_defaults: Dict[str, Any], provider_objects: bool = False) -> Dict[str, Any]:
     """Standard grouped skill response on top of the original response model defaults."""
     names = {provider.provider_id: provider.name for provider in providers}
     contributed = list(dict.fromkeys(pid for group in groups for pid in group.get("providers", [])))
@@ -242,7 +261,8 @@ def build_response(groups: List[Dict[str, Any]], providers: Sequence[InstalledPr
         **response_defaults,
         "results": groups,
         "provider": ", ".join(names[pid] for pid in shown if pid in names) or "Unavailable",
-        "providers": contributed,
+        "providers": [{"id": pid, "name": names.get(pid, pid)} for pid in contributed]
+        if provider_objects else contributed,
         "error": "; ".join(errors) if all_failed else None,
     }
     if warnings:
@@ -294,4 +314,4 @@ class InstalledProviderSkill(BaseSkill):
         groups = list(await asyncio.gather(*(
             self._serve_item(index, item, models, providers, secrets_manager) for index, item in enumerate(items)
         )))
-        return build_response(groups, providers, models.response_defaults)
+        return build_response(groups, providers, models.response_defaults, models.provider_objects)
