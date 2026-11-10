@@ -154,6 +154,16 @@ assertions:
       become versions. The inside of an interactive block is changed through
       the assistant.
     depends_on: [examples.editor]
+  - id: slides.editor.save-checked-version
+    type: behavior
+    must: >
+      Saving a manual edit of a deck in a chat stores it on the server as the
+      next version, but only if the deck is still at the version and content
+      the edit started from. If the deck changed in the meantime, for example
+      on another device or by the assistant, the save is refused instead of
+      overwriting the newer version, the edit stays open with a retry, and the
+      device keeps nothing as saved that the server did not confirm.
+    depends_on: [examples.editor]
   - id: slides.present.presenter-view
     type: behavior
     must: >

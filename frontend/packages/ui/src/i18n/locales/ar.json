@@ -7772,9 +7772,6 @@
     "slides_timer_reset": {
       "text": "إعادة ضبط المؤقت"
     },
-    "slides_editor_title": {
-      "text": "تحرير الشرائح"
-    },
     "slides_editor_loading": {
       "text": "جارٍ فتح المحرر…"
     },
@@ -7784,8 +7781,17 @@
     "slides_editor_change_failed": {
       "text": "تعذّر تطبيق هذا التغيير."
     },
+    "slides_editor_saving": {
+      "text": "جارٍ الحفظ…"
+    },
+    "slides_editor_save_failed": {
+      "text": "تعذّر حفظ تغييراتك. لا تزال هنا، لذا يمكنك المحاولة مرة أخرى."
+    },
     "slides_editor_toolbar": {
       "text": "أدوات تحرير الشرائح"
+    },
+    "slides_editor_selection_tools": {
+      "text": "العنصر المحدد"
     },
     "slides_editor_undo": {
       "text": "تراجع"
@@ -7797,10 +7803,10 @@
       "text": "إضافة نص"
     },
     "slides_editor_bring_forward": {
-      "text": "تقديم"
+      "text": "إحضار للأمام"
     },
     "slides_editor_send_backward": {
-      "text": "إرجاع"
+      "text": "إرسال للخلف"
     },
     "slides_editor_new_text": {
       "text": "نص جديد"
@@ -7869,7 +7875,7 @@
       "text": "إضافة شريحة"
     },
     "slides_editor_duplicate_slide": {
-      "text": "تكرار"
+      "text": "تكرار الشريحة"
     },
     "slides_editor_delete_slide": {
       "text": "حذف الشريحة"

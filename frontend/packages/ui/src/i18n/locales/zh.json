@@ -7772,9 +7772,6 @@
     "slides_timer_reset": {
       "text": "重置计时器"
     },
-    "slides_editor_title": {
-      "text": "正在编辑幻灯片"
-    },
     "slides_editor_loading": {
       "text": "正在打开编辑器…"
     },
@@ -7784,8 +7781,17 @@
     "slides_editor_change_failed": {
       "text": "无法应用该更改。"
     },
+    "slides_editor_saving": {
+      "text": "正在保存…"
+    },
+    "slides_editor_save_failed": {
+      "text": "无法保存你的更改。更改仍保留在这里，你可以重试。"
+    },
     "slides_editor_toolbar": {
       "text": "幻灯片编辑工具"
+    },
+    "slides_editor_selection_tools": {
+      "text": "所选元素"
     },
     "slides_editor_undo": {
       "text": "撤销"
@@ -7869,7 +7875,7 @@
       "text": "添加幻灯片"
     },
     "slides_editor_duplicate_slide": {
-      "text": "复制"
+      "text": "复制幻灯片"
     },
     "slides_editor_delete_slide": {
       "text": "删除幻灯片"

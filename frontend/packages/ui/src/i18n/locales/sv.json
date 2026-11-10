@@ -7772,9 +7772,6 @@
     "slides_timer_reset": {
       "text": "Nollställ timern"
     },
-    "slides_editor_title": {
-      "text": "Redigerar bilder"
-    },
     "slides_editor_loading": {
       "text": "Öppnar redigeraren…"
     },
@@ -7784,8 +7781,17 @@
     "slides_editor_change_failed": {
       "text": "Ändringen kunde inte tillämpas."
     },
+    "slides_editor_saving": {
+      "text": "Sparar…"
+    },
+    "slides_editor_save_failed": {
+      "text": "Dina ändringar kunde inte sparas. De finns kvar här, så du kan försöka igen."
+    },
     "slides_editor_toolbar": {
       "text": "Verktyg för att redigera bilder"
+    },
+    "slides_editor_selection_tools": {
+      "text": "Markerat element"
     },
     "slides_editor_undo": {
       "text": "Ångra"
@@ -7797,10 +7803,10 @@
       "text": "Lägg till text"
     },
     "slides_editor_bring_forward": {
-      "text": "Framåt"
+      "text": "Flytta framåt"
     },
     "slides_editor_send_backward": {
-      "text": "Bakåt"
+      "text": "Flytta bakåt"
     },
     "slides_editor_new_text": {
       "text": "Ny text"
@@ -7869,7 +7875,7 @@
       "text": "Lägg till bild"
     },
     "slides_editor_duplicate_slide": {
-      "text": "Duplicera"
+      "text": "Duplicera bild"
     },
     "slides_editor_delete_slide": {
       "text": "Ta bort bild"

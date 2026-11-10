@@ -7799,9 +7799,6 @@
     "slides_timer_reset": {
       "text": "Réinitialiser le minuteur"
     },
-    "slides_editor_title": {
-      "text": "Modification des diapositives"
-    },
     "slides_editor_loading": {
       "text": "Ouverture de l’éditeur…"
     },
@@ -7811,8 +7808,17 @@
     "slides_editor_change_failed": {
       "text": "Cette modification n’a pas pu être appliquée."
     },
+    "slides_editor_saving": {
+      "text": "Enregistrement…"
+    },
+    "slides_editor_save_failed": {
+      "text": "Tes modifications n’ont pas pu être enregistrées. Elles sont toujours là, tu peux réessayer."
+    },
     "slides_editor_toolbar": {
       "text": "Outils de modification des diapositives"
+    },
+    "slides_editor_selection_tools": {
+      "text": "Élément sélectionné"
     },
     "slides_editor_undo": {
       "text": "Annuler"
@@ -7896,7 +7902,7 @@
       "text": "Ajouter une diapositive"
     },
     "slides_editor_duplicate_slide": {
-      "text": "Dupliquer"
+      "text": "Dupliquer la diapositive"
     },
     "slides_editor_delete_slide": {
       "text": "Supprimer la diapositive"

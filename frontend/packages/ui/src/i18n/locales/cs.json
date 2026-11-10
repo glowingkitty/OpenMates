@@ -7772,9 +7772,6 @@
     "slides_timer_reset": {
       "text": "Vynulovat časovač"
     },
-    "slides_editor_title": {
-      "text": "Úprava snímků"
-    },
     "slides_editor_loading": {
       "text": "Otevírání editoru…"
     },
@@ -7784,8 +7781,17 @@
     "slides_editor_change_failed": {
       "text": "Tuto změnu nebylo možné použít."
     },
+    "slides_editor_saving": {
+      "text": "Ukládání…"
+    },
+    "slides_editor_save_failed": {
+      "text": "Změny se nepodařilo uložit. Pořád tu jsou, takže to můžeš zkusit znovu."
+    },
     "slides_editor_toolbar": {
       "text": "Nástroje pro úpravu snímků"
+    },
+    "slides_editor_selection_tools": {
+      "text": "Vybraný prvek"
     },
     "slides_editor_undo": {
       "text": "Zpět"
@@ -7797,10 +7803,10 @@
       "text": "Přidat text"
     },
     "slides_editor_bring_forward": {
-      "text": "Dopředu"
+      "text": "Posunout dopředu"
     },
     "slides_editor_send_backward": {
-      "text": "Dozadu"
+      "text": "Posunout dozadu"
     },
     "slides_editor_new_text": {
       "text": "Nový text"
@@ -7869,7 +7875,7 @@
       "text": "Přidat snímek"
     },
     "slides_editor_duplicate_slide": {
-      "text": "Duplikovat"
+      "text": "Duplikovat snímek"
     },
     "slides_editor_delete_slide": {
       "text": "Smazat snímek"

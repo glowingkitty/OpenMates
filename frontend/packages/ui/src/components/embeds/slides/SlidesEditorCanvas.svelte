@@ -292,11 +292,16 @@
 </div>
 
 <style>
+  /* Not clipped: the selection handles sit outside the frame, also at the slide edges.
+     The slide itself (SlideCanvas viewport) clips its content and carries the radius. */
   .slides-editor-stage {
     position: relative;
     width: 100%;
+    overflow: visible;
+  }
+
+  .slides-editor-stage :global(.slide-viewport) {
     border-radius: var(--radius-3);
-    overflow: hidden;
   }
 
   .slides-editor-overlay {

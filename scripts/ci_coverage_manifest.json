@@ -762,7 +762,8 @@
         "skill-reminder-set.spec.ts",
         "skill-web-read.spec.ts",
         "skill-web-search.spec.ts",
-        "mercury3-model-picker.spec.ts"
+        "mercury3-model-picker.spec.ts",
+        "slides-manual-edit.spec.ts"
       ]
     },
     "local_email_signup": {

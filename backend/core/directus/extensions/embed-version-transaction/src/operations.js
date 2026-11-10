@@ -1124,7 +1124,18 @@ function historiesMatch(existing, proposed) {
     && existing.created_at === proposed.created_at;
 }
 
-/** Atomically publish an encrypted edit to a chat-owned HTML diagram. */
+/**
+ * Chat embed types whose client-authored revision may advance the head through
+ * `commitChatDiagramRevision`, as stored `app_id`/`skill_id` pairs: HTML
+ * diagrams, slide decks and sheets. Every other type keeps its own write path.
+ */
+const USER_REVISION_EMBED_TYPES = new Set(['diagrams/html', 'slides/deck', 'sheets/sheet']);
+
+/**
+ * Atomically publish a client-authored, client-encrypted revision of an
+ * allowlisted chat-owned embed (see `USER_REVISION_EMBED_TYPES`). The wire and
+ * table names keep their original diagram-only wording.
+ */
 export async function commitChatDiagramRevision(database, raw) {
   const input = exactFields(raw, new Set([
     'operation_id', 'embed_id', 'chat_id', 'team_id', 'expected_revision',
@@ -1183,7 +1194,7 @@ export async function commitChatDiagramRevision(database, raw) {
     if (!embed || embed.hashed_chat_id !== sha256(chatId)
       || (embed.hashed_team_id ?? null) !== teamHash
       || (!teamHash && embed.hashed_user_id !== actor)
-      || embed.app_id !== 'diagrams' || embed.skill_id !== 'html'
+      || !USER_REVISION_EMBED_TYPES.has(`${embed.app_id}/${embed.skill_id}`)
       || ![null, undefined, 'chat'].includes(embed.workspace_origin)
       || (embed.root_embed_id != null && embed.root_embed_id !== embedId)
       || embed.encryption_mode !== 'client') fail(403, 'diagram_access_denied');

@@ -7799,9 +7799,6 @@
     "slides_timer_reset": {
       "text": "Reiniciar temporizador"
     },
-    "slides_editor_title": {
-      "text": "Editando diapositivas"
-    },
     "slides_editor_loading": {
       "text": "Abriendo el editor…"
     },
@@ -7811,8 +7808,17 @@
     "slides_editor_change_failed": {
       "text": "No se pudo aplicar ese cambio."
     },
+    "slides_editor_saving": {
+      "text": "Guardando…"
+    },
+    "slides_editor_save_failed": {
+      "text": "No se pudieron guardar tus cambios. Siguen aquí, así que puedes intentarlo de nuevo."
+    },
     "slides_editor_toolbar": {
       "text": "Herramientas de edición de diapositivas"
+    },
+    "slides_editor_selection_tools": {
+      "text": "Elemento seleccionado"
     },
     "slides_editor_undo": {
       "text": "Deshacer"
@@ -7824,10 +7830,10 @@
       "text": "Añadir texto"
     },
     "slides_editor_bring_forward": {
-      "text": "Adelante"
+      "text": "Traer adelante"
     },
     "slides_editor_send_backward": {
-      "text": "Atrás"
+      "text": "Enviar atrás"
     },
     "slides_editor_new_text": {
       "text": "Texto nuevo"
@@ -7896,7 +7902,7 @@
       "text": "Añadir diapositiva"
     },
     "slides_editor_duplicate_slide": {
-      "text": "Duplicar"
+      "text": "Duplicar diapositiva"
     },
     "slides_editor_delete_slide": {
       "text": "Eliminar diapositiva"

@@ -7,8 +7,10 @@
   Validation, clamping, ids, undo/redo and markup output are the core's
   (live-collab.core.one-shared-model, slides.editor.direct-manipulation). This file
   keeps view state only: open slide, selection, the text box being typed in and the
-  notes draft. Done hands the core's markup to `onSave` when the deck changed;
-  persisting it as a new embed version is the caller's job.
+  notes draft. Done hands the core's markup and deck facts to `onSave` when the
+  deck changed and waits for it: while it runs the editor shows a saving state; if
+  it fails the editor stays open with the edits and offers a retry (the caller
+  persists the new embed version, see slidesDeckVersion.ts).
 -->
 <script lang="ts">
   import { onDestroy, onMount, untrack } from 'svelte';
@@ -16,6 +18,7 @@
   import SlidesEditorCanvas from './SlidesEditorCanvas.svelte';
   import SlidesEditorToolbar from './SlidesEditorToolbar.svelte';
   import SlidesEditorStrip from './SlidesEditorStrip.svelte';
+  import EmbedIconButton from '../shared/EmbedIconButton.svelte';
   import { getTemplate, placeElements } from './slidesTemplates';
   import { escapeInlineText } from './slidesEditorText';
   import { effectiveTextStyle, isTypingTarget, toRenderSlide, type CanvasBox } from './slidesEditorView';
@@ -27,6 +30,7 @@
     redoDeck,
     undoDeck
   } from '../../../services/rustCore/deckDocument/deckDocumentClient';
+  import type { EditedDeck } from './slidesDeckVersion';
   import type {
     DeckOperation,
     DeckOutcome,
@@ -37,8 +41,8 @@
   interface Props {
     /** Normalised slides markup to edit (what the embed stores). */
     markup: string;
-    /** Done with changes: the core's markup of the edited deck. */
-    onSave: (markup: string) => void;
+    /** Done with changes: persists the core's edited deck; a rejection keeps the editor open. */
+    onSave: (deck: EditedDeck) => Promise<void>;
     /** Leaves edit mode (after `onSave` when the deck changed). */
     onExit: () => void;
     /** Slide to open first (defaults to the first slide). */
@@ -64,6 +68,8 @@
   let selectedId = $state<string | null>(null);
   let typingId = $state<string | null>(null);
   let finishing = $state(false);
+  /** Saving the edited deck on Done: 'failed' keeps the editor open with a retry. */
+  let saveState = $state<'idle' | 'saving' | 'failed'>('idle');
   /** Operations run one after another so the core sees them in the user's order. */
   let queue: Promise<unknown> = Promise.resolve();
 
@@ -265,7 +271,10 @@
     void apply({ op: 'move_slide', slide_id: current.id, to_index: target });
   }
 
-  // Speaker notes: a local draft while the field has focus, one operation on blur.
+  // Speaker notes: collapsed behind the notes button; a local draft while the field
+  // has focus, one operation on blur.
+  const notesPanelId = $props.id();
+  let notesOpen = $state(false);
   let notesDraft = $state('');
   let notesFocused = $state(false);
   let notesSlideId = '';
@@ -289,6 +298,44 @@
     }
     void apply({ op: 'set_speaker_notes', slide_id: slide.id, notes: notesDraft });
   }
+
+  /**
+   * The slide takes the height left between the bar and the notes/strip below it,
+   * in the window, so the whole editor fits without scrolling (as in the viewer).
+   */
+  let stageEl = $state<HTMLElement | null>(null);
+  let belowEl = $state<HTMLElement | null>(null);
+  let stageMaxWidth = $state('100%');
+  const MIN_STAGE_HEIGHT = 160;
+  const STAGE_BOTTOM_MARGIN = 24;
+  /** .slides-editor-stage-wrap padding (handle room) on each side, in px. */
+  const STAGE_PADDING = 12;
+
+  function fitStage() {
+    if (!stageEl || !belowEl || !view) return;
+    // Layout offsets, not getBoundingClientRect: the fullscreen slides in with a transform.
+    let top = 0;
+    for (let node: HTMLElement | null = stageEl; node; node = node.offsetParent as HTMLElement | null) {
+      top += node.offsetTop;
+    }
+    const available = window.innerHeight - top - belowEl.offsetHeight - STAGE_BOTTOM_MARGIN;
+    const height = Math.max(available, MIN_STAGE_HEIGHT);
+    const slideHeight = height - 2 * STAGE_PADDING;
+    stageMaxWidth = `min(100%, ${Math.floor(slideHeight * (view.canvas_width / view.canvas_height)) + 2 * STAGE_PADDING}px)`;
+  }
+
+  $effect(() => {
+    if (!stageEl || !belowEl || !view) return;
+    fitStage();
+    const observer = new ResizeObserver(fitStage);
+    observer.observe(belowEl);
+    if (stageEl.parentElement) observer.observe(stageEl.parentElement);
+    window.addEventListener('resize', fitStage);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', fitStage);
+    };
+  });
 
   function onKeydown(event: KeyboardEvent) {
     if (status !== 'ready' || finishing) return;
@@ -332,15 +379,26 @@
     typingId = null;
     await queue;
     const open = handle;
-    if (open !== null && dirty) {
+    if (open !== null && dirty && view) {
+      let markupOut: string;
       try {
-        onSave(await deckToMarkup(open));
+        markupOut = await deckToMarkup(open);
       } catch (error) {
         changeError = (error as { code?: string })?.code ?? String(error);
         console.error('[SlidesEditor] Could not read the edited deck:', error);
         finishing = false;
         return;
       }
+      saveState = 'saving';
+      try {
+        await onSave({ markup: markupOut, title: view.title, aspect: view.aspect, slideCount: view.slides.length });
+      } catch (error) {
+        console.error('[SlidesEditor] Saving the edited deck failed:', error);
+        saveState = 'failed';
+        finishing = false;
+        return;
+      }
+      saveState = 'idle';
     }
     onExit();
   }
@@ -354,20 +412,42 @@
   data-status={status}
   data-dirty={dirty ? 'true' : 'false'}
   data-slide-id={current?.id ?? ''}
+  data-save-state={saveState}
 >
-  <div class="slides-editor-header">
-    <span class="slides-editor-title">{$text('embeds.slides_editor_title')}</span>
-    <button type="button" class="slides-editor-done" data-testid="slides-editor-done" disabled={finishing} onclick={done}>
-      {$text('common.done')}
-    </button>
-  </div>
+  {#snippet doneAction()}
+    {#if saveState !== 'idle'}
+      <!-- Saving the edited deck on Done: progress, or the failure with a retry (edits kept). -->
+      <div
+        class="slides-editor-save"
+        class:slides-editor-error={saveState === 'failed'}
+        role={saveState === 'failed' ? 'alert' : 'status'}
+        data-testid={saveState === 'failed' ? 'slides-editor-save-failed' : 'slides-editor-save-status'}
+      >
+        {#if saveState === 'saving'}
+          <span class="slides-editor-save-text">{$text('embeds.slides_editor_saving')}</span>
+        {:else}
+          <span class="slides-editor-save-text">{$text('embeds.slides_editor_save_failed')}</span>
+          <button type="button" class="slides-editor-retry" data-testid="slides-editor-save-retry" onclick={done}>
+            <span class="clickable-icon slides-editor-retry-icon" aria-hidden="true"></span>
+            <span>{$text('common.retry')}</span>
+          </button>
+        {/if}
+      </div>
+    {/if}
+    <EmbedIconButton icon="check" primary label={$text('common.done')} testId="slides-editor-done" disabled={finishing} onclick={done} />
+  {/snippet}
 
-  {#if status === 'loading'}
-    <p class="slides-editor-message" role="status" data-testid="slides-editor-loading">{$text('embeds.slides_editor_loading')}</p>
-  {:else if status === 'error'}
-    <p class="slides-editor-message" role="alert" data-testid="slides-editor-unavailable" data-code={errorCode}>
-      {$text('embeds.slides_editor_unavailable')}
-    </p>
+  {#if status === 'loading' || status === 'error'}
+    <div class="slides-editor-header">
+      {#if status === 'loading'}
+        <p class="slides-editor-message" role="status" data-testid="slides-editor-loading">{$text('embeds.slides_editor_loading')}</p>
+      {:else}
+        <p class="slides-editor-message" role="alert" data-testid="slides-editor-unavailable" data-code={errorCode}>
+          {$text('embeds.slides_editor_unavailable')}
+        </p>
+      {/if}
+      <div class="slides-editor-header-end">{@render doneAction()}</div>
+    </div>
   {:else if view && current}
     <SlidesEditorToolbar
       canUndo={view.can_undo}
@@ -378,6 +458,9 @@
       textStyle={selectedTextStyle}
       colorValue={selectedColor}
       {template}
+      {notesOpen}
+      hasNotes={notesDraft.trim() !== ''}
+      {notesPanelId}
       onUndo={undo}
       onRedo={redo}
       onAddText={addText}
@@ -385,6 +468,8 @@
       onForward={() => reorder(1)}
       onBackward={() => reorder(-1)}
       onStyle={setStyle}
+      onToggleNotes={() => (notesOpen = !notesOpen)}
+      end={doneAction}
     />
 
     {#if changeError}
@@ -393,56 +478,70 @@
       </p>
     {/if}
 
-    <SlidesEditorCanvas
-      slide={current}
-      width={view.canvas_width}
-      height={view.canvas_height}
-      template={view.template}
-      {selectedId}
-      {typingId}
-      onSelect={select}
-      onGeometry={setGeometry}
-      onStartTyping={startTyping}
-      onCommitText={commitText}
-    />
+    <!-- Padding leaves room for the selection handles that sit outside the frame at the slide edges. -->
+    <div class="slides-editor-stage-wrap" bind:this={stageEl} style:max-width={stageMaxWidth}>
+      <SlidesEditorCanvas
+        slide={current}
+        width={view.canvas_width}
+        height={view.canvas_height}
+        template={view.template}
+        {selectedId}
+        {typingId}
+        onSelect={select}
+        onGeometry={setGeometry}
+        onStartTyping={startTyping}
+        onCommitText={commitText}
+      />
+    </div>
 
-    <label class="slides-editor-notes">
-      <span class="slides-editor-notes-label">{$text('embeds.slides_speaker_notes')}</span>
-      <textarea
-        rows="3"
-        maxlength="5000"
-        placeholder={$text('embeds.slides_editor_notes_placeholder')}
-        data-testid="slides-editor-notes"
-        bind:value={notesDraft}
-        onfocus={onNotesFocus}
-        onblur={onNotesBlur}
-      ></textarea>
-    </label>
+    <div class="slides-editor-below" bind:this={belowEl}>
+      {#if notesOpen}
+        <label class="slides-editor-notes" id={notesPanelId}>
+          <span class="slides-editor-notes-label">{$text('embeds.slides_speaker_notes')}</span>
+          <textarea
+            rows="3"
+            maxlength="5000"
+            placeholder={$text('embeds.slides_editor_notes_placeholder')}
+            data-testid="slides-editor-notes"
+            bind:value={notesDraft}
+            onfocus={onNotesFocus}
+            onblur={onNotesBlur}
+          ></textarea>
+        </label>
+      {/if}
 
-    <SlidesEditorStrip
-      {slides}
-      width={view.canvas_width}
-      height={view.canvas_height}
-      template={view.template}
-      currentId={current.id}
-      onOpen={openSlide}
-      onAdd={addSlide}
-      onDuplicate={duplicateSlide}
-      onDelete={deleteSlide}
-      onMove={moveSlide}
-    />
+      <SlidesEditorStrip
+        {slides}
+        width={view.canvas_width}
+        height={view.canvas_height}
+        template={view.template}
+        currentId={current.id}
+        onOpen={openSlide}
+        onAdd={addSlide}
+        onDuplicate={duplicateSlide}
+        onDelete={deleteSlide}
+        onMove={moveSlide}
+      />
+    </div>
   {/if}
 </div>
 
 <style>
   .slides-editor {
+    /* Named container: the bar switches to its phone layout by the editor's width. */
+    container: slides-editor / inline-size;
     display: flex;
     flex-direction: column;
+    align-items: center;
     gap: var(--spacing-6);
     width: 100%;
     max-width: 100%;
     min-width: 0;
     box-sizing: border-box;
+  }
+
+  .slides-editor > :global(*) {
+    width: 100%;
   }
 
   .slides-editor-header {
@@ -452,36 +551,10 @@
     gap: var(--spacing-4);
   }
 
-  .slides-editor-title {
-    color: var(--color-font-secondary);
-    font-size: var(--font-size-small);
-    font-weight: 600;
-  }
-
-  /* Reset of the global button sizing (buttons.css). */
-  .slides-editor-done {
-    min-width: 0;
-    min-height: 36px;
-    height: auto;
-    margin: 0;
-    padding: var(--spacing-2) var(--spacing-8);
-    border: 0;
-    border-radius: var(--radius-full);
-    background: var(--color-button-primary);
-    color: var(--color-grey-0);
-    font-size: var(--font-size-small);
-    cursor: pointer;
-    transform: none;
-  }
-
-  .slides-editor-done:focus-visible {
-    outline: 2px solid var(--color-button-primary);
-    outline-offset: 2px;
-  }
-
-  .slides-editor-done:disabled {
-    opacity: 0.6;
-    cursor: default;
+  .slides-editor-header-end {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-4);
   }
 
   .slides-editor-message {
@@ -494,6 +567,82 @@
     color: var(--color-error);
   }
 
+  /* Inline beside Done: short status text, and on failure a Retry pill. */
+  .slides-editor-save {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-4);
+    min-width: 0;
+    color: var(--color-font-secondary);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+  }
+
+  .slides-editor-save-text {
+    min-width: 0;
+    max-width: 22ch;
+    line-height: 1.25;
+    text-align: end;
+  }
+
+  .slides-editor-save.slides-editor-error {
+    color: var(--color-error);
+  }
+
+  /* Labelled pill of the fullscreen action language (icon + label, like the More menu entries). */
+  .slides-editor-retry {
+    all: unset;
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    box-sizing: border-box;
+    height: calc(25px + 2 * var(--spacing-4));
+    padding: var(--spacing-4) var(--spacing-6) var(--spacing-4) var(--spacing-4);
+    border-radius: 40px;
+    background-color: var(--color-grey-10);
+    box-shadow: var(--shadow-md);
+    color: var(--color-font-primary);
+    font-size: var(--font-size-small);
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform var(--duration-normal), box-shadow var(--duration-normal);
+  }
+
+  .slides-editor-retry:hover {
+    transform: scale(1.08);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .slides-editor-retry:active {
+    transform: scale(0.95);
+    box-shadow: var(--shadow-xs);
+  }
+
+  .slides-editor-retry:focus-visible {
+    outline: 2px solid var(--color-primary-start);
+    outline-offset: 4px;
+  }
+
+  .slides-editor-retry-icon {
+    width: 20px;
+    height: 20px;
+    -webkit-mask-image: var(--icon-url-reload);
+    mask-image: var(--icon-url-reload);
+  }
+
+  /* Room for the selection handles, which sit outside the frame at the slide edges. */
+  .slides-editor-stage-wrap {
+    box-sizing: border-box;
+    padding: var(--spacing-6);
+  }
+
+  .slides-editor-below {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-4);
+  }
+
   .slides-editor-notes {
     display: flex;
     flex-direction: column;
@@ -504,16 +653,18 @@
   .slides-editor-notes-label {
     color: var(--color-font-secondary);
     font-size: var(--font-size-xs);
+    font-weight: 600;
   }
 
   .slides-editor-notes textarea {
     width: 100%;
     box-sizing: border-box;
     margin: 0;
-    padding: var(--spacing-4);
-    border: 1px solid var(--color-grey-30);
-    border-radius: var(--radius-3);
-    background: var(--color-grey-0);
+    padding: var(--spacing-4) var(--spacing-6);
+    border: 0;
+    border-radius: var(--radius-5);
+    background: var(--color-grey-10);
+    box-shadow: var(--shadow-md);
     color: var(--color-font-primary);
     font: inherit;
     font-size: var(--font-size-small);
@@ -521,7 +672,13 @@
   }
 
   .slides-editor-notes textarea:focus-visible {
-    outline: 2px solid var(--color-button-primary);
-    outline-offset: 1px;
+    outline: 2px solid var(--color-primary-start);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .slides-editor-retry {
+      transition: none;
+    }
   }
 </style>

@@ -2639,6 +2639,8 @@ export class EmbedStore {
     hashed_user_id?: string;
     hashed_team_id?: string;
     encryption_mode?: EmbedStoreEntry["encryption_mode"];
+    /** Head content hash as stored for the server head (new-format entries only). */
+    content_hash?: string;
   } | null> {
     // Check memory cache first
     let entry = embedCache.get(contentRef) as
@@ -2697,6 +2699,7 @@ export class EmbedStore {
         hashed_user_id: entry.hashed_user_id,
         hashed_team_id: entry.hashed_team_id,
         encryption_mode: entry.encryption_mode,
+        content_hash: entry.content_hash,
       };
     }
 

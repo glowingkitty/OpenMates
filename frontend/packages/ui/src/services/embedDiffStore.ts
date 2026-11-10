@@ -15,6 +15,7 @@ import { decryptWithEmbedKey, encryptWithEmbedKey } from './encryption/MetadataE
 import { embedStore } from './embedStore';
 import { computeSHA256 } from '../message_parsing/utils';
 import type { StoreEmbedPayload } from '../types/chat';
+import type { EmbedPersistenceResult } from './embedSenders';
 import { buildUnifiedDiff } from '../utils/embedUnifiedDiff';
 export { buildUnifiedDiff } from '../utils/embedUnifiedDiff';
 
@@ -231,18 +232,35 @@ export async function restoreEmbedVersion(
 	};
 }
 
+/** Result of a committed revision; `head` is the server outcome of the new head write. */
+export interface EmbedContentRevisionResult {
+	version_number: number;
+	content_hash: string;
+	head: EmbedPersistenceResult;
+}
+
+/** True when the server holds the new head (written now or proven already present). */
+export function isHeadPersisted(head: EmbedPersistenceResult): boolean {
+	return head.status === 'persisted' || head.status === 'adopted';
+}
+
 /**
  * Write `newContent` as the next version of an embed (client-encrypted head +
  * diff row, mirrored into IndexedDB and synced via store_embed /
  * store_embed_diff). Used by version restore and by manual content edits such
  * as sheet cell edits. `options.currentContent` must be the content of
  * `options.currentVersion` so the stored patch is exact.
+ *
+ * The new version's history row is sent only after the server holds the new
+ * head: a row ahead of the head is immutable and would block a later real write
+ * of that version. `head` reports a head that stayed queued or was refused;
+ * callers that must not keep a local-only version check it with `isHeadPersisted`.
  */
 export async function commitEmbedContentRevision(
 	embedId: string,
 	newContent: string,
 	options: RestoreEmbedVersionOptions
-): Promise<{ version_number: number; content_hash: string }> {
+): Promise<EmbedContentRevisionResult> {
 	const newVersion = options.currentVersion + 1;
 	const restoredPayload = options.buildRestoredContent(newContent, newVersion);
 	const restoredToonContent = await encodeRestoredEmbedContent(restoredPayload);
@@ -259,6 +277,19 @@ export async function commitEmbedContentRevision(
 
 	const embedKey = await embedStore.getEmbedKey(embedId);
 	if (!embedKey) throw new Error('Embed key not available for version restore');
+	// History is a v1 snapshot plus forward patches. A first edit of an embed that
+	// was stored without history (an assistant-created head) seeds that snapshot
+	// from the content it edits, so v1 stays readable and both versions are listed.
+	let encryptedInitialSnapshot: string | null = null;
+	if (options.currentVersion === 1) {
+		const firstRows = await fetchEmbedVersions(embedId, {
+			chatId: options.chatId, projectId: options.projectId, teamId: options.teamId, order: 'asc', limit: 1
+		});
+		if (!firstRows.versions.some((row) => row.version_number === 1 && row.has_snapshot)) {
+			encryptedInitialSnapshot = await encryptWithEmbedKey(options.currentContent, embedKey);
+			if (!encryptedInitialSnapshot) throw new Error('Failed to encrypt the initial version snapshot');
+		}
+	}
 	const restorePatch = buildUnifiedDiff(options.currentContent, newContent, options.currentVersion, newVersion);
 	const encryptedPatch = await encryptWithEmbedKey(restorePatch, embedKey);
 	if (!encryptedPatch) throw new Error('Failed to encrypt restore patch');
@@ -267,6 +298,15 @@ export async function commitEmbedContentRevision(
 		: null;
 
 	const createdAt = Math.floor(Date.now() / 1000);
+	if (encryptedInitialSnapshot) {
+		await storeEmbedDiff({
+			id: `${embedId}_v1`,
+			embed_id: embedId,
+			version_number: 1,
+			encrypted_snapshot: encryptedInitialSnapshot,
+			created_at: createdAt
+		});
+	}
 	await storeEmbedDiff({
 		id: `${embedId}_v${newVersion}`,
 		embed_id: embedId,
@@ -276,8 +316,9 @@ export async function commitEmbedContentRevision(
 		created_at: createdAt
 	});
 
-	await syncEncryptedRestore(embedId, newVersion, encryptedPatch, encryptedSnapshot, createdAt, updateResult.storePayload);
-	return { version_number: newVersion, content_hash: contentHash };
+	const head = await syncEncryptedRestore(embedId, newVersion, encryptedPatch, encryptedSnapshot, createdAt,
+		updateResult.storePayload, encryptedInitialSnapshot);
+	return { version_number: newVersion, content_hash: contentHash, head };
 }
 
 async function encodeRestoredEmbedContent(payload: Record<string, unknown>): Promise<string> {
@@ -295,13 +336,31 @@ async function syncEncryptedRestore(
 	encryptedPatch: string,
 	encryptedSnapshot: string | null,
 	createdAt: number,
-	storePayload: StoreEmbedPayload
-): Promise<void> {
+	storePayload: StoreEmbedPayload,
+	encryptedInitialSnapshot: string | null
+): Promise<EmbedPersistenceResult> {
 	const [{ chatSyncService }, sendersModule] = await Promise.all([
 		import('./chatSyncService'),
 		import('./chatSyncServiceSenders')
 	]);
-	await sendersModule.sendStoreEmbedImpl(chatSyncService, storePayload);
+	if (encryptedInitialSnapshot) {
+		await sendersModule.sendStoreEmbedDiffImpl(chatSyncService, {
+			embed_id: embedId,
+			version_number: 1,
+			encrypted_snapshot: encryptedInitialSnapshot,
+			encrypted_patch: null,
+			hashed_user_id: storePayload.hashed_user_id,
+			created_at: createdAt
+		});
+	}
+	const head = await sendersModule.sendStoreEmbedOperationImpl(chatSyncService, storePayload);
+	if (!isHeadPersisted(head)) {
+		console.warn('[EmbedDiffStore] New embed version head was not persisted', {
+			embed_id: embedId, version_number: versionNumber, status: head.status,
+			failure_code: 'failure_code' in head ? head.failure_code ?? null : null
+		});
+		return head;
+	}
 	await sendersModule.sendStoreEmbedDiffImpl(chatSyncService, {
 		embed_id: embedId,
 		version_number: versionNumber,
@@ -310,6 +369,7 @@ async function syncEncryptedRestore(
 		hashed_user_id: storePayload.hashed_user_id,
 		created_at: createdAt
 	});
+	return head;
 }
 
 async function reconstructEncryptedVersion(embedId: string, rows: EmbedVersionMeta[]): Promise<string> {

@@ -882,7 +882,7 @@ specifications:
     version: 1
     status: draft
     path: features/slides
-    fingerprint: 1b08b4f298f0438b5eb2cca2ea602762594e1ea37688d9f1588d80a2401b4ba2
+    fingerprint: 8405dbfd5d620ddcf3b86cf0a7bdc9a508f9d0e56882718071f249ab7703eac7
     required_applies_to:
     - rest_api
     - cli
@@ -11420,7 +11420,17 @@ assertions:
     specification: feature.slides@1
     specification_id: feature.slides
     type: behavior
-    fingerprint: 1664798901eae6fb72671fc56494ea42774c887b61c3ff97dbad37ecc2475031
+    fingerprint: dd87a86578311027ccfb611e7f0238ccd806771b3b8d757083f8599fe199bef8
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+  slides.editor.save-checked-version:
+    specification: feature.slides@1
+    specification_id: feature.slides
+    type: behavior
+    fingerprint: 99ec8b82407ce9dbc4ffed73a78f36439de29cf366216bf3f544df7926fe2610
     required_applies_to:
     - rest_api
     - cli

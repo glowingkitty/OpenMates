@@ -7772,9 +7772,6 @@
     "slides_timer_reset": {
       "text": "타이머 초기화"
     },
-    "slides_editor_title": {
-      "text": "슬라이드 편집 중"
-    },
     "slides_editor_loading": {
       "text": "편집기를 여는 중…"
     },
@@ -7784,8 +7781,17 @@
     "slides_editor_change_failed": {
       "text": "변경 사항을 적용할 수 없습니다."
     },
+    "slides_editor_saving": {
+      "text": "저장 중…"
+    },
+    "slides_editor_save_failed": {
+      "text": "변경 사항을 저장할 수 없습니다. 변경 사항은 그대로 있으니 다시 시도할 수 있습니다."
+    },
     "slides_editor_toolbar": {
       "text": "슬라이드 편집 도구"
+    },
+    "slides_editor_selection_tools": {
+      "text": "선택한 요소"
     },
     "slides_editor_undo": {
       "text": "실행 취소"
@@ -7797,10 +7803,10 @@
       "text": "텍스트 추가"
     },
     "slides_editor_bring_forward": {
-      "text": "앞으로"
+      "text": "앞으로 가져오기"
     },
     "slides_editor_send_backward": {
-      "text": "뒤로"
+      "text": "뒤로 보내기"
     },
     "slides_editor_new_text": {
       "text": "새 텍스트"
@@ -7869,7 +7875,7 @@
       "text": "슬라이드 추가"
     },
     "slides_editor_duplicate_slide": {
-      "text": "복제"
+      "text": "슬라이드 복제"
     },
     "slides_editor_delete_slide": {
       "text": "슬라이드 삭제"

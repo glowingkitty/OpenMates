@@ -7772,9 +7772,6 @@
     "slides_timer_reset": {
       "text": "タイマーをリセット"
     },
-    "slides_editor_title": {
-      "text": "スライドを編集中"
-    },
     "slides_editor_loading": {
       "text": "エディターを開いています…"
     },
@@ -7784,8 +7781,17 @@
     "slides_editor_change_failed": {
       "text": "この変更を適用できませんでした。"
     },
+    "slides_editor_saving": {
+      "text": "保存中…"
+    },
+    "slides_editor_save_failed": {
+      "text": "変更を保存できませんでした。変更はそのまま残っているので、もう一度お試しください。"
+    },
     "slides_editor_toolbar": {
       "text": "スライド編集ツール"
+    },
+    "slides_editor_selection_tools": {
+      "text": "選択した要素"
     },
     "slides_editor_undo": {
       "text": "元に戻す"
@@ -7797,10 +7803,10 @@
       "text": "テキストを追加"
     },
     "slides_editor_bring_forward": {
-      "text": "前面へ"
+      "text": "前面へ移動"
     },
     "slides_editor_send_backward": {
-      "text": "背面へ"
+      "text": "背面へ移動"
     },
     "slides_editor_new_text": {
       "text": "新しいテキスト"
@@ -7869,7 +7875,7 @@
       "text": "スライドを追加"
     },
     "slides_editor_duplicate_slide": {
-      "text": "複製"
+      "text": "スライドを複製"
     },
     "slides_editor_delete_slide": {
       "text": "スライドを削除"

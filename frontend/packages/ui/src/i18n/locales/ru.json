@@ -7772,9 +7772,6 @@
     "slides_timer_reset": {
       "text": "Сбросить таймер"
     },
-    "slides_editor_title": {
-      "text": "Редактирование слайдов"
-    },
     "slides_editor_loading": {
       "text": "Открываем редактор…"
     },
@@ -7784,8 +7781,17 @@
     "slides_editor_change_failed": {
       "text": "Не удалось применить это изменение."
     },
+    "slides_editor_saving": {
+      "text": "Сохранение…"
+    },
+    "slides_editor_save_failed": {
+      "text": "Не удалось сохранить изменения. Они остались здесь, можно попробовать ещё раз."
+    },
     "slides_editor_toolbar": {
       "text": "Инструменты редактирования слайдов"
+    },
+    "slides_editor_selection_tools": {
+      "text": "Выбранный элемент"
     },
     "slides_editor_undo": {
       "text": "Отменить"
@@ -7797,10 +7803,10 @@
       "text": "Добавить текст"
     },
     "slides_editor_bring_forward": {
-      "text": "Вперёд"
+      "text": "Переместить вперёд"
     },
     "slides_editor_send_backward": {
-      "text": "Назад"
+      "text": "Переместить назад"
     },
     "slides_editor_new_text": {
       "text": "Новый текст"
@@ -7869,7 +7875,7 @@
       "text": "Добавить слайд"
     },
     "slides_editor_duplicate_slide": {
-      "text": "Дублировать"
+      "text": "Дублировать слайд"
     },
     "slides_editor_delete_slide": {
       "text": "Удалить слайд"

@@ -6,11 +6,15 @@
   advance before the slide changes) and the shared version timeline. While the
   deck still streams only completed slides are shown. Present starts a local
   presentation (SlidesPresentation). With the Rust core build, Edit opens the
-  manual editor (SlidesEditor, deck held by the core); Done shows the edited deck.
-  Saving the edit as a new embed version and export are later slides-core steps.
+  manual editor (SlidesEditor, deck held by the core); Done saves the edited deck
+  as the next version of this embed (slidesDeckVersion.ts) and shows it. Export is
+  a later slides-core step.
 -->
 <script lang="ts">
+  import { onMount } from 'svelte';
+  import { get } from 'svelte/store';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import { activeChatStore } from '../../../stores/activeChatStore';
   import EmbedVersionTimeline from '../shared/EmbedVersionTimeline.svelte';
   import EmbedChevron from '../EmbedChevron.svelte';
   import SlideCanvas from './SlideCanvas.svelte';
@@ -20,6 +24,7 @@
   import { text } from '@repo/ui';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import type SlidesEditorComponent from './SlidesEditor.svelte';
+  import { saveEditedDeck, type EditedDeck } from './slidesDeckVersion';
 
   interface Props {
     data: EmbedFullscreenRawData;
@@ -53,23 +58,36 @@
     teamId
   }: Props = $props();
 
+  /**
+   * Chat the deck was opened in, captured once: re-selecting that same chat (the
+   * chat load after a page reload announces it again) keeps the deck open; only a
+   * switch to another chat closes it.
+   */
+  let owningChatId = $state<string | undefined>();
+  onMount(() => {
+    owningChatId = chatId || get(activeChatStore) || undefined;
+  });
+
   let dc = $derived(data.decodedContent);
   let latestMarkup = $derived(typeof dc.slides_markup === 'string' ? dc.slides_markup : '');
   /** Markup of a version picked in the timeline; null shows the latest. */
   let selectedMarkup = $state<string | null>(null);
-  /** Markup the editor returned with Done; shown until the embed itself changes. */
-  let editedMarkup = $state<string | null>(null);
-  let markup = $derived(selectedMarkup ?? editedMarkup ?? latestMarkup);
+  /** Version saved from the editor; shown until the embed data itself changes. */
+  let saved = $state<{ markup: string; version: number; title: string } | null>(null);
   let streaming = $derived(data.embedData?.status === 'processing');
   let versionNumber = $derived(
     typeof dc.version_number === 'number' ? dc.version_number : (data.embedData?.version_number ?? 1)
   );
+  /** Current head of the deck: the saved edit until the embed data catches up. */
+  let headMarkup = $derived(saved?.markup ?? latestMarkup);
+  let headVersion = $derived(saved?.version ?? versionNumber);
+  let markup = $derived(selectedMarkup ?? headMarkup);
 
   let parsed = $derived(parseSlidesMarkup(markup, { partial: streaming }));
   let deck = $derived(parsed.ok ? parsed.deck : null);
   let slides = $derived(deck?.slides ?? []);
   let title = $derived(
-    (typeof dc.title === 'string' && dc.title) || deck?.title || $text('embeds.slides_deck_default_title')
+    saved?.title || (typeof dc.title === 'string' && dc.title) || deck?.title || $text('embeds.slides_deck_default_title')
   );
   let statusText = $derived(
     slides.length > 0
@@ -132,8 +150,11 @@
     presenting = null;
   }
 
-  /** Editing needs the deck replica of the Rust core (shared Worker), so only that build offers it. */
-  const canEdit = import.meta.env.VITE_OPENMATES_RUST_CORE === '1';
+  /**
+   * Editing needs the deck replica of the Rust core (shared Worker), so only that
+   * build offers it, and a stored embed to save the edit into as its next version.
+   */
+  let canEdit = $derived(import.meta.env.VITE_OPENMATES_RUST_CORE === '1' && !!embedId);
   /** Loaded on first Edit so builds without the core never ship the editor. */
   let Editor = $state<typeof SlidesEditorComponent | null>(null);
   let editing = $state(false);
@@ -144,9 +165,15 @@
     editing = true;
   }
 
-  function saveEdit(edited: string) {
-    // Shown at once; persisting it as the embed's next version is not wired yet.
-    editedMarkup = edited;
+  /** Persists the edit as the next version; a rejection keeps the editor open with a retry. */
+  async function saveEdit(edited: EditedDeck): Promise<void> {
+    if (!embedId) throw new Error('Deck embed id is required to save an edit');
+    const result = await saveEditedDeck(
+      { embedId, version: headVersion, markup: headMarkup, content: dc },
+      edited,
+      { chatId, projectId, teamId }
+    );
+    if (result.saved) saved = { markup: edited.markup, version: result.version, title: edited.title };
     selectedMarkup = null;
   }
 
@@ -155,9 +182,11 @@
   }
 
   $effect(() => {
-    // A new version of the embed (stream, restore) replaces a local edit.
+    // New embed data (the saved edit arriving, a stream, a restore, an assistant
+    // edit) replaces the locally held saved version.
     void latestMarkup;
-    editedMarkup = null;
+    void versionNumber;
+    saved = null;
   });
 
   function onKeydown(event: KeyboardEvent) {
@@ -235,6 +264,7 @@
   {onClose}
   onCopy={handleCopy}
   currentEmbedId={embedId}
+  {owningChatId}
   skillIconName="slides"
   embedHeaderTitle={title}
   embedHeaderSubtitle={statusText}
@@ -341,19 +371,22 @@
         />
       {/if}
 
-      {#if embedId && versionNumber > 1}
-        <EmbedVersionTimeline
-          {embedId}
-          {chatId}
-          {projectId}
-          {teamId}
-          currentVersion={versionNumber}
-          currentContent={latestMarkup}
-          buildRestoredContent={(restored, newVersion) => ({ ...dc, slides_markup: restored, version_number: newVersion })}
-          onVersionSelect={(_version, selected) => {
-            selectedMarkup = selected;
-          }}
-        />
+      {#if embedId && headVersion > 1 && !editing}
+        <!-- Keyed on the head so a saved edit reloads the version list. -->
+        {#key headVersion}
+          <EmbedVersionTimeline
+            {embedId}
+            {chatId}
+            {projectId}
+            {teamId}
+            currentVersion={headVersion}
+            currentContent={headMarkup}
+            buildRestoredContent={(restored, newVersion) => ({ ...dc, slides_markup: restored, version_number: newVersion })}
+            onVersionSelect={(_version, selected) => {
+              selectedMarkup = selected;
+            }}
+          />
+        {/key}
       {/if}
     </div>
   {/snippet}

@@ -23,6 +23,10 @@ export const variants = {
   withNavigation: { ...defaultProps, hasPreviousEmbed: true, hasNextEmbed: true, onNavigatePrevious: () => {}, onNavigateNext: () => {} },
   hostile: { ...defaultProps, data: content(hostileDeck, 'Hostile', '16:9', 1) },
   empty: { ...defaultProps, data: content('', '', '16:9', 0) },
-  /** Normalised markup the Rust core opens: Edit is available with the core build. */
-  editable: { ...defaultProps, data: content(normalisedEditorDeck, 'Quarterly review', '16:9', 3) }
+  /**
+   * Normalised markup the Rust core opens: Edit is available with the core build.
+   * The preview embed is not in the local embed store, so Done after a change shows
+   * the save-failed state (edits kept, retry); real saving is covered end to end.
+   */
+  editable: { ...defaultProps, embedId: 'preview-deck-embed', data: content(normalisedEditorDeck, 'Quarterly review', '16:9', 3) }
 };

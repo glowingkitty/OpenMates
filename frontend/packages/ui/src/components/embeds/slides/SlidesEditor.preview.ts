@@ -7,12 +7,13 @@
  * Phone: add `&width=390`.
  */
 import { normalisedEditorDeck } from './slidesPreviewFixture';
+import type { EditedDeck } from './slidesDeckVersion';
 
 const defaultProps = {
   markup: normalisedEditorDeck,
   initialSlideId: 's2',
-  onSave: (markup: string) => {
-    console.info('[SlidesEditor preview] saved markup', markup.length);
+  onSave: async (deck: EditedDeck) => {
+    console.info('[SlidesEditor preview] saved markup', deck.markup.length);
   },
   onExit: () => {}
 };
@@ -26,6 +27,13 @@ export const variants = {
   shapeSelected: { ...defaultProps, initialElementId: 'e5' },
   /** Title slide with layout-placed text (no own geometry). */
   titleSlide: { ...defaultProps, initialSlideId: 's1', initialElementId: 'e1' },
+  /** Done after a change fails to save: the edits stay open with a retry. */
+  saveFails: {
+    ...defaultProps,
+    onSave: async () => {
+      throw new Error('preview: save refused');
+    }
+  },
   /** Not normalised markup: the core refuses to open it. */
   refused: { ...defaultProps, markup: '<deck><slide><text>Hi</text></slide></deck>' }
 };

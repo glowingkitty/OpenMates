@@ -110,6 +110,14 @@ editor:
     given: A deck has five slides.
     when: Bob duplicates slide 2, drags the copy to the end, deletes slide 4 and changes slide 1 to the section layout.
     then: The strip shows five slides in the new order, and slide 1 is arranged by the section layout with its text kept.
+  - id: saved-edit-survives-reload
+    given: The assistant made a deck "Plan" that is at version 1.
+    when: Alice renames the deck to "Launch plan" in edit mode, presses Done and reloads the page.
+    then: The deck shows "Launch plan", and its timeline lists version 1 and a new version 2.
+  - id: stale-edit-is-refused
+    given: Bob opened the deck on his laptop at version 2, and meanwhile saved version 3 from his phone.
+    when: He finishes an edit on the laptop and presses Done.
+    then: The laptop shows that saving failed and offers a retry; version 3 from the phone is kept unchanged, and no version is created from the laptop edit.
 
 present:
   - id: two-windows

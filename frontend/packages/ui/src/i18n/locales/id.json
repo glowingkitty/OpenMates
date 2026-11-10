@@ -7772,9 +7772,6 @@
     "slides_timer_reset": {
       "text": "Atur ulang timer"
     },
-    "slides_editor_title": {
-      "text": "Mengedit slide"
-    },
     "slides_editor_loading": {
       "text": "Membuka editor…"
     },
@@ -7784,8 +7781,17 @@
     "slides_editor_change_failed": {
       "text": "Perubahan itu tidak dapat diterapkan."
     },
+    "slides_editor_saving": {
+      "text": "Menyimpan…"
+    },
+    "slides_editor_save_failed": {
+      "text": "Perubahanmu tidak dapat disimpan. Perubahan masih ada di sini, jadi kamu bisa mencoba lagi."
+    },
     "slides_editor_toolbar": {
       "text": "Alat edit slide"
+    },
+    "slides_editor_selection_tools": {
+      "text": "Elemen terpilih"
     },
     "slides_editor_undo": {
       "text": "Urungkan"
@@ -7797,10 +7803,10 @@
       "text": "Tambah teks"
     },
     "slides_editor_bring_forward": {
-      "text": "Maju"
+      "text": "Bawa maju"
     },
     "slides_editor_send_backward": {
-      "text": "Mundur"
+      "text": "Kirim mundur"
     },
     "slides_editor_new_text": {
       "text": "Teks baru"
@@ -7869,7 +7875,7 @@
       "text": "Tambah slide"
     },
     "slides_editor_duplicate_slide": {
-      "text": "Duplikat"
+      "text": "Duplikat slide"
     },
     "slides_editor_delete_slide": {
       "text": "Hapus slide"

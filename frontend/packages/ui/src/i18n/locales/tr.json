@@ -7772,9 +7772,6 @@
     "slides_timer_reset": {
       "text": "Zamanlayıcıyı sıfırla"
     },
-    "slides_editor_title": {
-      "text": "Slaytlar düzenleniyor"
-    },
     "slides_editor_loading": {
       "text": "Düzenleyici açılıyor…"
     },
@@ -7784,8 +7781,17 @@
     "slides_editor_change_failed": {
       "text": "Bu değişiklik uygulanamadı."
     },
+    "slides_editor_saving": {
+      "text": "Kaydediliyor…"
+    },
+    "slides_editor_save_failed": {
+      "text": "Değişikliklerin kaydedilemedi. Hâlâ burada, tekrar deneyebilirsin."
+    },
     "slides_editor_toolbar": {
       "text": "Slayt düzenleme araçları"
+    },
+    "slides_editor_selection_tools": {
+      "text": "Seçili öğe"
     },
     "slides_editor_undo": {
       "text": "Geri al"
@@ -7800,7 +7806,7 @@
       "text": "Öne getir"
     },
     "slides_editor_send_backward": {
-      "text": "Geri gönder"
+      "text": "Geriye gönder"
     },
     "slides_editor_new_text": {
       "text": "Yeni metin"
@@ -7869,7 +7875,7 @@
       "text": "Slayt ekle"
     },
     "slides_editor_duplicate_slide": {
-      "text": "Çoğalt"
+      "text": "Slaytı çoğalt"
     },
     "slides_editor_delete_slide": {
       "text": "Slaytı sil"

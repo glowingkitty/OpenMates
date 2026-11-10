@@ -1464,6 +1464,52 @@ test('chat diagram legacy writer finalizes a processing v1 but cannot rewrite a 
   assert.equal(db.rows.embed_diffs[0].encrypted_snapshot, 'encrypted-original-source');
 });
 
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent,slides.editor.save-checked-version
+for (const [appId, skillId] of [['slides', 'deck'], ['sheets', 'sheet']]) {
+  test(`user revision commit advances an assistant-created ${appId}/${skillId} head from v1 to v2`, async () => {
+    const { seed, body } = chatDiagramFixture();
+    Object.assign(seed.embeds[0], { app_id: appId, skill_id: skillId });
+    const db = fakeDatabase(seed);
+    const result = await commitChatDiagramRevision(db, body);
+    assert.equal(result.status, 'committed');
+    assert.equal(result.current_revision, 2);
+    assert.equal(result.current_content_hash, '2'.repeat(64));
+    assert.equal(db.rows.embeds[0].version_number, 2);
+    assert.equal(db.rows.embeds[0].encrypted_content, 'encrypted-v2');
+    assert.deepEqual(db.rows.embed_diffs.map((row) => row.version_number), [1, 2]);
+    assert.equal(db.rows.chat_diagram_revision_commits.length, 1);
+  });
+}
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent,slides.editor.save-checked-version
+test('user revision commit refuses a stale deck edit without overwriting the head', async () => {
+  const { seed, body } = chatDiagramFixture();
+  Object.assign(seed.embeds[0], { app_id: 'slides', skill_id: 'deck' });
+  const db = fakeDatabase(seed);
+  const stale = await commitChatDiagramRevision(db, { ...body, expected_content_hash: '0'.repeat(64) });
+  assert.equal(stale.status, 'conflict');
+  assert.equal(stale.current_revision, 1);
+  assert.equal(stale.current_content_hash, '1'.repeat(64));
+  assert.equal(db.rows.embeds[0].encrypted_content, 'encrypted-v1');
+  assert.equal(db.rows.embeds[0].version_number, 1);
+  assert.equal(db.rows.embed_diffs.length, 1);
+  assert.equal(db.rows.chat_diagram_revision_commits.length, 0);
+});
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted
+test('user revision commit refuses embed types outside the allowlist', async () => {
+  for (const [appId, skillId] of [['diagrams', 'mermaid'], ['code', 'code'], ['docs', 'document'], ['slides', 'html']]) {
+    const { seed, body } = chatDiagramFixture();
+    Object.assign(seed.embeds[0], { app_id: appId, skill_id: skillId });
+    const db = fakeDatabase(seed);
+    await assert.rejects(commitChatDiagramRevision(db, body),
+      (error) => error instanceof ProtocolError && error.status === 403 && error.code === 'diagram_access_denied');
+    assert.equal(db.rows.embeds[0].encrypted_content, 'encrypted-v1');
+    assert.equal(db.rows.embed_diffs.length, 1);
+    assert.equal(db.rows.chat_diagram_revision_commits.length, 0);
+  }
+});
+
 // contract-test: supporting surface=rest_api assertions=apps.library.embeds-account-paginated,chats.persistence.client-encrypted
 for (const [appId, skillId] of [['reminder', 'set-reminder'], ['workflows', 'create-or-modify'], ['travel', 'search_connections']]) {
   test(`registered ${appId}/${skillId} persists and updates ciphertext atomically`, async () => {

@@ -20,7 +20,7 @@ from backend.apps.ai.testing.mercury_routing_fixture import (
     EXTRA_HIGH_PROMPT, EXTRA_HIGH_RESPONSE, HIGH_RECOVERY_PROMPT, HIGH_RECOVERY_RESPONSE,
     GEMINI_RETRY_PROMPT, GEMINI_RETRY_RESPONSE, CHEAP_FALLBACK_PROMPT, CHEAP_FALLBACK_RESPONSE,
     WEB_RESEARCH_PROMPT, WEB_RESEARCH_RESPONSE,
-    WEB_THROTTLE_PROMPT, WEB_THROTTLE_RESPONSE,
+    WEB_THROTTLE_PROMPT, WEB_THROTTLE_RESPONSE, SLIDES_PROMPT, SLIDES_RESPONSE,
     active, jev_response, llm_fixture,
 )
 from backend.apps.ai.utils.answer_recovery import ANSWER_RECOVERY_INSTRUCTION, build_answer_recovery_history
@@ -114,6 +114,29 @@ async def test_wrapper_delivers_typed_success_and_requires_real_failure_before_f
     assert recovered[0] == FALLBACK_RESPONSE
     assert recovered[1].prompt_token_count == 100
     assert llm_fixture(f"llm/{fallback}", kwargs) is None
+
+
+@pytest.mark.asyncio
+async def test_slides_deck_replay_streams_a_normalisable_slides_fence(replay, tmp_path: Path):
+    from backend.apps.ai.tasks.stream_consumer import _is_slides_fence
+    from backend.shared.python_utils.slides_markup import normalise_slides_markup
+
+    async def forbidden_provider(**_kwargs):
+        raise AssertionError("routing fixture must never dispatch a real provider")
+
+    wrapped = wrap_provider_with_cache(forbidden_provider, ApiResponseCache(root=tmp_path))
+    stream = await wrapped(model_id="mercury-3", stream=True, task_id="slides-task", reasoning_effort="medium",
+                           thinking_level="LOW", max_tokens=16384,
+                           messages=[{"role": "user", "content": SLIDES_PROMPT}], tools=[])
+    chunks = [chunk async for chunk in stream]
+    assert chunks[0] == SLIDES_RESPONSE
+    language, _, rest = SLIDES_RESPONSE.split("```", 2)[1].partition("\n")
+    assert _is_slides_fence(language)
+    deck = normalise_slides_markup(rest)
+    assert (deck.title, deck.slide_count, deck.aspect) == ("Launch plan", 2, "16:9")
+    # The E2E edits these ids; the normaliser assigns them in document order.
+    assert '<text id="e1" role="title">Launch plan</text>' in deck.markup
+    assert '<shape id="e4" x="80" y="300" w="400" h="200" kind="rect" fill="accent"/>' in deck.markup
 
 
 def test_unrelated_or_changed_classifier_request_is_rejected(replay):

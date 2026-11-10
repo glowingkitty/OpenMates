@@ -7799,9 +7799,6 @@
     "slides_timer_reset": {
       "text": "Azzera timer"
     },
-    "slides_editor_title": {
-      "text": "Modifica delle slide"
-    },
     "slides_editor_loading": {
       "text": "Apertura dell’editor…"
     },
@@ -7811,8 +7808,17 @@
     "slides_editor_change_failed": {
       "text": "Impossibile applicare la modifica."
     },
+    "slides_editor_saving": {
+      "text": "Salvataggio…"
+    },
+    "slides_editor_save_failed": {
+      "text": "Impossibile salvare le modifiche. Sono ancora qui, quindi puoi riprovare."
+    },
     "slides_editor_toolbar": {
       "text": "Strumenti di modifica delle slide"
+    },
+    "slides_editor_selection_tools": {
+      "text": "Elemento selezionato"
     },
     "slides_editor_undo": {
       "text": "Annulla"
@@ -7824,10 +7830,10 @@
       "text": "Aggiungi testo"
     },
     "slides_editor_bring_forward": {
-      "text": "Avanti"
+      "text": "Porta avanti"
     },
     "slides_editor_send_backward": {
-      "text": "Indietro"
+      "text": "Porta indietro"
     },
     "slides_editor_new_text": {
       "text": "Nuovo testo"
@@ -7896,7 +7902,7 @@
       "text": "Aggiungi slide"
     },
     "slides_editor_duplicate_slide": {
-      "text": "Duplica"
+      "text": "Duplica slide"
     },
     "slides_editor_delete_slide": {
       "text": "Elimina slide"

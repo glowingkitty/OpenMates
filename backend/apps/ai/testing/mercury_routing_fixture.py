@@ -44,9 +44,26 @@ CHEAP_FALLBACK_RESPONSE = "Mercury completed the answer as the inexpensive last 
 HIGH_RESPONSE = "The answer is 10. Low complexity used the separate HIGH recommendation."
 EXTRA_HIGH_RESPONSE = "The answer is 12. Google clamped the EXTRA_HIGH recommendation to HIGH."
 HIGH_RECOVERY_RESPONSE = "Mercury preserved the recommendation at HIGH during recovery."
+# A finished deck for the manual slides editing E2E: the real stream consumer parses
+# this ```slides fence, normalises it and creates the deck embed; nothing is seeded.
+SLIDES_PROMPT = "Create a two-slide launch plan deck. MERCURY_ROUTING_E2E:slides_deck"
+SLIDES_RESPONSE = (
+    "Here is the launch plan deck.\n\n```slides\n"
+    '<deck title="Launch plan" aspect="16:9" template="builtin:plain">\n'
+    '  <slide layout="title">\n'
+    '    <text role="title">Launch plan</text>\n'
+    '    <text role="subtitle">Q4 rollout</text>\n'
+    "  </slide>\n"
+    '  <slide layout="title-and-content">\n'
+    '    <text role="title" x="80" y="60" w="1200" h="120">Timeline</text>\n'
+    '    <shape kind="rect" fill="accent" x="80" y="300" w="400" h="200"/>\n'
+    "  </slide>\n"
+    "</deck>\n```\n"
+)
 PROTOCOL_TEXT = "```toon\napp_id: web\nskill_id: search\nstatus: finished\n```"
 PROMPTS = (SUCCESS_PROMPT, FALLBACK_PROMPT, DISABLED_PROMPT, GEMINI_RETRY_PROMPT, CHEAP_FALLBACK_PROMPT,
-           HIGH_PROMPT, EXTRA_HIGH_PROMPT, HIGH_RECOVERY_PROMPT, WEB_RESEARCH_PROMPT, WEB_THROTTLE_PROMPT)
+           HIGH_PROMPT, EXTRA_HIGH_PROMPT, HIGH_RECOVERY_PROMPT, WEB_RESEARCH_PROMPT, WEB_THROTTLE_PROMPT,
+           SLIDES_PROMPT)
 MAX_FAILURE_WITNESSES = 128
 # wait_for() consumes Mercury's first chunk in a child task, so a ContextVar set
 # there would not reach the fallback task. Store only opaque task IDs, bounded.
@@ -266,8 +283,9 @@ def llm_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | None:
         if prompt == DISABLED_PROMPT:
             raise AssertionError("A disabled Mercury model must never reach its provider")
         _assert_mercury_policy(kwargs, "high" if prompt in {HIGH_PROMPT, EXTRA_HIGH_PROMPT} else "medium")
-        if prompt in {SUCCESS_PROMPT, HIGH_PROMPT}:
-            return _packet(model, HIGH_RESPONSE if prompt == HIGH_PROMPT else SUCCESS_RESPONSE)
+        if prompt in {SUCCESS_PROMPT, HIGH_PROMPT, SLIDES_PROMPT}:
+            return _packet(model, HIGH_RESPONSE if prompt == HIGH_PROMPT
+                           else SLIDES_RESPONSE if prompt == SLIDES_PROMPT else SUCCESS_RESPONSE)
         _failed_tasks[task_id] = None
         _failed_tasks.move_to_end(task_id)
         while len(_failed_tasks) > MAX_FAILURE_WITNESSES:

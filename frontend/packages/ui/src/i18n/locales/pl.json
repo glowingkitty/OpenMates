@@ -7772,9 +7772,6 @@
     "slides_timer_reset": {
       "text": "Zresetuj stoper"
     },
-    "slides_editor_title": {
-      "text": "Edycja slajdów"
-    },
     "slides_editor_loading": {
       "text": "Otwieranie edytora…"
     },
@@ -7784,8 +7781,17 @@
     "slides_editor_change_failed": {
       "text": "Nie udało się zastosować tej zmiany."
     },
+    "slides_editor_saving": {
+      "text": "Zapisywanie…"
+    },
+    "slides_editor_save_failed": {
+      "text": "Nie udało się zapisać zmian. Nadal tu są, więc możesz spróbować ponownie."
+    },
     "slides_editor_toolbar": {
       "text": "Narzędzia edycji slajdów"
+    },
+    "slides_editor_selection_tools": {
+      "text": "Zaznaczony element"
     },
     "slides_editor_undo": {
       "text": "Cofnij"
@@ -7797,10 +7803,10 @@
       "text": "Dodaj tekst"
     },
     "slides_editor_bring_forward": {
-      "text": "Do przodu"
+      "text": "Przesuń do przodu"
     },
     "slides_editor_send_backward": {
-      "text": "Do tyłu"
+      "text": "Przesuń do tyłu"
     },
     "slides_editor_new_text": {
       "text": "Nowy tekst"
@@ -7869,7 +7875,7 @@
       "text": "Dodaj slajd"
     },
     "slides_editor_duplicate_slide": {
-      "text": "Duplikuj"
+      "text": "Duplikuj slajd"
     },
     "slides_editor_delete_slide": {
       "text": "Usuń slajd"

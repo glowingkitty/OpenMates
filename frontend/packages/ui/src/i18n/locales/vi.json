@@ -7772,9 +7772,6 @@
     "slides_timer_reset": {
       "text": "Đặt lại đồng hồ"
     },
-    "slides_editor_title": {
-      "text": "Đang chỉnh sửa trang chiếu"
-    },
     "slides_editor_loading": {
       "text": "Đang mở trình chỉnh sửa…"
     },
@@ -7784,8 +7781,17 @@
     "slides_editor_change_failed": {
       "text": "Không thể áp dụng thay đổi đó."
     },
+    "slides_editor_saving": {
+      "text": "Đang lưu…"
+    },
+    "slides_editor_save_failed": {
+      "text": "Không thể lưu thay đổi của bạn. Chúng vẫn còn ở đây, bạn có thể thử lại."
+    },
     "slides_editor_toolbar": {
       "text": "Công cụ chỉnh sửa trang chiếu"
+    },
+    "slides_editor_selection_tools": {
+      "text": "Phần tử đã chọn"
     },
     "slides_editor_undo": {
       "text": "Hoàn tác"
@@ -7797,10 +7803,10 @@
       "text": "Thêm văn bản"
     },
     "slides_editor_bring_forward": {
-      "text": "Đưa lên"
+      "text": "Đưa lên trên"
     },
     "slides_editor_send_backward": {
-      "text": "Đưa xuống"
+      "text": "Đưa xuống dưới"
     },
     "slides_editor_new_text": {
       "text": "Văn bản mới"
@@ -7869,7 +7875,7 @@
       "text": "Thêm trang chiếu"
     },
     "slides_editor_duplicate_slide": {
-      "text": "Nhân bản"
+      "text": "Nhân bản trang chiếu"
     },
     "slides_editor_delete_slide": {
       "text": "Xóa trang chiếu"

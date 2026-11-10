@@ -9344,9 +9344,6 @@
     "slides_timer_reset": {
       "text": "Timer zurücksetzen"
     },
-    "slides_editor_title": {
-      "text": "Folien bearbeiten"
-    },
     "slides_editor_loading": {
       "text": "Editor wird geöffnet…"
     },
@@ -9356,8 +9353,17 @@
     "slides_editor_change_failed": {
       "text": "Diese Änderung konnte nicht übernommen werden."
     },
+    "slides_editor_saving": {
+      "text": "Wird gespeichert…"
+    },
+    "slides_editor_save_failed": {
+      "text": "Deine Änderungen konnten nicht gespeichert werden. Sie sind noch da, du kannst es erneut versuchen."
+    },
     "slides_editor_toolbar": {
       "text": "Werkzeuge zum Bearbeiten von Folien"
+    },
+    "slides_editor_selection_tools": {
+      "text": "Ausgewähltes Element"
     },
     "slides_editor_undo": {
       "text": "Rückgängig"
@@ -9369,10 +9375,10 @@
       "text": "Text hinzufügen"
     },
     "slides_editor_bring_forward": {
-      "text": "Nach vorn"
+      "text": "Eine Ebene nach vorn"
     },
     "slides_editor_send_backward": {
-      "text": "Nach hinten"
+      "text": "Eine Ebene nach hinten"
     },
     "slides_editor_new_text": {
       "text": "Neuer Text"
@@ -9441,7 +9447,7 @@
       "text": "Folie hinzufügen"
     },
     "slides_editor_duplicate_slide": {
-      "text": "Duplizieren"
+      "text": "Folie duplizieren"
     },
     "slides_editor_delete_slide": {
       "text": "Folie löschen"

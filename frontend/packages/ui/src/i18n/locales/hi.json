@@ -7772,9 +7772,6 @@
     "slides_timer_reset": {
       "text": "टाइमर रीसेट करें"
     },
-    "slides_editor_title": {
-      "text": "स्लाइड संपादित हो रही हैं"
-    },
     "slides_editor_loading": {
       "text": "संपादक खुल रहा है…"
     },
@@ -7784,8 +7781,17 @@
     "slides_editor_change_failed": {
       "text": "यह बदलाव लागू नहीं हो सका।"
     },
+    "slides_editor_saving": {
+      "text": "सहेजा जा रहा है…"
+    },
+    "slides_editor_save_failed": {
+      "text": "आपके बदलाव सहेजे नहीं जा सके। वे अभी भी यहीं हैं, आप फिर से कोशिश कर सकते हैं।"
+    },
     "slides_editor_toolbar": {
       "text": "स्लाइड संपादन उपकरण"
+    },
+    "slides_editor_selection_tools": {
+      "text": "चयनित तत्व"
     },
     "slides_editor_undo": {
       "text": "पूर्ववत करें"
@@ -7869,7 +7875,7 @@
       "text": "स्लाइड जोड़ें"
     },
     "slides_editor_duplicate_slide": {
-      "text": "डुप्लिकेट करें"
+      "text": "स्लाइड डुप्लिकेट करें"
     },
     "slides_editor_delete_slide": {
       "text": "स्लाइड हटाएँ"
