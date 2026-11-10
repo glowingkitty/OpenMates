@@ -464,19 +464,24 @@ impl Client {
             {
                 return Err(Error::Protocol);
             }
-            digest = self.persist_canonical_embed_diff(
-                ws,
-                super::persistence::HistoryWrite {
-                    embed: id, chat: target, version, key: &key,
-                    snapshot: c.get("snapshot").and_then(Value::as_str),
-                    patch: c.get("patch").and_then(Value::as_str),
-                    owner_hash: &owner_hash,
-                    created_at: c["created_at"].as_u64().unwrap_or(now_ms()/1000),
-                    recovery_record: Some(required(o, "record_id")?),
-                    allow_missing_revision: true,
-                },
-                &|client| check_replay_scope(client, scope, o),
-            ).await?;
+            digest = self
+                .persist_canonical_embed_diff(
+                    ws,
+                    super::persistence::HistoryWrite {
+                        embed: id,
+                        chat: target,
+                        version,
+                        key: &key,
+                        snapshot: c.get("snapshot").and_then(Value::as_str),
+                        patch: c.get("patch").and_then(Value::as_str),
+                        owner_hash: &owner_hash,
+                        created_at: c["created_at"].as_u64().unwrap_or(now_ms() / 1000),
+                        recovery_record: Some(required(o, "record_id")?),
+                        allow_missing_revision: true,
+                    },
+                    &|client| check_replay_scope(client, scope, o),
+                )
+                .await?;
             source = "version_row";
         } else {
             let content = c
@@ -1387,6 +1392,7 @@ fn historical_source(data: &Value, kind: &str) -> Result<String> {
                 "sheet" => "table",
                 "mermaid" => "diagram_code",
                 "diagram_html" => "html_source",
+                "deck" => "slides_markup",
                 _ => return Err(Error::Protocol),
             };
             data[field]

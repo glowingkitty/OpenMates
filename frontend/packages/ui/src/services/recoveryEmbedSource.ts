@@ -44,6 +44,7 @@ export function isUnwrittenInitialDiffRead(status: number, detail: unknown, vers
 export async function historySourceFromSealedEmbed(content: string, type: string): Promise<string> {
   const fieldByType: Record<string, string> = {
     code: "code", pcb_schematic: "code", sheet: "table", mermaid: "diagram_code",
+    deck: "slides_markup",
   };
   const { decode } = await import("@toon-format/toon");
   const decoded = decode(content);

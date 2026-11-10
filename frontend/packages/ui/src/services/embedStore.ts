@@ -1029,7 +1029,8 @@ export class EmbedStore {
       type === "sheets-sheet" ||
       type === "math-plot" ||
       type === "document" ||
-      type === "docs-doc";
+      type === "docs-doc" ||
+      type === "deck";
     if (!isAppSkillUse && !isAutoConverted) {
       return {};
     }

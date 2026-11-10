@@ -35,6 +35,8 @@ describe("historical sealed embed source", () => {
   it("compares immutable version rows with code, mail, and document source inside sealed TOON", async () => {
     expect(await historySourceFromSealedEmbed(encode({ type: "code", code: "const value = 7;" }), "code"))
       .toBe("const value = 7;");
+    expect(await historySourceFromSealedEmbed(encode({ type: "deck", slides_markup: "# One" }), "deck"))
+      .toBe("# One");
     expect(await historySourceFromSealedEmbed(encode({
       type: "mail", receiver: "a@example.test", subject: "Hello", content: "Body", footer: "Bye",
     }), "mail")).toBe("to: a@example.test\nsubject: Hello\ncontent:\nBody\nfooter:\nBye");

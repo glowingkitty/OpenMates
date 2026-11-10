@@ -2,7 +2,7 @@
 //! Replays the TypeScript-generated vectors (`ts_vectors.json`, checked against
 //! the web services by `streamRecoveryVectors.test.ts` and the stream cases of
 //! `chatSyncServiceHandlersAI.test.ts`) against the web stream decisions.
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use super::assembler::StreamAssembler;
 use super::recovery;
@@ -196,4 +196,11 @@ fn retained_admission_frames_match_typescript() {
     for case in cases(&v, "contextFrame") {
         assert_same(&run(recovery::context_frame_json, case), &case["out"], case);
     }
+}
+
+#[test]
+fn deck_history_source_is_slides_markup() {
+    let input = json!({"type": "deck", "decoded": {"type": "deck", "slides_markup": "# One"}});
+    let got = run(recovery::history_source_json, &input);
+    assert_eq!(got, json!({"kind": "source", "source": "# One"}));
 }

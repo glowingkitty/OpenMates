@@ -8673,7 +8673,7 @@ export class OpenMatesClient {
               } else {
                 const historicalFieldByType: Record<string, string> = {
                   code: "code", pcb_schematic: "code", sheet: "table", mermaid: "diagram_code",
-                  diagram_html: "html_source",
+                  diagram_html: "html_source", deck: "slides_markup",
                 };
                 const field = historicalFieldByType[content.type];
                 if (!field || typeof sealedEmbed[field] !== "string") {
@@ -11828,6 +11828,9 @@ export class OpenMatesClient {
           ...(params.teamId ? { team_id: params.teamId } : {}),
         } : embed.type === "diagram_html" ? {
           app_id: "diagrams", skill_id: "html", chat_id: params.chatId,
+          ...(params.teamId ? { team_id: params.teamId } : {}),
+        } : embed.type === "deck" ? {
+          app_id: "slides", skill_id: "deck", chat_id: params.chatId,
           ...(params.teamId ? { team_id: params.teamId } : {}),
         } : {}),
         text_length_chars: embed.text_length_chars,

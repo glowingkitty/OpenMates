@@ -8,7 +8,7 @@
 //! Mirrors `chatRecoveryVersionApply.ts`, `chatRecoveryVersionRefresh.ts`,
 //! and `recoveryEmbedSource.ts`.
 //! spec: specifications/architecture/sync#sync.client.shared-rust-policy
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
 use super::recovery_text::js_trim_is_empty;
 use super::{field, nullish, num, number, parse, safe_integer};
@@ -228,6 +228,7 @@ pub fn history_source_json(input: &str) -> Result<String, String> {
         "code" | "pcb_schematic" => "code",
         "sheet" => "table",
         "mermaid" => "diagram_code",
+        "deck" => "slides_markup",
         _ => return error("format"),
     };
     match string_field(decoded, key) {
