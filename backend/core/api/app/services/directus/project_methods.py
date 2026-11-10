@@ -627,7 +627,7 @@ class ProjectMethods:
         await self.delete_project_items_by_project_hash(hashed_project_id, user_id, team_id=team_id)
         await self.delete_project_folders_by_project_hash(hashed_project_id, user_id, team_id=team_id)
         owner_filter = {"hashed_project_id": {"_eq": hashed_project_id}, **_owner_filter(user_id, team_id)}
-        for collection in ("project_sources", "project_settings"):
+        for collection in ("project_sources", "project_settings", "project_commits"):
             await self.directus_service.delete_items(collection, owner_filter)
         await self.directus_service.delete_items(
             "project_key_wrappers",
@@ -673,6 +673,7 @@ class ProjectMethods:
             "project_items": "attached_by_user_hash",
             "project_sources": "attached_by_user_hash",
             "project_settings": "updated_by_user_hash",
+            "project_commits": "created_by_user_hash",
         }
         child_rows: list[tuple[str, str, dict[str, Any]]] = []
         for collection, actor_field in actor_fields.items():

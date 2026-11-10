@@ -8003,6 +8003,40 @@
           }
         }
       }
+    },
+    "code": {
+      "test_result": {
+        "title": {
+          "text": "Výsledek testu"
+        },
+        "status_passed": {
+          "text": "Úspěšné"
+        },
+        "status_failed": {
+          "text": "Neúspěšné"
+        },
+        "status_skipped": {
+          "text": "Přeskočeno"
+        },
+        "status_error": {
+          "text": "Chyba"
+        },
+        "status_cancelled": {
+          "text": "Zrušeno"
+        },
+        "status_timed_out": {
+          "text": "Vypršel časový limit"
+        },
+        "stale": {
+          "text": "Zastaralé"
+        },
+        "steps": {
+          "text": "Kroky testu"
+        },
+        "no_video": {
+          "text": "Pro toto spuštění není k dispozici video"
+        }
+      }
     }
   },
   "embeds_input": {},

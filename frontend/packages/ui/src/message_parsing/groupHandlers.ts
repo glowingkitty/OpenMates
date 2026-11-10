@@ -1108,6 +1108,7 @@ export class GroupHandlerRegistry {
     this.register(new BaseGroupHandler("slides-deck", ["id", "type", "status", "contentRef", "title"]));
     this.register(new BaseGroupHandler("tv-movie", ["id", "type", "status", "contentRef", "title"]));
     this.register(new BaseGroupHandler("tv-series", ["id", "type", "status", "contentRef", "title"]));
+    this.register(new BaseGroupHandler("code-test-result", ["id", "type", "status", "contentRef", "title"]));
 
     // Generic handlers for embed types that follow the standard grouping pattern
     this.register(

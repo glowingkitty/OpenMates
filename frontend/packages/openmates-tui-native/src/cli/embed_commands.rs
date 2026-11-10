@@ -15,6 +15,7 @@ pub fn supported(i: &Invocation) -> bool {
         i.command_path().as_str(),
         "embeds versions list"
             | "embeds versions show"
+            | "embeds test-result"
             | "embeds versions restore"
             | "embeds preview start"
             | "embeds preview status"
@@ -156,6 +157,7 @@ pub async fn execute_sdk_embeds_with_gate(
     match path.as_str(){
         "embeds versions list"=>super::handlers::flags(i,&[])?,
         "embeds versions show"=>super::handlers::flags(i,&["version","output"])?,
+        "embeds test-result"=>super::handlers::flags(i,&["version"])?,
         "embeds versions restore"=>super::handlers::flags(i,&["version","yes"])?,
         "embeds preview start"=>super::handlers::flags(i,&["chat-id","chat","shared-context","runtime","source-message-id","wait","timeout-seconds"])?,
         "embeds preview status"|"embeds preview open"|"embeds preview stop"=>super::handlers::flags(i,&[])?,
@@ -173,6 +175,11 @@ pub async fn execute_sdk_embeds_with_gate(
             let number=version(i)?;
             let value=client.embeds().version_content(id,number).await?;
             version_content_output(i,value,&cancel,private_gate)
+        },
+        "embeds test-result"=>{
+            let number=version(i)?;
+            let value=client.embeds().version_content(id,number).await?;
+            super::test_result_cmd::output(i.boolean("json"),&value)
         },
         "embeds versions restore"=>{
             let number=version(i)?;
@@ -365,13 +372,14 @@ mod tests;
 pub(super) async fn execute_cookie_version(
     i:&Invocation,client:&mut openmates_sdk::Client,cancel:CancellationToken,
 )->Result<CliOutput,CliError>{
-    super::handlers::flags(i,&["version","output"])?;
+    let test_result=i.command_path()=="embeds test-result";
+    super::handlers::flags(i,if test_result{&["version"][..]}else{&["version","output"][..]})?;
     let id=first(i)?;let number=version(i)?;
     if cancel.is_cancelled(){return Err(Error::Cancelled.into());}
     client.set_operation_cancel(cancel.clone());
     let(value,admission)=client.embed_version_content_with_admission(id,number).await?;
     let mut value=PendingVersion(value);
-    let result=version_content_output(i,std::mem::take(&mut value.0),&cancel,&||admission.check(client));
+    let result=if test_result{super::test_result_cmd::output(i.boolean("json"),&value.0)}else{version_content_output(i,std::mem::take(&mut value.0),&cancel,&||admission.check(client))};
     if let Err(error)=admission.check(client) {
         if let Ok(mut output)=result {use zeroize::Zeroize;output.stdout.zeroize();output.stderr.zeroize();}
         return Err(error.into());

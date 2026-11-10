@@ -13,6 +13,7 @@ mod global_history;
 mod full_chat_read;
 mod drafts;
 mod embed_commands;
+mod test_result_cmd;
 mod embed_share;
 mod extra_ports;
 pub use extra_ports::{execute_provisioning as execute_e2e_provisioning, is_provisioning as is_e2e_provisioning};
@@ -36,6 +37,8 @@ mod parity_extras;
 mod parser;
 mod plans;
 mod projects;
+#[cfg(unix)]
+mod remote_access;
 mod send;
 pub mod signup;
 mod utility;

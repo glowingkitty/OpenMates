@@ -8003,6 +8003,40 @@
           }
         }
       }
+    },
+    "code": {
+      "test_result": {
+        "title": {
+          "text": "Testresultat"
+        },
+        "status_passed": {
+          "text": "Godkänt"
+        },
+        "status_failed": {
+          "text": "Misslyckades"
+        },
+        "status_skipped": {
+          "text": "Överhoppat"
+        },
+        "status_error": {
+          "text": "Fel"
+        },
+        "status_cancelled": {
+          "text": "Avbrutet"
+        },
+        "status_timed_out": {
+          "text": "Tidsgränsen överskreds"
+        },
+        "stale": {
+          "text": "Föråldrat"
+        },
+        "steps": {
+          "text": "Teststeg"
+        },
+        "no_video": {
+          "text": "Ingen video tillgänglig för den här körningen"
+        }
+      }
     }
   },
   "embeds_input": {},

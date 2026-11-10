@@ -66,7 +66,18 @@ impl Client {
         }
         // Session refresh can rotate a credential. Let it finish and preserve
         // the new token before honoring cancellation of the socket operation.
-        let mut ws = self.socket_with_task_jobs(options.task_update_jobs).await?;
+        // The capability is per socket: only a shell that renders the created
+        // Project card opts in, so other clients keep today's behaviour.
+        self.extra_socket_capabilities = Vec::new();
+        if options.project_create_requests {
+            self.extra_socket_capabilities.push(PROJECT_CREATE_CAPABILITY);
+        }
+        if options.project_file_jobs && PROJECT_FILE_JOBS_AVAILABLE {
+            self.extra_socket_capabilities.push(PROJECT_FILE_JOBS_CAPABILITY);
+        }
+        let socket = self.socket_with_task_jobs(options.task_update_jobs).await;
+        self.extra_socket_capabilities.clear();
+        let mut ws = socket?;
         if cancel.is_cancelled() {
             let _ = ws.close(None).await;
             return Err(Error::Cancelled);

@@ -5,7 +5,7 @@
 use crate::{
     crypto::Key,
     error::{Error, Result},
-    storage::{Session, StorageMode, Store},
+    storage::{Session, SessionSave, StorageMode, Store},
 };
 use serde_json::Value;
 use std::{
@@ -65,6 +65,11 @@ impl RuntimeStore {
         .await
         .map_err(|_| Error::Io)?
     }
+    /// Release the lifetime runtime lock; each later store operation takes it
+    /// only while it runs (see `Store::scope_runtime_lock_to_operations`).
+    pub fn scope_runtime_lock_to_operations(&self) -> Result<()> {
+        self.store.scope_runtime_lock_to_operations()
+    }
     async fn blocking<T: Send + 'static>(
         &self,
         operation: impl FnOnce(Arc<Store>) -> Result<T> + Send + 'static,
@@ -75,7 +80,8 @@ impl RuntimeStore {
             // Keep the queue permit in the blocking closure, rather than the
             // cancellable future, until the filesystem/keyring operation ends.
             let _permit = permit;
-            operation(store)
+            let held = store.clone();
+            held.with_runtime_lock(move || operation(store))
         })
         .await
         .map_err(|_| Error::Io)?
@@ -118,7 +124,7 @@ impl RuntimeStore {
         std::thread::Builder::new()
             .name("native-revoke".into())
             .spawn(move || {
-                let _ = done.send(store.revoke_session());
+                let _ = done.send(store.with_runtime_lock(|| store.revoke_session()));
             })
             .map_err(|_| Error::Io)?;
         ready.await.map_err(|_| Error::Io)?
@@ -222,6 +228,44 @@ impl RuntimeStore {
                 return Err(Error::Cancelled);
             }
             store.save_session_if_changed(&session, passphrase.as_ref().map(|secret| secret.as_str()))
+        })
+        .await
+    }
+    /// `save_if_changed` for long-running hosts: when another process rotated
+    /// the stored session, adopt it instead of overwriting it. The comparison
+    /// and write run in one runtime-lock critical section. One-shot (lifetime
+    /// locked) stores always report `Saved`.
+    pub async fn save_unless_superseded(
+        &self,
+        session: Session,
+        passphrase: Option<Zeroizing<String>>,
+    ) -> Result<SessionSave> {
+        let generation = self.generation();
+        let current = self.generation.clone();
+        self.blocking(move |store| {
+            if current.load(Ordering::SeqCst) != generation {
+                return Err(Error::Cancelled);
+            }
+            store.save_session_unless_superseded(
+                &session,
+                passphrase.as_ref().map(|secret| secret.as_str()),
+            )
+        })
+        .await
+    }
+    /// The session another process rotated and stored since this one last
+    /// loaded or saved, if any (hosts only). Read under the runtime lock.
+    pub async fn load_superseded(
+        &self,
+        passphrase: Option<Zeroizing<String>>,
+    ) -> Result<Option<Session>> {
+        let generation = self.generation();
+        let current = self.generation.clone();
+        self.blocking(move |store| {
+            if current.load(Ordering::SeqCst) != generation {
+                return Err(Error::Cancelled);
+            }
+            store.superseded_session(passphrase.as_ref().map(|secret| secret.as_str()))
         })
         .await
     }

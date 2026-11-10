@@ -170,6 +170,8 @@ class ConnectionManager:
         # Clients that can execute Project file operations for their currently
         # assigned chat. Capability alone never grants Project authority.
         self.project_file_job_capability: Dict[Tuple[str, str], bool] = {}
+        # Executes openmates.project_create_request (assistant-inferred Project creation).
+        self.project_create_capability: Dict[Tuple[str, str], bool] = {}
         # Clients that implement reviewed, client-encrypted remote commands.
         self.remote_command_job_capability: Dict[Tuple[str, str], bool] = {}
         self.storage_archive_capability: Dict[Tuple[str, str], bool] = {}
@@ -202,6 +204,7 @@ class ConnectionManager:
         supports_task_update_jobs: bool = False,
         supports_chat_metadata_recovery: bool = False,
         supports_project_file_jobs: bool = False,
+        supports_project_create_requests: bool = False,
         supports_remote_command_jobs: bool = False,
         supports_storage_archive: bool = False,
         supports_canonical_embed_receipts: bool = False,
@@ -259,6 +262,7 @@ class ConnectionManager:
         self.task_update_job_capability[connection_key] = supports_task_update_jobs
         self.chat_metadata_recovery_capability[connection_key] = supports_chat_metadata_recovery
         self.project_file_job_capability[connection_key] = supports_project_file_jobs
+        self.project_create_capability[connection_key] = supports_project_create_requests
         self.remote_command_job_capability[connection_key] = supports_remote_command_jobs
         self.storage_archive_capability[connection_key] = supports_storage_archive
         self.canonical_embed_receipt_capability[connection_key] = supports_canonical_embed_receipts
@@ -409,6 +413,7 @@ class ConnectionManager:
                 self.task_update_job_capability.pop(connection_key, None)
                 self.chat_metadata_recovery_capability.pop(connection_key, None)
                 self.project_file_job_capability.pop(connection_key, None)
+                self.project_create_capability.pop(connection_key, None)
                 self.remote_command_job_capability.pop(connection_key, None)
                 self.storage_archive_capability.pop(connection_key, None)
                 self.canonical_embed_receipt_capability.pop(connection_key, None)
@@ -435,6 +440,7 @@ class ConnectionManager:
                 self.task_update_job_capability.pop(connection_key, None)
                 self.chat_metadata_recovery_capability.pop(connection_key, None)
                 self.project_file_job_capability.pop(connection_key, None)
+                self.project_create_capability.pop(connection_key, None)
                 self.remote_command_job_capability.pop(connection_key, None)
                 self.storage_archive_capability.pop(connection_key, None)
 
@@ -729,6 +735,16 @@ class ConnectionManager:
             self.supports_project_file_jobs(user_id, device_fingerprint_hash)
             and self.get_active_chat(user_id, device_fingerprint_hash) == chat_id
         )
+
+    def supports_project_create_requests(self, user_id: str, device_fingerprint_hash: str) -> bool:
+        """True for a Project executor that also implements client-executed creation."""
+        return (self.supports_project_file_jobs(user_id, device_fingerprint_hash)
+                and self.project_create_capability.get((user_id, device_fingerprint_hash), False))
+
+    def can_execute_project_create(self, user_id: str, device_fingerprint_hash: str, chat_id: str) -> bool:
+        """Creation requests go only to this chat's current capable executor."""
+        return (self.supports_project_create_requests(user_id, device_fingerprint_hash)
+                and self.get_active_chat(user_id, device_fingerprint_hash) == chat_id)
 
     def supports_remote_command_jobs(self, user_id: str, device_fingerprint_hash: str) -> bool:
         """True for a foreground client implementing the remote-command protocol."""

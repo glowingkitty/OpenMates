@@ -9604,6 +9604,40 @@
           }
         }
       }
+    },
+    "code": {
+      "test_result": {
+        "title": {
+          "text": "Test result"
+        },
+        "status_passed": {
+          "text": "Passed"
+        },
+        "status_failed": {
+          "text": "Failed"
+        },
+        "status_skipped": {
+          "text": "Skipped"
+        },
+        "status_error": {
+          "text": "Error"
+        },
+        "status_cancelled": {
+          "text": "Cancelled"
+        },
+        "status_timed_out": {
+          "text": "Timed out"
+        },
+        "stale": {
+          "text": "Stale"
+        },
+        "steps": {
+          "text": "Test steps"
+        },
+        "no_video": {
+          "text": "No video available for this run"
+        }
+      }
     }
   },
   "embeds_input": {

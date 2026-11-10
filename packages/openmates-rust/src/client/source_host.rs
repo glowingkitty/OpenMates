@@ -503,7 +503,28 @@ impl SourceHostSession {
     fn registration(&self) -> Value {
         let mut v = self.lifecycle();
         v["confirmed_takeover"] = json!(self.options.confirmed_takeover);
-        v["bindings"]=Value::Array(self.bindings.iter().map(|b|json!({"project_id":b.scope.project,"source_id":b.scope.source,"key_epoch":b.scope.key_epoch,"capabilities":b.capabilities})).collect());
+        v["bindings"] = Value::Array(
+            self.bindings
+                .iter()
+                .map(|b| {
+                    // npm advertises `import` with `read`: imports are plain
+                    // reads on the host, gated by the backend capability.
+                    let mut capabilities = b.capabilities.clone();
+                    if capabilities.contains(&ProjectSourceCapability::Read)
+                        && !capabilities.contains(&ProjectSourceCapability::Import)
+                    {
+                        capabilities.insert(
+                            capabilities
+                                .iter()
+                                .position(|c| *c == ProjectSourceCapability::WriteRequest)
+                                .unwrap_or(capabilities.len()),
+                            ProjectSourceCapability::Import,
+                        );
+                    }
+                    json!({"project_id":b.scope.project,"source_id":b.scope.source,"key_epoch":b.scope.key_epoch,"capabilities":capabilities})
+                })
+                .collect(),
+        );
         v
     }
     fn check(&self) -> Result<()> {
@@ -763,6 +784,41 @@ impl SourceHostSession {
                 request_id: frame.request_id.clone(),
             },
         })
+    }
+    /// The Project key of this request's binding, for the legacy bootstrap
+    /// envelope and the proposal digest. Only the core host dispatcher uses
+    /// it; the key never leaves the crate.
+    ///
+    /// # Errors
+    /// `Forbidden` when the request does not belong to this session.
+    pub(crate) fn request_key(&self, request: &SourceHostRequest) -> Result<Key> {
+        self.check()?;
+        request.check()?;
+        if !Arc::ptr_eq(&request.identity, &self.identity)
+            || !self
+                .pending
+                .get(&request.frame.request_id)
+                .is_some_and(|nonce| Arc::ptr_eq(nonce, &request.nonce))
+        {
+            return Err(Error::Forbidden);
+        }
+        let frame = &request.frame;
+        self.bindings
+            .iter()
+            .find(|b| {
+                b.scope.project == frame.project_id
+                    && b.scope.source == frame.source_id
+                    && b.scope.key_epoch == frame.key_epoch
+            })
+            .map(|b| b.key.clone())
+            .ok_or(Error::Forbidden)
+    }
+    /// Drop a request without completing it (npm fails closed silently on an
+    /// invalid bootstrap). Frees its pending slot; the relay times it out.
+    pub fn abandon(&mut self, request: SourceHostRequest) {
+        if Arc::ptr_eq(&request.identity, &self.identity) {
+            self.pending.remove(&request.frame.request_id);
+        }
     }
     pub async fn complete(
         &mut self,

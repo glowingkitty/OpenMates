@@ -1248,6 +1248,7 @@ async def start_code_run_execution(
     device_hash: str | None = None,
     assistant_async_task: bool = False,
     same_turn_batch_id: str | None = None,
+    test_run: dict[str, Any] | None = None,
 ) -> CodeRunStartResponse:
     if current_user.credits < RUN_CREDITS_PER_MINUTE:
         raise HTTPException(status_code=402, detail="Not enough credits to run code")
@@ -1309,6 +1310,7 @@ async def start_code_run_execution(
         "device_hash": device_hash,
         "assistant_async_task": assistant_async_task,
         "same_turn_batch_id": same_turn_batch_id,
+        "test_run": test_run,
         "active_run_key": active_key,
         "active_run_owner": execution_id,
         "provider_active_run_key": _provider_active_run_key(),

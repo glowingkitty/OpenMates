@@ -8003,6 +8003,40 @@
           }
         }
       }
+    },
+    "code": {
+      "test_result": {
+        "title": {
+          "text": "测试结果"
+        },
+        "status_passed": {
+          "text": "通过"
+        },
+        "status_failed": {
+          "text": "失败"
+        },
+        "status_skipped": {
+          "text": "已跳过"
+        },
+        "status_error": {
+          "text": "错误"
+        },
+        "status_cancelled": {
+          "text": "已取消"
+        },
+        "status_timed_out": {
+          "text": "已超时"
+        },
+        "stale": {
+          "text": "已过期"
+        },
+        "steps": {
+          "text": "测试步骤"
+        },
+        "no_video": {
+          "text": "此次运行没有可用视频"
+        }
+      }
     }
   },
   "embeds_input": {},

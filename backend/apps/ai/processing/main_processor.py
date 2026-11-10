@@ -3846,6 +3846,16 @@ async def handle_main_processing(
         )
         yield {"__debug_metadata__": True, "routing_phase": "selected_project_focus_metadata"}
         return
+    pending_project_create = getattr(preprocessing_results, "pending_project_create", None)
+    if pending_project_create:
+        from backend.apps.ai.processing.project_focus_orchestration import request_project_creation
+        await request_project_creation(
+            task_id=task_id, directus_service=directus_service, request_data=request_data,
+            preprocessing_results=preprocessing_results, cache_service=cache_service,
+            skill_config_dict=skill_config_dict, proposal=pending_project_create,
+        )
+        yield {"__debug_metadata__": True, "routing_phase": "project_create_requested"}
+        return
     if pending_project_focus_id:
         from backend.apps.ai.processing.project_focus_orchestration import request_project_focus as propose_project_focus
         candidate = next((row for row in request_data.project_focus_candidates

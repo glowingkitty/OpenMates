@@ -2,8 +2,11 @@
 mod ask;
 mod command_protection;
 mod command_settings;
+mod commits;
+mod created;
 mod files;
 mod focus;
+mod hosted;
 mod items;
 mod sources;
 use super::{CliError, CliOutput, Invocation, task_input as input};
@@ -58,6 +61,16 @@ pub(super) fn supported(i: &Invocation) -> bool {
             | "projects items remove"
             | "projects sources list"
             | "projects sources remove"
+            | "projects commit"
+            | "projects created"
+            | "projects undo-create"
+            | "projects commits list"
+            | "projects commits show"
+            | "projects commits restore"
+            | "projects hosted list"
+            | "projects hosted read"
+            | "projects hosted create"
+            | "projects hosted update"
             | "projects files list"
             | "projects files search"
             | "projects files read"
@@ -76,6 +89,7 @@ pub(super) fn supported(i: &Invocation) -> bool {
             | "projects settings command-resources disable credential"
     )
 }
+pub(super) use created::card_text;
 fn check(i: &Invocation, allowed: &[&str]) -> Result<(), CliError> {
     for (key, value) in &i.flags {
         if !GLOBALS.contains(&key.as_str()) && !allowed.contains(&key.as_str()) {
@@ -386,6 +400,18 @@ async fn execute_service(
     }
     if i.path.get(1).map(String::as_str) == Some("items") {
         return items::execute(i, &mut service).await;
+    }
+    if matches!(i.command_path().as_str(), "projects created" | "projects undo-create") {
+        return created::execute(i, &mut service).await;
+    }
+    if i.command_path() == "projects commit" {
+        return commits::create(i, &mut service).await;
+    }
+    if i.command_path().starts_with("projects hosted ") {
+        return hosted::execute(i, &mut service).await;
+    }
+    if i.command_path().starts_with("projects commits ") {
+        return commits::execute(i, &mut service).await;
     }
     if i.command_path() == "projects sources list" {
         return sources::execute(i, &mut service, &cancel).await;

@@ -46,6 +46,7 @@ enum Call {
     Artifacts {socket:Socket,chat:String,message:String,key:Key,task:String,embeds:Plain<BTreeMap<String,Value>>,checkpoints:Plain<Vec<Value>>},
     CanonicalOpen {chat:String},
     Tasks {socket:Socket,observed:Plain<SendObservations>,chat:String,message:String,key:Key,options:Arc<SendOptions>},
+    ProjectCreate {socket:Socket,kind:String,event:Plain<Value>,chat:String,state:super::super::project_create_request::ProjectCreateState},
     Owner,
     VersionBegin(String),
     VersionKey {chat:String,stamp:VersionStamp,detail:Plain<Value>,wrapping:MasterCapability},
@@ -62,6 +63,7 @@ enum Reply {
     Memory(Plain<(Vec<(String,Value)>,SendMemoryRequest)>),
     Count(usize),Items(Plain<Vec<Item>>),Chat(Plain<Chat>),
     Tasks {result:Result<()>,observed:Plain<SendObservations>},
+    ProjectCreate {result:Result<()>,state:super::super::project_create_request::ProjectCreateState},
     Owner(Plain<String>),Version(u64),VersionStamp(VersionStamp),VersionKey(PreparedVersionKey),
 }
 struct Envelope {
@@ -208,6 +210,13 @@ impl SavedTurnClientPhases for OwnedTurnPhases {
             }
         })
     }
+    fn project_create<'a>(&'a mut self,ws:&'a mut Socket,kind:&'a str,event:&'a Value,chat:&'a str,state:&'a mut super::super::project_create_request::ProjectCreateState)->TurnPhaseFuture<'a,()>{
+        Box::pin(async move{self.chat(chat)?;bound(event)?;let socket=self.socket(ws)?;let old=std::mem::take(state);
+            match self.exchange(Call::ProjectCreate{socket,kind:kind.into(),event:Plain::new(event.clone()),chat:chat.into(),state:old}).await?{
+                Reply::ProjectCreate{result,state:after}=>{*state=after;result},_=>Err(Error::Protocol)
+            }
+        })
+    }
     fn owner_id(&mut self)->TurnPhaseFuture<'_,String>{Box::pin(async move{match self.exchange(Call::Owner).await?{Reply::Owner(owner)=>Ok(owner.into_inner()),_=>Err(Error::Protocol)}})}
     fn current_messages_version<'a>(&'a mut self,id:&'a str,key:&'a [u8;32],minimum:u64)->TurnPhaseFuture<'a,u64>{
         Box::pin(async move{self.chat(id)?;self.owned_current_messages_version(id,key,minimum).await})
@@ -323,6 +332,11 @@ impl Client {
                         let mut borrowed=super::super::send::turn_runtime::BorrowedTurnPhases{client:&mut active};
                         let result=borrowed.finish_task_jobs(&mut socket,&mut observed,&chat,&message,&key,&child,&options).await;
                         Ok(Reply::Tasks{result,observed})
+                    },
+                    Call::ProjectCreate{mut socket,kind,event,chat,mut state}=>{
+                        context.check_socket(&socket)?;
+                        let result=active.project_create_event(&mut socket,&kind,&event,&chat,&mut state).await;
+                        Ok(Reply::ProjectCreate{result,state})
                     },
                     Call::Owner=>{let owner=text(&active.user,"id");let owner=if owner.is_empty(){required(&active.user,"user_id")?}else{owner};Ok(Reply::Owner(Plain::new(owner.into())))},
                     Call::VersionBegin(chat)=>Ok(Reply::VersionStamp(version::stamp(&active,&chat)?)),

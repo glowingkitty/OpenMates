@@ -8003,6 +8003,40 @@
           }
         }
       }
+    },
+    "code": {
+      "test_result": {
+        "title": {
+          "text": "Testresultaat"
+        },
+        "status_passed": {
+          "text": "Geslaagd"
+        },
+        "status_failed": {
+          "text": "Mislukt"
+        },
+        "status_skipped": {
+          "text": "Overgeslagen"
+        },
+        "status_error": {
+          "text": "Fout"
+        },
+        "status_cancelled": {
+          "text": "Geannuleerd"
+        },
+        "status_timed_out": {
+          "text": "Time-out"
+        },
+        "stale": {
+          "text": "Verouderd"
+        },
+        "steps": {
+          "text": "Teststappen"
+        },
+        "no_video": {
+          "text": "Geen video beschikbaar voor deze run"
+        }
+      }
     }
   },
   "embeds_input": {},

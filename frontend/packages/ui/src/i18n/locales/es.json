@@ -8030,6 +8030,40 @@
           }
         }
       }
+    },
+    "code": {
+      "test_result": {
+        "title": {
+          "text": "Resultado de la prueba"
+        },
+        "status_passed": {
+          "text": "Superado"
+        },
+        "status_failed": {
+          "text": "Fallido"
+        },
+        "status_skipped": {
+          "text": "Omitido"
+        },
+        "status_error": {
+          "text": "Error"
+        },
+        "status_cancelled": {
+          "text": "Cancelado"
+        },
+        "status_timed_out": {
+          "text": "Tiempo agotado"
+        },
+        "stale": {
+          "text": "Obsoleto"
+        },
+        "steps": {
+          "text": "Pasos de la prueba"
+        },
+        "no_video": {
+          "text": "No hay vídeo disponible para esta ejecución"
+        }
+      }
     }
   },
   "embeds_input": {},

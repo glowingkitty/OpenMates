@@ -71,6 +71,17 @@ pub struct SendOptions {
     pub incognito: bool,
     pub pii_detection: bool,
     pub task_update_jobs: bool,
+    /// Opt in to assistant-initiated Project creation: the socket and the turn
+    /// advertise `project_create_requests` and the core executes the request.
+    /// Only a shell that renders the created-Project card may set this.
+    pub project_create_requests: bool,
+    /// Opt in to assistant Project file jobs: the socket and the turn advertise
+    /// `project_file_jobs` and the core executes hosted file tool calls. Native
+    /// shells only; always-ask writes follow `approve_project_file_writes`.
+    pub project_file_jobs: bool,
+    /// Approve always-ask Project file writes without asking (CLI
+    /// `--auto-approve`); otherwise they are declined with a notice.
+    pub approve_project_file_writes: bool,
     pub response_timeout_ms: Option<u64>,
     pub sub_chat_consent: SendConsentPolicy,
     pub memory_consent: SendConsentPolicy,
@@ -83,6 +94,9 @@ impl Default for SendOptions {
             incognito: false,
             pii_detection: true,
             task_update_jobs: true,
+            project_create_requests: false,
+            project_file_jobs: false,
+            approve_project_file_writes: false,
             response_timeout_ms: None,
             sub_chat_consent: SendConsentPolicy::Caller,
             memory_consent: SendConsentPolicy::Caller,
@@ -179,6 +193,9 @@ pub struct SendOutcome {
     pub app_settings_memory_requests: Vec<SendMemoryRequest>,
     pub token_usage: Option<Value>,
     pub prompt_budget: Option<Value>,
+    /// "Created project" cards of assistant-initiated Project creation in this turn.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub project_creations: Vec<Value>,
 }
 fn nullable<'de, D, T>(deserializer: D) -> std::result::Result<Option<Option<T>>, D::Error>
 where

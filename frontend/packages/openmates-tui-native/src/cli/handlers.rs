@@ -53,6 +53,7 @@ fn supported(invocation: &Invocation) -> bool {
         || super::utility::supported(invocation)
         || super::parity_chat_recovery::supported(invocation)
         || super::extra_ports::supported(invocation)
+        || remote_access_supported(invocation)
         || matches!(
             invocation.command_path().as_str(),
             "wiki search" | "wiki show"
@@ -65,6 +66,16 @@ fn supported(invocation: &Invocation) -> bool {
             invocation.path.first().map(String::as_str),
             Some("login" | "server" | "signup" | "tui")
         )
+}
+/// The Rust filesystem host exists only on unix targets.
+fn remote_access_supported(invocation: &Invocation) -> bool {
+    #[cfg(unix)]
+    return super::remote_access::supported(invocation);
+    #[cfg(not(unix))]
+    {
+        let _ = invocation;
+        false
+    }
 }
 pub fn requirements(invocation: &Invocation) -> Requirements {
     let local = matches!(
@@ -94,6 +105,8 @@ pub fn requirements(invocation: &Invocation) -> Requirements {
 /// Run before opening credential storage. Help is handled directly by Clap.
 pub fn execute_public(invocation: &Invocation) -> Option<Result<CliOutput, CliError>> {
     if invocation.command_path()=="embeds share" { if let Some(result)=super::embed_share::preflight(invocation){return Some(result);} }
+    #[cfg(unix)]
+    if let Some(output) = super::remote_access::preflight(invocation) { return Some(output); }
     if let Some(output) = super::apps_run::public(invocation) { return Some(output); }
     if let Some(output) = super::utility::public(invocation) { return Some(output); }
     if let Some(output) = super::group_help::public(invocation) { return Some(output); }
@@ -948,7 +961,7 @@ async fn execute_inner(
     if invocation.command_path() == "embeds share" {
         return Box::pin(super::embed_share::execute(invocation,client,cancel)).await;
     }
-    if invocation.command_path() == "embeds versions show" {
+    if matches!(invocation.command_path().as_str(), "embeds versions show" | "embeds test-result") {
         return Box::pin(super::embed_commands::execute_cookie_version(invocation, client, cancel)).await;
     }
     if super::drafts::supported(invocation) {
@@ -1064,6 +1077,8 @@ async fn execute_context_with_inventory(
     }
     if super::utility::supported(invocation) { return Box::pin(super::utility::execute(invocation, client)).await; }
     if super::extra_ports::supported(invocation) { return Box::pin(super::extra_ports::execute(invocation, client)).await; }
+    #[cfg(unix)]
+    if super::remote_access::supported(invocation) { return Box::pin(super::remote_access::execute(invocation, client, cancel, store)).await; }
     if super::parity_chat_recovery::supported(invocation) {
         return Box::pin(super::parity_chat_recovery::execute(invocation, client, cancel)).await;
     }
@@ -1980,7 +1995,7 @@ mod tests {
     }
     #[test]
     fn unsupported_is_explicit_before_credentials() {
-        let command = invocation(&["remote-access"], &[], &[]);
+        let command = invocation(&["benchmark", "model"], &[], &[]);
         assert!(!requirements(&command).authenticated);
         let error = execute_public(&command).unwrap().err().unwrap();
         assert_eq!(error.exit_code(), 1);

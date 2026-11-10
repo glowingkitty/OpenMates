@@ -41,13 +41,13 @@ scope:
   - Automatic Project creation when a chat without a Project asks for a multi-file application, with the application's
     files stored once and shown both in the chat and in the Project.
   - Named Project commits over existing file revisions and a Project timeline of file changes and commits.
-  - One Git worktree and branch per chat for connected Git repositories, shared with that chat's sub-chats.
+  - One Git worktree per chat for connected Git repositories, shared with that chat's sub-chats; the chat's commits land on the target branch locally after green tests.
   excludes:
   - Automatically materializing every repository test as a Project item.
   - Copying linked objects into Project-owned records or changing their canonical lifecycle state.
   - Low-level remote filesystem bridge protocols, patch application algorithms, and command execution authority; observable
     file-write authorization, freshness, and recovery requirements are included.
-  - Unprompted merging or pushing of a chat's Git branch, and worktrees for connected folders that are not Git repositories;
+  - Unprompted pushing of a chat's commits to a remote, and worktrees for connected folders that are not Git repositories;
     those folders are edited directly.
   - Public APIs for raw Project ciphertext, raw keys, or server-side plaintext Project search.
   - Requiring one visual layout for every linked object type when equivalent responsive outcomes are preserved.
@@ -696,11 +696,14 @@ assertions:
 - id: projects.sources.chat-worktrees
   type: behavior
   must: For a connected Git repository, each chat that writes files or runs source-writing commands works in its own Git
-    worktree on its own branch named openmates/(chat slug), created from the repository's current branch on first write.
-    The chat's file tools, commands and tests resolve inside that worktree, and sub-chats use their parent chat's worktree.
-    The user's main checkout changes only through a merge. The assistant commits to the chat's branch automatically after
-    the required tests pass; merging into another branch and pushing to a remote always require explicit approval of that
-    exact action. Private-path, confinement, write-policy and expected-base rules apply inside the worktree unchanged. Connected
+    worktree with a detached HEAD, created on first write from the source's target branch (a per-source setting such as dev).
+    No named branch is created for the chat; a hidden ref refs/openmates/chats/(chat id), which is not a branch, protects
+    its commits. The chat's file tools, commands and tests resolve inside that worktree, and sub-chats use their parent
+    chat's worktree. The user's main checkout working tree changes only when the chat's commits land. The assistant commits
+    in the worktree automatically after the required tests pass; when the work is ready the commits are rebased onto the
+    target branch and land there automatically on the local machine after the tests pass (conflicts are resolved by the
+    assistant in the chat worktree and the tests run again first). Pushing to a remote always requires explicit approval of
+    that exact action. After landing, the worktree and the hidden ref are removed; unlanded commits are never deleted. Private-path, confinement, write-policy and expected-base rules apply inside the worktree unchanged. Connected
     folders without Git are edited directly as before.
   depends_on:
   - examples.project_chat_worktrees

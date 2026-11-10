@@ -983,7 +983,10 @@
         "offline-draft-replay.spec.ts",
         "assistant-speech-availability.spec.ts",
         "web-read-public-page.spec.ts",
-        "cli-claude-session-tasks.spec.ts"
+        "cli-claude-session-tasks.spec.ts",
+        "cli-native-project-hosted-files.spec.ts",
+        "cli-native-project-create-request.spec.ts",
+        "cli-native-remote-access-host.spec.ts"
       ],
       "enabling_work": "Run against existing core stack and fresh real accounts; report missing fixture or product assertion failures without restoring shared accounts."
     },
@@ -1062,7 +1065,8 @@
         "components/grouped-result-preview.spec.ts",
         "components/slides-deck-embed.spec.ts",
         "components/slides-presenter.spec.ts",
-        "components/slides-editor.spec.ts"
+        "components/slides-editor.spec.ts",
+        "components/test-result-embed.spec.ts"
       ]
     },
     "chat_message_timeline": {

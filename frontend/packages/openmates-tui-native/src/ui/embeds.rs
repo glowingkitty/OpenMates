@@ -6,6 +6,8 @@
 //! opening a chat performs no extra decryption or network work; Enter opens the
 //! embed detail through the existing SDK `embed:` read, whose decrypted item is
 //! summarized per type by [`detail_rows`].
+mod test_result;
+
 use super::markdown::{self, Link, Part, Row};
 use super::{ACCENT, MUTED, TEXT};
 use crate::model::{Chat, Item, Message};
@@ -598,6 +600,10 @@ pub(super) fn detail_rows(item: &Item, width: usize) -> Option<Vec<Row>> {
                 body(&mut rows, &format!("{fence}{language}\n{code}\n{fence}"));
             }
         }
+        ("code-test-result" | "test_result", _) => match test_result::rows(content, width) {
+            Some(result_rows) => rows.extend(result_rows),
+            None => field(&mut rows, "Result", "Unreadable test result"),
+        },
         ("code-application" | "application", _) => {
             field(&mut rows, "Framework", text(content, &["framework"]));
             field(&mut rows, "Runtime", text(content, &["runtime"]));

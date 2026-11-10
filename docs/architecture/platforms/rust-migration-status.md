@@ -42,7 +42,7 @@ Read from `docs/migration/rust/overview.yml` (machine-readable; sub-files hold t
 
 | Priority | Area | Scope | Done | Partial | Missing | Detail file |
 |---|---|---|---|---|---|---|
-| 1 | `web_app` | Web app (portable TS routed to the shared Rust core Worker) | 8204 / 106637 (7.7%) | 0 | 98433 | `web-app.yml` |
+| 1 | `web_app` | Web app (portable TS routed to the shared Rust core Worker) | 8294 / 107034 (7.7%) | 0 | 98740 | `web-app.yml` |
 | 1 | `shared_client` | Shared client-side code (Rust, non-operation SDK capabilities) | 8 / 28 (28.6%) | 20 | 0 | `shared-client.yml` |
 | 2 | `cli` | CLI (native Rust, command catalog) | 487 / 723 (67.4%) | 230 | 6 | `cli.yml` |
 | 3 | `sdk_rust` | Rust SDK (operation capabilities) | 6 / 53 (11.3%) | 47 | 0 | `sdk.yml` |
@@ -241,20 +241,20 @@ First recorded gap per capability whose Rust entry is not implemented (full text
 
 ## CLI commands
 
-Source: `config/cli-command-catalog.json` (TypeScript CLI 0.28.0, 723 command records, 620 flags).
+Source: `config/cli-command-catalog.json` (TypeScript CLI 0.28.0, 730 command records, 620 flags).
 
 | Metric | Count |
 |---|---|
-| Commands in the catalog | 723 |
+| Commands in the catalog | 730 |
 | Status `implemented` | 0 |
-| Status `partial` (native handler exists, parity not complete) | 717 |
-| Status `unsupported` (no native handler) | 6 |
-| With a named native handler | 713 / 723 (99%) |
-| Differential-verified against the npm CLI | 487 / 723 (67%) |
-| With recorded real-CI E2E evidence | 9 / 723 (1%) |
-| Linux verified | 9 / 723 (1%) |
-| macOS verified | 0 / 723 (0%) |
-| Windows verified (testing waived) | 0 / 723 (0%) |
+| Status `partial` (native handler exists, parity not complete) | 725 |
+| Status `unsupported` (no native handler) | 5 |
+| With a named native handler | 721 / 730 (99%) |
+| Differential-verified against the npm CLI | 487 / 730 (67%) |
+| With recorded real-CI E2E evidence | 9 / 730 (1%) |
+| Linux verified | 9 / 730 (1%) |
+| macOS verified | 0 / 730 (0%) |
+| Windows verified (testing waived) | 0 / 730 (0%) |
 
 ### By command group
 
@@ -266,13 +266,13 @@ Largest groups first. `Top gap` is the most common first gap text in the group.
 | `settings` | 103 | 0 | 103 | 0 | 90 | 0 | Differential-verified against the npm CLI on the isolated CI backend (cli-native-settings-extra.spec.ts): e... |
 | `apps` | 72 | 0 | 72 | 0 | 36 | 0 | Formatting, option variants, and complete protocol parity require validation. |
 | `server` | 57 | 0 | 57 | 0 | 22 | 0 | Differential-verified against the npm CLI (cli-native-server.spec.ts): exit code, normalized JSON stdout an... |
+| `projects` | 41 | 0 | 41 | 0 | 31 | 3 | Differential-verified against the npm CLI (cli-native-projects.spec.ts): exit code, normalized JSON stdout... |
 | `teams` | 41 | 0 | 41 | 0 | 34 | 1 | Differential-verified against the npm CLI on the isolated CI backend (cli-native-teams.spec.ts): exit code,... |
-| `projects` | 35 | 0 | 35 | 0 | 31 | 3 | Differential-verified against the npm CLI (cli-native-projects.spec.ts): exit code, normalized JSON stdout... |
 | `workflows` | 34 | 0 | 34 | 0 | 27 | 0 | Differential-verified against the npm CLI (cli-native-workflows-extra.spec.ts): exit code, normalized JSON... |
 | `tasks` | 31 | 0 | 31 | 0 | 25 | 4 | Differential-verified against the npm CLI (cli-native-tasks.spec.ts): exit code, normalized JSON stdout and... |
 | `account` | 29 | 0 | 29 | 0 | 10 | 0 | Differential-verified against the npm CLI on the isolated CI backend (cli-native-account.spec.ts): exit cod... |
 | `chats` | 28 | 0 | 28 | 0 | 4 | 0 | Syntax delegates to the existing typed Tasks/Plans handler, retaining its option, output, scope and platfor... |
-| `embeds` | 12 | 0 | 12 | 0 | 1 | 0 | Explicit API-key-only native adapter is authored; Cookie/Team auth parity, actual backend authorization, co... |
+| `embeds` | 13 | 0 | 13 | 0 | 1 | 0 | Explicit API-key-only native adapter is authored; Cookie/Team auth parity, actual backend authorization, co... |
 | `connect-account` | 7 | 0 | 7 | 0 | 7 | 0 | Only --dry-run is native; the RS256 client-assertion token exchange fails explicitly as unsupported. |
 | `drafts` | 7 | 0 | 7 | 0 | 6 | 0 | Differential-verified against the npm CLI on the isolated CI backend (cli-native-chats.spec.ts): exit code,... |
 | `ideabucket` | 7 | 0 | 7 | 0 | 7 | 0 | Scheduled processing times are evaluated in UTC (npm uses the host time zone). |
@@ -296,7 +296,7 @@ Largest groups first. `Top gap` is the most common first gap text in the group.
 | `login` | 1 | 0 | 1 | 0 | 0 | 1 | Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not... |
 | `logout` | 1 | 0 | 1 | 0 | 0 | 0 | - |
 | `newchatsuggestions` | 1 | 0 | 1 | 0 | 1 | 0 | Reads the Phase 1 sync frame on its own socket (the only server delivery path) without writing chat caches;... |
-| `remote-access` | 1 | 0 | 0 | 1 | 0 | 0 | Native handler has not been ported; command fails explicitly and does not invoke another runtime. |
+| `remote-access` | 1 | 0 | 1 | 0 | 0 | 0 | Rust filesystem host (packages/openmates-rust/src/source_host): read, search, import and write_request (cre... |
 | `signup` | 1 | 0 | 1 | 0 | 0 | 0 | Real-email signup proof on the dev host is still required (fake-server and npm-vector tests only so far). |
 | `support` | 1 | 0 | 1 | 0 | 1 | 0 | Differential-verified against the npm CLI on the isolated CI backend (cli-native-misc.spec.ts): exit code,... |
 | `tui` | 1 | 0 | 1 | 0 | 0 | 0 | Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not... |
@@ -338,7 +338,7 @@ Planned: none. A namespace without an installer is refused as `unit_unavailable`
 | `composer` | yes | Serves the composer operations (composerProtocol.ts) on the unit port from the realm's single WASM binding. It holds no account state, so it is a pre-bind namespace. | none declared (1 file) | `frontend/packages/ui/src/services/rustCore/composer/composerUnit.ts` | `composerVectors.test.ts`, `languageUrlVectors.test.ts`, `suggestionVectors.test.ts` |
 
 All units run only in builds with `VITE_OPENMATES_RUST_CORE=1`; with the flag off the original TypeScript path is unchanged.
-Web Rust core E2E specs in `frontend/apps/web_app/tests`: `web-rust-core-apps.spec.ts`, `web-rust-core-auth.spec.ts`, `web-rust-core-bench.spec.ts`, `web-rust-core-chat.spec.ts`, `web-rust-core-chatstate-fork-conversation.spec.ts`, `web-rust-core-chatstate-hidden-chats-flow.spec.ts`, `web-rust-core-chatstate-message-highlights.spec.ts`, `web-rust-core-chatstate.spec.ts`, `web-rust-core-composer.spec.ts`, `web-rust-core-continue-carousel.spec.ts`, `web-rust-core-crypto.spec.ts`, `web-rust-core-drafts.spec.ts`, `web-rust-core-embeds.spec.ts`, `web-rust-core-memory-level.spec.ts`, `web-rust-core-persist.spec.ts`, `web-rust-core-profile.spec.ts`, `web-rust-core-projects-flow.spec.ts`, `web-rust-core-projects-remote-sources.spec.ts`, `web-rust-core-reload-memory.spec.ts`, `web-rust-core-search.spec.ts`, `web-rust-core-send-bench.spec.ts`, `web-rust-core-sync.spec.ts`, `web-rust-core-transfer.spec.ts`, `web-rust-core-ws.spec.ts`.
+Web Rust core E2E specs in `frontend/apps/web_app/tests`: `web-rust-core-apps.spec.ts`, `web-rust-core-auth.spec.ts`, `web-rust-core-bench.spec.ts`, `web-rust-core-chat-recommendations-flow.spec.ts`, `web-rust-core-chat.spec.ts`, `web-rust-core-chatstate-fork-conversation.spec.ts`, `web-rust-core-chatstate-hidden-chats-flow.spec.ts`, `web-rust-core-chatstate-message-highlights.spec.ts`, `web-rust-core-chatstate.spec.ts`, `web-rust-core-composer.spec.ts`, `web-rust-core-continue-carousel.spec.ts`, `web-rust-core-crypto.spec.ts`, `web-rust-core-drafts.spec.ts`, `web-rust-core-embeds.spec.ts`, `web-rust-core-memory-level.spec.ts`, `web-rust-core-persist.spec.ts`, `web-rust-core-profile.spec.ts`, `web-rust-core-projects-flow.spec.ts`, `web-rust-core-projects-remote-sources.spec.ts`, `web-rust-core-reload-memory.spec.ts`, `web-rust-core-search.spec.ts`, `web-rust-core-send-bench.spec.ts`, `web-rust-core-sync.spec.ts`, `web-rust-core-transfer.spec.ts`, `web-rust-core-workflow-side-panel.spec.ts`, `web-rust-core-ws.spec.ts`.
 
 ## Performance verdicts
 

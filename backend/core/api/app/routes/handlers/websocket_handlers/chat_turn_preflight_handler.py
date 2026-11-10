@@ -110,6 +110,9 @@ def server_client_capabilities(manager: Any, user_id: str, device_fingerprint_ha
     supports_project_file_jobs = getattr(manager, "supports_project_file_jobs", None)
     if callable(supports_project_file_jobs) and supports_project_file_jobs(user_id, device_fingerprint_hash):
         capabilities.append("project_file_jobs")
+    supports_project_create_requests = getattr(manager, "supports_project_create_requests", None)
+    if callable(supports_project_create_requests) and supports_project_create_requests(user_id, device_fingerprint_hash):
+        capabilities.append("project_create_requests")
     supports_remote_command_jobs = getattr(manager, "supports_remote_command_jobs", None)
     if callable(supports_remote_command_jobs) and supports_remote_command_jobs(user_id, device_fingerprint_hash):
         capabilities.append("remote_command_jobs")

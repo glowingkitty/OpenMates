@@ -8003,6 +8003,40 @@
           }
         }
       }
+    },
+    "code": {
+      "test_result": {
+        "title": {
+          "text": "Результат теста"
+        },
+        "status_passed": {
+          "text": "Пройдено"
+        },
+        "status_failed": {
+          "text": "Не пройдено"
+        },
+        "status_skipped": {
+          "text": "Пропущено"
+        },
+        "status_error": {
+          "text": "Ошибка"
+        },
+        "status_cancelled": {
+          "text": "Отменено"
+        },
+        "status_timed_out": {
+          "text": "Время истекло"
+        },
+        "stale": {
+          "text": "Устарело"
+        },
+        "steps": {
+          "text": "Шаги теста"
+        },
+        "no_video": {
+          "text": "Для этого запуска нет видео"
+        }
+      }
     }
   },
   "embeds_input": {},

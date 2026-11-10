@@ -145,6 +145,12 @@ pub mod chat_details;
 pub mod chat_rewrite;
 pub use chat_list_freshness::CacheClockEvidence;
 pub use sync::FreshChatInventory;
+mod project_create_request;
+use project_create_request::PROJECT_CREATE_CAPABILITY;
+mod project_file_jobs;
+use project_file_jobs::{PROJECT_FILE_JOBS_AVAILABLE, PROJECT_FILE_JOBS_CAPABILITY};
+#[cfg(all(feature = "workflow-yaml", unix))]
+mod hosted_file_io;
 mod task_job_payload;
 mod task_jobs;
 mod team;
@@ -582,6 +588,9 @@ pub struct Client {
     completion_recovery_mode: Option<CancellationToken>,
     completion_recovery_jobs: BTreeMap<String, CompletionRecoveryJob>,
     metadata_recovery_jobs: BTreeMap<String, CompletionRecoveryJob>,
+    /// Opt-in WebSocket capabilities for the next saved-turn socket only
+    /// (for example `project_create_requests`); cleared after connecting.
+    extra_socket_capabilities: Vec<&'static str>,
     /// Last successful native session validation (see auth.rs reuse rules).
     recent_validation: Option<auth::RecentValidation>,
     /// Chats this client deleted (chat_tombstones.rs); display state only.
@@ -715,6 +724,7 @@ impl Client {
             completion_recovery_mode: None,
             completion_recovery_jobs: BTreeMap::new(),
             metadata_recovery_jobs: BTreeMap::new(),
+            extra_socket_capabilities: Vec::new(),
         })
     }
     pub fn reset(&mut self, api: &str, session: Option<Session>) -> Result<()> {
@@ -874,6 +884,31 @@ impl Client {
             return Err(Error::Cancelled);
         }
         self.credential_ack = revision;
+        Ok(())
+    }
+    /// Adopt credentials another process already rotated and stored for this
+    /// same account, instead of refreshing with this client's older ones. The
+    /// owner, session, API and master key must match; only the rotating
+    /// cookies and transport token change. The adopted state is already
+    /// durable, so it counts as acknowledged and is never written back.
+    pub fn adopt_stored_credentials(&mut self, stored: &Session) -> Result<()> {
+        if self.browser_cookies() {
+            return Err(Error::Forbidden);
+        }
+        let native = self.session.as_mut().ok_or(Error::Authentication)?;
+        if native.hashed_email != stored.hashed_email
+            || native.session_id != stored.session_id
+            || native.api_url != stored.api_url
+            || native.master_key != stored.master_key
+        {
+            return Err(Error::Conflict);
+        }
+        native.cookies = stored.cookies.clone();
+        native.ws_token = stored.ws_token.clone();
+        native.paired_session_expires_at = stored.paired_session_expires_at;
+        self.cookies = stored.cookies.clone();
+        self.credential_revision = self.credential_revision.wrapping_add(1);
+        self.credential_ack = self.credential_revision;
         Ok(())
     }
     pub fn set_credential_updates(&mut self, updates: mpsc::UnboundedSender<CredentialEvent>) {

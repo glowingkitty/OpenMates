@@ -332,6 +332,69 @@ embed_types:
         type: string
       - name: latest_screenshot
         type: object
+  # Test result — written by the worker when a Code Run test run finishes.
+  # Evidence (video, terminal cast, preview frame) stays in encrypted assets and is
+  # referenced by asset_id. Contract: docs/plans/agentic-tests-and-git-sync/contracts/test-run.md
+  - id: test_result
+    category: direct
+    frontend_type: code-test-result
+    backend_type: test_result
+    has_children: false
+    groupable: false
+    icon: coding
+    gradient_var: "--color-app-code"
+    preview_component: code/TestResultEmbedPreview.svelte
+    fullscreen_component: code/TestResultEmbedFullscreen.svelte
+    i18n_namespace: embeds.code.test_result
+    content_fields:
+      - name: kind
+        type: string
+        required: true
+      - name: target
+        type: string
+        required: true
+      - name: run_status
+        type: string
+        required: true
+      - name: exit_code
+        type: number
+      - name: duration_ms
+        type: number
+      - name: passed
+        type: number
+        required: true
+      - name: failed
+        type: number
+        required: true
+      - name: skipped
+        type: number
+        required: true
+      - name: error
+        type: string
+      - name: preview_step_index
+        type: number
+      - name: execution_id
+        type: string
+      - name: project_id
+        type: string
+      - name: tested_embed_ids
+        type: array
+      - name: revisions
+        type: array
+        required: true
+      - name: tests
+        type: array
+      - name: steps
+        type: array
+        required: true
+      - name: evidence
+        type: array
+        required: true
+      - name: is_current
+        type: boolean
+        required: true
+      - name: stale_reason
+        type: string
 instructions:
   - instruction: |
       When code.image_to_html finishes, include its returned code or application
@@ -731,6 +794,85 @@ skills:
           items:
             type: string
           description: Exact user-enabled credential profile ids; never include credential values.
+        test_run:
+          type: object
+          description: >
+            Test-run mode. Runs a Project's tests instead of one entry file and returns a
+            structured result (status, per-test results, ordered steps, evidence references).
+            For target e2b pass the Project snapshot in files and the same paths with their
+            exact revisions in revisions. target is optional: it defaults to remote_source when
+            the active Project focus has a connected source with run_command, otherwise e2b.
+            Remote test runs accept only test_command for now.
+          properties:
+            kind:
+              type: string
+              enum: [unit, browser, cli]
+            target:
+              type: string
+              enum: [e2b, remote_source]
+            revisions:
+              type: array
+              maxItems: 500
+              items:
+                type: object
+                properties:
+                  path:
+                    type: string
+                  revision:
+                    type: string
+                required: [path, revision]
+            setup_commands:
+              type: array
+              maxItems: 20
+              description: Commands run in order before the tests, each as {argv, cwd, timeout_seconds}.
+              items:
+                type: object
+                properties:
+                  argv:
+                    type: array
+                    items:
+                      type: string
+                  cwd:
+                    type: string
+                  timeout_seconds:
+                    type: integer
+                required: [argv]
+            server:
+              type: object
+              description: Optional server started before the tests (browser kind); the tests run once ready_url answers.
+              properties:
+                command:
+                  type: object
+                  properties:
+                    argv:
+                      type: array
+                      items:
+                        type: string
+                    cwd:
+                      type: string
+                  required: [argv]
+                ready_url:
+                  type: string
+                  description: http://localhost:<port>/ or http://127.0.0.1:<port>/ only.
+                ready_timeout_seconds:
+                  type: integer
+              required: [command, ready_url]
+            test_command:
+              type: object
+              properties:
+                argv:
+                  type: array
+                  items:
+                    type: string
+                cwd:
+                  type: string
+                timeout_seconds:
+                  type: integer
+              required: [argv]
+            preview_step:
+              type: string
+              description: Name of the test step whose frame is used as the preview.
+          required: [kind, test_command]
   - id: image_to_html
     anonymous_access: authenticated
     name_translation_key: app_skills.code.image_to_html

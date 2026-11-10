@@ -812,13 +812,15 @@ project_chat_worktrees:
   given: Alice's OpenMates repository is connected and checked out on dev. Two chats work on it, one adding dark mode and
     one fixing a typo.
   when: Both assistants edit files and run tests.
-  then: Each chat works in its own worktree on openmates/add-dark-mode and openmates/fix-typo. Alice's dev checkout and
-    her running dev server are unchanged, and neither chat sees the other's edits.
-- id: merge-and-push-ask
+  then: Each chat works in its own worktree, started from dev with a detached HEAD, and no branch is created for either
+    chat. Alice's dev checkout and her running dev server are unchanged until a chat's commits land, and neither chat sees
+    the other's edits.
+- id: land-automatically-push-asks
   assertion_ids:
   - projects.sources.chat-worktrees
-  given: The dark-mode chat's tests passed and the assistant committed to openmates/add-dark-mode. A sub-chat it started
-    edited files in the same worktree.
+  given: The dark-mode chat's tests passed and the assistant committed in its worktree. A sub-chat it started edited
+    files in the same worktree.
   when: The assistant is ready to deliver the change.
-  then: It asks "Merge openmates/add-dark-mode into dev?" and, separately, before any push. Declining leaves the branch
-    and its commits in place.
+  then: The commits are rebased onto dev and land there automatically on Alice's machine after the tests pass again, and
+    the worktree and its hidden ref are removed. Before any push it asks "Push dev to origin?" and declining leaves the
+    commits local on dev.

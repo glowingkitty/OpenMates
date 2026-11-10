@@ -129,6 +129,15 @@ impl Client {
         if options.task_update_jobs {
             inference["client_capabilities"] = json!(["task_update_jobs"]);
         }
+        if options.project_create_requests {
+            // The server also requires this on the turn request, not only on the socket.
+            let capabilities = inference["client_capabilities"].as_array_mut().ok_or(Error::Protocol)?;
+            capabilities.push(json!(PROJECT_CREATE_CAPABILITY));
+        }
+        if options.project_file_jobs && PROJECT_FILE_JOBS_AVAILABLE {
+            let capabilities = inference["client_capabilities"].as_array_mut().ok_or(Error::Protocol)?;
+            capabilities.push(json!(PROJECT_FILE_JOBS_CAPABILITY));
+        }
         let (active_focus, mut focus_state) = self.current_focus_state(id, key)?;
         inference["active_focus_id"] = json!(active_focus);
         inference["focus_phase_state"] = focus_state.clone();

@@ -8003,6 +8003,40 @@
           }
         }
       }
+    },
+    "code": {
+      "test_result": {
+        "title": {
+          "text": "Hasil pengujian"
+        },
+        "status_passed": {
+          "text": "Lulus"
+        },
+        "status_failed": {
+          "text": "Gagal"
+        },
+        "status_skipped": {
+          "text": "Dilewati"
+        },
+        "status_error": {
+          "text": "Kesalahan"
+        },
+        "status_cancelled": {
+          "text": "Dibatalkan"
+        },
+        "status_timed_out": {
+          "text": "Waktu habis"
+        },
+        "stale": {
+          "text": "Usang"
+        },
+        "steps": {
+          "text": "Langkah pengujian"
+        },
+        "no_video": {
+          "text": "Tidak ada video untuk eksekusi ini"
+        }
+      }
     }
   },
   "embeds_input": {},

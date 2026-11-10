@@ -8003,6 +8003,40 @@
           }
         }
       }
+    },
+    "code": {
+      "test_result": {
+        "title": {
+          "text": "테스트 결과"
+        },
+        "status_passed": {
+          "text": "통과"
+        },
+        "status_failed": {
+          "text": "실패"
+        },
+        "status_skipped": {
+          "text": "건너뜀"
+        },
+        "status_error": {
+          "text": "오류"
+        },
+        "status_cancelled": {
+          "text": "취소됨"
+        },
+        "status_timed_out": {
+          "text": "시간 초과"
+        },
+        "stale": {
+          "text": "오래됨"
+        },
+        "steps": {
+          "text": "테스트 단계"
+        },
+        "no_video": {
+          "text": "이 실행에는 사용 가능한 동영상이 없습니다"
+        }
+      }
     }
   },
   "embeds_input": {},

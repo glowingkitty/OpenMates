@@ -84,7 +84,7 @@ async fn run_with_list_stages(
     }
     // Explicit key-only embed slice: reject before resolving/opening any Cookie
     // or Team profile. SDK coverage does not establish Cookie auth parity.
-    if cli::sdk_embeds_supported(&invocation) && invocation.command_path() != "embeds versions show" && api_key.is_none() {
+    if cli::sdk_embeds_supported(&invocation) && !matches!(invocation.command_path().as_str(), "embeds versions show" | "embeds test-result") && api_key.is_none() {
         return Err(CliError::Unsupported { command: invocation.command_path(), reason: "This native embed slice requires an explicit API key; Cookie and Team embed parity remain required and no profile was loaded.".into() });
     }
     let cancel = CancellationToken::new();

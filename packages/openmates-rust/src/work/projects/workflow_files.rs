@@ -69,7 +69,8 @@ fn file_path(binding: &Value, filename: &str) -> Result<String> {
     }
     Ok(path)
 }
-fn replacement(path: &str, old: &str, next: &str) -> String {
+/// Whole-file replacement diff from `old` to `next` (shared with the hosted writer).
+pub(super) fn replacement(path: &str, old: &str, next: &str) -> String {
     fn rows(value: &str, prefix: char) -> String {
         value
             .split_inclusive('\n')
@@ -125,7 +126,8 @@ fn mutation(binding: &Value, path: &str, content: &str) -> Result<PrivateJson> {
     }
     Ok(value)
 }
-fn commitment(key: &[u8; 32], project: &str, chat: &str, mutation: &Value) -> Result<String> {
+/// `projectFileMutationDigest`: keyed proposal commitment (shared with the hosted writer).
+pub(super) fn commitment(key: &[u8; 32], project: &str, chat: &str, mutation: &Value) -> Result<String> {
     use hmac::{Hmac, Mac};
     use sha2::Sha256;
     let tuple = PrivateJson(json!([

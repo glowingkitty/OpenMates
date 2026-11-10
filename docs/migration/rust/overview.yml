@@ -8,7 +8,7 @@ formula: percent = round(100 * done / total, 1); done+partial+missing == total; 
 priority_order: [web_app, shared_client, cli, sdk_rust, sdk_npm, sdk_python]
 performance_history: performance-history.yml
 overall:
-  percent: 27.2
+  percent: 27.0
   formula: overall = round(0.4 * web_app + 0.2 * shared_client + 0.25 * cli + 0.15 * sdk, 1), sdk = mean(sdk_rust,
     sdk_npm, sdk_python); each term is the area percent
   weights:
@@ -20,7 +20,7 @@ overall:
   inputs:
     web_app: 7.8
     shared_client: 28.6
-    cli: 66.8
+    cli: 65.8
     sdk: 11.3
 areas:
 - id: web_app
@@ -28,10 +28,10 @@ areas:
   priority_rank: 1
   file: web-app.yml
   unit: TS code lines (portable)
-  total: 107142
+  total: 107143
   done: 8304
   partial: 0
-  missing: 98838
+  missing: 98839
   percent: 7.8
   done_definition: code line of a portable TS function (services/, utils/, stores/) that routes to the shared Rust
     core under VITE_OPENMATES_RUST_CORE and is listed in web-port-ledger.yml; functions over 80 code lines count
@@ -59,13 +59,13 @@ areas:
   priority_rank: 2
   file: cli.yml
   unit: CLI commands
-  total: 729
+  total: 740
   done: 487
-  partial: 236
-  missing: 6
-  percent: 66.8
+  partial: 248
+  missing: 5
+  percent: 65.8
   done_definition: command is differential-verified against the npm CLI
-  blockers: [6 unsupported commands without native handler, 720 commands not verified on Linux]
+  blockers: [5 unsupported commands without native handler, 731 commands not verified on Linux]
 - id: sdk_rust
   title: Rust SDK (operation capabilities)
   priority_rank: 3

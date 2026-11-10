@@ -707,9 +707,13 @@ async def dispatch_async_skill_continuation(
         )
     )
 
+    # An assistant-inferred creation (project_create_request) ends like a Project
+    # consent: created means the new Project focus is active, otherwise declined.
+    project_created = context.get("skill_id") == "project_create_request"
     project_focus_accepted = (
-        context.get("skill_id") == "activate_focus_mode"
-        and str((context.get("tool_arguments") or {}).get("focus_id", "")).startswith("project-")
+        (project_created or (
+            context.get("skill_id") == "activate_focus_mode"
+            and str((context.get("tool_arguments") or {}).get("focus_id", "")).startswith("project-")))
         and any(result.get("access_granted") is True for result in completed_results)
     )
     continuation_request = AskSkillRequest(
@@ -745,7 +749,7 @@ async def dispatch_async_skill_continuation(
                                else original_request.project_focus_catalog),
         project_focus_documents=project_focus_documents or original_request.project_focus_documents,
         project_access_declined=original_request.project_access_declined or (
-            context.get("skill_id") == "activate_focus_mode"
+            context.get("skill_id") in {"activate_focus_mode", "project_create_request"}
             and any(result.get("access_granted") is False for result in completed_results)
         ),
         active_project_focus=original_request.active_project_focus,

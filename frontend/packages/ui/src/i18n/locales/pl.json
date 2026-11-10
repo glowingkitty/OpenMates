@@ -8003,6 +8003,40 @@
           }
         }
       }
+    },
+    "code": {
+      "test_result": {
+        "title": {
+          "text": "Wynik testu"
+        },
+        "status_passed": {
+          "text": "Zaliczony"
+        },
+        "status_failed": {
+          "text": "Niezaliczony"
+        },
+        "status_skipped": {
+          "text": "Pominięty"
+        },
+        "status_error": {
+          "text": "Błąd"
+        },
+        "status_cancelled": {
+          "text": "Anulowano"
+        },
+        "status_timed_out": {
+          "text": "Przekroczono limit czasu"
+        },
+        "stale": {
+          "text": "Nieaktualny"
+        },
+        "steps": {
+          "text": "Kroki testu"
+        },
+        "no_video": {
+          "text": "Brak wideo dla tego uruchomienia"
+        }
+      }
     }
   },
   "embeds_input": {},

@@ -1203,6 +1203,7 @@ const directResults: Array<[string, DirectPreviewModule, DirectPreviewFields]> =
     licenseName: d.license_name, licenseSpdxId: d.license_spdx_id, stars: d.stars, forks: d.forks,
     openIssues: d.open_issues, updatedAt: d.updated_at,
   })],
+  ['code-test-result', () => import('../components/embeds/code/TestResultEmbedPreview.svelte'), d => ({ ...d })],
   ['electronics-component', () => import('../components/embeds/electronics/ElectronicsComponentEmbedPreview.svelte'), d => ({ ...d })],
   ['business-company-financial-result', () => import('../components/embeds/business/BusinessCompanyFinancialResultEmbedPreview.svelte'), d => ({
     company: d.company ?? d.title, ticker: d.ticker, fiscalYear: d.fiscal_year, fiscalQuarter: d.fiscal_quarter,

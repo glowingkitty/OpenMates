@@ -80,6 +80,8 @@ from .handlers.websocket_handlers.focus_mode_deactivate_handler import handle_fo
 from .handlers.websocket_handlers.focus_mode_rejected_handler import handle_focus_mode_rejected # Handler for focus mode rejection during countdown
 from .handlers.websocket_handlers.project_focus_decision_handler import handle_project_focus_decision
 from .handlers.websocket_handlers.project_focus_catalog_handler import handle_project_focus_catalog_result
+from .handlers.websocket_handlers.project_create_result_handler import handle_project_create_result
+from backend.core.api.app.services.project_create_request_service import outbound_create_event
 from .handlers.websocket_handlers.workflow_metadata_warmup_handler import (
     accept_workflow_warmup_request, warm_workflow_metadata,
 )
@@ -1216,6 +1218,14 @@ async def listen_for_cache_events(app: FastAPI):
                                     await manager.send_personal_message(
                                         {"type": event_type, "payload": outbound}, user_id, device_id,
                                     )
+                    elif event_type == "project_create_requested":
+                        # Only this chat's capable executor device creates the Project.
+                        outbound = outbound_create_event(payload)
+                        for device_id in (manager.get_connections_for_user(user_id) if outbound else []):
+                            if manager.can_execute_project_create(user_id, device_id, outbound["chat_id"]):
+                                await manager.send_personal_message(
+                                    {"type": event_type, "payload": outbound}, user_id, device_id,
+                                )
                     elif event_type in ("focus_mode_activated", "focus_mode_pending"):
                         # Focus mode was auto-confirmed after countdown. Push the activation
                         # event to all connected devices so the client can update its local
@@ -3256,6 +3266,7 @@ async def websocket_endpoint(
     inventory_request_id = (_validated_inventory_request_id(websocket.query_params.get("inventory_request_id"))
                             if complete_task_inventory else None)
     supports_project_file_jobs = "project_file_jobs" in connection_capabilities
+    supports_project_create_requests = "project_create_requests" in connection_capabilities
     supports_remote_command_jobs = "remote_command_jobs" in connection_capabilities
     supports_canonical_embed_receipts = "canonical_embed_receipts_v1" in connection_capabilities
     supports_typed_recovery_outputs = "typed_recovery_outputs_v2" in connection_capabilities
@@ -3305,6 +3316,7 @@ async def websocket_endpoint(
         supports_task_update_jobs=supports_task_update_jobs,
         supports_chat_metadata_recovery=supports_chat_metadata_recovery,
         supports_project_file_jobs=supports_project_file_jobs,
+        supports_project_create_requests=supports_project_create_requests,
         supports_remote_command_jobs=supports_remote_command_jobs,
         supports_storage_archive=supports_storage_archive,
         supports_canonical_embed_receipts=supports_canonical_embed_receipts,
@@ -4556,6 +4568,12 @@ async def websocket_endpoint(
                 )
             elif message_type == "project_focus_catalog_result":
                 await handle_project_focus_catalog_result(
+                    websocket=websocket, manager=manager, user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash, payload=payload,
+                    cache_service=cache_service, directus_service=directus_service,
+                )
+            elif message_type == "project_create_result":
+                await handle_project_create_result(
                     websocket=websocket, manager=manager, user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash, payload=payload,
                     cache_service=cache_service, directus_service=directus_service,

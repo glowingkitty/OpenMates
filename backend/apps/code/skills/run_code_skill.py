@@ -21,6 +21,8 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from backend.apps.base_skill import BaseSkill
+from backend.apps.code.test_run_target import resolve_test_run_target
+from backend.shared.python_schemas.code_test_run import TestRunSpec
 
 
 CODE_RUN_ASSISTANT_AUTH_TTL_SECONDS = 60 * 60
@@ -80,6 +82,10 @@ class RunCodeRequest(BaseModel):
     writable_profiles: list[str] = Field(default_factory=list)
     network_profile: str | None = None
     credential_profiles: list[str] = Field(default_factory=list)
+    test_run: TestRunSpec | None = Field(
+        default=None,
+        description="Test-run mode: run a Project's tests (unit, browser or cli) and return a structured, recorded result.",
+    )
 
 
 class RunCodeResponse(BaseModel):
@@ -509,6 +515,14 @@ class RunCodeSkill(BaseSkill):
         if not chat_id or not message_id or not user_id or not user_vault_key_id or cache_service is None or encryption_service is None:
             return RunCodeResponse(status="error", error="Code Run requires chat, message, user, cache, and encryption context.")
 
+        if request.test_run is not None:
+            request, rejection = await self._prepare_test_run(
+                request, chat_id=str(chat_id), user_id=str(user_id),
+                cache_service=cache_service, encryption_service=encryption_service,
+            )
+            if rejection is not None:
+                return rejection
+
         if request.target == "remote_source":
             return await self._execute_remote(
                 request,
@@ -601,6 +615,7 @@ class RunCodeSkill(BaseSkill):
             device_hash=kwargs.get("device_hash"),
             assistant_async_task=True,
             same_turn_batch_id=kwargs.get("same_turn_batch_id"),
+            **({"test_run": request.test_run.model_dump()} if request.test_run is not None else {}),
         )
         return RunCodeResponse(
             execution_id=execution.execution_id,
@@ -615,6 +630,46 @@ class RunCodeSkill(BaseSkill):
             stream_path=f"/v1/code/run/{execution.execution_id}/stream",
             status_path=f"/v1/code/run/{execution.execution_id}",
         )
+
+    async def _prepare_test_run(
+        self,
+        request: RunCodeRequest,
+        *,
+        chat_id: str,
+        user_id: str,
+        cache_service: Any,
+        encryption_service: Any,
+    ) -> tuple[RunCodeRequest, RunCodeResponse | None]:
+        """Resolve the target and map a test run onto the E2B or remote path."""
+        from backend.core.api.app.services.project_write_authorization_service import (
+            ProjectWriteAuthorizationService,
+        )
+
+        spec = request.test_run
+        assert spec is not None
+        directus_service = create_directus_service(cache_service=cache_service, encryption_service=encryption_service)
+        focus = await ProjectWriteAuthorizationService(directus_service, cache_service).get_active_focus(
+            user_id=user_id, chat_id=chat_id,
+        )
+        target, project_id, source_id = await resolve_test_run_target(
+            spec, directus_service=directus_service, focus=focus, user_id=user_id,
+        )
+        resolved = spec.model_copy(update={"target": target, "project_id": project_id, "source_id": source_id})
+        if target == "remote_source":
+            if resolved.setup_commands or resolved.server is not None:
+                return request, RunCodeResponse(
+                    status="error",
+                    error="Remote test runs accept only test_command until multi-command remote runs ship; use target e2b for setup or server steps.",
+                )
+            command = resolved.test_command
+            return request.model_copy(update={
+                "target": "remote_source", "test_run": resolved, "project_id": project_id,
+                "source_id": source_id, "argv": command.argv, "cwd": command.cwd,
+                "timeout_seconds": command.timeout_seconds,
+            }), None
+        if not request.files:
+            return request, RunCodeResponse(status="error", error="E2B test runs require the Project snapshot as files.")
+        return request.model_copy(update={"target": "e2b", "test_run": resolved, "enable_internet": resolved.enable_internet}), None
 
     async def _execute_remote(
         self,

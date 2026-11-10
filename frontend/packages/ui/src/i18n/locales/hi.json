@@ -8003,6 +8003,40 @@
           }
         }
       }
+    },
+    "code": {
+      "test_result": {
+        "title": {
+          "text": "परीक्षण परिणाम"
+        },
+        "status_passed": {
+          "text": "उत्तीर्ण"
+        },
+        "status_failed": {
+          "text": "विफल"
+        },
+        "status_skipped": {
+          "text": "छोड़ा गया"
+        },
+        "status_error": {
+          "text": "त्रुटि"
+        },
+        "status_cancelled": {
+          "text": "रद्द"
+        },
+        "status_timed_out": {
+          "text": "समय समाप्त"
+        },
+        "stale": {
+          "text": "पुराना"
+        },
+        "steps": {
+          "text": "परीक्षण चरण"
+        },
+        "no_video": {
+          "text": "इस रन के लिए कोई वीडियो उपलब्ध नहीं है"
+        }
+      }
     }
   },
   "embeds_input": {},

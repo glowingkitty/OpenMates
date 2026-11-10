@@ -1433,6 +1433,7 @@ class PreprocessingResult(BaseModel):
     pending_project_focus_id: Optional[str] = Field(None, exclude=True, description="Routing-only consent proposal; no main inference or Project authority.")
     pending_project_catalog_id: Optional[str] = Field(None, exclude=True, description="Selected Project needs minimal owner-client Focus metadata before consent.")
     pending_project_specialist: Optional[Dict[str, str]] = Field(None, exclude=True, repr=False, description="Validated specialist selection metadata; its body remains hidden until consent.")
+    pending_project_create: Optional[Dict[str, Any]] = Field(None, exclude=True, repr=False, description="Routing-only create_project outcome (ProjectCreateProposal); a client must create the encrypted Project before main inference.")
     routing_only: bool = Field(False, exclude=True, description="Consent-only routing must run complete preprocessing before later inference, including after rejection.")
 
     harmful_or_illegal_score: Optional[float] = Field(None, description="Harmfulness score (1-10).")
@@ -3288,6 +3289,30 @@ async def handle_preprocessing(
     if stage_one_only:
         request_data._stage_one_routing = early_routing
         return PreprocessingResult(can_proceed=True, routing_only=True)
+    from backend.apps.ai.processing.project_creation_routing import (
+        decide_project_creation, project_creation_skip_reason,
+    )
+    if early_model_selection is not None and project_creation_skip_reason(request_data, user_overrides) is None:
+        # Assistant-inferred Project creation (projects.creation.assistant-inferred).
+        project_create = await decide_project_creation(
+            request_data=request_data, user_overrides=user_overrides, cache_service=cache_service,
+            secrets_manager=secrets_manager, model_id=decision_model,
+            message_history=sanitized_message_history,
+            telemetry_task_id=f"{request_data.chat_id}_{request_data.message_id}", log_prefix=log_prefix,
+            early_decisions=(early_routing or {}).get("early_decisions"),
+            harm_threshold=float(skill_config.preprocessing_thresholds.harmful_content_score),
+            misuse_threshold=float(skill_config.preprocessing_thresholds.misuse_risk_score),
+        )
+        if project_create is not None:
+            return PreprocessingResult(
+                can_proceed=True, routing_only=True, category=early_category,
+                output_language=user_system_language, selected_mate_id=early_mate_id,
+                selected_app_ids=selected_app_ids,
+                selected_main_llm_model_id=early_model_selection["selected_llm_for_main_id"],
+                selected_main_llm_model_name=early_model_selection["selected_llm_for_main_name"],
+                relevant_app_skills=[], load_app_settings_and_memories=[], relevant_focus_modes=[],
+                pending_project_create=project_create.as_dict(),
+            )
 
     # Private details can arrive while Stage one resolves and publishes the Mate.
     # Missing details must never be silently reinterpreted as an empty context.

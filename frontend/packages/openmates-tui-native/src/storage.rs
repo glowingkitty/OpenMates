@@ -222,6 +222,13 @@ impl Drop for UnlockedVault {
     }
 }
 
+/// Outcome of a save that must not clobber a session another process rotated.
+pub enum SessionSave {
+    /// Whether the session was written (false: already the durable one).
+    Saved(bool),
+    /// The stored session is newer than the caller's; it was not overwritten.
+    Superseded(Session),
+}
 // One Store-local, bounded ciphertext snapshot, never serialized or exposed.
 // An authenticated read is only a candidate: both it and a previous publication
 // must verify and synchronize the exact current file before issuing a proof.
@@ -408,7 +415,9 @@ pub struct Store {
     account: String,
     backend: Arc<dyn CredentialBackend>,
     force_vault: bool,
-    _runtime_guard: Option<FileLock>,
+    runtime_guard: Mutex<Option<FileLock>>,
+    /// Set by long-running hosts: the runtime lock is then taken per operation.
+    per_operation_lock: std::sync::atomic::AtomicBool,
     vault_cache: Mutex<Option<UnlockedVault>>,
     #[cfg(test)]
     session_intent_test: Mutex<SessionIntentTestState>,
@@ -450,8 +459,46 @@ impl Store {
                 Error::Io
             }
         })?;
-        store._runtime_guard = Some(FileLock(file));
+        *store.runtime_guard.lock().map_err(|_| Error::Io)? = Some(FileLock(file));
         Ok(store)
+    }
+    /// Long-running hosts (`remote-access`) must not exclude every other
+    /// `openmates` command on the same state directory for their lifetime.
+    /// After this call the runtime lock is released and `with_runtime_lock`
+    /// takes it only around each store operation, so one-shot commands run
+    /// between operations while the cookie-refresh and cache-write exclusion
+    /// still holds for every individual operation.
+    pub fn scope_runtime_lock_to_operations(&self) -> Result<()> {
+        self.per_operation_lock
+            .store(true, std::sync::atomic::Ordering::SeqCst);
+        self.runtime_guard.lock().map_err(|_| Error::Io)?.take();
+        Ok(())
+    }
+    /// Run one store operation under the runtime lock when it is per-operation
+    /// (a no-op for lifetime-locked stores). Waits a bounded time for a
+    /// concurrent one-shot command to finish rather than blocking forever.
+    pub fn with_runtime_lock<T>(&self, operation: impl FnOnce() -> Result<T>) -> Result<T> {
+        if !self.per_operation_lock.load(std::sync::atomic::Ordering::SeqCst) {
+            return operation();
+        }
+        let file = self.open("runtime.lock", OFlags::RDWR | OFlags::CREATE)?;
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+        loop {
+            match file.try_lock_exclusive() {
+                Ok(()) => break,
+                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                    if std::time::Instant::now() >= deadline {
+                        return Err(Error::Invalid(
+                            "This state directory is busy with another native client.",
+                        ));
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(50));
+                }
+                Err(_) => return Err(Error::Io),
+            }
+        }
+        let _guard = FileLock(file);
+        operation()
     }
     /// Injectable backend for isolated storage tests; production constructors
     /// additionally hold a lifetime runtime lock against cookie-refresh races.
@@ -466,7 +513,8 @@ impl Store {
             account,
             backend,
             force_vault: false,
-            _runtime_guard: None,
+            runtime_guard: Mutex::new(None),
+            per_operation_lock: std::sync::atomic::AtomicBool::new(false),
             vault_cache: Mutex::new(None),
             #[cfg(test)]
             session_intent_test: Mutex::new(SessionIntentTestState::default()),
@@ -579,6 +627,49 @@ impl Store {
             return Ok(false);
         }
         self.save_session(session, passphrase).map(|()| true)
+    }
+    /// Per-operation (host) stores only: the stored session when another
+    /// process rotated and saved it since this process last loaded or saved
+    /// it (the stored record's digest no longer matches the remembered one).
+    /// Lifetime-locked stores and stores with no remembered record never
+    /// report one, so one-shot commands behave exactly as before. The caller
+    /// must already hold the runtime lock (`RuntimeStore` operations do), so
+    /// the comparison and any following write form one critical section; this
+    /// never takes the runtime lock itself, which would deadlock under it.
+    pub fn superseded_session(&self, passphrase: Option<&str>) -> Result<Option<Session>> {
+        if !self.per_operation_lock.load(std::sync::atomic::Ordering::SeqCst) {
+            return Ok(None);
+        }
+        let Some(remembered) = self
+            .durable_session
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
+        else {
+            return Ok(None);
+        };
+        let stored_digest = {
+            let _guard = self.lock("session.lock")?;
+            self.envelope_with_digest()?.map(|(_, digest)| digest)
+        };
+        match stored_digest {
+            Some(digest) if digest != remembered.envelope_digest => self.load_session(passphrase),
+            _ => Ok(None),
+        }
+    }
+    /// `save_session_if_changed`, except that a host whose stored session was
+    /// rotated by another process adopts that one instead of overwriting it
+    /// with its older in-memory credentials. Same lock contract as
+    /// `superseded_session`.
+    pub fn save_session_unless_superseded(
+        &self,
+        session: &Session,
+        passphrase: Option<&str>,
+    ) -> Result<SessionSave> {
+        if let Some(stored) = self.superseded_session(passphrase)? {
+            return Ok(SessionSave::Superseded(stored));
+        }
+        self.save_session_if_changed(session, passphrase).map(SessionSave::Saved)
     }
     fn durable_session_current(&self, session: &Session, passphrase: Option<&str>) -> Result<bool> {
         let digest = session_digest(session)?;
@@ -1902,6 +1993,98 @@ mod vault_cache_tests {
     use super::*;
     use std::collections::BTreeMap;
     use std::sync::atomic::{AtomicBool, Ordering};
+
+    #[test]
+    fn per_operation_runtime_lock_lets_a_second_client_open_between_operations() {
+        let (directory, host, _) = fixture();
+        let path = directory.path().to_path_buf();
+        assert!(Store::new(path.clone()).is_err(), "lifetime lock excludes a second client");
+        host.scope_runtime_lock_to_operations().unwrap();
+        let other = Store::new(path.clone()).expect("a one-shot client opens beside the scoped host");
+        drop(other);
+        let mut ran = false;
+        host.with_runtime_lock(|| {
+            ran = true;
+            assert!(Store::new(path.clone()).is_err(), "the lock is held during the operation");
+            Ok(())
+        })
+        .unwrap();
+        assert!(ran);
+        Store::new(path).expect("the lock is released after the operation");
+    }
+
+    const HOST_PASSPHRASE: &str = "fixture vault passphrase";
+    fn with_cookie(session: &Session, cookie: &str) -> Session {
+        let mut next = session.clone();
+        next.cookies.insert("session".into(), cookie.into());
+        next
+    }
+
+    #[test]
+    fn host_adopts_a_session_rotated_by_another_process_instead_of_overwriting_it() {
+        let (directory, host, session) = fixture();
+        host.save_session(&session, Some(HOST_PASSPHRASE)).unwrap();
+        host.scope_runtime_lock_to_operations().unwrap();
+        // A one-shot command rotates the cookie and stores it beside the host.
+        let rotated = with_cookie(&session, "rotated-cookie");
+        {
+            let other = Store::encrypted_vault(directory.path().to_path_buf()).unwrap();
+            other.save_session(&rotated, Some(HOST_PASSPHRASE)).unwrap();
+        }
+        assert!(
+            host.superseded_session(Some(HOST_PASSPHRASE)).unwrap().is_some(),
+            "the host sees the newer stored session",
+        );
+        // Re-arm: the lookup above adopted it, so do it again with a fresh rotation.
+        let newest = with_cookie(&session, "newest-cookie");
+        {
+            let other = Store::encrypted_vault(directory.path().to_path_buf()).unwrap();
+            other.save_session(&newest, Some(HOST_PASSPHRASE)).unwrap();
+        }
+        let stale = with_cookie(&session, "stale-host-cookie");
+        match host.save_session_unless_superseded(&stale, Some(HOST_PASSPHRASE)).unwrap() {
+            SessionSave::Superseded(stored) => {
+                assert_eq!(stored.cookies["session"], "newest-cookie");
+            }
+            SessionSave::Saved(_) => panic!("the host overwrote a newer stored session"),
+        }
+        let on_disk = host.load_session(Some(HOST_PASSPHRASE)).unwrap().unwrap();
+        assert_eq!(on_disk.cookies["session"], "newest-cookie");
+        assert!(
+            host.superseded_session(Some(HOST_PASSPHRASE)).unwrap().is_none(),
+            "after adopting, nothing is superseded any more",
+        );
+    }
+
+    #[test]
+    fn host_refresh_saves_when_the_stored_session_is_its_own() {
+        let (_directory, host, session) = fixture();
+        host.save_session(&session, Some(HOST_PASSPHRASE)).unwrap();
+        host.scope_runtime_lock_to_operations().unwrap();
+        // Not holding the runtime lock: must neither deadlock nor report a newer session.
+        assert!(host.superseded_session(Some(HOST_PASSPHRASE)).unwrap().is_none());
+        let refreshed = with_cookie(&session, "host-refreshed");
+        let saved = host
+            .with_runtime_lock(|| host.save_session_unless_superseded(&refreshed, Some(HOST_PASSPHRASE)))
+            .unwrap();
+        assert!(matches!(saved, SessionSave::Saved(true)));
+        let on_disk = host.load_session(Some(HOST_PASSPHRASE)).unwrap().unwrap();
+        assert_eq!(on_disk.cookies["session"], "host-refreshed");
+        // And again directly, outside the lock, with a second refresh.
+        let again = with_cookie(&session, "host-refreshed-twice");
+        let saved = host.save_session_unless_superseded(&again, Some(HOST_PASSPHRASE)).unwrap();
+        assert!(matches!(saved, SessionSave::Saved(true)));
+    }
+
+    #[test]
+    fn lifetime_locked_store_never_reports_a_superseded_session() {
+        let (_directory, store, session) = fixture();
+        store.save_session(&session, Some(HOST_PASSPHRASE)).unwrap();
+        assert!(store.superseded_session(Some(HOST_PASSPHRASE)).unwrap().is_none());
+        let next = with_cookie(&session, "one-shot-refresh");
+        let saved = store.save_session_unless_superseded(&next, Some(HOST_PASSPHRASE)).unwrap();
+        assert!(matches!(saved, SessionSave::Saved(true)));
+    }
 
     fn fixture() -> (tempfile::TempDir, Store, Session) {
         let mut builder = tempfile::Builder::new();

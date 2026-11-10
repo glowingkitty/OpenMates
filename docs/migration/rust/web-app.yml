@@ -9,10 +9,10 @@ flag:
   default: 'off'
   flag_off_behavior: original TypeScript path, byte-identical build output (guarded in CI)
 summary:
-  total: 107142
+  total: 107143
   done: 8304
   partial: 0
-  missing: 98838
+  missing: 98839
   percent: 7.8
 worker_namespaces_installed_not_progress:
   installed: 18
@@ -21,7 +21,7 @@ worker_namespaces_installed_not_progress:
 port_ledger:
   unit: TS code lines
   portable_files: 449
-  portable_code_lines: 107142
+  portable_code_lines: 107143
   ported_code_lines: 8304
   percent: 7.8
   ported_by_proof:

@@ -8003,6 +8003,40 @@
           }
         }
       }
+    },
+    "code": {
+      "test_result": {
+        "title": {
+          "text": "Kết quả kiểm thử"
+        },
+        "status_passed": {
+          "text": "Đạt"
+        },
+        "status_failed": {
+          "text": "Thất bại"
+        },
+        "status_skipped": {
+          "text": "Bỏ qua"
+        },
+        "status_error": {
+          "text": "Lỗi"
+        },
+        "status_cancelled": {
+          "text": "Đã hủy"
+        },
+        "status_timed_out": {
+          "text": "Hết thời gian"
+        },
+        "stale": {
+          "text": "Đã cũ"
+        },
+        "steps": {
+          "text": "Các bước kiểm thử"
+        },
+        "no_video": {
+          "text": "Không có video cho lần chạy này"
+        }
+      }
     }
   },
   "embeds_input": {},

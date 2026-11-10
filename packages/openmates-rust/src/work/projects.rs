@@ -65,11 +65,33 @@ pub struct ProjectSettingsPatch {
 }
 mod ask;
 pub use ask::*;
+mod assistant_request;
+pub use assistant_request::*;
+#[cfg(test)]
+mod assistant_request_tests;
+#[cfg(test)]
+pub(crate) use assistant_request_tests::{
+    CHAT as FIXTURE_CHAT, REQUEST as FIXTURE_REQUEST, request_event, rest_fixture, rest_handler,
+};
+mod commits;
+pub use commits::*;
 mod focus;
+#[cfg(all(feature = "workflow-yaml", unix))]
+mod hosted;
+/// Hosted Project file writer (native only: it shares the `source_host` path matcher).
+#[cfg(all(feature = "workflow-yaml", unix))]
+pub use hosted::{
+    HostedApproval, HostedFile, HostedProposal, HostedFileError, HostedFileJob, HostedFileMutation,
+    HostedFileOperation, HostedIdentityKind, HostedResult, ProjectCommitRestoreResult,
+    apply_exact_patch, content_hash, hosted_file_identity, replacement_patch,
+};
 mod remote_command_stop;
 pub use remote_command_stop::REMOTE_COMMAND_FOCUS_INACTIVE;
 mod remote_files;
-pub use remote_files::{ProjectFileOperation, ProjectRequesterError, remote_error_message, safe_relative_path, select_source};
+pub use remote_files::{
+    ProjectFileOperation, ProjectRequesterError, remote_error_message, safe_relative_path,
+    select_source,
+};
 mod items;
 mod selector;
 pub(crate) use selector::is_canonical_uuid;
@@ -450,8 +472,9 @@ impl<'a> Projects<'a> {
             payload["default_focus_id"] = json!(focus.focus_id);
             payload["encrypted_settings"] = json!(crypto::server_fields::encrypt_text(
                 &serde_json::to_string(&settings)?,
-                &project.key
-            , &[])?);
+                &project.key,
+                &[]
+            )?);
         }
         if payload.as_object().ok_or(Error::Protocol)?.len() == 1 {
             return Err(Error::Invalid("Choose at least one Project setting."));
@@ -592,13 +615,20 @@ fn encode_patch(
                     "Invalid Project name or private text length.",
                 ));
             }
-            payload[format!("encrypted_{field}")] =
-                json!(crypto::server_fields::encrypt_text(text, &project.key, &[])?);
+            payload[format!("encrypted_{field}")] = json!(crypto::server_fields::encrypt_text(
+                text,
+                &project.key,
+                &[]
+            )?);
         }
     }
     if let Some(slug) = &input.slug {
         let slug = crypto::normalize_object_slug(slug)?;
-        payload["encrypted_slug"] = json!(crypto::server_fields::encrypt_text(&slug, &project.key, &[])?);
+        payload["encrypted_slug"] = json!(crypto::server_fields::encrypt_text(
+            &slug,
+            &project.key,
+            &[]
+        )?);
         payload["slug_lookup_hash"] = json!(crypto::object_slug_lookup_hash(
             &slug,
             wrapping.ok_or(Error::Crypto)?
@@ -656,19 +686,87 @@ fn segment(id: &str) -> Result<String> {
 #[cfg(test)]
 mod tests;
 
-#[cfg(all(test,not(target_arch="wasm32")))]
+#[cfg(all(test, not(target_arch = "wasm32")))]
 mod field_interop_tests {
+    use super::super::task_crypto::field_interop_support::{assert_web, case};
     use super::*;
-    use super::super::task_crypto::field_interop_support::{case,assert_web};
     #[test]
-    fn actual_project_create_patch_and_team_wrapper_read_in_web_legacy_decoders(){
-        let master=[7;32];let key=[9;32];
-        let input=ProjectCreate{name:"Synthetic Project ✓".into(),description:"Private project".into(),write_mode:Some(ProjectWriteMode::AlwaysAsk),..Default::default()};
-        let created=encode_create(&input,&key,&master,None).unwrap();
-        let project=ResolvedProject{raw:created.clone(),public:json!({}),key:zeroize::Zeroizing::new(key)};
-        let patch=encode_patch(&project,&ProjectPatch{name:Some("Updated Project 界".into()),description:Some("".into()),..Default::default()},Some(&master)).unwrap();
-        let team=encode_create(&input,&key,&master,Some("11111111-1111-4111-8111-111111111111")).unwrap();
+    fn actual_project_create_patch_and_team_wrapper_read_in_web_legacy_decoders() {
+        let master = [7; 32];
+        let key = [9; 32];
+        let input = ProjectCreate {
+            name: "Synthetic Project ✓".into(),
+            description: "Private project".into(),
+            write_mode: Some(ProjectWriteMode::AlwaysAsk),
+            ..Default::default()
+        };
+        let created = encode_create(&input, &key, &master, None).unwrap();
+        let project = ResolvedProject {
+            raw: created.clone(),
+            public: json!({}),
+            key: zeroize::Zeroizing::new(key),
+        };
+        let patch = encode_patch(
+            &project,
+            &ProjectPatch {
+                name: Some("Updated Project 界".into()),
+                description: Some("".into()),
+                ..Default::default()
+            },
+            Some(&master),
+        )
+        .unwrap();
+        let team = encode_create(
+            &input,
+            &key,
+            &master,
+            Some("11111111-1111-4111-8111-111111111111"),
+        )
+        .unwrap();
         assert!(team["encrypted_project_key"].is_null());
-        assert_web(vec![case("project-key","master-binary",created["encrypted_project_key"].as_str().unwrap(),&master,&key,""),case("project-team-key","object-binary",team["key_wrappers"][0]["encrypted_project_key"].as_str().unwrap(),&master,&key,""),case("project-name","object-text",created["encrypted_name"].as_str().unwrap(),&key,input.name.as_bytes(),""),case("project-patch-name","object-text",patch["encrypted_name"].as_str().unwrap(),&key,"Updated Project 界".as_bytes(),""),case("project-empty-description","object-text",patch["encrypted_description"].as_str().unwrap(),&key,b"","")]);
+        assert_web(vec![
+            case(
+                "project-key",
+                "master-binary",
+                created["encrypted_project_key"].as_str().unwrap(),
+                &master,
+                &key,
+                "",
+            ),
+            case(
+                "project-team-key",
+                "object-binary",
+                team["key_wrappers"][0]["encrypted_project_key"]
+                    .as_str()
+                    .unwrap(),
+                &master,
+                &key,
+                "",
+            ),
+            case(
+                "project-name",
+                "object-text",
+                created["encrypted_name"].as_str().unwrap(),
+                &key,
+                input.name.as_bytes(),
+                "",
+            ),
+            case(
+                "project-patch-name",
+                "object-text",
+                patch["encrypted_name"].as_str().unwrap(),
+                &key,
+                "Updated Project 界".as_bytes(),
+                "",
+            ),
+            case(
+                "project-empty-description",
+                "object-text",
+                patch["encrypted_description"].as_str().unwrap(),
+                &key,
+                b"",
+                "",
+            ),
+        ]);
     }
 }

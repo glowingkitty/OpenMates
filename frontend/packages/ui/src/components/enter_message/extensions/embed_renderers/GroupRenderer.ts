@@ -349,6 +349,7 @@ export class GroupRenderer implements EmbedRenderer {
       ["ai-authored-results", (item, row, decoded, target) => this.renderRegistryPreviewComponent(item, row, decoded, target)],
       ["tv-movie", (item, row, decoded, target) => this.renderRegistryPreviewComponent(item, row, decoded, target)],
       ["tv-series", (item, row, decoded, target) => this.renderRegistryPreviewComponent(item, row, decoded, target)],
+      ["code-test-result", (item, row, decoded, target) => this.renderRegistryPreviewComponent(item, row, decoded, target)],
       ["images-generated-image", (item, embedData, decodedContent, content) =>
         this.renderRegistryPreviewComponent(item, embedData, decodedContent, content)],
       ["audio-generated-audio", (item, embedData, decodedContent, content) =>

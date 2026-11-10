@@ -8003,6 +8003,40 @@
           }
         }
       }
+    },
+    "code": {
+      "test_result": {
+        "title": {
+          "text": "Test sonucu"
+        },
+        "status_passed": {
+          "text": "Başarılı"
+        },
+        "status_failed": {
+          "text": "Başarısız"
+        },
+        "status_skipped": {
+          "text": "Atlandı"
+        },
+        "status_error": {
+          "text": "Hata"
+        },
+        "status_cancelled": {
+          "text": "İptal edildi"
+        },
+        "status_timed_out": {
+          "text": "Zaman aşımı"
+        },
+        "stale": {
+          "text": "Eski"
+        },
+        "steps": {
+          "text": "Test adımları"
+        },
+        "no_video": {
+          "text": "Bu çalıştırma için video yok"
+        }
+      }
     }
   },
   "embeds_input": {},

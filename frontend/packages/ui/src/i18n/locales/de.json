@@ -9575,6 +9575,40 @@
           }
         }
       }
+    },
+    "code": {
+      "test_result": {
+        "title": {
+          "text": "Testergebnis"
+        },
+        "status_passed": {
+          "text": "Bestanden"
+        },
+        "status_failed": {
+          "text": "Fehlgeschlagen"
+        },
+        "status_skipped": {
+          "text": "Übersprungen"
+        },
+        "status_error": {
+          "text": "Fehler"
+        },
+        "status_cancelled": {
+          "text": "Abgebrochen"
+        },
+        "status_timed_out": {
+          "text": "Zeitüberschreitung"
+        },
+        "stale": {
+          "text": "Veraltet"
+        },
+        "steps": {
+          "text": "Teststeps"
+        },
+        "no_video": {
+          "text": "Für diesen Lauf ist kein Video verfügbar"
+        }
+      }
     }
   },
   "embeds_input": {

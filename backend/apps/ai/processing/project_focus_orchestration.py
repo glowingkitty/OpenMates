@@ -36,6 +36,51 @@ async def request_project_focus_catalog(*, task_id: str, directus_service: Any, 
     }))
 
 
+async def request_project_creation(*, task_id: str, directus_service: Any, request_data: Any,
+                                   preprocessing_results: Any, cache_service: Any,
+                                   skill_config_dict: dict[str, Any] | None,
+                                   proposal: dict[str, Any]) -> dict[str, Any]:
+    """Ask the chat's executor client to create an encrypted Project.
+
+    Contract: docs/plans/cloud-project-development/contracts/project-create-request.md.
+    The original turn resumes when the client's ``project_create_result`` arrives.
+    """
+    from backend.apps.ai.processing.project_creation_routing import project_creation_skip_reason
+    from backend.apps.ai.tasks.async_skill_continuation import cache_async_skill_continuation_context
+    from backend.core.api.app.services.project_create_request_service import (
+        PROJECT_CREATE_EVENT, PROJECT_CREATE_REQUEST_TTL, ProjectCreateRequestService,
+        build_project_create_action, new_project_create_request_id,
+    )
+    # Recheck the request-field gate: a resumed or replayed result cannot bypass it.
+    if not cache_service or project_creation_skip_reason(request_data) is not None:
+        raise PermissionError("Project creation was not offered for this turn")
+    action = build_project_create_action(
+        request_id=new_project_create_request_id(), name=proposal["proposed_name"],
+        chat_id=request_data.chat_id, message_id=request_data.message_id,
+        team_id=request_data.team_id, origin="preprocessor", kind=proposal["kind"],
+    )
+    await cache_async_skill_continuation_context(
+        cache_service=cache_service, async_task_id=action["request_id"], request_data=request_data,
+        skill_config_dict=skill_config_dict, app_id="system", skill_id="project_create_request",
+        tool_name="create_project_request",
+        # The name stays out of the model-visible completion arguments.
+        tool_arguments={"kind": action["kind"], "subfolder": action["subfolder"]},
+        source_delivery_task_id=task_id, directus_service=directus_service,
+        preprocessing_result=preprocessing_results, requires_current_turn=True,
+        defer_until_initial_response_complete=True, ttl_seconds=PROJECT_CREATE_REQUEST_TTL,
+    )
+    await ProjectCreateRequestService(cache_service).create_pending(user_id=request_data.user_id, action=action)
+    request_data.awaiting_async_skill_continuation = True
+    redis_client = await cache_service.client
+    await redis_client.publish(f"user_cache_events:{request_data.user_id}", json.dumps({
+        "event_type": PROJECT_CREATE_EVENT, "payload": {
+            "chat_id": request_data.chat_id, "request_id": action["request_id"],
+            "pending_client_action": action,
+        },
+    }))
+    return action
+
+
 async def request_project_focus(*, task_id: str, request_data: Any,
                                 preprocessing_results: Any, candidate: dict[str, Any],
                                 cache_service: Any, directus_service: Any,

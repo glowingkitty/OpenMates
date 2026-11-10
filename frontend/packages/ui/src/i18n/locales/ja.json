@@ -8003,6 +8003,40 @@
           }
         }
       }
+    },
+    "code": {
+      "test_result": {
+        "title": {
+          "text": "テスト結果"
+        },
+        "status_passed": {
+          "text": "成功"
+        },
+        "status_failed": {
+          "text": "失敗"
+        },
+        "status_skipped": {
+          "text": "スキップ"
+        },
+        "status_error": {
+          "text": "エラー"
+        },
+        "status_cancelled": {
+          "text": "キャンセル"
+        },
+        "status_timed_out": {
+          "text": "タイムアウト"
+        },
+        "stale": {
+          "text": "古い結果"
+        },
+        "steps": {
+          "text": "テストのステップ"
+        },
+        "no_video": {
+          "text": "この実行の動画はありません"
+        }
+      }
     }
   },
   "embeds_input": {},

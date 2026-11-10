@@ -17,6 +17,7 @@ pub(super) struct SendObservations {
     pub(super) memories: Vec<SendMemoryRequest>,
     pub(super) usage: Option<Value>,
     pub(super) budget: Option<Value>,
+    pub(super) project_create: super::project_create_request::ProjectCreateState,
 }
 impl SendObservations {
     /// The caller establishes current chat/user/turn/task ownership first.
@@ -176,6 +177,7 @@ impl SendObservations {
             app_settings_memory_requests: self.memories,
             token_usage: self.usage,
             prompt_budget: self.budget,
+            project_creations: self.project_create.cards(),
         }
     }
 }

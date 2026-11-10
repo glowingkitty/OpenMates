@@ -593,6 +593,7 @@ async def test_project_child_move_failure_rolls_back_and_never_mutates_parent() 
             [],
             [],
             [],
+            [],
         ]
     )
     directus.create_item = AsyncMock(return_value=(True, {"id": "wrapper-row"}))
@@ -646,6 +647,7 @@ async def test_project_move_persists_wrapper_and_moves_parent_last() -> None:
         side_effect=[
             [{"id": "project-row", "project_id": "project-1", "hashed_user_id": hash_id("user-1"), "hashed_team_id": None, "updated_at": 1}],
             [{"id": "folder-row", "hashed_user_id": hash_id("user-1"), "hashed_team_id": None, "created_by_user_hash": hash_id("user-1")}],
+            [],
             [],
             [],
             [],
@@ -705,7 +707,7 @@ async def test_project_parent_move_failure_rolls_back_parent_children_and_wrappe
         "hashed_team_id": None,
         "created_by_user_hash": hash_id("user-1"),
     }
-    directus.get_items = AsyncMock(side_effect=[[project], [folder], [], [], []])
+    directus.get_items = AsyncMock(side_effect=[[project], [folder], [], [], [], []])
     directus.create_item = AsyncMock(return_value=(True, {"id": "wrapper-row"}))
     directus.update_item = AsyncMock(
         side_effect=[
@@ -1229,6 +1231,9 @@ def test_project_owner_context_migration_is_idempotent_and_rejects_mixed_ownersh
         "VALIDATE CONSTRAINT project_sources_owner_context_check"
     )
     assert "IF NOT EXISTS (" in migration
+    assert "project_commits_owner_context_check" in migration
+    assert "ALTER TABLE public.project_commits ALTER COLUMN created_by_user_hash SET NOT NULL" in migration
+    assert "project_commits_team_project_idx" in migration
 
 
 def test_project_owner_context_schema_and_setup_wiring_are_complete() -> None:
@@ -1238,6 +1243,7 @@ def test_project_owner_context_schema_and_setup_wiring_are_complete() -> None:
         "project_items.yml": "attached_by_user_hash",
         "project_sources.yml": "attached_by_user_hash",
         "project_settings.yml": "updated_by_user_hash",
+        "project_commits.yml": "created_by_user_hash",
     }
     schema_root = ROOT / "backend/core/directus/schemas"
     for filename, actor_field in schema_expectations.items():

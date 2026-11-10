@@ -284,6 +284,7 @@ PROJECT_OWNER_CONTEXT_INDEXES = (
     'project_folders_team_project_idx',
     'project_items_team_project_idx',
     'project_settings_team_project_idx',
+    'project_commits_team_project_idx',
 )
 ENCRYPTED_SLUG_MIGRATION_PATH = os.getenv(
     'ENCRYPTED_SLUG_MIGRATION_PATH',

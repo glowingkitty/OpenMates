@@ -5,7 +5,7 @@ use crate::{
     client::Client,
     error::{Error, Result},
     runtime_store::RuntimeStore,
-    storage::Session,
+    storage::{Session, SessionSave},
 };
 use sha2::{Digest, Sha256};
 use tokio_util::sync::CancellationToken;
@@ -432,7 +432,16 @@ pub async fn persist(
             ),
         };
         if !generation.is_current() { return Err(Error::Cancelled); }
-        store.save_if_changed(session.clone(), passphrase).await?;
+        // A host's stored session may have been rotated by a one-shot command
+        // since it loaded it; adopt that one rather than overwrite it. One-shot
+        // stores always take the `Saved` branch (unchanged behavior).
+        if let SessionSave::Superseded(stored) =
+            store.save_unless_superseded(session.clone(), passphrase).await?
+        {
+            if !generation.is_current() { return Err(Error::Cancelled); }
+            client.adopt_stored_credentials(&stored)?;
+            return Ok(());
+        }
         if !generation.is_current() { return Err(Error::Cancelled); }
         if let Some(cache) = cache {
             store

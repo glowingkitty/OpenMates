@@ -8003,6 +8003,40 @@
           }
         }
       }
+    },
+    "code": {
+      "test_result": {
+        "title": {
+          "text": "نتيجة الاختبار"
+        },
+        "status_passed": {
+          "text": "نجح"
+        },
+        "status_failed": {
+          "text": "فشل"
+        },
+        "status_skipped": {
+          "text": "تم التخطي"
+        },
+        "status_error": {
+          "text": "خطأ"
+        },
+        "status_cancelled": {
+          "text": "أُلغي"
+        },
+        "status_timed_out": {
+          "text": "انتهت المهلة"
+        },
+        "stale": {
+          "text": "قديم"
+        },
+        "steps": {
+          "text": "خطوات الاختبار"
+        },
+        "no_video": {
+          "text": "لا يوجد فيديو لهذا التشغيل"
+        }
+      }
     }
   },
   "embeds_input": {},

@@ -8003,6 +8003,40 @@
           }
         }
       }
+    },
+    "code": {
+      "test_result": {
+        "title": {
+          "text": "תוצאת בדיקה"
+        },
+        "status_passed": {
+          "text": "עבר"
+        },
+        "status_failed": {
+          "text": "נכשל"
+        },
+        "status_skipped": {
+          "text": "דולג"
+        },
+        "status_error": {
+          "text": "שגיאה"
+        },
+        "status_cancelled": {
+          "text": "בוטל"
+        },
+        "status_timed_out": {
+          "text": "תם הזמן"
+        },
+        "stale": {
+          "text": "לא עדכני"
+        },
+        "steps": {
+          "text": "שלבי הבדיקה"
+        },
+        "no_video": {
+          "text": "אין וידאו זמין להרצה זו"
+        }
+      }
     }
   },
   "embeds_input": {},

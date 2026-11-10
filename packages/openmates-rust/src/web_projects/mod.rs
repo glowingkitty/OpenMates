@@ -24,7 +24,7 @@ mod records_views;
 mod remote_access;
 mod remote_access_results;
 mod remote_files;
-mod search_request;
+pub(crate) mod search_request;
 mod workflow;
 
 use serde_json::{Value, json};

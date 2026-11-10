@@ -29,6 +29,7 @@ pub(in crate::client) trait SavedTurnClientPhases:PhasePlatform {
     fn persist_stream_artifacts<'a>(&'a mut self,ws:&'a mut Socket,chat:&'a str,message:&'a str,key:&'a [u8;32],task:&'a str,embeds:&'a BTreeMap<String,Value>,checkpoints:&'a [Value])->TurnPhaseFuture<'a,Vec<Item>>;
     fn open_chat_live<'a>(&'a mut self,id:&'a str)->TurnPhaseFuture<'a,Chat>;
     fn finish_task_jobs<'a>(&'a mut self,ws:&'a mut Socket,observed:&'a mut SendObservations,id:&'a str,message:&'a str,key:&'a [u8;32],cancel:&'a CancellationToken,options:&'a SendOptions)->TurnPhaseFuture<'a,()>;
+    fn project_create<'a>(&'a mut self,ws:&'a mut Socket,kind:&'a str,event:&'a Value,chat:&'a str,state:&'a mut project_create_request::ProjectCreateState)->TurnPhaseFuture<'a,()>;
     fn owner_id(&mut self)->TurnPhaseFuture<'_,String>;
     fn current_messages_version<'a>(&'a mut self,id:&'a str,key:&'a [u8;32],version:u64)->TurnPhaseFuture<'a,u64>;
 }
@@ -46,6 +47,7 @@ impl SavedTurnClientPhases for BorrowedTurnPhases<'_>{
     fn persist_stream_artifacts<'a>(&'a mut self,ws:&'a mut Socket,chat:&'a str,message:&'a str,key:&'a [u8;32],task:&'a str,embeds:&'a BTreeMap<String,Value>,checkpoints:&'a [Value])->TurnPhaseFuture<'a,Vec<Item>>{Box::pin(self.client.persist_stream_artifacts(ws,chat,message,key,task,embeds,checkpoints))}
     fn open_chat_live<'a>(&'a mut self,id:&'a str)->TurnPhaseFuture<'a,Chat>{Box::pin(self.client.open_chat_live(id))}
     fn finish_task_jobs<'a>(&'a mut self,ws:&'a mut Socket,observed:&'a mut SendObservations,id:&'a str,message:&'a str,key:&'a [u8;32],cancel:&'a CancellationToken,options:&'a SendOptions)->TurnPhaseFuture<'a,()>{Box::pin(self.client.finish_task_jobs(ws,observed,id,message,key,cancel,options))}
+    fn project_create<'a>(&'a mut self,ws:&'a mut Socket,kind:&'a str,event:&'a Value,chat:&'a str,state:&'a mut project_create_request::ProjectCreateState)->TurnPhaseFuture<'a,()>{Box::pin(self.client.project_create_event(ws,kind,event,chat,state))}
     fn owner_id(&mut self)->TurnPhaseFuture<'_,String>{Box::pin(async move{let owner=text(&self.client.user,"id");Ok(if owner.is_empty(){required(&self.client.user,"user_id")?.into()}else{owner.into()})})}
     fn current_messages_version<'a>(&'a mut self,id:&'a str,key:&'a [u8;32],version:u64)->TurnPhaseFuture<'a,u64>{Box::pin(async move{
         let path = self.client.scoped("/v1/chats/metadata/batch")?;
@@ -208,6 +210,26 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
                 let focuses=Plain::new(match phases.project_routing_catalog(project).await{Ok(focuses)=>Some(focuses),Err(error @ (Error::Cancelled|Error::Expired|Error::Authentication|Error::Forbidden))=>return Err(error),Err(_)=>None});
                 phases.check(turn_scope,id,generation).await?;
                 transport::send_plaintext(ws,"project_focus_catalog_result",json!({"chat_id":id,"request_id":required(&p,"request_id")?,"project_id":project,"focuses":&*focuses})).await?;
+            }
+            if options.project_create_requests
+                && matches!(kind.as_str(), "project_create_requested" | "project_create_confirmed" | "project_create_error")
+                && text(&p, "chat_id") == id
+            {
+                // The turn waits for our report; creation and its reply frames are
+                // handled here and the stream resumes afterwards in this same loop.
+                phases.project_create(ws, &kind, &p, id, &mut observed.project_create).await?;
+            }
+            if options.project_file_jobs
+                && PROJECT_FILE_JOBS_AVAILABLE
+                && matches!(kind.as_str(), "project_file_operation_available" | "project_file_operation_request")
+                && text(&p, "chat_id") == id
+            {
+                // Hosted Project file tool calls run here; the turn resumes afterwards.
+                observed.project_create.file_jobs.approve_writes = options.approve_project_file_writes;
+                phases.project_create(ws, &kind, &p, id, &mut observed.project_create).await?;
+                for notice in observed.project_create.file_jobs.take_notices() {
+                    phases.deliver_update(&turn_scope,id,updates,cancel,StreamUpdate::Status(notice)).await?;
+                }
             }
             if kind == "sub_chat_confirmation_required"
                 && text(&p, "chat_id") == id

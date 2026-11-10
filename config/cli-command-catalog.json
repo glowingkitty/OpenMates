@@ -34181,6 +34181,54 @@
     },
     {
       "path": [
+        "embeds",
+        "test-result"
+      ],
+      "summary": "embeds test-result",
+      "usages": [
+        "embeds test-result <embed-id> --version <n> [--json]"
+      ],
+      "positionals": [
+        {
+          "name": "embed-id",
+          "required": true,
+          "variadic": false,
+          "at": 2,
+          "synopsis": "<embed-id>"
+        }
+      ],
+      "flags": [
+        "api-key",
+        "api-url",
+        "help",
+        "json",
+        "profile",
+        "version"
+      ],
+      "source_locations": [
+        {
+          "path": "frontend/packages/openmates-cli/src/cli.ts",
+          "line": 15355,
+          "symbol": "printEmbedsHelp"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "embeds_test_result",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/test_result_cmd.rs"
+      },
+      "gaps": [
+        "Native-only command with no npm CLI source; prints one Code test result embed version (summary, ordered steps, terminal step list for cli runs, video/preview/cast asset ids) from the shared Rust decoder. Defaults to no version: --version is required."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
         "feedback"
       ],
       "summary": "feedback",
@@ -49047,6 +49095,539 @@
     {
       "path": [
         "projects",
+        "commit"
+      ],
+      "summary": "projects commit",
+      "usages": [
+        "projects commit <project> --message <text> [--author user|assistant] [--chat <chat-id>] [--personal|--team <team>] [--json]"
+      ],
+      "positionals": [
+        {
+          "name": "project",
+          "required": true,
+          "variadic": false,
+          "at": 2,
+          "synopsis": "<project>"
+        }
+      ],
+      "flags": [
+        "api-key",
+        "api-url",
+        "author",
+        "chat",
+        "help",
+        "json",
+        "message",
+        "personal",
+        "profile",
+        "team"
+      ],
+      "source_locations": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/cli/projects/commits.rs",
+          "line": 1,
+          "symbol": "projects::commits"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "sdk.projects.create_commit",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/projects/commits.rs"
+      },
+      "gaps": [
+        "Rust-first native Project commits (no npm CLI counterpart). Core operations in packages/openmates-rust/src/work/projects/commits.rs; live backend integration and platform verification pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "projects",
+        "commits",
+        "list"
+      ],
+      "summary": "projects commits list",
+      "usages": [
+        "projects commits list <project> [--limit <n>] [--cursor <n>] [--personal|--team <team>] [--json]"
+      ],
+      "positionals": [
+        {
+          "name": "project",
+          "required": true,
+          "variadic": false,
+          "at": 3,
+          "synopsis": "<project>"
+        }
+      ],
+      "flags": [
+        "api-key",
+        "api-url",
+        "cursor",
+        "help",
+        "json",
+        "limit",
+        "personal",
+        "profile",
+        "team"
+      ],
+      "source_locations": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/cli/projects/commits.rs",
+          "line": 1,
+          "symbol": "projects::commits"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "sdk.projects.list_commits",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/projects/commits.rs"
+      },
+      "gaps": [
+        "Rust-first native Project commits (no npm CLI counterpart). Core operations in packages/openmates-rust/src/work/projects/commits.rs; live backend integration and platform verification pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "projects",
+        "commits",
+        "show"
+      ],
+      "summary": "projects commits show",
+      "usages": [
+        "projects commits show <project> <commit-id> [--personal|--team <team>] [--json]"
+      ],
+      "positionals": [
+        {
+          "name": "project",
+          "required": true,
+          "variadic": false,
+          "at": 3,
+          "synopsis": "<project>"
+        },
+        {
+          "name": "commit-id",
+          "required": true,
+          "variadic": false,
+          "at": 4,
+          "synopsis": "<commit-id>"
+        }
+      ],
+      "flags": [
+        "api-key",
+        "api-url",
+        "help",
+        "json",
+        "personal",
+        "profile",
+        "team"
+      ],
+      "source_locations": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/cli/projects/commits.rs",
+          "line": 1,
+          "symbol": "projects::commits"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "sdk.projects.show_commit",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/projects/commits.rs"
+      },
+      "gaps": [
+        "Rust-first native Project commits (no npm CLI counterpart). Core operations in packages/openmates-rust/src/work/projects/commits.rs; live backend integration and platform verification pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "projects",
+        "commits",
+        "restore"
+      ],
+      "summary": "projects commits restore",
+      "usages": [
+        "projects commits restore <project> <commit-id> --chat <chat-id> [--message <text>] [--yes] [--personal|--team <team>] [--json]",
+        "projects commits restore <project> <commit-id> --dry-run [--personal|--team <team>] [--json]"
+      ],
+      "positionals": [
+        {
+          "name": "project",
+          "required": true,
+          "variadic": false,
+          "at": 3,
+          "synopsis": "<project>"
+        },
+        {
+          "name": "commit-id",
+          "required": true,
+          "variadic": false,
+          "at": 4,
+          "synopsis": "<commit-id>"
+        }
+      ],
+      "flags": [
+        "api-key",
+        "api-url",
+        "chat",
+        "dry-run",
+        "help",
+        "json",
+        "message",
+        "personal",
+        "profile",
+        "team",
+        "yes"
+      ],
+      "source_locations": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/cli/projects/commits.rs",
+          "line": 1,
+          "symbol": "projects::commits"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "sdk.projects.restore_commit",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/projects/commits.rs"
+      },
+      "gaps": [
+        "Rust-first native Project commits (no npm CLI counterpart). Core operations in packages/openmates-rust/src/work/projects/commits.rs; live backend integration and platform verification pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "projects",
+        "hosted",
+        "list"
+      ],
+      "summary": "projects hosted list",
+      "usages": [
+        "projects hosted list <project> [--path <directory>] [--personal|--team <team>] [--json]"
+      ],
+      "positionals": [
+        {
+          "name": "project",
+          "required": true,
+          "variadic": false,
+          "at": 3,
+          "synopsis": "<project>"
+        }
+      ],
+      "flags": [
+        "api-key",
+        "api-url",
+        "help",
+        "json",
+        "path",
+        "personal",
+        "profile",
+        "team"
+      ],
+      "source_locations": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/cli/projects/hosted.rs",
+          "line": 1,
+          "symbol": "projects::hosted"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "sdk.projects.hosted_files_list",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/projects/hosted.rs"
+      },
+      "gaps": [
+        "Rust-first hosted Project file writer (the npm CLI only executes these operations as assistant jobs). Core operations in packages/openmates-rust/src/work/projects/hosted.rs; live backend integration and platform verification pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "projects",
+        "hosted",
+        "read"
+      ],
+      "summary": "projects hosted read",
+      "usages": [
+        "projects hosted read <project> <path> [--include-ignored] [--personal|--team <team>] [--json]"
+      ],
+      "positionals": [
+        {
+          "name": "project",
+          "required": true,
+          "variadic": false,
+          "at": 3,
+          "synopsis": "<project>"
+        },
+        {
+          "name": "path",
+          "required": true,
+          "variadic": false,
+          "at": 4,
+          "synopsis": "<path>"
+        }
+      ],
+      "flags": [
+        "api-key",
+        "api-url",
+        "help",
+        "include-ignored",
+        "json",
+        "personal",
+        "profile",
+        "team"
+      ],
+      "source_locations": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/cli/projects/hosted.rs",
+          "line": 1,
+          "symbol": "projects::hosted"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "sdk.projects.hosted_file_read",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/projects/hosted.rs"
+      },
+      "gaps": [
+        "Rust-first hosted Project file writer (the npm CLI only executes these operations as assistant jobs). Core operations in packages/openmates-rust/src/work/projects/hosted.rs; live backend integration and platform verification pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "projects",
+        "hosted",
+        "create"
+      ],
+      "summary": "projects hosted create",
+      "usages": [
+        "projects hosted create <project> <path> --chat <chat-id> (--text <content>|--file <local-file>) [--yes] [--personal|--team <team>] [--json]"
+      ],
+      "positionals": [
+        {
+          "name": "project",
+          "required": true,
+          "variadic": false,
+          "at": 3,
+          "synopsis": "<project>"
+        },
+        {
+          "name": "path",
+          "required": true,
+          "variadic": false,
+          "at": 4,
+          "synopsis": "<path>"
+        }
+      ],
+      "flags": [
+        "api-key",
+        "api-url",
+        "chat",
+        "file",
+        "help",
+        "json",
+        "personal",
+        "profile",
+        "team",
+        "text",
+        "yes"
+      ],
+      "source_locations": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/cli/projects/hosted.rs",
+          "line": 1,
+          "symbol": "projects::hosted"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "sdk.projects.hosted_file_create",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/projects/hosted.rs"
+      },
+      "gaps": [
+        "Rust-first hosted Project file writer (the npm CLI only executes these operations as assistant jobs). Core operations in packages/openmates-rust/src/work/projects/hosted.rs; live backend integration and platform verification pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "projects",
+        "hosted",
+        "update"
+      ],
+      "summary": "projects hosted update",
+      "usages": [
+        "projects hosted update <project> <path> <expected-base> --chat <chat-id> (--text <patch>|--file <patch-file>) [--yes] [--personal|--team <team>] [--json]"
+      ],
+      "positionals": [
+        {
+          "name": "project",
+          "required": true,
+          "variadic": false,
+          "at": 3,
+          "synopsis": "<project>"
+        },
+        {
+          "name": "path",
+          "required": true,
+          "variadic": false,
+          "at": 4,
+          "synopsis": "<path>"
+        },
+        {
+          "name": "expected-base",
+          "required": true,
+          "variadic": false,
+          "at": 5,
+          "synopsis": "<expected-base>"
+        }
+      ],
+      "flags": [
+        "api-key",
+        "api-url",
+        "chat",
+        "file",
+        "help",
+        "json",
+        "personal",
+        "profile",
+        "team",
+        "text",
+        "yes"
+      ],
+      "source_locations": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/cli/projects/hosted.rs",
+          "line": 1,
+          "symbol": "projects::hosted"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "sdk.projects.hosted_file_update",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/projects/hosted.rs"
+      },
+      "gaps": [
+        "Rust-first hosted Project file writer (the npm CLI only executes these operations as assistant jobs). Core operations in packages/openmates-rust/src/work/projects/hosted.rs; live backend integration and platform verification pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "projects",
+        "created"
+      ],
+      "summary": "projects created",
+      "usages": [
+        "projects created --chat <chat-id> [--json]"
+      ],
+      "positionals": [],
+      "flags": [
+        "api-key",
+        "api-url",
+        "chat",
+        "help",
+        "json",
+        "personal",
+        "profile",
+        "team"
+      ],
+      "source_locations": [],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "sdk.projects.created",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/projects/created.rs"
+      },
+      "gaps": [
+        "Native-only (no npm CLI counterpart): assistant-initiated Project creation, core in packages/openmates-rust/src/work/projects/assistant_request.rs; live inference-driven creation is proven on dev only."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "projects",
+        "undo-create"
+      ],
+      "summary": "projects undo-create",
+      "usages": [
+        "projects undo-create --chat <chat-id> [--json]"
+      ],
+      "positionals": [],
+      "flags": [
+        "api-key",
+        "api-url",
+        "chat",
+        "help",
+        "json",
+        "personal",
+        "profile",
+        "team"
+      ],
+      "source_locations": [],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "sdk.projects.created",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/projects/created.rs"
+      },
+      "gaps": [
+        "Native-only (no npm CLI counterpart): assistant-initiated Project creation, core in packages/openmates-rust/src/work/projects/assistant_request.rs; live inference-driven creation is proven on dev only."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "projects",
         "tasks"
       ],
       "summary": "projects tasks",
@@ -49374,9 +49955,12 @@
         "help",
         "json",
         "path",
+        "personal",
         "profile",
         "project",
         "task-cache",
+        "team",
+        "team-id",
         "write-policy"
       ],
       "source_locations": [
@@ -49398,12 +49982,12 @@
       ],
       "implementation": {
         "parser": "native_clap",
-        "handler": null,
-        "status": "unsupported",
-        "module": null
+        "handler": "sdk.source_host.run",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/remote_access.rs"
       },
       "gaps": [
-        "Native handler has not been ported; command fails explicitly and does not invoke another runtime."
+        "Rust filesystem host (packages/openmates-rust/src/source_host): read, search, import and write_request (create_file/update_file). --enable-commands and --task-cache fail explicitly (not yet supported in the Rust host); copy_entries/move_entries answer unsupported_operation; requests are served sequentially. The npm host stays until parity is accepted. Linux dev and macOS platform verification remains open."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -63173,10 +63757,10 @@
     "Remote command protection is Linux-specific; unsupported hosts must fail closed."
   ],
   "coverage": {
-    "command_patterns": 729,
+    "command_patterns": 740,
     "flags": 610,
-    "native_handlers_partial": 723,
-    "unsupported": 6,
+    "native_handlers_partial": 735,
+    "unsupported": 5,
     "feature_complete": false
   },
   "maintenance": {

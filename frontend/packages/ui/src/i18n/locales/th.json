@@ -8003,6 +8003,40 @@
           }
         }
       }
+    },
+    "code": {
+      "test_result": {
+        "title": {
+          "text": "ผลการทดสอบ"
+        },
+        "status_passed": {
+          "text": "ผ่าน"
+        },
+        "status_failed": {
+          "text": "ไม่ผ่าน"
+        },
+        "status_skipped": {
+          "text": "ข้าม"
+        },
+        "status_error": {
+          "text": "ข้อผิดพลาด"
+        },
+        "status_cancelled": {
+          "text": "ยกเลิกแล้ว"
+        },
+        "status_timed_out": {
+          "text": "หมดเวลา"
+        },
+        "stale": {
+          "text": "ล้าสมัย"
+        },
+        "steps": {
+          "text": "ขั้นตอนการทดสอบ"
+        },
+        "no_video": {
+          "text": "ไม่มีวิดีโอสำหรับการรันนี้"
+        }
+      }
     }
   },
   "embeds_input": {},

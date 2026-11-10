@@ -1080,6 +1080,10 @@ impl Client {
             "canonical_embed_receipts_v1,typed_recovery_outputs_v2,agentic-storage-v2".into()
         };
         if !ephemeral {
+            for extra in &self.extra_socket_capabilities {
+                capabilities.push(',');
+                capabilities.push_str(extra);
+            }
             // architecture.sync@2: cold-start cursor, overview and delta feed.
             capabilities.push(',');
             capabilities.push_str(super::sync_feed::CAPABILITY);
