@@ -231,6 +231,8 @@ the corresponding web behavior.
 ### Visual Proof Requirement
 - Apple UI parity is not complete without simulator screenshot evidence, a UI test artifact, or an explicit sanitized blocker/skip reason.
 - For composer, header, settings, auth, upload, audio, and navigation controls, verification must prove rendered visibility and clickability. Accessibility existence alone is not sufficient because controls can exist while hidden, covered, or visually misplaced.
+- Show what you see: send each simulator or UI-test screenshot of the changed screen to the user with `SendUserFile` as soon as you have viewed it (one line: what it shows, visible defects, how it differs from the web reference), after the first build that renders the change and after each visible revision, not only in the final reply. When a web reference screenshot exists, send it alongside. Never send personal-account or private screens.
+- No screenshot yet (no Mac or CI run available): say that plainly before continuing and submit the `apple-ui` CI run that produces one; do not describe the UI as verified from source reading.
 - Store durable evidence in the related spec or final summary using generic artifact paths and sanitized failure classes. Do not commit private simulator paths or device details.
 
 ### SwiftUI / UIKit performance strategy

@@ -64,6 +64,17 @@ when a skill or this file points to it.
 - UI work: restate the user's UI requirements as a checklist and show proof
   (CI screenshot/recording) for each item before saying done; the user should
   not be the one finding the defects.
+- Show what you see (web components, web app, Apple apps): every screenshot you
+  open to judge changed UI goes to the user right away with `SendUserFile`, with
+  one line on what it shows and any defect you see; never only at the end, and
+  never a text description in place of the image. At least: the first rendered
+  result of the change, each later visible revision, and the final state. Start
+  from the current look (deployed `/dev/preview` page or app screen) when the
+  task changes existing UI. Sub-agents hand back screenshot paths; the parent
+  sends them. No screenshot possible: say so and why before going on.
+- Web UI order: `/dev/preview` component page and its focused component spec
+  first (`/verify-component-preview`), screenshots shown and defects fixed
+  there; route-level or full E2E specs only after that.
 - When the user names a top priority, work only on it until it ships; log side
   findings as Tasks (`/new-task`) instead of detouring.
 

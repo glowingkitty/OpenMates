@@ -34,11 +34,16 @@ not require a new preview fixture or spec. If Figma is involved, run
    expanded/collapsed, on/off, loading, empty, error, and responsive states that
    apply to the component. Assert layout geometry, control visibility, icon
    presence, readable labels, clipping/overflow, and interaction results before
-   each named proof checkpoint.
+   each named proof checkpoint. At each checkpoint attach a named screenshot
+   (`testInfo.attach('<state>-<width>', { body: await locator.screenshot(),
+   contentType: 'image/png' })`) so the artifact holds one image per state.
 7. Publish the immutable candidate with `sessions.py ci-source`, submit the
    focused spec through `ci_coordinator.py`, review its component-only artifact,
    and fix objective defects before creating, extending, or running the broader
-   use-case spec. The account-free marker routes it to the GitHub Vite-only
+   use-case spec. Open the screenshots yourself and send them to the user with
+   `SendUserFile` right after each run (one line each: state shown, visible
+   defects), including runs that still show defects you are about to fix. Do
+   not hold them back for the final reply. The account-free marker routes it to the GitHub Vite-only
    profile; it must not start Docker/backend, build the CLI, or build the
    production web app. Do not deploy or wait for Vercel to obtain this proof.
 
@@ -69,6 +74,9 @@ not require a new preview fixture or spec. If Figma is involved, run
   the accepted scope; selected recording delivery is mandatory.
 
 ## Stop Conditions
+
+Do not continue to the broader use-case spec before the component screenshots
+of the current candidate have been viewed and sent to the user.
 
 Do not continue to the broader use-case spec when the focused component has a
 missing or wrong icon, hidden control, overlap, clipping, overflow, invalid

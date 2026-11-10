@@ -19,6 +19,10 @@ paths:
 - Keep unit checks for the underlying cause; a fixture-only component test does
   not prove an end-to-end failure is fixed. Use existing `contract-test`
   metadata and stable assertion IDs; classify tooling tests as such.
+- Changed web UI: the focused component spec on the `/dev/preview` page
+  (`tests/components/`, `/verify-component-preview`) runs and is green, with its
+  screenshots viewed and sent to the user, before any route-level or full E2E
+  spec is submitted.
 - Never weaken assertions to force a pass. Do not claim a pass from a queued,
   cancelled, unrelated or stale run, or from mocks/replays.
 - Honor execution waivers (`skip E2E`) and report what was not run; a waiver

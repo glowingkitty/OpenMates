@@ -257,7 +257,9 @@ Linux audits may update docs, scripts, and safe static identifiers. Do not make 
 
 After each code change:
 1. Build and run: use `build_run_sim` (or manual xcodebuild fallback)
-2. Screenshot the simulator: use `screenshot`
+2. Screenshot the simulator: use `screenshot`, view it, and send it to the user
+   with `SendUserFile` straight away (what it shows, visible defects). Repeat
+   after every visible revision; never send personal-account screens.
 3. Compare against the web app (use `firecrawl_scrape` with `screenshot` format on the equivalent page)
 4. If mismatch: re-read the CSS, fix the Swift code, repeat
 5. When verification is complete, shut down any simulator booted by this session unless the operator asks to keep it running
