@@ -120624,7 +120624,7 @@ assertions:
       surface: rest_api
     - &id15431
       path: backend/tests/test_app_packages_jobs_dispatch.py
-      line: 227
+      line: 234
       name: test_loader_accepts_jobs_contract_and_rejects_reserved_selectors
       surface: rest_api
     supporting_tests: []
@@ -120705,12 +120705,12 @@ assertions:
       surface: rest_api
     - &id15440
       path: backend/tests/test_app_packages_jobs_dispatch.py
-      line: 185
+      line: 192
       name: test_flag_off_keeps_builtin_behaviour
       surface: rest_api
     - &id15441
       path: backend/tests/test_app_packages_jobs_dispatch.py
-      line: 239
+      line: 246
       name: test_overlay_adds_installed_provider_to_jobs_schema_and_preview
       surface: rest_api
     - &id15442
@@ -120934,12 +120934,12 @@ assertions:
       surface: rest_api
     - &id15474
       path: backend/tests/test_app_packages_jobs_dispatch.py
-      line: 170
+      line: 177
       name: test_installed_provider_failure_is_isolated_and_safe
       surface: rest_api
     - &id15475
       path: backend/tests/test_app_packages_jobs_dispatch.py
-      line: 204
+      line: 211
       name: test_jobs_result_contract_validation
       surface: rest_api
     - &id15476
@@ -121244,7 +121244,7 @@ assertions:
       surface: rest_api
     - &id15511
       path: backend/tests/test_app_packages_jobs_dispatch.py
-      line: 254
+      line: 261
       name: test_installed_only_groups_are_free_and_builtin_groups_are_charged
       surface: rest_api
     - &id15512

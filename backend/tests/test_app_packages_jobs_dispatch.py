@@ -165,6 +165,13 @@ async def test_installed_results_pass_the_same_strict_filters_and_ranking(monkey
     assert ranked == [["remote"]]
     assert [job["id"] for job in payload["results"][0]["results"]] == ["remote"]
 
+    # A full installed result list plus the built-in source stays within the ranker's bound.
+    _fake_runner(monkeypatch, RunnerResult(ok=True, results=[
+        _package_job(f"p{index}", country="SE") for index in range(50)]))
+    ranked.clear()
+    await _run(countries=["SE"], requests=[{"query": "engineer", "relevance_criteria": "climate impact"}])
+    assert len(ranked[0]) == 50 and ranked[0][:2] == ["builtin:b1", "p0"]
+
 
 # contract-test: direct surface=rest_api assertions=instance-app-packages.provider-contract
 async def test_installed_provider_failure_is_isolated_and_safe(monkeypatch):

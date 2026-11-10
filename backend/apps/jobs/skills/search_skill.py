@@ -24,6 +24,7 @@ from backend.shared.providers.jobs import jobtech
 from backend.shared.providers.jobs.common import ProviderError, normalize_employment_type, safe_url
 from backend.shared.python_utils.search_relevance import (
     MAX_RELEVANCE_CRITERIA_CHARS,
+    MAX_SEARCH_RELEVANCE_CANDIDATES,
     normalize_relevance_criteria,
     normalize_url_for_deduplication,
     rank_search_candidates,
@@ -431,6 +432,9 @@ class SearchSkill(BaseSkill):
             jobs = stable_deduplicate_candidates(
                 jobs, key=lambda job: normalize_url_for_deduplication(job["url"]))
         if item.relevance_criteria and jobs:
+            # Several sources can each return the full candidate limit; the ranker
+            # accepts a bounded list. The list is interleaved, so the cut keeps every source.
+            jobs = jobs[:MAX_SEARCH_RELEVANCE_CANDIDATES]
             projections = [{key: job.get(key) for key in (
                 "title", "company", "location", "country", "remote", "employment_type",
                 "description", "published_at", "salary_min", "salary_max", "salary_currency", "salary_period",
