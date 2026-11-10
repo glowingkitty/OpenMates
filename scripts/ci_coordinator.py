@@ -31,7 +31,7 @@ OCCUPANCY_CACHE_SECONDS = 120
 MAX_OCCUPANCY_REQUESTS = 80
 ACTIVE_RUN_LOOKBACK_DAYS = 70
 LIGHTWEIGHT_MODES = frozenset({"component", "pytest", "vitest", "codex", "rust-check"})
-APPLE_MODES = frozenset({"apple-core", "apple-unit"})  # macos-26 runners, never lightweight
+APPLE_MODES = frozenset({"apple-core", "apple-unit", "apple-ui"})  # macos-26 runners, never lightweight
 RATE_RESERVE = 100
 ERROR_BACKOFF = 60
 UNCERTAIN_SECONDS = 600
@@ -562,6 +562,7 @@ class Queue:
             "rust-check",
             "apple-core",
             "apple-unit",
+            "apple-ui",
         ):
             raise ValueError("Unknown CI mode")
         if proof_profile not in ("", "web-phone", "web-laptop") or (
@@ -706,6 +707,7 @@ class Queue:
                 "rust-check",
                 "apple-core",
                 "apple-unit",
+                "apple-ui",
                 "selfhost",
             )
             else specs
@@ -1761,6 +1763,7 @@ def main():
             "rust-check",
             "apple-core",
             "apple-unit",
+            "apple-ui",
         ],
         default="e2e",
     )
@@ -1923,6 +1926,7 @@ def main():
                 "rust-check",
                 "apple-core",
                 "apple-unit",
+                "apple-ui",
             },
             capacity_configuration=capacity_configuration,
             case_title=args.case_title,

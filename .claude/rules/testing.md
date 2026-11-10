@@ -55,7 +55,7 @@ paths:
   does not trigger Apple verification.
 - Client-core capability work (`.claude/rules/client-core.md`): core contract tests
   plus `sdk-conformance`; web Playwright with the core flag on; Apple
-  `apple-unit`/`apple-core` on GitHub `macos-26`. Parity vectors never gate.
+  `apple-unit`/`apple-core`/`apple-ui` on GitHub `macos-26`. Parity vectors never gate.
 
 ## Debugging bounds
 Existing browser observations, logs or failing checks suffice to start; do not

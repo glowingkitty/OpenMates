@@ -69,10 +69,10 @@ capability inventory and status: `docs/plans/client-core-one-core-three-shells/p
 - Web: the capability's existing Playwright specs with `VITE_OPENMATES_RUST_CORE=1`
   in isolated CI (`--mode e2e`). Today only `web-rust-core-*` specs build flag-on;
   plan TASK-3 opens the flag-on lane for the existing suite.
-- Apple: XCTest on GitHub `macos-26` (`--mode apple-unit`, `--mode apple-core`).
-  XCUITest runs on GitHub once the apple-ui CI mode exists (plan TASK-12); until
-  then it runs on the Mac. The coordinated Mac (`scripts/apple_remote.py`) is
-  otherwise only for TestFlight, physical device/APNs and real-account tests. Apple web-parity tests are
+- Apple: XCTest on GitHub `macos-26` (`--mode apple-unit`, `--mode apple-core`);
+  XCUITest there too (`--mode apple-ui --spec OpenMatesUITests/<Class>[/<test>]`,
+  no secrets, so real-account tests skip). The coordinated Mac
+  (`scripts/apple_remote.py`) is only for TestFlight, physical device/APNs and real-account tests. Apple web-parity tests are
   deleted when their subject moves into the core.
 - TUI/CLI: crate tests plus the existing CLI E2E specs.
 

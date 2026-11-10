@@ -50,7 +50,7 @@ leaving detached generation jobs waiting indefinitely.
 
 ## Apple lanes (macOS runners)
 
-`apple-core` and `apple-unit` run in the separate `apple` job of
+`apple-core`, `apple-unit` and `apple-ui` run in the separate `apple` job of
 `isolated-tests.yml` on GitHub-hosted `macos-26` arm64 with Xcode 26.2
 (`DEVELOPER_DIR`, the version `apple/project.yml` pins). They use no secrets,
 accounts or runtime seeds, and are not lightweight (macOS runners are scarce, about 5 concurrent).
@@ -68,9 +68,18 @@ accounts or runtime seeds, and are not lightweight (macOS runners are scarce, ab
   on `iPhone 17` limited to `-only-testing OpenMatesTests`, unsigned. The
   committed `OpenMates.xcodeproj` is used as is (no xcodegen). The `.xcresult`
   bundle is uploaded with the result artifact. XCUITests are never run here.
+- `apple-ui --spec OpenMatesUITests/<Class>[/<test>]` (one or more, never `all`):
+  the same generated inputs, then `xcodebuild test` of exactly those XCUITests on
+  `iPhone 17`, serially. The app is the Debug build, so tests that reach a server
+  talk to the dev backend (for example the signed-out anonymous chat test). No
+  secrets are passed, so real-account tests skip themselves; those stay on the
+  Mac. Screenshots, recordings, the result summary and the `.xcresult` are
+  uploaded as the separate `apple-ui-evidence` artifact.
 
 ```sh
 python3 scripts/ci_coordinator.py submit --session SESSION --mode apple-core --spec all
+python3 scripts/ci_coordinator.py submit --session SESSION --mode apple-ui \
+  --spec OpenMatesUITests/LandingOnboardingParityUITests
 ```
 
 ## Commands

@@ -213,17 +213,16 @@ Diagnostics must remain privacy-safe: never log message plaintext, encryption ke
 ## Remote Mac Verification
 
 XCTest and XCUITest suites run first on GitHub `macos-26` runners
-(`ci_coordinator.py submit --mode apple-unit|apple-core`). Use the Mac below for
+(`ci_coordinator.py submit --mode apple-unit|apple-core|apple-ui`). Use the Mac below for
 TestFlight, physical-device/APNs and real-account tests, or while those CI modes
 are unavailable.
 
 When the active coding session runs on a Linux/dev server, verify Apple-backed
 surfaces (chat, sync, auth, settings, embeds, billing, shared UI, app chrome,
 provider result rendering) first through the CI modes
-(`ci_coordinator.py submit --mode apple-core|apple-unit`). Use the redacted
+(`ci_coordinator.py submit --mode apple-core|apple-unit|apple-ui`). Use the redacted
 wrapper in `scripts/apple_remote.py` only for the exceptions: TestFlight,
-physical device/APNs, real-account tests, and XCUITest until an apple-ui CI mode
-exists.
+physical device/APNs and real-account tests.
 
 Use only operator-provided connection details from local runtime configuration,
 such as `~/.ssh/config`, environment variables, or the current chat. Never commit

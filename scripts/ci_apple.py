@@ -1,6 +1,6 @@
-"""Apple lanes for the isolated GitHub runner (`ci_coordinator.py submit --mode apple-core|apple-unit`).
+"""Apple lanes for the isolated GitHub runner (`ci_coordinator.py submit --mode apple-core|apple-unit|apple-ui`).
 
-Both modes run on a GitHub-hosted `macos-26` arm64 runner with Xcode 26.2 (the
+All modes run on a GitHub-hosted `macos-26` arm64 runner with Xcode 26.2 (the
 version apple/project.yml pins), never on the shared dev host.
 
   apple-core   target `all`: build PairOpaqueBridge for the iOS simulator slice
@@ -11,6 +11,11 @@ version apple/project.yml pins), never on the shared dev host.
                references, fetch the pinned Whistle link inputs, then `xcodebuild test` the
                OpenMates_iOS scheme limited to the OpenMatesTests unit target
                (XCUITest targets are never selected).
+  apple-ui     targets `OpenMatesUITests/<Class>[/<test>]` (one or more, never `all`): the same
+               generated inputs, then `xcodebuild test` of exactly those XCUITests in the
+               iOS simulator, serially. The app under test is the Debug build, so tests
+               that talk to a server reach the dev backend; the lane passes no secrets,
+               so real-account tests skip themselves.
 
 Every step records a result row through ci_rust_checks so the coordinator and
 `ci_coordinator.py result` show failing excerpts without opening Actions logs.
@@ -27,6 +32,10 @@ RUST_TOOLCHAIN = "1.98.1"
 SIMULATOR = "iPhone 17"
 UNIT_TARGET = "OpenMatesTests"
 UNIT_SPEC = re.compile(r"OpenMatesTests(?:/[A-Za-z_][A-Za-z0-9_]*){0,2}")
+UI_SPEC = re.compile(r"OpenMatesUITests(?:/[A-Za-z_][A-Za-z0-9_]*){1,2}")
+MAX_UI_SPECS = 40
+XCODE_MODES = ("apple-unit", "apple-ui")
+RESULT_BUNDLES = {"apple-unit": "OpenMatesTests.xcresult", "apple-ui": "OpenMatesUITests.xcresult"}
 RUST_TEST_FLAGS = ["--locked", "--lib", "--bins", "--tests"]
 
 Step = tuple[str, list[str], dict, str]
@@ -48,6 +57,16 @@ def validate_specs(mode: str, specs: list[str]) -> list[str]:
             )
         if ALL in specs and len(specs) > 1:
             raise ValueError("apple-unit target 'all' cannot be combined with others")
+        return list(specs)
+    if mode == "apple-ui":
+        if (
+            not specs
+            or len(specs) > MAX_UI_SPECS
+            or not all(isinstance(spec, str) and UI_SPEC.fullmatch(spec) for spec in specs)
+        ):
+            raise ValueError(
+                f"apple-ui targets must be 1-{MAX_UI_SPECS} OpenMatesUITests/<Class>[/<test>] selectors"
+            )
         return list(specs)
     raise ValueError("Unknown Apple CI mode")
 
@@ -96,8 +115,8 @@ def core_plan(root: Path, results: Path) -> list[Step]:
     ]
 
 
-def unit_plan(root: Path, results: Path, specs: list[str]) -> list[Step]:
-    """Ordered steps for apple-unit: fetch link inputs, then unit tests only."""
+def xcode_plan(mode: str, results: Path, specs: list[str]) -> list[Step]:
+    """Ordered steps for apple-unit and apple-ui: generated inputs, then the selected tests."""
     only = [UNIT_TARGET] if specs == [ALL] else specs
     command = [
         "xcodebuild", "test",
@@ -106,12 +125,17 @@ def unit_plan(root: Path, results: Path, specs: list[str]) -> list[Step]:
         "-destination", f"platform=iOS Simulator,name={SIMULATOR}",
         "-derivedDataPath", str(results / "DerivedData"),
         "-clonedSourcePackagesDirPath", str(results / "SourcePackages"),
-        "-resultBundlePath", str(results / "OpenMatesTests.xcresult"),
+        "-resultBundlePath", str(results / RESULT_BUNDLES[mode]),
         "-skipPackagePluginValidation", "-skipMacroValidation",
     ]
+    if mode == "apple-ui":
+        # One simulator, one test at a time: UI tests share the app's on-device state.
+        command += ["-parallel-testing-enabled", "NO"]
     for selector in only:
         command += ["-only-testing", selector]
-    command += ["CODE_SIGNING_ALLOWED=NO", "CODE_SIGN_IDENTITY="]
+    # The script phases (PairOpaqueBridge, LocalModelBridge) run cargo and read repository
+    # files, which Xcode's script sandbox denies; the TestFlight build passes the same override.
+    command += ["CODE_SIGNING_ALLOWED=NO", "CODE_SIGN_IDENTITY=", "ENABLE_USER_SCRIPT_SANDBOXING=NO"]
     return [
         (
             "design tokens and locales",
@@ -128,7 +152,7 @@ def unit_plan(root: Path, results: Path, specs: list[str]) -> list[Step]:
             {},
             "",
         ),
-        (f"xcodebuild test {' '.join(only)}", command, {}, ""),
+        (f"xcodebuild test {' '.join(only)}"[:160], command, {}, ""),
     ]
 
 
@@ -139,7 +163,7 @@ def run(root: Path, results: list[dict], mode: str, specs: list[str]) -> None:
     out = root / "test-results" / mode
     out.mkdir(parents=True, exist_ok=True)
     os.environ["RUST_CI_RESULTS"] = str(out / "rows")
-    plan = core_plan(root, out) if mode == "apple-core" else unit_plan(root, out, specs)
+    plan = core_plan(root, out) if mode == "apple-core" else xcode_plan(mode, out, specs)
     for name, command, extra_env, skip in plan:
         if skip:
             print(f"::notice title={name}::{skip}", flush=True)
@@ -170,8 +194,8 @@ def run(root: Path, results: list[dict], mode: str, specs: list[str]) -> None:
                 "failures": [line[:300] for line in row["excerpt"][:40]],
             }
         )
-        if mode == "apple-unit" and code != 0:
-            break  # the unit run cannot proceed without its generated inputs
+        if mode in XCODE_MODES and code != 0:
+            break  # the test run cannot proceed without its generated inputs
 
 
 def main() -> None:

@@ -1731,7 +1731,7 @@ def _fetch_reserved(github, job: dict, root: Path) -> dict:
             return {"self-hosted", "Linux", "X64", "openmates-capacity"}.issubset(
                 labels
             )
-        if job.get("mode") in ("apple-core", "apple-unit"):
+        if job.get("mode") in ("apple-core", "apple-unit", "apple-ui"):
             return (
                 "macos-26" in labels
                 and "self-hosted" not in labels

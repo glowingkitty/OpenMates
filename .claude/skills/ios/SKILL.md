@@ -18,8 +18,8 @@ Non-UI logic (transport, sync, crypto, cache, drafts, send, streaming, recovery,
 search, policies) lives in the shared Rust core, not in Swift: see `apple/AGENTS.md`
 "Core logic lives in Rust" and `.claude/rules/client-core.md`. Apple core-migration
 lanes follow `docs/plans/client-core-one-core-three-shells/plan.yml`, and their
-XCTest runs first on GitHub `macos-26` (`--mode apple-unit|apple-core`); XCUITest
-runs on the Mac until an apple-ui CI mode exists (TASK-12 of that plan).
+XCTest runs first on GitHub `macos-26` (`--mode apple-unit|apple-core`), XCUITest
+with `--mode apple-ui --spec OpenMatesUITests/<Class>[/<test>]`.
 
 For new shared features, app skills, focus modes, embeds, memory types, and
 provider-backed behavior, Apple UI/feature parity is the last phase. This phase
@@ -280,9 +280,9 @@ test solely to repair an export/upload.
 ### Step 8: Verification order (CI first, Mac for exceptions)
 
 First submit `python3 scripts/ci_coordinator.py submit --mode apple-core` (core
-lanes) or `--mode apple-unit` (XCTest) and wait for it. Use the Mac only as the
-follow-up for TestFlight, physical device/APNs, real-account tests, and XCUITest
-(until an apple-ui CI mode exists).
+lanes), `--mode apple-unit` (XCTest) or `--mode apple-ui --spec
+OpenMatesUITests/<Class>[/<test>]` (XCUITest) and wait for it. Use the Mac only as
+the follow-up for TestFlight, physical device/APNs and real-account tests.
 
 #### Remote Mac CLI verification loop
 

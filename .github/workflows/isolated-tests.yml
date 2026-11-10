@@ -36,7 +36,7 @@ on:
         default: ''
       mode:
         type: choice
-        options: [prepare, backend-probe, component, e2e, artifact, codex, pytest, vitest, selfhost, visual-smoke, sdk-conformance, sdk-lockfiles, rust-wasm, rust-native-dev, rust-check, apple-core, apple-unit]
+        options: [prepare, backend-probe, component, e2e, artifact, codex, pytest, vitest, selfhost, visual-smoke, sdk-conformance, sdk-lockfiles, rust-wasm, rust-native-dev, rust-check, apple-core, apple-unit, apple-ui]
         default: e2e
       preparation_key:
         description: Exact immutable preparation identity supplied by the coordinator
@@ -90,7 +90,7 @@ permissions:
   packages: read
 jobs:
   test:
-    if: github.event_name == 'workflow_dispatch' && inputs.mode != 'apple-core' && inputs.mode != 'apple-unit'
+    if: github.event_name == 'workflow_dispatch' && !startsWith(inputs.mode, 'apple-')
     runs-on: ${{ contains(inputs.specs_json, 'storage-capacity-target.spec.ts') && fromJSON('["self-hosted","Linux","X64","openmates-capacity"]') || (inputs.mode == 'rust-native-dev' || inputs.mode == 'rust-check') && fromJSON('["ubuntu-24.04-arm"]') || fromJSON('["ubuntu-24.04"]') }}
     timeout-minutes: ${{ contains(inputs.specs_json, 'storage-capacity-target.spec.ts') && 2880 || inputs.mode == 'selfhost' && 120 || (inputs.mode == 'sdk-conformance' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev' || inputs.mode == 'rust-check') && 120 || (startsWith(inputs.specs_json, '["rust-core-') || startsWith(inputs.specs_json, '["web-rust-core-') || inputs.web_rust_core == 'true') && 90 || inputs.mode == 'backend-probe' && 12 || 60 }}
     defaults:
@@ -1157,9 +1157,10 @@ jobs:
   apple:
     # Apple lanes run on GitHub-hosted arm64 macOS with the Xcode that apple/project.yml pins.
     # They use no secrets, accounts or runtime seeds; macOS minutes are free for this public repo.
-    if: github.event_name == 'workflow_dispatch' && (inputs.mode == 'apple-core' || inputs.mode == 'apple-unit')
+    # apple-unit and apple-ui share the Xcode steps (every `inputs.mode != 'apple-core'` step).
+    if: github.event_name == 'workflow_dispatch' && startsWith(inputs.mode, 'apple-')
     runs-on: macos-26
-    timeout-minutes: ${{ inputs.mode == 'apple-unit' && 120 || 60 }}
+    timeout-minutes: ${{ inputs.mode != 'apple-core' && 120 || 60 }}
     defaults:
       run:
         working-directory: subject
@@ -1288,11 +1289,11 @@ jobs:
           key: apple-core-${{ runner.os }}-${{ hashFiles('subject/Cargo.lock', 'subject/apple/PairOpaqueBridge/Cargo.lock') }}
           restore-keys: apple-core-${{ runner.os }}-
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        if: inputs.mode == 'apple-unit'
+        if: inputs.mode != 'apple-core'
         with:
           node-version: '24'
       - name: Install token generator dependencies
-        if: inputs.mode == 'apple-unit'
+        if: inputs.mode != 'apple-core'
         timeout-minutes: 10
         run: |
           # build-tokens.js needs only these packages; the full web workspace install is not required.
@@ -1304,22 +1305,32 @@ jobs:
           ln -sfn "$RUNNER_TEMP/token-deps/node_modules/@lucide/svelte" frontend/packages/ui/node_modules/@lucide/svelte
           ln -sfn "$RUNNER_TEMP/token-deps/node_modules/@meteocons" frontend/packages/ui/node_modules/@meteocons
       - name: Restore pinned Whistle assets
-        if: inputs.mode == 'apple-unit'
+        if: inputs.mode != 'apple-core'
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: |
             subject/.runtime/whistle-assets
             subject/.runtime/whistle-inputs
           key: apple-whistle-${{ hashFiles('subject/apple/WhistleBridge/whistle-assets.lock.json') }}
-      - name: Restore Swift packages
-        if: inputs.mode == 'apple-unit'
+      - name: Restore PairOpaqueBridge Rust state
+        if: inputs.mode != 'apple-core'
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
-          path: subject/test-results/apple-unit/SourcePackages
-          key: apple-spm-${{ hashFiles('subject/apple/OpenMates.xcodeproj/project.pbxproj', 'subject/apple/LocalModelBridge/catalog.json') }}
-          restore-keys: apple-spm-
+          # The Xcode "Build PairOpaqueBridge" phase keeps its own cargo and rustup homes here.
+          path: |
+            subject/.tmp/apple-pair-cargo
+            subject/.tmp/apple-pair-rustup
+            subject/apple/PairOpaqueBridge/target
+          key: apple-pair-xcode-${{ hashFiles('subject/apple/PairOpaqueBridge/Cargo.lock', 'subject/apple/PairOpaqueBridge/build-apple.sh') }}
+      - name: Restore Swift packages
+        if: inputs.mode != 'apple-core'
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: subject/test-results/${{ inputs.mode }}/SourcePackages
+          key: apple-spm-${{ inputs.mode }}-${{ hashFiles('subject/apple/OpenMates.xcodeproj/project.pbxproj', 'subject/apple/LocalModelBridge/catalog.json') }}
+          restore-keys: apple-spm-${{ inputs.mode }}-
       - name: Run Apple lane
-        timeout-minutes: ${{ inputs.mode == 'apple-unit' && 110 || 50 }}
+        timeout-minutes: ${{ inputs.mode != 'apple-core' && 110 || 50 }}
         run: python3 ../tooling/scripts/ci_apple.py
         env:
           PYTHONPATH: ${{ github.workspace }}/tooling/scripts
@@ -1332,5 +1343,29 @@ jobs:
             subject/test-results/ci-results.json
             subject/test-results/apple-core/rows/
             subject/test-results/apple-unit/rows/
+            subject/test-results/apple-ui/rows/
             subject/test-results/apple-unit/OpenMatesTests.xcresult
           if-no-files-found: error
+      - name: Export UI test screenshots and recordings
+        if: always() && inputs.mode == 'apple-ui'
+        timeout-minutes: 10
+        run: |
+          bundle=test-results/apple-ui/OpenMatesUITests.xcresult
+          test -d "$bundle" || { echo "::notice::No UI result bundle to export"; exit 0; }
+          # Evidence only: an export problem must not change the test verdict.
+          xcrun xcresulttool export attachments --path "$bundle" --output-path test-results/apple-ui/attachments \
+            || echo "::warning::UI attachment export failed"
+          xcrun xcresulttool get test-results summary --path "$bundle" > test-results/apple-ui/summary.json \
+            || echo "::warning::UI result summary export failed"
+          ls test-results/apple-ui/attachments 2>/dev/null | head -50
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always() && inputs.mode == 'apple-ui'
+        with:
+          # Separate from isolated-test-results: recordings are large and are evidence, not the verdict.
+          name: apple-ui-evidence
+          retention-days: 7
+          path: |
+            subject/test-results/apple-ui/attachments/
+            subject/test-results/apple-ui/summary.json
+            subject/test-results/apple-ui/OpenMatesUITests.xcresult
+          if-no-files-found: warn
