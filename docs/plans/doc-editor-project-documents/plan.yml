@@ -1,0 +1,26 @@
+schema_version: 2
+profile: concise
+id: doc-editor-project-documents
+title: Document editor and creating documents, sheets and slides in Project folders (web)
+status: implementing
+goal: "Let users edit documents by hand and create new documents, sheets and slides directly inside Project folders without a chat."
+specifications:
+  - feature.doc-editor@1
+  - feature.projects@2
+scope:
+  - "Document editor in the docs fullscreen view on the shared document model chosen in live-collaboration-crdt: text, headings, bold, italic, underline, colour, font and size, lists, quotes, tables, page breaks, images from disk and from embeds, undo and redo; the page view is kept."
+  - Round trip between the editor model and the stored docx_model so assistant diffs, the version timeline and the Word artifact keep working after manual edits; versions carry their author.
+  - PDF download next to the existing Word download, both from the latest version.
+  - Uploaded Word files and user-created empty documents use the same editor.
+  - "Project Create menu entries New document, New sheet and New slides in the root and any folder: chat-less embed creation with owner and Project wrappers, item link with folder, opening in the editor; hidden without write access. Decouple hosted Project item writes from an active chat where they still require one."
+  - Sheets keep their existing editor; only chat-less creation and the shared document model are added for them.
+  - Out of scope - comments, tracked changes, headers and footers; Apple.
+checks:
+  - Unit tests for editor model to docx_model round trip, including tables, lists and images.
+  - Backend pytest that an assistant diff applies to a manually edited document.
+  - Web E2E in isolated CI - edit and format a document, undo, version restore, Word and PDF download content; create a document, a sheet and a deck in a Project subfolder and reopen them; read-only member sees no create entries.
+  - Component preview of the document editor toolbar and page view.
+decisions:
+  - The document editor is part of this work, not a follow-up (user decision 2026-11-10).
+  - The stored docx_model stays the format the assistant reads and edits; the editor converts to and from it.
+  - A new deck in a Project uses the pinned Project template, else the user's chosen library template.

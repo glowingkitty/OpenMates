@@ -1,0 +1,79 @@
+schema_version: 1
+id: feature.doc-editor
+version: 1
+status: draft
+title: Document Editor
+summary: >
+  A user can edit a document directly in its fullscreen view: text, formatting,
+  lists, tables and images. Manual edits and assistant edits share one version
+  timeline, and downloads always reflect the latest version.
+
+related_contracts:
+  - specification: feature.chats@7
+    relationship: Documents stay embeds with the existing streaming, storage, diff editing, version timeline and sharing; this contract adds manual editing.
+  - specification: feature.projects@2
+    relationship: Creating an empty document inside a Project folder is owned by projects.items.create-documents.
+  - specification: feature.live-collaboration@1
+    relationship: Simultaneous editing by several members is owned by the live collaboration contract.
+
+scope:
+  includes:
+    - Manual rich-text editing of assistant-created, user-created and uploaded Word documents in fullscreen.
+    - One version timeline for manual and assistant edits.
+    - Word and PDF download of the latest version.
+  excludes:
+    - Comments, suggestions and tracked changes.
+    - Headers, footers, footnotes, columns and other page layout beyond page breaks.
+    - Editing on Apple, which follows in a later contract version.
+
+assertions:
+  - id: doc-editor.edit.rich-text
+    type: behavior
+    must: >
+      In edit mode a user can type and delete text anywhere in a document and
+      apply headings, bold, italic, underline, text colour, font and font
+      size, bulleted and numbered lists, quotes, tables with added and removed
+      rows and columns, and page breaks. Images are added by dropping a file
+      or picking an image from existing embeds. Undo and redo work for every
+      step. The page view stays the same in reading and editing.
+    depends_on: [examples.edit]
+  - id: doc-editor.versions.shared-timeline
+    type: behavior
+    must: >
+      Saved manual edits become versions in the same timeline as assistant
+      edits, each marked with who made it. Any version can be viewed and
+      restored. After manual edits the assistant can still change the document
+      with targeted edits, and those edits keep the user's manual changes.
+    depends_on: [examples.versions]
+  - id: doc-editor.sources.all-documents-editable
+    type: behavior
+    must: >
+      Documents written by the assistant, empty documents created by the user
+      and uploaded Word files are edited in the same way with the same tools.
+    depends_on: [examples.sources]
+  - id: doc-editor.export.latest-version
+    type: behavior
+    must: >
+      Downloading a document as Word or PDF produces the latest version,
+      including manual edits, with headings, formatting, lists, tables and
+      images intact.
+    depends_on: [examples.export]
+
+applies_to:
+  rest_api: {required: false, role: Existing embed and version transport is unchanged.}
+  cli: {required: false, parity: semantic}
+  sdks:
+    required: false
+    implementations:
+      rust: {required: false}
+      npm: {required: false}
+      pip: {required: false}
+  gui:
+    required: true
+    implementations:
+      web: {required: true}
+      apple: {required: false}
+
+examples:
+  file: examples.yml
+  required_groups: [edit, versions, sources, export]

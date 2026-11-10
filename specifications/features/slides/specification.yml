@@ -1,0 +1,225 @@
+schema_version: 1
+id: feature.slides
+version: 1
+status: draft
+title: Slides
+summary: >
+  Slides are presentation decks built with web technology. A deck is a list of
+  slides on a fixed-ratio canvas; every slide is a set of positioned elements
+  styled by a reusable template. The assistant creates and changes decks, the
+  user edits them directly, and decks can be presented with a presenter view,
+  followed live through a share link, imported from PowerPoint and exported to
+  PDF and PowerPoint. Free HTML, CSS and JavaScript is allowed only inside
+  isolated interactive blocks.
+
+related_contracts:
+  - specification: feature.interactive-html-visuals@2
+    relationship: Interactive blocks inside a slide reuse the isolation of interactive HTML visuals unchanged; this contract adds no network or app access for author code.
+  - specification: feature.focus-modes@2
+    relationship: The template-creation focus mode uses the shared focus-mode activation, countdown and cancel lifecycle.
+  - specification: feature.chats@7
+    relationship: Decks reuse embed streaming, storage, version history, diff editing and sharing; this contract adds the slides content type.
+  - specification: feature.projects@2
+    relationship: Decks and templates can be Project items in folders; creation from a Project is owned by projects.items.create-documents.
+  - specification: feature.live-collaboration@1
+    relationship: Simultaneous editing of a deck by several members is owned by the live collaboration contract.
+
+scope:
+  includes:
+    - The deck format with fixed 16:9, 16:10 and 4:3 canvases, positioned elements, speaker notes and preset animations.
+    - Safe rendering of decks from the assistant, uploads, imports and shared links.
+    - Images, SVGs and videos in slides, including media from other embeds and allow-listed video platforms.
+    - Notepad and to-do elements that are filled in during a presentation.
+    - Templates in an account or Team library and in Projects, and the focus mode that builds the first template.
+    - Creating and changing decks by the assistant and direct editing by the user.
+    - Presenter view, live following through a share link, PowerPoint import, and PDF and PowerPoint export.
+  excludes:
+    - Layouts that reflow to a different arrangement on small screens; a slide only scales.
+    - Video export of a deck.
+    - Audience members typing into a deck from their own devices.
+    - A Google Drive connection; Google Slides decks are imported from their PowerPoint export.
+    - Apple editing and presenting, which follow in a separate contract version.
+
+assertions:
+  - id: slides.format.positioned-elements
+    type: behavior
+    must: >
+      A deck has one aspect ratio, 16:9 by default or 16:10 or 4:3, and an
+      ordered list of slides. Each slide names a template layout and holds
+      elements with a position and size on the canvas: text, image, video,
+      shape, notepad, to-do list and interactive block. Each slide can carry
+      speaker notes. A slide is shown by scaling the whole canvas uniformly to
+      the available space, so the arrangement is identical on every screen and
+      nothing reflows.
+    depends_on: [examples.format]
+  - id: slides.render.preview-and-fullscreen
+    type: behavior
+    must: >
+      A deck appears in the chat as a card showing its first slide, title and
+      slide count. Fullscreen shows the current slide with a strip of all
+      slides and the version timeline. While the assistant is still writing a
+      deck, finished slides appear one after another instead of source text.
+    depends_on: [examples.render]
+  - id: slides.security.host-rendered-and-isolated
+    type: security
+    must: >
+      Text, image, video, shape, notepad and to-do elements are drawn by the
+      app from validated properties only. Scripts, event handlers, external
+      addresses, and unknown elements or properties in a deck are discarded
+      and never executed or requested. Author HTML, CSS and JavaScript exists
+      only inside interactive blocks, and every block runs with the isolation
+      of interactive HTML visuals: no access to the app, the account, other
+      slides or the network. The same rules apply to decks from the assistant,
+      uploads, PowerPoint imports and shared links.
+    depends_on: [examples.security]
+  - id: slides.media.images-from-files-and-embeds
+    type: behavior
+    must: >
+      A user adds an image or SVG to a slide by dropping a file onto it or by
+      picking an image or SVG from existing embeds of the chat or Project. The
+      assistant can generate an image or SVG and place it in a slide in the
+      same answer. SVGs are displayed as images, so nothing inside them runs
+      or loads. Uploaded and generated videos play inside the slide. Media
+      placed in a deck is stored with the deck as its own encrypted item, so a
+      shared or exported deck is complete without the original chat.
+    depends_on: [examples.media]
+  - id: slides.media.video-platform-allowlist
+    type: privacy
+    must: >
+      A slide can show a video from YouTube or Vimeo. The app itself displays
+      the player over the element's area; author code never gains network
+      access. No request reaches the video platform until a person presses
+      play on that element. A video address from any other site is shown as a
+      plain link card and is never embedded.
+    depends_on: [examples.video_platforms]
+  - id: slides.interactive.notepad-and-todo
+    type: behavior
+    must: >
+      Notepad and to-do elements accept typing and checking in the editor and
+      during a presentation, and what is entered is visible to the audience
+      and saved into the deck as a new version. Each such element has a Clear
+      action, the deck has one action that clears all of them at once, and
+      each can be hidden without deleting its text. Cleared text can be
+      brought back from the version timeline. State inside an interactive
+      block is not saved.
+    depends_on: [examples.interactive]
+  - id: slides.animations.preset-set
+    type: behavior
+    must: >
+      Elements can fade in, slide in or appear on a click as ordered build
+      steps, and slides can use a transition from a fixed set. Animations do
+      not play for people who asked their device to reduce motion; all content
+      is then shown at once. More elaborate motion is possible only inside an
+      interactive block.
+    depends_on: [examples.animations]
+  - id: slides.templates.library-and-project
+    type: behavior
+    must: >
+      A template defines fonts, colours, aspect ratio and named layouts. Each
+      account, and each Team in Team context, has a template library that
+      also offers built-in templates. A template can additionally be saved
+      into a Project folder, where it is listed like a deck and marked as a
+      template. A Project can pin a default template. Changing a template does
+      not alter existing decks until a user applies it to a deck.
+    depends_on: [examples.templates]
+  - id: slides.templates.first-deck-focus-mode
+    type: behavior
+    must: >
+      When a user asks for slides and no template of their own, their Team or
+      the active Project exists, the template-creation focus mode is offered
+      through the standard focus-mode activation. In it the assistant shows
+      several distinct design options with previews as a choice, refines the
+      chosen one with the user, saves it as a template and then creates the
+      requested deck with it. A user who declines gets the deck in a built-in
+      template.
+    depends_on: [examples.template_focus]
+  - id: slides.assistant.create-and-diff-edit
+    type: behavior
+    must: >
+      The assistant creates a deck from the available template and its
+      layouts, and changes an existing deck with targeted edits that leave
+      untouched slides and elements as they were. Every assistant change is a
+      new version in the deck's timeline. Positions and styling that a user
+      set by hand are preserved by later assistant edits unless the user asks
+      to change them.
+    depends_on: [examples.assistant]
+  - id: slides.editor.direct-manipulation
+    type: behavior
+    must: >
+      In edit mode a user can change the text of any text element and its
+      font, size and colour; move and resize any element by dragging,
+      including elements the assistant created and interactive blocks; add,
+      duplicate, reorder and delete slides; change a slide's layout; insert
+      and replace images; edit speaker notes; and undo and redo. Saved edits
+      become versions. The inside of an interactive block is changed through
+      the assistant.
+    depends_on: [examples.editor]
+  - id: slides.present.presenter-view
+    type: behavior
+    must: >
+      Present opens the deck in a second window that shows only the slide, for
+      the audience screen. The original view becomes the presenter view with
+      the current slide, the next slide, the speaker notes, a timer and the
+      slide list. Both stay in step from either window and with the keyboard.
+      Speaker notes never appear in the audience window. Closing either window
+      ends the presentation.
+    depends_on: [examples.present]
+  - id: slides.present.follow-live
+    type: privacy
+    must: >
+      While a shared deck is being presented, people who open its share link
+      see that it is live and can follow the presenter's current slide, build
+      step and notepad content. They can browse on their own and rejoin, and
+      cannot change anything. The live state is encrypted with the share
+      link's key, relayed by the server without being readable or stored, and
+      stops when the presentation ends. Speaker notes are never sent.
+    depends_on: [examples.follow_live]
+  - id: slides.import.powerpoint
+    type: behavior
+    must: >
+      An uploaded PowerPoint file (.pptx, .pptm, .ppsx, .potx) is converted on
+      the user's device into an editable deck. The user is told what could not
+      be carried over, and the original file stays downloadable from the deck.
+      Macros are never run or kept. Legacy .ppt and .pps files are not
+      attached, with a notice to save them as .pptx first.
+    depends_on: [examples.import]
+  - id: slides.export.pdf-and-powerpoint-with-loss-notice
+    type: behavior
+    must: >
+      A deck can be downloaded as PDF and as PowerPoint, both produced on the
+      user's device. Before the download, the user sees which features of this
+      particular deck the chosen format cannot keep. In PowerPoint, text stays
+      editable text, images and uploaded videos are kept, preset transitions
+      are mapped where an equivalent exists, an interactive block becomes a
+      picture of its current state, and a platform video becomes a thumbnail
+      with a link. A PDF has one static page per slide, with speaker notes
+      optional.
+    depends_on: [examples.export]
+  - id: slides.surface.text-rendering
+    type: parity
+    must: >
+      Where a surface cannot draw slides, such as the terminal and the SDKs, a
+      deck is presented as its title and, per slide, its number, text content
+      and speaker notes, with images, videos and interactive blocks named by
+      kind. Creating and changing decks through the assistant works the same
+      on every surface.
+    depends_on: [examples.surfaces]
+
+applies_to:
+  rest_api: {required: true, role: Deck embeds, versions, child media and the relayed live presentation state.}
+  cli: {required: true, parity: semantic}
+  sdks:
+    required: true
+    implementations:
+      rust: {required: true}
+      npm: {required: false}
+      pip: {required: false}
+  gui:
+    required: true
+    implementations:
+      web: {required: true}
+      apple: {required: false}
+
+examples:
+  file: examples.yml
+  required_groups: [format, render, security, media, video_platforms, interactive, animations, templates, template_focus, assistant, editor, present, follow_live, import, export, surfaces]

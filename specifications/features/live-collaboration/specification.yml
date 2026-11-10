@@ -1,0 +1,111 @@
+schema_version: 1
+id: feature.live-collaboration
+version: 1
+status: draft
+title: Live Collaboration on Documents, Sheets and Slides
+summary: >
+  Members of a Team or Project can edit the same document, sheet or deck at the
+  same time. Everyone sees the others' changes and positions within about a
+  second, concurrent edits are merged without losing anyone's work, and the
+  server only ever handles encrypted changes.
+
+related_contracts:
+  - specification: feature.teams@4
+    relationship: Membership, roles and Team keys decide who may edit; this contract adds simultaneous editing of one item.
+  - specification: feature.projects@2
+    relationship: Project membership and write permission decide who may edit items in a Project.
+  - specification: feature.doc-editor@1
+    relationship: The document editor is one of the three editors that work live.
+  - specification: feature.slides@1
+    relationship: The slides editor is one of the three editors that work live.
+  - specification: feature.chats@7
+    relationship: The version timeline and assistant edits of embeds are kept; versions become named snapshots of the shared item.
+
+scope:
+  includes:
+    - Simultaneous editing of documents, sheets and decks by Team and Project members with write access.
+    - Showing who else is in the item and where they are working.
+    - Merging edits made offline when the device reconnects.
+    - Assistant edits arriving as one change for everyone.
+  excludes:
+    - Editing through share links, which stay view-only.
+    - Comments, suggestions and tracked changes.
+    - Live collaboration on other embed types such as code, diagrams and mind maps.
+    - Apple editing, which follows in a later contract version.
+
+assertions:
+  - id: live-collab.sync.concurrent-convergence
+    type: behavior
+    must: >
+      When two or more members edit the same document, sheet or deck, each
+      sees the others' changes within about a second without reloading, and
+      all end with identical content. Edits at different places are all kept.
+      When two members change the very same sheet cell or the same property of
+      the same slide element at once, one value wins for everyone and the
+      other member sees it replace theirs.
+    depends_on: [examples.sync]
+  - id: live-collab.presence.who-and-where
+    type: behavior
+    must: >
+      Each member in an item sees the names of the others with a colour per
+      person, and where they are: the text cursor and selection in a document,
+      the selected cell in a sheet, the selected slide and element in a deck.
+      Presence disappears when a member leaves and is never stored.
+    depends_on: [examples.presence]
+  - id: live-collab.privacy.ciphertext-only
+    type: privacy
+    must: >
+      Every change and every presence update is encrypted on the member's
+      device with a key the server does not have. The server relays and stores
+      only ciphertext and cannot read or alter the content of an item.
+    depends_on: [examples.privacy]
+  - id: live-collab.access.members-with-write-access
+    type: security
+    must: >
+      Only members who may edit the item's Team or Project can send changes.
+      People viewing through a share link, and members with read-only access,
+      receive the item but every change from them is refused. A member who is
+      removed stops receiving changes at once and can no longer send any.
+    depends_on: [examples.access]
+  - id: live-collab.offline.merge-on-reconnect
+    type: behavior
+    must: >
+      Edits made while a device is offline are kept on the device and merged
+      with the others' changes when it reconnects, following the same rules as
+      simultaneous edits. Nothing is silently discarded; the member sees the
+      merged result.
+    depends_on: [examples.offline]
+  - id: live-collab.assistant.one-change-for-everyone
+    type: behavior
+    must: >
+      An assistant edit to an item that several members have open appears for
+      all of them as one change, keeps edits members made in the meantime, is
+      one step in the requesting member's undo history, and is one version in
+      the timeline.
+    depends_on: [examples.assistant]
+  - id: live-collab.versions.named-snapshots
+    type: behavior
+    must: >
+      The version timeline of a shared item lists snapshots with time and the
+      members who contributed. Restoring a snapshot changes the item for all
+      members at once and is itself added as a new version.
+    depends_on: [examples.versions]
+
+applies_to:
+  rest_api: {required: true, role: Relay and storage of encrypted changes and relay of encrypted presence over the existing WebSocket sync.}
+  cli: {required: false, parity: semantic}
+  sdks:
+    required: true
+    implementations:
+      rust: {required: true}
+      npm: {required: false}
+      pip: {required: false}
+  gui:
+    required: true
+    implementations:
+      web: {required: true}
+      apple: {required: false}
+
+examples:
+  file: examples.yml
+  required_groups: [sync, presence, privacy, access, offline, assistant, versions]

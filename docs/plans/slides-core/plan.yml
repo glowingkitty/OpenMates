@@ -1,0 +1,30 @@
+schema_version: 2
+profile: concise
+id: slides-core
+title: Slides core - format, safe rendering, templates, assistant creation and editor (web)
+status: implementing
+goal: "Let the assistant create and change web-technology slide decks from reusable templates, and let users edit them directly, with safe rendering and no dependency on a slides framework."
+specifications:
+  - feature.slides@1
+scope:
+  - "Phase 0 spikes (block later phases only where noted): (a) decrypted image/video bytes into the opaque-origin block sandbox via a token-gated message bridge, modelled on the diagram editor bridge; (b) CRDT choice, owned by plan live-collaboration-crdt, must finish before the editor phase."
+  - "Phase 1 format and backend: slides markup (slide, text, image, video, shape, notepad, todo, block; x/y/w/h on a 1920-wide canvas; layout and template references; notes; preset animations), one shared validator/normaliser that drops scripts, handlers, external addresses and unknown elements, a slides fence in the stream consumer, embed type slides-deck with diff_editable, embed_service create method, diff content-key branch, assistant instructions. Proof via CLI/SDK text rendering before web UI."
+  - "Phase 2 web rendering: host-rendered standard elements, uniform canvas scaling for 16:9, 16:10 and 4:3, blocks in the interactive-HTML sandbox, card with first slide, fullscreen with slide strip and version timeline, progressive slide-by-slide streaming, preset animations with reduced-motion handling."
+  - "Phase 3 media: child encrypted embeds for images, SVGs and videos; drop from disk; picker for images and SVGs from chat and Project embeds; assistant placement by embed reference; host-rendered YouTube (no-cookie) and Vimeo players with click-to-load; other video addresses as link cards."
+  - "Phase 4 templates: template content type, account and Team library with built-in templates, template saved as a marked Project item, pinned Project default, apply-template action; focus mode create_presentation_template in a new slides app with choice cards that carry design previews."
+  - "Phase 5 editor: own editor on the shared document model chosen in live-collaboration-crdt (single-user first): text content, font, size, colour; drag move and resize of every element including blocks; slide add, duplicate, reorder, delete; layout change; image insert and replace; speaker notes; undo and redo; saves as versions; notepad and to-do input with Clear, Clear all and hide."
+  - Out of scope here - PowerPoint import, PDF and PowerPoint export, presenter view and follow-live (plan slides-import-export-presenting); multi-user sync (plan live-collaboration-crdt); project Create menu (plan doc-editor-project-documents); Apple; video export.
+checks:
+  - Validator unit tests with hostile decks (handlers, external image, script between slides, unknown elements) in Rust or Python and in the web renderer.
+  - Backend pytest for fence detection, embed creation and diff application on a deck.
+  - CLI proof in isolated CI - a chat request creates a deck and a follow-up changes one slide, shown as text.
+  - Web E2E in isolated CI - deck card and fullscreen, streaming slides, block isolation, drag and text edit with undo, image drop and embed picker, YouTube click-to-load, notepad save and clear, template focus mode from first request to created deck.
+  - Component previews for the slide renderer at the three aspect ratios and at phone, laptop and projector sizes.
+decisions:
+  - Own format and editor; no Reveal.js, Slidev, Marp or Polotno (user decision 2026-11-10).
+  - Standard elements are rendered by the app; free HTML, CSS and JavaScript exists only inside sandboxed blocks.
+  - Fixed canvas that scales; 16:9 default, 16:10 and 4:3 selectable; no reflow.
+  - Platform videos are rendered by the app outside the sandbox with click-to-load; allow-list starts with YouTube and Vimeo.
+  - Media is copied into the deck as encrypted child embeds so sharing and export are self-contained.
+  - Templates live in an account or Team library and can also be saved as marked items in a Project.
+  - Apple is deferred to a separate Task; web first.

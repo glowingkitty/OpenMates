@@ -598,6 +598,16 @@ assertions:
   depends_on:
   - models.ProjectItemLink
   - examples.project_uploads
+- id: projects.items.create-documents
+  type: behavior
+  must: From the Create menu of a Project, in the Project root or any folder or subfolder, a member with write access can
+    create a new document, sheet or slides deck without opening a chat. The new item appears in that folder at once, opens
+    in its editor, is client-encrypted with owner and Project wrappers like an upload, and can afterwards be renamed, moved,
+    edited, versioned and referenced in chats like an item created by the assistant. A new deck uses the Project's pinned
+    template, else the user's chosen library template. Members without write access do not see these entries.
+  depends_on:
+  - models.ProjectItemLink
+  - examples.project_document_creation
 - id: projects.surface.semantic-parity
   type: parity
   must: REST, CLI, SDK, and web preserve explicit context, encrypted CRUD, wrappers, item links, object ownership, destructive
@@ -763,5 +773,6 @@ examples:
   - project_check_catalog
   - project_item_presentation
   - project_uploads
+  - project_document_creation
   - project_surface_parity
   - focus_auto_selection

@@ -1,0 +1,56 @@
+schema_version: 1
+specification: feature.live-collaboration@1
+
+sync:
+  - id: two-people-one-document
+    given: Alice and Bob, members of the same Team, both have the document "Launch plan" open in edit mode.
+    when: Alice rewrites the introduction while Bob adds a row to the table on page two.
+    then: Within about a second each sees the other's change appear, and both end with the new introduction and the new row.
+  - id: same-cell-at-once
+    given: Alice and Bob have the same sheet open and both type into cell B4 at the same moment, Alice "120" and Bob "150".
+    when: Both entries are sent.
+    then: Both see the same single value in B4, and the one whose value did not win sees it replaced.
+
+presence:
+  - id: cursors-and-selections
+    given: Alice, Bob and Carol have one deck open.
+    when: Bob selects the chart on slide 3 and Carol edits the title of slide 5.
+    then: Alice sees Bob's and Carol's names at the top, the chart on slide 3 outlined in Bob's colour and a cursor in Carol's colour in the title of slide 5.
+  - id: leaving
+    given: The same three members are in the deck.
+    when: Carol closes the deck.
+    then: Her name, colour and cursor disappear for Alice and Bob within a few seconds.
+
+privacy:
+  - id: server-sees-only-ciphertext
+    given: Alice types "Confidential price list" into a shared document.
+    when: An operator inspects what the server received and stored for that item.
+    then: The words are not present; only encrypted change records and their sizes and times are.
+
+access:
+  - id: share-link-viewer-cannot-edit
+    given: Dave opened a shared deck through a view-only link while Alice edits it.
+    when: Dave's client sends a change.
+    then: The change is refused and the deck is unchanged for everyone.
+  - id: removed-member
+    given: Bob has a Team document open when an admin removes him from the Team.
+    when: Alice continues typing.
+    then: Bob's view stops receiving Alice's changes and shows that he no longer has access; changes he tries to send are refused.
+
+offline:
+  - id: edits-on-a-train
+    given: Alice loses her connection and adds two paragraphs to a document, while Bob changes the title online.
+    when: Alice's device reconnects.
+    then: Both see Bob's title and Alice's two paragraphs.
+
+assistant:
+  - id: assistant-edit-while-others-type
+    given: Alice and Bob have a deck open; Alice asks the assistant to shorten slide 5 while Bob is editing slide 2.
+    when: The assistant's edit arrives.
+    then: Slide 5 changes for both at once, Bob's unfinished text on slide 2 is untouched, Alice can undo the assistant's edit with one undo, and the timeline has one new version.
+
+versions:
+  - id: restore-for-everyone
+    given: A shared sheet has versions from Monday by Alice and from Tuesday by Bob and Carol.
+    when: Alice restores Monday's version while Bob has the sheet open.
+    then: Bob's sheet changes to Monday's content at once, and the timeline shows a new version "restored by Alice" after Tuesday's.

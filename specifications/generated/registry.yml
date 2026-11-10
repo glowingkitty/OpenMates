@@ -655,6 +655,13 @@ specifications:
     - rest_api
     - gui.web
     - gui.apple
+  feature.doc-editor:
+    version: 1
+    status: draft
+    path: features/doc-editor
+    fingerprint: c76944a36edce1a74c3c47828d29b7d263d8c23eea6769f1196123654dd64c04
+    required_applies_to:
+    - gui.web
   feature.focus-modes:
     version: 2
     status: draft
@@ -709,6 +716,15 @@ specifications:
     - cli
     - sdks.npm
     - sdks.pip
+    - gui.web
+  feature.live-collaboration:
+    version: 1
+    status: draft
+    path: features/live-collaboration
+    fingerprint: 548ece332713c1e871026a5f680790c784b5d4b584c6a59b94104989dc2fb141
+    required_applies_to:
+    - rest_api
+    - sdks.rust
     - gui.web
   feature.marketing-landing:
     version: 12
@@ -789,7 +805,7 @@ specifications:
     version: 2
     status: draft
     path: features/projects
-    fingerprint: ce8008e2534ed95aa4fb3f83dd15e13a4837dac7572b626ebb72f9854f664460
+    fingerprint: b513617c0a8bc1c24ae9d1c30991d955a526d44b8b24f32203fe6ab6cf24b17e
     required_applies_to:
     - rest_api
     - cli
@@ -831,6 +847,16 @@ specifications:
     required_applies_to:
     - gui.web
     - gui.apple
+  feature.slides:
+    version: 1
+    status: draft
+    path: features/slides
+    fingerprint: 1b08b4f298f0438b5eb2cca2ea602762594e1ea37688d9f1588d80a2401b4ba2
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
   feature.specifications:
     version: 1
     status: draft
@@ -8269,6 +8295,34 @@ assertions:
     - rest_api
     - gui.web
     - gui.apple
+  doc-editor.edit.rich-text:
+    specification: feature.doc-editor@1
+    specification_id: feature.doc-editor
+    type: behavior
+    fingerprint: a1cf862fcebf66374a8d4d45c15012113a3927b310750088503a29ab8fd71931
+    required_applies_to:
+    - gui.web
+  doc-editor.versions.shared-timeline:
+    specification: feature.doc-editor@1
+    specification_id: feature.doc-editor
+    type: behavior
+    fingerprint: d5b5d16241ab2cabb63597755e67ff1dd59f96b4f4f3d074b997c74701aea59d
+    required_applies_to:
+    - gui.web
+  doc-editor.sources.all-documents-editable:
+    specification: feature.doc-editor@1
+    specification_id: feature.doc-editor
+    type: behavior
+    fingerprint: 4936fd664a4ec2a4c5bfee8bdfecca646025c475b3cd6c6316730506b1000f0d
+    required_applies_to:
+    - gui.web
+  doc-editor.export.latest-version:
+    specification: feature.doc-editor@1
+    specification_id: feature.doc-editor
+    type: behavior
+    fingerprint: a40b8f42419e393050f4a22f12463b71288e793f04bcdb5daa1f7a2e7e06f620
+    required_applies_to:
+    - gui.web
   focus-modes.project-write-gate:
     specification: feature.focus-modes@2
     specification_id: feature.focus-modes
@@ -8838,6 +8892,69 @@ assertions:
     - cli
     - sdks.npm
     - sdks.pip
+    - gui.web
+  live-collab.sync.concurrent-convergence:
+    specification: feature.live-collaboration@1
+    specification_id: feature.live-collaboration
+    type: behavior
+    fingerprint: b5b0b7bce732b16a5124c035cc7ba50fa49bed9f5c8181776a6501082ecbe4a0
+    required_applies_to:
+    - rest_api
+    - sdks.rust
+    - gui.web
+  live-collab.presence.who-and-where:
+    specification: feature.live-collaboration@1
+    specification_id: feature.live-collaboration
+    type: behavior
+    fingerprint: a2d32f4e34520618dc002f0ceea79b95cda5038f39c763cbb3230beb325f3a09
+    required_applies_to:
+    - rest_api
+    - sdks.rust
+    - gui.web
+  live-collab.privacy.ciphertext-only:
+    specification: feature.live-collaboration@1
+    specification_id: feature.live-collaboration
+    type: privacy
+    fingerprint: a5a41048ffa117a18b6951c64f27a761e9a2517106a772c52b1aeb3326d6d98b
+    required_applies_to:
+    - rest_api
+    - sdks.rust
+    - gui.web
+  live-collab.access.members-with-write-access:
+    specification: feature.live-collaboration@1
+    specification_id: feature.live-collaboration
+    type: security
+    fingerprint: bbbfc4fdcf844abbdc40469ce83d34d96689d167c74dcadefd9bde4d7a607d14
+    required_applies_to:
+    - rest_api
+    - sdks.rust
+    - gui.web
+  live-collab.offline.merge-on-reconnect:
+    specification: feature.live-collaboration@1
+    specification_id: feature.live-collaboration
+    type: behavior
+    fingerprint: 84bf5903cb7ea1229d1aabd1c870a18ef43af0791d6cfd16be75c21272e8a3bd
+    required_applies_to:
+    - rest_api
+    - sdks.rust
+    - gui.web
+  live-collab.assistant.one-change-for-everyone:
+    specification: feature.live-collaboration@1
+    specification_id: feature.live-collaboration
+    type: behavior
+    fingerprint: 4216f645130ca9b2bf95277aabeadae8c545dc32115dcedfc0a758d2fd33c7a8
+    required_applies_to:
+    - rest_api
+    - sdks.rust
+    - gui.web
+  live-collab.versions.named-snapshots:
+    specification: feature.live-collaboration@1
+    specification_id: feature.live-collaboration
+    type: behavior
+    fingerprint: 3a5d03822da7217bea380bae6788ed1eab52281775d171b2b0e2f2edede3b410
+    required_applies_to:
+    - rest_api
+    - sdks.rust
     - gui.web
   marketing-landing.independent-scroll:
     specification: feature.marketing-landing@12
@@ -9978,7 +10095,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: security
-    fingerprint: d9972ac161f2dd9076e6242096d1a0b6117f90de3d896c95dd7249115c9e57b0
+    fingerprint: 043f20b2d8e5afea2270dc9820acb541e157b563520404df280aed9e214eb3d0
     required_applies_to:
     - rest_api
     - cli
@@ -9990,7 +10107,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: behavior
-    fingerprint: 0540d3621753fac7244c2086d2dbd26dc27aa1069192ca86af6b029f1931a86a
+    fingerprint: a24645d01315061f946dff3920fd6917af26e4c29dbffe36ebfc154481150ffb
     required_applies_to:
     - rest_api
     - cli
@@ -10026,7 +10143,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: behavior
-    fingerprint: e9fa3009486de04a0eee7e9140e2713234ba57d64f2743f32bf88dcf5e288fad
+    fingerprint: 8aab008bab02e8378480654683ed831a09e18bea0530f21e1f4eeaa16a4ce011
     required_applies_to:
     - rest_api
     - cli
@@ -10038,7 +10155,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: invariant
-    fingerprint: c1d48bb7fe5af9f2d62ec99d015bab075c7d2e8ffc9e5ec5c4afd292c7f91de0
+    fingerprint: 19b7e5bc895003994ae15ba1144b22cb5877186fd9514855324e1b77752cf595
     required_applies_to:
     - rest_api
     - cli
@@ -10050,7 +10167,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: privacy
-    fingerprint: 930707988c5c5710a717c3797b4d830fab0efea6d4d7070557c39eaa1a36ffbc
+    fingerprint: 9204e4ee25e8cb521925134f8236aadf9b62d8a4285aec647ddf745773f68376
     required_applies_to:
     - rest_api
     - cli
@@ -10062,7 +10179,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: behavior
-    fingerprint: 6f37a388b7867154166fa7e18d9f14572edce444d0848cbeaf769883b4b9bb7d
+    fingerprint: 19587223f78cc65610660b89fcc18e841e823f4fc0a72e1c80ee8a88f558bb07
     required_applies_to:
     - rest_api
     - cli
@@ -10074,7 +10191,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: invariant
-    fingerprint: 58f71037d68b6db4ff74c44859b42818610315e187c33e4e595ac1bf185d6c79
+    fingerprint: 3f449b74636fc48e3df6c19432497b35bb8c5b21ba8972342237f83a38f793d2
     required_applies_to:
     - rest_api
     - cli
@@ -10086,7 +10203,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: invariant
-    fingerprint: 3c3cf45ca735d0f57ac87816a68a3732289504d5197e95845859f4b5316fef0b
+    fingerprint: 75b4a7d45dafb5a3987ed04d4ecdf3aa1f3850bd2d108cda7dde942054a54b92
     required_applies_to:
     - rest_api
     - cli
@@ -10098,7 +10215,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: invariant
-    fingerprint: 017f4b92cb4dbf3d61cddd88fbed06ab41000c261850596e41166a7f11f44ddb
+    fingerprint: e6edbade32f2c11ef99cfda08c91f614d16aa7570e11c573ec7e6203cc78fe68
     required_applies_to:
     - rest_api
     - cli
@@ -10110,7 +10227,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: privacy
-    fingerprint: 6cda7ca5672a9b4de30c1502891301a3831f5b8676cedf2439ec024301f1c9e6
+    fingerprint: 1c87d9dbfb84533c853dd10b7569c8066baf2d1f07d9f49ce05be4349271221c
     required_applies_to:
     - rest_api
     - cli
@@ -10122,7 +10239,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: invariant
-    fingerprint: d8a219a4f9ec9c65717480990a86da79c7963c0432d5f5939099f4642770fb95
+    fingerprint: 983865c51ff634ed2c8aebbb8115fe1c3098a1e477eac0eb73b6a2e95ff0b4b4
     required_applies_to:
     - rest_api
     - cli
@@ -10134,7 +10251,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: invariant
-    fingerprint: d477ad77d0094af22e729e1f60469f39d7ce688d2b989cce1b3aff4e0bf214c5
+    fingerprint: 990ef9d7c8dd52095abae35d0355ee5471ddb20667d547baf8b78151a9745411
     required_applies_to:
     - rest_api
     - cli
@@ -10146,7 +10263,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: invariant
-    fingerprint: 23895926168291e6fc8a7f4d5467b89b73d188fe6767799779a72d4d2082b552
+    fingerprint: bce17bf741662aa22f8c2d6df77c31b989b69145ce9afe1427b6a26917a335eb
     required_applies_to:
     - rest_api
     - cli
@@ -10158,7 +10275,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: behavior
-    fingerprint: c5ec48dd8b46017529ab5dfbfb7715e50970e72945f33ffd07f72e31d8ec4776
+    fingerprint: 62936c85b7a1aea9027189afa79840c8993109b1da45cad91be46495c0c74e1d
     required_applies_to:
     - rest_api
     - cli
@@ -10170,7 +10287,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: failure
-    fingerprint: 33f8eef004257f63cd849b4c56b7a5086d7d1bb90f5d6c97fb64b86d8e7bd208
+    fingerprint: 89345e5d2f192af3262c3d08f0afacd7cb1794fac51f036d8f543626e981dabf
     required_applies_to:
     - rest_api
     - cli
@@ -10182,7 +10299,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: security
-    fingerprint: 4c2c79e925a7e8d076d5b144a60ce1b71964c556aca7a279895fc984de3754f3
+    fingerprint: 7404fae5a9e680d67304f45779d52a78a5d8890a164fcf315e28fda425dd4acc
     required_applies_to:
     - rest_api
     - cli
@@ -10194,7 +10311,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: invariant
-    fingerprint: 233dfa43b2d050c7f91391e0daa92679465765d83c277408bbc2854ff9ba80ad
+    fingerprint: 8171101487f0695959810e851ff8dfb63d62022b0e5b7be504793f601929de1b
     required_applies_to:
     - rest_api
     - cli
@@ -10206,7 +10323,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: behavior
-    fingerprint: 3da35e7af4b28f86898bccdb47ce9f71f466d88be7a80a86b6c8dcd5ba4e4e67
+    fingerprint: 51ff43fb3e1b06bcee7754a147b6fe65c429eb9b8627b65d82c95c15d970d05d
     required_applies_to:
     - rest_api
     - cli
@@ -10218,7 +10335,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: security
-    fingerprint: dfd6c45ba74ec53e0bcfca1d87b692114781a230988711e78e720a66eadd8dfe
+    fingerprint: 0c9c69b8a5d5995ac3b20948097ceb983ab4245e94bdc951a2876e75ecb35d93
     required_applies_to:
     - rest_api
     - cli
@@ -10242,7 +10359,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: behavior
-    fingerprint: e8a0ed5814ec507c39a7d427ca65a00c2f0e70ac578529730451b1210456c11f
+    fingerprint: 9ba59b06609731b259988f372f14a025ffd751ef8ba10ed9e4b7678c7c20857d
     required_applies_to:
     - rest_api
     - cli
@@ -10254,7 +10371,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: behavior
-    fingerprint: c69ec4b0870b13d5814c19986cb1eb196685b9db1c91486233e58ff331af46a7
+    fingerprint: 0af512fd976db3e3ffe7c2504863bfbe40ed315a3e5997aed294bf6f8658da79
     required_applies_to:
     - rest_api
     - cli
@@ -10266,7 +10383,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: behavior
-    fingerprint: 43c1adb4e8494122d5b6295959414fd6473d58df94967e071acd124a4d33f123
+    fingerprint: aa9c846baab0f17d1a325de7bbeab3759707724377f551c7c118f346ecc52ecd
     required_applies_to:
     - rest_api
     - cli
@@ -10278,7 +10395,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: security
-    fingerprint: 1c305bf2042f80194dcbb041120f5aebd1ac0766e32c214aa5c409bca5ef0098
+    fingerprint: 112a2d15e475c82a5be716b0e2aaeb5cc5d7c7307baaa254b183f0019090077d
     required_applies_to:
     - rest_api
     - cli
@@ -10290,7 +10407,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: behavior
-    fingerprint: 5f0b8d24108bbfa97949f478212504def9adea2f6416583f58ce09e845903713
+    fingerprint: daaba3185723749c7b1ec0f4aa05f9e9cd8937cf58267c710ef5accfa6a6dd26
     required_applies_to:
     - rest_api
     - cli
@@ -10302,7 +10419,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: security
-    fingerprint: 7af495341bd0e60dc93b1ac1ca38f0d747a15281a78b1c912201399094fb8c7d
+    fingerprint: 8b445123a5fd5143c633fcf042dfa416536e29f5d75d5ba76b2d7a39753074ca
     required_applies_to:
     - rest_api
     - cli
@@ -10442,11 +10559,23 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  projects.items.create-documents:
+    specification: feature.projects@2
+    specification_id: feature.projects
+    type: behavior
+    fingerprint: bff198cf7bfc79cff3eb5c66fd186f0cf6134840e782b7af8ec1f2b863728e7d
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   projects.surface.semantic-parity:
     specification: feature.projects@2
     specification_id: feature.projects
     type: parity
-    fingerprint: 447456417574304c5614dc0a6477279f27b7ae220bc787abdee3fba9a6c6302b
+    fingerprint: 64301437ced35ed51f367d4329627883b9df8e8e55447582b0a6c2e767f83eeb
     required_applies_to:
     - rest_api
     - cli
@@ -10712,6 +10841,166 @@ assertions:
     required_applies_to:
     - gui.web
     - gui.apple
+  slides.format.positioned-elements:
+    specification: feature.slides@1
+    specification_id: feature.slides
+    type: behavior
+    fingerprint: f473d93950da6f1b131108acbfe20ea74529ce255a41aeb30063b449a4770299
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+  slides.render.preview-and-fullscreen:
+    specification: feature.slides@1
+    specification_id: feature.slides
+    type: behavior
+    fingerprint: f400e221d3ce57250939d67945f73c3828c19a596d7d7aa547e78622a2ee813e
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+  slides.security.host-rendered-and-isolated:
+    specification: feature.slides@1
+    specification_id: feature.slides
+    type: security
+    fingerprint: 31c46b889e8e4465e1b8ff0a739ee0fbab1de2d8c75fbfd9f1f35b883219f3c3
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+  slides.media.images-from-files-and-embeds:
+    specification: feature.slides@1
+    specification_id: feature.slides
+    type: behavior
+    fingerprint: b3455b5c6108d80435fc0a415ddbde69f61143e54154d3732b73d5c38d320cfc
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+  slides.media.video-platform-allowlist:
+    specification: feature.slides@1
+    specification_id: feature.slides
+    type: privacy
+    fingerprint: 6ee14ff2de380f61ebb350501c87b07b9ca867c8f19d497e79ad81ff3d23561b
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+  slides.interactive.notepad-and-todo:
+    specification: feature.slides@1
+    specification_id: feature.slides
+    type: behavior
+    fingerprint: bb3024f669067b1d5272ff87e75bac11e007a0ef2bfe1a856be6075c92634f70
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+  slides.animations.preset-set:
+    specification: feature.slides@1
+    specification_id: feature.slides
+    type: behavior
+    fingerprint: d64c668d556032c4964a6626a2d456d22648f8523fadce530645030f646bfc23
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+  slides.templates.library-and-project:
+    specification: feature.slides@1
+    specification_id: feature.slides
+    type: behavior
+    fingerprint: 1d4f9f1601487d3954b09f1b020dacf64c05845c41f9b803bf09bb2e5fed4d61
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+  slides.templates.first-deck-focus-mode:
+    specification: feature.slides@1
+    specification_id: feature.slides
+    type: behavior
+    fingerprint: d1474231d300e19dd592f2e9685a12628ba79afdab6d2407d38a157db9bda13c
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+  slides.assistant.create-and-diff-edit:
+    specification: feature.slides@1
+    specification_id: feature.slides
+    type: behavior
+    fingerprint: ed90a0ad7a4a603e5f78fde6c1ca0a6e137aab764fbffda1c3a33dfd5fe90277
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+  slides.editor.direct-manipulation:
+    specification: feature.slides@1
+    specification_id: feature.slides
+    type: behavior
+    fingerprint: 1664798901eae6fb72671fc56494ea42774c887b61c3ff97dbad37ecc2475031
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+  slides.present.presenter-view:
+    specification: feature.slides@1
+    specification_id: feature.slides
+    type: behavior
+    fingerprint: 59a5c1131f0b799bcde52d3999b42296d22ab820be560e4017b500ab6e7c21a6
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+  slides.present.follow-live:
+    specification: feature.slides@1
+    specification_id: feature.slides
+    type: privacy
+    fingerprint: 4876c6ac49e492b5e50178bce6e70271e9e018060d8382b12871692f48cd4ea0
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+  slides.import.powerpoint:
+    specification: feature.slides@1
+    specification_id: feature.slides
+    type: behavior
+    fingerprint: 3f0101066c347e0b300f2adea2c0a7f76d3358d16bafd810d97a67923566923f
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+  slides.export.pdf-and-powerpoint-with-loss-notice:
+    specification: feature.slides@1
+    specification_id: feature.slides
+    type: behavior
+    fingerprint: ae83322e25308fbdad1a00ba45258fd0c6cd00b6b25b75d9b372215d202696d1
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+  slides.surface.text-rendering:
+    specification: feature.slides@1
+    specification_id: feature.slides
+    type: parity
+    fingerprint: 1d53f99969434b778b3a7e8685918837b8f01fd0a87e3f09aa7afa94c55bc220
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
   contracts.definition.durable-truth:
     specification: feature.specifications@1
     specification_id: feature.specifications

@@ -672,6 +672,17 @@ project_uploads:
     owner_wrapper: true
     project_wrapper: true
     link_after_wrappers: true
+project_document_creation:
+- id: new-deck-in-a-subfolder
+  assertion_ids: [projects.items.create-documents]
+  given: Alice is in the folder "Pitch / Investors" of her Project "Bike rental", which has a pinned template "Studio Blue".
+  when: She opens the Create menu and chooses "New slides".
+  then: An empty deck in the "Studio Blue" template appears in "Pitch / Investors" and opens in the slides editor; no chat was created, and she can later mention the deck in a chat and ask the assistant to fill it.
+- id: new-document-and-sheet-read-only-member
+  assertion_ids: [projects.items.create-documents]
+  given: Bob may edit the Team Project "Launch", and Carol may only read it.
+  when: Bob creates "New document" and "New sheet" in the Project root, and Carol opens the same Project.
+  then: Both items appear in the root for Bob and Carol and open in their editors for Bob; Carol's Create menu does not offer new documents, sheets or slides.
 project_surface_parity:
 - id: same-linked-object
   input:

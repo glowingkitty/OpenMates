@@ -1,0 +1,34 @@
+schema_version: 1
+specification: feature.doc-editor@1
+
+edit:
+  - id: rewrite-and-format
+    given: The assistant wrote a two-page project proposal and Alice opens it in fullscreen.
+    when: She switches to edit mode, rewrites the first paragraph, makes one sentence bold, turns three lines into a numbered list and adds a row to the budget table.
+    then: The document shows her changes on the same pages as before, and pressing undo four times brings back the original step by step.
+  - id: add-an-image
+    given: Bob edits a report in a chat that also contains a generated chart.
+    when: He uses "Add image" and picks the chart, then drops a photo from his computer below it.
+    then: Both images appear in the document at the chosen places.
+
+versions:
+  - id: manual-and-assistant-versions
+    given: Alice edited a document by hand twice after the assistant created it.
+    when: She opens the version timeline and then asks the assistant to "add a summary at the top".
+    then: The timeline shows the assistant's first version and her two versions with her name; after the request a fourth version adds the summary and keeps all her edits.
+  - id: restore
+    given: The same document has four versions.
+    when: Alice restores the second version.
+    then: The document shows the content of the second version as a new fifth version, and versions three and four remain in the timeline.
+
+sources:
+  - id: uploaded-word-file
+    given: Bob uploads "Contract draft.docx".
+    when: He opens it and switches to edit mode.
+    then: He can change text and formatting with the same tools as in a document the assistant wrote.
+
+export:
+  - id: download-after-editing
+    given: Alice changed a heading and added a table row by hand.
+    when: She downloads the document as Word and as PDF.
+    then: Both files contain the new heading and the added row, with the lists and images of the document intact.
