@@ -567,6 +567,25 @@ def run_command(repository, amount, operation, command, *, write_paths=()):
                     process.wait()
 
 
+SOURCE_CHECK_SECONDS = 60
+# Non-zero so a `Restart=on-failure` unit starts the new code.
+STALE_SOURCE_EXIT = 75
+
+
+def _source_fingerprint():
+    """Identify the coordinator code loaded in this process (mtime and size)."""
+    here = Path(__file__).resolve().parent
+    marks = []
+    for name in ("disk_coordinator.py", "disk_coordinator_state.py", "resource_budget.py"):
+        try:
+            stat = (here / name).stat()
+        except OSError:
+            marks.append((name, None, None))
+        else:
+            marks.append((name, stat.st_mtime_ns, stat.st_size))
+    return tuple(marks)
+
+
 def owner_check(coordinator):
     try:
         fd = int(os.environ["OPENMATES_DISK_OWNER_FD"])
@@ -641,10 +660,19 @@ def main():
 
         signal.signal(signal.SIGTERM, shutdown)
         signal.signal(signal.SIGINT, shutdown)
+        loaded = _source_fingerprint()
+        checked = time.monotonic()
         with coordinator.leadership(), coordinator.background_cleanup() as dispatch:
             while not stop:
                 coordinator.tick(cleanup_dispatch=dispatch, proactive=True)
                 time.sleep(1)
+                if time.monotonic() - checked >= SOURCE_CHECK_SECONDS:
+                    checked = time.monotonic()
+                    if _source_fingerprint() != loaded:
+                        # A long-lived owner once kept three-day-old cleanup
+                        # rules alive; hand over so the supervisor restarts
+                        # this service on the deployed code.
+                        return STALE_SOURCE_EXIT
     elif args.action == "owner-check":
         return 0 if owner_check(coordinator) else 1
     elif args.action == "configured-check":

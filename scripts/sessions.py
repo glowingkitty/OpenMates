@@ -188,6 +188,10 @@ DOCKER_COMPOSE_OVERRIDE = CONTROL_PLANE_ROOT / "backend" / "core" / "docker-comp
 DOCKER_SETUP_SERVICES = {"cms-setup", "vault-setup"}
 DOCKER_NON_RESTARTABLE_SERVICES = DOCKER_SETUP_SERVICES
 WORKTREE_CLEANUP_IDLE_HOURS = 4 * 24
+# A clean worktree whose HEAD is already in dev (or a reproducible integration
+# checkout) holds nothing unique, so it is reclaimed sooner than other classes.
+# Each one costs about 0.4 GB; a four-day window let ~180 of them fill the disk.
+WORKTREE_INTEGRATED_IDLE_HOURS = 2 * 24
 # Managed worktrees (including ones created for other agents) are kept a full
 # week before hard expiry.
 WORKTREE_HARD_MAX_AGE_HOURS = 7 * 24
@@ -4296,10 +4300,19 @@ def _queue_coordinated_worktree_cleanup() -> bool:
 LIFECYCLE_RECLAIMABLE_CLASSES = frozenset({"integrated", "disposable_integration"})
 
 
+def _reconcile_idle_threshold(idle_hours: int | None, only_classes: set[str] | None) -> int:
+    """Resolve the idle threshold; reclaimable-only runs default to the shorter window."""
+    if idle_hours is not None:
+        return idle_hours
+    if only_classes and set(only_classes) <= LIFECYCLE_RECLAIMABLE_CLASSES:
+        return WORKTREE_INTEGRATED_IDLE_HOURS
+    return WORKTREE_CLEANUP_IDLE_HOURS
+
+
 def reconcile_session_worktrees(
     *,
     target_ref: str = "origin/dev",
-    idle_hours: int = WORKTREE_CLEANUP_IDLE_HOURS,
+    idle_hours: int | None = None,
     apply_safe: bool = False,
     approved_obsolete: set[str] | None = None,
     only_session_ids: set[str] | None = None,
@@ -4311,7 +4324,10 @@ def reconcile_session_worktrees(
     ``only_classes`` narrows which safe classifications may be deleted.
     ``coordinated=False`` runs in-process instead of queueing on the disk
     coordinator; callers use it only with integrated/disposable classes.
+    ``idle_hours=None`` uses ``WORKTREE_INTEGRATED_IDLE_HOURS`` when only the
+    reclaimable classes are requested and ``WORKTREE_CLEANUP_IDLE_HOURS`` otherwise.
     """
+    idle_hours = _reconcile_idle_threshold(idle_hours, only_classes)
     if apply_safe and coordinated and _queue_coordinated_worktree_cleanup():
         return {"target_ref": target_ref, "target_commit": "", "apply_safe": True,
                 "items": [], "deleted": [], "unresolved": [], "queued": True}
@@ -13340,9 +13356,11 @@ def cmd_worktree(args: argparse.Namespace) -> None:
             print(f"  - {session_id}")
         return
     if args.worktree_action == "reconcile":
-        if args.idle_hours < WORKTREE_CLEANUP_IDLE_HOURS and not args.only:
+        requested_classes = set(args.only_class) if getattr(args, "only_class", None) else None
+        idle_floor = _reconcile_idle_threshold(None, requested_classes)
+        if args.idle_hours is not None and args.idle_hours < idle_floor and not args.only:
             print(
-                f"Error: --idle-hours below {WORKTREE_CLEANUP_IDLE_HOURS} requires at least one --only SESSION_ID",
+                f"Error: --idle-hours below {idle_floor} requires at least one --only SESSION_ID",
                 file=sys.stderr,
             )
             sys.exit(2)
@@ -15377,7 +15395,10 @@ def main() -> None:
     )
     p_worktree_reconcile = p_worktree_sub.add_parser("reconcile", help="Report or safely reconcile all worktrees")
     p_worktree_reconcile.add_argument("--target", default="origin/dev", help="Exact integration ref (default: origin/dev)")
-    p_worktree_reconcile.add_argument("--idle-hours", type=int, default=WORKTREE_CLEANUP_IDLE_HOURS)
+    p_worktree_reconcile.add_argument(
+        "--idle-hours", type=int, default=None,
+        help=f"Default {WORKTREE_CLEANUP_IDLE_HOURS}; {WORKTREE_INTEGRATED_IDLE_HOURS} when only reclaimable classes are requested",
+    )
     p_worktree_reconcile.add_argument(
         "--only-class",
         action="append",

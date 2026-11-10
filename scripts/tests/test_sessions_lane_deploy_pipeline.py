@@ -313,6 +313,19 @@ def test_capacity_runs_safe_reconcile_once_before_refusing(monkeypatch):
     assert calls[0]["only_classes"] == {"integrated", "disposable_integration"}
 
 
+def test_reclaimable_only_reconcile_defaults_to_the_shorter_idle_window():
+    sessions = load_sessions_module()
+    reclaimable = set(sessions.LIFECYCLE_RECLAIMABLE_CLASSES)
+
+    assert sessions.WORKTREE_INTEGRATED_IDLE_HOURS < sessions.WORKTREE_CLEANUP_IDLE_HOURS
+    assert sessions._reconcile_idle_threshold(None, reclaimable) == sessions.WORKTREE_INTEGRATED_IDLE_HOURS
+    assert sessions._reconcile_idle_threshold(None, {"integrated"}) == sessions.WORKTREE_INTEGRATED_IDLE_HOURS
+    # Classes that can hold unique work keep the long window.
+    assert sessions._reconcile_idle_threshold(None, None) == sessions.WORKTREE_CLEANUP_IDLE_HOURS
+    assert sessions._reconcile_idle_threshold(None, {"integrated", "superseded"}) == sessions.WORKTREE_CLEANUP_IDLE_HOURS
+    assert sessions._reconcile_idle_threshold(12, reclaimable) == 12
+
+
 # --- ci-source regeneration, --only auto-tracking, Rust migration input set ---
 
 CLI_GENERATOR_STUB = """\
