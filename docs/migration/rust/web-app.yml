@@ -9,8 +9,8 @@ flag:
   default: 'off'
   flag_off_behavior: original TypeScript path, byte-identical build output (guarded in CI)
 summary:
-  total: 107415
-  done: 8334
+  total: 107417
+  done: 8336
   partial: 0
   missing: 99081
   percent: 7.8
@@ -21,12 +21,12 @@ worker_namespaces_installed_not_progress:
 port_ledger:
   unit: TS code lines
   portable_files: 451
-  portable_code_lines: 107415
-  ported_code_lines: 8334
+  portable_code_lines: 107417
+  ported_code_lines: 8336
   percent: 7.8
   ported_by_proof:
     e2e-flag-on: 4136
-    vectors: 3961
+    vectors: 3963
     none: 237
   files_with_ported_code: 93
   routing_functions: 366
@@ -35,8 +35,8 @@ port_ledger:
     files: 55
     code_lines: 9550
   bridge_excluded:
-    files: 214
-    code_lines: 19226
+    files: 215
+    code_lines: 19386
   slices:
   - id: rust-web-auth-session-lane-behind-vite-openmates-cd767f7
     commit: cd767f7058
@@ -193,7 +193,7 @@ port_ledger:
     date: '2026-11-07'
     proof: vectors
     functions: 2
-    ts_code_lines: 53
+    ts_code_lines: 55
   - id: persist-slice-2-cache-quota-and-chat-row-policy-a974897
     commit: a974897e24
     date: '2026-11-07'
@@ -469,7 +469,7 @@ units:
     so it is a pre-bind namespace like `crypto`: the embed key arrives per request (as the crypto...'
   typescript_fallback: none declared (4 files)
   unit_tests: [childRevision.test.ts, embedKeyResolution.test.ts, embedUnits.test.ts, messageEmbedVersion.test.ts,
-    messageParentIds.test.ts, readOps.test.ts]
+    messageParentIds.test.ts, readOps.test.ts, rustRecoveredChildRevision.test.ts]
   e2e_specs: [web-rust-core-embeds.spec.ts]
   vectors: [packages/openmates-rust/src/toon_decode_ts_vectors.json]
   open_gaps: [Embed RSS +1..+77 MB vs TypeScript in the embeds bench (noisy); see performance-history.yml.]
@@ -485,7 +485,7 @@ units:
     (embe...
   typescript_fallback: none declared (4 files)
   unit_tests: [childRevision.test.ts, embedKeyResolution.test.ts, embedUnits.test.ts, messageEmbedVersion.test.ts,
-    messageParentIds.test.ts, readOps.test.ts]
+    messageParentIds.test.ts, readOps.test.ts, rustRecoveredChildRevision.test.ts]
   e2e_specs: [web-rust-core-embeds.spec.ts]
   vectors: []
   open_gaps: [Streamed write is wired for send_embed_data only.]

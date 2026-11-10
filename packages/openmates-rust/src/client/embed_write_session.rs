@@ -15,6 +15,7 @@ use super::payload::{
     build_stream_completion,
 };
 use super::revision::{ChildRevision, REVISION_HEAD_REQUIRED, StoredChildHead, build_child_revision};
+use super::revision_recovery::RevisionRecoveryReceipt;
 use crate::crypto::{Key, master::MasterCapability};
 use crate::error::{Error, Result};
 use serde_json::Value;
@@ -284,6 +285,39 @@ impl EmbedWriteSession {
     pub fn cache_version_page(&self, embed_id: &str, head: &Value, page: &Value, now_seconds: i64) -> Result<Vec<EncryptedDiffRow>> {
         let owner = head.get("parent_embed_id").and_then(Value::as_str).filter(|id| !id.is_empty()).unwrap_or(embed_id);
         self.with_embed_key(owner, |key| super::pinned::cache_version_page(embed_id, head, page, key, now_seconds))
+    }
+    /// Receipt of a sealed `(embed, N+1)` child revision output (see
+    /// [`super::revision_recovery::embed_receipt`]), checked with the parent's
+    /// key, the key the revision was written with.
+    ///
+    /// # Errors
+    /// `embed_parent_key_pending` without the parent key; `Error::Protocol`
+    /// for a payload without `revision`; the errors of `embed_receipt`.
+    pub fn child_revision_embed_receipt(
+        &self,
+        sealed: &StreamedEmbedData,
+        canonical_head: &Value,
+        page: Option<&Value>,
+        stored_head: Option<&Value>,
+    ) -> Result<RevisionRecoveryReceipt> {
+        let parent_id = sealed.parent_embed_id().ok_or(Error::Protocol)?;
+        let (key, _) = self.embed_keys.get(parent_id).ok_or(PARENT_KEY_PENDING)?;
+        super::revision_recovery::embed_receipt(sealed, canonical_head, page, stored_head, key)
+    }
+    /// Receipt of a sealed `(diff, N+1)` child revision row (see
+    /// [`super::revision_recovery::row_receipt`]), checked with the key of the
+    /// canonical head's parent.
+    ///
+    /// # Errors
+    /// `embed_revision_head_mismatch` for a root head; `embed_key_unavailable`
+    /// when the parent key is not loaded; the errors of `row_receipt`.
+    pub fn child_revision_row_receipt(&self, row: &Value, canonical_head: &Value, page: Option<&Value>) -> Result<RevisionRecoveryReceipt> {
+        let owner = canonical_head
+            .get("parent_embed_id")
+            .and_then(Value::as_str)
+            .filter(|id| !id.is_empty())
+            .ok_or(super::revision::REVISION_HEAD_MISMATCH)?;
+        self.with_embed_key(owner, |key| super::revision_recovery::row_receipt(row, canonical_head, page, key))
     }
     /// Processing->finished `embed_update`. Parents keep the legacy cached-or-
     /// random key; children without an inherited key are refused (never a

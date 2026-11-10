@@ -30,6 +30,9 @@ pub mod ref_index;
 /// Child revision persistence (version N+1 of a generated image child).
 #[path = "embed_child_revision.rs"]
 pub mod revision;
+/// Recovery receipts of a child revision's sealed `(embed, N+1)` / `(diff, N+1)` outputs.
+#[path = "embed_child_revision_recovery.rs"]
+pub mod revision_recovery;
 #[path = "embed_write_session.rs"]
 pub mod session;
 #[path = "embed_write_status.rs"]
@@ -44,6 +47,7 @@ pub use payload::{PreparedEmbedWrite, ProcessingEmbedUpdate, StreamedEmbedData};
 pub use pinned::{MessageImageVersion, MessageParents, PinnedEmbed};
 pub use ref_index::{EmbedRefIndex, EmbedRefIndexEntry, ResolvedEmbedRef};
 pub use revision::{ChildRevision, ChildRevisionStep, ChildRevisionWrites, RevisionRowRole};
+pub use revision_recovery::{ReceiptSource, RevisionRecoveryReceipt};
 pub use session::{AdoptedKey, EmbedWriteSession, KeyAdoption, KeyLookup, PlannedEmbedWrite};
 pub use status::EmbedStatus;
 
@@ -71,3 +75,6 @@ mod resolve_tests;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "embed_child_revision_tests.rs"]
 mod child_revision_tests;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "embed_child_revision_recovery_tests.rs"]
+mod child_revision_recovery_tests;

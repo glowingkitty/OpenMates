@@ -5,7 +5,7 @@
 //! `browser_embed_write.rs` (`embed_revision_*`, `embed_version_unavailable`, ...).
 use super::{BrowserEmbedWriter, array, code, now_ms, now_seconds, parse, proto};
 use openmates_sdk::client::embed_write::{
-    MessageParents, StreamedEmbedData, history::EncryptedDiffRow, pinned,
+    MessageParents, StreamedEmbedData, history::EncryptedDiffRow, pinned, revision_recovery,
 };
 use wasm_bindgen::prelude::*;
 
@@ -95,6 +95,56 @@ impl BrowserEmbedWriter {
             .map_err(code)?;
         serde_json::to_string(&rows).map_err(proto)
     }
+    /// Recovery receipt of a sealed `(embed, N+1)` child revision output.
+    /// `sealed_json` is its `send_embed_data` payload (with `revision`),
+    /// `canonical_head_json` the server head row, `page_json` the bounded-v1
+    /// page of N+1 when the previous answer asked for it, `stored_head_json`
+    /// the local head when stored. Returns `RevisionRecoveryReceipt` JSON
+    /// (`{state: "not_applied" | "version_page_required" | "verified", ...}`).
+    pub fn child_revision_recovery_receipt(
+        &self,
+        sealed_json: &str,
+        canonical_head_json: &str,
+        page_json: Option<String>,
+        stored_head_json: Option<String>,
+    ) -> Result<String, JsValue> {
+        let sealed = StreamedEmbedData::from_value(parse(sealed_json)?).map_err(code)?;
+        let head = parse(canonical_head_json)?;
+        let page = page_json.as_deref().map(parse).transpose()?;
+        let stored = stored_head_json.as_deref().map(parse).transpose()?;
+        let receipt = self
+            .session
+            .borrow()
+            .child_revision_embed_receipt(&sealed, &head, page.as_ref(), stored.as_ref())
+            .map_err(code)?;
+        serde_json::to_string(&receipt).map_err(proto)
+    }
+    /// Recovery receipt of a sealed `(diff, N+1)` child revision row
+    /// (`sealed_row_json`), from the server head and the bounded-v1 page of
+    /// N+1 (`undefined` when the server has no such row). Same JSON as
+    /// `child_revision_recovery_receipt`.
+    pub fn child_revision_row_receipt(
+        &self,
+        sealed_row_json: &str,
+        canonical_head_json: &str,
+        page_json: Option<String>,
+    ) -> Result<String, JsValue> {
+        let (row, head) = (parse(sealed_row_json)?, parse(canonical_head_json)?);
+        let page = page_json.as_deref().map(parse).transpose()?;
+        let receipt = self
+            .session
+            .borrow()
+            .child_revision_row_receipt(&row, &head, page.as_ref())
+            .map_err(code)?;
+        serde_json::to_string(&receipt).map_err(proto)
+    }
+}
+
+/// True when a sealed `(diff, N)` recovery output content is a child revision
+/// row (snapshot-only, version two or above).
+#[wasm_bindgen]
+pub fn embed_child_revision_row(sealed_row_json: &str) -> Result<bool, JsValue> {
+    Ok(revision_recovery::is_child_revision_row(&parse(sealed_row_json)?))
 }
 
 /// Head version of a stored `embeds` row (`version_number`, missing means 1).

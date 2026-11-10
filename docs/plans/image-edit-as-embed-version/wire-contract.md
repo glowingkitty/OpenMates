@@ -105,6 +105,19 @@ payload.revision             = {base_version: N, base_snapshot_required: bool}
 
 The same event arrives through recovery. The sealed `(embed, N+1)` output has `hashed_message_id` = the **head's** hash (message 1), not message 2's (`embed_service.py:6836-6856`). Recovery ACK compares that value to the head (`chat-recovery-transaction/src/operations.js:5062`, `:5388-5389`), so a client that keeps the stored hash passes both the ACK and `requireChildRevisionHead`.
 
+The sealed payload itself still names the changing message (`message_id` = message 2), so a client must not
+compare the head's `hashed_message_id` with `sha256(payload.message_id)` (the ordinary recovery check). The sealed
+`(diff, N+1)` content is the history row `{embed_id, version_number, snapshot, created_at}`: it carries no
+`parent_embed_id`, so its ciphertext must be opened with the key of the canonical head's `parent_embed_id`
+(children inherit it), never HKDF(chat key, child id), and it has no patch by design. Clients verify both outputs
+with the core receipts in "Recovery receipts" below and route them before the ordinary recovery path:
+- `(embed, N+1)`: the canonical head below N+1 means not stored yet; the client writes the version through the same
+  `prepare_child_revision` steps as the live event, reads the head again and asks again. A head at N+1 is verified by
+  its content (digest of `encrypted_content`, source `head`); a head past N+1 by the bounded-v1 row N+1 (digest of
+  `[encrypted_snapshot, null]`, source `version_row`).
+- `(diff, N+1)`: verified only by the stored row N+1 (source `version_row`); before it exists it stays pending.
+- Nothing is acknowledged unless the receipt is `verified`; every other result leaves the output pending for retry.
+
 ### 2. Draft events during drawing (vector path)
 
 `_VectorDraftPublisher` streams drafts on the new message's own placeholder child, never on the revised image. The draft content carries `revised_from`.
@@ -263,6 +276,31 @@ child_revision = {
 - `page_json` is the bounded-v1 page `GET /v1/embeds/{id}/versions/{v}` (`{embed_id, version_number, rows}`).
 - Returns the canonical `EncryptedDiffRow` JSON to store locally, with `server_confirmed: true`. It is adopted only
   when it opens to the same plaintext as `local_row`; otherwise the call rejects with `embed_revision_row_diverged`.
+
+### Recovery receipts (`client::embed_write::revision_recovery`)
+
+`BrowserEmbedWriter.child_revision_recovery_receipt(sealed_json, canonical_head_json, page_json?, stored_head_json?) -> string`
+(core `EmbedWriteSession::child_revision_embed_receipt`)
+- `sealed_json`: the sealed `(embed, N+1)` content (a `send_embed_data` payload with `revision`);
+  `canonical_head_json`: `.embed` of `GET /v1/embeds/chats/{chat}/embeds/{id}`; `page_json`: the bounded-v1 page of
+  N+1 when asked for; `stored_head_json`: this device's stored head, if any.
+- Identity: same embed, `hashed_chat_id`, original `parent_embed_id`, a non-empty head `hashed_message_id` equal to
+  the stored head's when that one carries it, and an `encrypted_type` that opens to the sealed type. Uses the parent's
+  key (`embed_parent_key_pending` before it is loaded).
+- Returns `{"state": "not_applied"}`, `{"state": "version_page_required", "version": N+1}` or
+  `{"state": "verified", "canonical_digest", "canonical_source": "head" | "version_row"}`.
+- Errors: `embed_revision_head_mismatch` (identity), `embed_revision_canonical_differs` (version N+1 holds other
+  content), `protocol` (no `revision`, malformed row or page), `crypto`.
+
+`BrowserEmbedWriter.child_revision_row_receipt(sealed_row_json, canonical_head_json, page_json?) -> string`
+(core `EmbedWriteSession::child_revision_row_receipt`)
+- `page_json` is absent when the server has no row N+1 (404). The key owner is the canonical head's `parent_embed_id`
+  (`embed_revision_head_mismatch` for a root head). Same result JSON; `not_applied` while the head is below N+1 or the
+  row is not stored.
+
+`embed_child_revision_row(sealed_row_json) -> bool` (free function): true for a snapshot-only row with
+`version_number >= 2`, i.e. a sealed `(diff, N)` output of a child revision. The web shell routes such outputs, and
+embed outputs whose sealed payload carries `revision`, to these receipts (`rustRecoveredChildRevision.ts`).
 
 ### Reading the version a message shows
 

@@ -132,7 +132,14 @@ async function followDrawing(
 	const request = { prompt: '', model: '', inputImages: 0, shownBeforePicture: false, captured: false };
 	let pictureCaptured = false;
 	const startedAt = Date.now();
+	let followedAt = 0;
 	while (Date.now() - startedAt < ANSWER_TIMEOUT) {
+		// A reader follows the answer: cards below the fold do not load their picture.
+		if (Date.now() - followedAt > 1_000) {
+			followedAt = Date.now();
+			await page.locator('[data-message-id] [data-testid="embed-preview"][data-app-id="images"]').last()
+				.scrollIntoViewIfNeeded({ timeout: 2_000 }).catch(() => undefined);
+		}
 		const probe = await probeDrawing(page);
 		model = probe.model || model;
 		if (probe.stage !== 'none') {
@@ -256,6 +263,9 @@ test('embroidery vector graphic is made by the images skill, shows progress, and
 	await expect(page.getByTestId('image-generate-version-badge').first()).toBeVisible();
 
 	// The same after a reload: the versions come from the stored rows and the pins.
+	// The last answer is stored a moment after its stream ends; this check is about
+	// stored versions, not about reloading in the middle of that save.
+	await page.waitForTimeout(15_000);
 	await page.reload();
 	const reloaded = await readAllMessagePictures(page, 3);
 	expectOneEmbedVersionPerMessage(reloaded, 'after reload');

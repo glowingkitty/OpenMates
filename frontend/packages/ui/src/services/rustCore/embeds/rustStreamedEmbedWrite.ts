@@ -37,16 +37,40 @@ import { childRevisionIO, isChildRevisionEvent, runChildRevision } from './rustC
 type EmbedData = SendEmbedDataPayload['payload'];
 type WriteUnit = UnitPort<EmbedWriteProtocol>;
 
-async function readCanonical(embedData: EmbedData, version: number): Promise<{ status: number; body: unknown }> {
-	const chat = await chatDB.getChat(embedData.chat_id);
-	const query = new URLSearchParams({ capability: 'bounded-v1', chat_id: embedData.chat_id });
+/** Bounded-v1 page of `version` of `embedId` (`body` undefined on 404). Also used by recovery receipts. */
+export async function readCanonicalVersion(chatId: string, embedId: string, version: number): Promise<{ status: number; body: unknown }> {
+	const chat = await chatDB.getChat(chatId);
+	const query = new URLSearchParams({ capability: 'bounded-v1', chat_id: chatId });
 	if (chat?.team_id) query.set('team_id', chat.team_id);
 	const { getApiEndpoint, storageArchiveFetch } = await import('../../../config/api');
 	const response = await storageArchiveFetch(getApiEndpoint(
-		`/v1/embeds/${encodeURIComponent(embedData.embed_id)}/versions/${version}?${query}`
+		`/v1/embeds/${encodeURIComponent(embedId)}/versions/${version}?${query}`
 	), { credentials: 'include' });
 	const body = response.status === 404 ? undefined : ((await response.json()) as unknown);
 	return { status: response.status, body };
+}
+
+function readCanonical(embedData: EmbedData, version: number): Promise<{ status: number; body: unknown }> {
+	return readCanonicalVersion(embedData.chat_id, embedData.embed_id, version);
+}
+
+/**
+ * Key prelude of every Rust embed write: installs the page's validated chat
+ * key and loads the stored keys of `parentId` / `embedId` in the Worker (legacy
+ * random-key parents keep their key). A still-processing parent has no stored
+ * wrappers yet: its early key is the HKDF(chat key, parent id) every tab agrees
+ * on (legacy processing branch); a loaded stored key is kept.
+ */
+export async function loadEmbedWriteKeys(unit: WriteUnit, chatId: string, embedId: string, parentId: string | null | undefined): Promise<void> {
+	const chatKey = chatKeyManager.getKeySync(chatId) || (await chatKeyManager.getKey(chatId));
+	if (!chatKey) throw new UnitPortError('embed_write_chat_key_missing');
+	await unit.request('adoptPageChatKey', { chatId, key: new Uint8Array(chatKey) });
+	const hashedChatId = await computeSHA256(chatId);
+	const known = [parentId, embedId].filter((id): id is string => typeof id === 'string' && id.length > 0);
+	await unit.request('openStoredRows', { rows: known.map((id) => ({
+		embedId: id, hashedChatId, encrypted_content: null, encrypted_type: null, encrypted_text_preview: null
+	})) });
+	if (parentId) await unit.request('deriveEarlyKey', { embedId: parentId, chatId });
 }
 
 function isDiffConflict(error: unknown): boolean {
@@ -134,20 +158,7 @@ export async function writeStreamedEmbedInRust(service: ChatSynchronizationServi
 	if (!rustWebCrypto()) return false;
 	const { unit } = await rustEmbedWriter();
 	// The finalized branch validated this key (ensureChatKeySafeForWrite) before taking the lease.
-	const chatKey = chatKeyManager.getKeySync(embedData.chat_id) || (await chatKeyManager.getKey(embedData.chat_id));
-	if (!chatKey) throw new UnitPortError('embed_write_chat_key_missing');
-	await unit.request('adoptPageChatKey', { chatId: embedData.chat_id, key: new Uint8Array(chatKey) });
-	const hashedChatId = await computeSHA256(embedData.chat_id);
-	const known = [embedData.parent_embed_id, embedData.embed_id].filter((id): id is string => typeof id === 'string' && id.length > 0);
-	await unit.request('openStoredRows', { rows: known.map((embedId) => ({
-		embedId, hashedChatId, encrypted_content: null, encrypted_type: null, encrypted_text_preview: null
-	})) });
-	// A still-processing parent has no stored wrappers yet: its early key is the
-	// HKDF(chat key, parent id) every tab agrees on (legacy processing branch).
-	// A loaded stored key is kept.
-	if (embedData.parent_embed_id) {
-		await unit.request('deriveEarlyKey', { embedId: embedData.parent_embed_id, chatId: embedData.chat_id });
-	}
+	await loadEmbedWriteKeys(unit, embedData.chat_id, embedData.embed_id, embedData.parent_embed_id);
 
 	const chat = await chatDB.getChat(embedData.chat_id);
 	const { normalizeEmbedType } = await import('../../../data/embedRegistry.generated');

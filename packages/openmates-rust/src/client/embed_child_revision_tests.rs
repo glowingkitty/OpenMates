@@ -6,7 +6,7 @@ use crate::error::Error;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use serde_json::{Value, json};
 
-fn wire() -> Value {
+pub(super) fn wire() -> Value {
     serde_json::from_str(include_str!(
         "../../tests/crypto_fixtures/image_revision_wire.json"
     ))
@@ -18,16 +18,16 @@ fn ts() -> Value {
     ))
     .unwrap()
 }
-fn key(value: &Value) -> Key {
+pub(super) fn key(value: &Value) -> Key {
     keys::key_from(&STANDARD.decode(value.as_str().unwrap()).unwrap()).unwrap()
 }
-fn id<'a>(w: &'a Value, name: &str) -> &'a str {
+pub(super) fn id<'a>(w: &'a Value, name: &str) -> &'a str {
     w["ids"][name].as_str().unwrap()
 }
-fn data(value: &Value) -> StreamedEmbedData {
+pub(super) fn data(value: &Value) -> StreamedEmbedData {
     StreamedEmbedData::from_value(value.clone()).unwrap()
 }
-fn code(error: Error) -> &'static str {
+pub(super) fn code(error: Error) -> &'static str {
     match error {
         Error::Unavailable { code, .. } => code,
         Error::Protocol => "protocol",
@@ -48,7 +48,7 @@ fn decrypt(session: &EmbedWriteSession, owner: &str, ciphertext: &Value) -> Stri
 }
 
 /// Session holding the chat key and message 1's parent key (`P1` lists the image).
-async fn session(w: &Value) -> EmbedWriteSession {
+pub(super) async fn session(w: &Value) -> EmbedWriteSession {
     let f = ts();
     let master = MasterCapability::from_browser_raw(key(&f["keys"]["master_b64"]));
     let mut session = EmbedWriteSession::new(master);
@@ -71,7 +71,7 @@ async fn session(w: &Value) -> EmbedWriteSession {
     session
 }
 /// Stored v1 head: the ordinary child write of message 1.
-async fn v1_head(session: &mut EmbedWriteSession, w: &Value) -> Value {
+pub(super) async fn v1_head(session: &mut EmbedWriteSession, w: &Value) -> Value {
     session
         .plan_stream_completion(data(&w["v1_event"]))
         .unwrap()
@@ -80,10 +80,10 @@ async fn v1_head(session: &mut EmbedWriteSession, w: &Value) -> Value {
         .unwrap()
         .local_entry
 }
-fn steps(prepared: &PreparedEmbedWrite) -> &[ChildRevisionStep] {
+pub(super) fn steps(prepared: &PreparedEmbedWrite) -> &[ChildRevisionStep] {
     &prepared.child_revision.as_ref().unwrap().steps
 }
-fn diff(step: &ChildRevisionStep) -> (RevisionRowRole, &history::EncryptedDiffRow, &Value) {
+pub(super) fn diff(step: &ChildRevisionStep) -> (RevisionRowRole, &history::EncryptedDiffRow, &Value) {
     match step {
         ChildRevisionStep::StoreEmbedDiff {
             role,
@@ -94,14 +94,14 @@ fn diff(step: &ChildRevisionStep) -> (RevisionRowRole, &history::EncryptedDiffRo
         ChildRevisionStep::StoreEmbed { .. } => panic!("expected a store_embed_diff step"),
     }
 }
-fn store(step: &ChildRevisionStep) -> &Value {
+pub(super) fn store(step: &ChildRevisionStep) -> &Value {
     match step {
         ChildRevisionStep::StoreEmbed { store_payload, .. } => store_payload,
         ChildRevisionStep::StoreEmbedDiff { .. } => panic!("expected a store_embed step"),
     }
 }
 /// The local head after every send of `prepared` succeeded.
-fn confirmed_head(prepared: &PreparedEmbedWrite) -> Value {
+pub(super) fn confirmed_head(prepared: &PreparedEmbedWrite) -> Value {
     steps(prepared)
         .iter()
         .find_map(|step| match step {
@@ -113,7 +113,7 @@ fn confirmed_head(prepared: &PreparedEmbedWrite) -> Value {
         .unwrap()
 }
 /// Local rows of `prepared`, confirmed (`true`) or as stored before the send.
-fn local_rows(prepared: &PreparedEmbedWrite, confirmed: bool) -> Vec<history::EncryptedDiffRow> {
+pub(super) fn local_rows(prepared: &PreparedEmbedWrite, confirmed: bool) -> Vec<history::EncryptedDiffRow> {
     steps(prepared)
         .iter()
         .filter_map(|step| match step {

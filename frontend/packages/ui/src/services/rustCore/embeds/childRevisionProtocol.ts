@@ -8,7 +8,8 @@
  * The Rust core (`BrowserEmbedWriter.prepare_child_revision`,
  * `adopt_child_revision_row`, `embed_version_content`, `cache_version_page`,
  * free functions `embed_versions_by_message`, `embed_pinned_embeds`,
- * `embed_head_version`, `embed_synced_head_regresses`) decides every row, hash, key, version and durability
+ * `embed_head_version`, `embed_synced_head_regresses`, `embed_child_revision_row`;
+ * recovery receipts `child_revision_recovery_receipt`, `child_revision_row_receipt`) decides every row, hash, key, version and durability
  * marker. These types only carry its results across the unit port; local rows,
  * entries and key wrappers never leave the Worker.
  */
@@ -20,6 +21,8 @@ export interface ChildRevisionWriterPort {
 	adopt_child_revision_row(localRowJson: string, pageJson: string): string;
 	embed_version_content(embedId: string, version: number, headJson: string, rowsJson: string): string;
 	cache_version_page(embedId: string, headJson: string, pageJson: string): string;
+	child_revision_recovery_receipt(sealedJson: string, canonicalHeadJson: string, pageJson?: string, storedHeadJson?: string): string;
+	child_revision_row_receipt(sealedRowJson: string, canonicalHeadJson: string, pageJson?: string): string;
 }
 
 /** Free Rust exports of browser_embed_revision.rs (optional until the wasm build carries them). */
@@ -28,7 +31,17 @@ export interface ChildRevisionFunctions {
 	embed_pinned_embeds?(parentContent: string): string;
 	embed_head_version?(storedHeadJson: string): number;
 	embed_synced_head_regresses?(storedHeadJson: string, incomingJson: string): boolean;
+	embed_child_revision_row?(sealedRowJson: string): boolean;
 }
+
+/**
+ * Core `RevisionRecoveryReceipt`: what the canonical server rows prove for one
+ * sealed `(embed, N+1)` / `(diff, N+1)` recovery output of a child revision.
+ */
+export type RevisionRecoveryReceipt =
+	| { state: 'not_applied' }
+	| { state: 'version_page_required'; version: number }
+	| { state: 'verified'; canonical_digest: string; canonical_source: 'head' | 'version_row' };
 
 /** A row sync or a server read is about to store over `embed:<embedId>` (only the fields the core compares). */
 export interface SyncedHeadCandidate {
@@ -99,6 +112,12 @@ export type ChildRevisionProtocol = {
 	embedHeadVersion: { request: { embedId: string }; response: { version: number; parent_embed_id: string | null } | null };
 	/** Ids whose stored child head is newer than the incoming row (core `synced_head_regresses`): keep the stored row. */
 	embedSyncedHeadsKept: { request: { rows: SyncedHeadCandidate[] }; response: string[] };
+	/** Receipt of a sealed `(embed, N+1)` output (core `child_revision_embed_receipt`); the Worker adds the stored head. */
+	childRevisionRecoveryReceipt: { request: { sealed: StreamCompletionInput; head: unknown; page?: unknown }; response: RevisionRecoveryReceipt };
+	/** Receipt of a sealed `(diff, N+1)` child row (core `child_revision_row_receipt`); `page` absent when the server has no row N+1. */
+	childRevisionRowReceipt: { request: { row: Record<string, unknown>; head: unknown; page?: unknown }; response: RevisionRecoveryReceipt };
+	/** True when a sealed `(diff, N)` output content is a child revision row (core `is_child_revision_row`). */
+	isChildRevisionRow: { request: { row: Record<string, unknown> }; response: boolean };
 	embedVersionsByMessage: { request: { messages: MessageParentsInput[]; embedId: string }; response: MessageImageVersion[] };
 	embedPinnedEmbeds: { request: { parentContent: string }; response: PinnedEmbed[] };
 };

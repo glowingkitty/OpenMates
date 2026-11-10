@@ -15,6 +15,10 @@
  * `cacheVersionPage` stores the rows Rust validated from a fetched page;
  * `embedHeadVersion`, `embedSyncedHeadsKept`, `embedVersionsByMessage` and
  * `embedPinnedEmbeds` are the core's version rules.
+ * Recovery: `childRevisionRecoveryReceipt` / `childRevisionRowReceipt` hand the
+ * sealed output, the fetched canonical head (and page) plus the stored head to
+ * Rust, which decides whether that exact version is stored and which digest the
+ * page acknowledges; `isChildRevisionRow` routes a sealed diff output.
  */
 import { UnitRefusal, type UnitHandlers } from '../host/unitPort';
 import {
@@ -31,7 +35,8 @@ import type {
 	ChildRevisionStepKind,
 	ChildRevisionWriterPort,
 	MessageImageVersion,
-	PinnedEmbed
+	PinnedEmbed,
+	RevisionRecoveryReceipt
 } from './childRevisionProtocol';
 import type { ChatsDbOpener } from './embedWorkerIdb';
 
@@ -246,6 +251,30 @@ export function createChildRevisionHandlers(deps: ChildRevisionDeps): UnitHandle
 				if (await rust(() => regresses(JSON.stringify(stored), incoming))) kept.push(embedId);
 			}
 			return kept;
+		},
+		async childRevisionRecoveryReceipt(payload) {
+			const request = payload as { sealed?: Record<string, unknown>; head?: unknown; page?: unknown } | null;
+			const sealed = request?.sealed;
+			if (typeof sealed !== 'object' || sealed === null) throw new UnitRefusal('embed_write_bad_payload');
+			const embedId = text(sealed.embed_id, 'embed_id');
+			const stored = await getEmbedEntry(await openDb(), `embed:${embedId}`);
+			const page = request?.page === undefined ? undefined : JSON.stringify(request.page);
+			return parseJson<RevisionRecoveryReceipt>(await rust(() => session().child_revision_recovery_receipt(
+				JSON.stringify(sealed), JSON.stringify(request?.head ?? null), page, stored ? JSON.stringify(stored) : undefined)));
+		},
+		async childRevisionRowReceipt(payload) {
+			const request = payload as { row?: unknown; head?: unknown; page?: unknown } | null;
+			if (typeof request?.row !== 'object' || request.row === null) throw new UnitRefusal('embed_write_bad_row');
+			const row = JSON.stringify(request.row);
+			const page = request.page === undefined ? undefined : JSON.stringify(request.page);
+			return parseJson<RevisionRecoveryReceipt>(await rust(() =>
+				session().child_revision_row_receipt(row, JSON.stringify(request.head ?? null), page)));
+		},
+		async isChildRevisionRow(payload) {
+			const row = (payload as { row?: unknown } | null)?.row;
+			if (typeof row !== 'object' || row === null) throw new UnitRefusal('embed_write_bad_row');
+			const fn = free<boolean>('embed_child_revision_row');
+			return rust(() => fn(JSON.stringify(row)));
 		},
 		async embedVersionsByMessage(payload) {
 			const request = payload as { messages?: unknown; embedId?: unknown } | null;

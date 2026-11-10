@@ -41,6 +41,7 @@ import { computeSHA256 } from "../message_parsing/utils";
 import { reconstructEncryptedVersionRows, type EmbedVersionMeta } from "./embedDiffStore";
 import { catalogContextFromSealedEmbed, historySourceFromSealedEmbed, isUnwrittenInitialDiffRead } from "./recoveryEmbedSource";
 import { refreshRecoveryChatVersion } from "./chatRecoveryVersionRefresh";
+import { recoveredChildRevisionReceipt } from "./rustCore/embeds/rustRecoveredChildRevision";
 import { chatAfterRecoveredReply } from "./chatRecoveryVersionApply";
 /** Opt-in shared Rust core build: the decision runs in the shared Worker `sync` unit. */
 // Measurement-only opt-out (`openmates_rust_core_sync` = 'ts'), read once per page load.
@@ -1563,7 +1564,9 @@ async function processRecoveryOutputsAvailable(
       if (output.output_kind === "embed" || output.output_kind === "diff") {
         canonicalRetryContext = { ownerId, keyFingerprint: computeKeyFingerprint(rootKey) };
         await withCanonicalEmbedWrite(output.subject_id, async (lease) => {
-          const canonicalReceipt = await persistRecoveredEmbed(output, content, rootKey, ownerId);
+          // Image child revisions (version N+1) are verified by the Rust core.
+          const canonicalReceipt = await recoveredChildRevisionReceipt(serviceInstance, lease, output, content)
+            ?? await persistRecoveredEmbed(output, content, rootKey, ownerId);
           const acknowledged = await requestRecoveryEvent(
             "recovery_output_embed_acknowledged", "recovery_output_ack_embed", output.record_id,
             { protocol_version: CHAT_RECOVERY_PROTOCOL_VERSION, record_id: output.record_id,
