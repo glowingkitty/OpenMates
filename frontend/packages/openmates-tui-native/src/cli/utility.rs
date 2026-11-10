@@ -19,7 +19,7 @@ mod revolut;
 #[path = "utility/self_update.rs"]
 mod self_update;
 
-const MEMORIES_HELP: &str = "Memories commands:\n  openmates settings memories list [--app-id <id>] [--item-type <type>] [--json]\n  openmates settings memories update --id account-memory-<id> --data '{\"title\":\"...\",\"document\":\"...\"}'\n  openmates settings memories delete --id <entry-id>\n\nTyped app memories were replaced by Memories (personal documents).\nCreate and organize Memories in the web app under Settings > Memories.";
+const MEMORIES_HELP: &str = "Memories commands:\n  openmates settings memories list [--app-id <id>] [--item-type <type>] [--json]\n  openmates settings memories update --id account-memory-<id> --data '{\"title\":\"...\",\"document\":\"...\"}'\n  openmates settings memories delete --id <entry-id>\n  openmates settings memories undo --chat <chat-id> [--id <entry-id>]\n\nTyped app memories were replaced by Memories (personal documents).\nCreate and organize Memories in the web app under Settings > Memories.";
 
 fn local(i: &Invocation) -> bool {
     matches!(

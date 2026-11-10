@@ -231,6 +231,17 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
                     phases.deliver_update(&turn_scope,id,updates,cancel,StreamUpdate::Status(notice)).await?;
                 }
             }
+            if options.memory_write_jobs
+                && crate::client::memory_write_jobs::is_job_frame(&kind)
+                && text(&p, "chat_id") == id
+            {
+                // save_memory waits for our claim and result; the turn resumes afterwards.
+                observed.project_create.memory_jobs.set_chat_key(key);
+                phases.project_create(ws, &kind, &p, id, &mut observed.project_create).await?;
+                for notice in observed.project_create.memory_jobs.take_notices() {
+                    phases.deliver_update(&turn_scope,id,updates,cancel,StreamUpdate::Status(notice)).await?;
+                }
+            }
             if kind == "sub_chat_confirmation_required"
                 && text(&p, "chat_id") == id
                 && !task_id.is_empty()

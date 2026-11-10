@@ -197,9 +197,9 @@ capabilities:
   has_fixture: false
   rust:
     status: partial
-    api_symbols: 2930
+    api_symbols: 3004
     conformance: false
-    gaps: 17
+    gaps: 18
   npm:
     status: partial
     api_symbols: 17

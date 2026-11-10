@@ -108,3 +108,16 @@ async fn list_filters_and_renders_decrypted_memories() {
     let requests = server.await.unwrap();
     assert!(requests[0].starts_with("GET /v1/sdk/memories "));
 }
+
+#[tokio::test]
+async fn undo_requires_a_chat_and_accepts_listed_memory_ids() {
+    let (mut client, _server) = mock(vec![]).await;
+    let invocation = parsed(&["openmates", "settings", "memories", "undo"]);
+    assert!(supported(&invocation));
+    let error = execute(&invocation, &mut client).await.err().unwrap();
+    assert!(matches!(error, CliError::Invalid(message) if message.starts_with("Missing chat ID.")));
+    assert!(matches_memory("personal:abc", "account-memory-abc"));
+    assert!(matches_memory("personal:abc", "personal:abc"));
+    assert!(matches_memory("personal:abc", "abc"));
+    assert!(!matches_memory("personal:abc", "abcd"));
+}

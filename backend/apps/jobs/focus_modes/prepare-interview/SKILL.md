@@ -44,6 +44,14 @@ phases:
       if known, and what worries the user most. Honor requests to skip
       questions and proceed.
 
+      When the user asks to skip questions and wants the plan at once, give
+      it in this phase, but the rule on personal questions still applies:
+      for a weakness, failure or conflict question give only the answer
+      structure and one or two candidate areas taken from the user's own
+      facts, phrased as a question to the user. Do not write quoted or
+      first-person answer text, and do not state what the user does to
+      improve unless they told you; ask them instead.
+
       Read the posting and the employer's own pages with web read or search
       when a link or name is available. State only what you found.
     requirements:

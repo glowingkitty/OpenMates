@@ -82,6 +82,10 @@ pub struct SendOptions {
     /// Approve always-ask Project file writes without asking (CLI
     /// `--auto-approve`); otherwise they are declined with a notice.
     pub approve_project_file_writes: bool,
+    /// Opt in to assistant Memory writes (`save_memory`): the socket and the
+    /// turn advertise `memory_write_jobs` and the core stores the Memory and its
+    /// history notice. Only a shell that shows the notice may set this.
+    pub memory_write_jobs: bool,
     pub response_timeout_ms: Option<u64>,
     pub sub_chat_consent: SendConsentPolicy,
     pub memory_consent: SendConsentPolicy,
@@ -97,6 +101,7 @@ impl Default for SendOptions {
             project_create_requests: false,
             project_file_jobs: false,
             approve_project_file_writes: false,
+            memory_write_jobs: false,
             response_timeout_ms: None,
             sub_chat_consent: SendConsentPolicy::Caller,
             memory_consent: SendConsentPolicy::Caller,
@@ -196,6 +201,9 @@ pub struct SendOutcome {
     /// "Created project" cards of assistant-initiated Project creation in this turn.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub project_creations: Vec<Value>,
+    /// Assistant Memory writes of this turn (`MemoryWriteRecord` objects).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub memory_writes: Vec<Value>,
 }
 fn nullable<'de, D, T>(deserializer: D) -> std::result::Result<Option<Option<T>>, D::Error>
 where

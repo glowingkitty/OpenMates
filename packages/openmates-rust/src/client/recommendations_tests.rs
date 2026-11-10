@@ -227,6 +227,8 @@ fn event() -> ContextEntryHistoryEvent {
         entry_id: "e1".into(),
         title: "Dark mode".into(),
         created_at: 1_700_000_000,
+        source: None,
+        undo: None,
     }
 }
 
@@ -349,7 +351,8 @@ fn empty_normalized_titles_never_match_anything() {
         out.iter().map(|r| r.id.as_str()).collect::<Vec<_>>(),
         ["1", "2", "3"]
     );
-    assert!(out
-        .iter()
-        .all(|r| r.action == RecommendationAction::Create && r.target_id.is_none()));
+    assert!(
+        out.iter()
+            .all(|r| r.action == RecommendationAction::Create && r.target_id.is_none())
+    );
 }

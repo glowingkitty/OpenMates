@@ -24,8 +24,8 @@ impl Wipe for SendMemoryRequest{
 }
 impl Wipe for SendOutcome{
     fn wipe(&mut self){
-        let Self{chat,status:_,chat_id,message_id,user_message_id,queue_mode:_,queue_revision,assistant,category,model_name,mate_name,follow_up_suggestions,suggested_followup_message,task_proposals,task_update_proposals,task_events,pending_task_update_jobs,sub_chat_events,app_settings_memory_requests,recommendations,token_usage,prompt_budget,project_creations}=self;
-        chat.wipe();chat_id.wipe();message_id.wipe();user_message_id.wipe();*queue_revision=None;assistant.wipe();category.wipe();model_name.wipe();mate_name.wipe();follow_up_suggestions.wipe();suggested_followup_message.wipe();task_proposals.wipe();task_update_proposals.wipe();task_events.wipe();pending_task_update_jobs.wipe();sub_chat_events.wipe();app_settings_memory_requests.wipe();recommendations.wipe();token_usage.wipe();prompt_budget.wipe();project_creations.wipe();
+        let Self{chat,status:_,chat_id,message_id,user_message_id,queue_mode:_,queue_revision,assistant,category,model_name,mate_name,follow_up_suggestions,suggested_followup_message,task_proposals,task_update_proposals,task_events,pending_task_update_jobs,sub_chat_events,app_settings_memory_requests,recommendations,token_usage,prompt_budget,project_creations,memory_writes}=self;
+        chat.wipe();chat_id.wipe();message_id.wipe();user_message_id.wipe();*queue_revision=None;assistant.wipe();category.wipe();model_name.wipe();mate_name.wipe();follow_up_suggestions.wipe();suggested_followup_message.wipe();task_proposals.wipe();task_update_proposals.wipe();task_events.wipe();pending_task_update_jobs.wipe();sub_chat_events.wipe();app_settings_memory_requests.wipe();recommendations.wipe();token_usage.wipe();prompt_budget.wipe();project_creations.wipe();memory_writes.wipe();
     }
 }
 impl Wipe for SendObservations{

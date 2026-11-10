@@ -181,6 +181,16 @@ impl Presentation {
         for card in &outcome.project_creations {
             text.push_str(&super::projects::card_text(card));
         }
+        if outcome
+            .memory_writes
+            .iter()
+            .any(|w| w["undoAvailable"] == true)
+        {
+            text.push_str(&format!(
+                "Undo a Memory change: openmates settings memories undo --chat {}\n",
+                outcome.chat_id
+            ));
+        }
         if !outcome.task_events.is_empty() {
             text.push_str("Task updates:\n");
             for event in &outcome.task_events {
@@ -320,6 +330,9 @@ fn options(invocation: &Invocation, interactive: bool) -> Result<SendOptions, Cl
         // Assistant Project file tool calls run in this chat; `--auto-approve` also
         // approves always-ask file writes, otherwise they are declined with a notice.
         project_file_jobs: true,
+        // Assistant Memory writes run on this device; each prints a stderr notice
+        // and `settings memories undo --chat <id>` reverts it.
+        memory_write_jobs: true,
         approve_project_file_writes: invocation.boolean("auto-approve"),
         pii_detection: !invocation.boolean("no-pii-detection"),
         incognito: invocation.command_path() == "chats incognito"

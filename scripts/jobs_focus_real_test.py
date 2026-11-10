@@ -109,13 +109,57 @@ def run_case(cli: str, label: str, case: dict, out: Path, timeout: int) -> dict:
     return result
 
 
+def run_profile_reuse(cli: str, out: Path, timeout: int) -> dict:
+    """Chat 1 asks the assistant to save a career profile Memory; chat 2 must use it unprompted."""
+    result: dict = {"label": "profile-reuse", "status": "failed"}
+    chats: list[str] = []
+    flags = ["--personal", "--auto-approve", "--response-timeout-seconds", str(timeout)]
+    try:
+        first = command(cli, ["chats", "new", "Please save my career profile as a memory so I never have to "
+                              "repeat it. " + PERSON, *flags], timeout=timeout + 30)
+        write_receipt(out / "profile-reuse-save.json", first)
+        if not isinstance(first, dict) or not first.get("chatId"):
+            raise ProofError("created_chat_id_missing")
+        chats.append(first["chatId"])
+        writes = first.get("memoryWrites") or []
+        result["memory_writes"] = [{k: w.get(k) for k in ("action", "status", "errorCode", "undoAvailable")}
+                                   for w in writes if isinstance(w, dict)]
+        result["saved"] = any(w.get("status") == "applied" for w in writes if isinstance(w, dict))
+        second = command(cli, ["chats", "new", "Write a short cover letter in English for this job, using what "
+                               "you know about me. " + POSTING, *flags], timeout=timeout + 30)
+        write_receipt(out / "profile-reuse-use.json", second)
+        if not isinstance(second, dict) or not second.get("chatId"):
+            raise ProofError("created_chat_id_missing")
+        chats.append(second["chatId"])
+        shown = command(cli, ["chats", "show", second["chatId"], "--personal"])
+        write_receipt(out / "profile-reuse-use-chat.json", shown)
+        text = json.dumps(shown).lower()
+        result["profile_used"] = "example retail" in text and "15" in text
+        result["status"] = "passed" if result["saved"] and result["profile_used"] else "failed"
+    except (ProofError, subprocess.TimeoutExpired) as exc:
+        result["reason"] = str(exc) if isinstance(exc, ProofError) else "timeout"
+    finally:
+        if chats and result.get("saved"):
+            try:
+                command(cli, ["settings", "memories", "undo", "--chat", chats[0]])
+                result["memory_removed"] = True
+            except (ProofError, subprocess.TimeoutExpired):
+                result["memory_removed"] = False
+        for chat_id in chats:
+            try:
+                delete_owned_chat(cli, chat_id)
+            except (ProofError, subprocess.TimeoutExpired):
+                result["chat_deleted"] = False
+    return result
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--session", required=True)
     parser.add_argument("--state-dir", required=True, type=Path)
     parser.add_argument("--output-dir", required=True, type=Path)
     parser.add_argument("--cli", default="openmates")
-    parser.add_argument("--case", action="append", choices=sorted(CASES))
+    parser.add_argument("--case", action="append", choices=sorted([*CASES, "profile-reuse"]))
     parser.add_argument("--timeout-seconds", type=int, default=420)
     parser.add_argument("--allow-paid-dev-inference", action="store_true")
     args = parser.parse_args()
@@ -158,7 +202,8 @@ def main() -> int:
         except DraftGuardError as exc:
             raise ProofError(str(exc)) from exc
         for label in args.case or sorted(CASES):
-            result = run_case(cli, label, CASES[label], out, args.timeout_seconds)
+            result = (run_profile_reuse(cli, out, args.timeout_seconds) if label == "profile-reuse"
+                      else run_case(cli, label, CASES[label], out, args.timeout_seconds))
             receipt["cases"].append(result)
             print(json.dumps(result), flush=True)
         receipt["status"] = "passed" if all(c["status"] == "passed" for c in receipt["cases"]) else "failed"

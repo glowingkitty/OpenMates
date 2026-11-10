@@ -75,6 +75,9 @@ impl Client {
         if options.project_file_jobs && PROJECT_FILE_JOBS_AVAILABLE {
             self.extra_socket_capabilities.push(PROJECT_FILE_JOBS_CAPABILITY);
         }
+        if options.memory_write_jobs {
+            self.extra_socket_capabilities.push(MEMORY_WRITE_JOBS_CAPABILITY);
+        }
         let socket = self.socket_with_task_jobs(options.task_update_jobs).await;
         self.extra_socket_capabilities.clear();
         let mut ws = socket?;

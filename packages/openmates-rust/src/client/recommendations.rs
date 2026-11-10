@@ -124,6 +124,43 @@ pub struct ContextEntryHistoryEvent {
     pub title: String,
     /// Unix seconds.
     pub created_at: i64,
+    /// `assistant` when the main processor wrote the entry itself (the
+    /// `save_memory` tool); absent for entries the user saved. Optional and
+    /// skipped when absent, so user-saved events keep their original bytes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source: Option<ContextEntrySource>,
+    /// What Undo needs for an assistant-written Memory; absent otherwise.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub undo: Option<ContextEntryUndo>,
+}
+
+/// Who wrote the entry a `context_entry` event announces.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ContextEntrySource {
+    /// The assistant wrote it during a chat turn, without a review step.
+    Assistant,
+}
+
+/// Undo data of an assistant-written Memory (`client::memory_write_jobs`).
+///
+/// The Memory id is the event's `entry_id`. The whole event is the plaintext of
+/// a chat-key encrypted system message; the previous document is additionally
+/// sealed with the master key (`encrypt_server_bytes`, IV||ciphertext||tag),
+/// so only the owner can restore it even where the chat key is shared, and the
+/// server never sees it in plaintext.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ContextEntryUndo {
+    /// Server job id of the write (`memory-write-job-<uuid>`).
+    pub job_id: String,
+    /// `create` (Undo deletes) or `update` (Undo restores the previous document).
+    pub action: RecommendationAction,
+    /// Lowercase hex SHA-256 of the document the assistant wrote. Undo refuses
+    /// when the Memory no longer holds exactly that document (edited since).
+    pub written_document_sha256: String,
+    /// Master-key sealed previous document; present exactly for `update`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub encrypted_previous_document: Option<String>,
 }
 
 /// Event type literal of [`ContextEntryHistoryEvent::event_type`].
@@ -277,6 +314,33 @@ fn valid_event(event: &ContextEntryHistoryEvent) -> bool {
         && !event.entry_id.trim().is_empty()
         && !event.title.trim().is_empty()
         && event.created_at >= 0
+        && event
+            .undo
+            .as_ref()
+            .is_none_or(|undo| valid_undo(event, undo))
+}
+
+/// Undo data only on an assistant-written Memory, consistent with the action.
+fn valid_undo(event: &ContextEntryHistoryEvent, undo: &ContextEntryUndo) -> bool {
+    let previous = undo
+        .encrypted_previous_document
+        .as_deref()
+        .is_some_and(|value| !value.is_empty());
+    let matching = match (event.action, undo.action) {
+        (ContextEntryAction::Created, RecommendationAction::Create) => !previous,
+        (ContextEntryAction::Updated, RecommendationAction::Update) => previous,
+        _ => false,
+    };
+    event.source == Some(ContextEntrySource::Assistant)
+        && event.kind == RecommendationKind::Memory
+        && matching
+        && !undo.job_id.is_empty()
+        && undo.job_id.len() <= 128
+        && undo.written_document_sha256.len() == 64
+        && undo
+            .written_document_sha256
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
 }
 
 /// Serializes a validated `context_entry` event as the system message content.

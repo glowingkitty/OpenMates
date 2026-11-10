@@ -3,6 +3,8 @@
 use super::settings_more::text_output;
 use super::{CliError, CliOutput, Invocation, handlers, path};
 use crate::client::Client;
+use crate::client::memory_documents::MemoryDocumentError;
+use crate::client::memory_write_jobs::MemoryUndoOutcome;
 use serde_json::{Value, json};
 
 pub(super) fn supported(invocation: &Invocation) -> bool {
@@ -14,12 +16,34 @@ pub(super) fn supported(invocation: &Invocation) -> bool {
                 | "memories create"
                 | "memories update"
                 | "memories delete"
+                | "memories undo"
         )
 }
 /// Typed app memories were replaced by Memories (personal documents).
 const TYPED_MEMORIES_REMOVED: &str = "Typed app memories were replaced by Memories (personal documents). Manage them in the web app under Settings > Memories.";
 fn flag<'a>(i: &'a Invocation, name: &str) -> Option<&'a str> {
     i.text(name).filter(|v| !v.is_empty())
+}
+/// Maps a core Memory refusal to the CLI's stable `code` contract error.
+fn memory_error(error: MemoryDocumentError) -> CliError {
+    match error {
+        MemoryDocumentError::Core(error) => CliError::Client(error),
+        other => CliError::Contract {
+            code: other.code(),
+            message: match other {
+                MemoryDocumentError::Changed => {
+                    "This Memory changed after the assistant wrote it; Undo was not applied.".into()
+                }
+                MemoryDocumentError::NotFound => "This Memory no longer exists.".into(),
+                _ => format!("Undo failed: {other}."),
+            },
+        },
+    }
+}
+/// `--id` accepts the `settings memories list` id (`account-memory-<id>`) or the core id.
+fn matches_memory(entry_id: &str, wanted: &str) -> bool {
+    let wanted = wanted.strip_prefix("account-memory-").unwrap_or(wanted);
+    entry_id == wanted || entry_id.strip_prefix("personal:") == Some(wanted)
 }
 fn fail(message: &str) -> CliError {
     CliError::Invalid(message.into())
@@ -83,6 +107,45 @@ fn list_text(memories: &[Value]) -> String {
     out
 }
 
+/// `settings memories undo`: reverts the newest assistant write of a chat
+/// (optionally of one Memory) through the core's sha-guarded Undo.
+async fn undo(
+    i: &Invocation,
+    client: &mut Client,
+    json_output: bool,
+) -> Result<CliOutput, CliError> {
+    handlers::flags(i, &["chat", "id"])?;
+    let usage = "Usage: openmates settings memories undo --chat <chat-id> [--id <entry-id>]";
+    let chat = flag(i, "chat").ok_or_else(|| fail(&format!("Missing chat ID.\n\n{usage}")))?;
+    let wanted = flag(i, "id");
+    // Newest assistant write first: Undo reverts the latest write of that Memory.
+    let event = client
+        .assistant_memory_writes(chat)
+        .await?
+        .into_iter()
+        .rev()
+        .find(|event| wanted.is_none_or(|id| matches_memory(&event.entry_id, id)))
+        .ok_or_else(|| fail("No assistant Memory write to undo in this chat."))?;
+    let outcome = client
+        .undo_assistant_memory_write(&event)
+        .await
+        .map_err(memory_error)?;
+    if json_output {
+        CliOutput::json(
+            &json!({"undone": true, "outcome": outcome, "memory_id": event.entry_id, "title": event.title}),
+        )
+    } else {
+        let verb = match outcome {
+            MemoryUndoOutcome::Deleted => "deleted",
+            MemoryUndoOutcome::Restored => "restored to its previous version",
+        };
+        Ok(text_output(format!(
+            "\x1b[32m✓\x1b[0m Memory {verb}: {}\n",
+            super::super::terminal_text(&event.title)
+        )))
+    }
+}
+
 pub(super) async fn execute(i: &Invocation, client: &mut Client) -> Result<CliOutput, CliError> {
     let command = path(i);
     let json_output = i.boolean("json");
@@ -138,6 +201,8 @@ pub(super) async fn execute(i: &Invocation, client: &mut Client) -> Result<CliOu
                 Ok(text_output("\x1b[32m✓\x1b[0m Memory deleted\n".into()))
             }
         }
+        // Boxed: keeps the chat read and settings write out of every command future.
+        "memories undo" => Box::pin(undo(i, client, json_output)).await,
         _ => Err(CliError::Unsupported {
             command: i.command_path(),
             reason: "Unknown memories action.".into(),

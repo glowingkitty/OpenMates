@@ -147,7 +147,10 @@ pub use chat_list_freshness::CacheClockEvidence;
 pub use sync::FreshChatInventory;
 mod project_create_request;
 use project_create_request::PROJECT_CREATE_CAPABILITY;
+pub mod memory_documents;
+pub mod memory_write_jobs;
 mod project_file_jobs;
+use memory_write_jobs::MEMORY_WRITE_JOBS_CAPABILITY;
 use project_file_jobs::{PROJECT_FILE_JOBS_AVAILABLE, PROJECT_FILE_JOBS_CAPABILITY};
 #[cfg(all(feature = "workflow-yaml", unix))]
 mod hosted_file_io;

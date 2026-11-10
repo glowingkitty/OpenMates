@@ -54,6 +54,8 @@ pub(super) struct ProjectCreateState {
     entries: BTreeMap<String, Entry>,
     /// Assistant Project file jobs of this turn (`project_file_jobs`).
     pub(super) file_jobs: super::project_file_jobs::FileJobState,
+    /// Assistant Memory write jobs of this turn (`memory_write_jobs`).
+    pub(super) memory_jobs: super::memory_write_jobs::MemoryJobState,
 }
 
 impl ProjectCreateState {
@@ -84,6 +86,7 @@ impl Wipe for ProjectCreateState {
         // Records hold the decrypted Project name.
         self.entries.clear();
         self.file_jobs.clear();
+        self.memory_jobs.clear();
     }
 }
 
@@ -130,6 +133,11 @@ impl Client {
         #[cfg(all(feature = "workflow-yaml", unix))]
         if kind.starts_with("project_file_operation_") {
             return self.project_file_job_event(ws, kind, event, chat, &mut state.file_jobs).await;
+        }
+        // Memory write jobs share this turn phase so the owned driver needs no new call.
+        if super::memory_write_jobs::is_job_frame(kind) {
+            // Boxed: keeps this rare path out of every send future's stack frame.
+            return Box::pin(self.memory_write_job_event(ws, kind, event, chat, &mut state.memory_jobs)).await;
         }
         let outgoing = self
             .project_create_report(kind, event, chat, now_ms() / 1000, state)

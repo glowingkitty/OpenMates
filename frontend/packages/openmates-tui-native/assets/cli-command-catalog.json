@@ -56205,6 +56205,42 @@
       "path": [
         "settings",
         "memories",
+        "undo"
+      ],
+      "summary": "settings memories undo",
+      "usages": [
+        "settings memories undo --chat <chat-id> [--id <entry-id>] [--json]"
+      ],
+      "positionals": [],
+      "flags": [
+        "api-key",
+        "api-url",
+        "chat",
+        "help",
+        "id",
+        "json",
+        "profile"
+      ],
+      "source_locations": [],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "sdk.memory_write_jobs.undo",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/account/memories.rs"
+      },
+      "gaps": [
+        "Native-only (no npm CLI counterpart): Undo of an assistant Memory write, core in packages/openmates-rust/src/client/memory_write_jobs.rs; personal Memories only; refuses a Memory edited since the write."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "settings",
+        "memories",
         "list"
       ],
       "summary": "settings memories list",
@@ -63757,9 +63793,9 @@
     "Remote command protection is Linux-specific; unsupported hosts must fail closed."
   ],
   "coverage": {
-    "command_patterns": 740,
+    "command_patterns": 741,
     "flags": 610,
-    "native_handlers_partial": 735,
+    "native_handlers_partial": 736,
     "unsupported": 5,
     "feature_complete": false
   },

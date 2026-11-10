@@ -138,6 +138,10 @@ impl Client {
             let capabilities = inference["client_capabilities"].as_array_mut().ok_or(Error::Protocol)?;
             capabilities.push(json!(PROJECT_FILE_JOBS_CAPABILITY));
         }
+        if options.memory_write_jobs {
+            let capabilities = inference["client_capabilities"].as_array_mut().ok_or(Error::Protocol)?;
+            capabilities.push(json!(MEMORY_WRITE_JOBS_CAPABILITY));
+        }
         let (active_focus, mut focus_state) = self.current_focus_state(id, key)?;
         inference["active_focus_id"] = json!(active_focus);
         inference["focus_phase_state"] = focus_state.clone();
@@ -154,6 +158,9 @@ impl Client {
             for row in rows{
                 let sender=Plain::new(decrypt_optional(row,"encrypted_sender_name",key)?);
                 let content=Plain::new(decrypt_optional(row,"encrypted_content",key)?);
+                // Presentation-only history events never reach the AI (web:
+                // withoutPresentationOnlyEvents); they may carry sealed Undo data.
+                if row["role"]=="system" && crate::client::recommendations::parse_context_entry_event(&content).is_some(){continue;}
                 history.push(json!({"message_id":row.get("client_message_id").or_else(||row.get("message_id")).or_else(||row.get("id")),"chat_id":id,"role":row["role"],"sender_name":sender.as_str(),"content":content.as_str(),"created_at":row["created_at"]}));
             }
             if !history.is_empty(){inference["message_history"]=json!(history.as_slice());}
