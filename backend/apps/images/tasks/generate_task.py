@@ -941,6 +941,16 @@ async def _review_and_follow_up_recraft_svg(
     return fixed
 
 
+def _planned_display_model(model_ref: Optional[str], output_filetype: str, use_vector_author: bool,
+                           quality: str) -> Optional[str]:
+    """Short id of the model that starts this request, as the client's model metadata knows it."""
+    if use_vector_author:
+        return VECTOR_AUTHOR_MODELS[0].split("/")[-1]
+    if output_filetype == "svg":
+        return RECRAFT_MODEL_MAX if quality == "max" else RECRAFT_MODEL_DEFAULT
+    return model_ref.split("/")[-1] if model_ref else None
+
+
 class _VectorDraftPublisher:
     """Sends the SVG written so far to the client so the picture builds up while it is drawn.
 
@@ -950,7 +960,8 @@ class _VectorDraftPublisher:
 
     def __init__(self, task: BaseServiceTask, *, arguments: Dict[str, Any], embed_id: str, prompt: Any,
                  aspect_ratio: str, user_id: str, chat_id: Optional[str], message_id: Optional[str],
-                 log_prefix: str) -> None:
+                 log_prefix: str, output_filetype: str = "svg", model: Optional[str] = None,
+                 input_embed_ids: Optional[List[str]] = None) -> None:
         from backend.core.api.app.services.embed_service import EmbedService
         self._embed_service = EmbedService(
             cache_service=task._cache_service,
@@ -961,13 +972,19 @@ class _VectorDraftPublisher:
         self._parent_embed_id = arguments.get("producer_embed_id") or embed_id
         self._base_content = {
             "app_id": "images", "skill_id": "generate", "type": "generated_image", "status": "processing",
-            "prompt": prompt, "aspect_ratio": aspect_ratio, "output_filetype": "svg",
+            "prompt": prompt, "aspect_ratio": aspect_ratio, "output_filetype": output_filetype,
+            # What the skill was asked to do, shown on the card until a picture exists.
+            "model": model, "input_embed_ids": list(input_embed_ids or []),
         }
         self._user_id = user_id
         self._user_id_hash = _hash_value(user_id)
         self._chat_id = chat_id
         self._message_id = message_id
         self._log_prefix = log_prefix
+
+    async def announce(self) -> None:
+        """Tell the client the request (prompt, model, input images) before any picture exists."""
+        await self.publish("", "starting", 1)
 
     async def publish(self, svg_draft: str, stage: str, attempt: int) -> None:
         if not self._chat_id or not self._message_id:
@@ -1032,6 +1049,18 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         # 3. Get embed_id from arguments (passed by the skill) or generate new one
         embed_id = arguments.get("embed_id") or str(uuid.uuid4())
         logger.info(f"{log_prefix} Using embed_id: {embed_id}")
+
+        # The card shows the request while nothing is drawn yet. The model named
+        # here is the one that starts the work; the finished embed stores the
+        # model that actually produced the result.
+        progress_publisher = None if external_request else _VectorDraftPublisher(
+            task, arguments=arguments, embed_id=embed_id, prompt=prompt, aspect_ratio=aspect_ratio,
+            user_id=user_id, chat_id=chat_id, message_id=message_id, log_prefix=log_prefix,
+            output_filetype=output_filetype, input_embed_ids=reference_image_embed_ids,
+            model=_planned_display_model(model_ref, output_filetype, use_vector_author, quality),
+        )
+        if progress_publisher:
+            await progress_publisher.announce()
         from backend.core.api.app.services.embed_service import EmbedService
         await EmbedService.assert_registered_output_can_generate(
             task._directus_service, embed_id=arguments.get("producer_embed_id") or embed_id, chat_id=chat_id,
@@ -1224,10 +1253,7 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         metered_credits: Optional[int] = None
         metered_usage: Optional[Dict[str, Any]] = None
         authored: Optional[VectorAuthorResult] = None
-        draft_publisher = _VectorDraftPublisher(
-            task, arguments=arguments, embed_id=embed_id, prompt=prompt, aspect_ratio=aspect_ratio,
-            user_id=user_id, chat_id=chat_id, message_id=message_id, log_prefix=log_prefix,
-        ) if output_filetype == "svg" and not external_request else None
+        draft_publisher = progress_publisher if output_filetype == "svg" else None
         on_draft = draft_publisher.publish if draft_publisher else None
         if use_vector_author:
             # --- SVG branch: vector author (writes the SVG or a generator script, checks, corrects) ---

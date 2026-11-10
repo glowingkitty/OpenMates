@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { childDraftContent, mergeSvgDraft, readSvgDraft, shouldShowSvgDraft, svgDraftStageLabelKey } from '../svgDraft';
+import {
+  EMPTY_GENERATION_REQUEST, childDraftContent, hasDrawableSvg, mergeSvgDraft, readGenerationRequest, readSvgDraft,
+  shouldShowSvgDraft, svgDraftStageLabelKey,
+} from '../svgDraft';
 
 describe('svgDraft helpers', () => {
   // contract-test: supporting surface=gui.web assertions=images-generate.vector.progressive-drafts
@@ -60,5 +63,20 @@ describe('svgDraft helpers', () => {
     expect(childDraftContent({ ...detail, status: 'finished' }, 'card')).toBeNull();
     expect(childDraftContent({ ...detail, content: '' }, 'card')).toBeNull();
     expect(childDraftContent({ ...detail, embed_id: 'card' }, 'card')).toBeNull();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=images-generate.vector.progressive-drafts
+  it('treats a header-only draft as nothing to look at yet', () => {
+    expect(hasDrawableSvg('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">')).toBe(false);
+    expect(hasDrawableSvg('<svg viewBox="0 0 10 10"><path d="M0 0')).toBe(false);
+    expect(hasDrawableSvg('<svg viewBox="0 0 10 10"><path d="M0 0L5 5"/>')).toBe(true);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=images-generate.vector.progressive-drafts
+  it('reads the announced request and keeps earlier values when an update omits them', () => {
+    const first = readGenerationRequest({ prompt: ' A fire tail ', model: 'gpt-6.1-sol', input_embed_ids: ['a', 3, ''] });
+    expect(first).toEqual({ prompt: 'A fire tail', model: 'gpt-6.1-sol', inputEmbedIds: ['a'] });
+    expect(readGenerationRequest({ svg_draft: '<svg' }, first)).toEqual(first);
+    expect(readGenerationRequest(null)).toEqual(EMPTY_GENERATION_REQUEST);
   });
 });

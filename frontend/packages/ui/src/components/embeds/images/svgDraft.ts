@@ -36,6 +36,42 @@ export function shouldShowSvgDraft(status: string, draft: string): boolean {
   return status === 'processing' && draft.trim().length > 0;
 }
 
+const DRAWABLE_SVG_ELEMENT = /<(path|rect|circle|ellipse|polygon|polyline|line|text|image|use)\b[^>]*>/i;
+
+/**
+ * True once the draft holds at least one complete drawable element. The first
+ * draft chunks carry only the `<svg>` header, which renders as an empty box, so
+ * the card keeps showing the request until there is something to look at.
+ */
+export function hasDrawableSvg(draft: string): boolean {
+  return DRAWABLE_SVG_ELEMENT.test(draft);
+}
+
+/** What the skill was asked to do, as announced by a processing update. */
+export interface GenerationRequestInfo {
+  prompt: string;
+  /** Short model id as known to the model metadata; empty while unknown */
+  model: string;
+  /** Embeds passed as input images (a modification when not empty) */
+  inputEmbedIds: string[];
+}
+
+export const EMPTY_GENERATION_REQUEST: GenerationRequestInfo = { prompt: '', model: '', inputEmbedIds: [] };
+
+/** Read the announced request; fields missing in this update keep their earlier value. */
+export function readGenerationRequest(
+  content: Record<string, unknown> | null | undefined,
+  prev: GenerationRequestInfo = EMPTY_GENERATION_REQUEST,
+): GenerationRequestInfo {
+  if (!content) return prev;
+  const prompt = typeof content.prompt === 'string' && content.prompt.trim() ? content.prompt.trim() : prev.prompt;
+  const model = typeof content.model === 'string' && content.model ? content.model : prev.model;
+  const ids = Array.isArray(content.input_embed_ids)
+    ? content.input_embed_ids.filter((id): id is string => typeof id === 'string' && id.length > 0)
+    : [];
+  return { prompt, model, inputEmbedIds: ids.length > 0 ? ids : prev.inputEmbedIds };
+}
+
 /** i18n key for the status label, or null while simply drawing. */
 export function svgDraftStageLabelKey(stage: SvgDraftStage | undefined): string | null {
   if (stage === 'checking') return 'embeds.image_generate.checking';
