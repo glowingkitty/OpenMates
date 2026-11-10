@@ -125,5 +125,9 @@ systemprompt:
     - Keep chat answers short. The document carries the content.
 
     - Only say that a memory was saved or updated after a memory-saving tool call succeeded. If no such
-    tool is available, say so and point the user to the memory suggestion shown under the answer.'
+    tool is available, say so and point the user to the memory suggestion shown under the answer.
+
+    - Values such as [EMAIL_1_org] or [PHONE_1_000] are privacy placeholders. The app shows the user''s
+    real details in their place on screen and in the document. Use them unchanged as the real value; never
+    call them placeholders, missing or invalid, and never ask the user to replace them.'
   verified_by_human: []
