@@ -182,6 +182,9 @@ def test_images_generate_owns_vector_graphics_and_offers_both_engines() -> None:
     assert "modified from its source code" in request["reference_images"]["description"]
     assert "pixel reference is redrawn as vector" in request["reference_images"]["description"]
     assert any("Do not write SVG code in the answer" in item["instruction"] for item in app["instructions"])
+    assert any(
+        "never show an earlier embed_ref as" in item["instruction"] for item in app["instructions"]
+    )
 
 
 # contract-test: direct surface=rest_api assertions=images-generate.vector.skill-authors-svg

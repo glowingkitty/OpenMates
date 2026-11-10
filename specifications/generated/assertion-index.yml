@@ -41524,7 +41524,7 @@ assertions:
       surface: rest_api
     - &id5202
       path: backend/tests/test_ai_instruction_contracts.py
-      line: 188
+      line: 191
       name: test_images_app_catalogue_tells_preprocessing_about_vector_graphics
       surface: rest_api
     - &id5203
@@ -41549,7 +41549,7 @@ assertions:
       surface: rest_api
     - &id5207
       path: frontend/apps/web_app/tests/vector-graphic-chat.spec.ts
-      line: 96
+      line: 100
       name: embroidery vector graphic is made by the images skill, shows progress,
         and follow-ups modify it
       surface: gui.web
@@ -41625,7 +41625,7 @@ assertions:
       surface: rest_api
     - &id5214
       path: frontend/apps/web_app/tests/vector-graphic-chat.spec.ts
-      line: 96
+      line: 100
       name: embroidery vector graphic is made by the images skill, shows progress,
         and follow-ups modify it
       surface: gui.web
@@ -41748,7 +41748,7 @@ assertions:
       surface: rest_api
     - &id5226
       path: frontend/apps/web_app/tests/vector-graphic-chat.spec.ts
-      line: 96
+      line: 100
       name: embroidery vector graphic is made by the images skill, shows progress,
         and follow-ups modify it
       surface: gui.web

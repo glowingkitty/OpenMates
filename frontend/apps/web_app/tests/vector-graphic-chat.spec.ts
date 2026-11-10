@@ -44,7 +44,8 @@ const FINISHED_IMAGE =
 interface DraftProbe {
 	stage: string;
 	size: number;
-	finished: number;
+	/** Embed ids of finished image cards whose picture is loaded (off-screen cards unload theirs). */
+	finishedIds: string[];
 	model: string;
 }
 
@@ -56,14 +57,16 @@ async function probeDrawing(page: any): Promise<DraftProbe> {
 		return {
 			stage: (draft ?? status)?.getAttribute('data-stage') ?? 'none',
 			size: image ? image.src.length : 0,
-			finished: document.querySelectorAll(finishedSelector).length,
+			finishedIds: Array.from(document.querySelectorAll(finishedSelector)).map(
+				(image) => image.closest('[data-embed-id]')?.getAttribute('data-embed-id') ?? ''
+			),
 			model: document.querySelector('[data-testid="using-model"]')?.textContent ?? ''
 		};
 	}, FINISHED_IMAGE);
 }
 
-/** Follow one drawing until `finishedTarget` finished vector images are on screen. */
-async function followDrawing(page: any, finishedTarget: number, onFirstProgress: () => Promise<void>) {
+/** Follow one drawing until `finishedTarget` different finished vector images have been shown. */
+async function followDrawing(page: any, seen: Set<string>, finishedTarget: number, onFirstProgress: () => Promise<void>) {
 	const timeline: string[] = [];
 	const sizes = new Set<number>();
 	const stages = new Set<string>();
@@ -77,9 +80,10 @@ async function followDrawing(page: any, finishedTarget: number, onFirstProgress:
 			stages.add(probe.stage);
 		}
 		if (probe.size > 0) sizes.add(probe.size);
-		const state = `${probe.stage}:${probe.size}:${probe.finished}`;
+		for (const embedId of probe.finishedIds) if (embedId) seen.add(embedId);
+		const state = `${probe.stage}:${probe.size}:${seen.size}`;
 		if (timeline[timeline.length - 1]?.split('@')[0] !== state) timeline.push(`${state}@${Date.now() - startedAt}`);
-		if (probe.finished >= finishedTarget) break;
+		if (seen.size >= finishedTarget) break;
 		await page.waitForTimeout(100);
 	}
 	return { timeline, sizes, stages, model };
@@ -105,7 +109,8 @@ test('embroidery vector graphic is made by the images skill, shows progress, and
 	await startNewChat(page, log);
 
 	await sendMessage(page, FIRST_PROMPT, log);
-	const created = await followDrawing(page, 1, () => screenshot(page, 'svg-in-progress'));
+	const seen = new Set<string>();
+	const created = await followDrawing(page, seen, 1, () => screenshot(page, 'svg-in-progress'));
 	log(`create timeline: ${created.timeline.join(' ')}`);
 	test.info().annotations.push({ type: 'svg-create-timeline', description: created.timeline.join(' ') });
 	test.info().annotations.push({ type: 'chat-model', description: created.model });
@@ -125,7 +130,8 @@ test('embroidery vector graphic is made by the images skill, shows progress, and
 	for (const [index, prompt] of FOLLOW_UPS.entries()) {
 		const target = index + 2;
 		await sendMessage(page, prompt, log);
-		const modified = await followDrawing(page, target, () => screenshot(page, `svg-modifying-${index + 1}`));
+		const before = new Set(seen);
+		const modified = await followDrawing(page, seen, target, () => screenshot(page, `svg-modifying-${index + 1}`));
 		log(`modify ${index + 1} timeline: ${modified.timeline.join(' ')}`);
 		test.info().annotations.push({
 			type: `svg-modify-${index + 1}-timeline`,
@@ -133,13 +139,18 @@ test('embroidery vector graphic is made by the images skill, shows progress, and
 		});
 		expect(modified.stages.size, `follow-up ${index + 1} showed progress`).toBeGreaterThan(0);
 
-		await expect(page.locator(FINISHED_IMAGE)).toHaveCount(target, { timeout: ANSWER_TIMEOUT });
+		// A new finished image was added; the earlier one keeps its own card further up.
+		expect(seen.size, `follow-up ${index + 1} produced a new image`).toBe(target);
+		const newId = [...seen].find((embedId) => !before.has(embedId));
 		await expect(page.getByTestId('typing-indicator')).not.toBeVisible({ timeout: ANSWER_TIMEOUT });
-		const src = await page.locator(FINISHED_IMAGE).nth(target - 1).getAttribute('src');
+		const newImage = page.locator(`[data-embed-id="${newId}"] [data-testid="image-generate-preview-image"]`).first();
+		await newImage.scrollIntoViewIfNeeded();
+		await expect(newImage).toBeVisible({ timeout: ANSWER_TIMEOUT });
+		const src = await newImage.getAttribute('src');
 		expect(src).toBeTruthy();
 		expect(sources).not.toContain(src);
 		sources.push(src);
-		await page.locator(FINISHED_IMAGE).nth(target - 1).scrollIntoViewIfNeeded();
+		await expect(page.getByTestId('svg-embed-visual')).toHaveCount(0);
 		await screenshot(page, `svg-modified-${index + 1}`);
 	}
 

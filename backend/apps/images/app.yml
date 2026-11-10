@@ -257,6 +257,9 @@ instructions:
       Do not write SVG code in the answer unless the user explicitly asks to see or get the raw source.
       To change a graphic made earlier in the chat, call images-generate with output_filetype "svg",
       the embed_ref of that graphic in reference_images, and a prompt that states only the requested change.
+      Every requested change needs its own new images-generate call in this turn, also for small changes
+      such as colours. Never say an image or graphic was changed, and never show an earlier embed_ref as
+      the changed result, unless images-generate returned a new result in this turn.
       One request per wanted variation; keep each prompt short and concrete (subject, style, colours, text,
       intended use such as print, embroidery or cutting).
       Choose vector_engine "script" when shapes should be computed (mathematical, symmetric, repeated, smooth
