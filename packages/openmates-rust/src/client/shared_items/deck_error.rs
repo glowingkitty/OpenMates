@@ -45,9 +45,6 @@ pub enum DeckError {
     LastSlide,
     /// A to-do item index outside the list.
     ItemOutOfRange(usize),
-    /// The slides markup has no field for this state, so it cannot be saved. The
-    /// operation is refused instead of keeping state that would be lost on save.
-    FormatGap(&'static str),
     /// Update or state-vector bytes that are not valid Yjs v1 encoding.
     InvalidUpdate(String),
 }
@@ -66,7 +63,6 @@ impl DeckError {
             Self::LimitReached(_) => "slides_limit_reached",
             Self::LastSlide => "slides_last_slide",
             Self::ItemOutOfRange(_) => "slides_item_out_of_range",
-            Self::FormatGap(_) => "slides_format_gap",
             Self::InvalidUpdate(_) => "shared_item_invalid_update",
         }
     }
@@ -104,7 +100,6 @@ impl fmt::Display for DeckError {
             Self::LimitReached(what) => write!(f, "limit reached: {what}"),
             Self::LastSlide => f.write_str("the last slide cannot be deleted"),
             Self::ItemOutOfRange(index) => write!(f, "to-do item {index} does not exist"),
-            Self::FormatGap(what) => write!(f, "slides markup cannot store {what}"),
             Self::InvalidUpdate(reason) => write!(f, "invalid update bytes: {reason}"),
         }
     }

@@ -29,6 +29,7 @@ export const DEFAULT_TEMPLATE = 'builtin:plain';
 export const MAX_SOURCE_CHARS = 1_000_000;
 export const MAX_SLIDES = 200;
 export const MAX_ELEMENTS_PER_SLIDE = 200;
+export const MAX_NOTE_CHARS = 5000;
 
 const COLOR_TOKENS = new Set(['background', 'foreground', 'accent', 'accent-2', 'muted', 'surface']);
 const SAFE_FONTS = new Map(
@@ -47,7 +48,7 @@ const FITS = ['cover', 'contain'] as const;
 const INLINE_TAGS = new Set(['b', 'i', 'u', 's', 'br', 'ul', 'ol', 'li']);
 const ELEMENT_TAGS = new Set(['text', 'image', 'video', 'shape', 'notepad', 'todo', 'link', 'block']);
 /** Elements the backend treats as void (never hold children). */
-const VOID_ELEMENTS = new Set(['image', 'video', 'shape', 'notepad']);
+const VOID_ELEMENTS = new Set(['image', 'video', 'shape']);
 /** Names the HTML parser would otherwise rewrite (`image`) or treat as void (`link`). */
 const RENAMED_ELEMENTS = new Set(['image', 'link']);
 const DANGEROUS_TAGS = new Set([
@@ -124,10 +125,15 @@ export interface ShapeElement extends ElementBase {
 export interface NotepadElement extends ElementBase {
   type: 'notepad';
   title: string;
+  /** Plain-text body (newlines kept); empty when nothing was typed. */
+  text: string;
+  /** Hidden elements keep their content but are not rendered. */
+  hidden: boolean;
 }
 export interface TodoElement extends ElementBase {
   type: 'todo';
   title: string;
+  hidden: boolean;
   items: { done: boolean; label: string }[];
 }
 export interface LinkElement extends ElementBase {
@@ -178,6 +184,16 @@ function cleanInt(value: string | null, low: number, high: number): number | und
 
 function cleanLabel(value: string, max = 300): string {
   return value.replace(/\s+/g, ' ').trim().slice(0, max);
+}
+
+/** Notepad body, same rules as the backend `_clean_note`. */
+function cleanNote(value: string): string {
+  // eslint-disable-next-line no-control-regex -- control characters are exactly what is dropped
+  return value.replace(/[\x00-\x08\x0b-\x1f\x7f]/g, '').trim().slice(0, MAX_NOTE_CHARS).trimEnd();
+}
+
+function cleanHidden(value: string | null): boolean {
+  return (value ?? '').trim().toLowerCase() === 'true';
 }
 
 function cleanColor(value: string | null): string | undefined {
@@ -561,10 +577,14 @@ function buildElement(
         stroke: cleanColor(node.getAttribute('stroke'))
       };
     case 'notepad':
-      return { ...base, type: 'notepad', title: cleanLabel(node.getAttribute('title') ?? '') };
+      return {
+        ...base, type: 'notepad', title: cleanLabel(node.getAttribute('title') ?? ''),
+        text: cleanNote(plainText(node)), hidden: cleanHidden(node.getAttribute('hidden'))
+      };
     case 'todo':
       return {
         ...base, type: 'todo', title: cleanLabel(node.getAttribute('title') ?? ''),
+        hidden: cleanHidden(node.getAttribute('hidden')),
         items: collect(node, 'item').map((item) => ({
           done: (item.getAttribute('done') ?? '').trim().toLowerCase() === 'true',
           label: cleanLabel(plainText(item))

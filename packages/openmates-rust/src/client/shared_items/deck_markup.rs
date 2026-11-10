@@ -7,8 +7,9 @@
 use super::deck_error::DeckError;
 use super::deck_inline::parse_inline;
 use super::deck_values::{
-    DeckAspect, ElementKind, GEOMETRY, clamp_box, clean_attribute, clean_layout, clean_title,
-    clean_transition, escape_attr, escape_text, is_valid_id, is_valid_template, unescape,
+    DeckAspect, ElementKind, GEOMETRY, clamp_box, clean_attribute, clean_layout, clean_note_text,
+    clean_title, clean_transition, escape_attr, escape_text, is_valid_id, is_valid_template,
+    unescape,
 };
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -68,8 +69,10 @@ pub struct ElementModel {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", content = "value", rename_all = "snake_case")]
 pub enum ElementContent {
-    /// Void elements (`image`, `video`, `shape`, `notepad`).
+    /// Void elements (`image`, `video`, `shape`).
     Empty,
+    /// `notepad`: plain text body; empty text is written as a self-closing tag.
+    Plain(String),
     /// `text`: normalised inline markup (`b i u s br ul ol li`, escaped text).
     RichText(String),
     /// `link`: plain label.
@@ -195,7 +198,8 @@ fn write_element(element: &ElementModel, out: &mut String) {
             out.push_str(&format!(" {name}=\"{}\"", escape_attr(value)));
         }
     }
-    if element.kind.is_void() {
+    let empty_note = matches!(&element.content, ElementContent::Plain(text) if text.is_empty());
+    if element.kind.is_void() || empty_note {
         out.push_str("/>");
         return;
     }
@@ -213,6 +217,7 @@ fn write_element(element: &ElementModel, out: &mut String) {
             }
         }
         ElementContent::Verbatim(body) => out.push_str(body),
+        ElementContent::Plain(text) => out.push_str(&escape_text(text)),
         ElementContent::Empty => {}
     }
     out.push_str("</");
@@ -405,7 +410,7 @@ impl<'a> Parser<'a> {
         let Some(kind) = ElementKind::parse(name) else {
             return self.fail("unknown element");
         };
-        if self_closing != kind.is_void() {
+        if self_closing != kind.is_void() && kind != ElementKind::Notepad {
             return self.fail("wrong void/content form for element");
         }
         let mut id = None;
@@ -434,7 +439,11 @@ impl<'a> Parser<'a> {
         {
             return self.fail("element misses a required attribute");
         }
-        let content = self.content(kind)?;
+        let content = if self_closing && kind == ElementKind::Notepad {
+            ElementContent::Plain(String::new())
+        } else {
+            self.content(kind)?
+        };
         Ok(ElementModel::from_attributes(id, kind, clean, content))
     }
 
@@ -483,9 +492,17 @@ impl<'a> Parser<'a> {
                 }
                 ElementContent::Verbatim(body.to_string())
             }
-            ElementKind::Image | ElementKind::Video | ElementKind::Shape | ElementKind::Notepad => {
-                ElementContent::Empty
+            ElementKind::Notepad => {
+                let raw = self.until("</notepad>", "unterminated notepad")?;
+                let Some(text) = unescape(raw) else {
+                    return self.fail("unknown character reference");
+                };
+                if text.is_empty() || clean_note_text(&text) != text {
+                    return self.fail("notepad text is empty or not normalised");
+                }
+                ElementContent::Plain(text)
             }
+            ElementKind::Image | ElementKind::Video | ElementKind::Shape => ElementContent::Empty,
         })
     }
 }

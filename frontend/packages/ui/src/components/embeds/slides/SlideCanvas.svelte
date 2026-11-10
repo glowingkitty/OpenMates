@@ -35,7 +35,13 @@
   let scale = $derived(viewportWidth > 0 ? viewportWidth / width : 0);
   let template = $derived(getTemplate(templateId));
   let placed = $derived(placeElements(slide, template, height));
-  let visible = $derived(placed.filter((entry) => entry.element.step <= step));
+  let visible = $derived(
+    placed.filter(
+      (entry) =>
+        entry.element.step <= step &&
+        !((entry.element.type === 'notepad' || entry.element.type === 'todo') && entry.element.hidden)
+    )
+  );
 
   function boxStyle(box: { x: number; y: number; w: number; h: number }): string {
     return `left:${box.x}px;top:${box.y}px;width:${box.w}px;height:${box.h}px`;
@@ -119,6 +125,7 @@
           {:else if element.type === 'notepad'}
             <div class="card-element">
               <div class="card-title">{element.title}</div>
+              {#if element.text}<div class="note-text">{element.text}</div>{/if}
             </div>
           {:else if element.type === 'todo'}
             <div class="card-element">
@@ -242,6 +249,11 @@
     font-weight: bold;
     margin-bottom: 12px;
     color: var(--slide-color-foreground);
+  }
+
+  .note-text {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
   }
 
   .todo-list {

@@ -10,7 +10,7 @@ use super::deck_inline::{INLINE_TAGS, InlineNode, normalise_nodes, parse_inline}
 use super::deck_markup::{DeckModel, ElementContent, ElementModel, SlideModel, TodoItem};
 use super::deck_values::{
     DEFAULT_TEMPLATE, DeckAspect, ElementKind, clamp_box, clean_attribute, clean_item_label,
-    clean_layout, clean_notes, clean_title, clean_transition, is_valid_template,
+    clean_layout, clean_note_text, clean_notes, clean_title, clean_transition, is_valid_template,
 };
 use std::collections::{BTreeMap, HashSet};
 use yrs::types::xml::XmlIn;
@@ -28,6 +28,7 @@ pub(crate) const KEY_BODY: &str = "body";
 pub(crate) const KEY_LABEL: &str = "label";
 pub(crate) const KEY_ITEMS: &str = "items";
 pub(crate) const KEY_CODE: &str = "code";
+pub(crate) const KEY_NOTE: &str = "note";
 pub(crate) const KEY_ELEMENTS: &str = "elements";
 pub(crate) const KEY_ELEMENT_ORDER: &str = "element_order";
 
@@ -211,6 +212,13 @@ pub(crate) fn write_content(
         ElementContent::Verbatim(code) => {
             map.insert(txn, KEY_CODE, code.clone());
         }
+        ElementContent::Plain(text) => {
+            if text.is_empty() {
+                map.remove(txn, KEY_NOTE);
+            } else {
+                map.insert(txn, KEY_NOTE, text.clone());
+            }
+        }
     }
     Ok(())
 }
@@ -335,9 +343,10 @@ fn read_element<T: ReadTxn>(
         ElementKind::Block => {
             ElementContent::Verbatim(get_string(map, txn, KEY_CODE).unwrap_or_default())
         }
-        ElementKind::Image | ElementKind::Video | ElementKind::Shape | ElementKind::Notepad => {
-            ElementContent::Empty
-        }
+        ElementKind::Notepad => ElementContent::Plain(clean_note_text(
+            &get_string(map, txn, KEY_NOTE).unwrap_or_default(),
+        )),
+        ElementKind::Image | ElementKind::Video | ElementKind::Shape => ElementContent::Empty,
     };
     Some(ElementModel::from_attributes(id, kind, attrs, content))
 }

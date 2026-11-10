@@ -86,3 +86,64 @@ def test_empty_or_slideless_markup_is_rejected() -> None:
         normalise_slides_markup("   ")
     with pytest.raises(SlidesMarkupError):
         normalise_slides_markup("<deck><text>no slide</text></deck>")
+
+
+# Shared with packages/openmates-rust (deck_markup_tests.rs NOTEPAD_DECK): both
+# implementations must serialise this exact deck identically.
+NOTEPAD_DECK = """<deck title="Notes" aspect="16:9" template="builtin:plain">
+  <slide id="s1">
+    <notepad id="e1" x="80" y="740" w="860" h="260" title="Ideas" hidden="true" animate="fade">Line one &amp; &lt;b&gt;
+Line two</notepad>
+    <todo id="e2" title="Next" hidden="true"><item done="true">A</item></todo>
+    <notepad id="e3"/>
+  </slide>
+</deck>
+"""
+
+
+# contract-test: supporting surface=rest_api assertions=slides.interactive.notepad-and-todo
+def test_notepad_body_and_hidden_fixture_is_a_fixed_point():
+    assert normalise_slides_markup(NOTEPAD_DECK).markup == NOTEPAD_DECK
+
+
+# contract-test: supporting surface=rest_api assertions=slides.interactive.notepad-and-todo
+def test_empty_notepad_serialises_as_before_and_old_decks_are_stable():
+    once = normalise_slides_markup(VALID).markup
+    assert '<notepad id="e5" x="80" y="740" w="860" h="260" title="Ideas"/>' in once
+    assert normalise_slides_markup(once).markup == once
+    blank = normalise_slides_markup(
+        '<deck><slide><notepad>  \n </notepad><notepad/></slide></deck>'
+    ).markup
+    assert blank.count('<notepad id="') == 2 and "</notepad>" not in blank
+
+
+# contract-test: supporting surface=rest_api assertions=slides.interactive.notepad-and-todo
+def test_notepad_body_is_plain_text_with_newlines_and_limit():
+    out = normalise_slides_markup(
+        '<deck><slide><notepad title="n"> a &lt; b\n<b>bold</b><script>alert(1)</script>'
+        '<img src=x onerror=y>\nend \x07</notepad></slide></deck>'
+    ).markup
+    assert ">a &lt; b\nbold\nend</notepad>" in out
+    assert "script" not in out and "onerror" not in out and "<b>" not in out
+    long = normalise_slides_markup(f"<deck><slide><notepad>{'x' * 6000}</notepad></slide></deck>").markup
+    assert "x" * 5000 + "</notepad>" in long and "x" * 5001 not in long
+
+
+# contract-test: supporting surface=rest_api assertions=slides.interactive.notepad-and-todo
+def test_unclosed_notepad_does_not_swallow_following_elements():
+    out = normalise_slides_markup(
+        '<deck><slide><notepad title="n"><text>after</text></slide></deck>'
+    ).markup
+    assert "<text" in out and "after" in out
+
+
+# contract-test: supporting surface=rest_api assertions=slides.interactive.notepad-and-todo
+def test_hidden_only_on_notepad_and_todo_and_only_when_true():
+    out = normalise_slides_markup(
+        '<deck><slide><notepad hidden="TRUE"/><todo hidden="true"></todo>'
+        '<notepad hidden="false"/><todo hidden="yes"/><shape hidden="true"/>'
+        '<text hidden="true">t</text></slide></deck>'
+    ).markup
+    assert out.count('hidden="true"') == 2
+    assert 'hidden="true"' in out.split("<todo")[1].split("</todo>")[0] + ">"
+    assert "<shape" in out and 'shape id="e5" hidden' not in out

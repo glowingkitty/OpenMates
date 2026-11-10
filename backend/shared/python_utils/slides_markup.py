@@ -30,6 +30,7 @@ DEFAULT_TEMPLATE = "builtin:plain"
 MAX_SOURCE_CHARS = 1_000_000
 MAX_SLIDES = 200
 MAX_ELEMENTS_PER_SLIDE = 200
+MAX_NOTE_CHARS = 5000
 
 COLOR_TOKENS = {"background", "foreground", "accent", "accent-2", "muted", "surface"}
 SAFE_FONTS = {
@@ -48,7 +49,7 @@ TRANSITIONS = {"none", "fade", "slide"}
 INLINE_TAGS = {"b", "i", "u", "s", "br", "ul", "ol", "li"}
 ELEMENT_TAGS = {"text", "image", "video", "shape", "notepad", "todo", "link", "block"}
 # Elements that never have children: they auto-close without an end tag.
-VOID_TAGS = {"image", "video", "shape", "notepad", "br"}
+VOID_TAGS = {"image", "video", "shape", "br"}
 # Dropped together with their whole subtree; every other unknown element is unwrapped.
 DANGEROUS_TAGS = {
     "script", "style", "iframe", "object", "embed", "template", "noscript",
@@ -98,6 +99,9 @@ class _TreeBuilder(HTMLParser):
         self._stack: List[_Node] = [self.root]
 
     def _open(self, tag: str, attrs: List[Tuple[str, Optional[str]]], selfclose: bool) -> None:
+        # A notepad holds plain text only; an unclosed one ends where the next element starts.
+        if self._stack[-1].tag == "notepad" and (tag in ELEMENT_TAGS or tag in {"slide", "notes", "deck"}):
+            self._stack.pop()
         values: Dict[str, str] = {}
         for name, value in attrs:
             values.setdefault(name.lower(), value or "")
@@ -204,6 +208,16 @@ def _clean_label(value: str) -> Optional[str]:
     return value[:300] if value else None
 
 
+def _clean_hidden(value: str) -> Optional[str]:
+    return "true" if value.strip().lower() == "true" else None
+
+
+def _clean_note(text: str) -> str:
+    """Notepad body: control chars (except newline/tab) dropped, trimmed, 5000 chars max."""
+    text = re.sub(r"[\x00-\x08\x0b-\x1f\x7f]", "", text)
+    return text.strip()[:MAX_NOTE_CHARS].rstrip()
+
+
 def _clean_embed_ref(value: str) -> Optional[str]:
     value = value.strip()
     if not value.startswith("embed:"):
@@ -248,15 +262,15 @@ _SCHEMAS: Dict[str, Dict[str, Callable[[str], Optional[str]]]] = {
     "image": {"src": _clean_embed_ref, "alt": _clean_label, "fit": _choice({"cover", "contain"})},
     "video": {"src": _clean_video_src, "alt": _clean_label},
     "shape": {"kind": _choice(SHAPE_KINDS), "fill": _clean_color, "stroke": _clean_color},
-    "notepad": {"title": _clean_label},
-    "todo": {"title": _clean_label},
+    "notepad": {"title": _clean_label, "hidden": _clean_hidden},
+    "todo": {"title": _clean_label, "hidden": _clean_hidden},
     "link": {"href": _clean_https},
     "block": {"title": _clean_label},
 }
 _ORDER = {
     "text": ("role", "font", "size", "color", "align", "weight"),
     "image": ("src", "alt", "fit"), "video": ("src", "alt"),
-    "shape": ("kind", "fill", "stroke"), "notepad": ("title",), "todo": ("title",),
+    "shape": ("kind", "fill", "stroke"), "notepad": ("title", "hidden"), "todo": ("title", "hidden"),
     "link": ("href",), "block": ("title",),
 }
 
@@ -418,6 +432,10 @@ def _element_lines(
             label = html.escape(re.sub(r"\s+", " ", _plain_text(item.children)).strip()[:300], quote=False)
             items.append(f'<item done="{done}">{label}</item>')
         return _fmt(tag, attrs, ">") + "".join(items) + "</todo>"
+    if tag == "notepad":
+        body = _clean_note(_plain_text(node.children))
+        if body:
+            return _fmt(tag, attrs, ">") + html.escape(body, quote=False) + "</notepad>"
     return _fmt(tag, attrs, "/>")
 
 

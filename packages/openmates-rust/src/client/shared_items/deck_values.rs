@@ -145,12 +145,10 @@ impl ElementKind {
         })
     }
 
-    /// Elements written as `<tag .../>` without content.
+    /// Elements always written as `<tag .../>` without content. A notepad is written
+    /// self-closing only while its text is empty.
     pub(crate) fn is_void(self) -> bool {
-        matches!(
-            self,
-            Self::Image | Self::Video | Self::Shape | Self::Notepad
-        )
+        matches!(self, Self::Image | Self::Video | Self::Shape)
     }
 
     /// Notepad and to-do: filled in during a presentation, cleared by Clear / Clear all.
@@ -165,7 +163,8 @@ impl ElementKind {
             Self::Image => &["src", "alt", "fit"],
             Self::Video => &["src", "alt"],
             Self::Shape => &["kind", "fill", "stroke"],
-            Self::Notepad | Self::Todo | Self::Block => &["title"],
+            Self::Notepad | Self::Todo => &["title", "hidden"],
+            Self::Block => &["title"],
             Self::Link => &["href"],
         }
     }
@@ -220,6 +219,10 @@ pub(crate) fn clean_attribute(kind: ElementKind, name: &str, raw: &str) -> Optio
             (ElementKind::Notepad | ElementKind::Todo | ElementKind::Block, "title") => {
                 clean_label(raw)
             }
+            (ElementKind::Notepad | ElementKind::Todo, "hidden") => raw
+                .trim()
+                .eq_ignore_ascii_case("true")
+                .then(|| "true".to_string()),
             (ElementKind::Link, "href") => clean_https(raw),
             _ => None,
         },
@@ -397,6 +400,18 @@ pub(crate) fn clean_title(raw: &str) -> String {
 /// Speaker notes: trimmed, at most 5000 characters (inner newlines are kept).
 pub(crate) fn clean_notes(raw: &str) -> String {
     truncate_chars(raw.trim(), MAX_NOTES_CHARS)
+}
+
+/// Notepad body: control characters other than newline and tab dropped, trimmed, at
+/// most 5000 characters (inner newlines are kept). Mirrors `_clean_note`.
+pub(crate) fn clean_note_text(raw: &str) -> String {
+    let kept: String = raw
+        .chars()
+        .filter(|c| !matches!(*c, '\u{0}'..='\u{8}' | '\u{b}'..='\u{1f}' | '\u{7f}'))
+        .collect();
+    truncate_chars(kept.trim(), MAX_NOTES_CHARS)
+        .trim_end()
+        .to_string()
 }
 
 /// To-do item or link label: whitespace collapsed, trimmed, at most 300 characters.

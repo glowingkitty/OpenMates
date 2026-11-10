@@ -119,8 +119,7 @@ pub enum DeckOperation {
         /// Plain text, trimmed, at most 5000 characters.
         notes: String,
     },
-    /// Type into a notepad. Refused with `DeckError::FormatGap`: `<notepad>` has no
-    /// content in the slides markup yet, so the text could not be saved.
+    /// Replace the text of a notepad (empty text clears it).
     SetNotepadText {
         /// Slide id.
         slide_id: String,
@@ -158,8 +157,7 @@ pub enum DeckOperation {
     },
     /// Clear every notepad and to-do element in the deck; slides and elements stay.
     ClearAllInteractive,
-    /// Hide or show one notepad or to-do element. Refused with
-    /// `DeckError::FormatGap`: the slides markup has no hidden attribute yet.
+    /// Hide or show one notepad or to-do element (`hidden="true"` attribute).
     SetInteractiveHidden {
         /// Slide id.
         slide_id: String,
@@ -168,8 +166,7 @@ pub enum DeckOperation {
         /// Hidden state.
         hidden: bool,
     },
-    /// Hide or show every notepad and to-do element. Refused with
-    /// `DeckError::FormatGap` for the same reason.
+    /// Hide or show every notepad and to-do element.
     SetAllInteractiveHidden {
         /// Hidden state.
         hidden: bool,

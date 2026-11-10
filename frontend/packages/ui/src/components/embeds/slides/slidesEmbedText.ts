@@ -23,11 +23,13 @@ function elementText(element: SlideElement): string | null {
     case 'link':
       return `${element.label} (${element.href})`;
     case 'todo':
+      if (element.hidden) return null;
       return [element.title, ...element.items.map((item) => `- [${item.done ? 'x' : ' '}] ${item.label}`)]
         .filter(Boolean)
         .join('\n');
     case 'notepad':
-      return element.title || null;
+      if (element.hidden) return null;
+      return [element.title, element.text].filter(Boolean).join('\n') || null;
     default:
       return null;
   }

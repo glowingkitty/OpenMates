@@ -161,3 +161,27 @@ describe('parseSlidesMarkup', () => {
     expect([deck.aspect, deck.template]).toEqual(['16:9', 'builtin:plain']);
   });
 });
+
+describe('notepad body and hidden flag', () => {
+  // contract-test: supporting surface=gui.web assertions=slides.interactive.notepad-and-todo
+  it('parses a plain-text notepad body and hidden on notepad and to-do only', () => {
+    const result = parseSlidesMarkup(`<deck><slide>
+      <notepad title="n" hidden="true"> a &lt; b
+<b>bold</b><script>x()</script>
+end </notepad>
+      <notepad/>
+      <todo hidden="TRUE"><item done="true">x</item></todo>
+      <todo hidden="no"></todo>
+      <shape kind="rect" hidden="true"/>
+    </slide></deck>`);
+    if (!('deck' in result)) throw new Error('did not parse');
+    const [note, empty, hiddenTodo, shownTodo, shape] = result.deck.slides[0].elements;
+    expect(note.type === 'notepad' && note.text).toBe('a < b\nbold\nend');
+    expect(note.type === 'notepad' && note.hidden).toBe(true);
+    expect(empty.type === 'notepad' && [empty.text, empty.hidden]).toEqual(['', false]);
+    expect(hiddenTodo.type === 'todo' && hiddenTodo.hidden).toBe(true);
+    expect(shownTodo.type === 'todo' && shownTodo.hidden).toBe(false);
+    expect(shape.type).toBe('shape');
+    expect('hidden' in shape).toBe(false);
+  });
+});

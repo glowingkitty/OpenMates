@@ -48,6 +48,20 @@ test.describe('Slides deck embed (read-only rendering)', () => {
     await expect(viewer).toHaveAttribute('data-slide-index', '0');
   });
 
+  // contract-test: direct surface=gui.web assertions=slides.interactive.notepad-and-todo
+  test('a notepad shows its body and hidden notepads and to-dos are absent from the DOM', async ({ page }) => {
+    await page.goto(preview('SlideCanvas', 'interactive', 800));
+    await waitForComponentPreview(page);
+    const canvas = page.getByTestId('slide-canvas');
+    await expect(canvas.locator('[data-element-id="e1"]')).toContainText('Line one');
+    await expect(canvas.locator('[data-element-id="e1"]')).toContainText('Line two');
+    await expect(canvas.locator('[data-element-id="e2"]')).toContainText('Visible item');
+    await expect(canvas.locator('[data-element-id="e3"]')).toHaveCount(0);
+    await expect(canvas.locator('[data-element-id="e4"]')).toHaveCount(0);
+    await expect(page.getByText('Hidden body')).toHaveCount(0);
+    await expect(page.getByText('Hidden item')).toHaveCount(0);
+  });
+
   // contract-test: direct surface=gui.web assertions=slides.format.positioned-elements
   test('canvas scales uniformly for 16:9, 16:10 and 4:3', async ({ page }) => {
     for (const [variant, ratio] of [['', 16 / 9], ['aspect16x10', 16 / 10], ['aspect4x3', 4 / 3]] as const) {

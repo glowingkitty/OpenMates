@@ -3,7 +3,7 @@
 use super::deck::DeckDocument;
 use super::deck_error::DeckError;
 use super::deck_markup::{ElementContent, ElementModel, TodoItem};
-use super::deck_markup_tests::{CLASSIC_DECK, FULL_DECK};
+use super::deck_markup_tests::{CLASSIC_DECK, FULL_DECK, NOTEPAD_DECK};
 use super::deck_operations::{DeckOperation, DeckOutcome, ElementSpec, TextStyle};
 use super::deck_values::ElementKind;
 use std::collections::BTreeMap;
@@ -512,37 +512,108 @@ fn clear_all_empties_every_todo_and_keeps_slides_and_elements() {
     assert!(!classic.can_undo(), "hydration is not an undo step");
 }
 
+// contract-test: supporting surface=sdks.rust assertions=slides.interactive.notepad-and-todo,live-collab.core.one-shared-model
 #[test]
-fn notepad_text_and_hidden_flags_report_the_format_gap() {
+fn notepad_text_and_hidden_flags_are_saved_cleared_and_undone() {
     let mut deck = deck();
     let before = deck.to_markup().expect("saves");
-    for op in [
-        DeckOperation::SetNotepadText {
-            slide_id: "s1".into(),
-            element_id: "e5".into(),
-            text: "idea".into(),
-        },
-        DeckOperation::SetInteractiveHidden {
+    let (s, n) = ids("s1", "e5");
+    let set_text = |text: &str| DeckOperation::SetNotepadText {
+        slide_id: s.clone(),
+        element_id: n.clone(),
+        text: text.into(),
+    };
+    assert_eq!(
+        apply(&mut deck, set_text("  idea <1>\nnext  ")),
+        DeckOutcome::Applied
+    );
+    assert_eq!(
+        element(&deck, "s1", "e5").content,
+        ElementContent::Plain("idea <1>\nnext".into())
+    );
+    assert_eq!(
+        apply(&mut deck, set_text("idea <1>\nnext")),
+        DeckOutcome::Unchanged
+    );
+    let saved = deck.to_markup().expect("saves");
+    assert!(saved.contains(">idea &lt;1&gt;\nnext</notepad>"));
+    let reloaded = DeckDocument::from_markup(&saved, 9).expect("reloads");
+    assert_eq!(element(&reloaded, "s1", "e5"), element(&deck, "s1", "e5"));
+
+    let hide = |hidden| DeckOperation::SetInteractiveHidden {
+        slide_id: "s1".into(),
+        element_id: "e6".into(),
+        hidden,
+    };
+    assert_eq!(apply(&mut deck, hide(true)), DeckOutcome::Applied);
+    assert_eq!(apply(&mut deck, hide(true)), DeckOutcome::Unchanged);
+    assert!(
+        deck.to_markup()
+            .expect("saves")
+            .contains("title=\"Next\" hidden=\"true\">")
+    );
+    assert_eq!(apply(&mut deck, hide(false)), DeckOutcome::Applied);
+    assert!(!deck.to_markup().expect("saves").contains("hidden"));
+
+    assert_eq!(
+        apply(
+            &mut deck,
+            DeckOperation::SetAllInteractiveHidden { hidden: true }
+        ),
+        DeckOutcome::Applied
+    );
+    assert!(element(&deck, "s1", "e5").attributes.contains_key("hidden"));
+    assert!(element(&deck, "s1", "e6").attributes.contains_key("hidden"));
+    assert_eq!(
+        apply(
+            &mut deck,
+            DeckOperation::SetAllInteractiveHidden { hidden: true }
+        ),
+        DeckOutcome::Unchanged
+    );
+    // Hidden elements keep their content; clearing the notepad empties only the text.
+    assert_eq!(
+        apply(
+            &mut deck,
+            DeckOperation::ClearInteractiveElement {
+                slide_id: "s1".into(),
+                element_id: "e5".into(),
+            },
+        ),
+        DeckOutcome::Applied
+    );
+    let cleared = element(&deck, "s1", "e5");
+    assert_eq!(cleared.content, ElementContent::Plain(String::new()));
+    assert!(cleared.attributes.contains_key("hidden"));
+
+    // Undo walks back every step to the original markup.
+    while deck.undo() {}
+    assert_eq!(deck.to_markup().expect("saves"), before);
+
+    // Wrong element kinds are still refused.
+    let error = deck
+        .apply(DeckOperation::SetNotepadText {
             slide_id: "s1".into(),
             element_id: "e6".into(),
-            hidden: true,
-        },
-        DeckOperation::SetAllInteractiveHidden { hidden: true },
-    ] {
-        let error = deck.apply(op).expect_err("format gap");
-        assert_eq!(error.code(), "slides_format_gap");
-    }
-    assert_eq!(deck.to_markup().expect("saves"), before);
-    assert!(!deck.can_undo());
-    // A notepad stores nothing yet, so clearing it is valid and changes nothing.
-    let cleared = apply(
-        &mut deck,
-        DeckOperation::ClearInteractiveElement {
-            slide_id: "s1".into(),
-            element_id: "e5".into(),
-        },
+            text: "x".into(),
+        })
+        .expect_err("to-do is not a notepad");
+    assert_eq!(error.code(), "slides_wrong_element_kind");
+}
+
+#[test]
+fn clear_all_interactive_also_empties_notepad_text() {
+    let mut deck = DeckDocument::from_markup(NOTEPAD_DECK, 3).expect("hydrates");
+    assert_eq!(
+        apply(&mut deck, DeckOperation::ClearAllInteractive),
+        DeckOutcome::Cleared { elements: 2 }
     );
-    assert_eq!(cleared, DeckOutcome::Unchanged);
+    assert_eq!(
+        element(&deck, "s1", "e1").content,
+        ElementContent::Plain(String::new())
+    );
+    assert!(deck.undo());
+    assert_eq!(deck.to_markup().expect("saves"), NOTEPAD_DECK);
 }
 
 #[test]

@@ -51,6 +51,19 @@ pub(super) const CLASSIC_DECK: &str = r##"<deck title="Classic" aspect="4:3" tem
 </deck>
 "##;
 
+/// Notepad bodies (escaped text, newline) and the `hidden` attribute (after `title`,
+/// before `animate`). Python and Rust share this exact string: the Python test
+/// `test_notepad_body_and_hidden_fixture_is_a_fixed_point` normalises it unchanged.
+pub(super) const NOTEPAD_DECK: &str = r##"<deck title="Notes" aspect="16:9" template="builtin:plain">
+  <slide id="s1">
+    <notepad id="e1" x="80" y="740" w="860" h="260" title="Ideas" hidden="true" animate="fade">Line one &amp; &lt;b&gt;
+Line two</notepad>
+    <todo id="e2" title="Next" hidden="true"><item done="true">A</item></todo>
+    <notepad id="e3"/>
+  </slide>
+</deck>
+"##;
+
 // contract-test: supporting surface=sdks.rust assertions=slides.format.positioned-elements,live-collab.core.one-shared-model
 #[test]
 fn normalised_markup_round_trips_byte_for_byte_for_every_element_kind_and_aspect() {
@@ -58,6 +71,7 @@ fn normalised_markup_round_trips_byte_for_byte_for_every_element_kind_and_aspect
         (FULL_DECK, DeckAspect::Wide),
         (LAPTOP_DECK, DeckAspect::Laptop),
         (CLASSIC_DECK, DeckAspect::Classic),
+        (NOTEPAD_DECK, DeckAspect::Wide),
     ] {
         let model = parse_deck_markup(fixture).expect("fixture is normalised");
         assert_eq!(model.aspect, aspect);
@@ -143,4 +157,44 @@ fn refuses_markup_that_is_not_normaliser_output() {
 fn a_deck_without_slides_is_refused() {
     let error = refused("<deck title=\"\" aspect=\"16:9\" template=\"builtin:plain\">\n</deck>\n");
     assert_eq!(error, DeckError::NoSlides);
+}
+
+#[test]
+fn notepad_body_and_hidden_flag_are_parsed() {
+    let model = parse_deck_markup(NOTEPAD_DECK).expect("fixture is normalised");
+    let elements = &model.slides[0].elements;
+    assert_eq!(
+        elements[0].content,
+        ElementContent::Plain("Line one & <b>\nLine two".into())
+    );
+    assert_eq!(
+        elements[0].attributes.get("hidden").map(String::as_str),
+        Some("true")
+    );
+    assert!(elements[1].attributes.contains_key("hidden"));
+    assert_eq!(elements[2].content, ElementContent::Plain(String::new()));
+    assert!(!elements[2].attributes.contains_key("hidden"));
+}
+
+#[test]
+fn refuses_non_normalised_notepad_bodies_and_hidden_values() {
+    let wrap = |body: &str| {
+        format!(
+            "<deck title=\"\" aspect=\"16:9\" template=\"builtin:plain\">\n  <slide id=\"s1\">\n    {body}\n  </slide>\n</deck>\n"
+        )
+    };
+    for case in [
+        wrap("<notepad id=\"e1\"></notepad>"),
+        wrap("<notepad id=\"e1\"> padded </notepad>"),
+        wrap("<notepad id=\"e1\"><b>x</b></notepad>"),
+        wrap("<notepad id=\"e1\" hidden=\"false\"/>"),
+        wrap("<notepad id=\"e1\" animate=\"fade\" hidden=\"true\"/>"),
+        wrap("<shape id=\"e1\" hidden=\"true\"/>"),
+    ] {
+        assert_eq!(
+            refused(&case).code(),
+            "slides_markup_not_normalised",
+            "{case}"
+        );
+    }
 }

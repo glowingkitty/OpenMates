@@ -13,7 +13,7 @@ use super::deck_store::{
 };
 use super::deck_values::{
     ElementKind, GEOMETRY, MAX_ELEMENTS_PER_SLIDE, MAX_SLIDES, clamp_box, clean_attribute,
-    clean_item_label, clean_label, clean_layout, clean_notes,
+    clean_item_label, clean_label, clean_layout, clean_note_text, clean_notes,
 };
 use regex::Regex;
 use std::collections::{BTreeMap, HashSet};
@@ -236,12 +236,17 @@ pub(crate) fn apply_operation(
         DeckOperation::SetNotepadText {
             slide_id,
             element_id,
-            ..
+            text,
         } => {
-            ctx.element_of(&slide_id, &element_id, ElementKind::Notepad, "notepad")?;
-            Err(DeckError::FormatGap(
-                "notepad text (<notepad> has no content in the slides markup)",
-            ))
+            let element =
+                ctx.element_of(&slide_id, &element_id, ElementKind::Notepad, "notepad")?;
+            let content = ElementContent::Plain(clean_note_text(&text));
+            if element.content == content {
+                return Ok(DeckOutcome::Unchanged);
+            }
+            let map = ctx.element_map(txn, &slide_id, &element_id)?;
+            write_content(txn, &map, &content)?;
+            Ok(DeckOutcome::Applied)
         }
         DeckOperation::SetTodoItems {
             slide_id,
@@ -308,16 +313,28 @@ pub(crate) fn apply_operation(
         DeckOperation::SetInteractiveHidden {
             slide_id,
             element_id,
-            ..
+            hidden,
         } => {
-            ctx.interactive(&slide_id, &element_id)?;
-            Err(DeckError::FormatGap(
-                "a hidden flag (notepad and to-do elements have no hidden attribute)",
-            ))
+            let element = ctx.interactive(&slide_id, &element_id)?;
+            if write_hidden(txn, &ctx, &slide_id, element, hidden)? {
+                Ok(DeckOutcome::Applied)
+            } else {
+                Ok(DeckOutcome::Unchanged)
+            }
         }
-        DeckOperation::SetAllInteractiveHidden { .. } => Err(DeckError::FormatGap(
-            "a hidden flag (notepad and to-do elements have no hidden attribute)",
-        )),
+        DeckOperation::SetAllInteractiveHidden { hidden } => {
+            let mut changed = false;
+            for slide in &model.slides {
+                for element in slide.elements.iter().filter(|e| e.kind.is_interactive()) {
+                    changed |= write_hidden(txn, &ctx, &slide.id, element, hidden)?;
+                }
+            }
+            Ok(if changed {
+                DeckOutcome::Applied
+            } else {
+                DeckOutcome::Unchanged
+            })
+        }
     }
 }
 
@@ -530,8 +547,24 @@ fn clean_items(items: Vec<TodoItem>) -> Vec<TodoItem> {
         .collect()
 }
 
-/// Empties a notepad or to-do element; `false` when there was nothing to clear. A
-/// notepad stores no content in the markup today, so clearing it never changes anything.
+/// Sets or clears the `hidden` attribute of a notepad or to-do element; `false` when it
+/// already had that state.
+fn write_hidden(
+    txn: &mut TransactionMut,
+    ctx: &Ctx<'_>,
+    slide_id: &str,
+    element: &ElementModel,
+    hidden: bool,
+) -> Result<bool, DeckError> {
+    if element.attributes.contains_key("hidden") == hidden {
+        return Ok(false);
+    }
+    let map = ctx.element_map(txn, slide_id, &element.id)?;
+    set_optional(txn, &map, "hidden", hidden.then_some("true"));
+    Ok(true)
+}
+
+/// Empties a notepad or to-do element; `false` when there was nothing to clear.
 fn clear_element(
     txn: &mut TransactionMut,
     ctx: &Ctx<'_>,
@@ -542,6 +575,11 @@ fn clear_element(
         ElementContent::Items(items) if !items.is_empty() => {
             let map = ctx.element_map(txn, slide_id, &element.id)?;
             write_content(txn, &map, &ElementContent::Items(Vec::new()))?;
+            Ok(true)
+        }
+        ElementContent::Plain(text) if !text.is_empty() => {
+            let map = ctx.element_map(txn, slide_id, &element.id)?;
+            write_content(txn, &map, &ElementContent::Plain(String::new()))?;
             Ok(true)
         }
         _ => Ok(false),
@@ -596,10 +634,13 @@ fn element_from_spec(
             ElementContent::Verbatim(code.replace("\r\n", "\n").replace('\r', "\n"))
         }
         (ElementKind::Block, ElementContent::Empty) => ElementContent::Verbatim(String::new()),
-        (
-            ElementKind::Image | ElementKind::Video | ElementKind::Shape | ElementKind::Notepad,
-            ElementContent::Empty,
-        ) => ElementContent::Empty,
+        (ElementKind::Notepad, ElementContent::Plain(text)) => {
+            ElementContent::Plain(clean_note_text(&text))
+        }
+        (ElementKind::Notepad, ElementContent::Empty) => ElementContent::Plain(String::new()),
+        (ElementKind::Image | ElementKind::Video | ElementKind::Shape, ElementContent::Empty) => {
+            ElementContent::Empty
+        }
         _ => {
             return Err(DeckError::invalid(
                 "content",
