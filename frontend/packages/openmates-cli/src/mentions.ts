@@ -165,10 +165,11 @@ export const MODEL_ALIASES: Record<string, string> = {
  * NOTE: Keep legacy release and retirement dates aligned with provider YAML.
  */
 export const CHAT_MODELS: ModelInfo[] = [
-  { id: "claude-fable-5-1", name: "Claude Fable 5.1" },
+  { id: "claude-fable-5-2", name: "Claude Fable 5.2" },
   { id: "claude-opus-5-5", name: "Claude Opus 5.5" },
   { id: "claude-sonnet-5-5", name: "Claude Sonnet 5.5" },
   { id: "claude-haiku-5-5", name: "Claude Haiku 5.5" },
+  { id: "claude-fable-5-1", name: "Claude Fable 5.1", legacyModel: true, releaseDate: "2026-09-01" },
   { id: "claude-fable-5", name: "Claude Fable 5", legacyModel: true, releaseDate: "2026-06-09" },
   { id: "claude-opus-5", name: "Claude Opus 5", legacyModel: true, releaseDate: "2026-07-24" },
   { id: "claude-sonnet-5", name: "Claude Sonnet 5", legacyModel: true, releaseDate: "2026-06-30" },

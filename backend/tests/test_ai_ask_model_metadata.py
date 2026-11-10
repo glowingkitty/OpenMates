@@ -24,6 +24,7 @@ EXPECTED_CAPABILITIES = {
     "claude-haiku-5-5": "low",
     "claude-sonnet-5-5": "medium",
     "claude-opus-5-5": "high",
+    "claude-fable-5-2": "max",
     "claude-fable-5-1": "max",
     "mistral-large-4": "high",
 }
@@ -91,7 +92,7 @@ def test_gpt6_astra_uses_max_reasoning_on_openai() -> None:
 # contract-test: supporting surface=rest_api assertions=ai-model-routing.catalog.public-read-only
 def test_claude_and_openai_chat_catalogs_keep_current_and_recent_legacy_models() -> None:
     expected = {
-        "anthropic": {"claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"},
+        "anthropic": {"claude-fable-5-2", "claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"},
         "openai": {"gpt-6.1-sol", "gpt-6-astra", "gpt-6-luna", "gpt-5.6-terra", "gpt-oss-120b"},
     }
     for provider, ids in expected.items():

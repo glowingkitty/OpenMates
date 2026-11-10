@@ -145,7 +145,7 @@ specifications:
     version: 10
     status: draft
     path: features/ai-model-routing
-    fingerprint: ef5ca60950485c6d853d2f6c35341b3b37ad32bd6aaea6677bcb2d1c088deb9b
+    fingerprint: 6a75460974ab49e4b8f24c722b2cf5c265e2956d8a90b9362a6ee5473a3328f3
     required_applies_to:
     - rest_api
     - cli
@@ -2900,7 +2900,7 @@ assertions:
     specification: feature.ai-model-routing@10
     specification_id: feature.ai-model-routing
     type: behavior
-    fingerprint: bfdd54a42bf85e8ad4b660ed5737217573e53589cbdaa7e861f5a33c917dfbaa
+    fingerprint: 0bfe00d161d7e136da0c1879d4ecd463aab85455c4f9b7d3f803526ce56ae14e
     required_applies_to:
     - rest_api
     - cli
@@ -2912,7 +2912,7 @@ assertions:
     specification: feature.ai-model-routing@10
     specification_id: feature.ai-model-routing
     type: security
-    fingerprint: 17680ddfbe234af079ecc36320cf84fdc0a516188f8dd5601d85ad27024acac8
+    fingerprint: e24760c42b3a337bd66156e59ac6b93d298d5aa243fb4c25117f98b4398d7499
     required_applies_to:
     - rest_api
     - cli
@@ -3056,7 +3056,7 @@ assertions:
     specification: feature.ai-model-routing@10
     specification_id: feature.ai-model-routing
     type: parity
-    fingerprint: 6fc743bea4099e986ab2d288b15d3070bf2289fefb88c29a91a205b0bf3b8d57
+    fingerprint: ea4f64d124aa326fbb989f67134ea65b74af0a9c62218e85f59b02e9ea27a7a3
     required_applies_to:
     - rest_api
     - cli

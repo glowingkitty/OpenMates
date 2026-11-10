@@ -241,8 +241,8 @@ describe("parseMentions", () => {
       assert.deepEqual(
         CHAT_MODELS.filter((model) => model.id.startsWith("claude-")).map((model) => model.id).sort(),
         [
-          "claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5",
-          "claude-fable-5", "claude-opus-5", "claude-sonnet-5", "claude-haiku-4-5-20251001",
+          "claude-fable-5-2", "claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5",
+          "claude-fable-5-1", "claude-fable-5", "claude-opus-5", "claude-sonnet-5", "claude-haiku-4-5-20251001",
           "claude-sonnet-4-6", "claude-opus-4-6", "claude-opus-4-7", "claude-opus-4-8",
           "claude-opus-4-5-20251101",
         ].sort(),
@@ -320,6 +320,7 @@ describe("parseMentions", () => {
         ["@GPT-6-Luna", "gpt-6-luna"],
         ["@GPT-5.6-Terra", "gpt-5.6-terra"],
         ["@GPT-OSS-120b", "gpt-oss-120b"],
+        ["@Claude-Fable-5.2", "claude-fable-5-2"],
         ["@Claude-Fable-5.1", "claude-fable-5-1"],
         ["@Claude-Opus-5.5", "claude-opus-5-5"],
         ["@Claude-Sonnet-5.5", "claude-sonnet-5-5"],

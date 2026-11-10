@@ -62,7 +62,7 @@ const AI_MODEL_SETTINGS_PROOF = defineVideoProof({
 		},
 		{
 			id: 'tier-provider-models',
-			text: 'The Claude provider page lists Claude Fable 5.1 as a max-capability model for the Most demanding tier.',
+			text: 'The Claude provider page lists Claude Fable 5.2 as a max-capability model for the Most demanding tier.',
 			checkpoint: 'ai-tier-provider-models',
 			devices: ['web-laptop', 'web-phone']
 		},
@@ -101,7 +101,7 @@ const AI_MODEL_SETTINGS_PROOF = defineVideoProof({
 		{
 			id: 'ai-model-routing.catalog.provider-models',
 			checkpoint: 'ai-tier-provider-models',
-			visual: 'The Claude tier catalog visibly lists Claude Fable 5.1 as a max-capability exact model choice.',
+			visual: 'The Claude tier catalog visibly lists Claude Fable 5.2 as a max-capability exact model choice.',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
@@ -202,7 +202,7 @@ test('AI settings overview, tier, provider, and model detail match the approved 
 	await expect(settingsMenu).toHaveAttribute('data-active-view', 'ai/tier/most-demanding/provider/anthropic', { timeout: 10000 });
 	const providerCatalog = settingsMenu.getByTestId('ai-tier-provider-catalog');
 	await proof.assert('ai-model-routing.catalog.provider-models', async () => {
-		const fable = providerCatalog.getByTestId('ai-model-option-exact').filter({ hasText: 'Claude Fable 5.1' });
+		const fable = providerCatalog.getByTestId('ai-model-option-exact').filter({ hasText: 'Claude Fable 5.2' });
 		await expect(fable).toBeVisible();
 		await expect(fable).toContainText('Max capabilities');
 		await expect(providerCatalog.getByText(/Recommended/i).first()).toBeVisible();
@@ -212,7 +212,7 @@ test('AI settings overview, tier, provider, and model detail match the approved 
 	await proof.checkpoint('ai-tier-provider-models');
 
 	await proof.action('open-fable-model-detail', async () => {
-		await providerCatalog.getByTestId('ai-model-option-exact').filter({ hasText: 'Claude Fable 5.1' }).click();
+		await providerCatalog.getByTestId('ai-model-option-exact').filter({ hasText: 'Claude Fable 5.2' }).click();
 	});
 	await expect(settingsMenu).toHaveAttribute('data-active-view', /^ai\/model\//, { timeout: 10000 });
 	const modelDetails = settingsMenu.getByTestId('ai-model-details');

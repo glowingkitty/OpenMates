@@ -17,21 +17,21 @@ required_keys:
     docs_url: "https://docs.anthropic.com/en/api/getting-started"
 
 models:
-  - id: "claude-fable-5-1" # Official Claude API model ID
-    name: "Claude Fable 5.1"
+  - id: "claude-fable-5-2" # Official Claude API model ID
+    name: "Claude Fable 5.2"
     description: "Anthropic's latest max-capability model for demanding reasoning and long-horizon agentic work."
     country_origin: "US"
     for_app_skill: "ai.ask"
-    release_date: "2026-09-01"
+    release_date: "2026-11-09"
     capability_level: "max"
     allow_auto_select: true
     external_ids:
-      lmarena: "claude-fable-5-1"
-      openrouter: "anthropic/claude-fable-5-1"
+      lmarena: "claude-fable-5-2"
+      openrouter: "anthropic/claude-fable-5-2"
     search_aliases:
-      - "fable 5.1"
-      - "claude 5.1 fable"
-      - "claude-fable-5-1"
+      - "fable 5.2"
+      - "claude 5.2 fable"
+      - "claude-fable-5-2"
       - "best claude"
     input_types:
       - text
@@ -48,47 +48,47 @@ models:
           adaptive_thinking: true
           source_url: https://platform.claude.com/docs/en/build-with-claude/effort
         name: "Anthropic API"
-        model_id: "claude-fable-5-1"
+        model_id: "claude-fable-5-2"
         region: "US"
         country: "US"
     pricing:
       tokens:
         input:
-          per_credit_unit: 35
+          per_credit_unit: 40 # 333.33 / 8.00 = 41.67 -> 40 (conservative round-down)
         cache_read:
-          per_credit_unit: 1400
+          per_credit_unit: 1600 # 333.33 / 0.20 = 1666.67 -> 1600
         cache_write:
-          per_credit_unit: 28
+          per_credit_unit: 32 # 333.33 / 10.00 = 33.33 -> 32
         cache_write_1h:
-          per_credit_unit: 17
+          per_credit_unit: 20 # 333.33 / 16.00 = 20.83 -> 20
         output:
-          per_credit_unit: 7
+          per_credit_unit: 8 # 333.33 / 40.00 = 8.33 -> 8
     cache_pricing:
       enabled: false
       write_billing: separate
       eligible_hosts: [anthropic]
-      source_url: https://platform.claude.com/docs/en/build-with-claude/prompt-caching
-      reviewed_on: "2026-10-06"
+      source_url: https://platform.claude.com/docs/en/models/fable-5-2/overview
+      reviewed_on: "2026-11-10"
       status: proposed_pending_provider_evidence
       requires_cache_write_metric: true
       requires_cache_retention_metric: true
     costs:
       input_per_million_token:
-        price: 10.00
+        price: 8.00
         currency: USD
         max_context: 1000000
       output_per_million_token:
-        price: 50.00
+        price: 40.00
         currency: USD
         max_context: 1000000
       cache_write_per_million_token:
-        price: 12.50
+        price: 10.00
         currency: USD
       cache_write_1h_per_million_token:
-        price: 20.0
+        price: 16.0
         currency: USD
       cache_read_per_million_token:
-        price: 0.25
+        price: 0.20
         currency: USD
     features:
       max_output_tokens: 128000
@@ -365,6 +365,86 @@ models:
   # Older general-chat models still available via API, reviewed 2026-10-08.
   # The selector applies a rolling 12-calendar-month release window.
   # Source: https://platform.claude.com/docs/en/about-claude/model-deprecations
+  - id: "claude-fable-5-1" # Official Claude API model ID
+    name: "Claude Fable 5.1"
+    description: "Anthropic's previous max-capability model for demanding reasoning and long-horizon agentic work."
+    country_origin: "US"
+    for_app_skill: "ai.ask"
+    release_date: "2026-09-01"
+    capability_level: "max"
+    legacy_model: true
+    allow_auto_select: false
+    external_ids:
+      lmarena: "claude-fable-5-1"
+      openrouter: "anthropic/claude-fable-5-1"
+    search_aliases:
+      - "fable 5.1"
+      - "claude 5.1 fable"
+      - "claude-fable-5-1"
+      - "best claude"
+    input_types:
+      - text
+      - image
+    output_types:
+      - text
+    reasoning: true
+    default_server: "anthropic"
+    servers:
+      - id: "anthropic"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "low", MEDIUM: "medium", HIGH: "high", EXTRA_HIGH: "xhigh"}
+          adaptive_thinking: true
+          source_url: https://platform.claude.com/docs/en/build-with-claude/effort
+        name: "Anthropic API"
+        model_id: "claude-fable-5-1"
+        region: "US"
+        country: "US"
+    pricing:
+      tokens:
+        input:
+          per_credit_unit: 35
+        cache_read:
+          per_credit_unit: 1400
+        cache_write:
+          per_credit_unit: 28
+        cache_write_1h:
+          per_credit_unit: 17
+        output:
+          per_credit_unit: 7
+    cache_pricing:
+      enabled: false
+      write_billing: separate
+      eligible_hosts: [anthropic]
+      source_url: https://platform.claude.com/docs/en/build-with-claude/prompt-caching
+      reviewed_on: "2026-10-06"
+      status: proposed_pending_provider_evidence
+      requires_cache_write_metric: true
+      requires_cache_retention_metric: true
+    costs:
+      input_per_million_token:
+        price: 10.00
+        currency: USD
+        max_context: 1000000
+      output_per_million_token:
+        price: 50.00
+        currency: USD
+        max_context: 1000000
+      cache_write_per_million_token:
+        price: 12.50
+        currency: USD
+      cache_write_1h_per_million_token:
+        price: 20.0
+        currency: USD
+      cache_read_per_million_token:
+        price: 0.25
+        currency: USD
+    features:
+      max_output_tokens: 128000
+      reasoning_token_support: true
+      tool_use: true
+      streaming: true
+
   - id: "claude-fable-5" # Official Claude API model ID
     name: "Claude Fable 5"
     description: "Anthropic's most capable widely released model for long-running agents and frontier reasoning."

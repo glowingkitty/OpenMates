@@ -28230,7 +28230,7 @@ assertions:
     current_direct_proof: false
   ai-model-routing.catalog.capability-recommendation-variants:
     specification: feature.ai-model-routing@10
-    fingerprint: bfdd54a42bf85e8ad4b660ed5737217573e53589cbdaa7e861f5a33c917dfbaa
+    fingerprint: 0bfe00d161d7e136da0c1879d4ecd463aab85455c4f9b7d3f803526ce56ae14e
     direct_tests:
     - &id3628
       path: backend/tests/test_openai_compatible_api_contract.py
@@ -28318,17 +28318,17 @@ assertions:
       surface: gui.apple
     - &id3623
       path: backend/tests/test_ai_ask_model_metadata.py
-      line: 45
+      line: 46
       name: test_every_ai_ask_model_has_explicit_capability_and_release_date
       surface: gui.web
     - &id3624
       path: backend/tests/test_ai_ask_model_metadata.py
-      line: 55
+      line: 56
       name: test_named_model_capabilities_match_the_approved_scale
       surface: gui.web
     - &id3625
       path: backend/tests/test_ai_ask_model_metadata.py
-      line: 72
+      line: 73
       name: test_gpt6_astra_uses_max_reasoning_on_openai
       surface: gui.web
     - &id3626
@@ -28477,7 +28477,7 @@ assertions:
     current_direct_proof: false
   ai-model-routing.catalog.public-read-only:
     specification: feature.ai-model-routing@10
-    fingerprint: 17680ddfbe234af079ecc36320cf84fdc0a516188f8dd5601d85ad27024acac8
+    fingerprint: e24760c42b3a337bd66156e59ac6b93d298d5aa243fb4c25117f98b4398d7499
     direct_tests:
     - &id3657
       path: backend/tests/test_openai_compatible_api_contract.py
@@ -28553,7 +28553,7 @@ assertions:
       surface: gui.apple
     - &id3656
       path: backend/tests/test_ai_ask_model_metadata.py
-      line: 92
+      line: 93
       name: test_claude_and_openai_chat_catalogs_keep_current_and_recent_legacy_models
       surface: rest_api
     - &id3664
@@ -30092,7 +30092,7 @@ assertions:
     current_direct_proof: false
   ai-model-routing.surface.semantic-parity:
     specification: feature.ai-model-routing@10
-    fingerprint: 6fc743bea4099e986ab2d288b15d3070bf2289fefb88c29a91a205b0bf3b8d57
+    fingerprint: ea4f64d124aa326fbb989f67134ea65b74af0a9c62218e85f59b02e9ea27a7a3
     direct_tests:
     - &id3849
       path: backend/tests/test_openai_compatible_api_contract.py
@@ -162139,12 +162139,12 @@ assertions:
       surface: gui.web
     - &id20672
       path: frontend/packages/openmates-cli/tests/mentions.test.ts
-      line: 371
+      line: 372
       name: preserves a configured canonical Mate mention without duplicating it
       surface: cli
     - &id20673
       path: frontend/packages/openmates-cli/tests/mentions.test.ts
-      line: 385
+      line: 386
       name: rejects an unknown canonical Mate instead of sending an invalid trigger
       surface: cli
     - &id20678

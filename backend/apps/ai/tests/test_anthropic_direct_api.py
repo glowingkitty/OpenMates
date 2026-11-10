@@ -29,6 +29,7 @@ except ImportError:
 @pytest.mark.parametrize(
     "model_id, expected_text",
     [
+        ("claude-fable-5-2", "Fable 5.2 is online."),
         ("claude-fable-5-1", "Fable 5.1 is online."),
         ("claude-fable-5", "Fable 5 is online."),
         ("claude-opus-5-5", "Opus 5.5 is online."),
