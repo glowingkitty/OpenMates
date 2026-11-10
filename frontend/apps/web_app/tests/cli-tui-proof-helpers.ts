@@ -12,6 +12,7 @@ const {getTestAccount} = require('./signup-flow-helpers');
 const {terminalRowsAtCheckpoint} = require('./helpers/terminal-frame');
 const {skipWithoutCredentials} = require('./helpers/env-guard');
 const {cliSpawnArgs} = require('./helpers/cli-test-helpers');
+const { naturalProjectName } = require('./helpers/project-names');
 const {
 	createWorkflowCliHome, deleteWorkflowQuietly, loginWorkflowCliViaPair,
 	removeWorkflowCliHome, runWorkflowCli, runWorkflowCliJson, workflowApiUrl,
@@ -266,7 +267,7 @@ async function cleanupWorkspace(apiUrl: string, home: string, fixture: SeededWor
 
 function newFixture(): SeededWorkspace {
 	return {
-		draftIds: [], projectName: 'Terminal proof project ' + randomUUID().slice(0, 8),
+		draftIds: [], projectName: naturalProjectName('Home office setup'),
 		taskTitle: 'Proof task ' + randomUUID().slice(0, 8),
 		workflowTitle: 'Terminal proof workflow ' + randomUUID().slice(0, 8)
 	};

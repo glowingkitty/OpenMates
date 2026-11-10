@@ -31,6 +31,7 @@ from uuid import uuid4
 from verify_chat_sidebar_title_live import safe_failure, test_account_environment
 from workflow_schedule_real_test import API_URL, ProofError, acquire_leases, sessions, write_receipt
 from personal_dev_draft_guard import DraftGuard, DraftGuardError, record_leftovers
+from project_names import natural_project_name
 
 ROOT = Path(__file__).resolve().parents[1]
 TERMINAL = {"finished", "failed", "cancelled"}
@@ -441,7 +442,7 @@ def main() -> int:
                 draft_guard = DraftGuard.start(cli, api_url=API_URL)
             except DraftGuardError as exc:
                 raise ProofError(str(exc)) from exc
-        project = command(cli, ["projects", "create", f"Code Run proof {uuid4().hex[:10]}",
+        project = command(cli, ["projects", "create", natural_project_name("Python practice"),
                                "--write-policy", "apply_and_show", "--personal"])
         project_id = (project.get("project") or {}).get("project_id")
         if not isinstance(project_id, str) or not project_id:

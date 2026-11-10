@@ -153,6 +153,7 @@
     import { detectPII, restorePIIInText, type PIIMatch, type PIIDetectionOptions, type PersonalDataForDetection } from './services/piiDetectionService';
     import { detectPIIForWeb, preloadWebPIIDetector, resetWebPIIDetector, isWebPIIModelEnabled, isWebPIIModelSupported, webPIIDetectorState } from './services/webPIIDetectionService';
     import { mergeWebPIIMatches } from './services/webPIIMatches';
+    import { piiScanText } from './services/piiScanText';
     import { claimWebPIIFallbackNotice } from './services/webPIIFallbackNotice';
     import PIIWarningBanner from './PIIWarningBanner.svelte';
     import { createComposerInteractionFocusHold } from './services/composerInteractionFocusHold';
@@ -3466,14 +3467,18 @@
             rebuildDecorationSet(editor);
         };
 
+        // Mention chips are app-provided references sent as ids, so the preview
+        // scans only what the user typed; offsets stay aligned with doc positions.
+        const scanText = piiScanText(editor);
+
         // Keep known secrets responsive while the on-device model starts.
         // Full basic protection stays immediate during download and on failure.
         // The same hybrid adapter reserves exclusions before adding model spans.
         publish(isWebPIIModelEnabled()
-            ? mergeWebPIIMatches(text, [], detectionOptions)
-            : detectPII(text, detectionOptions));
+            ? mergeWebPIIMatches(scanText, [], detectionOptions)
+            : detectPII(scanText, detectionOptions));
         try {
-            publish(await detectPIIForWeb(text, detectionOptions, { purpose: 'preview' }));
+            publish(await detectPIIForWeb(scanText, detectionOptions, { purpose: 'preview' }));
         } catch {
             // Final send independently verifies this snapshot and blocks on model
             // failure. A preview must never log the SDK exception or private text.

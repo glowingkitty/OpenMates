@@ -23,6 +23,7 @@ const { spawnSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const { deriveApiUrl } = require('./helpers/cli-test-helpers');
+const { naturalNickname } = require('./helpers/project-names');
 
 const ROOT = path.resolve(__dirname, '../../../..');
 const TOOLCHAIN = '1.98.1';
@@ -210,10 +211,11 @@ async function crossLanguageLifecycle(writer: Lang, testInfo: TestInfo) {
 	const updater = LANGS[(LANGS.indexOf(writer) + 1) % 3];
 	const deleter = LANGS[(LANGS.indexOf(writer) + 2) % 3];
 	const nonce = `${writer}-${Date.now().toString(36)}`;
+	const projectNickname = naturalNickname();
 	// npm and Python always create with write_mode "always_ask" (ignoring any
 	// input); the Rust SDK requires an explicit mode, so every language is sent
 	// the same explicit value. The Rust-only requirement is a recorded gap.
-	const projectInput = { name: `Live ${writer} project ${nonce}`, description: `Written by the ${writer} SDK (${nonce}).`, write_mode: 'always_ask' };
+	const projectInput = { name: `Reading list by ${writer}: ${projectNickname}`, description: `Written by the ${writer} SDK (${nonce}).`, write_mode: 'always_ask' };
 	const ids = {} as Record<Family, string>;
 	const inputs = {} as Record<Family, Record<string, unknown>>;
 	// Steps run in an inner function so an early stop still reaches the report
@@ -240,7 +242,7 @@ async function crossLanguageLifecycle(writer: Lang, testInfo: TestInfo) {
 		verifyReads(report, 'read-created', ids, want, false);
 
 		const patches: Record<Family, Record<string, unknown>> = {
-			projects: { name: `Live ${writer} project renamed by ${updater} ${nonce}`, description: `Updated by the ${updater} SDK.` },
+			projects: { name: `Reading list by ${writer}, renamed by ${updater}: ${projectNickname}`, description: `Updated by the ${updater} SDK.` },
 			tasks: { title: `Live ${writer} task retitled by ${updater} ${nonce}`, description: `Task updated by ${updater}.`, labels: ['live', `u-${updater}`] },
 			plans: { title: `Live ${writer} plan retitled by ${updater} ${nonce}`, goal: `Plan goal updated by ${updater}.` }
 		};

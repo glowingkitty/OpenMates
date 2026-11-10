@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from verify_project_remote_access_api import CLI_DIR, login_session, run
+from project_names import natural_project_name
 
 
 def cli(home: Path, api_url: str, args: list[str]) -> dict[str, Any]:
@@ -101,7 +102,7 @@ def main() -> int:
         project_id = plan_id = task_id = ""
         operations: list[str] = []
         try:
-            project_id = identifier(cli(home, args.api_url, ["projects", "create", f"work-control-{suffix}", "--description", "ephemeral verifier"]), "project_id")
+            project_id = identifier(cli(home, args.api_url, ["projects", "create", natural_project_name("Shared household chores"), "--description", "ephemeral verifier"]), "project_id")
             plan_id = identifier(cli(home, args.api_url, ["plans", "create", "--title", f"work-control-{suffix}", "--goal", "Verify encrypted work control", "--project", project_id]), "plan_id")
             task_id = identifier(cli(home, args.api_url, ["tasks", "create", "--title", f"work-control-{suffix}", "--project", project_id, "--plan", plan_id]), "task_id")
             cli(home, args.api_url, ["plans", "dependencies", "add", plan_id, "--target", f"task:{task_id}"])

@@ -21,6 +21,7 @@ from urllib.error import HTTPError
 from sdk_cli_parity_live_smoke import NPM_SDK_ENTRY, PYTHON_SDK_PATH
 from verify_project_remote_access_api import CLI_DIR, login_session, run
 from verify_user_work_control_cli import cleanup, cli, identifier
+from project_names import natural_project_name
 
 
 VERIFIER_KEY_PREFIX = "work-control-sdk-"
@@ -106,7 +107,7 @@ def main() -> int:
                 created_key_id = api_key_id(created_key)
                 if not api_key or not created_key_id:
                     raise RuntimeError("CLI did not return a revocable developer API key")
-            project_id = identifier(cli(home, args.api_url, ["projects", "create", f"sdk-work-control-{suffix}"]), "project_id")
+            project_id = identifier(cli(home, args.api_url, ["projects", "create", natural_project_name("Team offsite planning")]), "project_id")
             plan_id = identifier(cli(home, args.api_url, ["plans", "create", "--title", f"sdk-work-control-{suffix}", "--goal", "Verify SDK work control", "--project", project_id]), "plan_id")
             task_id = identifier(cli(home, args.api_url, ["tasks", "create", "--title", f"sdk-work-control-{suffix}", "--project", project_id, "--plan", plan_id]), "task_id")
             cli(home, args.api_url, ["plans", "assumptions", "create", plan_id, "--id", "proof", "--text", "typed proof"])

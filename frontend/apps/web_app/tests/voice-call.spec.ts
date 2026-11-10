@@ -8,6 +8,7 @@ import { clickChatTarget, scrollChatHistoryToStart } from './helpers/chat-scroll
 /* eslint-disable @typescript-eslint/no-require-imports -- Existing shared helpers use CommonJS. */
 const { expect, test } = require('./helpers/cookie-audit');
 const { loginToTestAccount, waitForChatReady } = require('./helpers/chat-test-helpers');
+const { naturalProjectName } = require('./helpers/project-names');
 const USER_SPEECH = 'How do I make ramen?';
 const ASSISTANT_SPEECH = 'For ramen, simmer the broth and cook the noodles.';
 const PASTED_TEXT = 'Please use this pasted recipe: noodles, broth, mushrooms and ginger.';
@@ -1541,7 +1542,7 @@ test.describe('Voice mode through ordinary chat', () => {
       await expect(page.getByTestId('projects-page')).toBeVisible({timeout:30_000});
       const created=page.waitForResponse(response=>response.request().method()==='POST'
         &&new URL(response.url()).pathname==='/v1/projects'&&response.ok());
-      await page.getByTestId('project-input-textarea').fill(`Voice draft startup ${Date.now()}`);
+      await page.getByTestId('project-input-textarea').fill(naturalProjectName('Voice notes for the garden'));
       await page.getByTestId('project-input-submit').click();
       await page.getByTestId('project-write-policy-always-ask').check();
       await page.getByTestId('project-write-policy-confirm').click();
@@ -1723,7 +1724,7 @@ test.describe('Voice mode through ordinary chat', () => {
       await expect(page.getByTestId('projects-page')).toBeVisible({timeout:30_000});
       const created=page.waitForResponse(response=>response.request().method()==='POST'
         &&new URL(response.url()).pathname==='/v1/projects'&&response.ok());
-      await page.getByTestId('project-input-textarea').fill(`Voice startup controls ${Date.now()}`);
+      await page.getByTestId('project-input-textarea').fill(naturalProjectName('Voice notes for the move'));
       await page.getByTestId('project-input-submit').click();
       await page.getByTestId('project-write-policy-always-ask').check();
       await page.getByTestId('project-write-policy-confirm').click();

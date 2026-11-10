@@ -8,6 +8,7 @@ const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 const { stringify } = require('yaml');
 const { randomUUID } = require('node:crypto');
+const { naturalProjectName } = require('./helpers/project-names');
 
 function apiUrl(): string {
   const url = new URL(process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://app.dev.openmates.org');
@@ -161,7 +162,7 @@ test.describe('Portable Workflow files', () => {
   test('Project upload imports a marked YAML and links the new Workflow to its Project', async ({ page }: { page: Page }) => {
     await skipIfFeaturesDisabled(test, page, ['platform:projects']);
     await page.goto(getE2EDebugUrl('/projects'), { waitUntil: 'domcontentloaded' });
-    const projectName = `Portable project ${Date.now()}`;
+    const projectName = naturalProjectName('Portable workflows');
     const createdProject = page.waitForResponse((response: Response) => response.url().endsWith('/v1/projects') && response.request().method() === 'POST');
     await page.getByTestId('project-input-textarea').fill(projectName);
     await page.getByTestId('project-input-submit').click();

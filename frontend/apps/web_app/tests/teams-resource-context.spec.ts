@@ -9,6 +9,7 @@ const { expect, test } = require('./helpers/cookie-audit');
 const { loginToTestAccount, dismissSecurityReminderIfPresent } = require('./helpers/chat-test-helpers');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
+const { naturalProjectName } = require('./helpers/project-names');
 
 type Resource = { id: string; name: string; context: string | null; version?: number };
 type ContextResources = { project: Resource; workflow: Resource; task: Resource };
@@ -206,7 +207,7 @@ test.describe('Teams resource context', () => {
 
 			for (const context of [{ id: null, name: 'Personal' }, ...teams]) {
 				await switchContext(page, context.id, context.name);
-				const project = await createProject(page, `E2E ${context.name} Project ${suffix}`, context.id,
+				const project = await createProject(page, naturalProjectName(context.id ? 'Team newsletter' : 'Personal newsletter'), context.id,
 					(resource) => createdResources.push({ path: 'projects', resource }));
 				const workflow = await createWorkflow(page, project, `E2E ${context.name} Workflow ${suffix}`,
 					(resource) => createdResources.push({ path: 'workflows', resource }));

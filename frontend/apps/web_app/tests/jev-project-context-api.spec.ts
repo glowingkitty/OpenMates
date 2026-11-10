@@ -7,6 +7,7 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
 const { createWorkflowCliHome, removeWorkflowCliHome, loginWorkflowCliViaPair,
   runWorkflowCliJson, workflowApiUrl } = require('./helpers/workflow-cli-e2e-helpers');
 const { randomUUID } = require('node:crypto');
+const { naturalProjectName } = require('./helpers/project-names');
 
 test.describe('Jev Project context HTTP boundaries', () => {
   test.setTimeout(180_000);
@@ -33,7 +34,7 @@ test.describe('Jev Project context HTTP boundaries', () => {
     let projectId = '';
     try {
       await loginWorkflowCliViaPair(page, base, cliHome, 'JEV_PROJECT_CONTEXT_BOUNDARIES');
-      const result = await runWorkflowCliJson(base, cliHome, ['projects', 'create', `Jev boundary ${Date.now()}`,
+      const result = await runWorkflowCliJson(base, cliHome, ['projects', 'create', naturalProjectName('Language exchange'),
         '--write-policy', 'always_ask', '--personal'], 'create disposable context Project');
       projectId = result.project.project_id;
       const prefix = `${base}/v1/projects/${projectId}`;
@@ -75,7 +76,7 @@ test.describe('Jev Project context HTTP boundaries', () => {
     let projectId = '';
     try {
       await loginWorkflowCliViaPair(page, base, cliHome, 'JEV_FOCUS_PHASE_TRANSPORT');
-      const result = await runWorkflowCliJson(base, cliHome, ['projects', 'create', `Focus transport ${Date.now()}`,
+      const result = await runWorkflowCliJson(base, cliHome, ['projects', 'create', naturalProjectName('Bike commute'),
         '--write-policy', 'always_ask', '--personal'], 'create disposable phase-transport Project');
       projectId = result.project.project_id;
       const common = { name: 'Synthetic debugging', description: 'Source checks', when_to_use: 'Synthetic incidents', instructions: 'Keep global guidance.' };

@@ -81,7 +81,9 @@ deployed and the affected services restarted with `sessions.py docker restart`.
   with the run's isolated CLI state active; `check` exits 1 and lists the chat
   ids. Send or clear every draft a run types; `chats delete` also removes the
   draft of a draft-only chat.
-- **Projects:** create a disposable Project in that isolated state
+- **Projects:** create a disposable Project with a clear natural-language name
+  (for example "Kitchen renovation", never a timestamp or number) in that
+  isolated state
   (`openmates projects create <name> --write-policy always_ask --json`, id in
   `project.project_id`) and delete it with `projects delete <id> --confirm <id>`
   when the run ends, including on failure. Never reuse the engineering Project.

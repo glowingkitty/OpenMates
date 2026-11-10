@@ -10,6 +10,7 @@ const { expect, test } = require('./helpers/cookie-audit');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
+const { naturalProjectName } = require('./helpers/project-names');
 
 function projectHashUrlPattern(projectId: string): RegExp {
 	return new RegExp(`/#(?:[^#]*&)?project-id=${projectId}(?:&|$)`);
@@ -37,7 +38,7 @@ test.describe('Project-linked Plans V1 flow', () => {
 		await skipIfFeaturesDisabled(test, page, ['platform:projects', 'platform:tasks', 'platform:plans']);
 
 		const apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
-		const projectName = `E2E Plan Project ${Date.now()}`;
+		const projectName = naturalProjectName('Wedding planning');
 		let projectId = '';
 		let planId = '';
 

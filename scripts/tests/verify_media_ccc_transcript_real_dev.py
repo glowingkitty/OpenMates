@@ -14,7 +14,10 @@ import os
 from pathlib import Path
 import re
 import subprocess
-import uuid
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from project_names import natural_project_name  # noqa: E402 - scripts/ is not on the path of this nested script
 
 URL = "https://media.ccc.de/v/39c3-a-post-american-enshittification-resistant-internet"
 NO_CAPTIONS = "https://media.ccc.de/v/37c3-other-59123-from-hacker-to-furry"
@@ -78,7 +81,7 @@ def main():
         expected_error="No published captions")
     print("PASS: original talk reports no published captions.", flush=True)
 
-    project = cli("projects", "create", f"CCC captions validation {uuid.uuid4().hex[:8]}", "--write-policy", "always_ask")
+    project = cli("projects", "create", natural_project_name("Conference talk captions"), "--write-policy", "always_ask")
     project_id = project.get("project_id") or project.get("projectId") or project.get("project", {}).get("project_id")
     assert project_id, "Disposable Project creation must return its ID"
     print("Summarizing the requested 39C3 talk through the transcript skill (automatic routing)...", flush=True)

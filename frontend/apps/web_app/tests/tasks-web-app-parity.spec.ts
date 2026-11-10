@@ -12,6 +12,7 @@ const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { seedLegacyTaskLink } = require('./helpers/legacy-user-task-fixture');
 const { createSignupLogger, createStepScreenshotter, getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
+const { naturalProjectName } = require('./helpers/project-names');
 
 const TASK_STATUSES = ['backlog', 'todo', 'in_progress', 'blocked', 'done'];
 
@@ -148,7 +149,7 @@ test.describe('Tasks web app parity', () => {
 
 		const log = createSignupLogger('PROJECT_TASK_COMPOSER');
 		const screenshot = createStepScreenshotter(log, { filenamePrefix: 'project-task-composer' });
-		const projectName = `Task board project ${Date.now()}`;
+		const projectName = naturalProjectName('Moving house');
 		const taskTitle = `Project-scoped task ${Date.now()}`;
 
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });

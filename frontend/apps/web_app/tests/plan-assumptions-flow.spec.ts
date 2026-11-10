@@ -11,6 +11,7 @@ const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 const { createProjectPlanForTest } = require('./helpers/create-project-plan');
+const { naturalProjectName } = require('./helpers/project-names');
 
 test.describe('Plans V1 assumptions flow', () => {
 	// contract-test: direct surface=gui.web assertions=plans.execution.gates-evidence
@@ -19,7 +20,7 @@ test.describe('Plans V1 assumptions flow', () => {
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 		await skipIfFeaturesDisabled(test, page, ['platform:tasks', 'platform:plans']);
 
-		const projectName = `E2E assumption project ${Date.now()}`;
+		const projectName = naturalProjectName('Bakery business plan');
 		const assumptionText = 'Production API quota is already approved';
 
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });

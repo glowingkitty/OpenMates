@@ -14,6 +14,7 @@ const { request: playwrightRequest } = require('@playwright/test');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
+const { naturalProjectName } = require('./helpers/project-names');
 
 const TASK_COLUMNS = ['backlog', 'todo', 'in_progress', 'blocked', 'done'];
 
@@ -201,8 +202,7 @@ test.describe('Plans on the global Tasks board', () => {
 		await skipIfFeaturesDisabled(test, page, ['platform:projects', 'platform:tasks', 'platform:plans']);
 
 		const apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
-		const suffix = `${Date.now()}-${test.info().workerIndex}`;
-		const projectName = `Global Plan Board Project ${suffix}`;
+		const projectName = naturalProjectName('Community garden');
 		let projectId = '';
 		let planId = '';
 

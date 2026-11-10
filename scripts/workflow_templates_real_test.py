@@ -253,6 +253,7 @@ def main():
     sys.path[:0] = [str(repo / 'scripts'), str(repo)]
     from workflow_schedule_real_test import ProofError, acquire_leases, cli, ident, sessions
     from workflow_real_test_helpers import resolve_cli_path, run_cli
+    from project_names import natural_project_name
     cli_path = resolve_cli_path(str(args.cli_path.resolve()))
     receipt = {'status': 'started', 'target': API_URL, 'session': args.session, 'deployed_revision': args.revision,
                'started_at': datetime.now(UTC).isoformat(), 'candidate_sha256': digest(all_candidates),
@@ -326,7 +327,7 @@ def main():
                     except (ValueError, AttributeError):
                         continue
                 raise ProofError('disposable_login_failed')
-        project = cli(cli_path, ['projects', 'create', f'Template proof {uuid4().hex[:8]}', '--write-policy', 'always_ask', '--personal'], 'project_create')
+        project = cli(cli_path, ['projects', 'create', natural_project_name('Workflow templates'), '--write-policy', 'always_ask', '--personal'], 'project_create')
         project_id = ident((project.get('project') or {}).get('project_id'), 'project_id')
         receipt['project_id'] = project_id
         enabled = {item['id'] for item in cli(cli_path, ['workflows', 'capabilities'], 'capabilities') if item.get('enabled') is True}

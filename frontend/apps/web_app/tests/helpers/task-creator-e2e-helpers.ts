@@ -12,6 +12,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { CLI_DIST } = require('./cli-test-helpers');
+const { naturalProjectName } = require('./project-names');
 const {
 	createWorkflowCliHome, removeWorkflowCliHome,
 	loginWorkflowCliViaPair, runWorkflowCli
@@ -50,7 +51,7 @@ async function createRunnerCodexEligibility(page: import('@playwright/test').Pag
 			if (response.code !== 0) throw new Error(`Task project relink probe failed (exit ${response.code}).`);
 			return JSON.parse(response.stdout);
 		};
-		const project = (await command(['projects', 'create', '--name', `Task relink fixture ${randomUUID()}`])).project;
+		const project = (await command(['projects', 'create', '--name', naturalProjectName('Garden makeover')])).project;
 		try {
 			for (const action of ['add-to-project', 'remove-from-project']) {
 				await command(['tasks', created.task_id, action, project.project_id]);

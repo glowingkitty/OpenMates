@@ -10,6 +10,7 @@ const { installRecorderDeps } = require('./cli-tui-proof-helpers');
 const { execFileSync, spawn } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
+const { naturalProjectName } = require('./helpers/project-names');
 const {
 	clearWorkflowCliSyncCache, createWorkflowCliHome, loginWorkflowCliViaPair,
 	removeWorkflowCliHome, workflowApiUrl, workflowCliEnv, runWorkflowCliJson
@@ -903,7 +904,7 @@ test('SDK answers selected Project catalog and consent-decision protocols on its
 	try {
 		await loginWorkflowCliViaPair(page, apiUrl, home, 'CLI_SELECTED_PROJECT_CATALOG');
 		const created = await runWorkflowCliJson(apiUrl, home,
-			['projects', 'create', '--name', `Catalog protocol ${Date.now()}`, '--write-policy', 'always_ask', '--personal'],
+			['projects', 'create', '--name', naturalProjectName('Vinyl collection'), '--write-policy', 'always_ask', '--personal'],
 			'create disposable Project');
 		projectId = created.project.project_id;
 		const observed = canonicalHistorySdk(apiUrl, home, `

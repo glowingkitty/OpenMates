@@ -805,7 +805,7 @@ specifications:
     version: 4
     status: draft
     path: features/pii-protection
-    fingerprint: c0169e8574048c0e6986c05553e518a995ebef93ca01320c262f014f964aa846
+    fingerprint: 7821ba410b1ad919dbebe6bd61b2d19bd73c264d626a347640f2910645f48e32
     required_applies_to:
     - cli
     - gui.web
@@ -10104,6 +10104,15 @@ assertions:
     specification_id: feature.pii-protection
     type: privacy
     fingerprint: a1da3fbfa67b7b06fbaf9542fc19f2c96ecad5a88a7f9b648225c9e6e97a5342
+    required_applies_to:
+    - cli
+    - gui.web
+    - gui.apple
+  pii.composer.mention-labels-not-scanned:
+    specification: feature.pii-protection@4
+    specification_id: feature.pii-protection
+    type: privacy
+    fingerprint: 00a73af3564b2f78b5c5076a69befc9407fb12346e8250747c05405e7ea25a3d
     required_applies_to:
     - cli
     - gui.web

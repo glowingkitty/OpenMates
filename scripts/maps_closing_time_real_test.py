@@ -25,6 +25,7 @@ from zoneinfo import ZoneInfo
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from scripts import cli_video_capture, sessions  # noqa: E402
+from scripts.project_names import natural_project_name  # noqa: E402
 
 API = "https://api.dev.openmates.org"
 ZONE = ZoneInfo("Europe/Berlin")
@@ -175,7 +176,7 @@ def test_maps_closing_time_live() -> None:
     project_id = chat_id = None
     capture = None
     try:
-        project = cli(["projects", "create", f"Maps cutoff proof {uuid.uuid4().hex[:8]}",
+        project = cli(["projects", "create", natural_project_name("Evening errands"),
                        "--write-policy", "always_ask", "--personal"], args.output, "project")
         project = project.get("project", project)
         project_id = project.get("projectId") or project.get("project_id") or project.get("id")

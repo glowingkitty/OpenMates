@@ -87,6 +87,8 @@ when a skill or this file points to it.
 
 ## Verification (details: `.claude/rules/testing.md`)
 - Every behavior fix/feature updates relevant E2E coverage; never weaken tests.
+- Testing Projects: use clear natural-language Project names ("Kitchen
+  renovation"), never timestamps or numbers (`naturalProjectName()` helper).
 - Builds, unit tests and benchmarks (cargo, vitest, vite build, …) run on the
   dev server only via `python3 scripts/heavy_slot.py run -- <cmd>` (waits for a
   healthy host, max 2 at once, CPU/memory capped); the Bash guard blocks direct

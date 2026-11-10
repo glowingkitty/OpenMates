@@ -36,6 +36,7 @@ from code_run_real_test import (
 from personal_dev_draft_guard import DraftGuard, DraftGuardError, record_leftovers
 from verify_chat_sidebar_title_live import safe_failure
 from workflow_schedule_real_test import API_URL, ProofError, sessions, write_receipt
+from project_names import natural_project_name
 
 MODEL = "@Gemini-3.8-Flash"
 FORMATS = ("dst", "pes", "exp", "jef", "vp3")
@@ -190,7 +191,7 @@ def main() -> int:
             draft_guard = DraftGuard.start(cli, api_url=API_URL)
         except DraftGuardError as exc:
             raise ProofError(str(exc)) from exc
-        project = command(cli, ["projects", "create", f"Embroidery proof {uuid4().hex[:10]}",
+        project = command(cli, ["projects", "create", natural_project_name("Embroidery patterns"),
                                "--write-policy", "apply_and_show", "--personal"])
         project_id = (project.get("project") or {}).get("project_id") if isinstance(project, dict) else None
         if not isinstance(project_id, str) or not project_id:

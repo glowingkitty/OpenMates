@@ -11,6 +11,7 @@ const {execFileSync} = require('node:child_process');
 const {randomUUID} = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
+const { naturalProjectName } = require('./helpers/project-names');
 
 const ROOT = path.resolve(__dirname, '../../../..');
 const COMPOSE = path.join(ROOT, 'test-results/ci-private/compose.json');
@@ -194,7 +195,7 @@ test('records encrypted text-only request, Fitness carousel, aliases, and worksp
 	skipWithoutCredentials(test,email,password,otpKey);
 	const cli=requireIsolatedCliBuild();installRecorderDeps();
 	const apiUrl=workflowApiUrl(),home=createWorkflowCliHome('tui-chat-previews'),workspace=newFixture();
-	workspace.projectName='Proof project '+randomUUID().slice(0,6);
+	workspace.projectName=naturalProjectName('Book club');
 	workspace.workflowTitle='Proof workflow '+randomUUID().slice(0,6);
 	let chat:ChatFixture|undefined;
 	try{

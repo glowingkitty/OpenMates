@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
+// proof-video: not_required reason=visual_smoke_not_needed (the Playwright video and step screenshots cover each checkpoint)
 import type { Response } from '@playwright/test';
 
 export {};
@@ -7,6 +8,7 @@ const { test, expect } = require('./helpers/cookie-audit');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipIfFeaturesDisabled, skipWithoutCredentials } = require('./helpers/env-guard');
 const { getTestAccount } = require('./signup-flow-helpers');
+const { naturalProjectName } = require('./helpers/project-names');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -33,6 +35,11 @@ async function localDraftChatIds(page: any): Promise<string[]> {
       };
     };
   }));
+}
+
+/** Attach a named screenshot of one element to the CI artifact. */
+async function attachShot(locator: any, name: string): Promise<void> {
+  await test.info().attach(name, { body: await locator.screenshot(), contentType: 'image/png' });
 }
 
 function projectDeleteResponseMatches(response: Response, projectId: string): boolean {
@@ -73,7 +80,7 @@ test.describe('Projects v1 flow', () => {
     await expect(page.getByTestId('project-input-mic')).toBeVisible();
     await expect(page.getByTestId('project-write-policy-dialog')).toHaveCount(0);
 
-    const projectName = `E2E Project ${Date.now()}`;
+    const projectName = naturalProjectName('Kitchen renovation');
     const created = page.waitForResponse(
       (response) => response.request().method() === 'POST' && response.url().endsWith('/v1/projects') && response.ok()
     );
@@ -125,7 +132,7 @@ test.describe('Projects v1 flow', () => {
     await page.goto('/projects');
     await expect(page.getByTestId('projects-page')).toBeVisible({ timeout: 30000 });
 
-    const projectName = `E2E Project settings ${Date.now()}`;
+    const projectName = naturalProjectName('Family photo book');
     const created = page.waitForResponse(
       (response) => response.request().method() === 'POST' && response.url().endsWith('/v1/projects') && response.ok()
     );
@@ -210,12 +217,75 @@ test.describe('Projects v1 flow', () => {
     await deleted;
   });
 
+	// contract-test: direct surface=gui.web assertions=pii.composer.mention-labels-not-scanned,projects.surface.semantic-parity
+	test('does not flag a Project chip with a reference number as sensitive data', async ({ page }) => {
+		// A natural name that carries a contract reference number, which the phone
+		// pattern would match if the chip label were scanned.
+		const projectName = 'Supplier contract 0301 2345 678';
+		const typedPhone = '+49 151 23456789';
+		let projectId: string | null = null;
+		let apiOrigin: string | null = null;
+		try {
+			await page.goto('/projects');
+			await expect(page.getByTestId('projects-page')).toBeVisible({ timeout: 30000 });
+			const created = page.waitForResponse(
+				(response) =>
+					response.request().method() === 'POST' &&
+					new URL(response.url()).pathname === '/v1/projects' &&
+					response.ok()
+			);
+			await page.getByTestId('project-input-textarea').fill(projectName);
+			await page.getByTestId('project-input-submit').click();
+			await page.getByTestId('project-write-policy-apply-and-show').check();
+			await page.getByTestId('project-write-policy-confirm').click();
+			const createdResponse = await created;
+			apiOrigin = new URL(createdResponse.url()).origin;
+			projectId = (await createdResponse.json()).project.project_id;
+			await expect(page).toHaveURL(projectHashUrlPattern(projectId));
+
+			await page.getByTestId('project-tab-folders').click();
+			await page.getByTestId('project-folder-create-menu-button').click();
+			await page.getByTestId('project-create-chat').click();
+			await expect(page).toHaveURL(/\/$/);
+			const messageEditor = page.getByTestId('message-editor');
+			await expect(messageEditor).toBeVisible({ timeout: 30000 });
+			await page.getByTestId('message-field').click();
+			const projectMention = messageEditor.locator('[data-type="generic-mention"].mention-project');
+			await expect(projectMention).toBeVisible({ timeout: 10000 });
+			await expect(projectMention).toContainText(projectName);
+
+			// Typed text after the chip is still scanned, and its highlight covers
+			// exactly the typed number (offsets stay aligned behind the chip).
+			await page.keyboard.press('End');
+			await page.keyboard.insertText(` call me at ${typedPhone}`);
+			const highlights = page.getByTestId('pii-highlight');
+			await expect.poll(async () => highlights.count(), { timeout: 15000 }).toBe(1);
+			await expect(highlights.first()).toHaveAttribute('data-pii-type', 'PHONE');
+			await expect(highlights.first()).toHaveText(typedPhone);
+			await expect(projectMention.getByTestId('pii-highlight')).toHaveCount(0);
+			await attachShot(messageEditor, 'project-chip-not-flagged-typed-phone-flagged');
+
+			// Without the typed number nothing is flagged: no highlight and no banner.
+			for (let i = 0; i < ` call me at ${typedPhone}`.length; i += 1) await page.keyboard.press('Backspace');
+			await expect(projectMention).toBeVisible();
+			await expect.poll(async () => highlights.count(), { timeout: 15000 }).toBe(0);
+			await expect(page.getByTestId('pii-warning-banner')).toHaveCount(0);
+			await attachShot(messageEditor, 'project-chip-not-flagged');
+		} finally {
+			if (projectId && apiOrigin) {
+				await page.request
+					.delete(`${apiOrigin}/v1/projects/${encodeURIComponent(projectId)}`)
+					.catch(() => null);
+			}
+		}
+	});
+
 	// contract-test: supporting surface=gui.web assertions=projects.surface.semantic-parity,projects.links.openmates-only-encrypted,projects.lifecycle.encrypted-crud
 	test('starts project chats and saves workflows in the selected project', async ({ page }) => {
 		test.setTimeout(180000);
 		await skipIfFeaturesDisabled(test, page, ['platform:workflows']);
 		const suffix = Date.now();
-		const projectName = `E2E Project navigation ${suffix}`;
+		const projectName = naturalProjectName('Weekend trip to Lisbon');
 		const workflowTitle = `Project workflow ${suffix}`;
 		let projectId: string | null = null;
 		const workflowIds: string[] = [];

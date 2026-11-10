@@ -69,6 +69,18 @@ city_names:
     when: A user types "Send it to Hauptstrasse 5, 10115 Berlin".
     then: The street, number, postal code and Berlin are highlighted and replaced with address placeholders when sent.
 
+mention_labels:
+  - id: project-name-with-number
+    assertion_ids: [pii.composer.mention-labels-not-scanned]
+    given: The user has a Project named "Supplier contract 0301 2345 678".
+    when: The composer holds that Project's mention chip and nothing else.
+    then: No sensitive-data highlight or banner appears.
+  - id: phone-after-project-chip
+    assertion_ids: [pii.composer.mention-labels-not-scanned]
+    given: The composer holds that Project's mention chip.
+    when: The user types "call me at +49 151 23456789" after the chip.
+    then: Exactly the typed phone number is highlighted, not the chip.
+
 message_reveal:
   - id: owner-message-hidden-by-default
     input: {viewer: owner, reveal_state: hidden, mapping_available: true}

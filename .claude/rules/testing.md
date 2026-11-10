@@ -27,6 +27,13 @@ paths:
   cancelled, unrelated or stale run, or from mocks/replays.
 - Honor execution waivers (`skip E2E`) and report what was not run; a waiver
   does not waive updating coverage unless the user says so.
+- Project names: tests, fixtures, scripts and manual checks of Project features
+  use clear natural-language names a person would choose ("Kitchen
+  renovation", "Spanish lessons"), never timestamps, random ids or bare
+  numbers. For uniqueness use `naturalProjectName(topic)` from
+  `frontend/apps/web_app/tests/helpers/project-names.ts` (adds a word nickname,
+  not digits). Digits only when the check is about digits, e.g. a reference
+  number in a name for a privacy regression.
 
 ## Where checks run
 - Locally in the worktree: lint, typecheck (`tsc`, `svelte-check`), `cargo

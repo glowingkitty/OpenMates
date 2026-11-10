@@ -6,6 +6,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports, @typescript-eslint/no-explicit-any */
 export {};
 const { expect } = require('@playwright/test');
+const { naturalProjectName } = require('./project-names');
 
 type Side = 'npm' | 'native';
 type Diff = any;
@@ -31,7 +32,7 @@ async function npmJson(diff: Diff, args: string[], label: string): Promise<any> 
 
 /** Throwaway Project + Plan fixtures shared by one differential test. */
 async function createFixtures(diff: Diff, tag: string) {
-	const project = await npmJson(diff, ['projects', 'create', `Diff plans ${tag} ${Date.now()}`, '--write-policy', 'apply_and_show'], 'create project');
+	const project = await npmJson(diff, ['projects', 'create', naturalProjectName(`Garden plans ${tag}`), '--write-policy', 'apply_and_show'], 'create project');
 	const projectId: string = project.projectId ?? project.project_id ?? project.project?.project_id;
 	expect(projectId).toBeTruthy();
 	const planIds: string[] = [];
