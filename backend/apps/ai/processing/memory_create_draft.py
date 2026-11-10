@@ -10,24 +10,24 @@
 
 from __future__ import annotations
 
-import re
 from typing import Any, Callable, Dict, Optional, Tuple
 
-import yaml
-
+from backend.apps.ai.processing.memory_document import (
+    MAX_BODY_CHARS,
+    MAX_TITLE_CHARS,
+    MAX_WHEN_TO_USE_CHARS,
+    MemoryDocumentError,
+    build_memory_document,
+    validated_memory_document,
+)
 from backend.apps.ai.processing.memory_update_preview import MemoryPreviewError
-from backend.apps.ai.processing.postprocessing_recommendations import clean_text, contains_secret
 from backend.apps.ai.utils.llm_utils import call_preprocessing_llm
-from backend.shared.python_utils.memory_loader import MAX_MEMORY_CHARS, parse_memory_md
+
+__all__ = ["MAX_BODY_CHARS", "MAX_TITLE_CHARS", "MAX_WHEN_TO_USE_CHARS", "MEMORY_DRAFT_TOOL",
+           "build_memory_document", "interpret_draft", "run_memory_create_draft"]
 
 MAX_INPUT_CHARS = 4_000
-MAX_TITLE_CHARS = 120
-MAX_WHEN_TO_USE_CHARS = 400
-MAX_BODY_CHARS = 8_000
 DRAFT_MAX_OUTPUT_TOKENS = 3_000
-
-_CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
-_ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}(?:[T ][0-9:.+\-Zz]+)?$")
 
 MEMORY_DRAFT_TOOL: Dict[str, Any] = {
     "type": "function",
@@ -49,44 +49,19 @@ MEMORY_DRAFT_TOOL: Dict[str, Any] = {
 }
 
 
-def build_memory_document(title: str, when_to_use: str, content: str, valid_from: str = "", valid_until: str = "") -> str:
-    """Canonical Markdown memory: YAML frontmatter (title, when_to_use, load_mode ask_first, dates) plus body."""
-    header: Dict[str, Any] = {"title": title, "when_to_use": when_to_use, "load_mode": "ask_first"}
-    if valid_from:
-        header["valid_from"] = valid_from
-    if valid_until:
-        header["valid_until"] = valid_until
-    front = yaml.safe_dump(header, sort_keys=False, allow_unicode=True, default_flow_style=False, width=10_000).strip()
-    return f"---\n{front}\n---\n\n{content.strip()}\n"
-
-
 def interpret_draft(arguments: Optional[Dict[str, Any]]) -> Dict[str, str]:
     """Validate model output into {title, when_to_use, body}. Raises MemoryPreviewError; never repairs secrets."""
-    if not isinstance(arguments, dict):
-        raise MemoryPreviewError("model returned no usable result")
-    title = clean_text(arguments.get("title"), MAX_TITLE_CHARS)
-    when_to_use = clean_text(arguments.get("when_to_use"), MAX_WHEN_TO_USE_CHARS)
-    content = arguments.get("content")
-    if not title or not when_to_use or not isinstance(content, str) or not content.strip() or len(content) > MAX_BODY_CHARS:
-        raise MemoryPreviewError("model returned an unusable draft")
-    content = _CONTROL_CHARS.sub("", content)
-    if any(contains_secret(value) for value in (title, when_to_use, content)):
-        raise MemoryPreviewError("model returned an unusable draft")
-    dates: Dict[str, str] = {}
-    for key in ("valid_from", "valid_until"):
-        value = arguments.get(key)
-        if isinstance(value, str) and value.strip():
-            if not _ISO_DATE.match(value.strip()):
-                raise MemoryPreviewError("model returned an invalid date")
-            dates[key] = value.strip()
-    document = build_memory_document(title, when_to_use, content, **dates)
-    if len(document) > MAX_MEMORY_CHARS:
-        raise MemoryPreviewError("model returned an unusable draft")
     try:
-        parse_memory_md(document, memory_id="draft", source="personal")
-    except ValueError as exc:
-        raise MemoryPreviewError("model returned a non-canonical document") from exc
-    return {"title": title, "when_to_use": when_to_use, "body": document}
+        return validated_memory_document(arguments, load_mode="ask_first")
+    except MemoryDocumentError as exc:
+        reason = str(exc)
+        if reason == "invalid date":
+            raise MemoryPreviewError("model returned an invalid date") from exc
+        if reason == "non-canonical document":
+            raise MemoryPreviewError("model returned a non-canonical document") from exc
+        if reason == "no usable fields":
+            raise MemoryPreviewError("model returned no usable result") from exc
+        raise MemoryPreviewError("model returned an unusable draft") from exc
 
 
 async def run_memory_create_draft(

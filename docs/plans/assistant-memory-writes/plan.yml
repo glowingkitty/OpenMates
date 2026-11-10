@@ -1,0 +1,337 @@
+schema_version: 2
+id: assistant-memory-writes
+title: Assistant saves and updates Memories directly, with undo
+status: draft
+goal: 'The main processor can fully create or update a personal Memory through a tool call, with no review step,
+  and the user can easily undo that change. Workflows keep their existing direct create-or-modify skill. Post-processor
+  memory and workflow suggestions stay as additional suggestions, but never suggest what the main response already
+  created or updated in the same turn.
+
+  '
+scope:
+  in:
+  - Internal main-processor tool save_memory (create or update one personal Memory document).
+  - Client-applied write job. The server validates and forwards cleartext only to the requesting client; the client
+    encrypts and stores. No durable backend plaintext.
+  - Memory document create, update and delete in the Rust client core, used by web and CLI/TUI.
+  - Chat history notice "Memory created/updated" marked as written by the assistant, with Undo (delete the new Memory
+    or restore the previous document).
+  - Post-processor receives which memory and workflow writes the main turn made and omits matching recommendations.
+  - Job-search focus modes use the tool after the user agrees; real chat proof that a saved career profile is reused
+    without re-asking.
+  out:
+  - Apple UI for the notice and Undo (Apple has no recommendations card yet; it keeps reading Memory documents).
+  - Team and Project Memories written by the assistant.
+  - Changes to workflow authoring, which already writes directly and has guarded undo.
+  - Version history for Memories beyond the single previous document kept for Undo.
+scenarios:
+- id: S-1
+  title: Assistant saves a Memory after the user agrees
+  given:
+  - A signed-in user in a saved chat on a client that supports memory write jobs.
+  when:
+  - The user asks to remember something, or agrees to the assistant's offer to save a profile.
+  then:
+  - The Memory exists encrypted in the account, the chat shows a notice with Open and Undo, and no review step was
+    required.
+- id: S-2
+  title: Undo
+  given:
+  - A notice for an assistant-written Memory.
+  when:
+  - The user chooses Undo.
+  then:
+  - A created Memory is deleted and an updated Memory is restored to its previous document.
+- id: S-3
+  title: No duplicate suggestions
+  given:
+  - A turn in which the assistant saved a Memory or created or modified a Workflow.
+  when:
+  - Post-processing runs.
+  then:
+  - No recommendation of the same kind repeats that entry.
+- id: S-4
+  title: Saved profile is reused
+  given:
+  - A career profile Memory saved by the assistant.
+  when:
+  - The user starts a new chat in a job-search focus mode.
+  then:
+  - The assistant uses the profile and does not ask again for facts it contains.
+acceptance_criteria:
+- id: AC-1
+  scenario: S-1
+  text: save_memory create and update produce a canonical validated document; secrets, oversize and non-canonical
+    documents are rejected; the tool is absent without the client capability.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: related_backend
+  verification_ids:
+  - T-TOOL
+- id: AC-2
+  scenario: S-1
+  text: The Rust core applies a memory write job by encrypting and storing the document and appending the assistant-sourced
+    history notice; a real CLI chat on the isolated stack ends with the Memory present.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: cli
+  verification_ids:
+  - T-CLI
+- id: AC-3
+  scenario: S-2
+  text: Undo in web deletes a created Memory and restores an updated one; the result survives reload.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: playwright
+  verification_ids:
+  - T-UNDO
+- id: AC-4
+  scenario: S-3
+  text: With a memory or workflow write in the turn, the post-processor output contains no recommendation for that
+    entry.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: related_backend
+  verification_ids:
+  - T-POST
+- id: AC-5
+  scenario: S-4
+  text: Real dev chats show a saved career profile being used in Create or update CV and Write application without
+    re-asking.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: manual
+  verification_ids:
+  - T-REAL
+tests:
+- id: T-TOOL
+  type: pytest
+  file: backend/tests/test_memory_write_tool.py
+  command: python3 scripts/ci_coordinator.py submit --session 3bb9 --mode pytest --spec backend/tests/test_memory_write_tool.py
+  execution_environment: isolated_github_ci
+  target: isolated_github_ci
+  assertions:
+  - validation
+  - capability gate
+  - update requires loaded memory
+  covers:
+  - AC-1
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+- id: T-POST
+  type: pytest
+  file: backend/tests/test_postprocessing_recommendations.py
+  command: python3 scripts/ci_coordinator.py submit --session 3bb9 --mode pytest --spec backend/tests/test_postprocessing_recommendations.py
+  execution_environment: isolated_github_ci
+  target: isolated_github_ci
+  assertions:
+  - written entries excluded
+  covers:
+  - AC-4
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+- id: T-CLI
+  type: playwright
+  file: frontend/apps/web_app/tests/cli-memory-write.spec.ts
+  command: python3 scripts/ci_coordinator.py submit --session 3bb9 --mode e2e --spec frontend/apps/web_app/tests/cli-memory-write.spec.ts
+  execution_environment: isolated_github_ci
+  target: isolated_github_ci
+  assertions:
+  - memory present after chat
+  - history notice
+  covers:
+  - AC-2
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+- id: T-UNDO
+  type: playwright
+  file: frontend/apps/web_app/tests/memory-write-undo.spec.ts
+  command: python3 scripts/ci_coordinator.py submit --session 3bb9 --mode e2e --spec frontend/apps/web_app/tests/memory-write-undo.spec.ts
+  execution_environment: isolated_github_ci
+  target: isolated_github_ci
+  assertions:
+  - undo create
+  - undo update
+  - reload
+  covers:
+  - AC-3
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+- id: T-REAL
+  type: manual
+  file: scripts/jobs_focus_real_test.py
+  command: python3 scripts/jobs_focus_real_test.py --session 3bb9 --state-dir /tmp/jobs-focus-state-UNIQUE --output-dir
+    /tmp/jobs-focus-UNIQUE --allow-paid-dev-inference --case profile-reuse
+  execution_environment: dev
+  target: dev
+  assertions:
+  - profile saved
+  - no re-asking in second chat
+  covers:
+  - AC-5
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+tasks:
+- id: TASK-1
+  title: Backend save_memory tool, write job and post-processor exclusion
+  status: pending
+  phase: awaiting_approval
+  covers:
+    scenarios:
+    - S-1
+    - S-3
+    acceptance_criteria:
+    - AC-1
+    - AC-4
+  expected_files: &id001
+  - backend/apps/ai/processing/memory_write_tool.py
+  - backend/apps/ai/processing/postprocessing_recommendations.py
+  verification_ids:
+  - T-TOOL
+  - T-POST
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files: *id001
+    shared_files: []
+- id: TASK-2
+  title: Rust core memory document write, job application and history notice; CLI/TUI output
+  status: pending
+  phase: awaiting_approval
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-2
+  expected_files: &id002
+  - packages/openmates-rust/src/client/memory_write_jobs.rs
+  verification_ids:
+  - T-CLI
+  dependencies:
+  - TASK-1
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files: *id002
+    shared_files: []
+- id: TASK-3
+  title: Web notice with Undo on the Rust core write path
+  status: pending
+  phase: awaiting_approval
+  covers:
+    scenarios:
+    - S-2
+    acceptance_criteria:
+    - AC-3
+  expected_files: &id003
+  - frontend/packages/ui/src/components/ContextEntryEventNotice.svelte
+  verification_ids:
+  - T-UNDO
+  dependencies:
+  - TASK-2
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files: *id003
+    shared_files: []
+- id: TASK-4
+  title: Job-search focus modes use the tool; real chat proof of profile reuse
+  status: pending
+  phase: awaiting_approval
+  covers:
+    scenarios:
+    - S-4
+    acceptance_criteria:
+    - AC-5
+  expected_files: &id004
+  - scripts/jobs_focus_real_test.py
+  verification_ids:
+  - T-REAL
+  dependencies:
+  - TASK-3
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files: *id004
+    shared_files: []
+implementation_state:
+  subject_commit: fb934cdabe3cd83a20b6ad5c44f851cd830f0d2f
+approvals:
+  specification:
+    status: pending
+    reason: Amends approved feature.app-memories; the draft change is presented for approval after deployment.
+  plan:
+    status: approved
+    approved_at: '2026-11-10'
+decisions:
+- id: D-1
+  status: active
+  decision: The server never writes Memories; save_memory publishes a client-applied job gated by a client capability,
+    as task updates and project files do.
+  reason: Memories are client-encrypted; the Specification forbids durable backend plaintext.
+  decided_at: '2026-11-10'
+- id: D-2
+  status: active
+  decision: Updates require the target Memory to be loaded in the current turn.
+  reason: The model must edit the real document, and unloaded personal Memory bodies are never visible to it.
+  decided_at: '2026-11-10'
+- id: D-3
+  status: active
+  decision: Memory document create, update and delete move into the Rust client core and web calls the core.
+  reason: 'Client-core rule: sync and crypto logic lives only in Rust; the CLI needs the same write.'
+  decided_at: '2026-11-10'
+- id: D-4
+  status: active
+  decision: Main processor writes without a review step and with Undo; post-processor suggestions remain additional
+    and exclude entries written in the turn.
+  reason: Requested by the user on 2026-11-10.
+  decided_at: '2026-11-10'
+attempts:
+- id: A-1
+  task_id: TASK-1
+  outcome: planned
+  approach: Map the existing suggestion and save path, then add the tool following the task-update job pattern.
+  recorded_at: '2026-11-10'
+handoff:
+  current_task_id: TASK-1
+  next_action: Resolve the default load mode of assistant-saved Memories with the user, then implement TASK-1.
+  command: python3 scripts/plan_validate.py docs/plans/assistant-memory-writes/plan.yml
+  expected_outcome: Validated plan.
+  last_verified_commit: fb934cdabe3cd83a20b6ad5c44f851cd830f0d2f
+  blocker: null

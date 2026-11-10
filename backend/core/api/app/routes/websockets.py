@@ -120,6 +120,10 @@ from .handlers.websocket_handlers.workflow_chat_delivery_handlers import (
     handle_workflow_chat_delivery_persist,
     send_available_workflow_chat_deliveries,
 )
+from .handlers.websocket_handlers.memory_write_job_handlers import (
+    handle_memory_write_job_claim,
+    handle_memory_write_job_result,
+)
 from .handlers.websocket_handlers.task_update_job_handlers import (
     handle_task_update_job_claim,
     handle_task_update_job_event_confirmed,
@@ -1508,6 +1512,25 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                             user_id=owner_id,
                             device_fingerprint_hash=device_hash,
                         )
+                    continue
+
+                if event_type == "memory_write_job_available":
+                    # Cleartext Memory document for the owner's capable device(s) with this
+                    # chat open only; the first claim wins (memory_write_tool.py).
+                    user_id_uuid = redis_payload.get("user_id_uuid")
+                    chat_id_from_payload = redis_payload.get("chat_id")
+                    if not user_id_uuid or not chat_id_from_payload:
+                        continue
+                    payload = {key: value for key, value in redis_payload.items()
+                               if key not in {"type", "user_id_uuid", "user_id_hash"}}
+                    for device_hash in list(manager.get_connections_for_user(user_id_uuid)):
+                        if (manager.supports_memory_write_jobs(user_id_uuid, device_hash)
+                                and chat_id_from_payload == manager.get_active_chat(user_id_uuid, device_hash)):
+                            await manager.send_personal_message(
+                                message={"type": event_type, "payload": payload},
+                                user_id=user_id_uuid,
+                                device_fingerprint_hash=device_hash,
+                            )
                     continue
 
                 if event_type in ("task_event", "task_update_jobs_available"):
@@ -3268,6 +3291,7 @@ async def websocket_endpoint(
     supports_project_file_jobs = "project_file_jobs" in connection_capabilities
     supports_project_create_requests = "project_create_requests" in connection_capabilities
     supports_remote_command_jobs = "remote_command_jobs" in connection_capabilities
+    supports_memory_write_jobs = "memory_write_jobs" in connection_capabilities
     supports_canonical_embed_receipts = "canonical_embed_receipts_v1" in connection_capabilities
     supports_typed_recovery_outputs = "typed_recovery_outputs_v2" in connection_capabilities
     supports_empty_call_cleanup = websocket.query_params.get("empty_call_cleanup_guard") == "1"
@@ -3318,6 +3342,7 @@ async def websocket_endpoint(
         supports_project_file_jobs=supports_project_file_jobs,
         supports_project_create_requests=supports_project_create_requests,
         supports_remote_command_jobs=supports_remote_command_jobs,
+        supports_memory_write_jobs=supports_memory_write_jobs,
         supports_storage_archive=supports_storage_archive,
         supports_canonical_embed_receipts=supports_canonical_embed_receipts,
         supports_typed_recovery_outputs=supports_typed_recovery_outputs,
@@ -3863,6 +3888,20 @@ async def websocket_endpoint(
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
                     user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type in ("memory_write_job_claim", "memory_write_job_result"):
+                if not supports_memory_write_jobs:
+                    await websocket.send_json({"type": "error", "payload": {"message": "Memory write jobs require a memory-write-jobs capable client"}})
+                    continue
+                memory_write_handler = (handle_memory_write_job_claim if message_type == "memory_write_job_claim"
+                                        else handle_memory_write_job_result)
+                await memory_write_handler(
+                    manager=manager,
+                    cache_service=cache_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
                 )
 
             elif message_type == "task_update_job_claim":

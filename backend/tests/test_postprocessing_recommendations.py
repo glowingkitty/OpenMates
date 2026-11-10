@@ -232,3 +232,53 @@ def test_ask_preference_defaults_true_and_directus_schema_columns():
     assert users["recommendations_enabled"]["default"] is True and "quick_tips_enabled" not in users
     chats = yaml.safe_load((root / "chats.yml").read_text())["chats"]["fields"]
     assert chats["encrypted_recommendations"]["type"] == "text" and "encrypted_quick_tip_slugs" not in chats
+
+
+WRITTEN = [{"kind": "memory", "target_id": "mem-uuid-1", "title": "Coffee order"},
+           {"kind": "memory", "target_id": "new-mem", "title": "Career profile"},
+           {"kind": "workflow", "target_id": "wf-uuid-1", "title": "Weekly CFP alert"}]
+
+
+# contract-test: supporting surface=rest_api assertions=app-memories.suggestions.post-processor,app-memories.suggestions.no-duplicates
+def test_entries_written_this_turn_are_not_recommended_again():
+    args = {
+        "memory_recommendations": [
+            {"action": "update", "ref": "m1", "title": "x", "summary": "Coffee preferences"},
+            {"action": "create", "title": "Career  profile!", "summary": "Roles and skills"},
+            {"action": "create", "title": "Favourite city", "summary": "Lisbon"},
+        ],
+        "workflow_recommendations": [
+            {"action": "create", "title": "Weekly CFP alert", "summary": "New CFPs"},
+            {"action": "update", "ref": "w1", "title": "y", "summary": "Same workflow"},
+        ],
+    }
+    built = mod.build_recommendations(
+        args, task_id="task-1", memory_aliases=MEMORIES, workflow_aliases=mod.build_workflow_aliases(WORKFLOWS),
+        all_workflows=WORKFLOWS, written_entries=WRITTEN)
+    assert [(item["kind"], item["title"]) for item in built] == [("memory", "Favourite city")]
+    assert built[0]["id"] == mod.recommendation_id("task-1", "memory", 0)
+    # Without writes the same output keeps every distinct item.
+    assert len(_build(args)) == 4
+
+
+# contract-test: supporting surface=rest_api assertions=app-memories.suggestions.post-processor,app-memories.suggestions.no-duplicates
+def test_written_entries_only_affect_their_own_kind():
+    args = {"memory_recommendations": [{"action": "create", "title": "Weekly CFP alert", "summary": "A fact"}]}
+    built = mod.build_recommendations(args, task_id="t", memory_aliases={}, workflow_aliases={}, all_workflows=[],
+                                      written_entries=[WRITTEN[2]])
+    assert [item["title"] for item in built] == ["Weekly CFP alert"]
+
+
+# contract-test: supporting surface=rest_api assertions=app-memories.suggestions.post-processor,app-memories.suggestions.no-duplicates
+def test_context_lists_written_entries_and_allows_empty_list_only_for_that_kind():
+    context = mod.build_recommendation_context(MEMORIES, {}, [WRITTEN[1]])
+    assert "Already saved in this turn" in context and "memory: Career profile" in context
+    assert "Already saved" not in mod.build_recommendation_context(MEMORIES, {}, [])
+    tool = copy.deepcopy(yaml.safe_load(INSTRUCTIONS.read_text())["postprocess_response_tool"]["function"]["parameters"])
+    properties = tool["properties"]
+    assert properties["memory_recommendations"]["minItems"] == 1
+    mod.relax_min_items_for_written(properties, [WRITTEN[1]])
+    assert properties["memory_recommendations"]["minItems"] == 0
+    assert properties["workflow_recommendations"]["minItems"] == 1
+    mod.relax_min_items_for_written(properties, None)
+    assert properties["workflow_recommendations"]["minItems"] == 1

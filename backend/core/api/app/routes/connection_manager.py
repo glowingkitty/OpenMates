@@ -174,6 +174,8 @@ class ConnectionManager:
         self.project_create_capability: Dict[Tuple[str, str], bool] = {}
         # Clients that implement reviewed, client-encrypted remote commands.
         self.remote_command_job_capability: Dict[Tuple[str, str], bool] = {}
+        # Clients that encrypt and store assistant-written personal Memories (memory_write_tool.py).
+        self.memory_write_job_capability: Dict[Tuple[str, str], bool] = {}
         self.storage_archive_capability: Dict[Tuple[str, str], bool] = {}
         self.storage_archive_dispatch_guard_installed = False
         self.canonical_embed_receipt_capability: Dict[Tuple[str, str], bool] = {}
@@ -206,6 +208,7 @@ class ConnectionManager:
         supports_project_file_jobs: bool = False,
         supports_project_create_requests: bool = False,
         supports_remote_command_jobs: bool = False,
+        supports_memory_write_jobs: bool = False,
         supports_storage_archive: bool = False,
         supports_canonical_embed_receipts: bool = False,
         supports_typed_recovery_outputs: bool = False,
@@ -264,6 +267,7 @@ class ConnectionManager:
         self.project_file_job_capability[connection_key] = supports_project_file_jobs
         self.project_create_capability[connection_key] = supports_project_create_requests
         self.remote_command_job_capability[connection_key] = supports_remote_command_jobs
+        self.memory_write_job_capability[connection_key] = supports_memory_write_jobs
         self.storage_archive_capability[connection_key] = supports_storage_archive
         self.canonical_embed_receipt_capability[connection_key] = supports_canonical_embed_receipts
         self.typed_recovery_output_capability[connection_key] = supports_typed_recovery_outputs
@@ -415,6 +419,7 @@ class ConnectionManager:
                 self.project_file_job_capability.pop(connection_key, None)
                 self.project_create_capability.pop(connection_key, None)
                 self.remote_command_job_capability.pop(connection_key, None)
+                self.memory_write_job_capability.pop(connection_key, None)
                 self.storage_archive_capability.pop(connection_key, None)
                 self.canonical_embed_receipt_capability.pop(connection_key, None)
                 self.typed_recovery_output_capability.pop(connection_key, None)
@@ -442,6 +447,7 @@ class ConnectionManager:
                 self.project_file_job_capability.pop(connection_key, None)
                 self.project_create_capability.pop(connection_key, None)
                 self.remote_command_job_capability.pop(connection_key, None)
+                self.memory_write_job_capability.pop(connection_key, None)
                 self.storage_archive_capability.pop(connection_key, None)
 
     async def send_personal_message(
@@ -745,6 +751,12 @@ class ConnectionManager:
         """Creation requests go only to this chat's current capable executor."""
         return (self.supports_project_create_requests(user_id, device_fingerprint_hash)
                 and self.get_active_chat(user_id, device_fingerprint_hash) == chat_id)
+
+    def supports_memory_write_jobs(self, user_id: str, device_fingerprint_hash: str) -> bool:
+        """True for a foreground client that encrypts and stores assistant Memory writes."""
+        if not self.is_connection_completion_capable(user_id, device_fingerprint_hash):
+            return False
+        return self.memory_write_job_capability.get((user_id, device_fingerprint_hash), False)
 
     def supports_remote_command_jobs(self, user_id: str, device_fingerprint_hash: str) -> bool:
         """True for a foreground client implementing the remote-command protocol."""

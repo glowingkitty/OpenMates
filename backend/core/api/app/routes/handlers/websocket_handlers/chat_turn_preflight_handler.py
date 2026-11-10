@@ -116,6 +116,9 @@ def server_client_capabilities(manager: Any, user_id: str, device_fingerprint_ha
     supports_remote_command_jobs = getattr(manager, "supports_remote_command_jobs", None)
     if callable(supports_remote_command_jobs) and supports_remote_command_jobs(user_id, device_fingerprint_hash):
         capabilities.append("remote_command_jobs")
+    supports_memory_write_jobs = getattr(manager, "supports_memory_write_jobs", None)
+    if callable(supports_memory_write_jobs) and supports_memory_write_jobs(user_id, device_fingerprint_hash):
+        capabilities.append("memory_write_jobs")
     return capabilities
 
 

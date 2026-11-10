@@ -32,6 +32,7 @@ from backend.apps.ai.processing.postprocessing_recommendations import (
     build_recommendations,
     build_workflow_aliases,
     recommendations_skip_reason,
+    relax_min_items_for_written,
     select_prompt_workflows,
     strip_recommendation_fields,
 )
@@ -372,6 +373,7 @@ async def handle_postprocessing(
     voice_mode: bool = False,
     memory_catalog: Optional[List[Any]] = None,
     existing_workflows: Optional[List[Dict[str, Any]]] = None,
+    written_entries: Optional[List[Dict[str, Any]]] = None,
 ) -> Optional[PostProcessingResult]:
     """
     Generate post-processing suggestions using LLM.
@@ -405,6 +407,8 @@ async def handle_postprocessing(
         recommendations_enabled: Whether memory/workflow Recommendations should be generated.
         memory_catalog: Personal memory catalog metadata (aliased m1.. in the prompt).
         existing_workflows: In-memory workflow metadata (workflow_id, title, description, updated_at); never logged.
+        written_entries: Memories/workflows the main turn already wrote ({kind, target_id, title}); never
+            recommended again. In-memory only; never logged.
 
     Returns:
         PostProcessingResult with suggestions, summaries, and metadata
@@ -474,6 +478,8 @@ async def handle_postprocessing(
     if recommendations_skip:
         tool_required = strip_recommendation_fields(tool_properties, tool_required)
         logger.info(f"[Task ID: {task_id}] [PostProcessor] Recommendations skipped ({recommendations_skip})")
+    else:
+        relax_min_items_for_written(tool_properties, written_entries)
     if is_sub_chat:
         tool_properties.pop("top_recommended_apps_for_user", None)
         tool_required = [field for field in tool_required if field != "top_recommended_apps_for_user"]
@@ -524,7 +530,7 @@ async def handle_postprocessing(
             existing_workflows or [],
             " ".join([user_message or "", assistant_response or "", current_chat_title or "", " ".join(chat_tags or [])]),
         ))
-        recommendation_context = build_recommendation_context(memory_aliases, workflow_aliases)
+        recommendation_context = build_recommendation_context(memory_aliases, workflow_aliases, written_entries)
 
     learning_mode_suggestion_context = ""
     if is_learning_mode_enabled(learning_mode_context) or learning_focus_context:
@@ -542,8 +548,6 @@ async def handle_postprocessing(
             f"Active learning focus and phase: {json.dumps(learning_focus_context or {}, ensure_ascii=True)}"
         )
 
-    # Memory prefixes are no longer used in suggestions — settings/memories suggestions
-    # are now generated inline by the main AI processor as deep links in the response text.
     memory_prefix_context = ""
 
     # Build title update context: pass the current title so the LLM can judge whether it still fits
@@ -840,6 +844,7 @@ async def handle_postprocessing(
     recommendations = [] if recommendations_skip else build_recommendations(
         llm_result.arguments, task_id=task_id, memory_aliases=memory_aliases,
         workflow_aliases=workflow_aliases, all_workflows=existing_workflows or [],
+        written_entries=written_entries,
     )
 
     result = PostProcessingResult(

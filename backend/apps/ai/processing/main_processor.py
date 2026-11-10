@@ -102,6 +102,10 @@ from backend.apps.ai.processing.memory_tools import (
     NATIVE_MEMORY_FINGERPRINT_KEY, authorized_memory_catalog, has_memory_catalog,
     memory_tools, native_memory_context_matches,
 )
+from backend.apps.ai.processing.memory_write_tool import (
+    SAVE_MEMORY_TOOL_INSTRUCTION, SAVE_MEMORY_TOOL_NAME, dispatch_save_memory, is_save_memory_tool_name,
+    record_workflow_writes, save_memory_enabled, save_memory_tool,
+)
 from backend.shared.python_utils.rule_loader import applied_rule_set_key
 from backend.apps.ai.processing.related_work import (
     RelatedWorkCandidate, fetch_related_chat_summaries, fetch_related_task_candidates, select_related_work,
@@ -5201,6 +5205,10 @@ async def handle_main_processing(
         )
         prompt_parts.append(MEMORY_TOOL_INSTRUCTION)
         logger.info("%s [MEMORY_CONTEXT] on-demand tools available", log_prefix)
+    # Client-applied personal Memory writes (memory_write_tool.py); the server never stores them.
+    save_memory_available = save_memory_enabled(request_data) and cache_service is not None
+    if save_memory_available:
+        prompt_parts.append(SAVE_MEMORY_TOOL_INSTRUCTION)
     if (discovered_apps_metadata and "diagrams" in discovered_apps_metadata
             and selected_app_ids is not None and "diagrams" in selected_app_ids):
         from backend.apps.diagrams.diagram_guidance import (
@@ -5486,6 +5494,8 @@ async def handle_main_processing(
     }
     if memory_runtime is not None:
         available_tools_for_llm.extend(memory_tools())
+    if save_memory_available:
+        available_tools_for_llm.append(save_memory_tool())
     available_tools_for_llm = without_unscoped_project_search(available_tools_for_llm)
 
     if task_queue_blocks_plan_tools:
@@ -5988,6 +5998,7 @@ async def handle_main_processing(
     # snake_case form (pre-canonicalize, defensive) for both tools.
     for system_skill in (
         *MEMORY_TOOL_NAMES,
+        SAVE_MEMORY_TOOL_NAME,
         "activate_focus_mode",
         "deactivate_focus_mode",
         "start_sub_chats",
@@ -7573,7 +7584,7 @@ async def handle_main_processing(
                     or is_sub_chat_violation
                 ):
                     rejection_reason = "Nesting depth limit exceeded: Tier 2 (grandchild) chats cannot spawn sub-chats." if is_sub_chat_violation else INVALID_TOOL_RESULT_REASON
-                    raw_arguments_log = "" if _is_task_tool_like(canonical_name) or _is_task_tool_like(raw_function_name) else f"Raw arguments: {chunk.function_arguments_raw[:500]}"
+                    raw_arguments_log = "" if _is_task_tool_like(canonical_name) or _is_task_tool_like(raw_function_name) or is_save_memory_tool_name(raw_function_name) else f"Raw arguments: {chunk.function_arguments_raw[:500]}"
                     logger.warning(
                         f"{log_prefix} [HALLUCINATION/BLOCK] Rejecting tool call "
                         f"'{raw_function_name}' (canonical='{canonical_name}') "
@@ -7741,8 +7752,8 @@ async def handle_main_processing(
                                 len(omitted_inline_budget_requests),
                             )
 
-                    if app_id == "system" and skill_id in MEMORY_TOOL_NAMES:
-                        continue  # Context loads use Memory receipts, never skill placeholders.
+                    if app_id == "system" and (skill_id in MEMORY_TOOL_NAMES or skill_id == SAVE_MEMORY_TOOL_NAME):
+                        continue  # Memory context/writes use Memory receipts, never skill placeholders.
                     if app_id == "system" and skill_id == "activate_focus_mode":
                         focus_activation_seen_this_turn = True
                     elif is_legacy_task_runtime_tool_name(tool_name):
@@ -8987,7 +8998,7 @@ async def handle_main_processing(
                 is_sub_chat_violation = (tool_name == "start-sub-chats" and chat_depth >= 2)
                 if tool_name not in allowed_tool_names or is_sub_chat_violation:
                     rejection_reason = "Nesting depth limit exceeded: Tier 2 (grandchild) chats cannot spawn sub-chats." if is_sub_chat_violation else "Tool not available. Only preselected tools may be used. Do not retry this call."
-                    raw_arguments_log = "" if is_task_tool_name(tool_name) else f". Raw arguments: {tool_arguments_str[:500]}"
+                    raw_arguments_log = "" if is_task_tool_name(tool_name) or is_save_memory_tool_name(tool_name) else f". Raw arguments: {tool_arguments_str[:500]}"
                     logger.warning(
                         f"{log_prefix} [HALLUCINATION/BLOCK] Refusing to execute tool '{tool_name}'. "
                         f"tool_call_id={tool_call_id}. Allowed tools ({len(allowed_tool_names)}): "
@@ -9051,6 +9062,15 @@ async def handle_main_processing(
                         memory_result = {"status": "unavailable", "message": "Memory unavailable or selection exceeds the context limit. Use only available IDs and fewer documents; do not claim it loaded."}
                     current_message_history.append({"tool_call_id": tool_call_id, "role": "tool",
                         "name": tool_name, "content": json.dumps(memory_result)})
+                    continue
+
+                if app_id == "system" and skill_id == SAVE_MEMORY_TOOL_NAME and save_memory_available:
+                    # Waits for the user's device to apply the job; the result is what it actually did.
+                    save_result = await dispatch_save_memory(
+                        arguments=parsed_args, request=request_data, approved_memories=approved_memories,
+                        cache_service=cache_service, log_prefix=log_prefix)
+                    current_message_history.append({"tool_call_id": tool_call_id, "role": "tool",
+                        "name": tool_name, "content": json.dumps(save_result)})
                     continue
                 
                 # Validate that app_id and skill_id are non-empty after split
@@ -10457,6 +10477,7 @@ async def handle_main_processing(
                             results,
                             log_prefix=f"{log_prefix}[{app_id}.{skill_id}] ",
                         )
+                        record_workflow_writes(request_data, app_id, skill_id, results)
                         if ascii_sanitization_stats.get("removed_count", 0) > 0:
                             logger.warning(
                                 f"{log_prefix} Removed {ascii_sanitization_stats['removed_count']} "

@@ -85,7 +85,7 @@ from backend.apps.ai.processing.artifact_ledger import (
     recover_inline_upload_artifacts,
 )
 from backend.apps.ai.processing.postprocessing_workflow_context import fetch_user_workflow_metadata
-from backend.apps.ai.processing.postprocessing_recommendations import recommendations_skip_reason
+from backend.apps.ai.processing.postprocessing_recommendations import exclude_written_recommendations, recommendations_skip_reason
 from backend.apps.ai.processing.postprocessor import (
     handle_postprocessing,
     PostProcessingResult,
@@ -5054,6 +5054,9 @@ async def _async_process_ai_skill_ask_task(
                         user_message=last_user_message, assistant_response=postprocessing_response,
                     ):
                         postprocessing_result.recommendations = []
+                    else:
+                        postprocessing_result.recommendations = exclude_written_recommendations(
+                            postprocessing_result.recommendations, request_data.turn_written_entries)
                 else:
                     # Optional in-memory workflow metadata so Recommendations can update instead of duplicate.
                     existing_workflows_for_postproc = (
@@ -5093,6 +5096,7 @@ async def _async_process_ai_skill_ask_task(
                         voice_mode=request_data.voice_mode,
                         memory_catalog=[e for e in request_data.memory_catalog if e.source == "personal"],
                         existing_workflows=existing_workflows_for_postproc,
+                        written_entries=list(request_data.turn_written_entries),
                     )
                 _log_team_ai_pipeline_stage(request_data, task_id, "postprocess", "completed")
 

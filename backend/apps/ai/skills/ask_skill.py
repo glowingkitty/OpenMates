@@ -190,6 +190,7 @@ class AskSkillRequest(BaseModel):
     same_turn_checkpoint: Optional[Dict[str, Any]] = Field(default=None, exclude=True, repr=False, description="API-memory-only provider-loop checkpoint; never written to a queue or durable cache.")
     preprocessing_resume_ref: Optional[str] = Field(default=None, max_length=128, description="Opaque server-created routing snapshot reference for an internal continuation; never itself grants authority.")
     awaiting_async_skill_continuation: bool = Field(default=False, description="True when this response dispatched a client job and must not seal the interim assistant output as terminal recovery.")
+    turn_written_entries: List[Dict[str, Any]] = Field(default_factory=list, exclude=True, repr=False, description="Process-memory only: memories/workflows written by this turn ({kind, target_id, title}) so post-processing does not recommend them again; never serialized.")
     is_sub_chat_continuation: bool = Field(default=False, description="True if this task is a continuation after waited sub-chats completed. The user message was already persisted before the sub-chat pause.")
     recovery_consumed_child_ids: List[str] = Field(default_factory=list, description="Internal child identities whose sealed synthesis inputs are carried by this continuation.")
     is_anonymous: bool = Field(default=False, description="True for official-cloud anonymous free usage. Skips user-vault lookup and user-balance charging.")

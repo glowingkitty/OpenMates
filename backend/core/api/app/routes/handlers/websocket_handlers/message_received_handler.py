@@ -252,7 +252,7 @@ def _sanitize_benchmark_metadata(value: Any) -> dict[str, str] | None:
 def _sanitize_client_capabilities(value: Any) -> list[str]:
     if not isinstance(value, list):
         return []
-    allowed = {"task_update_jobs", "project_file_jobs", "project_create_requests", "remote_command_jobs"}
+    allowed = {"task_update_jobs", "project_file_jobs", "project_create_requests", "remote_command_jobs", "memory_write_jobs"}
     return sorted({item for item in value if isinstance(item, str) and item in allowed})
 
 
