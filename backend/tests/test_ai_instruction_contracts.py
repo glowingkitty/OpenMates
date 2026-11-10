@@ -182,3 +182,20 @@ def test_images_generate_owns_vector_graphics_and_offers_both_engines() -> None:
     assert "modified from its source code" in request["reference_images"]["description"]
     assert "pixel reference is redrawn as vector" in request["reference_images"]["description"]
     assert any("Do not write SVG code in the answer" in item["instruction"] for item in app["instructions"])
+
+
+# contract-test: direct surface=rest_api assertions=images-generate.vector.skill-authors-svg
+def test_images_app_catalogue_tells_preprocessing_about_vector_graphics() -> None:
+    """Stage one only sees the first sentence of a skill hint, so that sentence must name SVG work."""
+    import yaml
+
+    from backend.apps.ai.processing.jev_preprocessing import _app_catalogue
+
+    app = yaml.safe_load((Path(__file__).resolve().parents[1] / "apps/images/app.yml").read_text())
+    skills = [
+        f"images-{skill['id']}: {' '.join((skill.get('preprocessor_hint') or '').split())}"
+        for skill in app["skills"]
+    ]
+    (entry,) = _app_catalogue(["images"], skills)
+    assert "SVG vector graphics" in entry
+    assert "new or modified" in entry

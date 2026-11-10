@@ -3571,13 +3571,13 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
  {'app_id': 'images',
   'app_namespace_py': 'images',
   'app_namespace_ts': 'images',
-  'description': 'Generate high-quality images from text prompts and/or reference images '
-                 '(image-to-image editing). Also use for: mockups, design concepts, visual mockup '
-                 'creation, logo mockups, product mockups, illustration requests, visual design, '
-                 'concept art, posters, banners, thumbnails, or any request that implies creating '
-                 'a visual output. Also the way to create or modify ANY vector graphic (SVG): '
-                 'logos, icons, illustrations, infographics, labelled or technical drawings, '
-                 'patterns, embroidery or cutting motifs',
+  'description': 'Generate images or SVG vector graphics (logos, icons, patterns, drawings), new '
+                 'or modified. Works from text prompts and/or reference images (image-to-image '
+                 'editing). Also use for: mockups, design concepts, visual mockup creation, logo '
+                 'mockups, product mockups, illustration requests, visual design, concept art, '
+                 'posters, banners, thumbnails, or any request that implies creating a visual '
+                 'output. Also the way to create or modify ANY vector graphic (SVG): logos, icons, '
+                 'illustrations, infographics, la',
   'description_key': 'images.generate.description',
   'schema': {'properties': {'requests': {'description': 'REQUIRED: Array of image generation '
                                                         'request objects for parallel processing '
@@ -9823,7 +9823,7 @@ class ImagesAppSkills:
         self._run_skill = run_skill
 
     def generate(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Generate high-quality images from text prompts and/or reference images (image-to-image editing). Also use for: mockups, design concepts, visual mockup creation, logo mockups, product mockups, illustration requests, visual design, concept art, posters, banners, thumbnails, or any request that implies creating a visual output. Also the way to create or modify ANY vector graphic (SVG): logos, icons, illustrations, infographics, labelled or technical drawings, patterns, embroidery or cutting motifs
+        """Generate images or SVG vector graphics (logos, icons, patterns, drawings), new or modified. Works from text prompts and/or reference images (image-to-image editing). Also use for: mockups, design concepts, visual mockup creation, logo mockups, product mockups, illustration requests, visual design, concept art, posters, banners, thumbnails, or any request that implies creating a visual output. Also the way to create or modify ANY vector graphic (SVG): logos, icons, illustrations, infographics, la
 
         Description key: images.generate.description
         Skill: images/generate

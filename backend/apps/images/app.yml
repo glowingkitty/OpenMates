@@ -341,7 +341,8 @@ skills:
       expose_get: true
       expose_post: true
     preprocessor_hint: >
-      Generate high-quality images from text prompts and/or reference images (image-to-image editing).
+      Generate images or SVG vector graphics (logos, icons, patterns, drawings), new or modified.
+      Works from text prompts and/or reference images (image-to-image editing).
       Also use for: mockups, design concepts, visual mockup creation, logo mockups,
       product mockups, illustration requests, visual design, concept art, posters,
       banners, thumbnails, or any request that implies creating a visual output.

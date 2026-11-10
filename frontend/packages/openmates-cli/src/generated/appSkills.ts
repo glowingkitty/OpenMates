@@ -4406,7 +4406,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "images",
     "skill_method_py": "generate",
     "description_key": "images.generate.description",
-    "description": "Generate high-quality images from text prompts and/or reference images (image-to-image editing). Also use for: mockups, design concepts, visual mockup creation, logo mockups, product mockups, illustration requests, visual design, concept art, posters, banners, thumbnails, or any request that implies creating a visual output. Also the way to create or modify ANY vector graphic (SVG): logos, icons, illustrations, infographics, labelled or technical drawings, patterns, embroidery or cutting motifs",
+    "description": "Generate images or SVG vector graphics (logos, icons, patterns, drawings), new or modified. Works from text prompts and/or reference images (image-to-image editing). Also use for: mockups, design concepts, visual mockup creation, logo mockups, product mockups, illustration requests, visual design, concept art, posters, banners, thumbnails, or any request that implies creating a visual output. Also the way to create or modify ANY vector graphic (SVG): logos, icons, illustrations, infographics, la",
     "schema": {
       "type": "object",
       "properties": {
@@ -9858,7 +9858,7 @@ export class ImagesAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Generate high-quality images from text prompts and/or reference images (image-to-image editing). Also use for: mockups, design concepts, visual mockup creation, logo mockups, product mockups, illustration requests, visual design, concept art, posters, banners, thumbnails, or any request that implies creating a visual output. Also the way to create or modify ANY vector graphic (SVG): logos, icons, illustrations, infographics, labelled or technical drawings, patterns, embroidery or cutting motifs
+   * Generate images or SVG vector graphics (logos, icons, patterns, drawings), new or modified. Works from text prompts and/or reference images (image-to-image editing). Also use for: mockups, design concepts, visual mockup creation, logo mockups, product mockups, illustration requests, visual design, concept art, posters, banners, thumbnails, or any request that implies creating a visual output. Also the way to create or modify ANY vector graphic (SVG): logos, icons, illustrations, infographics, la
    * Description key: images.generate.description
    * Skill: images/generate
    */
