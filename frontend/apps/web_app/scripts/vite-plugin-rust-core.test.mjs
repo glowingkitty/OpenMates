@@ -37,3 +37,13 @@ test('a packaged core exposes its WASM digest and lazy loader', () => {
 	assert.match(source, /openmates:rust:wasm-instantiate-start/);
 	assert.match(source, /__openmatesRustCoreWasmBytes/);
 });
+
+test('a flag-on production build without the package is refused before bundling', () => {
+	const flagOnly = rustCoreAssetsPlugin({ VITE_OPENMATES_RUST_CORE: '1' });
+	assert.throws(() => flagOnly.config({}, { command: 'build' }), /requires OPENMATES_RUST_CORE_PKG/);
+	assert.doesNotThrow(() => flagOnly.config({}, { command: 'serve' }));
+	assert.doesNotThrow(() => rustCoreAssetsPlugin({}).config({}, { command: 'build' }));
+	assert.doesNotThrow(() =>
+		rustCoreAssetsPlugin({ VITE_OPENMATES_RUST_CORE: '1', OPENMATES_RUST_CORE_PKG: directory }).config({}, { command: 'build' })
+	);
+});

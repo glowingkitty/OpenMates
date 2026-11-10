@@ -65,6 +65,13 @@ export function rustCoreAssetsPlugin(env = process.env) {
 	const directory = rustCorePackageDirectory(env);
 	return {
 		name: 'openmates-rust-core-package',
+		// A flag-on production build without the package would compile the stub and
+		// only fail in the browser, so refuse it here.
+		config(_config, { command }) {
+			if (command === 'build' && env.VITE_OPENMATES_RUST_CORE === '1' && !directory) {
+				throw new Error('VITE_OPENMATES_RUST_CORE=1 requires OPENMATES_RUST_CORE_PKG (build it with build-rust-core-web.mjs)');
+			}
+		},
 		resolveId(id) {
 			return id === VIRTUAL ? INTERNAL : null;
 		},

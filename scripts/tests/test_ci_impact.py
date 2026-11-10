@@ -1,3 +1,4 @@
+# contract-test-file: tooling
 """Tests for deterministic CI changed-path classification.
 
 Purpose: verify package and web decisions use one canonical path contract.
@@ -50,3 +51,15 @@ def test_apple_only_path_has_no_package_or_web_impact() -> None:
     assert impact.cli_package is False
     assert impact.python_package is False
     assert impact.web is False
+
+
+def test_rust_client_core_change_rebuilds_web() -> None:
+    impact = load_impact()
+    for path in (
+        "packages/openmates-rust/src/client/recommendations.rs",
+        "packages/openmates-browser-bindings/src/lib.rs",
+        "packages/third_party/opaque-ke/src/lib.rs",
+        "Cargo.lock",
+    ):
+        assert impact.classify_paths([path]).web is True, path
+
