@@ -366,3 +366,50 @@ async def test_diagram_history_allows_initial_snapshot_but_fences_later_legacy_v
     ))
     assert len(directus.rows) == 1
     assert manager.personal_messages[-1][0]["payload"]["message"] == "Diagram revisions require atomic commit"
+
+
+IMAGE_CHILD_ID = "00c38e7c-9c7b-53a0-ad04-ed7e38f2ec36"
+
+
+def image_child_head(**overrides):
+    head = {"embed_id": IMAGE_CHILD_ID, "hashed_user_id": OWNER_HASH, "parent_embed_id": "parent-1",
+            "app_id": "images", "skill_id": "generated_image"}
+    head.update(overrides)
+    return head
+
+
+async def _store_image_child_row(head, user_id=OWNER_ID):
+    manager = FakeConnectionManager()
+    directus = FakeDirectusService(existing_embed=head)
+    await get_handle_store_embed_diff()(
+        websocket=None, manager=manager, cache_service=None, directus_service=directus,
+        user_id=user_id, device_fingerprint_hash="device-1",
+        payload=diff_payload(embed_id=IMAGE_CHILD_ID, version_number=2,
+                             encrypted_snapshot="encrypted-version-2", request_id="request-1"),
+    )
+    return manager, directus
+
+
+# contract-test: supporting surface=rest_api assertions=images-generate.revision.same-embed-new-version
+@pytest.mark.asyncio
+async def test_store_embed_diff_accepts_snapshot_only_version_row_of_generated_image_child():
+    manager, directus = await _store_image_child_row(image_child_head())
+
+    assert [(row["version_number"], row["encrypted_snapshot"], row["encrypted_patch"]) for row in directus.rows] == [
+        (2, "encrypted-version-2", None)
+    ]
+    assert manager.personal_messages[-1][0]["type"] != "error"
+
+
+# contract-test: supporting surface=rest_api assertions=images-generate.revision.same-embed-new-version
+@pytest.mark.asyncio
+@pytest.mark.parametrize("head", [
+    image_child_head(app_id="docs"),
+    image_child_head(parent_embed_id=None),
+    image_child_head(hashed_user_id=RECIPIENT_HASH),
+])
+async def test_store_embed_diff_keeps_refusing_other_reserved_ids(head):
+    manager, directus = await _store_image_child_row(head)
+
+    assert directus.rows == []
+    assert manager.personal_messages[-1][0]["type"] == "error"

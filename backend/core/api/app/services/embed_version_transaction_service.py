@@ -70,6 +70,22 @@ async def requires_atomic_project_embed_write(directus_service: Any, embed_id: s
     return isinstance(rows, list) and bool(rows)
 
 
+def is_generated_image_child(embed_id: object, head: Mapping[str, Any] | None) -> bool:
+    """A generated image keeps one UUIDv5 child embed whose versions are written as history rows.
+
+    Mirrors ``isGeneratedImageChild`` of the embed-version-transaction extension,
+    which stays the authority: it re-checks this under the embed lock and still
+    refuses an embed that is linked to a Project.
+    """
+    return (
+        is_hosted_project_embed_id(embed_id)
+        and isinstance(head, Mapping)
+        and bool(head.get("parent_embed_id"))
+        and head.get("app_id") == "images"
+        and head.get("skill_id") == "generated_image"
+    )
+
+
 class EmbedVersionTransactionError(RuntimeError):
     def __init__(self, status_code: int, code: str) -> None:
         self.status_code = status_code
