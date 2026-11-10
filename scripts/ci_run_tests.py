@@ -4523,6 +4523,10 @@ def main():
         "artifact_shared_dev_rejected": mode == "artifact" and not error,
         "proof_dimensions": proof_dimensions,
         "proof_profile": os.environ.get("PLAYWRIGHT_PROOF_VIDEO_PROFILE", ""),
+        # What this run built, not what was requested: the lane was on and the
+        # wasm package step exported its directory.
+        "web_rust_core": os.environ.get("CI_LANE_WEB_RUST_CORE") == "true"
+        and bool(os.environ.get("OPENMATES_RUST_CORE_PKG")),
         "results": results,
         "error": error,
         "success": bool(results)

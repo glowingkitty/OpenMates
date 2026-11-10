@@ -1,7 +1,7 @@
 // Engineering test: the Vercel build entry reuses a Rust core package only while
 // every recorded input is unchanged, and only listed branches build with the core.
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, test } from 'node:test';
@@ -23,7 +23,8 @@ write('packages/third_party/dep/Cargo.toml', '[package]\n');
 write('packages/core/target/Cargo.toml', 'ignored\n');
 write('frontend/apps/web_app/scripts/build-rust-core-web.mjs', '// build\n');
 write('frontend/apps/web_app/scripts/vercel-build.mjs', '// entry\n');
-write('built/openmates_browser.js', 'export default 1;\n');
+write('built/openmates_browser.js', "import { settle } from './snippets/core-0123/inline0.js';\nexport default settle;\n");
+write('built/snippets/core-0123/inline0.js', 'export const settle = 1;\n');
 write('built/openmates_browser_bg.wasm', 'wasm');
 
 const depInfo = `${repo}/target/out.wasm: ${repo}/packages/core/src/lib.rs ${repo}/packages/core/src/data\\ file.json /outside/registry/dep.rs\n`;
@@ -74,4 +75,16 @@ test('a cache entry without the wasm file is not reused', () => {
 	storePackage(repo, cache, join(repo, 'built'), depInfo);
 	rmSync(join(cache, 'openmates_browser_bg.wasm'));
 	assert.equal(cachedPackage(repo, cache), null);
+});
+
+test('the stored package keeps the modules its entry imports and refuses a package without them', () => {
+	storePackage(repo, cache, join(repo, 'built'), depInfo);
+	assert.equal(existsSync(join(cache, 'snippets/core-0123/inline0.js')), true);
+	assert.equal(cachedPackage(repo, cache), cache);
+
+	rmSync(join(cache, 'snippets'), { recursive: true });
+	assert.equal(cachedPackage(repo, cache), null);
+
+	rmSync(join(repo, 'built/snippets'), { recursive: true });
+	assert.throws(() => storePackage(repo, cache, join(repo, 'built'), depInfo), /incomplete: \.\/snippets\/core-0123\/inline0\.js/);
 });

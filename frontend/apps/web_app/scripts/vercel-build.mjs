@@ -72,10 +72,18 @@ export function inputsDigest(repoRoot, files) {
 	return hash.digest('hex');
 }
 
+/** Relative modules the package entry imports (wasm-bindgen `snippets/`) that are absent from the directory. */
+export function missingImports(packageDirectory) {
+	const entry = readFileSync(join(packageDirectory, PACKAGE_FILES[0]), 'utf8');
+	const imports = [...entry.matchAll(/^import\s[^'"]*['"](\.[^'"]+)['"]/gm)].map((match) => match[1]);
+	return imports.filter((path) => !existsSync(join(packageDirectory, path)));
+}
+
 /** The cached package directory when its recorded inputs still match the checkout, else null. */
 export function cachedPackage(repoRoot, cacheDirectory) {
 	const manifestPath = join(cacheDirectory, MANIFEST);
 	if (!existsSync(manifestPath) || !PACKAGE_FILES.every((name) => existsSync(join(cacheDirectory, name)))) return null;
+	if (missingImports(cacheDirectory).length) return null;
 	const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
 	return inputsDigest(repoRoot, manifest.files) === manifest.digest ? cacheDirectory : null;
 }
@@ -87,7 +95,13 @@ export function storePackage(repoRoot, cacheDirectory, builtDirectory, depInfoTe
 	if (!digest) throw new Error('Rust core package inputs disappeared during the build');
 	mkdirSync(dirname(cacheDirectory), { recursive: true });
 	const staging = mkdtempSync(join(dirname(cacheDirectory), 'staging-'));
-	for (const name of PACKAGE_FILES) cpSync(join(builtDirectory, name), join(staging, name));
+	// The whole output: the entry imports the modules wasm-bindgen writes under snippets/.
+	cpSync(builtDirectory, staging, { recursive: true });
+	const missing = [...PACKAGE_FILES.filter((name) => !existsSync(join(staging, name))), ...missingImports(staging)];
+	if (missing.length) {
+		rmSync(staging, { recursive: true, force: true });
+		throw new Error(`Rust core package is incomplete: ${missing.join(', ')}`);
+	}
 	writeFileSync(join(staging, MANIFEST), JSON.stringify({ digest, files }));
 	rmSync(cacheDirectory, { recursive: true, force: true });
 	renameSync(staging, cacheDirectory);
@@ -140,6 +154,7 @@ function rustCorePackage(env) {
 	const tools = toolEnvironment(env);
 	const targetDirectory = env.CARGO_TARGET_DIR || join(root, 'target');
 	const built = join(targetDirectory, 'web-rust-core-pkg');
+	rmSync(built, { recursive: true, force: true });
 	execFileSync('node', [join(root, BUILD_SCRIPT), built], { cwd: root, env: tools, stdio: 'inherit' });
 	return storePackage(root, cacheDirectory, built, readFileSync(join(targetDirectory, DEP_INFO), 'utf8'));
 }
