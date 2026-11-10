@@ -2132,6 +2132,7 @@ def _fetch_reserved(github, job: dict, root: Path) -> dict:
             "mode": job["mode"],
             "selected_specs": json.loads(job["specs"]),
             "selected_case_title": job.get("case_title") or "",
+            **({"web_rust_core": True} if job.get("web_rust_core") else {}),
             "coverage_scope": (
                 "recipe-target"
                 if job.get("mode") == "selfhost"

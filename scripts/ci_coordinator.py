@@ -369,6 +369,11 @@ class GitHub:
                     ),
                     "proof_video_profile": job.get("proof_profile", ""),
                     **(
+                        {"web_rust_core": "true"}
+                        if job.get("web_rust_core")
+                        else {}
+                    ),
+                    **(
                         {"capacity_configuration": job["capacity_configuration"]}
                         if job.get("capacity_configuration")
                         else {}
@@ -499,6 +504,7 @@ class Queue:
                 "capacity_configuration": "TEXT NOT NULL DEFAULT ''",
                 "case_title": "TEXT NOT NULL DEFAULT ''",
                 "runtime_seed": "TEXT NOT NULL DEFAULT ''",
+                "web_rust_core": "INTEGER NOT NULL DEFAULT 0",
             }
             for name, definition in candidate_columns.items():
                 if name not in columns:
@@ -532,7 +538,10 @@ class Queue:
         capacity_configuration: dict | None = None,
         case_title: str = "",
         runtime_seed_job: str = "",
+        web_rust_core: bool = False,
     ) -> dict:
+        if web_rust_core and mode != "e2e":
+            raise ValueError("Web Rust core option requires --mode e2e")
         if not owner or not re.fullmatch(r"[0-9a-f]{40}", source):
             raise ValueError("Owner and full immutable source commit are required")
         if mode not in (
@@ -820,6 +829,8 @@ class Queue:
             identity.append(proof_profile)
         if case_title:
             identity.append({"case_title": case_title})
+        if web_rust_core:
+            identity.append({"web_rust_core": True})
         key = hashlib.sha256(json.dumps(identity).encode()).hexdigest()
         now = time.time()
         with self.connect() as db:
@@ -933,6 +944,11 @@ class Queue:
                         key,
                     ),
                 )
+            if web_rust_core:
+                db.execute(
+                    "UPDATE jobs SET web_rust_core=1 WHERE id=? AND state='queued'",
+                    (key,),
+                )
             if runtime_seed:
                 db.execute(
                     "UPDATE jobs SET runtime_seed=? WHERE id=? AND state='queued'",
@@ -950,7 +966,7 @@ class Queue:
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
             replaced = db.execute(
-                "UPDATE jobs SET state='cancelled',phase='superseded before dispatch',updated=?,error='Replaced by a newer candidate for the same owner and check' WHERE owner=? AND source<>? AND specs=? AND mode=? AND proof_profile=? AND case_title=? AND state='queued' AND sent IS NULL",
+                "UPDATE jobs SET state='cancelled',phase='superseded before dispatch',updated=?,error='Replaced by a newer candidate for the same owner and check' WHERE owner=? AND source<>? AND specs=? AND mode=? AND proof_profile=? AND case_title=? AND web_rust_core=? AND state='queued' AND sent IS NULL",
                 (
                     time.time(),
                     job["owner"],
@@ -959,6 +975,7 @@ class Queue:
                     job["mode"],
                     job["proof_profile"],
                     job["case_title"],
+                    job["web_rust_core"],
                 ),
             ).rowcount
             # A producer may be between creation and child attachment in another
@@ -1476,6 +1493,7 @@ def enqueue_submission(
     capacity_configuration: dict | None = None,
     case_title: str = "",
     runtime_seed_job: str = "",
+    web_rust_core: bool = False,
 ) -> list[dict]:
     """Split E2Es and optionally attach exact private shared preparation."""
     if case_title and (
@@ -1486,6 +1504,8 @@ def enqueue_submission(
         raise ValueError(
             "Case filter requires the exact recovery spec and approved test title"
         )
+    if web_rust_core and mode != "e2e":
+        raise ValueError("Web Rust core option requires --mode e2e")
     if prepared_builds and (source_root is None or mode not in ("e2e", "visual-smoke")):
         raise ValueError("Prepared builds require an E2E/visual source root")
     if runtime_seed_job and (mode not in {"backend-probe", "e2e"} or prepared_builds):
@@ -1598,6 +1618,7 @@ def enqueue_submission(
             capacity_configuration,
             case_title,
             runtime_seed_job,
+            web_rust_core,
         )
         for batch in batches
     ]
@@ -1656,6 +1677,7 @@ def print_receipt(value, *, as_json=False):
             "phase_updated",
             "queue_seconds",
             "preparation_wait_seconds",
+            "web_rust_core",
             "preparation_id",
             "prepared_run_id",
             "source_commit",
@@ -1765,6 +1787,11 @@ def main():
     )
     submit.add_argument(
         "--proof-video-profile", choices=["web-phone", "web-laptop"], default=""
+    )
+    submit.add_argument(
+        "--web-rust-core",
+        action="store_true",
+        help="e2e only: build the web app with the Rust client core on (wasm package + VITE_OPENMATES_RUST_CORE=1)",
     )
     priority = sub.add_parser("prioritize")
     priority.add_argument("id")
@@ -1900,6 +1927,7 @@ def main():
             capacity_configuration=capacity_configuration,
             case_title=args.case_title,
             runtime_seed_job=args.runtime_seed_job,
+            web_rust_core=args.web_rust_core,
         )
         print_receipt(
             receipts[0] if len(receipts) == 1 else receipts, as_json=args.json

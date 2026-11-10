@@ -18,6 +18,7 @@ def test_lane_selector_is_scoped_to_web_rust_core_specs():
     selector = _job()["env"]["CI_LANE_WEB_RUST_CORE"]
     assert "inputs.mode == 'e2e'" in selector
     assert "startsWith(inputs.specs_json, '[\"web-rust-core-')" in selector
+    assert "inputs.web_rust_core == 'true'" in selector
 
 
 # contract-test: infrastructure

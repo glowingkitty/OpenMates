@@ -1027,3 +1027,34 @@ def test_release_attention_refuses_when_run_exists_and_releases_otherwise(tmp_pa
     assert q.release_attention(remote, job["id"], "operator")["state"] == "failure"
     with pytest.raises(ValueError, match="attention"):
         q.release_attention(remote, job["id"], "operator")
+
+
+def test_web_rust_core_is_e2e_only_distinct_and_dispatched(tmp_path):
+    q = Queue(tmp_path / "queue.db")
+    ordinary = q.enqueue("a", "a" * 40, ["x.spec.ts"])
+    rust = q.enqueue("a", "a" * 40, ["x.spec.ts"], web_rust_core=True)
+    assert ordinary["id"] != rust["id"]
+    assert not ordinary["web_rust_core"] and rust["web_rust_core"] == 1
+    assert q.enqueue("a", "a" * 40, ["x.spec.ts"], web_rust_core=True)["id"] == rust["id"]
+    with pytest.raises(ValueError, match="requires --mode e2e"):
+        q.enqueue("a", "a" * 40, ["x.spec.ts"], mode="component", web_rust_core=True)
+    with pytest.raises(ValueError, match="requires --mode e2e"):
+        enqueue_submission(q, "a", "a" * 40, ["x.spec.ts"], "component", web_rust_core=True)
+    github = GitHub.__new__(GitHub)
+    github.repo = "example/repo"
+    requests = []
+    github.request = lambda endpoint, payload=None: requests.append(payload)
+    github.dispatch(rust)
+    github.dispatch(ordinary)
+    assert requests[0]["inputs"]["web_rust_core"] == "true"
+    assert "web_rust_core" not in requests[1]["inputs"]
+
+
+def test_web_rust_core_supersede_keeps_flag_variants_separate(tmp_path):
+    q = Queue(tmp_path / "queue.db")
+    plain = q.enqueue("a", "a" * 40, ["x.spec.ts"])
+    rust = q.enqueue("a", "a" * 40, ["x.spec.ts"], web_rust_core=True)
+    newer = q.enqueue("a", "b" * 40, ["x.spec.ts"], web_rust_core=True)
+    assert q.supersede_pending(newer) == 1
+    states = {r["id"]: r["state"] for r in q.status()}
+    assert states[rust["id"]] == "cancelled" and states[plain["id"]] == "queued"

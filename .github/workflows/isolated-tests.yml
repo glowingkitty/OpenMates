@@ -80,6 +80,10 @@ on:
         description: Source-bound calibration and rate settings supplied by the coordinator
         type: string
         default: ''
+      web_rust_core:
+        description: Build the web app with the Rust client core on for any e2e spec ('true' or 'false')
+        type: string
+        default: 'false'
 permissions:
   actions: read
   contents: read
@@ -88,7 +92,7 @@ jobs:
   test:
     if: github.event_name == 'workflow_dispatch' && inputs.mode != 'apple-core' && inputs.mode != 'apple-unit'
     runs-on: ${{ contains(inputs.specs_json, 'storage-capacity-target.spec.ts') && fromJSON('["self-hosted","Linux","X64","openmates-capacity"]') || (inputs.mode == 'rust-native-dev' || inputs.mode == 'rust-check') && fromJSON('["ubuntu-24.04-arm"]') || fromJSON('["ubuntu-24.04"]') }}
-    timeout-minutes: ${{ contains(inputs.specs_json, 'storage-capacity-target.spec.ts') && 2880 || inputs.mode == 'selfhost' && 120 || (inputs.mode == 'sdk-conformance' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev' || inputs.mode == 'rust-check') && 120 || (startsWith(inputs.specs_json, '["rust-core-') || startsWith(inputs.specs_json, '["web-rust-core-')) && 90 || inputs.mode == 'backend-probe' && 12 || 60 }}
+    timeout-minutes: ${{ contains(inputs.specs_json, 'storage-capacity-target.spec.ts') && 2880 || inputs.mode == 'selfhost' && 120 || (inputs.mode == 'sdk-conformance' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev' || inputs.mode == 'rust-check') && 120 || (startsWith(inputs.specs_json, '["rust-core-') || startsWith(inputs.specs_json, '["web-rust-core-') || inputs.web_rust_core == 'true') && 90 || inputs.mode == 'backend-probe' && 12 || 60 }}
     defaults:
       run:
         working-directory: subject
@@ -121,7 +125,7 @@ jobs:
       # edit; the lane scripts still validate the exact targets they support.
       # Opt-in shared Rust core in the web app: web-rust-core-* specs build the
       # WASM package and a VITE_OPENMATES_RUST_CORE=1 web app in the same job.
-      CI_LANE_WEB_RUST_CORE: ${{ inputs.mode == 'e2e' && startsWith(inputs.specs_json, '["web-rust-core-') }}
+      CI_LANE_WEB_RUST_CORE: ${{ inputs.mode == 'e2e' && (startsWith(inputs.specs_json, '["web-rust-core-') || inputs.web_rust_core == 'true') }}
       CI_LANE_RUST_BROWSER: ${{ inputs.mode == 'e2e' && (startsWith(inputs.specs_json, '["rust-core-') || inputs.specs_json == '["web-essential-startup-performance.spec.ts"]') }}
       CI_LANE_RUST_PRODUCTION_BROWSER: ${{ inputs.mode == 'e2e' && (startsWith(inputs.specs_json, '["rust-core-') || inputs.specs_json == '["web-essential-startup-performance.spec.ts"]') && inputs.specs_json != '["rust-core-browser-session.spec.ts"]' && inputs.specs_json != '["rust-core-browser-password-entry.spec.ts"]' }}
       CI_LANE_RUST_BROWSER_CLI: ${{ inputs.mode == 'e2e' && (startsWith(inputs.specs_json, '["rust-core-') || inputs.specs_json == '["web-essential-startup-performance.spec.ts"]') && inputs.specs_json != '["rust-core-browser-session.spec.ts"]' && inputs.specs_json != '["rust-core-browser-password-entry.spec.ts"]' && !contains(inputs.specs_json, 'rust-core-production-') && !contains(inputs.specs_json, 'rust-core-ordinary-login-retention') }}
@@ -495,6 +499,7 @@ jobs:
           node frontend/apps/web_app/scripts/build-rust-core-web.mjs "$PWD/target/web-rust-core-pkg"
           echo "OPENMATES_RUST_CORE_PKG=$PWD/target/web-rust-core-pkg" >> "$GITHUB_ENV"
           echo "VITE_OPENMATES_RUST_CORE=1" >> "$GITHUB_ENV"
+          echo "RUST-CORE-ON: web build uses the Rust client core (VITE_OPENMATES_RUST_CORE=1, wasm package built) for $CI_SPECS_JSON"
       - name: Generate UI build inputs once
         if: >-
           inputs.mode == 'prepare' ||
