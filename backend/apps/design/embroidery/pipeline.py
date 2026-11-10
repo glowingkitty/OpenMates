@@ -45,6 +45,7 @@ from backend.core.api.app.services.s3.config import get_bucket_name
 from backend.shared.providers.e2b_code_runner import get_e2b_api_key_async
 from backend.shared.python_utils.billing_utils import ensure_credit_headroom
 from backend.shared.python_utils.encrypted_embed_vectors import VectorSourceError, resolve_vector_source_embed
+from backend.shared.python_utils.fresh_upload_images import FreshUploadImageUnavailable
 from backend.shared.python_utils.generated_assets import (
     build_download_url,
     cache_s3_file_keys,
@@ -58,7 +59,19 @@ logger = logging.getLogger(__name__)
 
 TEMPLATE_ENV = "E2B_EMBROIDERY_TEMPLATE"
 PUBLIC_API_BASE_URL = os.getenv("PUBLIC_API_BASE_URL", "https://api.dev.openmates.org")
+INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
 INCOMPLETE_FILES_MESSAGE = "The conversion did not produce every machine file, so no files are offered."
+
+
+async def request_internal(method: str, path: str, payload: dict[str, Any]) -> dict[str, Any]:
+    """Call the internal API (owner-scoped upload metadata recovery for the source graphic)."""
+    headers = {"X-Internal-Service-Token": os.getenv("INTERNAL_API_SHARED_TOKEN") or ""}
+    async with httpx.AsyncClient(timeout=15) as client:
+        response = await client.request(method, f"{INTERNAL_API_BASE_URL}/{path}", json=payload, headers=headers)
+    if response.status_code in {401, 403, 404}:
+        raise FreshUploadImageUnavailable("Referenced graphic is not available in the current processing window")
+    response.raise_for_status()
+    return response.json()
 
 
 def open_embroidery_session(*, api_key: str, template: str) -> Any:
@@ -133,9 +146,10 @@ async def run_embroidery(task: Any, app_id: str, skill_id: str, arguments: dict[
         return await fail("invalid_source", INVALID_SOURCE_MESSAGE, result_title(source_ref))
     try:
         source = await resolve_vector_source_embed(
-            embed_id=source_embed_id, user_vault_key_id=user_vault_key_id,
+            embed_id=source_embed_id, user_id=user_id, user_vault_key_id=user_vault_key_id,
             cache_client=await task._cache_service.client, directus_service=task._directus_service,
-            encryption_service=task._encryption_service, s3_service=s3_service, bucket_name=bucket_name,
+            encryption_service=task._encryption_service, s3_service=s3_service,
+            request_internal=request_internal, bucket_name=bucket_name,
         )
     except VectorSourceError as exc:
         logger.info("%s Source is not a readable vector graphic: %s", log_prefix, exc)

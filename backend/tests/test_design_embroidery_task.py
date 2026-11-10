@@ -59,6 +59,7 @@ class World:
     uploads: dict[str, bytes] = field(default_factory=dict)
     indexed: list[dict] = field(default_factory=list)
     source: Any = None
+    resolve_calls: list[dict] = field(default_factory=list)
 
 
 class FakeSession:
@@ -115,7 +116,8 @@ def world(monkeypatch: pytest.MonkeyPatch) -> World:
     async def storage(_task: Any) -> FakeS3:
         return FakeS3(state)
 
-    async def resolve(**_kwargs: Any) -> ResolvedVectorSource:
+    async def resolve(**kwargs: Any) -> ResolvedVectorSource:
+        state.resolve_calls.append(kwargs)
         if isinstance(state.source, Exception):
             raise state.source
         return state.source
@@ -244,6 +246,17 @@ async def test_generated_svg_converts_without_model_call_and_delivers_every_file
     assert content["source_embed_ref"] == "fox-logo.svg" and content["input_embed_ids"] == ["source-embed-1"]
     assert content["files"]["pes"]["filename"] == "fox-logo.pes"
     assert content["files"]["pes"]["mime_type"] == "application/octet-stream"
+
+
+# contract-test: direct surface=rest_api assertions=design-embroidery.request.vector-source
+@pytest.mark.asyncio
+async def test_source_is_read_owner_bound_with_generated_asset_recovery(world: World) -> None:
+    await _run(world)
+
+    call = world.resolve_calls[0]
+    assert call["embed_id"] == "source-embed-1" and call["user_id"] == "user-1"
+    assert call["user_vault_key_id"] == "vault-key-1"
+    assert call["request_internal"] is pipeline.request_internal
 
 
 # contract-test: direct surface=rest_api assertions=design-embroidery.privacy.stored-like-generated-media
