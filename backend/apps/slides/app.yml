@@ -4,6 +4,10 @@
 # rules: docs/architecture/apps/slides-format.md. No skills; a focus mode follows
 # with the templates phase of the slides-core plan.
 
+# Not on the public landing tour until an example chat with a deck exists.
+landing:
+  enabled: false
+
 app_id: slides
 name_translation_key: slides
 description_translation_key: slides.description
