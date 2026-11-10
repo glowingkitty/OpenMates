@@ -1,0 +1,119 @@
+jobs_write_application:
+  context: Focus mode name
+  en: Write application
+  de: Bewerbung schreiben
+  zh: 撰写求职申请
+  es: Escribir candidatura
+  fr: Rédiger une candidature
+  pt: Escrever candidatura
+  ru: Написать отклик на вакансию
+  ja: 応募書類を書く
+  ko: 지원서 작성
+  it: Scrivi la candidatura
+  tr: Başvuru yaz
+  vi: Viết đơn ứng tuyển
+  id: Tulis lamaran
+  pl: Napisz aplikację
+  nl: Sollicitatie schrijven
+  ar: كتابة طلب التوظيف
+  hi: आवेदन लिखें
+  th: เขียนใบสมัครงาน
+  cs: Napsat žádost o práci
+  sv: Skriv ansökan
+  he: כתיבת מועמדות
+  verified_by_human: []
+description:
+  context: Focus mode description
+  en: Write an application for one specific job, in your own voice and built on your real experience.
+  de: Schreibe eine Bewerbung für eine konkrete Stelle, in deinem eigenen Stil und auf Basis deiner echten
+    Erfahrung.
+  zh: 针对某个具体职位撰写申请，用你自己的语气，基于你的真实经历。
+  es: Escribe una candidatura para un puesto concreto, con tu propia voz y basada en tu experiencia real.
+  fr: Rédigez une candidature pour un poste précis, avec votre propre voix et fondée sur votre expérience
+    réelle.
+  pt: Escreva uma candidatura para uma vaga específica, com a sua própria voz e baseada na sua experiência
+    real.
+  ru: Напишите отклик на конкретную вакансию своим голосом и на основе реального опыта.
+  ja: 特定の求人に向けて、あなた自身の言葉で、実際の経験に基づいた応募書類を書きます。
+  ko: 특정 채용 공고에 맞춰, 나만의 문체로 실제 경험을 바탕으로 지원서를 작성하세요.
+  it: Scrivi una candidatura per un lavoro specifico, con la tua voce e basata sulla tua esperienza reale.
+  tr: Belirli bir iş için, kendi üslubunla ve gerçek deneyimine dayanan bir başvuru yaz.
+  vi: Viết đơn ứng tuyển cho một công việc cụ thể, bằng giọng văn của bạn và dựa trên kinh nghiệm thật.
+  id: Tulis lamaran untuk satu pekerjaan tertentu, dengan gaya bahasamu sendiri dan berdasarkan pengalaman
+    nyata.
+  pl: Napisz aplikację na konkretne stanowisko, własnym stylem i w oparciu o swoje prawdziwe doświadczenie.
+  nl: Schrijf een sollicitatie voor één specifieke vacature, in je eigen stijl en gebaseerd op je echte
+    ervaring.
+  ar: اكتب طلبًا لوظيفة محددة بأسلوبك الخاص واستنادًا إلى خبرتك الحقيقية.
+  hi: किसी एक खास नौकरी के लिए अपनी शैली में और अपने वास्तविक अनुभव के आधार पर आवेदन लिखें।
+  th: เขียนใบสมัครสำหรับงานที่เจาะจง ด้วยน้ำเสียงของคุณเองและจากประสบการณ์จริง
+  cs: Napište žádost o konkrétní pracovní místo vlastním stylem a na základě svých skutečných zkušeností.
+  sv: Skriv en ansökan för ett specifikt jobb, med din egen röst och utifrån din verkliga erfarenhet.
+  he: כתבו מועמדות למשרה מסוימת, בקול שלכם ועל בסיס הניסיון האמיתי שלכם.
+  verified_by_human: []
+process:
+  context: Focus mode steps
+  en: '- Reads the job posting and lists what the employer actually asks for
+
+    - Uses your CV, career profile and writing style memories so you do not repeat yourself
+
+    - Shows where your experience matches the requirements and where it does not
+
+    - Asks for your reason for applying and one or two concrete experiences
+
+    - Writes a one-page letter as an editable Word document, in the posting''s language and country conventions
+
+    - Keeps your own voice and uses only true facts
+
+    - Offers to tailor your CV to the posting and to prepare you for the interview'
+  verified_by_human: []
+how_to_use:
+  context: Focus mode examples
+  en: '- Write a **cover letter** for this job posting: [link]
+
+    - Help me **apply** for the data analyst role at this company. My CV is attached
+
+    - **Tailor my CV** to this job and tell me what is missing'
+  verified_by_human: []
+systemprompt:
+  context: Focus mode instructions
+  en: 'You help the user apply for one specific job with an application that sounds like them and rests
+    on what they have really done.
+
+
+    Follow only the current phase''s instructions. Ask one question per round with a concrete example
+    and a recommendation, and wait for the reply. Honor requests to skip questions or go straight to a
+    draft.
+
+
+    Important guidelines:
+
+    - Work from the actual posting. Never invent requirements, company facts, names of contact persons,
+    deadlines or salary.
+
+    - Never ask for information that a CV, a loaded memory or the chat already contains.
+
+    - The user''s real experience is the only source. Never invent or inflate experience, skills, results
+    or numbers, and never claim a requirement is met when it is not. Name gaps honestly and help present
+    adjacent experience truthfully.
+
+    - Recruiters receive many generic, interchangeable letters. Specific facts, a real reason for this
+    employer and the user''s own wording matter more than polish. Avoid stock phrases and empty superlatives.
+
+    - Never add hidden text, invisible keywords or instructions aimed at screening software.
+
+    - Conventions depend on the employer''s country and the posting. A requirement in the posting takes
+    priority; say when you are unsure.
+
+    - Do not include personal details such as date of birth, nationality, marital status, religion or
+    health unless the user asks for them.
+
+    - Do not promise interviews or offers. Do not give legal, visa or tax advice.
+
+    - You do not send applications. The user reviews and sends them.
+
+    - Keep chat answers short. The document carries the content.
+
+    - Only say that a memory was saved or updated after a memory-saving tool call succeeded. If no such
+    tool is available, say so and point the user to the memory suggestion shown under the answer.'
+  verified_by_human: []

@@ -321,3 +321,58 @@ focuses:
       result lookup, resume editing, workplace legal disputes, immigration
       advice, or financial planning unless the user is primarily asking for
       career direction.
+  - id: create_cv
+    auto_activate_when_relevant: true
+    icon_image: jobs.svg
+    name_translation_key: jobs.create_cv
+    description_translation_key: jobs.create_cv.description
+    process_translation_key: focus_modes.jobs_create_cv.process
+    systemprompt_translation_key: focus_modes.jobs_create_cv.systemprompt
+    how_to_use:
+      - Here is my current CV as a PDF. Update it for product manager roles in Germany
+      - I have no CV yet. Ask me what you need and create one
+      - Is my CV readable by applicant tracking systems? Check it and fix what is not
+    preprocessor_hint: >
+      Select when the user wants to create, write, update, improve, review,
+      translate or reformat a CV, resume or Lebenslauf, uploads a CV and
+      asks for feedback or a new version, or asks whether their CV is
+      readable by applicant tracking software. Do not select for writing a
+      cover letter or application for one specific job, interview
+      preparation, deciding on a career direction, or only searching for job
+      listings.
+  - id: write_application
+    auto_activate_when_relevant: true
+    icon_image: jobs.svg
+    name_translation_key: jobs.write_application
+    description_translation_key: jobs.write_application.description
+    process_translation_key: focus_modes.jobs_write_application.process
+    systemprompt_translation_key: focus_modes.jobs_write_application.systemprompt
+    how_to_use:
+      - 'Write a cover letter for this job posting: [link]'
+      - Help me apply for the data analyst role at this company. My CV is attached
+      - Tailor my CV to this job and tell me what is missing
+    preprocessor_hint: >
+      Select when the user wants to apply to one specific job or employer
+      and asks for a cover letter, application letter, Anschreiben,
+      motivation letter, personal letter, answers to application form
+      questions, or to tailor their CV to that job posting. Do not select
+      for creating a general CV without a target job, interview preparation,
+      choosing a career direction, or only searching for job listings.
+  - id: prepare_interview
+    auto_activate_when_relevant: true
+    icon_image: jobs.svg
+    name_translation_key: jobs.prepare_interview
+    description_translation_key: jobs.prepare_interview.description
+    process_translation_key: focus_modes.jobs_prepare_interview.process
+    systemprompt_translation_key: focus_modes.jobs_prepare_interview.systemprompt
+    how_to_use:
+      - I have an interview on Thursday for this role. Help me prepare
+      - Run a mock interview for a junior UX designer position and give me feedback
+      - How do I answer "what is your biggest weakness" with my background?
+    preprocessor_hint: >
+      Select when the user has or expects a job interview and wants to
+      prepare: likely questions, how to answer, a practice or mock
+      interview, feedback on answers, questions to ask the employer, or
+      preparing for a recorded or AI-assisted video interview. Do not select
+      for writing a CV or an application, choosing a career direction,
+      salary negotiation after an offer, or only searching for job listings.

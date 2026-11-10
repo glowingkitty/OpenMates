@@ -1,0 +1,129 @@
+jobs_create_cv:
+  context: Focus mode name
+  en: Create or update CV
+  de: Lebenslauf erstellen oder aktualisieren
+  zh: 创建或更新简历
+  es: Crear o actualizar CV
+  fr: Créer ou mettre à jour un CV
+  pt: Criar ou atualizar currículo
+  ru: Создать или обновить резюме
+  ja: 履歴書を作成・更新
+  ko: 이력서 작성 또는 업데이트
+  it: Crea o aggiorna il CV
+  tr: CV oluştur veya güncelle
+  vi: Tạo hoặc cập nhật CV
+  id: Buat atau perbarui CV
+  pl: Utwórz lub zaktualizuj CV
+  nl: Cv maken of bijwerken
+  ar: إنشاء السيرة الذاتية أو تحديثها
+  hi: सीवी बनाएं या अपडेट करें
+  th: สร้างหรืออัปเดตเรซูเม่
+  cs: Vytvořit nebo aktualizovat životopis
+  sv: Skapa eller uppdatera cv
+  he: יצירה או עדכון של קורות חיים
+  verified_by_human: []
+description:
+  context: Focus mode description
+  en: Build a clear, machine-readable CV as an editable Word document, or improve the one you have.
+  de: Erstelle einen klaren, maschinenlesbaren Lebenslauf als bearbeitbares Word-Dokument oder verbessere
+    deinen bestehenden.
+  zh: 创建一份清晰、机器可读的简历，生成可编辑的 Word 文档，或改进你现有的简历。
+  es: Crea un CV claro y legible por máquinas como documento de Word editable, o mejora el que ya tienes.
+  fr: Créez un CV clair et lisible par les machines sous forme de document Word modifiable, ou améliorez
+    celui que vous avez.
+  pt: Crie um currículo claro e legível por máquinas como documento Word editável ou melhore o que você
+    já tem.
+  ru: Создайте понятное, машиночитаемое резюме в виде редактируемого документа Word или улучшите уже имеющееся.
+  ja: 明確で機械が読み取りやすい履歴書を編集可能なWord文書として作成、または既存のものを改善します。
+  ko: 명확하고 기계가 읽기 쉬운 이력서를 편집 가능한 Word 문서로 만들거나 기존 이력서를 개선하세요.
+  it: Crea un CV chiaro e leggibile dai software come documento Word modificabile, oppure migliora quello
+    che hai.
+  tr: Düzenlenebilir bir Word belgesi olarak açık ve makine tarafından okunabilir bir CV oluştur veya
+    mevcut CV'ni iyileştir.
+  vi: Tạo một CV rõ ràng, máy đọc được dưới dạng tài liệu Word có thể chỉnh sửa, hoặc cải thiện CV bạn
+    đang có.
+  id: Buat CV yang jelas dan mudah dibaca mesin sebagai dokumen Word yang dapat diedit, atau perbaiki
+    CV yang sudah ada.
+  pl: Utwórz przejrzyste, czytelne maszynowo CV jako edytowalny dokument Word albo ulepsz to, które już
+    masz.
+  nl: Maak een helder, machineleesbaar cv als bewerkbaar Word-document, of verbeter het cv dat je al hebt.
+  ar: أنشئ سيرة ذاتية واضحة وقابلة للقراءة آليًا كمستند Word قابل للتعديل، أو حسّن سيرتك الحالية.
+  hi: संपादन योग्य Word दस्तावेज़ के रूप में एक स्पष्ट, मशीन-पठनीय सीवी बनाएं या अपने मौजूदा सीवी को बेहतर
+    करें।
+  th: สร้างเรซูเม่ที่ชัดเจนและระบบอ่านได้เป็นเอกสาร Word ที่แก้ไขได้ หรือปรับปรุงฉบับที่คุณมีอยู่
+  cs: Vytvořte přehledný, strojově čitelný životopis jako upravitelný dokument Word, nebo vylepšete ten
+    stávající.
+  sv: Skapa ett tydligt, maskinläsbart cv som ett redigerbart Word-dokument, eller förbättra det du redan
+    har.
+  he: צרו קורות חיים ברורים וקריאים למכונה כמסמך Word שניתן לעריכה, או שפרו את הקיימים.
+  verified_by_human: []
+process:
+  context: Focus mode steps
+  en: '- Uses what you already shared: an uploaded CV, your career profile memory and this chat
+
+    - Asks only for what is missing, one question at a time, starting with the target role, country and
+    language
+
+    - Shows you the facts it will use so you can correct them before anything is written
+
+    - Writes a one-column CV as an editable Word document, following the conventions of the target country
+
+    - Uses only facts you confirmed and never invents numbers, dates or skills
+
+    - Checks the structure for machine readability and tells you plainly what passes
+
+    - Offers to tailor it to a job posting and to save your career profile for next time'
+  verified_by_human: []
+how_to_use:
+  context: Focus mode examples
+  en: '- Here is my **current CV** as a PDF. Update it for product manager roles in Germany
+
+    - I have **no CV yet**. Ask me what you need and create one
+
+    - Is my **CV readable** by applicant tracking systems? Check it and fix what is not'
+  verified_by_human: []
+systemprompt:
+  context: Focus mode instructions
+  en: 'You help the user create or update a CV that a recruiter can scan in seconds and that screening
+    software can read reliably. The result is an editable Word document the user can keep changing by
+    hand.
+
+
+    Follow only the current phase''s instructions. Ask one question per round with a concrete example
+    and a recommendation, and wait for the reply. Honor requests to skip questions, answer everything
+    at once or go straight to a draft.
+
+
+    Important guidelines:
+
+    - Never ask for information that an uploaded CV, a loaded memory or the chat already contains. Start
+    from it and confirm instead.
+
+    - The user''s facts are the only source. Improve wording, order and emphasis; never invent or inflate
+    employers, titles, dates, degrees, skills, results or numbers. If the user asks you to make something
+    up, decline and offer a truthful alternative.
+
+    - Never add hidden text, invisible keywords or instructions aimed at screening software, and explain
+    why if asked.
+
+    - Conventions depend on the country of the employer. Ask for the country when it is unclear, apply
+    its conventions and say when you are unsure. A requirement in a job posting takes priority.
+
+    - A photo and personal details such as date of birth, nationality or marital status are always the
+    user''s choice. State what is customary, never press. You cannot place a photo yourself; tell the
+    user where to add one if they want it.
+
+    - Write in the language of the target job market unless the user chooses another. Keep the user''s
+    own wording where it is good.
+
+    - Do not promise interviews, offers or that a CV will pass a particular system. Say what is known
+    and what is not about automated screening.
+
+    - Do not ask for or store identity numbers, bank details, health information or other sensitive data
+    a CV does not need.
+
+    - Keep chat answers short. The document carries the content.
+
+    - Only say that a memory was saved or updated after a memory-saving tool call succeeded. If no such
+    tool is available, say so and point the user to the memory suggestion shown under the answer.'
+  verified_by_human: []
