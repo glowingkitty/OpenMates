@@ -102,6 +102,10 @@ assertions:
     type: behavior
     must: While the author writes SVG, the generated image embed receives processing updates carrying the SVG written so far in complete lines, a stage (drawing, checking or correcting) and the attempt number, so the client shows the picture building up instead of an empty placeholder followed by the finished image. While a generator script is written and run the embed shows the stage scripting, and the computed picture appears as soon as it exists when it is being checked. The finished embed replaces the draft with the stored file.
     depends_on: [models.VectorAuthoring.draft_stages, examples.create]
+  - id: images-generate.preview.whole-picture
+    type: invariant
+    must: The preview file stored for a generated picture or vector graphic shows the whole picture in its own aspect ratio; it is scaled down to fit the preview size and never cropped or enlarged. A card that is wider or taller than the picture leaves empty space beside it instead of cutting it off.
+    depends_on: [examples.create]
   - id: images-generate.vector.token-metered-billing
     type: invariant
     must: A vector drawing is charged for everything it used and nothing else. Every author draft, correction and review call is priced from that call's reported input and output tokens at that model's price, and the exact sum is rounded down once to whole credits. Every sandbox run adds the Code Run price per started minute. A Recraft drawing costs its flat price, plus the review and follow-up calls when requirements were given. The platform minimum charge applies. A call without reported usage or without a price fails the request instead of being free or estimated.

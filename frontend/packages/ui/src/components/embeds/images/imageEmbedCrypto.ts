@@ -181,7 +181,11 @@ export async function fetchAndDecryptImage(
     if (generation !== cacheGeneration) {
       throw new DOMException("Image context changed", "AbortError");
     }
-    const mimeType = s3Key.endsWith(".png") ? "image/png" : "image/webp";
+    const mimeType = s3Key.endsWith(".svg")
+      ? "image/svg+xml"
+      : s3Key.endsWith(".png")
+        ? "image/png"
+        : "image/webp";
     const blob = new Blob([decryptedData], { type: mimeType });
     const entry: CachedImage = {
       blob,

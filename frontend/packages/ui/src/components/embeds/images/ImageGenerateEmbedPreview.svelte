@@ -27,6 +27,7 @@
   import { getProviderIconUrl } from '../../../data/providerIcons';
   import { hasMediaEncryptionMetadata } from '../../../services/encryption/mediaEncryption';
   import SvgEmbedImage from '../code/SvgEmbedImage.svelte';
+  import { cardImageFile } from './cardImageFile';
   import { EMPTY_SVG_DRAFT, mergeSvgDraft, readSvgDraft, shouldShowDraftStatusOnly, shouldShowSvgDraft, svgDraftStageLabelKey, type SvgDraftStage, type SvgDraftState } from './svgDraft';
   
   /**
@@ -201,7 +202,8 @@
   let status = $derived(localStatus);
   let error = $derived(localError);
   let taskId = $derived(localTaskId);
-  let files = $derived(localFiles);
+  // The whole picture: the preview, or the uncropped source of an older cropped preview.
+  let cardFile = $derived(cardImageFile(localFiles));
   let s3BaseUrl = $derived(localS3BaseUrl);
   let aesKey = $derived(localAesKey);
   let aesNonce = $derived(localAesNonce);
@@ -232,7 +234,7 @@
    * Uses the shared in-memory cache to avoid redundant fetch+decrypt cycles.
    */
   async function loadPreviewImage() {
-    const previewFile = files?.preview;
+    const previewFile = cardFile;
     const s3Key = previewFile?.s3_key;
     if (!s3Key || !s3BaseUrl || !aesKey || !hasMediaEncryptionMetadata(previewFile, aesNonce)) {
       console.debug('[ImageGenerateEmbedPreview] Missing data for image load:', {
@@ -290,7 +292,7 @@
   // The IntersectionObserver sets isInView=true when the embed is within 200px of the viewport,
   // preventing all images in a long chat from loading simultaneously.
   $effect(() => {
-    if (isInView && status === 'finished' && files?.preview?.s3_key && s3BaseUrl && aesKey && hasMediaEncryptionMetadata(files.preview, aesNonce) && !imageUrl && !isLoadingImage) {
+    if (isInView && status === 'finished' && cardFile?.s3_key && s3BaseUrl && aesKey && hasMediaEncryptionMetadata(cardFile, aesNonce) && !imageUrl && !isLoadingImage) {
       loadPreviewImage();
     }
   });
