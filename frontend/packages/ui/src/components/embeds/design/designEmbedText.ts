@@ -50,6 +50,8 @@ export function renderDesignEmbroidery(content: Record<string, unknown>): string
   if (changes !== null) lines.push(`thread changes: ${changes}`);
   const minutes = num(content.estimated_minutes);
   if (minutes !== null) lines.push(`estimated sewing time: ${minutes} min`);
+  const threadMetres = num(content.thread_length_m);
+  if (threadMetres !== null) lines.push(`estimated thread: ${threadMetres} m`);
   const hoop = str(content.hoop);
   const fits = str(content.fits_hoop);
   if (hoop && HOOP_TEXT[hoop] && fits === 'yes') lines.push(`fits hoop ${HOOP_TEXT[hoop]}`);

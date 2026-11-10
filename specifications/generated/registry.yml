@@ -226,7 +226,7 @@ specifications:
     version: 1
     status: draft
     path: features/app-skills/design-embroidery
-    fingerprint: fa96c2d646e45efb037e476d2dfa7009e013e8c219b27f98f4ca41ba9912b4cc
+    fingerprint: 5c67b58676c8a501bd6556ecc82da0645266fbf9a0ff14fb2dda58b650a13926
     required_applies_to:
     - cli
     - sdks.npm
@@ -4231,7 +4231,7 @@ assertions:
     specification: feature.app-skill.design-embroidery@1
     specification_id: feature.app-skill.design-embroidery
     type: behavior
-    fingerprint: 201e2ff7d815a37caaa2f4a98df0dee020737819c5fd6471d7b5535c80b704ba
+    fingerprint: 50ccc8bb34b380a8bffc16398f7aeb65df4bf1fcd01cc682008f6ecfeb9d2e96
     required_applies_to:
     - cli
     - sdks.npm
@@ -4286,7 +4286,7 @@ assertions:
     specification: feature.app-skill.design-embroidery@1
     specification_id: feature.app-skill.design-embroidery
     type: invariant
-    fingerprint: ad93553b5bda3eff856e6b00306403819af6451f33f8e6f8816e5d0a90e323dd
+    fingerprint: ad5f484fd821e7b51c2a71efd93ea78755a922465eca5f10a6c395a034d017e5
     required_applies_to:
     - cli
     - sdks.npm
@@ -4297,7 +4297,7 @@ assertions:
     specification: feature.app-skill.design-embroidery@1
     specification_id: feature.app-skill.design-embroidery
     type: invariant
-    fingerprint: bec537458db1185fb48011441ff0a5d2da4a453118abb3060da898e1cff37d13
+    fingerprint: 6b75de99405f5f43291df7fd1a013cd952bf43015983b14afeb9ecc5b71d2cb2
     required_applies_to:
     - cli
     - sdks.npm
@@ -4308,7 +4308,7 @@ assertions:
     specification: feature.app-skill.design-embroidery@1
     specification_id: feature.app-skill.design-embroidery
     type: behavior
-    fingerprint: 752f18198f80e629429be946ecf4511262e5dd90268c5da81845a91610c0ed87
+    fingerprint: 39d433d4ff3c4cd8b65a374b6e8a5578c99bf43954571995492e0f4880b6f0b6
     required_applies_to:
     - cli
     - sdks.npm
@@ -4319,7 +4319,7 @@ assertions:
     specification: feature.app-skill.design-embroidery@1
     specification_id: feature.app-skill.design-embroidery
     type: privacy
-    fingerprint: e720bad57328dc3f4c1cb7c17415e1e31998f97efdaadef65501fa46d818bafd
+    fingerprint: 5af52fdb094b76d1b6eb72a33c7aac09e78b18482112b3ae8bc6f48cdf7d59e2
     required_applies_to:
     - cli
     - sdks.npm
@@ -4341,7 +4341,7 @@ assertions:
     specification: feature.app-skill.design-embroidery@1
     specification_id: feature.app-skill.design-embroidery
     type: parity
-    fingerprint: f539965fc3c52263187796a9a5faee21d32acbb088beb599b7c3309e5fe80f48
+    fingerprint: d12bcb7430b93cc02dfde7ef796b1ce5ffa986130570653a9bfa2131e09aa2da
     required_applies_to:
     - cli
     - sdks.npm

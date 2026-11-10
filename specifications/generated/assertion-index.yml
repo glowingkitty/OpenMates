@@ -39139,7 +39139,7 @@ assertions:
     current_direct_proof: false
   design-embroidery.request.vector-source:
     specification: feature.app-skill.design-embroidery@1
-    fingerprint: 201e2ff7d815a37caaa2f4a98df0dee020737819c5fd6471d7b5535c80b704ba
+    fingerprint: 50ccc8bb34b380a8bffc16398f7aeb65df4bf1fcd01cc682008f6ecfeb9d2e96
     direct_tests:
     - &id4934
       path: backend/tests/test_design_embroidery_skill.py
@@ -39293,87 +39293,87 @@ assertions:
       surface: rest_api
     - &id4955
       path: backend/tests/test_embroidery_sandbox_rules.py
-      line: 101
+      line: 103
       name: test_options_validate_ranges_and_enums
       surface: rest_api
     - &id4956
       path: backend/tests/test_embroidery_sandbox_rules.py
-      line: 122
+      line: 124
       name: test_source_size_limit_is_unreadable_svg
       surface: rest_api
     - &id4957
       path: backend/tests/test_embroidery_sandbox_rules.py
-      line: 132
+      line: 134
       name: test_hoop_fit_allows_rotation_and_reports_not_checked
       surface: rest_api
     - &id4958
       path: backend/tests/test_embroidery_sandbox_rules.py
-      line: 142
+      line: 144
       name: test_colour_normalisation
       surface: rest_api
     - &id4959
       path: backend/tests/test_embroidery_sandbox_rules.py
-      line: 150
+      line: 152
       name: test_findings_fixture_reports_gradient_text_and_image
       surface: rest_api
     - &id4960
       path: backend/tests/test_embroidery_sandbox_rules.py
-      line: 162
+      line: 164
       name: test_clean_fixtures_have_no_structural_findings
       surface: rest_api
     - &id4961
       path: backend/tests/test_embroidery_sandbox_rules.py
-      line: 172
+      line: 174
       name: test_unreadable_sources_fail_explicitly
       surface: rest_api
     - &id4962
       path: backend/tests/test_embroidery_sandbox_rules.py
-      line: 181
+      line: 183
       name: test_stars_in_six_colours_need_one_block_per_colour
       surface: rest_api
     - &id4963
       path: backend/tests/test_embroidery_sandbox_rules.py
-      line: 192
+      line: 194
       name: test_order_respects_stacking_and_defers_unfinishable_colours
       surface: rest_api
     - &id4964
       path: backend/tests/test_embroidery_sandbox_rules.py
-      line: 223
+      line: 225
       name: test_lines_come_after_fills_and_cycles_are_rejected
       surface: rest_api
     - &id4965
       path: backend/tests/test_embroidery_sandbox_rules.py
-      line: 233
+      line: 235
       name: test_presets_use_only_known_inkstitch_parameters
       surface: rest_api
     - &id4966
       path: backend/tests/test_embroidery_sandbox_rules.py
-      line: 244
+      line: 246
       name: test_fabric_changes_density_and_underlay
       surface: rest_api
     - &id4967
       path: backend/tests/test_embroidery_sandbox_rules.py
-      line: 259
+      line: 261
       name: test_decode_dst_blocks_jumps_and_points
       surface: rest_api
     - &id4968
       path: backend/tests/test_embroidery_sandbox_rules.py
-      line: 270
+      line: 272
       name: test_build_report_numbers_describe_the_dst
       surface: rest_api
     - &id4969
       path: backend/tests/test_embroidery_sandbox_rules.py
-      line: 287
+      line: 293
       name: test_build_report_rejects_thread_mismatch_and_empty_files
       surface: rest_api
     - &id4970
       path: backend/tests/test_embroidery_sandbox_rules.py
-      line: 295
+      line: 301
       name: test_estimated_minutes_formula
       surface: rest_api
     - &id4971
       path: backend/tests/test_embroidery_sandbox_rules.py
-      line: 303
+      line: 313
       name: test_uploaded_module_list_matches_package
       surface: rest_api
     tests:
@@ -39475,17 +39475,17 @@ assertions:
       surface: rest_api
     - &id4980
       path: backend/tests/test_embroidery_sandbox_rules.py
-      line: 110
+      line: 112
       name: test_border_options_are_optional_bounded_and_black_by_default
       surface: rest_api
     - &id4981
       path: backend/tests/test_embroidery_sandbox_rules.py
-      line: 209
+      line: 211
       name: test_shapes_in_the_border_colour_follow_the_border_without_a_thread_change
       surface: rest_api
     - &id4982
       path: backend/tests/test_embroidery_sandbox_rules.py
-      line: 336
+      line: 346
       name: test_transparent_preview_drops_the_page_and_keeps_the_stitches
       surface: rest_api
     tests:
@@ -39596,7 +39596,7 @@ assertions:
     current_direct_proof: false
   design-embroidery.convert.sandbox-inkstitch:
     specification: feature.app-skill.design-embroidery@1
-    fingerprint: ad93553b5bda3eff856e6b00306403819af6451f33f8e6f8816e5d0a90e323dd
+    fingerprint: ad5f484fd821e7b51c2a71efd93ea78755a922465eca5f10a6c395a034d017e5
     direct_tests:
     - &id4992
       path: backend/tests/test_design_embroidery_skill.py
@@ -39701,7 +39701,7 @@ assertions:
     current_direct_proof: false
   design-embroidery.result.complete-and-truthful:
     specification: feature.app-skill.design-embroidery@1
-    fingerprint: bec537458db1185fb48011441ff0a5d2da4a453118abb3060da898e1cff37d13
+    fingerprint: 6b75de99405f5f43291df7fd1a013cd952bf43015983b14afeb9ecc5b71d2cb2
     direct_tests:
     - &id5007
       path: backend/tests/test_design_embroidery_task.py
@@ -39746,12 +39746,12 @@ assertions:
       surface: rest_api
     - &id5011
       path: backend/tests/test_embroidery_sandbox_rules.py
-      line: 308
+      line: 318
       name: test_preview_shows_light_threads_in_their_real_colour
       surface: rest_api
     - &id5012
       path: backend/tests/test_embroidery_sandbox_rules.py
-      line: 336
+      line: 346
       name: test_transparent_preview_drops_the_page_and_keeps_the_stitches
       surface: rest_api
     tests:
@@ -39785,7 +39785,7 @@ assertions:
     current_direct_proof: false
   design-embroidery.result.view-and-download:
     specification: feature.app-skill.design-embroidery@1
-    fingerprint: 752f18198f80e629429be946ecf4511262e5dd90268c5da81845a91610c0ed87
+    fingerprint: 39d433d4ff3c4cd8b65a374b6e8a5578c99bf43954571995492e0f4880b6f0b6
     direct_tests:
     - &id5014
       path: backend/tests/test_design_embroidery_skill.py
@@ -39838,68 +39838,68 @@ assertions:
       surface: gui.web
     - &id5022
       path: frontend/apps/web_app/tests/components/design-embroidery-embed.spec.ts
-      line: 137
+      line: 145
       name: opened view translates known notes, falls back to the server text and
         hints at a rework
       surface: gui.web
     - &id5023
       path: frontend/apps/web_app/tests/components/design-embroidery-embed.spec.ts
-      line: 151
+      line: 159
       name: opened view states when the design is too large for the hoop and omits
         the line when not checked
       surface: gui.web
     - &id5024
       path: frontend/apps/web_app/tests/components/design-embroidery-embed.spec.ts
-      line: 165
+      line: 173
       name: 'opened view offers an obvious download: top-bar button and a main button
         above the threads at ${width}px'
       surface: gui.web
     - &id5025
       path: frontend/apps/web_app/tests/components/design-embroidery-embed.spec.ts
-      line: 199
+      line: 207
       name: a failing download of all formats shows an error on the main button and
         saves nothing
       surface: gui.web
     - &id5026
       path: frontend/apps/web_app/tests/components/design-embroidery-embed.spec.ts
-      line: 209
+      line: 217
       name: a format download saves the decrypted file under a name with its extension
       surface: gui.web
     - &id5027
       path: frontend/apps/web_app/tests/components/design-embroidery-embed.spec.ts
-      line: 219
+      line: 227
       name: a failing download shows an error on that button only and can be retried
       surface: gui.web
     - &id5028
       path: frontend/apps/web_app/tests/components/design-embroidery-embed.spec.ts
-      line: 234
+      line: 242
       name: applying new settings sends an ordinary follow-up asking for a new conversion
       surface: gui.web
     - &id5029
       path: frontend/apps/web_app/tests/components/design-embroidery-embed.spec.ts
-      line: 255
+      line: 263
       name: a width outside 20 to 400 mm cannot be applied
       surface: gui.web
     - &id5030
       path: frontend/apps/web_app/tests/components/design-embroidery-embed.spec.ts
-      line: 268
+      line: 276
       name: opened failed result (${variant}) shows the reason with no downloads and
         no settings
       surface: gui.web
     - &id5031
       path: frontend/apps/web_app/tests/components/design-embroidery-embed.spec.ts
-      line: 286
+      line: 294
       name: opened view shows the sew-on border among the numbers at ${width}px
       surface: gui.web
     - &id5032
       path: frontend/apps/web_app/tests/components/design-embroidery-embed.spec.ts
-      line: 301
+      line: 309
       name: choosing a border in the settings and applying names the border width
         in the follow-up
       surface: gui.web
     - &id5033
       path: frontend/apps/web_app/tests/components/design-embroidery-embed.spec.ts
-      line: 316
+      line: 324
       name: a result without a border shows no border number
       surface: gui.web
     - &id5035
@@ -39977,7 +39977,7 @@ assertions:
     current_direct_proof: false
   design-embroidery.privacy.stored-like-generated-media:
     specification: feature.app-skill.design-embroidery@1
-    fingerprint: e720bad57328dc3f4c1cb7c17415e1e31998f97efdaadef65501fa46d818bafd
+    fingerprint: 5af52fdb094b76d1b6eb72a33c7aac09e78b18482112b3ae8bc6f48cdf7d59e2
     direct_tests:
     - &id5038
       path: backend/tests/test_design_embroidery_task.py
@@ -40062,7 +40062,7 @@ assertions:
     current_direct_proof: false
   design-embroidery.surface.semantic-parity:
     specification: feature.app-skill.design-embroidery@1
-    fingerprint: f539965fc3c52263187796a9a5faee21d32acbb088beb599b7c3309e5fe80f48
+    fingerprint: d12bcb7430b93cc02dfde7ef796b1ce5ffa986130570653a9bfa2131e09aa2da
     direct_tests:
     - &id5047
       path: backend/tests/test_design_embroidery_skill.py

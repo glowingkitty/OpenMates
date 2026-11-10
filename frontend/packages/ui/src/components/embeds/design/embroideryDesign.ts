@@ -66,6 +66,10 @@ export interface EmbroideryThread {
   colourHex: string;
   name: string;
   stitchCount: number;
+  /** Rough sewing minutes of this thread; null for results stored before it existed. */
+  estimatedMinutes: number | null;
+  /** Rough upper thread of this colour in metres; null for results stored before it existed. */
+  threadLengthM: number | null;
 }
 
 export interface EmbroideryNote {
@@ -85,6 +89,8 @@ export interface EmbroideryDesign {
   stitchCount: number | null;
   threadChanges: number | null;
   estimatedMinutes: number | null;
+  /** Rough upper thread of the whole design in metres. */
+  threadLengthM: number | null;
   hoop: EmbroideryHoop;
   fitsHoop: 'yes' | 'no' | 'not_checked';
   fabric: EmbroideryFabric | null;
@@ -128,6 +134,8 @@ function readThreads(value: unknown): EmbroideryThread[] {
       colourHex: HEX_COLOUR.test(hex) ? hex : '',
       name: string(row.name) || hex,
       stitchCount: num(row.stitch_count) ?? 0,
+      estimatedMinutes: num(row.estimated_minutes),
+      threadLengthM: num(row.thread_length_m),
     };
   });
 }
@@ -163,6 +171,7 @@ export function readEmbroideryDesign(
     stitchCount: num(c.stitch_count),
     threadChanges: num(c.thread_changes),
     estimatedMinutes: num(c.estimated_minutes),
+    threadLengthM: num(c.thread_length_m),
     hoop: oneOf(c.hoop, EMBROIDERY_HOOPS) ?? 'none',
     fitsHoop: oneOf(c.fits_hoop, ['yes', 'no', 'not_checked'] as const) ?? 'not_checked',
     fabric: oneOf(c.fabric, EMBROIDERY_FABRICS),
@@ -203,6 +212,13 @@ export function formatDuration(minutes: number | null): string {
   if (minutes === null) return '';
   const whole = Math.max(1, Math.round(minutes));
   return whole < 60 ? `${whole} min` : `${Math.floor(whole / 60)} h ${whole % 60} min`;
+}
+
+/** "80 cm", "4.5 m" or "62 m": rough thread length. Units are language-neutral. */
+export function formatThreadLength(metres: number | null): string {
+  if (metres === null) return '';
+  if (metres < 1) return `${Math.max(10, Math.round(metres * 100))} cm`;
+  return metres < 10 ? `${(Math.round(metres * 10) / 10).toLocaleString()} m` : `${Math.round(metres).toLocaleString()} m`;
 }
 
 /** Failed result: the translation key for the plain-words reason. */

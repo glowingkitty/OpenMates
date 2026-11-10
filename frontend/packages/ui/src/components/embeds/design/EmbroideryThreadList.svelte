@@ -1,18 +1,21 @@
 <!--
   frontend/packages/ui/src/components/embeds/design/EmbroideryThreadList.svelte
 
-  Thread list in sewing order: number, colour swatch, name and stitch count.
+  Thread list in sewing order: number, colour swatch, name, rough thread length
+  and sewing minutes (stitch count for results stored without them), with a
+  remark that these are estimates.
 -->
 <script lang="ts">
   import { text } from '@repo/ui';
-  import { formatCount, type EmbroideryThread } from './embroideryDesign';
+  import { formatCount, formatDuration, formatThreadLength, type EmbroideryThread } from './embroideryDesign';
 
   interface Props { threads: EmbroideryThread[]; }
   let { threads }: Props = $props();
+  const showMinutes = $derived(threads.some((thread) => thread.estimatedMinutes !== null));
 </script>
 
 {#if threads.length > 0}
-  <section class="threads" data-testid="design-embroidery-threads">
+  <section class="threads" class:with-minutes={showMinutes} data-testid="design-embroidery-threads">
     <h4>{$text('embeds.design.embroidery.threads')}</h4>
     <ol>
       {#each threads as thread, index (index)}
@@ -20,10 +23,20 @@
           <span class="number">{index + 1}</span>
           <span class="swatch" style:background-color={thread.colourHex || undefined}></span>
           <span class="name">{thread.name}</span>
-          <span class="count">{formatCount(thread.stitchCount)} {$text('embeds.design.embroidery.stitches_unit')}</span>
+          {#if thread.threadLengthM !== null}
+            <span class="count" data-testid="design-embroidery-thread-length-row">~{formatThreadLength(thread.threadLengthM)}</span>
+          {:else}
+            <span class="count">{formatCount(thread.stitchCount)} {$text('embeds.design.embroidery.stitches_unit')}</span>
+          {/if}
+          {#if showMinutes}
+            <span class="minutes" data-testid="design-embroidery-thread-minutes">{thread.estimatedMinutes === null ? '' : `~${formatDuration(thread.estimatedMinutes)}`}</span>
+          {/if}
         </li>
       {/each}
     </ol>
+    {#if showMinutes}
+    <p class="estimate-note" data-testid="design-embroidery-time-note">{$text('embeds.design.embroidery.sewing_time_note')}</p>
+    {/if}
   </section>
 {/if}
 
@@ -44,5 +57,8 @@
   .number { color: var(--color-font-secondary); text-align: end; font-variant-numeric: tabular-nums; }
   .swatch { width: 1.25rem; height: 1.25rem; border-radius: 50%; border: 1px solid var(--color-grey-40); box-sizing: border-box; }
   .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-font-primary); }
+  .with-minutes li { grid-template-columns: 1.5rem 1.25rem minmax(0, 1fr) auto 4.5rem; }
   .count { color: var(--color-font-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .minutes { color: var(--color-font-primary); font-variant-numeric: tabular-nums; white-space: nowrap; text-align: end; }
+  .estimate-note { margin: var(--spacing-4) 0 0; font-size: var(--font-size-xs); color: var(--color-font-secondary); }
 </style>

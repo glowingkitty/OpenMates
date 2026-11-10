@@ -86,13 +86,14 @@ models:
     threads:
       type: ordered_list
       required: true
-      constraints: {sewing_order: true, each: [colour_hex, name, stitch_count]}
+      constraints: {sewing_order: true, each: [colour_hex, name, stitch_count, estimated_minutes, thread_length_m]}
     width_mm: {type: number, required: true}
     height_mm: {type: number, required: true}
     border_mm: {type: number, required: false}
     stitch_count: {type: integer, required: true}
     thread_changes: {type: integer, required: true}
     estimated_minutes: {type: integer, required: true}
+    thread_length_m: {type: number, required: false}
     fits_hoop:
       type: enum
       required: true
@@ -139,11 +140,11 @@ assertions:
     depends_on: [models.Sandbox, models.EmbroideryResult.files, examples.convert, examples.failure]
   - id: design-embroidery.result.complete-and-truthful
     type: invariant
-    must: A finished result carries the five machine files, a stitch preview rendered from the generated stitches (once on fabric colour for viewing and once with a transparent background for placing it on other pictures), the prepared graphic, the threads in sewing order with colour, name and stitch count, the real sewn width and height in millimetres, the stitch count, the number of thread changes, an estimated sewing time, whether it fits the chosen hoop, and the notes. Every number describes the delivered files, never the source graphic or the request. A result is never shown as finished while any of the five files is missing.
+    must: A finished result carries the five machine files, a stitch preview rendered from the generated stitches (once on fabric colour for viewing and once with a transparent background for placing it on other pictures), the prepared graphic, the threads in sewing order with colour, name, stitch count, estimated sewing minutes and estimated thread length, the real sewn width and height in millimetres, the stitch count, the number of thread changes, an estimated sewing time, the estimated length of upper thread, whether it fits the chosen hoop, and the notes. Every number describes the delivered files, never the source graphic or the request. Sewing times and thread lengths are rough general estimates from the delivered stitches (480 stitches per minute and one minute per thread change; the sewn path plus one millimetre per stitch, bobbin thread not included), not tuned to a machine model. A result is never shown as finished while any of the five files is missing.
     depends_on: [models.EmbroideryResult, examples.convert]
   - id: design-embroidery.result.view-and-download
     type: behavior
-    must: The result card shows the stitch preview, the size and the stitch count; while converting it shows that the conversion is running. Opened, the result shows the large stitch preview with a switch to the prepared graphic, the thread list in sewing order, the numbers, the hoop fit and the notes, one clearly visible download that saves all five machine files together as one ZIP file, and one download per machine format whose saved file carries the matching file extension. A failed conversion shows the reason in plain words and offers no downloads. The size, hoop, fabric and border shown can be changed there; applying a change asks the assistant for a new conversion of the same graphic and leaves the existing result untouched.
+    must: The result card shows the stitch preview, the size, the estimated sewing time and the estimated thread length; while converting it shows that the conversion is running. Opened, the result shows the large stitch preview with a switch to the prepared graphic, the thread list in sewing order with the estimated thread length and minutes of each thread, the numbers including the stitch count, the hoop fit and the notes, a short remark that sewing time and thread length are estimates which vary with the machine and its settings, one clearly visible download that saves all five machine files together as one ZIP file, and one download per machine format whose saved file carries the matching file extension. A failed conversion shows the reason in plain words and offers no downloads. The size, hoop, fabric and border shown can be changed there; applying a change asks the assistant for a new conversion of the same graphic and leaves the existing result untouched.
     depends_on: [models.EmbroideryResult, models.EmbroideryRequest, examples.view]
   - id: design-embroidery.privacy.stored-like-generated-media
     type: privacy

@@ -43,8 +43,8 @@ MAX_FILE_BYTES = 25_000_000
 FILE_KEYS = ("dst", "pes", "exp", "jef", "vp3", "preview", "preview_transparent", "prepared_svg", "stitches")
 SUMMARY_KEYS = ("width_mm", "height_mm", "stitch_count", "thread_changes", "estimated_minutes",
                 "fits_hoop", "threads", "notes")
-# Present only when a sew-on border was added.
-OPTIONAL_SUMMARY_KEYS = ("border_mm",)
+# border_mm: only when a sew-on border was added. thread_length_m: estimated upper thread in metres.
+OPTIONAL_SUMMARY_KEYS = ("border_mm", "thread_length_m")
 FINDING_CODES = {"gradient_or_filter", "live_text", "embedded_pixel_image", "detail_below_1mm",
                  "more_than_12_colours"}
 HOOPS = {"100x100", "130x180", "160x260", "200x300", "none"}

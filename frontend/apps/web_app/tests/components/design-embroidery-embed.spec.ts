@@ -38,7 +38,7 @@ for (const width of WIDTHS) {
     });
     expect(bounds).toEqual({ insideWidth: true, insideHeight: true });
     const numbers = page.getByTestId('design-embroidery-numbers');
-    await expect(numbers).toHaveText('90 × 74 mm · 12,840 stitches');
+    await expect(numbers).toHaveText('90 × 74 mm ~29 min · ~42 m of thread');
     const truncated = await numbers.evaluate((element) => element.scrollWidth > element.clientWidth);
     expect(truncated).toBe(false);
     const cardBox = await page.getByTestId('result-card-content').boundingBox();
@@ -100,7 +100,8 @@ for (const width of WIDTHS) {
     await expect(page.getByTestId('design-embroidery-size')).toContainText('90 × 74 mm');
     await expect(page.getByTestId('design-embroidery-stitch-count')).toContainText('12,840');
     await expect(page.getByTestId('design-embroidery-thread-changes')).toContainText('3');
-    await expect(page.getByTestId('design-embroidery-time')).toContainText('47 min');
+    await expect(page.getByTestId('design-embroidery-time')).toContainText('~29 min');
+    await expect(page.getByTestId('design-embroidery-thread-length')).toContainText('~42 m');
     const hoopFit = page.getByTestId('design-embroidery-hoop-fit');
     await expect(hoopFit).toContainText('Fits hoop 130 × 180 mm');
     const hoopText = await hoopFit.locator('.fact-text').boundingBox();
@@ -115,7 +116,14 @@ for (const width of WIDTHS) {
     await expect(threads).toHaveCount(3);
     await expect(threads.first()).toContainText('1');
     await expect(threads.first()).toContainText('Madeira 1135');
-    await expect(threads.first()).toContainText('8,120 stitches');
+    await expect(page.getByTestId('design-embroidery-thread-length-row')).toHaveText(['~26 m', '~11 m', '~4.2 m']);
+    const threadMinutes = page.getByTestId('design-embroidery-thread-minutes');
+    await expect(threadMinutes).toHaveText(['~17 min', '~8 min', '~3 min']);
+    const timeNote = page.getByTestId('design-embroidery-time-note');
+    await expect(timeNote).toContainText('Sewing time and thread length are estimates');
+    await expect(timeNote).toContainText('machine');
+    await timeNote.scrollIntoViewIfNeeded();
+    await testInfo.attach(`embroidery-thread-times-${width}`, { body: await page.getByTestId('design-embroidery-threads').screenshot(), contentType: 'image/png' });
     await expect(threads.nth(1)).toContainText('Madeira 1001');
     await expect(threads.nth(2)).toContainText('Madeira 1005');
 

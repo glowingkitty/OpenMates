@@ -275,3 +275,58 @@ def test_user_authored_speech_keeps_scam_and_imitation_heuristics():
 
     assert scam.category == "G1_scam_or_fraud"
     assert imitation.category == "G3_public_figure_voice_or_persona"
+
+
+@pytest.mark.parametrize("prompt", [
+    "A symmetric cat face in pink on a transparent background",
+    "Simple cat face, single colour Hot Pink, transparent background",
+    "Portrait of a woman in a red dress, close-up of her face",
+])
+def test_image_prompts_about_ordinary_faces_are_not_public_figure_imitation(prompt):
+    assert validate_media_generation_request(media_type="image", prompt=prompt).allowed
+
+
+@pytest.mark.parametrize("prompt", [
+    "The face of Jane Doe on a billboard",
+    "A poster in the style of a famous actor",
+    "Jane Doe's likeness as a cartoon",
+    "A cartoon with the persona of a well-known singer",
+])
+def test_image_prompts_tied_to_a_person_stay_blocked(prompt):
+    decision = validate_media_generation_request(media_type="image", prompt=prompt)
+    assert not decision.allowed and decision.category == "G3_public_figure_voice_or_persona"
+
+
+
+@pytest.mark.parametrize(("media_type", "prompt"), [
+    ("image", "Logo for Blue Harbor Cafe with a friendly voice bubble icon"),
+    ("image", "Poster for a concert: a singer on stage, Art Deco style"),
+    ("image", "Illustration of a famous landmark, the Eiffel Tower in Paris"),
+    ("image", "A doctor talking to a patient in New York City"),
+    ("image", "Art Nouveau poster of a musician playing violin"),
+    ("image", "Photo of New York City at night"),
+    ("video", "A cat face in pink rotating"),
+    ("video", "A chef in a kitchen showing her face to the camera"),
+    ("video", "Drone shot of New York City in the morning"),
+    ("music", "A lullaby in a soft female voice"),
+    ("music", "Jazz track in New Orleans style"),
+])
+def test_ordinary_prompts_with_places_styles_and_prepositions_are_allowed(media_type, prompt):
+    # "in" plus a capitalised place or style name, or a role word anywhere in
+    # the prompt, used to read as public-figure imitation.
+    assert validate_media_generation_request(media_type=media_type, prompt=prompt).allowed
+
+
+@pytest.mark.parametrize(("media_type", "prompt"), [
+    ("image", "President Example Politician shaking hands with a dog"),
+    ("image", "Jane Doe, the famous singer, on a magazine cover"),
+    ("image", "Photo of Jane Doe in New York City"),
+    ("image", "Portrait of Jane Doe"),
+    ("video", "A clip in the voice of a famous science educator"),
+    ("video", "The face of Jane Doe saying hello"),
+    ("music", "A ballad in the style of a well-known singer"),
+    ("music", "Read this in Jane Doe voice"),
+])
+def test_prompts_tied_to_a_person_stay_blocked_for_every_media_type(media_type, prompt):
+    decision = validate_media_generation_request(media_type=media_type, prompt=prompt)
+    assert not decision.allowed and decision.category == "G3_public_figure_voice_or_persona"

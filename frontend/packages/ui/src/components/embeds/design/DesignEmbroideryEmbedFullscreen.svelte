@@ -20,7 +20,7 @@
   import { svgToDataUrl } from '../code/progressiveSvg';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import {
-    EMBROIDERY_FABRIC_COLOUR, EMBROIDERY_MIN_WIDTH_MM, errorTranslationKey, formatCount, formatDuration, formatHoop, formatSize,
+    EMBROIDERY_FABRIC_COLOUR, EMBROIDERY_MIN_WIDTH_MM, errorTranslationKey, formatCount, formatDuration, formatHoop, formatSize, formatThreadLength,
     noteTranslationKey, readEmbroideryDesign, type EmbroideryFile, type EmbroiderySettings,
   } from './embroideryDesign';
 
@@ -158,7 +158,10 @@
         <ResultEmbedInfo icon="repeat" label={$text('embeds.design.embroidery.thread_changes')} value={String(design.threadChanges)} testId="design-embroidery-thread-changes" />
       {/if}
       {#if design.estimatedMinutes !== null}
-        <ResultEmbedInfo icon="timer" label={$text('embeds.design.embroidery.sewing_time')} value={formatDuration(design.estimatedMinutes)} testId="design-embroidery-time" />
+        <ResultEmbedInfo icon="timer" label={$text('embeds.design.embroidery.sewing_time')} value={`~${formatDuration(design.estimatedMinutes)}`} testId="design-embroidery-time" />
+      {/if}
+      {#if design.threadLengthM !== null}
+        <ResultEmbedInfo icon="spline" label={$text('embeds.design.embroidery.thread_length')} value={`~${formatThreadLength(design.threadLengthM)}`} testId="design-embroidery-thread-length" />
       {/if}
       {#if design.fitsHoop !== 'not_checked' && hoopLabel}
         <ResultEmbedInfo

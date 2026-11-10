@@ -204,7 +204,8 @@ def run_convert(workdir: Path, options: Options, started: float) -> dict[str, ob
     summary = {
         "width_mm": summary["width_mm"], "height_mm": summary["height_mm"],
         "stitch_count": summary["stitch_count"], "thread_changes": summary["thread_changes"],
-        "estimated_minutes": summary["estimated_minutes"], "fits_hoop": fits,
+        "estimated_minutes": summary["estimated_minutes"], "thread_length_m": summary["thread_length_m"],
+        "fits_hoop": fits,
         "threads": summary["threads"], "notes": notes,
         **({"border_mm": options.border_mm} if bordered else {}),
     }

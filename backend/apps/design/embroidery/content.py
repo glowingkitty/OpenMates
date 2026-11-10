@@ -23,7 +23,7 @@ INVALID_SOURCE_MESSAGE = (
 # Fields the assistant receives when the conversion ends (also allowed by generated_media_graph).
 SUMMARY_FIELDS: tuple[str, ...] = (
     "title", "width_mm", "height_mm", "stitch_count", "thread_changes", "estimated_minutes",
-    "hoop", "fits_hoop", "fabric", "reworked", "threads", "notes", "border_mm",
+    "thread_length_m", "hoop", "fits_hoop", "fabric", "reworked", "threads", "notes", "border_mm",
 )
 
 
@@ -40,7 +40,11 @@ def _threads(summary: Mapping[str, Any]) -> list[dict[str, Any]]:
         raise ValueError("Embroidery summary has no threads")
     return [
         {"colour_hex": str(row.get("colour_hex") or ""), "name": str(row.get("name") or ""),
-         "stitch_count": int(row.get("stitch_count") or 0)}
+         "stitch_count": int(row.get("stitch_count") or 0),
+         **({"estimated_minutes": int(row["estimated_minutes"])}
+            if isinstance(row.get("estimated_minutes"), (int, float)) else {}),
+         **({"thread_length_m": float(row["thread_length_m"])}
+            if isinstance(row.get("thread_length_m"), (int, float)) else {})}
         for row in threads if isinstance(row, Mapping)
     ]
 
@@ -96,6 +100,8 @@ def build_finished_content(
         "stitch_count": int(_number(summary, "stitch_count")),
         "thread_changes": int(_number(summary, "thread_changes")),
         "estimated_minutes": int(round(_number(summary, "estimated_minutes"))),
+        **({"thread_length_m": float(summary["thread_length_m"])}
+           if isinstance(summary.get("thread_length_m"), (int, float)) else {}),
         "hoop": hoop,
         "fits_hoop": fits_hoop,
         "fabric": fabric,

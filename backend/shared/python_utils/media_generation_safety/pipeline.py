@@ -18,19 +18,24 @@ MAX_MUSIC_REQUESTS_PER_CALL = 5
 MAX_SOUND_EFFECT_REQUESTS_PER_CALL = 5
 MAX_SPEECH_REQUESTS_PER_CALL = 3
 
-_FAMOUS_PERSON_CONTEXT_RE = re.compile(
-    r"\b(?:in|imitat(?:e|ing)|clone|copy|mimic|sound(?:s)?\s+like|"
-    r"voice\s+of|style\s+of|persona\s+of|as\s+if\s+(?:it\s+were\s+)?(?:by|from)|"
-    r"narrat(?:e|ion)\s+(?:by|like)|sing(?:ing)?\s+like|deepfake)\b",
-    re.IGNORECASE,
-)
-# Assistant narration reads its own prose in a fixed OpenMates voice, so the
-# bare preposition "in" ("the weather in New York") is no imitation signal there.
+# A bare "in" is an ordinary preposition ("a cat face in pink", "the weather in
+# New York"), never an imitation signal; "in the voice of" / "in the style of"
+# are caught by their own phrases.
 _EXPLICIT_IMITATION_RE = re.compile(
     r"\b(?:imitat(?:e|ing)|clone|copy|mimic|sound(?:s)?\s+like|"
     r"voice\s+of|style\s+of|persona\s+of|as\s+if\s+(?:it\s+were\s+)?(?:by|from)|"
     r"narrat(?:e|ion)\s+(?:by|like)|sing(?:ing)?\s+like|deepfake)\b",
     re.IGNORECASE,
+)
+# Capitalised runs that name a place, a building or an art style, not a person
+# ("New York City", "Eiffel Tower", "Art Deco"). They are dropped before the
+# named-person rules run.
+_NOT_A_PERSON_RE = re.compile(
+    r"\b(?:Art\s+(?:Deco|Nouveau)|Pop\s+Art|"
+    r"(?:(?:New|San|Los|Las|Saint|St\.?|Mount|Lake|Port|Fort|Cape)\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)|"
+    r"(?:[A-Z][a-z]+\s+){1,3}(?:City|Town|Village|Tower|Bridge|Park|Street|Avenue|Square|Station|"
+    r"Mountains?|Lake|River|Island|Beach|Bay|Valley|Forest|Desert|Coast|Harbor|Harbour|"
+    r"Cafe|Museum|Church|Cathedral|Castle|Palace|Temple|Garden|Gardens|Market|Airport|University))\b"
 )
 _NAMED_PERSON_HINT_RE = re.compile(
     r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3}\b"
@@ -43,13 +48,34 @@ _PUBLIC_ROLE_RE = re.compile(
     r"religious\s+leader|historical\s+figure)\b",
     re.IGNORECASE,
 )
+# "face" and "appearance" describe ordinary subjects ("a cat face", "a chef
+# showing her face"); they only count when tied to a name ("the face of Jane
+# Doe"; "Doe's face" is the mononym rule).
+_FACE_OF_NAME = r"\b(?:face|appearance)\s+of\s+[A-Z][a-z]+"
 _VOICE_OR_PERSONA_RE = re.compile(
-    r"\b(?:voice|vocal|vocals|narrator|narration|speech|spoken|accent|cadence|"
-    r"delivery|persona|likeness|face|appearance|cameo|testimonial|endorsement)\b",
-    re.IGNORECASE,
+    r"(?i:\b(?:voice|vocal|vocals|narrator|narration|speech|spoken|accent|cadence|"
+    r"delivery|persona|likeness|cameo|testimonial|endorsement)\b)|" + _FACE_OF_NAME,
+)
+# Pictures carry no voice, so voice words say nothing about a person there
+# ("a logo with a voice bubble").
+_IMAGE_PERSONA_RE = re.compile(
+    r"(?i:\b(?:persona|likeness|cameo|testimonial|endorsement)\b)|" + _FACE_OF_NAME,
+)
+_NAME = r"[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3}"
+_ROLE = (
+    r"(?i:politician|president|prime\s+minister|minister|senator|governor|"
+    r"celebrity|actor|actress|singer|rapper|musician|artist|comedian|"
+    r"journalist|news\s+anchor|youtuber|influencer|streamer|ceo|founder|"
+    r"professor|scientist|doctor|therapist|religious\s+leader|historical\s+figure)"
+)
+# Pictures: a public role counts only next to the name it describes
+# ("President Jane Doe", "Jane Doe, the singer"), not anywhere in the prompt
+# ("a doctor talking to a patient, Golden Hour light").
+_IMAGE_ROLE_WITH_NAME_RE = re.compile(
+    r"\b" + _ROLE + r"\s+" + _NAME + r"\b|\b" + _NAME + r",?\s+(?:the\s+|a\s+|an\s+)?(?:famous\s+|well-known\s+)?" + _ROLE + r"\b"
 )
 _NAMED_PERSON_MEDIA_USE_RE = re.compile(
-    r"\b(?:portrait|photo|image|video|clip|footage|song|track|jingle|ad|advert|"
+    r"\b(?i:portrait|photo|image|video|clip|footage|song|track|jingle|ad|advert|"
     r"endorsement|testimonial|speech|announcement|interview|cameo)\s+(?:of|by|from|with)\s+"
     r"[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3}\b|"
     r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3}\s+"
@@ -227,19 +253,19 @@ def validate_media_generation_request(
             reason="spam_or_detection_evasion_pattern",
         )
 
-    has_voice_or_persona = bool(_VOICE_OR_PERSONA_RE.search(text))
+    is_image = normalized_media_type == "image"
+    person_text = _NOT_A_PERSON_RE.sub(" ", text)
+    has_voice_or_persona = bool((_IMAGE_PERSONA_RE if is_image else _VOICE_OR_PERSONA_RE).search(person_text))
     has_public_role = bool(_PUBLIC_ROLE_RE.search(text))
-    has_named_person = bool(_NAMED_PERSON_HINT_RE.search(text))
-    has_imitation_context = bool(
-        (_EXPLICIT_IMITATION_RE if trusted_speech else _FAMOUS_PERSON_CONTEXT_RE).search(text)
-    )
-    has_named_person_media_use = bool(_NAMED_PERSON_MEDIA_USE_RE.search(text))
-    has_mononym_voice_or_persona = bool(_MONONYM_VOICE_OR_PERSONA_RE.search(text))
+    has_named_person = bool(_NAMED_PERSON_HINT_RE.search(person_text))
+    has_imitation_context = bool(_EXPLICIT_IMITATION_RE.search(text))
+    has_named_person_media_use = bool(_NAMED_PERSON_MEDIA_USE_RE.search(person_text))
+    has_mononym_voice_or_persona = bool(_MONONYM_VOICE_OR_PERSONA_RE.search(person_text))
     broad_identity_match = (
         has_named_person_media_use
         or has_mononym_voice_or_persona
         or (has_named_person and has_voice_or_persona)
-        or (normalized_media_type == "image" and has_named_person and has_public_role)
+        or (is_image and bool(_IMAGE_ROLE_WITH_NAME_RE.search(person_text)))
     )
     # Assistant-response narration uses a fixed OpenMates voice to read already
     # generated prose. Reporting about a person is not a request to imitate them.

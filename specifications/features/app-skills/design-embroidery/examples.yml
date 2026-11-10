@@ -13,6 +13,13 @@ convert:
     given: The assistant wrote a simple star as an SVG code block in the chat a minute ago.
     when: The assistant calls design.embroidery with the reference of that code embed and no width.
     then: The star is converted at the default width of 100 mm and the result lists all five machine files.
+  - id: drawn-and-prepared-in-one-reply
+    given: A user uploaded a photo of an embroidered cat face.
+    when: >
+      The user asks in one message to redraw it as a mirrored single-colour vector graphic and to prepare it for the
+      embroidery machine, 9 cm wide. The assistant creates the graphic and then calls design.embroidery with the
+      reference of that new graphic in the same reply.
+    then: The graphic created a moment ago is accepted as source and one embroidery result 90 mm wide appears in that reply.
 
 invalid_source:
   - id: photo-is-not-a-vector
@@ -98,7 +105,7 @@ view:
     when: The user opens it and presses the PES download.
     then: >
       The opened view shows the large stitch preview, a switch to the prepared graphic, three thread rows with colour
-      swatch, name and stitch count, the numbers, "Fits hoop 130 x 180 mm", a large "Download all formats (ZIP)"
+      swatch, name, thread length and minutes, the numbers, "Fits hoop 130 x 180 mm", a large "Download all formats (ZIP)"
       button directly under the preview and five single-format downloads. The browser saves a file ending in ".pes";
       pressing the large button saves one ".zip" file holding all five machine files.
   - id: change-size-starts-new-conversion
@@ -111,6 +118,14 @@ view:
     given: A conversion that failed because the design had too many stitches.
     when: The user looks at the result card and opens it.
     then: The card and the opened view show the reason in plain words and no download buttons.
+  - id: sewing-times-are-marked-as-estimates
+    given: A finished result with 47,067 stitches in four threads (14,301, 22,046, 8,783 and 1,937 stitches).
+    when: The user opens the result.
+    then: >
+      The card in the chat reads "160 × 298 mm · ~1 h 42 min" followed by the thread length in metres, and no stitch
+      count. Opened, the estimated sewing time reads ~1 h 42 min, the thread list shows the metres of thread and
+      about 30, 46, 19 and 5 minutes beside the four threads, and a short remark below the list says that sewing
+      time and thread length are estimates which vary with the machine and its settings.
 
 billing:
   - id: plain-conversion-one-minute

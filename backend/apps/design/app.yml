@@ -144,6 +144,7 @@ embed_types:
       - {name: stitch_count, type: number}
       - {name: thread_changes, type: number}
       - {name: estimated_minutes, type: number}
+      - {name: thread_length_m, type: number}
       - {name: hoop, type: string}
       - {name: fits_hoop, type: string}
       - {name: fabric, type: string}

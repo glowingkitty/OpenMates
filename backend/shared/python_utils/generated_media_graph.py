@@ -60,7 +60,7 @@ COMPLETION_RESULT_FIELDS = frozenset({
     "review_status", "unmet_requirements", "attempts", "changed_from_program",
     # design.embroidery: the numbers, threads and notes the assistant reports to the user.
     "title", "width_mm", "height_mm", "stitch_count", "thread_changes", "estimated_minutes",
-    "hoop", "fits_hoop", "fabric", "reworked", "threads", "notes",
+    "thread_length_m", "hoop", "fits_hoop", "fabric", "reworked", "threads", "notes",
     # images.generate revision: which version of the existing image this change made.
     "version", "previous_version", "revision_note",
 })

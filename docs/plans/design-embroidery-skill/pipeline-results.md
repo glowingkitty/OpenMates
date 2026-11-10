@@ -88,7 +88,12 @@ Other sizes and fabrics:
   difference). `preview.py` marks the area of each light thread from the stitch
   data and repaints it with the real thread colour, keeping the render's shading
   (measured after: `#fdf0e0` area mean `#ede1d2`). Other threads are untouched.
-- **Estimated minutes**: ceil(stitches / 600 + thread changes x 1), minimum 1.
+- **Estimated minutes**: ceil(stitches / 480 + thread changes x 1), minimum 1; per thread ceil(stitches / 480).
+  480 stitches per minute comes from one home machine's own reading of a real 47,067-stitch design
+  (99 min; per thread 30 / 44 / 20 / 5 min, ours 30 / 46 / 19 / 5). Rough by intent, not tuned per machine.
+- **Estimated thread** (`thread_length_m`, per thread and total): sewn path with the needle down plus 1 mm per
+  stitch, in metres with one decimal; bobbin thread not included. The card shows size, time and thread length
+  instead of the stitch count.
 - **Early abort**: stitch estimate = fill area x 0.36 / row spacing (x 1.4 on
   stretchy) + fill outline length (outer and hole outlines) x 3.09 + 2.2 per
   separate fill part + satin length x 6.4 + running length x 0.97 + 8 per line,

@@ -30,6 +30,8 @@ from backend.apps.design.embroidery_sandbox.stitch_report import (
     build_report,
     decode_dst,
     estimated_minutes,
+    thread_metres,
+    thread_minutes,
     parse_threadlist,
     stitches_json,
 )
@@ -274,9 +276,13 @@ def test_build_report_numbers_describe_the_dst() -> None:
     assert summary["thread_changes"] == 1
     assert summary["width_mm"] == 99.0 and summary["height_mm"] == 50.0
     assert summary["estimated_minutes"] == 2
+    # 99 stitches of 1 mm plus 1 mm per stitch = 0.2 m; 49 mm + 50 mm = 0.1 m.
+    assert summary["thread_length_m"] == 0.3
     assert summary["threads"] == [
-        {"colour_hex": "#d62828", "name": "Poppy (Madeira Polyneon 1747)", "stitch_count": 100},
-        {"colour_hex": "#1d4e89", "name": "#1d4e89", "stitch_count": 50},
+        {"colour_hex": "#d62828", "name": "Poppy (Madeira Polyneon 1747)", "stitch_count": 100, "estimated_minutes": 1,
+         "thread_length_m": 0.2},
+        {"colour_hex": "#1d4e89", "name": "#1d4e89", "stitch_count": 50, "estimated_minutes": 1,
+         "thread_length_m": 0.1},
     ]
     assert stitches["blocks"][0]["points"][0] == [0, 0]
     encoded = stitches_json(stitches)
@@ -294,8 +300,12 @@ def test_build_report_rejects_thread_mismatch_and_empty_files() -> None:
 # contract-test: supporting surface=rest_api assertions=design-embroidery.prepare.fixed-rules
 def test_estimated_minutes_formula() -> None:
     assert estimated_minutes(0, 0) == 1
-    assert estimated_minutes(6000, 0) == 10
-    assert estimated_minutes(6001, 2) == 13
+    assert estimated_minutes(4800, 0) == 10
+    assert estimated_minutes(4801, 2) == 13
+    # The 47,067-stitch design a home machine reported as 99 minutes of sewing.
+    assert estimated_minutes(47067, 0) == 99
+    assert thread_metres(0, 0) == 0.1 and thread_metres(250_000, 10_000) == 35.0
+    assert [thread_minutes(count) for count in (14301, 22046, 8783, 1937, 0)] == [30, 46, 19, 5, 1]
     assert parse_threadlist("no order section") == []
 
 

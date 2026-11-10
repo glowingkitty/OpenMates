@@ -43,7 +43,7 @@ export const variants = {
   downloadUnavailable: fixture({ ...FOX_RESULT, previewDownloadText: '' }),
   withBorder: fixture({
     ...FOX_RESULT, border_mm: 3,
-    threads: [{ colour_hex: '#000000', name: 'Madeira 1000', stitch_count: 2400 }, ...FOX_RESULT.threads],
+    threads: [{ colour_hex: '#000000', name: 'Madeira 1000', stitch_count: 2400, estimated_minutes: 5, thread_length_m: 0.8 }, ...FOX_RESULT.threads],
     thread_changes: 4,
     notes: [...FOX_RESULT.notes, { code: 'border_added', mm: 3, text: 'Border of 3 mm added for sewing on' }],
   }),

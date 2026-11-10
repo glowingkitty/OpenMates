@@ -2,7 +2,7 @@
   frontend/packages/ui/src/components/embeds/design/DesignEmbroideryEmbedPreview.svelte
 
   Card for one embroidery result: the stitch preview (decrypted client-side),
-  the sewn size, the stitch count and a row of thread colours. While converting
+  the sewn size, the estimated sewing time and thread length, and a row of thread colours. While converting
   it uses the shared processing state; a failed conversion shows the reason in
   plain words and nothing else.
 -->
@@ -15,7 +15,7 @@
   import { fetchAndDecryptImage, getCachedImageUrl, createImageUrlOwner } from '../images/imageEmbedCrypto';
   import { hasMediaEncryptionMetadata } from '../../../services/encryption/mediaEncryption';
   import {
-    EMBROIDERY_FABRIC_COLOUR, errorTranslationKey, formatCount, formatSize, readEmbroideryDesign,
+    EMBROIDERY_FABRIC_COLOUR, errorTranslationKey, formatDuration, formatSize, formatThreadLength, readEmbroideryDesign,
   } from './embroideryDesign';
 
   interface Props {
@@ -40,8 +40,9 @@
   const title = $derived(design.title || skillName);
   const reason = $derived(status === 'error' ? $text(errorTranslationKey(design.errorCode)) : '');
   const imageUrl = $derived(design.previewImageUrl || decryptedUrl);
-  const stitchesLabel = $derived(`${formatCount(design.stitchCount)} ${$text('embeds.design.embroidery.stitches_unit')}`);
-  const numbersText = $derived([formatSize(design), design.stitchCount === null ? '' : stitchesLabel].filter(Boolean).join(' · '));
+  const timeLabel = $derived(design.estimatedMinutes === null ? '' : `~${formatDuration(design.estimatedMinutes)}`);
+  const threadLabel = $derived(design.threadLengthM === null ? '' : $text('embeds.design.embroidery.thread_amount', { values: { length: `~${formatThreadLength(design.threadLengthM)}` } }));
+  const effortText = $derived([timeLabel, threadLabel].filter(Boolean).join(' · '));
 
   $effect(() => {
     const file = design.files.preview;
@@ -100,7 +101,10 @@
             {/if}
           {/snippet}
           {#snippet facts()}
-            <span class="numbers" data-testid="design-embroidery-numbers">{numbersText}</span>
+            <span class="numbers" data-testid="design-embroidery-numbers">
+              <span class="line">{formatSize(design)}</span>
+              {#if effortText}<span class="line">{effortText}</span>{/if}
+            </span>
             <EmbroideryThreadSwatches threads={design.threads} />
           {/snippet}
         </ResultEmbedCard>
@@ -134,4 +138,5 @@
   .embroidery-preview :global(.card-facts) { max-height: none; flex-direction: column; align-items: flex-start; gap: var(--spacing-3); }
   .embroidery-preview :global(.card-copy h3) { -webkit-line-clamp: 3; line-clamp: 3; }
   .numbers { display: block; max-width: 100%; font-size: var(--font-size-xxs); color: var(--color-font-secondary); white-space: normal; overflow-wrap: anywhere; }
+  .numbers .line { display: block; }
 </style>
