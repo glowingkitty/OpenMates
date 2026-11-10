@@ -379,7 +379,10 @@ def test_team_node_fetch_preserves_cleanup_gate_after_strict_runtime_validation(
                 return {"artifacts": [{"name": "isolated-test-results", "expired": False, "id": 8,
                                        "size_in_bytes": len(archive.getvalue())}]}
             if "/jobs?" in endpoint:
-                return {"jobs": [{"id": 9, "labels": ["ubuntu-latest"], "runner_name": "GitHub Actions 9"}]}
+                # Real runs also list the skipped Apple job, which has no runner.
+                return {"jobs": [{"id": 9, "labels": ["ubuntu-latest"], "runner_name": "GitHub Actions 9",
+                                  "conclusion": "success"},
+                                 {"id": 10, "labels": ["macos-26"], "runner_name": "", "conclusion": "skipped"}]}
             return {"head_sha": harness}
 
     job = {"id": "team", "source": source, "mode": "e2e", "run_id": 7, "state": "success",
