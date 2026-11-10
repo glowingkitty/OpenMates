@@ -278,7 +278,26 @@
             const emailForStorage = email;
             recoveryKey = '';
 
-            // Dispatch before non-critical storage/profile work so successful auth always updates UI state.
+            // The account owner must be in the profile store before auth flips: the first
+            // account sync and the Rust core session start on that transition and take the
+            // owner from the profile. Setting it afterwards let both start for "no owner".
+            updateProfile({
+                user_id: data.user.id || null,
+                username: data.user.username || '',
+                profile_image_url: data.user.profile_image_url || null,
+                credits: data.user.credits || 0,
+                is_admin: data.user.is_admin || false,
+                last_opened: data.user.last_opened || '',
+                tfa_app_name: data.user.tfa_app_name || null,
+                tfa_enabled: data.user.tfa_enabled || false,
+                consent_privacy_and_apps_default_settings: data.user.consent_privacy_and_apps_default_settings || false,
+                consent_mates_default_settings: data.user.consent_mates_default_settings || false,
+                language: data.user.language || 'en',
+                darkmode: data.user.darkmode || false
+            });
+            console.debug('[EnterRecoveryKey] User profile updated with login data');
+
+            // Dispatch before non-critical storage work so successful auth always updates UI state.
             console.debug('[EnterRecoveryKey] Dispatching loginSuccess event, in signup flow:', inSignupFlow);
             dispatch('loginSuccess', {
                 user: data.user,
@@ -293,24 +312,6 @@
                 } else {
                     console.debug('[EnterRecoveryKey] Email encrypted and stored with master key for payment processing');
                 }
-
-                const userProfileData = {
-                    user_id: data.user.id || null,
-                    username: data.user.username || '',
-                    profile_image_url: data.user.profile_image_url || null,
-                    credits: data.user.credits || 0,
-                    is_admin: data.user.is_admin || false,
-                    last_opened: data.user.last_opened || '',
-                    tfa_app_name: data.user.tfa_app_name || null,
-                    tfa_enabled: data.user.tfa_enabled || false,
-                    consent_privacy_and_apps_default_settings: data.user.consent_privacy_and_apps_default_settings || false,
-                    consent_mates_default_settings: data.user.consent_mates_default_settings || false,
-                    language: data.user.language || 'en',
-                    darkmode: data.user.darkmode || false
-                };
-
-                updateProfile(userProfileData);
-                console.debug('[EnterRecoveryKey] User profile updated with login data:', userProfileData);
             } catch (postLoginErr) {
                 console.error('[EnterRecoveryKey] Non-critical post-login error (login still succeeded):', postLoginErr);
             }

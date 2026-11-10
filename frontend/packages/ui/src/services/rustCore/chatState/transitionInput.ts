@@ -67,7 +67,8 @@ export function buildComposerIndicatorInput(s: IndicatorState): ComposerIndicato
 		explicitMate: !!s.turn?.explicitMateCategory,
 		typingMatchesFeedback: matches,
 		phase: s.phase?.phase ?? null,
-		phaseLines: s.phase?.statusLines ?? [],
+		// Copied: the page passes its reactive state, and a reactive (proxied) array cannot be posted to the Worker.
+		phaseLines: [...(s.phase?.statusLines ?? [])],
 		anonymous: s.anonymous,
 		typing: {
 			active: typing?.isTyping === true,

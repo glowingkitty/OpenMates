@@ -91,6 +91,15 @@ describe('transition parity vectors (TypeScript side)', () => {
 			expect(referenceTitle(t.typing, t.skill, t.reasoning), c.name).toEqual(c.out);
 		}
 	});
+
+	// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary
+	it('the composer indicator request can be posted to the Worker when the page state is reactive', () => {
+		// ActiveChat passes its reactive processing phase: the status lines are a proxied array,
+		// which structured clone (postMessage) refuses unless the builder copies it.
+		const state = { ...(INDICATOR_CASES[0].state as Any), phase: { phase: 'sending', statusLines: new Proxy(['Sending'], {}) } };
+		const input = buildComposerIndicatorInput(state);
+		expect(structuredClone(input).phaseLines).toEqual(['Sending']);
+	});
 });
 
 // Answers each Worker export from the vectors by exact request, so the adapter's request shaping and result mapping are proven end to end.

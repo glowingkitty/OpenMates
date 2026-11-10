@@ -610,6 +610,34 @@
         password = '';
         tfaCode = '';
 
+        // The account owner must be in the profile store before auth flips. The first
+        // account sync and the Rust core session both start on that transition and take
+        // the owner from the profile; when it arrived later they started for "no owner"
+        // and were dropped, so the sync never ran and the first send waited on it forever.
+        // Only the in-memory store update happens here; the IndexedDB save stays below.
+        if (data.user) {
+            updateProfile({
+                user_id: data.user.id || null,
+                encrypted_settings: data.user.encrypted_settings ?? null,
+                username: data.user.username || '',
+                profile_image_url: data.user.profile_image_url || null,
+                credits: data.user.credits || 0,
+                is_admin: data.user.is_admin || false,
+                last_opened: data.user.last_opened || '',
+                tfa_app_name: data.user.tfa_app_name || null,
+                tfa_enabled: data.user.tfa_enabled || false,
+                consent_privacy_and_apps_default_settings: data.user.consent_privacy_and_apps_default_settings || false,
+                consent_mates_default_settings: data.user.consent_mates_default_settings || false,
+                language: data.user.language || 'en',
+                darkmode: data.user.darkmode || false,
+                auto_topup_low_balance_enabled: data.user.auto_topup_low_balance_enabled ?? false,
+                auto_topup_low_balance_threshold: data.user.auto_topup_low_balance_threshold,
+                auto_topup_low_balance_amount: data.user.auto_topup_low_balance_amount,
+                auto_topup_low_balance_currency: data.user.auto_topup_low_balance_currency
+            });
+            console.debug('[PasswordAndTfaOtp] User profile updated with login data');
+        }
+
         dispatch('loginSuccess', {
             user: data.user,
             inSignupFlow: inSignupFlow
@@ -685,7 +713,7 @@
                 }
             }
 
-            // Update user profile with received data
+            // The profile store was updated before the dispatch; persist the full user record.
             if (data.user) {
                 // Save to IndexedDB - wrap in try-catch for IndexedDB failures
                 try {
@@ -694,29 +722,6 @@
                 } catch (userDbError) {
                     console.error('[PasswordAndTfaOtp] Failed to save user data to IndexedDB:', userDbError);
                 }
-
-                const userProfileData = {
-                    user_id: data.user.id || null,
-                    encrypted_settings: data.user.encrypted_settings ?? null,
-                    username: data.user.username || '',
-                    profile_image_url: data.user.profile_image_url || null,
-                    credits: data.user.credits || 0,
-                    is_admin: data.user.is_admin || false,
-                    last_opened: data.user.last_opened || '',
-                    tfa_app_name: data.user.tfa_app_name || null,
-                    tfa_enabled: data.user.tfa_enabled || false,
-                    consent_privacy_and_apps_default_settings: data.user.consent_privacy_and_apps_default_settings || false,
-                    consent_mates_default_settings: data.user.consent_mates_default_settings || false,
-                    language: data.user.language || 'en',
-                    darkmode: data.user.darkmode || false,
-                    auto_topup_low_balance_enabled: data.user.auto_topup_low_balance_enabled ?? false,
-                    auto_topup_low_balance_threshold: data.user.auto_topup_low_balance_threshold,
-                    auto_topup_low_balance_amount: data.user.auto_topup_low_balance_amount,
-                    auto_topup_low_balance_currency: data.user.auto_topup_low_balance_currency
-                };
-
-                updateProfile(userProfileData);
-                console.debug('[PasswordAndTfaOtp] User profile updated with login data');
             }
         } catch (postLoginErr) {
             // Non-critical: log but do not show error to user — login already succeeded
