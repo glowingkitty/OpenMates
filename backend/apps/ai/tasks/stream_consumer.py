@@ -3105,13 +3105,21 @@ async def _strip_invalid_inline_embed_links(
     validated_refs_out: Optional[set[str]] = None,
     require_authority: bool = False,
 ) -> str:
-    """Downgrade non-quote inline embed links whose embed_ref is not real."""
+    """Downgrade non-quote inline embed links whose embed_ref is not real.
+
+    Skill-use refs are removed from the body first (skill_use_body_refs), with
+    their results put in place, so only result embeds stay in the answer.
+    """
     if not aggregated_response:
         return aggregated_response
 
     from backend.apps.ai.processing.native_history_cache import strip_invalid_inline_embed_links
+    from backend.shared.python_utils.skill_use_body_refs import (
+        is_skill_use_content, remove_skill_use_body_refs,
+    )
 
     if not cache_service or not encryption_service or not user_vault_key_id:
+        aggregated_response = remove_skill_use_body_refs(aggregated_response)[0]
         if require_authority:
             return strip_invalid_inline_embed_links(aggregated_response, known_valid_refs or set())[0]
         return aggregated_response
@@ -3144,6 +3152,7 @@ async def _strip_invalid_inline_embed_links(
 
     all_embed_ids = list({eid for eid in all_embed_ids if isinstance(eid, str) and eid})
     if not all_embed_ids and not known_valid_refs:
+        aggregated_response = remove_skill_use_body_refs(aggregated_response)[0]
         if require_authority:
             return strip_invalid_inline_embed_links(aggregated_response, set())[0]
         return aggregated_response
@@ -3161,6 +3170,7 @@ async def _strip_invalid_inline_embed_links(
     )
 
     valid_refs: set[str] = set(known_valid_refs or set())
+    skill_use_children: dict[str, list[str]] = {}
     for embed_id in all_embed_ids:
         try:
             node = await graph.get(embed_id)
@@ -3168,7 +3178,14 @@ async def _strip_invalid_inline_embed_links(
                 continue
             decoded = node.decoded
             ref = decoded.get("embed_ref")
-            if isinstance(ref, str) and ref:
+            skill_use_ref = ref if isinstance(ref, str) and ref and is_skill_use_content(decoded) else None
+            if skill_use_ref:
+                kids = skill_use_children.setdefault(skill_use_ref, [])
+                for pinned in decoded.get("pinned_embeds") or []:
+                    if isinstance(pinned, dict) and isinstance(pinned.get("embed_ref"), str):
+                        valid_refs.add(pinned["embed_ref"])
+                        kids.append(pinned["embed_ref"])
+            elif isinstance(ref, str) and ref:
                 valid_refs.add(ref)
 
             child_ids_raw = decoded.get("embed_ids")
@@ -3185,9 +3202,14 @@ async def _strip_invalid_inline_embed_links(
                 child_ref = child_node.decoded.get("embed_ref")
                 if isinstance(child_ref, str) and child_ref:
                     valid_refs.add(child_ref)
+                    if skill_use_ref:
+                        skill_use_children[skill_use_ref].append(child_ref)
         except Exception as e:
             logger.debug(f"{log_prefix} [EMBED_REF_VALIDATE] Could not inspect embed {embed_id}: {e}")
 
+    aggregated_response, removed_skill_use = remove_skill_use_body_refs(aggregated_response, skill_use_children)
+    if removed_skill_use:
+        logger.info(f"{log_prefix} [EMBED_REF_VALIDATE] Removed {removed_skill_use} skill-use body ref(s)")
     if not valid_refs:
         if require_authority:
             return strip_invalid_inline_embed_links(aggregated_response, set())[0]

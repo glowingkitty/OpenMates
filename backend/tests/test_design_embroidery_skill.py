@@ -276,7 +276,7 @@ async def test_failed_child_is_sealed_under_parent_and_reported_with_its_reason(
     assert result["status"] == "error" and result["child_embed_ids"] == []
     rows = callback.await_args.kwargs["completed_results"]
     assert rows == [{
-        "parent_embed_id": parent_id, "parent_embed_ref": f"generated-media-design-{parent_id.replace('-', '')[:12]}",
+        "parent_embed_id": parent_id,
         "request_index": 0, "status": "error",
         "error": "The design has too many stitches; try a smaller width.", "error_code": "too_many_stitches",
     }]

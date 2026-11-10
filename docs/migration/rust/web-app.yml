@@ -9,10 +9,10 @@ flag:
   default: 'off'
   flag_off_behavior: original TypeScript path, byte-identical build output (guarded in CI)
 summary:
-  total: 107214
-  done: 8333
+  total: 107224
+  done: 8334
   partial: 0
-  missing: 98881
+  missing: 98890
   percent: 7.8
 worker_namespaces_installed_not_progress:
   installed: 18
@@ -21,11 +21,11 @@ worker_namespaces_installed_not_progress:
 port_ledger:
   unit: TS code lines
   portable_files: 449
-  portable_code_lines: 107214
-  ported_code_lines: 8333
+  portable_code_lines: 107224
+  ported_code_lines: 8334
   percent: 7.8
   ported_by_proof:
-    e2e-flag-on: 4135
+    e2e-flag-on: 4136
     vectors: 3961
     none: 237
   files_with_ported_code: 93
@@ -379,7 +379,7 @@ port_ledger:
     date: '2026-11-10'
     proof: e2e-flag-on
     functions: 1
-    ts_code_lines: 23
+    ts_code_lines: 24
 e2e_specs_in_repo: [web-rust-core-apps.spec.ts, web-rust-core-auth.spec.ts, web-rust-core-bench.spec.ts, web-rust-core-chat-recommendations-flow.spec.ts,
   web-rust-core-chat.spec.ts, web-rust-core-chatstate-fork-conversation.spec.ts, web-rust-core-chatstate-hidden-chats-flow.spec.ts,
   web-rust-core-chatstate-message-highlights.spec.ts, web-rust-core-chatstate.spec.ts, web-rust-core-composer.spec.ts,

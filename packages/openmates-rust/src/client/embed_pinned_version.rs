@@ -156,6 +156,12 @@ pub fn head_version(head: &Value) -> Result<i64> {
 /// otherwise wait for a head this device had and lost. Equal or higher
 /// incoming versions, and every root embed, are written as before.
 ///
+/// A head still carrying the pending marker (`revision_pending_version`: the
+/// N+1 head is stored but its `store_embed` is not confirmed) is not kept: the
+/// revision write owns that row and stores the confirmed head itself after the
+/// send, and a replay resends it, so an older row written meanwhile is
+/// replaced again by the write that owns the version.
+///
 /// # Errors
 /// `Error::Protocol` for a non-object row, rows of different embeds or a
 /// malformed `version_number`.
@@ -174,7 +180,10 @@ pub fn synced_head_regresses(stored: &Value, incoming: &Value) -> Result<bool> {
         .get("parent_embed_id")
         .and_then(Value::as_str)
         .is_some_and(|parent| !parent.is_empty());
-    if !child {
+    let pending = stored
+        .get(super::revision::PENDING_HEAD_MARKER)
+        .is_some_and(|marker| !marker.is_null());
+    if !child || pending {
         return Ok(false);
     }
     Ok(stored_version(incoming)? < stored_version(stored)?)

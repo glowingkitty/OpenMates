@@ -3,7 +3,6 @@
 // Handles both write_mode (editing) and read_mode (display) parsing
 
 import type { ParseMessageOptions } from "./types";
-import { resolveExampleChatEmbedRef } from "../demo_chats/publicExampleEmbedRefs";
 import { stripVoiceDeliveryCues } from "./voiceDeliveryCues";
 import { markdownToTipTap } from "./serializers";
 import { parseEmbedNodes } from "./embedParsing";
@@ -15,9 +14,15 @@ import { resolveEmbedDisplayText } from "../utils/embedDisplayText";
 import { parseEmbedLinkTarget } from "../utils/embedFragmentUtils";
 import {
   resolveEmbedRefIndexReference,
-  resolveEmbedRefIndexEntry,
-  type EmbedRefIndexEntry,
 } from "../services/embedRefIndex";
+import {
+  assignCarouselRuns,
+  bodyEmbedRefResolver,
+  bodyEmbedSyncChildLookup,
+  bodyMayShowEmbed,
+  enforceBodyEmbedPolicy,
+  isSkillUseEmbedType,
+} from "./bodyEmbedPolicy";
 
 // ─── Inline embed-link conversion ─────────────────────────────────────────────
 //
@@ -163,10 +168,17 @@ function convertBareEmbedRefGroupsInTextNode(
       .split(",")
       .map((ref) => ref.trim())
       .filter((ref) => BARE_EMBED_REF_TOKEN_RE.test(ref));
+    let droppedSkillRef = false;
     const resolvedRefs = refs
       .map((ref) => {
         const normalizedRef = normalizeBareEmbedRef(ref);
-        const resolvedRef = resolveEmbedRefIndexReference(normalizedRef)?.embedRef;
+        const resolved = resolveEmbedRefIndexReference(normalizedRef);
+        // Source refs to an app skill invocation are not shown in the body.
+        if (resolved && !bodyMayShowEmbed(resolved.embedRef, resolved.entry.type)) {
+          droppedSkillRef = true;
+          return null;
+        }
+        const resolvedRef = resolved?.embedRef;
         if (resolvedRef) return resolvedRef;
         // Cold shared-chat loads may parse messages before encrypted child embeds
         // warm the in-memory ref index. Domain-shaped refs are already specific
@@ -175,7 +187,7 @@ function convertBareEmbedRefGroupsInTextNode(
       })
       .filter((ref): ref is string => typeof ref === "string" && ref.length > 0);
 
-    if (resolvedRefs.length === 0) continue;
+    if (resolvedRefs.length === 0 && !droppedSkillRef) continue;
 
     const before = createMarkedTextNode(
       node.text.slice(lastIndex, match.index),
@@ -233,22 +245,6 @@ function convertUnbracketedDomainEmbedRefsInTextNode(
   const after = createMarkedTextNode(node.text.slice(lastIndex), node);
   if (after) output.push(after);
   return output;
-}
-
-function createCompactAppSkillEmbedNode(
-  refEntry: EmbedRefIndexEntry,
-  fallbackAppId: string | null,
-): any {
-  const attrs: any = {
-    id: refEntry.embedId,
-    type: "app-skill-use",
-    status: "finished",
-    contentRef: `embed:${refEntry.embedId}`,
-  };
-  const appId = refEntry.appId ?? fallbackAppId;
-  if (appId) attrs.app_id = appId;
-  if (refEntry.skillId) attrs.skill_id = refEntry.skillId;
-  return { type: "embed", attrs };
 }
 
 function stripWriteModeLinkMarks(node: any): any {
@@ -336,9 +332,7 @@ function convertEmbedLinksInNode(
   chatId?: string,
 ): any | any[] {
   // Public examples use their selected group, never the private ref namespace.
-  const resolveRef = (ref: string): EmbedRefIndexEntry | null => chatId?.startsWith("example-")
-    ? resolveExampleChatEmbedRef(ref, chatId)
-    : resolveEmbedRefIndexEntry(ref);
+  const resolveRef = bodyEmbedRefResolver(chatId);
   if (node.type === "codeBlock") return node;
 
   if (role === "user" && node.type === "genericMention" && node.attrs?.mentionType === "wikipedia") {
@@ -370,6 +364,10 @@ function convertEmbedLinksInNode(
           parseEmbedLinkTarget(rawRef);
         const resolvedDisplayText = resolveEmbedDisplayText(displayText, cleanRef);
         const refEntry = resolveRef(cleanRef);
+        // Invocation refs keep only their words in the answer body.
+        if (!bodyMayShowEmbed(cleanRef, refEntry?.type)) {
+          return { type: "text", text: resolvedDisplayText };
+        }
         const resolvedEmbedId = refEntry?.embedId ?? null;
         const resolvedLiveAppId = refEntry?.appId ?? null;
         const appId = resolvedLiveAppId ?? fallbackAppId;
@@ -437,10 +435,9 @@ function convertEmbedLinksInNode(
         // Strip any accidental #L suffix (preview cards don't use line highlighting)
         const { cleanRef } = parseEmbedLinkTarget(rawRef);
         const refEntry = resolveRef(cleanRef);
-        if (refEntry?.type && isAppSkillEmbedType(refEntry.type)) {
-          return createCompactAppSkillEmbedNode(refEntry, fallbackAppId);
-        }
-
+        // Invocation refs are kept as block previews here; enforceBodyEmbedPolicy
+        // (end of convertEmbedLinks) turns them into "Used the app" activity
+        // nodes plus their result children, never a body card.
         const resolvedId = refEntry?.embedId ?? null;
         const resolvedAppId = refEntry?.appId ?? null;
         return {
@@ -469,6 +466,12 @@ function convertEmbedLinksInNode(
       // Fallback: use app_id from sibling embed nodes collected in Pass 1 —
       //   always available on first parse, even on page reload, with no async work.
       const refEntry = resolveRef(cleanRef);
+      if (!bodyMayShowEmbed(cleanRef, refEntry?.type)) {
+        const plainMarks = node.marks.filter((mark: any) => mark?.type !== "link");
+        return plainMarks.length > 0
+          ? { type: "text", text: resolvedDisplayText, marks: plainMarks }
+          : { type: "text", text: resolvedDisplayText };
+      }
       const resolvedEmbedId = refEntry?.embedId ?? null;
       const resolvedLiveAppId = refEntry?.appId ?? null;
       const appId = resolvedLiveAppId ?? fallbackAppId;
@@ -543,7 +546,12 @@ function convertEmbedLinks(doc: any, role?: ParseMessageOptions["role"], chatId?
   const withInlineNodes = convertEmbedLinksInNode(doc, fallbackAppId, role, chatId);
   // Pass 3: hoist embedPreviewLarge nodes out of their
   // paragraph wrappers to become true block-level document nodes.
-  return _hoistBlockEmbedPreviews(withInlineNodes);
+  const hoisted = _hoistBlockEmbedPreviews(withInlineNodes);
+  // Pass 4: app skill invocations never render in the answer body.
+  return enforceBodyEmbedPolicy(hoisted, {
+    resolve: bodyEmbedRefResolver(chatId),
+    childIds: bodyEmbedSyncChildLookup(chatId),
+  });
 }
 
 // ─── Block embed preview hoisting ────────────────────────────────────────────
@@ -571,13 +579,6 @@ function _isIgnorableInlineNode(c: any): boolean {
   if (c.type === "hardBreak" || c.type === "softBreak") return true;
   if (c.type === "text" && !c.text?.trim()) return true;
   return false;
-}
-
-function _isEmptyParagraph(node: any): boolean {
-  return (
-    node.type === "paragraph" &&
-    (!Array.isArray(node.content) || node.content.length === 0)
-  );
 }
 
 /**
@@ -657,71 +658,14 @@ function _hoistEmbeds(nodes: any[]): any[] {
   return result;
 }
 
-/**
- * Phase B: Assign carousel metadata to consecutive embedPreviewLarge runs.
- *
- * Empty paragraphs (from blank lines between [!](embed:ref) links) are
- * tolerated within a run and discarded.  Recurses into container nodes.
- */
-function _assignCarouselRuns(nodes: any[]): any[] {
-  const finalContent: any[] = [];
-  let currentRun: any[] = [];
-  let pendingEmpties: any[] = [];
-
-  function flushRun() {
-    if (currentRun.length === 0) return;
-    const runRef = currentRun[0].attrs.embedRef as string;
-    const runLen = currentRun.length;
-    for (let idx = 0; idx < runLen; idx++) {
-      finalContent.push({
-        ...currentRun[idx],
-        attrs: {
-          ...currentRun[idx].attrs,
-          carouselIndex: idx,
-          carouselTotal: runLen,
-          runRef,
-        },
-      });
-    }
-    currentRun = [];
-    pendingEmpties = [];
-  }
-
-  for (const node of nodes) {
-    if (node.type === "embedPreviewLarge") {
-      pendingEmpties = [];
-      currentRun.push(node);
-    } else if (_isEmptyParagraph(node) && currentRun.length > 0) {
-      pendingEmpties.push(node);
-    } else {
-      flushRun();
-      finalContent.push(...pendingEmpties);
-      pendingEmpties = [];
-      // Recurse into container nodes so list-item embeds get carousel metadata.
-      if (
-        node.type !== "paragraph" &&
-        Array.isArray(node.content) &&
-        node.content.length > 0
-      ) {
-        finalContent.push({
-          ...node,
-          content: _assignCarouselRuns(node.content),
-        });
-      } else {
-        finalContent.push(node);
-      }
-    }
-  }
-  flushRun();
-
-  return finalContent;
-}
+// Phase B (carousel metadata for consecutive embedPreviewLarge runs) is the
+// shared assignCarouselRuns in bodyEmbedPolicy.ts.
 
 function _hoistBlockEmbedPreviews(doc: any): any {
   if (!doc || !doc.content) return doc;
 
   const hoisted = _hoistEmbeds(doc.content);
-  const withCarousels = _assignCarouselRuns(hoisted);
+  const withCarousels = assignCarouselRuns(hoisted);
   return { ...doc, content: withCarousels };
 }
 
@@ -1078,14 +1022,6 @@ function getEmbedBaseType(type: string): string {
   return type.endsWith("-group") ? type.slice(0, -"-group".length) : type;
 }
 
-function isAppSkillEmbedType(type: string): boolean {
-  return (
-    type === "app-skill-use" ||
-    type === "app-skill-use-group" ||
-    type === "app_skill_use"
-  );
-}
-
 function extractEmbedId(attrs: any): string | null {
   if (!attrs) return null;
 
@@ -1126,7 +1062,7 @@ function promoteEmbedAttrsToLargeNodes(attrs: any): any[] | null {
   const embedType = attrs.type as string;
   const baseType = getEmbedBaseType(embedType);
 
-  if (isAppSkillEmbedType(embedType)) return null;
+  if (isSkillUseEmbedType(embedType)) return null;
 
   // Focus mode activation embeds have their own dedicated renderer
   // (FocusModeActivationRenderer) — never promote them to large preview cards.
@@ -1307,9 +1243,9 @@ export function parse_message(
   // blockquotes that are source quotes and convert them (read mode only)
   if (mode === "read") {
     unifiedDoc = convertEmbedLinks(unifiedDoc, opts.role, typeof opts.chatId === "string" ? opts.chatId : undefined);
-    // Link-based app-skill refs (`[!](embed:ref)`) are only known after
-    // convertEmbedLinks(), so run grouping again to preserve the compact
-    // horizontal app-skill row instead of rendering vertical single cards.
+    // Link-based app-skill refs (`[!](embed:ref)`) become activity nodes only
+    // in convertEmbedLinks(), so run grouping again to keep consecutive ones
+    // in one compact row of the "Used the app" container.
     unifiedDoc = groupConsecutiveEmbedsInDocument(unifiedDoc);
     unifiedDoc = convertSourceQuotes(unifiedDoc);
   }

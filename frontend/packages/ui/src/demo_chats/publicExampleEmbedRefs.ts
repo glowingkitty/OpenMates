@@ -13,11 +13,25 @@ function field(content: string, key: string): string | null {
   return content.match(new RegExp(`(?:^|\\n)${key}:\\s*"?([^\\n"]+)"?`))?.[1]?.trim() ?? null;
 }
 
-export function resolveExampleChatEmbedRef(ref: string, chatId: string | null | undefined): EmbedRefIndexEntry | null {
+function exampleGroupEmbeds(chatId: string | null | undefined) {
   const group = [...ALL_EXAMPLE_CHATS, ...INTERNAL_EXAMPLE_CHATS].find(example =>
     example.chat_id === chatId || example.sub_chats?.some(child => child.chat_id === chatId));
-  if (!group) return null;
-  for (const embed of [...group.embeds, ...(group.sub_chats ?? []).flatMap(child => child.embeds)]) {
+  return group ? [...group.embeds, ...(group.sub_chats ?? []).flatMap(child => child.embeds)] : null;
+}
+
+/** Result children of a public example invocation; null when it is not one of them. */
+export function resolveExampleChatChildEmbedIds(parentEmbedId: string, chatId: string | null | undefined): string[] | null {
+  const id = parentEmbedId.replace(/^embed:/, '');
+  const parent = exampleGroupEmbeds(chatId)?.find(embed => embed.embed_id?.replace(/^embed:/, '') === id);
+  if (!parent) return null;
+  return (parent.embed_ids ?? []).filter((child): child is string => typeof child === 'string' && child.length > 0)
+    .map(child => child.replace(/^embed:/, ''));
+}
+
+export function resolveExampleChatEmbedRef(ref: string, chatId: string | null | undefined): EmbedRefIndexEntry | null {
+  const embeds = exampleGroupEmbeds(chatId);
+  if (!embeds) return null;
+  for (const embed of embeds) {
     if (!embed.content || !embed.embed_id) continue;
     const embedId = embed.embed_id.replace(/^embed:/, '');
     if (ref.replace(/^embed:/, '') !== embedId && field(embed.content, 'embed_ref') !== ref) continue;

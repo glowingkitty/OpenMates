@@ -7,6 +7,8 @@ import uuid
 from typing import Any, Mapping, Sequence
 from contextvars import ContextVar
 
+from backend.shared.python_utils.skill_use_body_refs import is_skill_use_ref
+
 try:
     from toon_format import encode as toon_encode
 except ImportError:  # pragma: no cover - lightweight contract-test environments
@@ -153,6 +155,8 @@ def finalize_trusted_inline_refs(
         ref, identity = row.get("embed_ref"), _canonical_output_id(row.get("embed_id"))
         if not isinstance(ref, str) or not _OUTPUT_REF_PATTERN.fullmatch(ref) or identity is None:
             continue
+        if is_skill_use_ref(ref):  # rows sealed before the result-only rule
+            continue
         if (row.get("app_id"), row.get("skill_id")) not in (_INLINE_CARD_SKILLS | _GENERATED_OUTPUT_SKILLS):
             continue
         existing = refs.get(ref)
@@ -297,7 +301,7 @@ def finalize_trusted_inline_refs(
 def authenticated_generated_outputs(
     authored_outputs: Sequence[Mapping[str, Any]],
 ) -> dict[str, Mapping[str, Any]]:
-    """Return exact generated refs from finished server-authored UUID pairs.
+    """Return exact generated result refs from finished server-authored UUID pairs.
 
     A cache miss cannot revoke a completed writer's authority. Arbitrary refs,
     failed outputs and conflicting identities never receive that authority.
@@ -314,8 +318,8 @@ def authenticated_generated_outputs(
                 or not isinstance(ref, str) or identity is None
                 or (app_id, skill_id) not in _GENERATED_OUTPUT_SKILLS):
             continue
-        if ref not in {generated_media_embed_ref(app_id, identity),
-                       generated_media_parent_ref(app_id, identity)}:
+        # Only result children; the skill-use parent never enters the answer body.
+        if ref != generated_media_embed_ref(app_id, identity):
             continue
         if ref in outputs and outputs[ref].get("embed_id") != identity:
             conflicts.add(ref)
@@ -458,7 +462,6 @@ async def run_generated_media_batch(
                 {
                     **media_completion_result(row["result"]),
                     "parent_embed_id": parent_id,
-                    "parent_embed_ref": generated_media_parent_ref(app_id, parent_id),
                     "request_index": row["request_index"],
                     "child_embed_id": row["child_embed_id"],
                     "embed_ref": row["embed_ref"],
@@ -468,7 +471,6 @@ async def run_generated_media_batch(
             ] + [
                 {
                     "parent_embed_id": parent_id,
-                    "parent_embed_ref": generated_media_parent_ref(app_id, parent_id),
                     "request_index": row["request_index"], "status": "error", "error": row["error"],
                     **({"error_code": row["error_code"]} if row.get("error_code") else {}),
                 }
@@ -483,7 +485,6 @@ async def run_generated_media_batch(
                 request_metadata={
                     "app_id": app_id, "skill_id": skill_id,
                     "parent_embed_id": parent_id,
-                    "parent_embed_ref": generated_media_parent_ref(app_id, parent_id),
                     "user_id": str(arguments["user_id"]),
                     "chat_id": str(arguments["chat_id"]),
                     "message_id": str(arguments["message_id"]),

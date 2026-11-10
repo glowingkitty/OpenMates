@@ -236,7 +236,7 @@ async def test_resume_restores_provider_tool_ids_without_a_user_message(monkeypa
 
 
 @pytest.mark.asyncio
-# contract-test: supporting surface=gui.web assertions=app-skills.media.visible-assistant-results,app-skills.assistant.same-turn-completion
+# contract-test: supporting surface=gui.web assertions=app-skills.media.visible-assistant-results,app-skills.assistant.same-turn-completion,app-skills.answer.only-result-embeds-in-body
 async def test_restored_generated_child_is_trusted_at_final_answer_boundary(monkeypatch):
     child_id = "018f2222-2222-7222-8222-333333333333"
     parent_id = "018f2222-2222-7222-8222-444444444444"
@@ -271,8 +271,10 @@ async def test_restored_generated_child_is_trusted_at_final_answer_boundary(monk
         required_refs=checkpoint["generated_embed_refs"],
     )
     assert answer.count(f"(embed:{child_ref})") == 1
-    assert f"(embed:{parent_ref})" in answer
-    assert {row["embed_id"] for row in checkpoint["authored_inline_outputs"]} == {child_id, parent_id}
+    # The skill-use parent shows only in the skill container, never in the body.
+    assert parent_ref not in answer
+    assert checkpoint["generated_embed_refs"] == [child_ref]
+    assert {row["embed_id"] for row in checkpoint["authored_inline_outputs"]} == {child_id}
 
 
 # contract-test: supporting surface=rest_api assertions=app-skills.assistant.bounded-private-failure
@@ -399,8 +401,8 @@ def test_generated_refs_match_complete_markdown_targets_and_uuid_aliases():
     ) == 1
 
 
-# contract-test: supporting surface=rest_api assertions=app-skills.media.visible-assistant-results
-def test_only_authored_successful_children_require_parent_and_child_preview():
+# contract-test: supporting surface=rest_api assertions=app-skills.media.visible-assistant-results,app-skills.answer.only-result-embeds-in-body
+def test_only_authored_successful_children_require_a_child_preview_never_the_parent():
     child_id = "018f4444-4444-7444-8444-444444444444"
     parent_id = "018f5555-5555-7555-8555-555555555555"
     parent_ref = "generated-media-images-018f55555555"
@@ -412,26 +414,25 @@ def test_only_authored_successful_children_require_parent_and_child_preview():
          "parent_embed_ref": "fabricated-parent", "parent_embed_id": parent_id},
     ]
     refs, aliases = barrier._generated_ref_bindings(rows, app_id="images")
-    assert refs == ["generated-images-child", parent_ref]
-    assert aliases == {"generated-images-child": [child_id],
-                       parent_ref: [parent_id]}
+    assert refs == ["generated-images-child"]
+    assert aliases == {"generated-images-child": [child_id]}
     answer = f"Here is the first child [image](embed:{child_id})."
     completed = barrier.ensure_generated_refs(answer, refs, aliases)
-    assert "(embed:generated-images-child)" not in completed
-    assert completed.count(f"(embed:{parent_ref})") == 1
-    # A parent supplied only by callback metadata is accepted when a real
-    # successful child in the same producer callback proves useful output.
+    assert completed == answer
+    # A parent named by callback metadata is never required either.
     metadata_refs, _ = barrier._generated_ref_bindings(
         [{"status": "finished", "embed_ref": "generated-images-child",
           "child_embed_id": child_id}], app_id="images",
         metadata={"parent_embed_ref": parent_ref, "parent_embed_id": parent_id},
     )
-    assert metadata_refs == ["generated-images-child", parent_ref]
+    assert metadata_refs == ["generated-images-child"]
+    # A checkpoint sealed before this rule may still list the parent: it is not appended.
+    assert parent_ref not in barrier.ensure_generated_refs("Done.", [parent_ref, "generated-images-child"])
 
 
 @pytest.mark.asyncio
-# contract-test: supporting surface=rest_api assertions=app-skills.media.visible-assistant-results,app-skills.assistant.same-turn-completion
-async def test_restored_media_completion_carries_authored_parent_and_child_aliases(monkeypatch):
+# contract-test: supporting surface=rest_api assertions=app-skills.media.visible-assistant-results,app-skills.assistant.same-turn-completion,app-skills.answer.only-result-embeds-in-body
+async def test_restored_media_completion_carries_only_authored_child_aliases(monkeypatch):
     child_id = "018f6666-6666-7666-8666-666666666666"
     parent_id = "018f7777-7777-7777-8777-777777777777"
     child_ref = "generated-images-018f66666666"
@@ -457,11 +458,13 @@ async def test_restored_media_completion_carries_authored_parent_and_child_alias
                                               {"role": "tool", "tool_call_id": "call-1", "content": "processing"}]}
     history = await restore_ordered_tool_results(request, checkpoint)
     assert json.loads(history[1]["content"])["results"][0]["parent_embed_ref"] == parent_ref
-    assert checkpoint["generated_embed_refs"] == [child_ref, parent_ref]
-    assert checkpoint["generated_embed_aliases"] == {child_ref: [child_id], parent_ref: [parent_id]}
-    assert checkpoint["authored_inline_outputs"][0]["filename"] == "sunflower-018f6666.svg"
-    assert "filename" not in checkpoint["authored_inline_outputs"][1]
-    answer = f"[Image](embed:{child_id.replace('-', '')}) and [Set](embed:{parent_id})"
+    assert checkpoint["generated_embed_refs"] == [child_ref]
+    assert checkpoint["generated_embed_aliases"] == {child_ref: [child_id]}
+    assert checkpoint["authored_inline_outputs"] == [{
+        "app_id": "images", "skill_id": "generate", "embed_ref": child_ref,
+        "embed_id": child_id, "status": "finished", "filename": "sunflower-018f6666.svg",
+    }]
+    answer = f"[Image](embed:{child_id.replace('-', '')})"
     assert barrier.ensure_generated_refs(
         answer, checkpoint["generated_embed_refs"], checkpoint["generated_embed_aliases"],
     ) == answer

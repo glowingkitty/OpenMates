@@ -37,6 +37,7 @@
   const sourceChatId = sourceChatContext?.chatId ?? null;
   import { resolveEmbedDisplayText } from '../../utils/embedDisplayText';
   import { resolveIconName } from '../../utils/iconNameResolver';
+  import { bodyMayShowEmbed } from '../../message_parsing/bodyEmbedPolicy';
 
   interface Props {
     /** Short slug from the LLM (e.g. "ryanair-0600-k8D") */
@@ -135,6 +136,16 @@
 
   let effectiveDisplayText = $derived(resolveEmbedDisplayText(displayText, embedRef));
 
+  // A link whose ref resolves to an app skill invocation after parsing keeps
+  // only its words (app-skills.answer.only-result-embeds-in-body).
+  let isSkillInvocationRef = $derived.by(() => {
+    void $embedRefIndexVersion;
+    const refType = isExampleChat(sourceChatId ?? '')
+      ? resolveExampleChatEmbedRef(embedRef, sourceChatId)?.type
+      : embedStore.resolveTypeByRef(embedRef);
+    return !bodyMayShowEmbed(embedRef, refType);
+  });
+
   $effect(() => {
     void $embedRefIndexVersion;
 
@@ -221,6 +232,9 @@
   }
 </script>
 
+{#if isSkillInvocationRef}
+<span data-testid="embed-inline-skill-text">{effectiveDisplayText}</span>
+{:else}
 <!-- Inline badge + link, rendered as a <span> so it flows within text -->
 <span class="embed-inline-link" class:embed-inline-link--broken={repairState === 'broken'} role="link" tabindex="0" onclick={handleClick} onkeydown={(e) => { if (e.key === 'Enter') handleClick(e as unknown as MouseEvent); }}>
   <!-- Small circular app-icon badge -->
@@ -230,6 +244,7 @@
   <!-- Solid-colour display text — colour adapts to light/dark mode via CSS -->
   <span class="embed-inline-text" class:has-app-color={!!effectiveAppId} class:broken={repairState === 'broken'} style={textColorVarsStyle}>{effectiveDisplayText}</span>
 </span>
+{/if}
 
 <style>
   /* Outer wrapper — true inline so it flows naturally within paragraph text.

@@ -2046,3 +2046,44 @@ def test_generated_finished_refs_survive_cache_miss_while_invented_refs_are_stri
         known_valid_refs=set(authenticated_generated_outputs(outputs)),
     ))
     assert result == f"[!](embed:{ref}) and Invented"
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.answer.only-result-embeds-in-body
+@pytest.mark.parametrize("app_id,skill_id,parent_ref,child_type,child_ref", [
+    ("web", "search", "web-search-k8D", "website", "example.org-a1B"),
+    ("images", "generate", "generated-media-images-018f11111111", "generated_image",
+     "generated-images-018f22222222"),
+])
+def test_final_validator_removes_skill_use_refs_and_shows_their_results(
+    app_id, skill_id, parent_ref, child_type, child_ref,
+):
+    parent_id = "018f1111-1111-7111-8111-111111111111"
+    child_id = "018f2222-2222-7222-8222-222222222222"
+    nodes = {
+        parent_id: SimpleNamespace(decoded={
+            "app_id": app_id, "skill_id": skill_id, "result_count": 1,
+            "embed_ids": [child_id], "embed_ref": parent_ref, "status": "finished",
+        }),
+        child_id: SimpleNamespace(decoded={"type": child_type, "embed_ref": child_ref}),
+    }
+
+    async def get_node(embed_id):
+        return nodes.get(embed_id)
+
+    answer = f"Done, see [the {skill_id}](embed:{parent_ref}).\n\n[!](embed:{parent_ref})"
+    validated: set[str] = set()
+    result = asyncio.run(stream_consumer._strip_invalid_inline_embed_links(
+        aggregated_response=answer,
+        tool_calls_info=[{"app_id": app_id, "skill_id": skill_id, "embed_id": parent_id}],
+        cache_service=SimpleNamespace(), directus_service=None, encryption_service=SimpleNamespace(),
+        user_vault_key_id="owner-key", embed_graph=SimpleNamespace(get=get_node),
+        validated_refs_out=validated,
+    ))
+    assert result == f"Done, see the {skill_id}.\n\n[!](embed:{child_ref})"
+    assert parent_ref not in validated and child_ref in validated
+    # Without graph authority a generated-media parent is still recognised by its form.
+    if app_id == "images":
+        assert parent_ref not in asyncio.run(stream_consumer._strip_invalid_inline_embed_links(
+            aggregated_response=answer, tool_calls_info=None, cache_service=None,
+            directus_service=None, encryption_service=None, user_vault_key_id=None,
+        ))

@@ -72,8 +72,8 @@ embed_types:
 instructions:
   - instruction: |
       Once music generation finishes, describe the actual successful tracks
-      and include the returned parent and every successful child embed_ref
-      inline. Report failed outputs honestly. Do not expose raw task IDs,
+      and include every successful child embed_ref inline (never the parent).
+      Report failed outputs honestly. Do not expose raw task IDs,
       embed IDs, or status codes.
 skills:
   - id: generate

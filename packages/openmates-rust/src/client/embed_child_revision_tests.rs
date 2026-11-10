@@ -704,6 +704,11 @@ fn a_synced_row_never_lowers_a_child_head_version() {
     // Same or newer versions are written as before.
     assert!(!pinned::synced_head_regresses(&head(json!(3)), &server(json!(3))).unwrap());
     assert!(!pinned::synced_head_regresses(&head(json!(2)), &server(json!(3))).unwrap());
+    // A pending N+1 head belongs to the revision write, which stores the
+    // confirmed head after its send: an older row written meanwhile is not blocked.
+    let mut pending = head(json!(3));
+    pending[revision::PENDING_HEAD_MARKER] = json!(3);
+    assert!(!pinned::synced_head_regresses(&pending, &server(json!(2))).unwrap());
     // Root embeds keep the old overwrite behaviour.
     let root = json!({"embed_id": "image-1", "version_number": 3});
     assert!(!pinned::synced_head_regresses(&root, &server(json!(1))).unwrap());

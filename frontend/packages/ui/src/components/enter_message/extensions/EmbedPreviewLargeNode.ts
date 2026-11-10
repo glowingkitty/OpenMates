@@ -86,6 +86,14 @@ export const EmbedPreviewLargeNode = Node.create<EmbedPreviewLargeNodeOptions>({
       runRef: {
         default: '',
       },
+      /**
+       * True for an answer-body reference to an app skill invocation whose
+       * result children are not known yet (bodyEmbedPolicy.ts). It renders
+       * nothing and is not counted in its carousel run.
+       */
+      bodyHidden: {
+        default: false,
+      },
     };
   },
 
@@ -111,6 +119,7 @@ export const EmbedPreviewLargeNode = Node.create<EmbedPreviewLargeNodeOptions>({
               10,
             ),
             runRef: element.getAttribute("data-run-ref") ?? "",
+            bodyHidden: element.getAttribute("data-body-hidden") === "true",
           };
         },
       },
@@ -132,6 +141,7 @@ export const EmbedPreviewLargeNode = Node.create<EmbedPreviewLargeNodeOptions>({
         "data-carousel-index": HTMLAttributes.carouselIndex,
         "data-carousel-total": HTMLAttributes.carouselTotal,
         "data-run-ref": HTMLAttributes.runRef,
+        "data-body-hidden": HTMLAttributes.bodyHidden ? "true" : undefined,
         class: "embed-preview-large-node",
         contenteditable: "false",
       }),
@@ -144,9 +154,16 @@ export const EmbedPreviewLargeNode = Node.create<EmbedPreviewLargeNodeOptions>({
       const sourceChatId = this.options.chatId ?? null;
       let node = nodeViewProps.node;
       const dom = document.createElement("div");
-      dom.setAttribute("data-type", "embed-preview-large");
       dom.setAttribute("contenteditable", "false");
       dom.classList.add("embed-preview-large-node");
+      // A hidden invocation placeholder is not a preview: it takes no space
+      // and is not found by preview selectors.
+      function syncHidden() {
+        const hidden = node.attrs.bodyHidden === true;
+        dom.setAttribute("data-type", hidden ? "embed-body-hidden" : "embed-preview-large");
+        dom.hidden = hidden;
+      }
+      syncHidden();
 
       let svelteInstance: Record<string, unknown> | null = null;
       function componentProps() {
@@ -161,6 +178,7 @@ export const EmbedPreviewLargeNode = Node.create<EmbedPreviewLargeNodeOptions>({
           carouselIndex: node.attrs.carouselIndex as number,
           carouselTotal: node.attrs.carouselTotal as number,
           runRef: node.attrs.runRef as string,
+          bodyHidden: node.attrs.bodyHidden === true,
         };
       }
       function mountComponent() {
@@ -187,6 +205,7 @@ export const EmbedPreviewLargeNode = Node.create<EmbedPreviewLargeNodeOptions>({
           if (updatedNode.type.name !== "embedPreviewLarge") return false;
           if (!hasStableLargePreviewIdentity(node.attrs, updatedNode.attrs)) return false;
           node = updatedNode;
+          syncHidden();
           const updatePresentation = svelteInstance?.updatePresentation;
           if (typeof updatePresentation === "function") {
             updatePresentation(componentProps());

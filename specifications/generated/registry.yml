@@ -11,7 +11,7 @@ specifications:
     version: 1
     status: draft
     path: architecture/app-skill-execution
-    fingerprint: 7120b8cde68485c09f872f5d0536570669d4aac9b47e20e60074fea81ce212db
+    fingerprint: adea85c020b5e66bb0810d93d4ecb31fb7c33578a4ca6bb658ece775c69e6dac
     required_applies_to:
     - rest_api
     - cli
@@ -1185,7 +1185,19 @@ assertions:
     specification: architecture.app-skill-execution@1
     specification_id: architecture.app-skill-execution
     type: behavior
-    fingerprint: 4a18937573a0ab0d34851d7dd9d8b7e1bb7acad72284f2eba2f95da325d6197b
+    fingerprint: b9d14100f7164620d0f53a3942e200349157ac826a53d176d1265ae23c76f8ff
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  app-skills.answer.only-result-embeds-in-body:
+    specification: architecture.app-skill-execution@1
+    specification_id: architecture.app-skill-execution
+    type: behavior
+    fingerprint: 8394ec7cec70d4d0a2468485f8d096b95020a8c1d3e0df6638ed91a8357fd261
     required_applies_to:
     - rest_api
     - cli
@@ -1365,7 +1377,7 @@ assertions:
     specification: architecture.app-skill-execution@1
     specification_id: architecture.app-skill-execution
     type: security
-    fingerprint: 0dbda432556d43309327ab56e09d36471ef87111bfd4fa48b41173c60f6c20ed
+    fingerprint: 527a6d85d08caa5f207f6f978cd1b958299998ade18c9d704a30f33b7d1fa4b9
     required_applies_to:
     - rest_api
     - cli
@@ -1377,7 +1389,7 @@ assertions:
     specification: architecture.app-skill-execution@1
     specification_id: architecture.app-skill-execution
     type: failure
-    fingerprint: ca3bce345a0c3270b7c71503d8cf99f7141ca43ce8a373266aeebb4ba8368001
+    fingerprint: 34de8a74814c91de9438b4b939b269d08b5617007b168c384051649c717c4460
     required_applies_to:
     - rest_api
     - cli

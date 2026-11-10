@@ -183,6 +183,39 @@ const lostImageContent = { type: 'doc', content: [retainedImageInvocation,
   { type: 'paragraph', content: [{ type: 'text', text: '!' }] },
 ] };
 
+// A synced (non-example) answer whose markdown references the generated image
+// and then its generation parent on the next line, as older answers do. Only
+// the image may render in the body; the parent belongs to "Used the Images app"
+// (app-skills.answer.only-result-embeds-in-body). The parent-only variant has
+// no child ref: its result is read from the parent after the first render.
+const bodyPolicyChatId = 'preview-image-body-chat';
+const bodyPolicyParent = mediaImage.embeds.find(embed => !embed.parent_embed_id)!;
+const bodyPolicyChild = mediaImage.embeds.find(embed => embed.parent_embed_id)!;
+const bodyPolicyRef = (embed: typeof bodyPolicyParent) => embed.content.match(/(?:^|\n)embed_ref: (\S+)/)![1];
+function imageBodyPolicyPreview(markdown: string) {
+  for (const embed of [bodyPolicyParent, bodyPolicyChild]) {
+    embedStore.registerStaticEmbed({
+      embedId: embed.embed_id, type: embed.type, content: embed.content, appId: 'images', skillId: 'generate',
+      parentEmbedId: embed.parent_embed_id, embedIds: embed.embed_ids,
+    });
+    embedStore.registerEmbedRef(bodyPolicyRef(embed), embed.embed_id, 'images', embed.type, 'generate');
+  }
+  return { ...defaultProps, role: 'assistant' as const, status: 'synced' as const,
+    content: createAssistantRenderPlan(markdown, { phase: 'final', chatId: bodyPolicyChatId }).document,
+    original_message: { message_id: 'preview-image-body-message', chat_id: bodyPolicyChatId, created_at: 1,
+      role: 'assistant' as const, content: markdown } };
+}
+const imageChildAndParentInBody = imageBodyPolicyPreview([
+  'Here is the warm botanical illustration:', '',
+  `[!](embed:${bodyPolicyRef(bodyPolicyChild)})`,
+  `[!](embed:${bodyPolicyRef(bodyPolicyParent)})`,
+].join('\n'));
+const imageParentOnlyInBody = imageBodyPolicyPreview([
+  'Here is the warm botanical illustration:', '',
+  `[!](embed:${bodyPolicyRef(bodyPolicyParent)})`, '',
+  'Print it as the handout background.',
+].join('\n'));
+
 /** Named variants for different message types and states */
 export const variants = {
   speechAvailable: {
@@ -203,6 +236,8 @@ export const variants = {
   generatedImage: generatedMediaPreview(mediaImage, imageSource),
   generatedImageLostReferences: { ...lostImagePreview, content: lostImageContent },
   generatedMusicStreaming: generatedMediaPreview(mediaMusic, musicSource, true),
+  imageChildAndParentInBody,
+  imageParentOnlyInBody,
   voiceUserSending: {
     ...defaultProps, content: 'Spoken words', status: 'sending' as const,
     original_message: { message_id: 'voice-user', chat_id: 'preview-chat', role: 'user' as const,

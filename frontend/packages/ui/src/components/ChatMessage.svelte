@@ -11,6 +11,9 @@
   import type { AppliedMemory } from '../utils/loadedMemoryReceipt';
   import { assistantActivityItems, splitAssistantActivityRuns } from '../message_parsing/assistantActivityRuns';
   import { lostImageParents } from '../message_parsing/generatedImageRecovery';
+  import { embedRefIndexVersion } from '../services/embedRefIndex';
+  import { resolveBodySkillChildren, type BodySkillChildren } from '../message_parsing/bodyEmbedLateResolution';
+  import { bodyEmbedRefResolver, bodyEmbedSyncChildLookup, enforceBodyEmbedPolicy, pendingBodySkillParents } from '../message_parsing/bodyEmbedPolicy';
   import { recoverGeneratedImages } from '../services/rustCore/parse/imageRecoveryBranch';
   import type { AssistantDocument } from '../message_parsing/assistantActivityRuns';
   import { activeTeamId } from '../stores/teamStore';
@@ -248,9 +251,36 @@
   // Keep source identity intact when props contain a plain saved document.
   let recoveredImageSource = $state.raw<unknown>(null);
   let recoveredImageDocument = $state<AssistantDocument | null>(null);
-  const activityRuns = $derived(role === 'assistant' ? splitAssistantActivityRuns(
-    recoveredImageSource === content ? recoveredImageDocument ?? content : content,
-  ) : null);
+  // Late half of the answer-body rule (bodyEmbedPolicy.ts): re-applied when
+  // the ref index learns a type or an invocation's result children were read.
+  let bodySkillChildren = $state.raw<BodySkillChildren>({});
+  function bodyPolicyContext(chatId: string) {
+    const known = bodyEmbedSyncChildLookup(chatId);
+    const read = bodySkillChildren;
+    return { resolve: bodyEmbedRefResolver(chatId), childIds: (id: string) => known(id) ?? read[id] ?? null };
+  }
+  const assistantBodyContent = $derived.by(() => {
+    const source = recoveredImageSource === content ? recoveredImageDocument ?? content : content;
+    if (role !== 'assistant') return source;
+    void $embedRefIndexVersion;
+    return enforceBodyEmbedPolicy(source, bodyPolicyContext(currentChatId));
+  });
+  const activityRuns = $derived(role === 'assistant' ? splitAssistantActivityRuns(assistantBodyContent) : null);
+
+  $effect(() => {
+    const chatId = currentChatId;
+    void _embedUpdateTimestamp;
+    if (role !== 'assistant' || !chatId) return;
+    const pending = pendingBodySkillParents(assistantBodyContent, bodyPolicyContext(chatId));
+    if (!pending.length) return;
+    let cancelled = false;
+    resolveBodySkillChildren(pending, chatId)
+      .then((found) => {
+        if (!cancelled && Object.keys(found).length) bodySkillChildren = { ...bodySkillChildren, ...found };
+      })
+      .catch((error) => console.warn('[ChatMessage] App skill results unavailable for the answer body:', error));
+    return () => { cancelled = true; };
+  });
 
   $effect(() => {
     const source = content;
@@ -3674,7 +3704,7 @@
           {:else}
             <ReadOnlyMessage
                 bind:this={readOnlyMessageComponent}
-                content={pendingUploadPreviewContent ?? content}
+                content={pendingUploadPreviewContent ?? assistantBodyContent}
                 chatId={currentChatId}
                 isStreaming={status === 'streaming'}
                 {_embedUpdateTimestamp}

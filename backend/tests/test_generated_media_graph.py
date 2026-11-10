@@ -98,14 +98,14 @@ async def test_media_batch_seals_successful_children_and_notifies_once_after_par
     assert callback_args["completed_results"][0]["input_embed_ids"] == ["saved-source"]
     assert callback_args["completed_results"][0]["embed_ref"]
     assert callback_args["completed_results"][0]["parent_embed_id"] == parent_id
-    assert callback_args["completed_results"][0]["parent_embed_ref"].startswith("generated-media-images-")
+    # The skill-use parent ref is never offered to the assistant for its answer body.
+    assert "parent_embed_ref" not in callback_args["completed_results"][0]
     assert callback_args["request_metadata"]["parent_embed_id"] == parent_id
-    assert callback_args["request_metadata"]["parent_embed_ref"] == callback_args["completed_results"][0]["parent_embed_ref"]
+    assert "parent_embed_ref" not in callback_args["request_metadata"]
     assert "aes_key" not in callback_args["completed_results"][0]
     assert "files" not in callback_args["completed_results"][0]
     assert callback_args["completed_results"][1] == {
         "parent_embed_id": parent_id,
-        "parent_embed_ref": callback_args["completed_results"][0]["parent_embed_ref"],
         "request_index": 1, "status": "error", "error": "Generation failed",
     }
 

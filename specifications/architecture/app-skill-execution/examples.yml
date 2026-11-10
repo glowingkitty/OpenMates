@@ -236,8 +236,18 @@ visible_media:
   - id: generated-results-stay-visible
     given: An assistant has successfully generated images or playable audio and the person collapses the used-skills section.
     when: The final answer is displayed.
-    then: Every successful generated result remains visible as an inline embed preview in the answer, can open fullscreen, and uses the same asset for display, playback and download; an already included preview is not repeated.
-    assertion_ids: [app-skills.media.visible-assistant-results]
+    then: Every successful generated result remains visible as an inline embed preview of its child result in the answer, can open fullscreen, and uses the same asset for display, playback and download; an already included preview is not repeated and no preview of the skill-use parent appears.
+    assertion_ids: [app-skills.media.visible-assistant-results, app-skills.answer.only-result-embeds-in-body]
+  - id: skill-use-reference-replaced-by-results
+    given: An assistant generated two images, and its draft answer shows the generated-media parent as a large card and links "the image set" to that parent.
+    when: The final answer is displayed.
+    then: The parent card is gone and the two generated images appear as large cards in its place, "the image set" reads as plain text, and the parent stays visible only in the used-skill container where the skill ran.
+    assertion_ids: [app-skills.answer.only-result-embeds-in-body]
+  - id: search-skill-reference-removed
+    given: An assistant ran a web search and its draft answer links the search call itself as well as one search result.
+    when: The final answer is displayed.
+    then: The link to the search call is removed and its unreferenced results appear as preview cards, while the link to the search result stays unchanged.
+    assertion_ids: [app-skills.answer.only-result-embeds-in-body]
   - id: icon-search-recommendations
     given: A person asks for suitable sidebar icons and an icon search returns several candidates.
     when: The assistant recommends three of those icons.

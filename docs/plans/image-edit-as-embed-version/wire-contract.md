@@ -286,6 +286,9 @@ child_revision = {
   set); the shell then keeps the stored row. A server row can still be at N while this device holds the N+1 head it
   wrote. Root embeds and equal or newer rows return false. Rejects with `protocol` for rows of different embeds or a
   malformed version.
+- A stored head still marked `revision_pending_version` is never kept: the revision write owns it and stores the
+  confirmed head after the send. When a row is kept, the shell skips only the IndexedDB put and memory pin; it still
+  drops the memory copy, bumps embed availability, indexes refs and runs the caller's write guard.
 - A card whose message pins a version above the local head waits; the web shell re-reads the heads it waits for on
   every stored-embed change and re-resolves the cards once the head reached the pinned version.
 

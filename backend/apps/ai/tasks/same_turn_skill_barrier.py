@@ -14,6 +14,8 @@ import base64
 import zlib
 from typing import Any
 
+from backend.shared.python_utils.skill_use_body_refs import is_skill_use_ref
+
 PREFIX = "same_turn_skill"
 TTL_SECONDS = 90 * 60
 
@@ -196,12 +198,19 @@ def _normalized_target(value: str) -> str:
 def _generated_ref_bindings(
     value: Any, *, app_id: str | None = None, metadata: dict[str, Any] | None = None,
 ) -> tuple[list[str], dict[str, list[str]]]:
-    """Collect only authored successful output refs and exact identity aliases."""
+    """Collect only authored successful result refs and exact identity aliases.
+
+    The skill-use parent (``generated-media-…``) is never collected: it shows
+    only in the skill container, never in the answer body. ``app_id`` and
+    ``metadata`` stay in the signature for existing callers; the parent
+    identity stays on each result as ``parent_embed_id``, which keeps its
+    children grouped.
+    """
     refs: list[str] = []
     aliases: dict[str, list[str]] = {}
 
     def add(ref: Any, embed_id: Any) -> None:
-        if not _valid_ref(ref):
+        if not _valid_ref(ref) or is_skill_use_ref(ref):
             return
         if ref not in refs:
             refs.append(ref)
@@ -213,41 +222,18 @@ def _generated_ref_bindings(
             if identity not in aliases.setdefault(ref, []):
                 aliases[ref].append(identity)
 
-    successful_child = False
-
-    def add_parent(ref: Any, embed_id: Any) -> None:
-        if app_id not in {"images", "audio", "music", "videos", "models3d", "design"}:
-            return
-        if not isinstance(embed_id, str):
-            return
-        try:
-            canonical_id = str(uuid.UUID(embed_id))
-        except (ValueError, AttributeError):
-            return
-        expected = f"generated-media-{app_id}-{canonical_id.replace('-', '')[:12]}"
-        if ref == expected:
-            add(ref, canonical_id)
-
     def walk(node: Any) -> None:
-        nonlocal successful_child
         if isinstance(node, list):
             for item in node:
                 walk(item)
         elif isinstance(node, dict):
             if node.get("status") not in {"error", "failed", "cancelled", "timed_out"}:
                 add(node.get("embed_ref"), node.get("child_embed_id") or node.get("embed_id"))
-                # The parent is a real registered manifest, authored before
-                # callback. It is useful only when at least one child succeeded.
-                if node.get("status") == "finished" and _valid_ref(node.get("embed_ref")):
-                    successful_child = True
-                    add_parent(node.get("parent_embed_ref"), node.get("parent_embed_id"))
             for key, child in node.items():
                 if key not in {"embed_ref", "parent_embed_ref"}:
                     walk(child)
 
     walk(value)
-    if successful_child and isinstance(metadata, dict):
-        add_parent(metadata.get("parent_embed_ref"), metadata.get("parent_embed_id"))
     return refs, aliases
 
 
@@ -258,7 +244,8 @@ def ensure_generated_refs(
     present = {_normalized_target(target) for target in _MARKDOWN_EMBED_TARGET.findall(answer)}
     missing: list[str] = []
     for ref in refs:
-        if not _valid_ref(ref):
+        # Checkpoints sealed before the result-only rule may still list a parent.
+        if not _valid_ref(ref) or is_skill_use_ref(ref):
             continue
         equivalents = {_normalized_target(ref)}
         equivalents.update(_normalized_target(alias) for alias in (aliases or {}).get(ref, [])

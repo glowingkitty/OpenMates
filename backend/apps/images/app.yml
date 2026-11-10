@@ -275,8 +275,8 @@ embed_types:
 instructions:
   - instruction: |
       After image generation or vectorization completes, describe the actual
-      successful results and include the returned parent and every successful
-      child embed_ref inline, preserving their grouping. Report failed outputs
+      successful results and include every successful child embed_ref inline,
+      in request order. Never reference the parent. Report failed outputs
       honestly. Do not expose raw task IDs, embed IDs, or status codes.
   - instruction: |
       CRITICAL — Image editing / modification workflow:
