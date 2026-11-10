@@ -173,8 +173,10 @@ def validate_request_item(item_model: Optional[Type[BaseModel]], raw: Any) -> Tu
         return None, "Invalid request: each request must be an object."
     if item_model is None:
         return dict(raw), None
+    # Callers send unset optional fields as null; the model defaults apply to those.
+    provided = {key: value for key, value in raw.items() if value is not None}
     try:
-        validated = item_model.model_validate(raw)
+        validated = item_model.model_validate(provided)
     except ValidationError as exc:
         return None, _validation_message(exc)
     return validated.model_dump(mode="json", exclude_none=True), None

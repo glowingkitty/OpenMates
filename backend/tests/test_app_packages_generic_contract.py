@@ -297,6 +297,16 @@ async def test_delegate_invalid_item_is_a_group_error_without_runner_call(monkey
 
 
 # contract-test: direct surface=rest_api assertions=instance-app-packages.provider-contract
+def test_null_optional_fields_use_model_defaults():
+    models = delegate_skill.resolve_original_skill_models(str(_skill_of(_raw_health())["class_path"]))
+    contract_input, error = delegate_skill.validate_request_item(
+        models.item_model, {**VALID_ITEM, "language": None, "telehealth": None},
+    )
+    assert error is None and contract_input is not None
+    assert contract_input["telehealth"] is False and "language" not in contract_input
+
+
+# contract-test: direct surface=rest_api assertions=instance-app-packages.provider-contract
 def test_original_models_are_resolved_from_skill_module():
     models = delegate_skill.resolve_original_skill_models(str(_skill_of(_raw_health())["class_path"]))
     assert models.item_model.__name__ == "SearchAppointmentsRequestItem"
