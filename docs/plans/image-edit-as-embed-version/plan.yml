@@ -1,0 +1,31 @@
+schema_version: 2
+profile: concise
+id: image-edit-as-embed-version
+title: A change to a generated image becomes a new version of the same embed
+status: draft
+goal: "When the assistant changes an existing generated image or vector graphic through images-generate, the chat keeps one image embed that gains a new version with visible history, instead of a second image embed."
+specifications:
+  - feature.app-skill.images-generate@1
+scope:
+  - "Lane A, backend: images-generate recognises a reference to a generated image of the same chat and dispatches a revision producer for that embed (primary embed = the existing image, message = the new message, next version, expected current version), following the existing document revision dispatch. The task publishes the next version under the image's original parent and key, with full-replacement history rows (version 1 snapshot when missing)."
+  - "Lane A, version transaction: the Directus embed-version-transaction extension accepts an advancing head for a generated child embed when its key wrapper is verified against its parent."
+  - "Lane A, storage and billing: the server-side file index of the embed holds the files of every version (union, never replacement) so old versions stay viewable and are deleted with the embed; each version is billed under its own idempotency key so a change is neither free nor charged twice."
+  - "Lane B, Rust client core: a revision of a child embed reuses the child's stored key and is never re-keyed from another parent; sealed history reconciliation covers child embeds. The matching TypeScript branch is deleted."
+  - "Lane C, web: version badge on the image card, version timeline in the image fullscreen that shows each version's picture, the request panel (prompt, model, input image) while the new version is drawn."
+  - "Lane D and E: CLI rendering, then Apple parity."
+  - Out of scope - references to uploaded images or images of another chat (a new embed as today), restoring a version by regenerating it, production release.
+checks:
+  - pytest for revision dispatch, producer identity, file index union and per-version billing keys.
+  - Real-stack REST and WebSocket test in isolated CI - generate, change, one image embed id, version 2, versions endpoint lists 1 and 2, two charge records, file index holds both versions, deleting the chat removes all files.
+  - Rust core unit tests for child revision keys and sealed child history; rust-check and sdk-conformance.
+  - "Web E2E: after a change the chat has one image embed, the fullscreen timeline shows both pictures and they differ, both versions still decrypt after reload."
+  - Real dev chat (fire tail embroidery pattern plus two changes) on the deployed commit.
+decisions:
+  - A revision is produced by the skill task under its own verified producer (the document revision pattern), not handed back to the answer stream, so recovery guarantees for the image output are kept.
+  - The changed image stays under its original parent embed and key; a child is never listed under a second parent because that would re-key it.
+  - A full content snapshot per version is stored as the history row; a text diff of image metadata carries no meaning.
+open_decisions:
+  - "Does the earlier message show the newest version (as changed code and documents do) or stay on the version it produced? Blocks Lane C and the new message's card."
+  - "Does the assistant get a way to ask for a separate variant (new embed) instead of a new version?"
+evidence:
+  - "Design study 2026-11-10: producer identity check embed_service.py 6788-6798; child head rule embed-version-transaction operations.js 839-905; file index replacement store_embed_handler.py 387-390; billing event id generate_task.py (event_id = embed id); Rust child key rule client/embed_write_session.rs and client/embed_write_payload.rs."
