@@ -28,8 +28,8 @@ areas:
   priority_rank: 1
   file: web-app.yml
   unit: TS code lines (portable)
-  total: 107070
-  done: 8295
+  total: 107071
+  done: 8296
   partial: 0
   missing: 98775
   percent: 7.7

@@ -1984,9 +1984,7 @@
    "fields": {
     "app_id": "web"
    },
-   "out": {
-    "error": "Recovered embed catalog identity was invalid."
-   }
+   "out": null
   },
   {
    "fields": {
@@ -2105,9 +2103,7 @@
    "fields": {
     "app_id": "web"
    },
-   "out": {
-    "error": "Recovered embed catalog identity was invalid."
-   }
+   "out": null
   },
   {
    "producerSkill": null,
@@ -2226,9 +2222,7 @@
    "fields": {
     "app_id": "web"
    },
-   "out": {
-    "error": "Recovered embed catalog identity was invalid."
-   }
+   "out": null
   },
   {
    "producerApp": null,

@@ -1156,7 +1156,8 @@
         const result = applyIncrementalUpdate(editor, processedContent);
         if (!result.applied) {
             console.error('[ReadOnlyMessage] Incremental content update rejected; preserving last good document', {
-                failureClass: 'streaming_document_convergence_failed'
+                failureClass: 'streaming_document_convergence_failed',
+                reason: JSON.stringify(result.reason ?? null)
             });
             return;
         }

@@ -14972,7 +14972,7 @@ assertions:
       surface: gui.web
     - &id2113
       path: frontend/packages/ui/src/services/__tests__/recoveryEmbedSource.test.ts
-      line: 35
+      line: 37
       name: compares immutable version rows with code, mail, and document source inside
         sealed TOON
       surface: gui.web
@@ -16119,7 +16119,7 @@ assertions:
       surface: gui.web
     - &id2112
       path: frontend/packages/ui/src/services/__tests__/recoveryEmbedSource.test.ts
-      line: 26
+      line: 28
       name: creates only an unwritten v1 snapshot after the bounded read
       surface: gui.web
     - &id2118

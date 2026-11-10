@@ -132,7 +132,11 @@ pub fn catalog_json(input: &str) -> Result<String, String> {
         pick("producerApp", "app_id"),
         pick("producerSkill", "skill_id"),
     );
-    if app.is_none() && skill.is_none() {
+    // An embed no skill produced (a focus-mode activation) carries only its app
+    // in the sealed fields: it has no skill catalog identity, which is not an
+    // invalid one. A producer that names an app without a skill stays invalid.
+    let app_only_from_fields = skill.is_none() && nullish(field(&input, "producerApp")).is_none();
+    if (app.is_none() && skill.is_none()) || app_only_from_fields {
         return Ok(json!({ "kind": "none" }).to_string());
     }
     let valid = |v: &Option<Value>| {

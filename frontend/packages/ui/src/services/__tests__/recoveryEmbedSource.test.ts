@@ -20,6 +20,8 @@ describe("historical sealed embed source", () => {
     await expect(catalogContextFromSealedEmbed("{}", "code", undefined))
       .rejects.toThrow(/catalog identity/);
     expect(await catalogContextFromSealedEmbed("{}", undefined, undefined)).toBeNull();
+    const focusMode = encode({ type: "focus_mode_activation", app_id: "events", status: "activated" });
+    expect(await catalogContextFromSealedEmbed(focusMode, undefined, undefined)).toBeNull();
   });
 
   // contract-test: supporting surface=gui.web assertions=storage.background.complete-sealed-recovery

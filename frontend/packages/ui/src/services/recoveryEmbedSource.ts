@@ -26,6 +26,9 @@ export async function catalogContextFromSealedEmbed(
   const app = producerApp ?? fields?.app_id;
   const skill = producerSkill ?? fields?.skill_id;
   if (app === undefined && skill === undefined) return null;
+  // An embed no skill produced (a focus-mode activation) carries only its app in
+  // the sealed fields: it has no skill catalog identity, which is not an invalid one.
+  if (skill === undefined && (producerApp === undefined || producerApp === null)) return null;
   const catalogId = /^[a-z][a-z0-9_]{0,63}$/;
   if (typeof app !== "string" || !catalogId.test(app)
     || typeof skill !== "string" || !catalogId.test(skill)) {
