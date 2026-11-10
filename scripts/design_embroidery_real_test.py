@@ -33,6 +33,7 @@ from uuid import uuid4
 from code_run_real_test import (
     ROOT, command, delete_owned_chat, personal_test_environment, personal_test_leases, require_runtime_revision,
 )
+from personal_dev_draft_guard import DraftGuard, DraftGuardError, record_leftovers
 from verify_chat_sidebar_title_live import safe_failure
 from workflow_schedule_real_test import API_URL, ProofError, sessions, write_receipt
 
@@ -152,7 +153,7 @@ def main() -> int:
     receipt: dict = {"status": "started", "target": API_URL, "session": args.session, "model": MODEL,
                      "deployed_revision": args.revision, "started_at": datetime.now(UTC).isoformat(),
                      "slug": slug, "cleanup": {}}
-    leases, project_id, chat_id, created_state = [], None, None, False
+    leases, project_id, chat_id, created_state, draft_guard = [], None, None, False, None
     stop, errors = threading.Event(), []
     heartbeat = None
     old_umask = os.umask(0o077)
@@ -184,6 +185,11 @@ def main() -> int:
         if login.returncode:
             receipt["bootstrap_failure"] = safe_failure(login.stderr)
             raise ProofError("personal_account_bootstrap_failed")
+        # The personal account is shared: a run must not leave drafts there.
+        try:
+            draft_guard = DraftGuard.start(cli, api_url=API_URL)
+        except DraftGuardError as exc:
+            raise ProofError(str(exc)) from exc
         project = command(cli, ["projects", "create", f"Embroidery proof {uuid4().hex[:10]}",
                                "--write-policy", "apply_and_show", "--personal"])
         project_id = (project.get("project") or {}).get("project_id") if isinstance(project, dict) else None
@@ -239,6 +245,7 @@ def main() -> int:
             except (ProofError, subprocess.TimeoutExpired):
                 receipt["cleanup"]["project"] = "failed"
                 receipt["status"] = "failed"
+        record_leftovers(receipt, draft_guard)
         stop.set()
         if heartbeat:
             heartbeat.join(timeout=2)

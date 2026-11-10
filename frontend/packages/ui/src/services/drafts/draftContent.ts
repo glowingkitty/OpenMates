@@ -1,12 +1,23 @@
-/** Inspect the editor document rather than its plain text: embeds have no text. */
+/**
+ * Inspect the editor document rather than its plain text: embeds have no text.
+ *
+ * `hasMeaningfulContent` keeps the editor non-empty for every mention, so the
+ * empty-draft cleanup never wipes an app-inserted Project focus chip.
+ * `onlyAutoInserted` is true when the sole content is mentions the app inserted
+ * by itself (Project navigation, "chat with" buttons): that is not user input
+ * and must not create a persisted draft on its own.
+ * shell-only: bugfix-in-frozen-code drafts
+ */
 export function inspectDraftContent(value: unknown): {
   hasMeaningfulContent: boolean;
+  onlyAutoInserted: boolean;
   hasPendingEmbed: boolean;
   embedCount: number;
   embedIds: Set<string>;
 } {
   const embedIds = new Set<string>();
-  let hasMeaningfulContent = false;
+  let hasUserContent = false;
+  let hasAutoInsertedMention = false;
   let hasPendingEmbed = false;
   let embedCount = 0;
 
@@ -16,15 +27,15 @@ export function inspectDraftContent(value: unknown): {
     const attrs = node.attrs && typeof node.attrs === 'object'
       ? node.attrs as Record<string, unknown> : {};
     if (node.type === 'text' && typeof node.text === 'string' && node.text.trim()) {
-      hasMeaningfulContent = true;
+      hasUserContent = true;
     }
     if ((node.type === 'inlineMath' || node.type === 'blockMath') &&
       typeof attrs.latex === 'string' && attrs.latex.trim()) {
-      hasMeaningfulContent = true;
+      hasUserContent = true;
     }
-    if (node.type === 'horizontalRule') hasMeaningfulContent = true;
+    if (node.type === 'horizontalRule') hasUserContent = true;
     if (node.type === 'embed') {
-      hasMeaningfulContent = true;
+      hasUserContent = true;
       embedCount += 1;
       const id = attrs.id ?? attrs.embedId ?? attrs.contentRef;
       if (typeof id === 'string' && id) embedIds.add(id.replace(/^embed:/, ''));
@@ -34,12 +45,19 @@ export function inspectDraftContent(value: unknown): {
       }
     }
     if (typeof node.type === 'string' && (node.type === 'mate' || /mention/i.test(node.type))) {
-      hasMeaningfulContent = true;
+      if (attrs.autoInserted === true) hasAutoInsertedMention = true;
+      else hasUserContent = true;
     }
     if (Array.isArray(node.content)) node.content.forEach(visit);
   };
   visit(value);
-  return { hasMeaningfulContent, hasPendingEmbed, embedCount, embedIds };
+  return {
+    hasMeaningfulContent: hasUserContent || hasAutoInsertedMention,
+    onlyAutoInserted: hasAutoInsertedMention && !hasUserContent,
+    hasPendingEmbed,
+    embedCount,
+    embedIds,
+  };
 }
 
 export function incomingDraftOmitsLocalEmbed(local: unknown, incoming: unknown): boolean {

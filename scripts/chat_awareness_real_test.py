@@ -33,6 +33,7 @@ from pathlib import Path
 from code_run_real_test import (
     ROOT, command, delete_owned_chat, personal_test_environment, personal_test_leases, require_runtime_revision,
 )
+from personal_dev_draft_guard import DraftGuard, DraftGuardError, record_leftovers
 from verify_chat_sidebar_title_live import safe_failure
 from workflow_schedule_real_test import API_URL, ProofError, sessions, write_receipt
 
@@ -102,7 +103,7 @@ def main() -> int:
     receipt: dict = {"status": "started", "target": API_URL, "session": args.session, "expect": args.expect,
                      "deployed_revision": args.revision, "started_at": datetime.now(UTC).isoformat(),
                      "model": MODEL, "chats": {}, "cleanup": {}}
-    leases, created_state = [], False
+    leases, created_state, draft_guard = [], False, None
     old_umask = os.umask(0o077)
     try:
         state.mkdir(mode=0o700)
@@ -120,6 +121,11 @@ def main() -> int:
         if login.returncode:
             receipt["bootstrap_failure"] = safe_failure(login.stderr)
             raise ProofError("personal_account_bootstrap_failed")
+        # The personal account is shared: a run must not leave drafts there.
+        try:
+            draft_guard = DraftGuard.start(cli, api_url=API_URL)
+        except DraftGuardError as exc:
+            raise ProofError(str(exc)) from exc
 
         seed_slug = f"chat-awareness-seed-{nonce}"
         receipt["chats"]["seed"] = {"slug": seed_slug}
@@ -163,6 +169,7 @@ def main() -> int:
             except (ProofError, subprocess.TimeoutExpired, json.JSONDecodeError):
                 receipt["cleanup"][label] = "failed"
                 receipt["status"] = "failed"
+        record_leftovers(receipt, draft_guard)
         for lease_id, *_ in reversed(leases):
             try:
                 sessions.release_test_resource_lease(lease_id)

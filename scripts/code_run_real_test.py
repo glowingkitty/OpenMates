@@ -30,6 +30,7 @@ from uuid import uuid4
 
 from verify_chat_sidebar_title_live import safe_failure, test_account_environment
 from workflow_schedule_real_test import API_URL, ProofError, acquire_leases, sessions, write_receipt
+from personal_dev_draft_guard import DraftGuard, DraftGuardError, record_leftovers
 
 ROOT = Path(__file__).resolve().parents[1]
 TERMINAL = {"finished", "failed", "cancelled"}
@@ -393,7 +394,7 @@ def main() -> int:
     receipt = {"status": "started", "target": API_URL, "session": args.session,
                "deployed_revision": args.revision, "started_at": datetime.now(UTC).isoformat(),
                "cases": [], "cleanup": {}, "cli": cli, "sdk_module": str(sdk_module)}
-    leases, project_id, created_state = [], None, False
+    leases, project_id, created_state, draft_guard = [], None, False, None
     stop, errors = threading.Event(), []
     heartbeat = None
     old_umask = os.umask(0o077)
@@ -434,6 +435,12 @@ def main() -> int:
         if login.returncode:
             receipt["bootstrap_failure"] = safe_failure(login.stderr)
             raise ProofError("disposable_account_bootstrap_failed")
+        if args.personal_dev_test_account:
+            # The personal account is shared: a run must not leave drafts there.
+            try:
+                draft_guard = DraftGuard.start(cli, api_url=API_URL)
+            except DraftGuardError as exc:
+                raise ProofError(str(exc)) from exc
         project = command(cli, ["projects", "create", f"Code Run proof {uuid4().hex[:10]}",
                                "--write-policy", "apply_and_show", "--personal"])
         project_id = (project.get("project") or {}).get("project_id")
@@ -515,6 +522,7 @@ def main() -> int:
             except (ProofError, subprocess.TimeoutExpired):
                 receipt["cleanup"]["project"] = "failed"
                 receipt["status"] = "failed"
+        record_leftovers(receipt, draft_guard)
         stop.set()
         if heartbeat:
             heartbeat.join(timeout=2)

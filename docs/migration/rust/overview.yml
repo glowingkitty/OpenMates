@@ -28,10 +28,10 @@ areas:
   priority_rank: 1
   file: web-app.yml
   unit: TS code lines (portable)
-  total: 107144
+  total: 107170
   done: 8303
   partial: 0
-  missing: 98841
+  missing: 98867
   percent: 7.7
   done_definition: code line of a portable TS function (services/, utils/, stores/) that routes to the shared Rust
     core under VITE_OPENMATES_RUST_CORE and is listed in web-port-ledger.yml; functions over 80 code lines count

@@ -652,6 +652,11 @@ const queuedEditLocalSaveWaiters = new Set<{
   resolve: (saved: boolean) => void;
 }>();
 
+/** Chats whose voice-call start must persist an app-inserted-only draft: the
+ * call binds to that Project draft chat. Counted so overlapping flushes nest.
+ * shell-only: bugfix-in-frozen-code drafts */
+const autoInsertedDraftPersistRequests = new Map<string, number>();
+
 function notifyQueuedEditDraftSavedLocally(editor: Editor, chatId: string | null): void {
   for (const waiter of queuedEditLocalSaveWaiters) {
     if (waiter.editor === editor && waiter.chatId === chatId) waiter.resolve(true);
@@ -1147,6 +1152,22 @@ export const saveDraftDebounced = debounce(
     }
 
     if (contentState.hasPendingEmbed && !contentMarkdown.trim()) return;
+
+    // An untouched composer holding only an app-inserted mention (Project
+    // navigation prefill) is not user input: persisting it left draft-only
+    // chats behind whenever the user navigated away. Keep the chip in the
+    // editor and save nothing until the user adds content, unless a voice call
+    // starts from this composer (it binds to the Project draft chat). A draft
+    // the user already saved here keeps the normal update path.
+    // shell-only: bugfix-in-frozen-code drafts
+    if (
+      contentState.onlyAutoInserted &&
+      !currentState.currentUserDraftVersion &&
+      !currentState.lastSavedContentMarkdown &&
+      !(currentChatIdForOperation && autoInsertedDraftPersistRequests.has(currentChatIdForOperation))
+    ) {
+      return;
+    }
 
     // CRITICAL: Check if we're saving a non-empty draft to a demo/legal/example chat.
     // If so, generate a new UUID so the saved draft becomes a regular private chat.
@@ -1784,7 +1805,7 @@ export function flushSaveDraft(
 export async function flushSaveDraftAndWaitForIdle(
   editor: Editor,
   chatId: string,
-  options: { suppressQueuedEditResaves?: boolean } = {},
+  options: { suppressQueuedEditResaves?: boolean; persistAutoInserted?: boolean } = {},
 ): Promise<boolean> {
   const authAtStart = get(authStore).isAuthenticated;
   const accountAtStart = get(userProfile).user_id;
@@ -1848,6 +1869,9 @@ export async function flushSaveDraftAndWaitForIdle(
   const locallySaved = new Promise<boolean>((resolve) => { settleLocalSave = resolve; });
   const waiter = { editor, chatId, resolve: settleLocalSave };
   queuedEditLocalSaveWaiters.add(waiter);
+  if (options.persistAutoInserted) {
+    autoInsertedDraftPersistRequests.set(chatId, (autoInsertedDraftPersistRequests.get(chatId) ?? 0) + 1);
+  }
   try {
     const transport = flushSaveDraft(editor, chatId);
     void Promise.resolve(transport).then(
@@ -1859,5 +1883,10 @@ export async function flushSaveDraftAndWaitForIdle(
     return true;
   } finally {
     queuedEditLocalSaveWaiters.delete(waiter);
+    if (options.persistAutoInserted) {
+      const remaining = (autoInsertedDraftPersistRequests.get(chatId) ?? 1) - 1;
+      if (remaining > 0) autoInsertedDraftPersistRequests.set(chatId, remaining);
+      else autoInsertedDraftPersistRequests.delete(chatId);
+    }
   }
 }

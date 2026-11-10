@@ -4759,8 +4759,11 @@
         });
         if (!ready || !stillOwned() || !capturedEditor) return false;
         syncTextOnlyDomToEditorBeforeDraftSave(capturedEditor);
+        // The call binds to this draft chat, so an untouched Project prefill
+        // mention is persisted here even though autosave skips it.
         const saved = await flushSaveDraftAndWaitForIdle(capturedEditor, capturedChatId, {
             suppressQueuedEditResaves: false,
+            persistAutoInserted: true,
         });
         return saved && stillOwned() && get(draftEditorUIState).currentChatId === capturedChatId &&
             !get(draftEditorUIState).isSwitchingContext;
@@ -7329,6 +7332,7 @@
                             projectSourceId: pendingMention.projectSourceId,
                             projectPath: pendingMention.projectPath,
                             projectAccessMode: pendingMention.projectAccessMode,
+                            autoInserted: true,
                         })
                         .insertContent(' ')
                         .run();
@@ -7362,6 +7366,7 @@
                                 id: crypto.randomUUID(),
                                 colorStart: mate.color_start,
                                 colorEnd: mate.color_end,
+                                autoInserted: true,
                             })
                             .insertContent(' ')
                             .run();
@@ -7431,6 +7436,7 @@
                                     mentionSyntax: mention,
                                     colorStart: isMemory ? MEMORY_GRADIENT_START : app.icon_colorgradient?.start,
                                     colorEnd: isMemory ? MEMORY_GRADIENT_END : app.icon_colorgradient?.end,
+                                    autoInserted: true,
                                 })
                                 .insertContent(' ')
                                 .run();

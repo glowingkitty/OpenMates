@@ -14,6 +14,27 @@ function projectHashUrlPattern(projectId: string): RegExp {
   return new RegExp(`/#(?:[^#]*&)?project-id=${projectId}(?:&|$)`);
 }
 
+/** Local chat rows that hold a draft or have no turns (draft-only shells). */
+async function localDraftChatIds(page: any): Promise<string[]> {
+  return page.evaluate(() => new Promise<string[]>((resolve, reject) => {
+    const request = indexedDB.open('chats_db');
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains('chats')) { db.close(); resolve([]); return; }
+      const read = db.transaction('chats', 'readonly').objectStore('chats').getAll();
+      read.onerror = () => { db.close(); reject(read.error); };
+      read.onsuccess = () => {
+        db.close();
+        resolve((read.result as Array<Record<string, unknown>>).filter((row) => {
+          const draft = row.encrypted_draft_md;
+          return (typeof draft === 'string' && !!draft && draft !== 'null') || !row.messages_v;
+        }).map((row) => String(row.chat_id)).sort());
+      };
+    };
+  }));
+}
+
 function projectDeleteResponseMatches(response: Response, projectId: string): boolean {
   return response.request().method() === 'DELETE'
     && new URL(response.url()).pathname === `/v1/projects/${projectId}`
@@ -242,6 +263,7 @@ test.describe('Projects v1 flow', () => {
 			await expect(page.getByTestId('project-remote-sources-section')).toHaveCount(0);
 
 			await page.getByTestId('project-folder-create-menu-button').click();
+			const draftChatsBefore = await localDraftChatIds(page);
 			await page.getByTestId('project-create-chat').click();
 			await expect(page).toHaveURL(/\/$/);
 			const messageEditor = page.getByTestId('message-editor');
@@ -360,6 +382,15 @@ test.describe('Projects v1 flow', () => {
 			expect(failedLinkWorkflowCreates).toBe(1);
 			page.off('request', recordFailedLinkWorkflowCreate);
 			await page.unroute(`**/v1/projects/${projectId}/items*`);
+
+			// contract-test: direct surface=gui.web assertions=drafts.draft-only.lifecycle
+			// The Project chat above was opened and left untouched: its app-inserted
+			// Project mention is not user input, so no draft or draft-only chat may
+			// remain long after the composer was left.
+			await page.goto('/', { waitUntil: 'domcontentloaded' });
+			await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
+			expect(await localDraftChatIds(page), 'an untouched Project chat must not leave a draft')
+				.toEqual(draftChatsBefore);
 		} finally {
 			if (apiOrigin) {
 				for (const workflowId of workflowIds) {

@@ -20,6 +20,7 @@ import argparse
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import threading
@@ -29,6 +30,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from code_run_real_test import ROOT, personal_test_environment
+from personal_dev_draft_guard import API_URL, DraftGuard, DraftGuardError, record_leftovers
 from workflow_schedule_real_test import ProofError, sessions, write_receipt
 
 APP_URL = "https://app.dev.openmates.org"
@@ -121,6 +123,31 @@ def summarise(out: Path, receipt: dict) -> None:
         receipt["playwright_stats"] = {k: stats.get(k) for k in ("expected", "unexpected", "skipped", "flaky")}
 
 
+def start_draft_guard(env: dict[str, str], cli_state: Path, receipt: dict) -> DraftGuard:
+    """Log an isolated CLI into the personal account and record its draft baseline.
+
+    The browser spec writes drafts through the web app; the CLI only reads the
+    account's draft inventory so the run fails if it leaves one behind.
+    """
+    cli = shutil.which("openmates")
+    if not cli:
+        raise ProofError("installed_openmates_cli_missing")
+    cli_state.mkdir(mode=0o700)
+    cli_env = {**env, "OPENMATES_STATE_DIR": str(cli_state), "OPENMATES_PROFILE": "", "OPENMATES_API_URL": API_URL}
+    for key in ("OPENMATES_API_KEY", "OPENMATES_CLI_HOME", "OPENMATES_CLI_SESSION_PATH"):
+        cli_env.pop(key, None)
+    login = subprocess.run(["node", str(ROOT / "scripts/openmates_cli_test_account.mjs"), "login",
+                            "--slot", "", "--api-url", API_URL], cwd=ROOT, env=cli_env,
+                           capture_output=True, text=True, check=False, timeout=180)
+    if login.returncode:
+        receipt["draft_guard_login_failed"] = True
+        raise ProofError("draft_guard_cli_login_failed")
+    try:
+        return DraftGuard.start(cli, api_url=API_URL, env=cli_env)
+    except DraftGuardError as exc:
+        raise ProofError(str(exc)) from exc
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--session", required=True)
@@ -144,6 +171,8 @@ def main() -> int:
     receipt: dict = {"status": "started", "target": APP_URL, "session": args.session, "spec": SPEC,
                      "deployed_revision": args.revision, "started_at": datetime.now(UTC).isoformat()}
     leases: list = []
+    draft_guard = None
+    cli_state = out / "cli-state"
     stop, errors = threading.Event(), []
     heartbeat = None
     link = WEB_APP / "node_modules"
@@ -180,6 +209,7 @@ def main() -> int:
 
         heartbeat = threading.Thread(target=renew, daemon=True)
         heartbeat.start()
+        draft_guard = start_draft_guard(env, cli_state, receipt)
         cli = WEB_APP / "node_modules/@playwright/test/cli.js"
         command = [sys.executable, str(ROOT / "scripts/heavy_slot.py"), "run", "--", "node", str(cli), "test",
                    "--config", str(config), "--trace", "off", SPEC]
@@ -197,6 +227,8 @@ def main() -> int:
         if isinstance(exc, RuntimeError) and not isinstance(exc, ProofError) and not leases:
             receipt["error_code"] = "lease_unavailable"
     finally:
+        record_leftovers(receipt, draft_guard)
+        shutil.rmtree(cli_state, ignore_errors=True)
         stop.set()
         if heartbeat:
             heartbeat.join(timeout=2)

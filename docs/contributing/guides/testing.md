@@ -72,6 +72,15 @@ deployed and the affected services restarted with `sessions.py docker restart`.
   --slot PERSONAL` with a temporary `HOME` and `OPENMATES_STATE_DIR`, so the
   global engineering CLI login is never replaced
   (see `openmates-tasks-dev-login.md`).
+- **No leftover drafts:** the account is shared, so a run that leaves a draft
+  fails. Python harnesses call `personal_dev_draft_guard.DraftGuard.start(cli)`
+  after login and `record_leftovers(receipt, guard)` after their own cleanup
+  (`scripts/code_run_real_test.py`). Other runs (personal-account Playwright
+  specs, manual browser checks) take `python3 scripts/personal_dev_draft_guard.py
+  snapshot --output <file>` before and `... check --baseline <file>` after,
+  with the run's isolated CLI state active; `check` exits 1 and lists the chat
+  ids. Send or clear every draft a run types; `chats delete` also removes the
+  draft of a draft-only chat.
 - **Projects:** create a disposable Project in that isolated state
   (`openmates projects create <name> --write-policy always_ask --json`, id in
   `project.project_id`) and delete it with `projects delete <id> --confirm <id>`
