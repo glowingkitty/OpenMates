@@ -200,6 +200,34 @@ test.describe('Example chats loading for new users', () => {
 		);
 	}
 
+	// contract-test: supporting surface=gui.web assertions=chat-navigation.order.sidebar-header-match
+	test('open chat sidebar on a phone shows only its close button, no header profile icons', async ({
+		page
+	}: {
+		page: any;
+	}, testInfo: any) => {
+		await page.setViewportSize({ width: 390, height: 844 });
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await expectGuestWelcome(page);
+		await expect(page.getByTestId('profile-container')).toBeInViewport();
+
+		await ensureSidebarVisible(page);
+
+		const sidebarClose = page.getByTestId('chats-close-button');
+		await expect(sidebarClose).toBeInViewport();
+		await expect(
+			page.getByTestId('active-chat-container'),
+			'main content should slide fully off-screen behind the open sidebar'
+		).not.toBeInViewport();
+		await expect(page.getByTestId('profile-container')).not.toBeInViewport();
+		await testInfo.attach('mobile-sidebar-open', {
+			body: await page.screenshot(),
+			contentType: 'image/png'
+		});
+
+		await sidebarClose.click();
+		await expect(page.getByTestId('profile-container')).toBeInViewport();
+	});
 
 	// contract-test: direct surface=gui.web assertions=public-example-chats.catalog.discoverable,public-example-chats.surface.semantic-parity
 	test('guest show-all examples uses expanded resume cards and global search covers every example', async ({

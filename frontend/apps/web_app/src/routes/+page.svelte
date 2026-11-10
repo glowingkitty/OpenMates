@@ -4161,6 +4161,11 @@
 		   to reveal the sidebar beneath it */
 		/* LTR: sidebar is on the left, slide main content right */
 		.main-content:not(.menu-closed) {
+			/* Repeat the zero offset at this specificity: the build lowers the
+			   desktop logical inset to :lang() selectors that outrank the plain
+			   mobile rule above, which left a sliver of the main content (profile
+			   picture, header icons) on top of the open sidebar. */
+			inset-inline-start: 0;
 			transform: translateX(100%);
 		}
 

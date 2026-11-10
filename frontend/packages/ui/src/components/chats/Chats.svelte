@@ -4246,6 +4246,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 						></button>
 						<button
 							class="clickable-icon icon_close top-button right"
+							data-testid="chats-close-button"
 							aria-label={$text('common.close')}
 							onclick={handleClose}
 							use:tooltip
