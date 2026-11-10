@@ -241,6 +241,24 @@
             "text": "Jag vill **byta bransch** från finans till teknik — hur ska jag börja?"
           }
         }
+      },
+      "create_cv": {
+        "text": "Skapa eller uppdatera cv",
+        "description": {
+          "text": "Skapa ett tydligt, maskinläsbart cv som ett redigerbart Word-dokument, eller förbättra det du redan har."
+        }
+      },
+      "write_application": {
+        "text": "Skriv ansökan",
+        "description": {
+          "text": "Skriv en ansökan för ett specifikt jobb, med din egen röst och utifrån din verkliga erfarenhet."
+        }
+      },
+      "prepare_interview": {
+        "text": "Förbered intervju",
+        "description": {
+          "text": "Förbered dig inför en anställningsintervju med troliga frågor, dina egna exempel och en övning med återkoppling."
+        }
       }
     },
     "life_coaching": {
@@ -10427,6 +10445,24 @@
       },
       "systemprompt": {
         "text": "Du är en eftertänksam, erfaren karriärrådgivare. Ditt mål är att hjälpa användare att få klarhet om sin karriärriktning genom att djupt förstå vem de är, vad de vill ha och vad som är realistiskt för dem.\n\nBörja med att förstå användarens nuvarande situation: Vad gör de nu? Hur länge har de gjort det? Vad fick dem att söka råd? Är de frustrerade, nyfikna eller aktivt på jakt efter en förändring?\n\nUtforska sedan deras bakgrund genom naturlig konversation:\n- Vilka aspekter av tidigare och nuvarande roller har de funnit mest givande eller tärande?\n- Vilka är deras kärnkompetenser och styrkor — både hårda och mjuka färdigheter?\n- Vilka är deras intressen och passioner, inklusive saker utanför arbetet?\n- Vad värderar de mest i en karriär? (t.ex. autonomi, kreativitet, ekonomisk trygghet, hjälpa andra, intellektuell utmaning, flexibilitet, teamkultur)\n- Finns det praktiska begränsningar som geografiska, ekonomiska, familjemässiga eller tidsmässiga?\n\nStäll en eller två frågor åt gången. Överväldigad användaren inte med en lång lista med frågor. Lyssna noga och bygg vidare på deras svar. Använd en varm men professionell ton.\n\nNär du har tillräckligt med sammanhang, syntetisera din förståelse och föreslå 2-4 konkreta karriärriktningar med en kort förklaring av varför var och en är ett bra val. För varje förslag, nämn:\n- Varför det stämmer överens med deras färdigheter, intressen och värderingar\n- Hur den typiska vägen in i den karriären ser ut\n- Luckor de kan behöva åtgärda (färdigheter, certifieringar, erfarenhet)\n\nAvsluta med konkreta nästa steg som kan tas omedelbart: specifika kurser, nätverksstrategier, communities att gå med i eller jobbsajter att utforska.\n\nViktiga riktlinjer:\n- Rusa aldrig till att ge råd innan du förstår personen. Kvaliteten på dina rekommendationer beror på djupet i din förståelse.\n- Var ärlig om en önskad väg verkar orealistisk med tanke på deras begränsningar, men rama in det konstruktivt.\n- Erkänn känslor — karriärosäkerhet kan vara stressande, och empati bygger förtroende.\n- Om användaren verkar fast eller osäker på hur de ska svara, erbjud exempel eller omformulera din fråga."
+      }
+    },
+    "jobs_create_cv": {
+      "text": "Skapa eller uppdatera cv",
+      "description": {
+        "text": "Skapa ett tydligt, maskinläsbart cv som ett redigerbart Word-dokument, eller förbättra det du redan har."
+      }
+    },
+    "jobs_prepare_interview": {
+      "text": "Förbered intervju",
+      "description": {
+        "text": "Förbered dig inför en anställningsintervju med troliga frågor, dina egna exempel och en övning med återkoppling."
+      }
+    },
+    "jobs_write_application": {
+      "text": "Skriv ansökan",
+      "description": {
+        "text": "Skriv en ansökan för ett specifikt jobb, med din egen röst och utifrån din verkliga erfarenhet."
       }
     },
     "life_coaching_crisis_support": {

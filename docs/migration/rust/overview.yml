@@ -8,7 +8,7 @@ formula: percent = round(100 * done / total, 1); done+partial+missing == total; 
 priority_order: [web_app, shared_client, cli, sdk_rust, sdk_npm, sdk_python]
 performance_history: performance-history.yml
 overall:
-  percent: 26.9
+  percent: 27.0
   formula: overall = round(0.4 * web_app + 0.2 * shared_client + 0.25 * cli + 0.15 * sdk, 1), sdk = mean(sdk_rust,
     sdk_npm, sdk_python); each term is the area percent
   weights:
@@ -18,7 +18,7 @@ overall:
     sdk: 0.15
   weights_decided: '2026-11-08'
   inputs:
-    web_app: 7.7
+    web_app: 7.8
     shared_client: 28.6
     cli: 65.8
     sdk: 11.3
@@ -28,11 +28,11 @@ areas:
   priority_rank: 1
   file: web-app.yml
   unit: TS code lines (portable)
-  total: 107170
-  done: 8303
+  total: 107188
+  done: 8310
   partial: 0
-  missing: 98867
-  percent: 7.7
+  missing: 98878
+  percent: 7.8
   done_definition: code line of a portable TS function (services/, utils/, stores/) that routes to the shared Rust
     core under VITE_OPENMATES_RUST_CORE and is listed in web-port-ledger.yml; functions over 80 code lines count
     only their flag decision sites

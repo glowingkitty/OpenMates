@@ -103,6 +103,15 @@ fn flag(input: &Value, key: &str) -> Result<bool, String> {
     field(input, key)?.as_bool().ok_or_else(|| format!("bad_field:{key}"))
 }
 
+/// An optional `boolean` member (absence and `null` read as `false`).
+fn optional_flag(input: &Value, key: &str) -> Result<bool, String> {
+    match input.get(key) {
+        None | Some(Value::Null) => Ok(false),
+        Some(Value::Bool(b)) => Ok(*b),
+        Some(_) => Err(format!("bad_field:{key}")),
+    }
+}
+
 fn number(input: &Value, key: &str) -> Result<f64, String> {
     field(input, key)?.as_f64().ok_or_else(|| format!("bad_field:{key}"))
 }
@@ -153,14 +162,28 @@ fn availability_request(input: &Value) -> Decision {
     }))
 }
 
+/// Operation origin of a generated-image child's version N+1 head
+/// (`rustChildRevisionWrite.ts`, plan image-edit-as-embed-version).
+const CHILD_REVISION_ORIGIN: &str = "child-revision";
+
 /// The availability verdict (`availabilityPlan`). A missing or invalid
 /// revision is UNKNOWN: it never grants a write.
+///
+/// Child revision (`origin: "child-revision"`, a parent, version >= 2): the
+/// server never reports a revision for a finished child, so a ready child
+/// answers `read_advance` instead of `read_current`. The page then proves the
+/// canonical head is this child at exactly N = requested - 1 (or already the
+/// equivalent N+1) and derives the write precondition from its ciphertext
+/// ([`canonical_identity`] with `advance`). Read-only retries keep
+/// `read_current`: they only prove equivalence, never write.
 fn availability_plan(input: &Value) -> Decision {
     let embed_id = field(input, "embed_id")?;
     let parent = input.get("parent_embed_id");
     let has_parent = truthy(parent);
     let requested = number(input, "requested_version")?;
     let read_only = flag(input, "read_only")?;
+    let child_revision =
+        has_parent && requested >= 2.0 && optional_text(input, "origin")? == Some(CHILD_REVISION_ORIGIN);
     let reply = input.get("reply");
     // `result.results` on a null reply is the TS TypeError.
     if nullish(reply) {
@@ -212,6 +235,10 @@ fn availability_plan(input: &Value) -> Decision {
         if !is_str(state, "ready") {
             return Ok(outcome("recovery_pending"));
         }
+        if child_revision && !read_only {
+            // The child keeps its parent's wrappers: a revision never sends key rows.
+            return Ok(json!({ "outcome": "read_advance", "allow_wrapper_writes": false }));
+        }
         // Read-only equivalence proves durable bytes where no write capability was granted.
         return Ok(json!({ "outcome": "read_current", "allow_wrapper_writes": false }));
     };
@@ -238,9 +265,14 @@ fn availability_plan(input: &Value) -> Decision {
 
 /// Proves a canonical embed page carries the queued head's identity and version
 /// (`canonicalIdentity`); content and key equality are proven by the page.
+///
+/// With `advance` (only after a `read_advance` plan) a canonical head at
+/// exactly the queued version - 1 answers `advance` ([`advance_identity`]);
+/// a head already at the queued version is the ordinary equivalence proof.
 fn canonical_identity(input: &Value) -> Decision {
     let head = Some(field(input, "head")?);
     let historical = flag(input, "historical")?;
+    let advance = optional_flag(input, "advance")?;
     let revision = input.get("revision").filter(|r| !r.is_null());
     // Compared with `===` to the revision digest, so `null` stays a distinct value.
     let content_digest = input.get("content_sha256");
@@ -272,6 +304,9 @@ fn canonical_identity(input: &Value) -> Decision {
         None | Some(Value::Null) => 1.0,
         Some(v) => v.as_f64().ok_or("bad_field:head.version_number")?,
     };
+    if advance && !historical && revision.is_none() && canonical_version == head_version - 1.0 {
+        return advance_identity(page, head, content_digest, &version_value);
+    }
     let version_mismatch = if historical {
         canonical_version <= head_version
     } else {
@@ -306,6 +341,57 @@ fn canonical_identity(input: &Value) -> Decision {
         return Ok(outcome("wrappers_incomplete"));
     }
     Ok(outcome("ok"))
+}
+
+/// The canonical head is the queued child at version N, one below the queued
+/// N+1: same embed, owner, chat, creating message and parent, string
+/// ciphertext and type. Status, task and content legitimately change with the
+/// new version and are not compared; the page still proves the type and every
+/// parent wrapper unwraps to the cached key. The answer carries the write
+/// precondition `{version: N, ciphertext_sha256}` the extension compares under
+/// its lock (`writeLegacyEmbed`), so a head another writer moved meanwhile is a
+/// `canonical_precondition_mismatch`, never an overwrite.
+fn advance_identity(
+    page: Option<&Value>,
+    head: Option<&Value>,
+    content_digest: Option<&Value>,
+    canonical_version: &Value,
+) -> Decision {
+    let embed = prop(page, "embed");
+    let embed_member = |key: &str| prop(embed, key);
+    let head_member = |key: &str| prop(head, key);
+    let defined_mismatch = |key: &str| head_member(key).is_some() && !same(embed_member(key), head_member(key));
+    let identity_conflict = !truthy(embed)
+        || !truthy(head_member("parent_embed_id"))
+        || ["embed_id", "hashed_chat_id", "hashed_user_id", "hashed_message_id", "parent_embed_id"]
+            .iter()
+            .any(|key| !same(embed_member(key), head_member(key)))
+        || defined_mismatch("app_id")
+        || defined_mismatch("is_private")
+        || defined_mismatch("is_shared")
+        || !embed_member("encrypted_content").is_some_and(Value::is_string)
+        || !embed_member("encrypted_type").is_some_and(Value::is_string);
+    if identity_conflict {
+        return Ok(conflict("embed_identity_or_version_conflict"));
+    }
+    let wrappers = prop(page, "embed_keys").and_then(Value::as_array);
+    if truthy(prop(page, "embed_keys_has_more_after"))
+        || truthy(prop(page, "oversized_embed_key_id"))
+        || !wrappers.is_some_and(|rows| rows.len() <= 128)
+    {
+        return Ok(outcome("wrappers_incomplete"));
+    }
+    // The page hashes the canonical ciphertext for this verdict; without it there is no CAS.
+    let Some(digest) = content_digest
+        .and_then(Value::as_str)
+        .filter(|d| d.len() == 64 && d.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)))
+    else {
+        return Ok(outcome("malformed"));
+    };
+    Ok(json!({
+        "outcome": "advance",
+        "precondition": { "version": canonical_version, "ciphertext_sha256": digest },
+    }))
 }
 
 /// The bounded version-history page must end at the queued version (`historyPage`).

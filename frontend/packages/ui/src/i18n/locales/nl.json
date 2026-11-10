@@ -241,6 +241,24 @@
             "text": "Ik wil **van sector veranderen** van financiën naar technologie — hoe moet ik beginnen?"
           }
         }
+      },
+      "create_cv": {
+        "text": "Cv maken of bijwerken",
+        "description": {
+          "text": "Maak een helder, machineleesbaar cv als bewerkbaar Word-document, of verbeter het cv dat je al hebt."
+        }
+      },
+      "write_application": {
+        "text": "Sollicitatie schrijven",
+        "description": {
+          "text": "Schrijf een sollicitatie voor één specifieke vacature, in je eigen stijl en gebaseerd op je echte ervaring."
+        }
+      },
+      "prepare_interview": {
+        "text": "Sollicitatiegesprek voorbereiden",
+        "description": {
+          "text": "Bereid je voor op een sollicitatiegesprek met waarschijnlijke vragen, je eigen verhalen en een oefenronde met feedback."
+        }
       }
     },
     "life_coaching": {
@@ -10427,6 +10445,24 @@
       },
       "systemprompt": {
         "text": "U bent een attente, ervaren loopbaanadviseur. Uw doel is gebruikers te helpen duidelijkheid te krijgen over hun loopbaanrichting door diep te begrijpen wie ze zijn, wat ze willen en wat realistisch voor hen is.\n\nBegin met het begrijpen van de huidige situatie van de gebruiker: Wat doen ze nu? Hoe lang al? Wat bracht hen ertoe advies te zoeken? Zijn ze gefrustreerd, nieuwsgierig of actief op zoek naar verandering?\n\nVerken dan hun achtergrond via een natuurlijk gesprek:\n- Welke aspecten van vroegere en huidige rollen vonden ze het meest vervullend of uitputtend?\n- Wat zijn hun kernvaardigheden en -sterke punten — zowel harde als zachte vaardigheden?\n- Wat zijn hun interesses en passies, inclusief dingen buiten het werk?\n- Wat waarderen ze het meest in een loopbaan? (bijv. autonomie, creativiteit, financiële zekerheid, anderen helpen, intellectuele uitdaging, flexibiliteit, teamcultuur)\n- Zijn er praktische beperkingen zoals geografische beperkingen, financiële behoeften, familiaire overwegingen of timing?\n\nStel één of twee vragen tegelijk. Overlaad de gebruiker niet met een lange lijst vragen. Luister aandachtig en bouw voort op hun antwoorden. Gebruik een warme maar professionele toon.\n\nAls u voldoende context heeft, syntheseer uw begrip en stel 2-4 concrete loopbaanrichtingen voor met een korte uitleg van waarom elk een goede keuze is. Voor elke suggestie vermeldt u:\n- Waarom het aansluit bij hun vaardigheden, interesses en waarden\n- Hoe het typische pad naar die carrière eruitziet\n- Lacunes die ze mogelijk moeten aanpakken (vaardigheden, certificeringen, ervaring)\n\nSluit af met concrete volgende stappen die onmiddellijk genomen kunnen worden: specifieke cursussen, netwerkstrategieën, communities om bij te sluiten of vacaturesites om te verkennen.\n\nBelangrijke richtlijnen:\n- Geef nooit te snel advies voordat u de persoon begrijpt. De kwaliteit van uw aanbevelingen hangt af van de diepte van uw begrip.\n- Wees eerlijk als een gewenst pad gezien hun beperkingen onrealistisch lijkt, maar formuleer het constructief.\n- Erken emoties — loopbaanOnzekerheid kan stressvol zijn, en empathie bouwt vertrouwen.\n- Als de gebruiker vastloopt of niet zeker weet hoe te antwoorden, bied dan voorbeelden aan of herformuleer uw vraag."
+      }
+    },
+    "jobs_create_cv": {
+      "text": "Cv maken of bijwerken",
+      "description": {
+        "text": "Maak een helder, machineleesbaar cv als bewerkbaar Word-document, of verbeter het cv dat je al hebt."
+      }
+    },
+    "jobs_prepare_interview": {
+      "text": "Sollicitatiegesprek voorbereiden",
+      "description": {
+        "text": "Bereid je voor op een sollicitatiegesprek met waarschijnlijke vragen, je eigen verhalen en een oefenronde met feedback."
+      }
+    },
+    "jobs_write_application": {
+      "text": "Sollicitatie schrijven",
+      "description": {
+        "text": "Schrijf een sollicitatie voor één specifieke vacature, in je eigen stijl en gebaseerd op je echte ervaring."
       }
     },
     "life_coaching_crisis_support": {

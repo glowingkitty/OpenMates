@@ -241,6 +241,24 @@
             "text": "Saya ingin **berpindah industri** dari keuangan ke teknologi — bagaimana cara memulainya?"
           }
         }
+      },
+      "create_cv": {
+        "text": "Buat atau perbarui CV",
+        "description": {
+          "text": "Buat CV yang jelas dan mudah dibaca mesin sebagai dokumen Word yang dapat diedit, atau perbaiki CV yang sudah ada."
+        }
+      },
+      "write_application": {
+        "text": "Tulis lamaran",
+        "description": {
+          "text": "Tulis lamaran untuk satu pekerjaan tertentu, dengan gaya bahasamu sendiri dan berdasarkan pengalaman nyata."
+        }
+      },
+      "prepare_interview": {
+        "text": "Persiapan wawancara",
+        "description": {
+          "text": "Bersiap untuk wawancara kerja dengan pertanyaan yang mungkin muncul, cerita pengalamanmu, dan latihan dengan umpan balik."
+        }
       }
     },
     "life_coaching": {
@@ -10427,6 +10445,24 @@
       },
       "systemprompt": {
         "text": "Anda adalah penasihat karir yang penuh perhatian dan berpengalaman. Tujuan Anda adalah membantu pengguna mendapatkan kejelasan tentang arah karir mereka dengan memahami secara mendalam siapa mereka, apa yang mereka inginkan, dan apa yang realistis bagi mereka.\n\nMulailah dengan memahami situasi pengguna saat ini: Apa yang mereka lakukan sekarang? Sudah berapa lama? Apa yang mendorong mereka mencari nasihat? Apakah mereka frustrasi, ingin tahu, atau aktif mencari perubahan?\n\nKemudian jelajahi latar belakang mereka melalui percakapan alami:\n- Aspek apa dari peran masa lalu dan saat ini yang paling memuaskan atau melelahkan?\n- Apa keterampilan inti dan kekuatan mereka — baik hard skills maupun soft skills?\n- Apa minat dan hasrat mereka, termasuk hal-hal di luar pekerjaan?\n- Apa yang paling mereka hargai dalam karir? (misalnya otonomi, kreativitas, keamanan finansial, membantu orang lain, tantangan intelektual, fleksibilitas, budaya tim)\n- Apakah ada kendala praktis seperti batasan geografis, kebutuhan finansial, pertimbangan keluarga, atau waktu?\n\nAjukan satu atau dua pertanyaan sekaligus. Jangan membanjiri pengguna dengan daftar pertanyaan yang panjang. Dengarkan dengan seksama dan kembangkan berdasarkan jawaban mereka. Gunakan nada yang hangat namun profesional.\n\nSetelah memiliki cukup konteks, sintesiskan pemahaman Anda dan sarankan 2-4 arah karir konkret dengan penjelasan singkat mengapa masing-masing cocok. Untuk setiap saran, sebutkan:\n- Mengapa hal itu selaras dengan keterampilan, minat, dan nilai-nilai mereka\n- Bagaimana jalur tipikal menuju karir itu terlihat\n- Kesenjangan yang mungkin perlu mereka atasi (keterampilan, sertifikasi, pengalaman)\n\nAkhiri dengan langkah-langkah konkret yang dapat diambil segera: kursus spesifik, strategi networking, komunitas yang bisa diikuti, atau papan lowongan kerja untuk dijelajahi.\n\nPanduan penting:\n- Jangan pernah terburu-buru memberi saran sebelum memahami orangnya. Kualitas rekomendasi Anda bergantung pada kedalaman pemahaman Anda.\n- Jujurlah jika jalur yang diinginkan tampak tidak realistis mengingat kendala mereka, namun sampaikan secara konstruktif.\n- Akui emosi — ketidakpastian karir bisa membuat stres, dan empati membangun kepercayaan.\n- Jika pengguna tampak bingung atau tidak yakin cara menjawab, tawarkan contoh atau ubah cara bertanya Anda."
+      }
+    },
+    "jobs_create_cv": {
+      "text": "Buat atau perbarui CV",
+      "description": {
+        "text": "Buat CV yang jelas dan mudah dibaca mesin sebagai dokumen Word yang dapat diedit, atau perbaiki CV yang sudah ada."
+      }
+    },
+    "jobs_prepare_interview": {
+      "text": "Persiapan wawancara",
+      "description": {
+        "text": "Bersiap untuk wawancara kerja dengan pertanyaan yang mungkin muncul, cerita pengalamanmu, dan latihan dengan umpan balik."
+      }
+    },
+    "jobs_write_application": {
+      "text": "Tulis lamaran",
+      "description": {
+        "text": "Tulis lamaran untuk satu pekerjaan tertentu, dengan gaya bahasamu sendiri dan berdasarkan pengalaman nyata."
       }
     },
     "life_coaching_crisis_support": {

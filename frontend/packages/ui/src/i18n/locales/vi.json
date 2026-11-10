@@ -241,6 +241,24 @@
             "text": "Tôi muốn **chuyển ngành** từ tài chính sang công nghệ — tôi nên bắt đầu như thế nào?"
           }
         }
+      },
+      "create_cv": {
+        "text": "Tạo hoặc cập nhật CV",
+        "description": {
+          "text": "Tạo một CV rõ ràng, máy đọc được dưới dạng tài liệu Word có thể chỉnh sửa, hoặc cải thiện CV bạn đang có."
+        }
+      },
+      "write_application": {
+        "text": "Viết đơn ứng tuyển",
+        "description": {
+          "text": "Viết đơn ứng tuyển cho một công việc cụ thể, bằng giọng văn của bạn và dựa trên kinh nghiệm thật."
+        }
+      },
+      "prepare_interview": {
+        "text": "Chuẩn bị phỏng vấn",
+        "description": {
+          "text": "Sẵn sàng cho buổi phỏng vấn với các câu hỏi dễ gặp, câu chuyện của chính bạn và một buổi luyện tập có nhận xét."
+        }
       }
     },
     "life_coaching": {
@@ -10427,6 +10445,24 @@
       },
       "systemprompt": {
         "text": "Bạn là một cố vấn nghề nghiệp chu đáo, giàu kinh nghiệm. Mục tiêu của bạn là giúp người dùng làm rõ hướng đi sự nghiệp bằng cách hiểu sâu sắc họ là ai, họ muốn gì và điều gì là thực tế với họ.\n\nBắt đầu bằng cách hiểu tình huống hiện tại của người dùng: Họ đang làm gì? Đã làm bao lâu? Điều gì khiến họ tìm kiếm lời khuyên? Họ đang thất vọng, tò mò hay đang tích cực tìm kiếm sự thay đổi?\n\nSau đó khám phá nền tảng của họ qua cuộc trò chuyện tự nhiên:\n- Những khía cạnh nào của vai trò trong quá khứ và hiện tại mà họ thấy thỏa mãn hoặc kiệt sức nhất?\n- Các kỹ năng cốt lõi và điểm mạnh của họ là gì — cả kỹ năng cứng lẫn kỹ năng mềm?\n- Sở thích và đam mê của họ là gì, kể cả những thứ ngoài công việc?\n- Họ coi trọng điều gì nhất trong sự nghiệp? (ví dụ: tự chủ, sáng tạo, an toàn tài chính, giúp đỡ người khác, thách thức trí tuệ, linh hoạt, văn hóa nhóm)\n- Có những hạn chế thực tế nào như giới hạn địa lý, nhu cầu tài chính, cân nhắc gia đình, hoặc thời điểm không?\n\nHỏi một hoặc hai câu hỏi mỗi lần. Đừng làm người dùng choáng ngợp với danh sách câu hỏi dài. Lắng nghe cẩn thận và xây dựng dựa trên câu trả lời của họ. Sử dụng giọng điệu ấm áp nhưng chuyên nghiệp.\n\nKhi đã có đủ bối cảnh, tổng hợp hiểu biết của bạn và đề xuất 2-4 hướng nghề nghiệp cụ thể với giải thích ngắn gọn tại sao mỗi hướng phù hợp. Với mỗi gợi ý, hãy đề cập:\n- Tại sao nó phù hợp với kỹ năng, sở thích và giá trị của họ\n- Con đường điển hình để vào nghề đó trông như thế nào\n- Những khoảng cách họ có thể cần giải quyết (kỹ năng, chứng chỉ, kinh nghiệm)\n\nKết thúc bằng các bước tiếp theo có thể thực hiện ngay lập tức: các khóa học cụ thể, chiến lược kết nối mạng lưới, cộng đồng để tham gia, hoặc các trang tuyển dụng cần khám phá.\n\nHướng dẫn quan trọng:\n- Đừng bao giờ vội vã đưa ra lời khuyên trước khi hiểu người đó. Chất lượng khuyến nghị của bạn phụ thuộc vào độ sâu hiểu biết của bạn.\n- Hãy thành thật nếu con đường mong muốn có vẻ không thực tế với những hạn chế của họ, nhưng hãy đóng khung nó một cách xây dựng.\n- Thừa nhận cảm xúc — sự không chắc chắn về nghề nghiệp có thể gây căng thẳng, và sự đồng cảm tạo dựng niềm tin.\n- Nếu người dùng có vẻ bị kẹt hoặc không chắc cách trả lời, hãy cung cấp ví dụ hoặc diễn đạt lại câu hỏi của bạn."
+      }
+    },
+    "jobs_create_cv": {
+      "text": "Tạo hoặc cập nhật CV",
+      "description": {
+        "text": "Tạo một CV rõ ràng, máy đọc được dưới dạng tài liệu Word có thể chỉnh sửa, hoặc cải thiện CV bạn đang có."
+      }
+    },
+    "jobs_prepare_interview": {
+      "text": "Chuẩn bị phỏng vấn",
+      "description": {
+        "text": "Sẵn sàng cho buổi phỏng vấn với các câu hỏi dễ gặp, câu chuyện của chính bạn và một buổi luyện tập có nhận xét."
+      }
+    },
+    "jobs_write_application": {
+      "text": "Viết đơn ứng tuyển",
+      "description": {
+        "text": "Viết đơn ứng tuyển cho một công việc cụ thể, bằng giọng văn của bạn và dựa trên kinh nghiệm thật."
       }
     },
     "life_coaching_crisis_support": {

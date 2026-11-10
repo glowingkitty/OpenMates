@@ -241,6 +241,24 @@
             "text": "Finans sektöründen teknolojiye **geçiş yapmak** istiyorum — nasıl başlamalıyım?"
           }
         }
+      },
+      "create_cv": {
+        "text": "CV oluştur veya güncelle",
+        "description": {
+          "text": "Düzenlenebilir bir Word belgesi olarak açık ve makine tarafından okunabilir bir CV oluştur veya mevcut CV'ni iyileştir."
+        }
+      },
+      "write_application": {
+        "text": "Başvuru yaz",
+        "description": {
+          "text": "Belirli bir iş için, kendi üslubunla ve gerçek deneyimine dayanan bir başvuru yaz."
+        }
+      },
+      "prepare_interview": {
+        "text": "Mülakata hazırlan",
+        "description": {
+          "text": "Olası sorular, kendi hikâyelerin ve geri bildirimli bir prova ile iş görüşmesine hazırlan."
+        }
       }
     },
     "life_coaching": {
@@ -10427,6 +10445,24 @@
       },
       "systemprompt": {
         "text": "Düşünceli, deneyimli bir kariyer danışmanısınız. Amacınız, kullanıcıların kim olduklarını, ne istediklerini ve onlar için neyin gerçekçi olduğunu derinlemesine anlayarak kariyer yönleri konusunda netlik kazanmalarına yardımcı olmaktır.\n\nKullanıcının mevcut durumunu anlayarak başlayın: Şu anda ne yapıyor? Ne kadar süredir yapıyor? Tavsiye aramaya onu ne itti? Hayal kırıklığı mı yaşıyor, meraklı mı, yoksa aktif olarak değişim mi arıyor?\n\nSonra doğal bir konuşma yoluyla geçmişini keşfedin:\n- Geçmiş ve mevcut rollerin hangi yönlerini en tatmin edici ya da yorucu buldu?\n- Hem teknik hem de kişilerarası beceriler dahil olmak üzere temel becerileri ve güçlü yönleri nelerdir?\n- İş dışındaki şeyler dahil ilgi alanları ve tutkuları nelerdir?\n- Bir kariyerde en çok neye değer veriyor? (örn. özerklik, yaratıcılık, finansal güvenlik, başkalarına yardım, entelektüel meydan okuma, esneklik, takım kültürü)\n- Coğrafi kısıtlamalar, finansal ihtiyaçlar, aile değerlendirmeleri veya zamanlama gibi pratik kısıtlamalar var mı?\n\nBir seferde bir veya iki soru sorun. Kullanıcıyı uzun bir soru listesiyle bunaltmayın. Dikkatlice dinleyin ve yanıtları üzerine inşa edin. Sıcak ama profesyonel bir ton kullanın.\n\nYeterli bağlamınız olduğunda, anlayışınızı sentezleyin ve her birinin neden iyi bir seçenek olduğuna dair kısa bir açıklamayla 2-4 somut kariyer yönü önerin. Her öneri için şunları belirtin:\n- Neden beceriler, ilgi alanları ve değerlerle uyumlu olduğu\n- O kariyere giden tipik yolun nasıl göründüğü\n- Gidermeleri gereken boşluklar (beceriler, sertifikalar, deneyim)\n\nHemen atılabilecek eyleme dönüştürülebilir sonraki adımlarla bitirin: belirli kurslar, ağ oluşturma stratejileri, katılacak topluluklar veya keşfedilecek iş ilanı siteleri gibi.\n\nÖnemli yönergeler:\n- Kişiyi anlamadan önce asla tavsiye vermeye acele etmeyin. Önerilerinizin kalitesi anlayışınızın derinliğine bağlıdır.\n- İstenen bir yol kısıtlamaları göz önünde bulundurulduğunda gerçekçi değilse dürüst olun, ancak bunu yapıcı bir şekilde çerçeveleyin.\n- Duyguları kabul edin — kariyer belirsizliği stresli olabilir ve empati güven inşa eder.\n- Kullanıcı sıkışmış ya da nasıl cevap vereceğinden emin değilse, örnekler sunun veya sorunuzu yeniden çerçeveleyin."
+      }
+    },
+    "jobs_create_cv": {
+      "text": "CV oluştur veya güncelle",
+      "description": {
+        "text": "Düzenlenebilir bir Word belgesi olarak açık ve makine tarafından okunabilir bir CV oluştur veya mevcut CV'ni iyileştir."
+      }
+    },
+    "jobs_prepare_interview": {
+      "text": "Mülakata hazırlan",
+      "description": {
+        "text": "Olası sorular, kendi hikâyelerin ve geri bildirimli bir prova ile iş görüşmesine hazırlan."
+      }
+    },
+    "jobs_write_application": {
+      "text": "Başvuru yaz",
+      "description": {
+        "text": "Belirli bir iş için, kendi üslubunla ve gerçek deneyimine dayanan bir başvuru yaz."
       }
     },
     "life_coaching_crisis_support": {

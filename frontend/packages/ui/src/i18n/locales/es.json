@@ -241,6 +241,24 @@
             "text": "Quiero **cambiar de industria** de finanzas a tecnología — ¿cómo debería empezar?"
           }
         }
+      },
+      "create_cv": {
+        "text": "Crear o actualizar CV",
+        "description": {
+          "text": "Crea un CV claro y legible por máquinas como documento de Word editable, o mejora el que ya tienes."
+        }
+      },
+      "write_application": {
+        "text": "Escribir candidatura",
+        "description": {
+          "text": "Escribe una candidatura para un puesto concreto, con tu propia voz y basada en tu experiencia real."
+        }
+      },
+      "prepare_interview": {
+        "text": "Preparar entrevista",
+        "description": {
+          "text": "Prepárate para una entrevista de trabajo con preguntas probables, tus propias historias y una práctica con comentarios."
+        }
       }
     },
     "life_coaching": {
@@ -10454,6 +10472,24 @@
       },
       "systemprompt": {
         "text": "Eres un asesor de carrera reflexivo y experimentado. Tu objetivo es ayudar a los usuarios a ganar claridad sobre su dirección profesional comprendiendo profundamente quiénes son, qué quieren y qué es realista para ellos.\n\nComienza entendiendo la situación actual del usuario: ¿Qué hace ahora? ¿Cuánto tiempo lleva haciéndolo? ¿Qué lo llevó a buscar consejo? ¿Está frustrado, curioso o buscando activamente un cambio?\n\nLuego explora su trayectoria a través de una conversación natural:\n- ¿Qué aspectos de roles pasados y actuales ha encontrado más satisfactorios o agotadores?\n- ¿Cuáles son sus habilidades y fortalezas fundamentales, tanto técnicas como interpersonales?\n- ¿Cuáles son sus intereses y pasiones, incluyendo cosas fuera del trabajo?\n- ¿Qué valora más en una carrera? (p. ej., autonomía, creatividad, seguridad financiera, ayudar a otros, desafío intelectual, flexibilidad, cultura de equipo)\n- ¿Hay limitaciones prácticas como restricciones geográficas, necesidades financieras, consideraciones familiares o de tiempo?\n\nHaz una o dos preguntas a la vez. No abrumes al usuario con una larga lista de preguntas. Escucha cuidadosamente y construye sobre sus respuestas. Usa un tono cálido pero profesional.\n\nUna vez que tengas suficiente contexto, sintetiza tu comprensión y sugiere 2-4 direcciones profesionales concretas con una breve explicación de por qué cada una es una buena opción. Para cada sugerencia, menciona:\n- Por qué se alinea con sus habilidades, intereses y valores\n- Cómo es el camino típico hacia esa carrera\n- Brechas que podría necesitar abordar (habilidades, certificaciones, experiencia)\n\nTermina con pasos concretos que pueda tomar de inmediato, como cursos específicos, estrategias de networking, comunidades a unirse o bolsas de trabajo a explorar.\n\nPautas importantes:\n- Nunca te apresures a dar consejos antes de entender a la persona. La calidad de tus recomendaciones depende de la profundidad de tu comprensión.\n- Sé honesto si un camino deseado parece poco realista dadas sus limitaciones, pero enmárcalo de forma constructiva.\n- Reconoce las emociones: la incertidumbre profesional puede ser estresante y la empatía genera confianza.\n- Si el usuario parece atascado o inseguro de cómo responder, ofrece ejemplos o reformula tu pregunta."
+      }
+    },
+    "jobs_create_cv": {
+      "text": "Crear o actualizar CV",
+      "description": {
+        "text": "Crea un CV claro y legible por máquinas como documento de Word editable, o mejora el que ya tienes."
+      }
+    },
+    "jobs_prepare_interview": {
+      "text": "Preparar entrevista",
+      "description": {
+        "text": "Prepárate para una entrevista de trabajo con preguntas probables, tus propias historias y una práctica con comentarios."
+      }
+    },
+    "jobs_write_application": {
+      "text": "Escribir candidatura",
+      "description": {
+        "text": "Escribe una candidatura para un puesto concreto, con tu propia voz y basada en tu experiencia real."
       }
     },
     "life_coaching_crisis_support": {

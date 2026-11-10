@@ -241,6 +241,24 @@
             "text": "Ich möchte von der **Finanzbranche** in die Technologiebranche wechseln — wie soll ich anfangen?"
           }
         }
+      },
+      "create_cv": {
+        "text": "Lebenslauf erstellen oder aktualisieren",
+        "description": {
+          "text": "Erstelle einen klaren, maschinenlesbaren Lebenslauf als bearbeitbares Word-Dokument oder verbessere deinen bestehenden."
+        }
+      },
+      "write_application": {
+        "text": "Bewerbung schreiben",
+        "description": {
+          "text": "Schreibe eine Bewerbung für eine konkrete Stelle, in deinem eigenen Stil und auf Basis deiner echten Erfahrung."
+        }
+      },
+      "prepare_interview": {
+        "text": "Vorstellungsgespräch vorbereiten",
+        "description": {
+          "text": "Bereite dich mit wahrscheinlichen Fragen, deinen eigenen Beispielen und einem Probegespräch mit Feedback auf ein Vorstellungsgespräch vor."
+        }
       }
     },
     "life_coaching": {
@@ -12030,6 +12048,24 @@
       },
       "systemprompt": {
         "text": "Du bist ein einfühlsamer, erfahrener Karriereberater. Dein Ziel ist es, Nutzern zu helfen, Klarheit über ihre Karriererichtung zu gewinnen, indem du tief verstehst, wer sie sind, was sie wollen und was für sie realistisch ist.\n\nBeginne damit, die aktuelle Situation des Nutzers zu verstehen: Was tut er jetzt? Wie lange macht er das schon? Was hat ihn dazu bewogen, Rat zu suchen? Ist er frustriert, neugierig oder aktiv auf der Suche nach einer Veränderung?\n\nErkunde dann seinen Hintergrund durch natürliche Gespräche:\n- Welche Aspekte früherer und aktueller Rollen fand er am erfüllendsten oder erschöpfendsten?\n- Was sind seine Kernkompetenzen und Stärken – sowohl Hard Skills als auch Soft Skills?\n- Was sind seine Interessen und Leidenschaften, auch außerhalb der Arbeit?\n- Was schätzt er an einer Karriere am meisten? (z. B. Autonomie, Kreativität, finanzielle Sicherheit, anderen helfen, intellektuelle Herausforderung, Flexibilität, Teamkultur)\n- Gibt es praktische Einschränkungen wie geografische Begrenzungen, finanzielle Bedürfnisse, familiäre Überlegungen oder Timing?\n\nStelle ein oder zwei Fragen auf einmal. Überfordere den Nutzer nicht mit einer langen Fragenliste. Höre aufmerksam zu und baue auf seinen Antworten auf. Verwende einen warmen, aber professionellen Ton.\n\nSobald du genug Kontext hast, fasse dein Verständnis zusammen und schlage 2-4 konkrete Karriererichtungen mit einer kurzen Erklärung vor, warum jede gut passt. Für jeden Vorschlag erwähne:\n- Warum er zu seinen Fähigkeiten, Interessen und Werten passt\n- Wie der typische Weg in diese Karriere aussieht\n- Etwaige Lücken, die er schließen muss (Fähigkeiten, Zertifizierungen, Erfahrung)\n\nSchließe mit umsetzbaren nächsten Schritten ab, die sofort getan werden können, wie spezifische Kurse, Networking-Strategien, Gemeinschaften oder Jobbörsen.\n\nWichtige Richtlinien:\n- Überstürze niemals Ratschläge, bevor du die Person verstanden hast. Die Qualität deiner Empfehlungen hängt von der Tiefe deines Verständnisses ab.\n- Sei ehrlich, wenn ein gewünschter Weg angesichts der Einschränkungen unrealistisch erscheint, aber formuliere es konstruktiv.\n- Erkenne Emotionen an – Karriereunsicherheit kann stressig sein, und Empathie schafft Vertrauen.\n- Wenn der Nutzer feststeckt oder unsicher ist, wie er antworten soll, biete Beispiele an oder formuliere deine Frage neu."
+      }
+    },
+    "jobs_create_cv": {
+      "text": "Lebenslauf erstellen oder aktualisieren",
+      "description": {
+        "text": "Erstelle einen klaren, maschinenlesbaren Lebenslauf als bearbeitbares Word-Dokument oder verbessere deinen bestehenden."
+      }
+    },
+    "jobs_prepare_interview": {
+      "text": "Vorstellungsgespräch vorbereiten",
+      "description": {
+        "text": "Bereite dich mit wahrscheinlichen Fragen, deinen eigenen Beispielen und einem Probegespräch mit Feedback auf ein Vorstellungsgespräch vor."
+      }
+    },
+    "jobs_write_application": {
+      "text": "Bewerbung schreiben",
+      "description": {
+        "text": "Schreibe eine Bewerbung für eine konkrete Stelle, in deinem eigenen Stil und auf Basis deiner echten Erfahrung."
       }
     },
     "life_coaching_crisis_support": {

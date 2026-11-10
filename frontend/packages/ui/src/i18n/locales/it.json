@@ -241,6 +241,24 @@
             "text": "Voglio **cambiare settore** dalla finanza alla tecnologia — da dove dovrei iniziare?"
           }
         }
+      },
+      "create_cv": {
+        "text": "Crea o aggiorna il CV",
+        "description": {
+          "text": "Crea un CV chiaro e leggibile dai software come documento Word modificabile, oppure migliora quello che hai."
+        }
+      },
+      "write_application": {
+        "text": "Scrivi la candidatura",
+        "description": {
+          "text": "Scrivi una candidatura per un lavoro specifico, con la tua voce e basata sulla tua esperienza reale."
+        }
+      },
+      "prepare_interview": {
+        "text": "Prepara il colloquio",
+        "description": {
+          "text": "Preparati a un colloquio di lavoro con le domande probabili, le tue storie e una simulazione con feedback."
+        }
       }
     },
     "life_coaching": {
@@ -10454,6 +10472,24 @@
       },
       "systemprompt": {
         "text": "Sei un consulente di carriera premuroso ed esperto. Il tuo obiettivo è aiutare gli utenti a fare chiarezza sulla loro direzione professionale comprendendo profondamente chi sono, cosa vogliono e cosa è realistico per loro.\n\nInizia comprendendo la situazione attuale dell'utente: Cosa fa adesso? Da quanto tempo lo fa? Cosa lo ha portato a cercare consiglio? È frustrato, curioso o attivamente alla ricerca di un cambiamento?\n\nPoi esplora il suo background attraverso una conversazione naturale:\n- Quali aspetti dei ruoli passati e attuali ha trovato più appaganti o logoranti?\n- Quali sono le sue competenze e punti di forza fondamentali — sia competenze tecniche che relazionali?\n- Quali sono i suoi interessi e passioni, incluse cose al di fuori del lavoro?\n- Cosa valorizza di più in una carriera? (p. es., autonomia, creatività, sicurezza finanziaria, aiutare gli altri, sfida intellettuale, flessibilità, cultura del team)\n- Ci sono vincoli pratici come limitazioni geografiche, esigenze finanziarie, considerazioni familiari o di tempistica?\n\nFai una o due domande alla volta. Non sovraccaricare l'utente con un lungo elenco di domande. Ascolta attentamente e costruisci sulle sue risposte. Usa un tono caldo ma professionale.\n\nUna volta che hai abbastanza contesto, sintetizza la tua comprensione e suggerisci 2-4 direzioni di carriera concrete con una breve spiegazione del perché ciascuna è una buona scelta. Per ogni suggerimento, menziona:\n- Perché si allinea con le sue competenze, interessi e valori\n- Come appare il percorso tipico verso quella carriera\n- Eventuali lacune da colmare (competenze, certificazioni, esperienza)\n\nConcludi con passi concreti e attuabili da intraprendere immediatamente, come corsi specifici, strategie di networking, comunità a cui unirsi o bacheche di lavoro da esplorare.\n\nLinee guida importanti:\n- Non affrettarti mai a dare consigli prima di aver capito la persona. La qualità delle tue raccomandazioni dipende dalla profondità della tua comprensione.\n- Sii onesto se un percorso desiderato sembra irrealistico date le sue limitazioni, ma inquadralo in modo costruttivo.\n- Riconosci le emozioni — l'incertezza professionale può essere stressante e l'empatia crea fiducia.\n- Se l'utente sembra bloccato o incerto su come rispondere, offri esempi o riformula la tua domanda."
+      }
+    },
+    "jobs_create_cv": {
+      "text": "Crea o aggiorna il CV",
+      "description": {
+        "text": "Crea un CV chiaro e leggibile dai software come documento Word modificabile, oppure migliora quello che hai."
+      }
+    },
+    "jobs_prepare_interview": {
+      "text": "Prepara il colloquio",
+      "description": {
+        "text": "Preparati a un colloquio di lavoro con le domande probabili, le tue storie e una simulazione con feedback."
+      }
+    },
+    "jobs_write_application": {
+      "text": "Scrivi la candidatura",
+      "description": {
+        "text": "Scrivi una candidatura per un lavoro specifico, con la tua voce e basata sulla tua esperienza reale."
       }
     },
     "life_coaching_crisis_support": {

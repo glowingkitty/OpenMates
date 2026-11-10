@@ -47,6 +47,12 @@ export interface AvailabilityPlanInput {
   requested_version: number;
   read_only: boolean;
   reply: unknown;
+  /**
+   * Origin of the queued operation. Only the Rust decision reads it:
+   * `"child-revision"` (version N+1 of a generated-image child) answers
+   * `read_advance`. Child revisions run only in VITE_OPENMATES_RUST_CORE builds.
+   */
+  origin?: string | null;
 }
 
 /**
@@ -59,6 +65,8 @@ export type AvailabilityPlan =
   | { outcome: "conflict"; code: string }
   | { outcome: "write"; precondition: CanonicalPrecondition; allow_wrapper_writes: boolean }
   | { outcome: "read_current"; allow_wrapper_writes: boolean }
+  /** Rust only: read the canonical child head and let the identity verdict grant the N -> N+1 write. */
+  | { outcome: "read_advance"; allow_wrapper_writes: boolean }
   | {
     outcome: "read_current_revision" | "read_historical";
     precondition: CanonicalPrecondition;
@@ -93,11 +101,18 @@ export interface CanonicalIdentityInput {
   head_embed_ids_json: string | null;
   /** `JSON.stringify(page.embed.embed_ids ?? [])` when `page.embed` is an object, else null. */
   embed_ids_json: string | null;
+  /**
+   * Rust only, after a `read_advance` plan: a canonical head one version below
+   * the queued head answers `advance` (`content_sha256` must then be present).
+   */
+  advance?: boolean;
 }
 
 export type CanonicalIdentityVerdict =
   | { outcome: "ok" | "recovery_pending" | "wrappers_incomplete" }
-  | { outcome: "conflict"; code: string };
+  | { outcome: "conflict"; code: string }
+  /** Rust only: the canonical head is this child at N; write N+1 under `precondition`. */
+  | { outcome: "advance"; precondition: CanonicalPrecondition };
 
 export interface HistoryPageInput {
   embed_id: string;

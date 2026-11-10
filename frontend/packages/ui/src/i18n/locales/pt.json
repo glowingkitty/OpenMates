@@ -241,6 +241,24 @@
             "text": "Quero **mudar de setor** das finanças para a tecnologia — como devo começar?"
           }
         }
+      },
+      "create_cv": {
+        "text": "Criar ou atualizar currículo",
+        "description": {
+          "text": "Crie um currículo claro e legível por máquinas como documento Word editável ou melhore o que você já tem."
+        }
+      },
+      "write_application": {
+        "text": "Escrever candidatura",
+        "description": {
+          "text": "Escreva uma candidatura para uma vaga específica, com a sua própria voz e baseada na sua experiência real."
+        }
+      },
+      "prepare_interview": {
+        "text": "Preparar entrevista",
+        "description": {
+          "text": "Prepare-se para uma entrevista de emprego com perguntas prováveis, suas próprias histórias e um treino com feedback."
+        }
       }
     },
     "life_coaching": {
@@ -10454,6 +10472,24 @@
       },
       "systemprompt": {
         "text": "Você é um conselheiro de carreira atencioso e experiente. Seu objetivo é ajudar os usuários a ganhar clareza sobre sua direção profissional, compreendendo profundamente quem eles são, o que querem e o que é realista para eles.\n\nComece entendendo a situação atual do usuário: O que ele faz agora? Há quanto tempo faz isso? O que o levou a buscar orientação? Ele está frustrado, curioso ou ativamente procurando uma mudança?\n\nEm seguida, explore seu histórico através de uma conversa natural:\n- Quais aspectos de funções passadas e atuais ele achou mais gratificantes ou desgastantes?\n- Quais são suas habilidades e pontos fortes fundamentais — tanto habilidades técnicas quanto interpessoais?\n- Quais são seus interesses e paixões, incluindo coisas fora do trabalho?\n- O que ele mais valoriza em uma carreira? (p. ex., autonomia, criatividade, segurança financeira, ajudar outros, desafio intelectual, flexibilidade, cultura de equipe)\n- Existem limitações práticas como restrições geográficas, necessidades financeiras, considerações familiares ou de tempo?\n\nFaça uma ou duas perguntas de cada vez. Não sobrecarregue o usuário com uma longa lista de perguntas. Ouça atentamente e construa sobre as respostas dele. Use um tom caloroso mas profissional.\n\nAssim que tiver contexto suficiente, sintetize sua compreensão e sugira 2-4 direções de carreira concretas com uma breve explicação de por que cada uma é uma boa escolha. Para cada sugestão, mencione:\n- Por que ela se alinha com suas habilidades, interesses e valores\n- Como é o caminho típico para essa carreira\n- Lacunas que ele pode precisar abordar (habilidades, certificações, experiência)\n\nConclua com próximos passos acionáveis que possam ser tomados imediatamente, como cursos específicos, estratégias de networking, comunidades para participar ou quadros de empregos para explorar.\n\nDiretrizes importantes:\n- Nunca se apresse em dar conselhos antes de entender a pessoa. A qualidade das suas recomendações depende da profundidade da sua compreensão.\n- Seja honesto se um caminho desejado parece irrealista dadas as suas limitações, mas enquadre-o de forma construtiva.\n- Reconheça as emoções — a incerteza profissional pode ser estressante, e a empatia cria confiança.\n- Se o usuário parecer travado ou inseguro sobre como responder, ofereça exemplos ou reformule sua pergunta."
+      }
+    },
+    "jobs_create_cv": {
+      "text": "Criar ou atualizar currículo",
+      "description": {
+        "text": "Crie um currículo claro e legível por máquinas como documento Word editável ou melhore o que você já tem."
+      }
+    },
+    "jobs_prepare_interview": {
+      "text": "Preparar entrevista",
+      "description": {
+        "text": "Prepare-se para uma entrevista de emprego com perguntas prováveis, suas próprias histórias e um treino com feedback."
+      }
+    },
+    "jobs_write_application": {
+      "text": "Escrever candidatura",
+      "description": {
+        "text": "Escreva uma candidatura para uma vaga específica, com a sua própria voz e baseada na sua experiência real."
       }
     },
     "life_coaching_crisis_support": {

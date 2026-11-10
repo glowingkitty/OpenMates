@@ -176,10 +176,18 @@ async function sendWithReceipt(
   }
 }
 
-/** Prove that a queued re-encrypted write is the already sealed head. */
-async function readEquivalentCanonicalHead(head: StoreEmbedPayload, historical = false, revision?: CanonicalRevision): Promise<{
+/**
+ * Prove that a queued re-encrypted write is the already sealed head. With
+ * `advance` (a Rust `read_advance` plan) the Rust identity verdict may instead
+ * find this child one version below the queued head: then the same key/type
+ * proof runs, content is not compared, and `advancePrecondition` is the
+ * Rust-built write precondition.
+ */
+async function readEquivalentCanonicalHead(head: StoreEmbedPayload, historical = false, revision?: CanonicalRevision,
+  advance = false): Promise<{
   embed: Record<string, unknown>; type: string; content: string;
   queuedContent: string; key: Uint8Array; keySubject: string; verifiedKeyTypes: Set<string>;
+  advancePrecondition: CanonicalPrecondition | null;
 }> {
   if (!head.chat_id || !head.hashed_chat_id || !head.hashed_user_id) {
     throw new Error("Canonical embed chat and owner scope are unavailable.");
@@ -197,12 +205,15 @@ async function readEquivalentCanonicalHead(head: StoreEmbedPayload, historical =
   const page: unknown = await response.json();
   // A null page throws this TypeError here, before any decision (as before).
   const embed = (page as { embed?: Record<string, unknown> }).embed;
-  const contentSha256 = identityNeedsContentDigest(page, revision ?? null)
+  const advanceDigest = advance && typeof embed === "object" && embed !== null
+    && typeof embed.encrypted_content === "string";
+  const contentSha256 = advanceDigest || identityNeedsContentDigest(page, revision ?? null)
     ? await computeSHA256((embed as Record<string, unknown>).encrypted_content as string) : null;
   const identityInput = {
     head: senderHeadFacts(head), page, historical, revision: revision ?? null, content_sha256: contentSha256,
     head_embed_ids_json: head.embed_ids !== undefined ? JSON.stringify(head.embed_ids ?? []) : null,
     embed_ids_json: typeof embed === "object" && embed !== null ? JSON.stringify(embed.embed_ids ?? []) : null,
+    ...(advance ? { advance: true } : {}),
   };
   const identity = (RUST_EMBED_SENDER_BUILD ? await rustSenderDecision("senderCanonicalIdentity", identityInput) : null)
     ?? canonicalIdentity(identityInput);
@@ -212,6 +223,9 @@ async function readEquivalentCanonicalHead(head: StoreEmbedPayload, historical =
     case "recovery_pending": throw new CanonicalEmbedRecoveryPending();
     case "wrappers_incomplete": throw new Error("Canonical embed key wrappers are incomplete.");
   }
+  const advancePrecondition = identity.outcome === "advance" ? identity.precondition : null;
+  // Only an advance compares no content: the canonical head is the previous version.
+  const sameVersion = !historical && advancePrecondition === null;
   // The identity verdict proved `embed` an object with string ciphertext and a bounded wrapper array.
   const canonicalEmbed = embed as Record<string, unknown> & { encrypted_content: string; encrypted_type: string };
   const embedKeys = (page as { embed_keys: Array<Record<string, unknown>> }).embed_keys;
@@ -258,13 +272,13 @@ async function readEquivalentCanonicalHead(head: StoreEmbedPayload, historical =
     decryptWithEmbedKey(canonicalEmbed.encrypted_type, key),
   ]);
   if (queuedContent === null || queuedType === null
-    || canonicalContent === null || (!historical && queuedContent !== canonicalContent)
+    || canonicalContent === null || (sameVersion && queuedContent !== canonicalContent)
     || queuedType !== canonicalType) {
     throw new CanonicalEmbedConflict("embed_content_or_type_conflict");
   }
   const queuedPreview = head.encrypted_text_preview;
   const canonicalPreview = canonicalEmbed.encrypted_text_preview;
-  if (!historical && (queuedPreview != null || canonicalPreview != null)) {
+  if (sameVersion && (queuedPreview != null || canonicalPreview != null)) {
     if (typeof queuedPreview !== "string" || typeof canonicalPreview !== "string") {
       throw new CanonicalEmbedConflict("embed_preview_conflict");
     }
@@ -277,7 +291,7 @@ async function readEquivalentCanonicalHead(head: StoreEmbedPayload, historical =
     }
   }
   return { embed: canonicalEmbed, type: canonicalType, content: canonicalContent,
-    queuedContent, key, keySubject, verifiedKeyTypes };
+    queuedContent, key, keySubject, verifiedKeyTypes, advancePrecondition };
 }
 
 /** Reconcile an old queued root only against its authenticated historical source. */
@@ -445,7 +459,7 @@ async function persistCanonicalEmbedOperation(
   const reply: unknown = await availability.json();
   const planInput = {
     embed_id: head.embed_id, parent_embed_id: head.parent_embed_id ?? null,
-    requested_version: requestedVersion, read_only: readOnly, reply,
+    requested_version: requestedVersion, read_only: readOnly, reply, origin: operation.origin ?? null,
   };
   // Missing/invalid proof is UNKNOWN. A missing recovery ACK never grants permission.
   const plan = (RUST_EMBED_SENDER_BUILD ? await rustSenderDecision("senderAvailabilityPlan", planInput) : null)
@@ -477,6 +491,15 @@ async function persistCanonicalEmbedOperation(
       precondition = plan.precondition;
       allowWrapperWrites = plan.allow_wrapper_writes;
       break;
+    case "read_advance": {
+      // Rust decided: the head is either already the equivalent N+1 (adopt) or
+      // the child at N, written next under the Rust-built precondition.
+      const read = await readEquivalentCanonicalHead(head, false, undefined, true);
+      if (read.advancePrecondition) precondition = read.advancePrecondition;
+      else canonical = read;
+      allowWrapperWrites = plan.allow_wrapper_writes;
+      break;
+    }
     case "write":
       precondition = plan.precondition;
       allowWrapperWrites = plan.allow_wrapper_writes;

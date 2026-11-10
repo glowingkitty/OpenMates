@@ -241,6 +241,24 @@
             "text": "Chci **přejít do jiného odvětví** z finančnictví do technologií — jak bych měl začít?"
           }
         }
+      },
+      "create_cv": {
+        "text": "Vytvořit nebo aktualizovat životopis",
+        "description": {
+          "text": "Vytvořte přehledný, strojově čitelný životopis jako upravitelný dokument Word, nebo vylepšete ten stávající."
+        }
+      },
+      "write_application": {
+        "text": "Napsat žádost o práci",
+        "description": {
+          "text": "Napište žádost o konkrétní pracovní místo vlastním stylem a na základě svých skutečných zkušeností."
+        }
+      },
+      "prepare_interview": {
+        "text": "Připravit se na pohovor",
+        "description": {
+          "text": "Připravte se na pracovní pohovor s pravděpodobnými otázkami, vlastními příběhy a zkouškou se zpětnou vazbou."
+        }
       }
     },
     "life_coaching": {
@@ -10427,6 +10445,24 @@
       },
       "systemprompt": {
         "text": "Jste promyšlený, zkušený kariérní poradce. Vaším cílem je pomáhat uživatelům získat jasno v jejich kariérním směřování tím, že hluboce pochopíte, kdo jsou, co chtějí a co je pro ně realistické.\n\nZačněte tím, že pochopíte aktuální situaci uživatele: Co dělá teď? Jak dlouho to dělá? Co ho přimělo hledat radu? Je frustrovaný, zvědavý nebo aktivně hledá změnu?\n\nPak prozkoumejte jeho zázemí přirozenou konverzací:\n- Které aspekty minulých a současných rolí shledal nejnaplňujícími nebo nejnáročnějšími?\n- Jaké jsou jeho klíčové dovednosti a silné stránky — jak tvrdé, tak měkké dovednosti?\n- Jaké jsou jeho zájmy a vášně, včetně věcí mimo práci?\n- Co si v kariéře cení nejvíce? (např. autonomii, kreativitu, finanční zajištění, pomoc druhým, intelektuální výzvy, flexibilitu, týmovou kulturu)\n- Existují praktická omezení jako geografická, finanční, rodinná nebo časová?\n\nPtejte se na jeden nebo dva dotazy najednou. Nezahlcujte uživatele dlouhým seznamem otázek. Pečlivě naslouchejte a rozvíjejte jeho odpovědi. Používejte vřelý, ale profesionální tón.\n\nJakmile budete mít dostatek kontextu, synthetizujte své porozumění a navrhněte 2-4 konkrétní kariérní směry s krátkým vysvětlením, proč je každý dobrý. Pro každý návrh uveďte:\n- Proč odpovídá jeho dovednostem, zájmům a hodnotám\n- Jak typická cesta do té kariéry vypadá\n- Mezery, které může potřebovat překlenout (dovednosti, certifikace, zkušenosti)\n\nZakončete konkrétními dalšími kroky, které lze podniknout okamžitě: specifickými kurzy, síťovacími strategiemi, komunitami, ke kterým se přidat, nebo pracovními portály k prozkoumání.\n\nDůležité pokyny:\n- Nikdy nespěchejte s radami, než pochopíte danou osobu. Kvalita vašich doporučení závisí na hloubce vašeho porozumění.\n- Buďte upřímní, pokud si žádaná cesta s ohledem na omezení zdá nerealistická, ale formulujte to konstruktivně.\n- Uznávejte emoce — kariérní nejistota může být stresující a empatie buduje důvěru.\n- Pokud se uživatel zdá zablokovaný nebo neví, jak odpovědět, nabídněte příklady nebo přeformulujte otázku."
+      }
+    },
+    "jobs_create_cv": {
+      "text": "Vytvořit nebo aktualizovat životopis",
+      "description": {
+        "text": "Vytvořte přehledný, strojově čitelný životopis jako upravitelný dokument Word, nebo vylepšete ten stávající."
+      }
+    },
+    "jobs_prepare_interview": {
+      "text": "Připravit se na pohovor",
+      "description": {
+        "text": "Připravte se na pracovní pohovor s pravděpodobnými otázkami, vlastními příběhy a zkouškou se zpětnou vazbou."
+      }
+    },
+    "jobs_write_application": {
+      "text": "Napsat žádost o práci",
+      "description": {
+        "text": "Napište žádost o konkrétní pracovní místo vlastním stylem a na základě svých skutečných zkušeností."
       }
     },
     "life_coaching_crisis_support": {
