@@ -61,6 +61,7 @@ function runRejectedDiff(oldContent: Record<string, unknown>, newContent: Record
 }
 
 describe("assistant block corrections", () => {
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
   it("commits only the previous mutable tail on normal completion", () => {
     const streaming = createAssistantRenderPlan("One.\n\nTwo.", { phase: "streaming" });
     const completed = createAssistantRenderPlan("One.\n\nTwo.", {
@@ -73,6 +74,7 @@ describe("assistant block corrections", () => {
     ]);
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
   it("replaces only one locally corrected committed block", () => {
     const previous = createAssistantRenderPlan("One.\n\nBad quote.\n\nThree.", { phase: "final" });
     const corrected = createAssistantRenderPlan("One.\n\nVerified quote.\n\nThree.", {
@@ -87,6 +89,7 @@ describe("assistant block corrections", () => {
     expect(corrected.committed[2].id).toBe(previous.committed[2].id);
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
   it("targets each changed block without a full replacement operation", () => {
     const previous = createAssistantRenderPlan("One.\n\nTwo.\n\nThree.", { phase: "final" });
     const divergent = createAssistantRenderPlan("Changed one.\n\nTwo.\n\nChanged three.", {
@@ -103,6 +106,7 @@ describe("assistant block corrections", () => {
     );
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
   it("retries a rejected inline-to-block diff as one targeted block replacement", () => {
     const harness = runRejectedDiff(
       {
@@ -128,6 +132,7 @@ describe("assistant block corrections", () => {
     expect(harness.dispatched.mock.calls[0][0].doc.eq(harness.newDoc)).toBe(true);
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
   it("retries an inserted block without replacing shifted stable siblings", () => {
     const harness = runRejectedDiff(
       {
@@ -157,6 +162,7 @@ describe("assistant block corrections", () => {
     expect(harness.dispatched.mock.calls[0][0].doc.eq(harness.newDoc)).toBe(true);
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
   it("converges oversized documents with one bounded replacement transaction", () => {
     const paragraphs = Array.from({ length: 513 }, (_, index) => ({
       type: "paragraph",
@@ -176,5 +182,25 @@ describe("assistant block corrections", () => {
     expect(harness.result).toEqual({ applied: true, fallback: true, stepsApplied: 1 });
     expect(harness.dispatched).toHaveBeenCalledOnce();
     expect(harness.dispatched.mock.calls[0][0].doc.eq(harness.newDoc)).toBe(true);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
+  it("converges a message that became empty to the empty document instead of rejecting", () => {
+    const oldDoc = schema.nodeFromJSON({
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: "Thinking" }] }],
+    });
+    let state = EditorState.create({ doc: oldDoc });
+    const editor = {
+      isDestroyed: false,
+      get state() { return state; },
+      view: { dispatch: (tr: Parameters<EditorState["apply"]>[0]) => { state = state.apply(tr); } },
+    } as unknown as Editor;
+
+    const result = applyIncrementalUpdate(editor, { type: "doc", content: [] });
+
+    expect(result.applied).toBe(true);
+    expect(result.reason).toBeUndefined();
+    expect(state.doc.toJSON()).toEqual({ type: "doc", content: [{ type: "paragraph" }] });
   });
 });

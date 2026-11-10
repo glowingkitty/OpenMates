@@ -28,7 +28,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
-from code_run_real_test import ROOT, personal_test_environment, require_runtime_revision
+from code_run_real_test import ROOT, personal_test_environment
 from workflow_schedule_real_test import ProofError, sessions, write_receipt
 
 APP_URL = "https://app.dev.openmates.org"
@@ -77,6 +77,25 @@ def acquire_leases(session_id: str, timeout: int) -> list[tuple[str, str, set[st
         for lease_id, *_ in reversed(leases):
             sessions.release_test_resource_lease(lease_id)
         raise
+
+
+def require_runtime_revision(revision: str) -> None:
+    """The backend runtime checkout serves ``revision``: same commit, or an ancestor with identical backend files.
+
+    A deploy that changes only the web app leaves the runtime checkout on the previous commit.
+    """
+    checkout = str(sessions.PRODUCT_RUNTIME_CHECKOUT)
+    head = subprocess.run(["git", "-C", checkout, "rev-parse", "HEAD"],
+                          capture_output=True, text=True, check=False, timeout=10)
+    if head.returncode:
+        raise ProofError("deployed_runtime_revision_mismatch")
+    runtime = head.stdout.strip()
+    if runtime == revision:
+        return
+    for command in (["merge-base", "--is-ancestor", runtime, revision],
+                    ["diff", "--quiet", runtime, revision, "--", "backend"]):
+        if subprocess.run(["git", "-C", str(ROOT), *command], check=False, timeout=30).returncode:
+            raise ProofError("deployed_runtime_revision_mismatch")
 
 
 def require_frontend_revision(revision: str) -> None:
@@ -175,7 +194,7 @@ def main() -> int:
     except BaseException as exc:
         receipt["status"] = "failed"
         receipt["error_code"] = str(exc) if isinstance(exc, ProofError) else type(exc).__name__
-        if isinstance(exc, RuntimeError) and not leases:
+        if isinstance(exc, RuntimeError) and not isinstance(exc, ProofError) and not leases:
             receipt["error_code"] = "lease_unavailable"
     finally:
         stop.set()

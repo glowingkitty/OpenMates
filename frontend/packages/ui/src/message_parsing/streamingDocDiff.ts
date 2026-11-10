@@ -111,6 +111,13 @@ export function applyIncrementalUpdate(
     };
   }
 
+  // A document without blocks cannot replace content under `block+`. The empty
+  // message is the schema's filled empty document, as setContent would produce.
+  if (newDoc.childCount === 0) {
+    const filled = state.schema.topNodeType.createAndFill();
+    if (filled) newDoc = filled;
+  }
+
   // Quick equality check — if docs are identical, nothing to do
   if (oldDoc.eq(newDoc)) {
     return { applied: true, fallback: false, stepsApplied: 0 };
