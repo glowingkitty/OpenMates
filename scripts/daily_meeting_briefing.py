@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build the weekday daily meeting briefing, upload it privately, post the link to Discord.
 
-Pipeline (weekdays 10:00 Europe/Berlin via the dev-server crontab):
+Pipeline (weekdays 11:30 Europe/Berlin via the dev-server crontab):
   1. scripts/daily_meeting_context.py collect — deterministic evidence: Claude chats,
      git (incl. marketing repo), OpenMates Tasks, nightly tests, FOCUS.md, and Apple
      Reminders (live, or the copy `mac_reminders.py sync` refreshes every 30 minutes).
@@ -35,6 +35,7 @@ TZ = ZoneInfo("Europe/Berlin")
 PHASE_ANCHOR = date(2026, 11, 2)  # Monday of the first Marketing Week; weeks alternate
 WEBHOOK_KEYS = ("DISCORD_WEBHOOK_DAILY_MEETING", "DISCORD_WEBHOOK_DEV_NIGHTLY")
 LINK_SECONDS = 48 * 3600
+SCHEDULED_AT = (11, 30)  # Berlin time of the cron run; the crontab fires at 09:30 and 10:30 UTC
 
 
 def phase(day: date) -> tuple[str, date, date]:
@@ -70,20 +71,60 @@ prompts, the agent's final reply, timestamps). Return JSON only:
 """
 
 
+WAITING_PROMPT = """Each item is an AI coding-agent chat that waits for its solo founder. For \
+each one write ONE plain sentence (<= 25 words; no IDs, code, file names or jargon): what the \
+chat is about and what it needs from the founder now. Return JSON only:
+{"chats": [{"session": str, "summary": str}]}
+One entry per input chat. No secrets, emails or tokens. English. Chats:
+"""
+
+
+def _gemini_json(prompt: str) -> dict:
+    """One Gemini Flash call in the api container; raises on a failed run or a non-object reply."""
+    helper = (SCRIPTS / "_gemini_flash_container.py").read_text()
+    run = subprocess.run(["docker", "exec", "-i", "api", "python", "-c", helper],
+                         input=json.dumps({"prompt": prompt, "json": True}),
+                         capture_output=True, text=True, timeout=400)
+    if run.returncode:
+        raise RuntimeError(context.clean(run.stderr, 300))
+    reply = json.loads(run.stdout)
+    if not isinstance(reply, dict):
+        raise ValueError("reply is not a JSON object")
+    return reply
+
+
 def summarize_chats(chats: list[dict], gaps: list[str]) -> dict:
     if not chats:
         return {}
-    helper = (SCRIPTS / "_gemini_flash_container.py").read_text()
-    payload = json.dumps({"prompt": SUMMARY_PROMPT + json.dumps(chats, ensure_ascii=False), "json": True})
     try:
-        run = subprocess.run(["docker", "exec", "-i", "api", "python", "-c", helper], input=payload,
-                             capture_output=True, text=True, timeout=400)
-        if run.returncode:
-            raise RuntimeError(context.clean(run.stderr, 300))
-        return json.loads(run.stdout)
+        return _gemini_json(SUMMARY_PROMPT + json.dumps(chats, ensure_ascii=False))
     except (RuntimeError, ValueError, OSError, subprocess.TimeoutExpired) as error:
         gaps.append(f"Gemini chat summary failed ({context.clean(str(error), 200)}); appendix lists chat titles only")
         return {}
+
+
+def summarize_waiting(waiting: dict, gaps: list[str]) -> None:
+    """Give every waiting chat a one-line plain summary, so the meeting need not decode its last reply."""
+    chats = waiting.get("chats") or []
+    if not chats:
+        return
+    items = [{"session": c["session"], "title": c.get("title", ""), "task": c.get("task_title", ""),
+              "waiting_for": c.get("signal", ""), "last_prompt": c.get("last_prompt", ""),
+              "last_reply": c.get("last_reply", "")} for c in chats]
+    try:
+        reply = _gemini_json(WAITING_PROMPT + json.dumps(items, ensure_ascii=False))
+    except (RuntimeError, ValueError, OSError, subprocess.TimeoutExpired) as error:
+        gaps.append(f"One-line summaries of the waiting chats failed ({context.clean(str(error), 200)}); "
+                    "they show their last reply only")
+        return
+    lines = {row.get("session"): row.get("summary") for row in reply.get("chats") or [] if isinstance(row, dict)}
+    for chat in chats:
+        text = re.sub(r"\s+", " ", str(lines.get(chat["session"]) or "")).strip()
+        if text:
+            chat["summary"] = text[:240]
+    missing = sum(1 for chat in chats if not chat.get("summary"))
+    if missing:
+        gaps.append(f"{missing} waiting chat(s) got no one-line summary; they show their last reply only")
 
 
 # ── Markdown ──────────────────────────────────────────────────────────────────
@@ -143,7 +184,7 @@ summarize the "Alerts" section in a few sentences — reported production issues
 processed yet), then dev reports, then the errors that repeat most — and ask whether anything \
 needs attention before planning; production reports outrank everything else. Then the \
 **chats waiting on the founder**: one chat at a time (questions and blockers first), say in \
-one sentence what it is waiting for and ask what to do — continue (and with what reply), \
+one sentence what it is waiting for (use the chat's one-line summary in italics) and ask what to do — continue (and with what reply), \
 park, archive or done — with your recommendation. Stop after the top 3 chats if energy is low.
   - **Block 3 — Focus.** Agree **today's single focus** — propose one from the week's goals \
 and the founder's stated priorities — then up to **3 tasks**, each with done-criterion, \
@@ -310,8 +351,9 @@ def _waiting_section(waiting: dict) -> list[str]:
     for chat in chats:
         task = (f", Task \"{chat['task_title']}\" ({chat['task']})" if chat.get("task_title")
                 else f", Task {chat['task']}" if chat.get("task") else "")
-        out.append(f"- **{chat['title']}** (idle {chat['idle_hours']} h{task}; id `{chat['session'][:8]}`) — "
-                   f"{chat['signal']}: {chat['last_reply'][:300]}")
+        summary = f" — _{chat['summary']}_" if chat.get("summary") else ""
+        out.append(f"- **{chat['title']}**{summary} (idle {chat['idle_hours']} h{task}; "
+                   f"id `{chat['session'][:8]}`) — {chat['signal']}: {chat['last_reply'][:300]}")
     if waiting.get("omitted"):
         out.append(f"- plus {waiting['omitted']} more waiting chats (older or finished work), not listed")
     return out + [""]
@@ -401,8 +443,9 @@ def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> s
         pace = (f" At this week's rate it runs out **{usage['runs_out']}**, before the reset."
                 if usage.get("runs_out") else " At this week's rate it lasts until the reset.")
         out += ["", f"**Claude subscription — {left:.0f}% of the weekly limit left** "
-                    f"({usage['used_percent']:.0f}% used{elapsed}; resets {usage['resets']}).{pace} "
-                    "Plan agent work to fit what is left."]
+                    f"({usage['used_percent']:.0f}% used{elapsed}; resets {usage['resets']}; read at "
+                    f"{generated.astimezone(TZ):%H:%M}, the provider can change it later, so trust /usage "
+                    f"if it differs).{pace} Plan agent work to fit what is left."]
     else:
         out += ["", "**Claude subscription:** weekly usage unavailable (see data gaps)."]
     out += _alerts_section(ev.get("alerts") or {})
@@ -559,10 +602,16 @@ def _collect(root: Path, out: Path, today: date) -> dict:
     return json.loads((out / f"{today.isoformat()}-context.json").read_text())
 
 
+def in_scheduled_slot(local: datetime) -> bool:
+    """Cron fires at 09:30 and 10:30 UTC to cover CET and CEST; only the weekday 11:30 Berlin run proceeds."""
+    hour, minute = SCHEDULED_AT
+    return local.weekday() < 5 and local.hour == hour and local.minute >= minute
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--scheduled", action="store_true",
-                        help="cron mode: weekdays, only in the 10:xx Berlin hour, once per day")
+                        help="cron mode: weekdays, only from 11:30 to 11:59 Berlin, once per day")
     parser.add_argument("--force", action="store_true", help="rebuild even if today's briefing was sent")
     parser.add_argument("--no-send", action="store_true", help="build and upload, skip Discord")
     parser.add_argument("--no-upload", action="store_true", help="build only")
@@ -570,8 +619,8 @@ def main(argv: list[str] | None = None) -> int:
 
     now = datetime.now(timezone.utc)
     local = now.astimezone(TZ)
-    if args.scheduled and (local.weekday() >= 5 or local.hour != 10):
-        return 0  # cron fires at 08 and 09 UTC to cover CET/CEST; only 10:xx Berlin proceeds
+    if args.scheduled and not in_scheduled_slot(local):
+        return 0
     from agent_state import canonical_root
 
     root = canonical_root(SCRIPTS.parent)
@@ -593,6 +642,7 @@ def main(argv: list[str] | None = None) -> int:
             if not problems:
                 break
         summary = summarize_chats(evidence.get("claude_chats", []), evidence.setdefault("gaps", []))
+        summarize_waiting(evidence.get("waiting_chats") or {}, evidence["gaps"])
         path.write_text(render(evidence, summary, today, now))
         path.chmod(0o600)
         result: dict = {"briefing": str(path)}

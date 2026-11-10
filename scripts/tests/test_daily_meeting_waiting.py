@@ -83,3 +83,28 @@ def test_waiting_section_shows_plain_title_and_task_title_before_ids():
 
 def test_meeting_script_has_plain_language_rule():
     assert "Plain-language rule" in briefing.MEETING_SCRIPT
+
+
+def test_waiting_chats_get_a_one_line_plain_summary(monkeypatch):
+    chats = {"chats": [{"title": "Fable model", "session": "s1", "idle_hours": 11.0, "task": "", "signal": "asks you a question",
+                        "last_reply": "Enable cache billing?"},
+                       {"title": "Drafts", "session": "s2", "idle_hours": 20.0, "task": "", "signal": "asks you a question",
+                        "last_reply": "Fix both?"}]}
+    monkeypatch.setattr(briefing, "_gemini_json", lambda prompt: {"chats": [
+        {"session": "s1", "summary": "New model is live;\n it asks whether to bill cached tokens like other models."}]})
+    gaps: list[str] = []
+    briefing.summarize_waiting(chats, gaps)
+    text = "\n".join(briefing._waiting_section(chats))
+    assert "**Fable model** — _New model is live; it asks whether to bill cached tokens like other models._ (idle" in text
+    assert "**Drafts** (idle 20.0 h" in text and gaps == ["1 waiting chat(s) got no one-line summary; they show their last reply only"]
+
+
+def test_waiting_summary_failure_is_a_data_gap_not_a_crash(monkeypatch):
+    def broken(prompt):
+        raise RuntimeError("container down")
+    monkeypatch.setattr(briefing, "_gemini_json", broken)
+    chats, gaps = {"chats": [{"title": "t", "session": "s", "signal": "x", "last_reply": "y"}]}, []
+    briefing.summarize_waiting(chats, gaps)
+    assert "summary" not in chats["chats"][0] and "container down" in gaps[0]
+    briefing.summarize_waiting({}, gaps)
+    assert len(gaps) == 1

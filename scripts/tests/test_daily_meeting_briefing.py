@@ -50,3 +50,13 @@ def test_discord_text_carries_link_not_document():
 def test_meeting_script_asks_exactly_one_question_at_a_time():
     assert "exactly one question at a time" in briefing.MEETING_SCRIPT
     assert "at most 3 questions" not in briefing.MEETING_SCRIPT
+
+
+def test_scheduled_run_only_proceeds_on_weekdays_from_1130_berlin():
+    from datetime import datetime
+    berlin = briefing.TZ
+    assert briefing.in_scheduled_slot(datetime(2026, 11, 11, 11, 30, tzinfo=berlin))
+    assert briefing.in_scheduled_slot(datetime(2026, 7, 1, 11, 31, tzinfo=berlin))  # summer time
+    assert not briefing.in_scheduled_slot(datetime(2026, 11, 11, 10, 30, tzinfo=berlin))
+    assert not briefing.in_scheduled_slot(datetime(2026, 11, 11, 12, 30, tzinfo=berlin))
+    assert not briefing.in_scheduled_slot(datetime(2026, 11, 14, 11, 30, tzinfo=berlin))  # Saturday

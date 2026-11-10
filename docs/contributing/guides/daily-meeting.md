@@ -10,7 +10,8 @@ What may be worked on is defined in [`FOCUS.md`](../../../FOCUS.md)
    OpenMates and Personal Tasks reminders from the Mac (Tailscale) to
    `~/.local/state/openmates/reminders-cache.json` (private). The Mac is often
    offline in the morning, so the briefing uses the latest copy.
-2. **Weekdays 10:00 Europe/Berlin** `scripts/daily_meeting_briefing.py --scheduled`:
+2. **Weekdays 11:30 Europe/Berlin** `scripts/daily_meeting_briefing.py --scheduled` (the crontab fires at
+   09:30 and 10:30 UTC to cover winter and summer time; only the 11:30 Berlin run proceeds):
    - `scripts/daily_meeting_context.py collect` gathers Claude Code chats since
      the last meeting, commits (incl. `openmates-marketing`), OpenMates Tasks
      changes, nightly tests, open GitHub issues (`gh`) and Linear issues
@@ -73,7 +74,8 @@ GitHub via `gh issue close` (as not planned, with a comment), Linear via the API
 
 ## Alerts (production first)
 
-The briefing opens with an "Alerts" section, right after the usage line: reported issues of the
+The usage line states when it was read: the provider can lower or reset the figure after the briefing is
+built, so `/usage` wins if it differs. The briefing opens with an "Alerts" section, right after the usage line: reported issues of the
 last 48 h from production, then dev (with processed / not processed yet), and the most repeating
 ERROR/CRITICAL log messages of the last 24 h per server (ids and numbers masked so repeats group).
 Data comes from `backend/scripts/debug.py` via `scripts/daily_meeting_health.py`. Only short id,
@@ -97,7 +99,9 @@ identity for the Apple no-delete guard, which otherwise refused every cron run.
 After the alerts the briefing lists dev-server Claude Code chats whose last real message came
 from the assistant (idle at least 2 h, last 5 days; finished-work replies only within 36 h; chats
 whose Task is Done or that were dismissed in the last 14 days are skipped). Each shows what it is
-waiting for (question, blocker, done), its Task if linked, and the last reply. The meeting goes
+waiting for (question, blocker, done), its Task if linked, and the last reply, and opens with a one-line
+plain summary in italics (Gemini Flash: what the chat is about and what it needs from the founder; if that
+call fails the line is left out and a data gap says so). The meeting goes
 through them one at a time; answers go into the `Chats:` lines of the decisions note. Replies are
 sent by the dev-server Claude to the chat itself (`send_message`); only chats that cannot be reached get a printed reply. Data: `scripts/daily_meeting_waiting.py`.
 

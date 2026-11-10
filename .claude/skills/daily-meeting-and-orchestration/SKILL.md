@@ -6,7 +6,7 @@ description: Apply a pasted daily meeting decisions note (DECISIONS YYYY-MM-DD â
 # Daily meeting write-back
 
 The meeting itself happens by voice in the Claude app, from the briefing that
-`scripts/daily_meeting_briefing.py` uploads at 10:00 Berlin on weekdays (link
+`scripts/daily_meeting_briefing.py` uploads at 11:30 Berlin on weekdays (link
 posted to Discord). Its output is a decisions note the user pastes here:
 
 ```
