@@ -948,6 +948,10 @@
     -webkit-mask-image: url('@openmates/ui/static/icons/docs.svg');
     mask-image: url('@openmates/ui/static/icons/docs.svg');
   }
+  :global([data-skill-icon="slides"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/slides.svg');
+    mask-image: url('@openmates/ui/static/icons/slides.svg');
+  }
   :global([data-skill-icon="website"]) {
     -webkit-mask-image: url('@openmates/ui/static/icons/web.svg');
     mask-image: url('@openmates/ui/static/icons/web.svg');

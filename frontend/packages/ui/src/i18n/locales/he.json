@@ -2213,6 +2213,12 @@
       "day": {
         "text": "יום מזג אוויר"
       }
+    },
+    "slides": {
+      "text": "מצגות",
+      "description": {
+        "text": "צרו, ערכו והציגו מצגות."
+      }
     }
   },
   "apps_workspace": {},
@@ -7656,6 +7662,30 @@
       "unavailable": {
         "text": "הכותר אינו זמין"
       }
+    },
+    "slides_deck_default_title": {
+      "text": "מצגת"
+    },
+    "slides_count_singular": {
+      "text": "שקף"
+    },
+    "slides_count_plural": {
+      "text": "שקפים"
+    },
+    "slides_prev": {
+      "text": "השקף הקודם"
+    },
+    "slides_next": {
+      "text": "השקף הבא"
+    },
+    "slides_strip_label": {
+      "text": "שקפים"
+    },
+    "slides_slide_label": {
+      "text": "שקף"
+    },
+    "slides_no_content": {
+      "text": "עדיין אין שקפים."
     }
   },
   "embeds_input": {},

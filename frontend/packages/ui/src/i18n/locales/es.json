@@ -2213,6 +2213,12 @@
       "day": {
         "text": "Día meteorológico"
       }
+    },
+    "slides": {
+      "text": "Diapositivas",
+      "description": {
+        "text": "Crea, edita y presenta diapositivas."
+      }
     }
   },
   "apps_workspace": {},
@@ -7683,6 +7689,30 @@
       "unavailable": {
         "text": "Título no disponible"
       }
+    },
+    "slides_deck_default_title": {
+      "text": "Presentación"
+    },
+    "slides_count_singular": {
+      "text": "diapositiva"
+    },
+    "slides_count_plural": {
+      "text": "diapositivas"
+    },
+    "slides_prev": {
+      "text": "Diapositiva anterior"
+    },
+    "slides_next": {
+      "text": "Siguiente diapositiva"
+    },
+    "slides_strip_label": {
+      "text": "Diapositivas"
+    },
+    "slides_slide_label": {
+      "text": "Diapositiva"
+    },
+    "slides_no_content": {
+      "text": "Aún no hay diapositivas."
     }
   },
   "embeds_input": {},

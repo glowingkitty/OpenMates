@@ -1,0 +1,134 @@
+[
+  {
+    "label": "a",
+    "kind": "img",
+    "file": "img.png",
+    "ms": 560,
+    "parentHeapMB": 9.5,
+    "frameHeapMB": 9.5,
+    "rendered": false,
+    "blobUrl": "blob:http://127.0.0.1:38577/72",
+    "logs": [
+      "[console.error] Not allowed to load local resource: blob:http://127.0.0.1:38577/72d6a957-7e6f-47bb-bc56-d028254e68e1"
+    ]
+  },
+  {
+    "label": "a",
+    "kind": "video",
+    "file": "small.webm",
+    "ms": 8536,
+    "parentHeapMB": 9.5,
+    "frameHeapMB": 9.5,
+    "rendered": false,
+    "error": "4:MEDIA_ELEMENT_ERROR: Media load rejected by URL safety check",
+    "blobUrl": "blob:http://127.0.0.1:38577/95",
+    "logs": [
+      "[console.error] Not allowed to load local resource: blob:http://127.0.0.1:38577/959e66b2-53b5-4705-96a8-e084fcaacbf3"
+    ]
+  },
+  {
+    "label": "a",
+    "kind": "video",
+    "file": "big.webm",
+    "ms": 8655,
+    "parentHeapMB": 20.7,
+    "frameHeapMB": 20.7,
+    "rendered": false,
+    "error": "4:MEDIA_ELEMENT_ERROR: Media load rejected by URL safety check",
+    "blobUrl": "blob:http://127.0.0.1:38577/10",
+    "logs": [
+      "[console.error] Not allowed to load local resource: blob:http://127.0.0.1:38577/10d36873-3ec5-4c5f-a009-424a42f60783"
+    ]
+  },
+  {
+    "label": "b",
+    "kind": "img",
+    "file": "img.png",
+    "ms": 521,
+    "parentHeapMB": 9.5,
+    "frameHeapMB": 9.5,
+    "rendered": true,
+    "srcdocMB": 0,
+    "logs": []
+  },
+  {
+    "label": "b",
+    "kind": "video",
+    "file": "small.webm",
+    "ms": 1335,
+    "parentHeapMB": 9.5,
+    "frameHeapMB": 9.5,
+    "rendered": true,
+    "error": null,
+    "played": true,
+    "seeked": true,
+    "duration": 3,
+    "srcdocMB": 0,
+    "logs": []
+  },
+  {
+    "label": "b",
+    "kind": "video",
+    "file": "big.webm",
+    "ms": 4339,
+    "parentHeapMB": 77.6,
+    "frameHeapMB": 77.6,
+    "rendered": true,
+    "error": null,
+    "played": true,
+    "seeked": true,
+    "duration": 10,
+    "srcdocMB": 24.8,
+    "logs": []
+  },
+  {
+    "label": "c",
+    "kind": "img",
+    "file": "img.png",
+    "ms": 540,
+    "parentHeapMB": 9.5,
+    "frameHeapMB": 9.5,
+    "rendered": true,
+    "frameUrl": "blob:null/5e183cd6-55d1-4832-9703-fd0c85",
+    "plog": [
+      "parent got hello origin=null fromInner=true"
+    ],
+    "logs": []
+  },
+  {
+    "label": "c",
+    "kind": "video",
+    "file": "small.webm",
+    "ms": 1341,
+    "parentHeapMB": 9.5,
+    "frameHeapMB": 9.5,
+    "rendered": true,
+    "error": null,
+    "played": true,
+    "seeked": true,
+    "duration": 3,
+    "frameUrl": "blob:null/9ba093bc-4461-4ccb-bde9-dfa919",
+    "plog": [
+      "parent got hello origin=null fromInner=true"
+    ],
+    "logs": []
+  },
+  {
+    "label": "c",
+    "kind": "video",
+    "file": "big.webm",
+    "ms": 1500,
+    "parentHeapMB": 40.1,
+    "frameHeapMB": 40.1,
+    "rendered": true,
+    "error": null,
+    "played": true,
+    "seeked": true,
+    "duration": 10,
+    "frameUrl": "blob:null/10211fb1-cda1-420e-8228-70a147",
+    "plog": [
+      "parent got hello origin=null fromInner=true"
+    ],
+    "logs": []
+  }
+]

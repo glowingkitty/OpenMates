@@ -2534,6 +2534,12 @@
       "requirements_placeholder": {
         "text": "Describe what the results should match."
       }
+    },
+    "slides": {
+      "text": "Slides",
+      "description": {
+        "text": "Create, edit and present slide decks."
+      }
     }
   },
   "apps_workspace": {
@@ -9257,6 +9263,30 @@
       "unavailable": {
         "text": "Title unavailable"
       }
+    },
+    "slides_deck_default_title": {
+      "text": "Presentation"
+    },
+    "slides_count_singular": {
+      "text": "slide"
+    },
+    "slides_count_plural": {
+      "text": "slides"
+    },
+    "slides_prev": {
+      "text": "Previous slide"
+    },
+    "slides_next": {
+      "text": "Next slide"
+    },
+    "slides_strip_label": {
+      "text": "Slides"
+    },
+    "slides_slide_label": {
+      "text": "Slide"
+    },
+    "slides_no_content": {
+      "text": "No slides yet."
     }
   },
   "embeds_input": {

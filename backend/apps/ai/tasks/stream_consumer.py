@@ -88,6 +88,8 @@ from backend.apps.ai.utils.app_skill_json_cleanup import (
 from backend.apps.ai.utils.remotion_fences import (
     _is_remotion_video_fence,
 )
+from backend.apps.ai.utils.slides_fences import _is_slides_fence
+from backend.shared.python_utils.slides_markup import SlidesMarkupError, normalise_slides_markup
 from backend.apps.ai.utils.pcb_schematic_fences import (
     _extract_pcb_schematic_metadata,
     _is_pcb_schematic_fence,
@@ -2234,6 +2236,7 @@ async def _apply_diff_block_to_existing_embed(
                         (json.dumps(decoded.get("notebook"), ensure_ascii=False, indent=2) if decoded.get("notebook") else None) or
                         (decoded.get("content") if decoded.get("type") == "notebook" else None) or
                         (json.dumps(decoded.get("docx_model"), ensure_ascii=False, indent=2) if decoded.get("docx_model") else None) or
+                        decoded.get("slides_markup") or
                         decoded.get("table") or
                         ""
                     )
@@ -2361,6 +2364,28 @@ async def _apply_diff_block_to_existing_embed(
             }],
             queue="app_docs",
             output_kind="diff", output_version=new_version,
+        )
+    elif embed_type == "deck":
+        try:
+            new_deck = normalise_slides_markup(patch_result.new_content)
+        except SlidesMarkupError as exc:
+            logger.warning(f"{log_prefix} [DIFF_BLOCK] Patched deck is invalid: {exc}")
+            return _render_diff_visual_card(resolved_ref, diff_content, "result is not a valid deck")
+        version_history_rows[-1]["patch"] = build_committed_version_patch(current_content, new_deck.markup)
+        if new_version % 32 == 0:
+            version_history_rows[-1]["snapshot"] = new_deck.markup
+        await embed_service.update_deck_embed_content(
+            embed_id=target_embed_id,
+            deck=new_deck,
+            chat_id=request_data.chat_id,
+            user_id=request_data.user_id,
+            user_id_hash=request_data.user_id_hash,
+            user_vault_key_id=user_vault_key_id,
+            status="finished",
+            version_number=new_version,
+            content_hash=hashlib.sha256(new_deck.markup.encode("utf-8")).hexdigest(),
+            version_history_rows=version_history_rows,
+            log_prefix=log_prefix,
         )
     elif embed_type == "sheet":
         table_row_count = max(0, len(patch_result.new_content.splitlines()) - 2)
@@ -6111,6 +6136,36 @@ async def _create_application_preview_child_code_embeds(
     return "".join(embed_references)
 
 
+async def _create_slides_deck_embed_reference(
+    *,
+    embed_service: Any,
+    source: str,
+    request_data: AskSkillRequest,
+    task_id: str,
+    user_vault_key_id: str,
+    log_prefix: str,
+) -> str:
+    """Normalise a ```slides fence and create a finished deck embed; return its reference chunk."""
+    try:
+        deck = normalise_slides_markup(source)
+    except SlidesMarkupError as exc:
+        logger.warning("%s Slides fence rejected: %s", log_prefix, exc)
+        return f"```slides\n{source}```\n\n"
+    embed_data = await embed_service.create_deck_embed(
+        chat_id=request_data.chat_id,
+        message_id=request_data.message_id,
+        user_id=request_data.user_id,
+        user_id_hash=request_data.user_id_hash,
+        user_vault_key_id=user_vault_key_id,
+        deck=deck,
+        task_id=task_id,
+        log_prefix=log_prefix,
+    )
+    if not embed_data:
+        return f"```slides\n{source}```\n\n"
+    return f"```json\n{embed_data['embed_reference']}\n```\n\n"
+
+
 async def _create_remotion_video_embed_reference(
     *,
     embed_service: Any,
@@ -7770,7 +7825,22 @@ async def _consume_main_processing_stream(
                                 )
                                 is_remotion_block = _is_remotion_video_fence(current_code_language, current_code_filename)
 
-                                if is_remotion_block:
+                                if _is_slides_fence(current_code_language):
+                                    chunk = await _create_slides_deck_embed_reference(
+                                        embed_service=embed_service,
+                                        source=code_content,
+                                        request_data=request_data,
+                                        task_id=task_id,
+                                        user_vault_key_id=user_vault_key_id,
+                                        log_prefix=log_prefix,
+                                    )
+                                    in_code_block = False
+                                    current_code_language = ""
+                                    current_code_filename = None
+                                    current_code_content = ""
+                                    current_code_embed_id = None
+
+                                elif is_remotion_block:
                                     embed_reference_code = await _create_remotion_video_embed_reference(
                                         embed_service=embed_service,
                                         source=code_content,
@@ -8382,6 +8452,11 @@ async def _consume_main_processing_stream(
                             )
                             continue
 
+                        if _is_slides_fence(current_code_language):
+                            chunk = ""
+                            logger.info(f"{log_prefix} Deferring slides deck block until closing fence")
+                            continue
+
                         if _is_application_preview_combined_language(current_code_language):
                             chunk = ""
                             logger.info(
@@ -8818,6 +8893,11 @@ async def _consume_main_processing_stream(
                             logger.info(
                                 f"{log_prefix} Deferring Remotion video-create block until closing fence"
                             )
+                            continue
+
+                        if _is_slides_fence(current_code_language):
+                            chunk = ""
+                            logger.info(f"{log_prefix} Deferring slides deck block until closing fence")
                             continue
 
                         if _is_application_preview_combined_language(current_code_language):

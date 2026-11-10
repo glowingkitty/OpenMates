@@ -2213,6 +2213,12 @@
       "day": {
         "text": "Hari cuaca"
       }
+    },
+    "slides": {
+      "text": "Slide",
+      "description": {
+        "text": "Buat, edit, dan presentasikan slide."
+      }
     }
   },
   "apps_workspace": {},
@@ -7656,6 +7662,30 @@
       "unavailable": {
         "text": "Judul tidak tersedia"
       }
+    },
+    "slides_deck_default_title": {
+      "text": "Presentasi"
+    },
+    "slides_count_singular": {
+      "text": "slide"
+    },
+    "slides_count_plural": {
+      "text": "slide"
+    },
+    "slides_prev": {
+      "text": "Slide sebelumnya"
+    },
+    "slides_next": {
+      "text": "Slide berikutnya"
+    },
+    "slides_strip_label": {
+      "text": "Slide"
+    },
+    "slides_slide_label": {
+      "text": "Slide"
+    },
+    "slides_no_content": {
+      "text": "Belum ada slide."
     }
   },
   "embeds_input": {},

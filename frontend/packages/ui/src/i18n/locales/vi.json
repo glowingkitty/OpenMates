@@ -2213,6 +2213,12 @@
       "day": {
         "text": "Ngày thời tiết"
       }
+    },
+    "slides": {
+      "text": "Trang chiếu",
+      "description": {
+        "text": "Tạo, chỉnh sửa và trình chiếu các bản trình bày."
+      }
     }
   },
   "apps_workspace": {},
@@ -7656,6 +7662,30 @@
       "unavailable": {
         "text": "Không có thông tin tác phẩm"
       }
+    },
+    "slides_deck_default_title": {
+      "text": "Bản trình bày"
+    },
+    "slides_count_singular": {
+      "text": "trang chiếu"
+    },
+    "slides_count_plural": {
+      "text": "trang chiếu"
+    },
+    "slides_prev": {
+      "text": "Trang chiếu trước"
+    },
+    "slides_next": {
+      "text": "Trang chiếu sau"
+    },
+    "slides_strip_label": {
+      "text": "Trang chiếu"
+    },
+    "slides_slide_label": {
+      "text": "Trang chiếu"
+    },
+    "slides_no_content": {
+      "text": "Chưa có trang chiếu nào."
     }
   },
   "embeds_input": {},

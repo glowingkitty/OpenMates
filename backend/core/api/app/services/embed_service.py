@@ -44,6 +44,7 @@ from backend.core.api.app.utils.text_sanitization import (
     sanitize_text_simple,
 )
 from backend.apps.ai.utils.mindmap_fences import normalize_mindmap_source
+from backend.core.api.app.services.slides_embed_service import SlidesEmbedMixin
 from backend.apps.ai.utils.calendar_event_fences import normalize_calendar_event_source
 from backend.apps.ai.utils.json_content_fences import json_content_embed_type
 from backend.apps.ai.utils.app_skill_result_groups import sanitize_shopping_visual_evaluations
@@ -257,7 +258,7 @@ def _flatten_for_toon_tabular(obj: Any, prefix: str = "") -> Any:
         return obj
 
 
-class EmbedService:
+class EmbedService(SlidesEmbedMixin):
     """
     Service for creating and managing embeds from skill results.
 
@@ -730,6 +731,7 @@ class EmbedService:
             "code": ("code", "code"),
             "sheet": ("sheets", "sheet"),
             "document": ("docs", "document"),
+            "deck": ("slides", "deck"),
             "mail": ("mail", "email"),
             "math-plot": ("math", "plot"),
             "mermaid": ("diagrams", "mermaid"),

@@ -2213,6 +2213,12 @@
       "day": {
         "text": "天气日"
       }
+    },
+    "slides": {
+      "text": "幻灯片",
+      "description": {
+        "text": "创建、编辑和演示幻灯片。"
+      }
     }
   },
   "apps_workspace": {},
@@ -7656,6 +7662,30 @@
       "unavailable": {
         "text": "条目不可用"
       }
+    },
+    "slides_deck_default_title": {
+      "text": "演示文稿"
+    },
+    "slides_count_singular": {
+      "text": "张幻灯片"
+    },
+    "slides_count_plural": {
+      "text": "张幻灯片"
+    },
+    "slides_prev": {
+      "text": "上一张幻灯片"
+    },
+    "slides_next": {
+      "text": "下一张幻灯片"
+    },
+    "slides_strip_label": {
+      "text": "幻灯片"
+    },
+    "slides_slide_label": {
+      "text": "幻灯片"
+    },
+    "slides_no_content": {
+      "text": "还没有幻灯片。"
     }
   },
   "embeds_input": {},

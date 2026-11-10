@@ -469,6 +469,7 @@ describe("Embed Registry — content catalog", () => {
       "mindmaps.mindmap",
       "pdf.pdf",
       "sheets.sheet",
+      "slides.deck",
       "videos.video",
       "videos.rendered_video",
       "web.website",

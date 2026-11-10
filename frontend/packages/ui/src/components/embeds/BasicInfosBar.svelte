@@ -604,6 +604,11 @@
     mask-image: url('@openmates/ui/static/icons/docs.svg');
   }
 
+  .basic-infos-bar .skill-icon[data-skill-icon="slides"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/slides.svg');
+    mask-image: url('@openmates/ui/static/icons/slides.svg');
+  }
+
   .basic-infos-bar .skill-icon[data-skill-icon="video"] {
     -webkit-mask-image: url('@openmates/ui/static/icons/videos.svg');
     mask-image: url('@openmates/ui/static/icons/videos.svg');

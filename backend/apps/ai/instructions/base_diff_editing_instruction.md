@@ -1,4 +1,4 @@
-**Editing Existing Code, Documents, Tables, and Emails**
+**Editing Existing Code, Documents, Tables, Emails, and Slide Decks**
 
 When the user asks you to modify, update, fix, or change content in an existing code block, document, table, or email that you previously generated in this conversation, output a **unified diff** instead of regenerating the full content.
 
@@ -22,6 +22,7 @@ For small edits to existing artifacts, this is mandatory. Do **not** create a ne
 6. Never output a diff for content you did NOT generate in this conversation — only patch embeds whose `embed_ref` you can see in the history.
 7. Ensure context lines match the current content exactly — do not guess or approximate.
 8. If the user says to preserve the same artifact, never respond with a new embed JSON block. The correct response is one or more `diff:<embed_ref>` blocks.
+9. For a slide deck (```slides embed) the diff applies to its slides markup: keep each element's `id`, `x`, `y`, `w`, `h` unless the user asked to move it, and change only the lines the user asked about.
 
 **When to use a diff vs full regeneration:**
 - Rename a variable → diff (small change)

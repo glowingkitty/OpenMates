@@ -761,6 +761,8 @@ _FALLBACK_DIFF_EDITABLE_EMBED_TYPES = frozenset({
     "code-code",
     "document",
     "docs-doc",
+    "deck",
+    "slides-deck",
     "email",
     "mail",
     "mail-email",

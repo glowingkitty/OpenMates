@@ -2213,6 +2213,12 @@
       "day": {
         "text": "날씨 일자"
       }
+    },
+    "slides": {
+      "text": "슬라이드",
+      "description": {
+        "text": "슬라이드를 만들고, 편집하고, 발표하세요."
+      }
     }
   },
   "apps_workspace": {},
@@ -7656,6 +7662,30 @@
       "unavailable": {
         "text": "작품 정보 없음"
       }
+    },
+    "slides_deck_default_title": {
+      "text": "프레젠테이션"
+    },
+    "slides_count_singular": {
+      "text": "슬라이드"
+    },
+    "slides_count_plural": {
+      "text": "슬라이드"
+    },
+    "slides_prev": {
+      "text": "이전 슬라이드"
+    },
+    "slides_next": {
+      "text": "다음 슬라이드"
+    },
+    "slides_strip_label": {
+      "text": "슬라이드"
+    },
+    "slides_slide_label": {
+      "text": "슬라이드"
+    },
+    "slides_no_content": {
+      "text": "아직 슬라이드가 없습니다."
     }
   },
   "embeds_input": {},

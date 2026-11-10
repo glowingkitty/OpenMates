@@ -2213,6 +2213,12 @@
       "day": {
         "text": "يوم الطقس"
       }
+    },
+    "slides": {
+      "text": "العروض التقديمية",
+      "description": {
+        "text": "أنشئ العروض التقديمية وعدّلها وقدّمها."
+      }
     }
   },
   "apps_workspace": {},
@@ -7656,6 +7662,30 @@
       "unavailable": {
         "text": "العنوان غير متاح"
       }
+    },
+    "slides_deck_default_title": {
+      "text": "عرض تقديمي"
+    },
+    "slides_count_singular": {
+      "text": "شريحة"
+    },
+    "slides_count_plural": {
+      "text": "شرائح"
+    },
+    "slides_prev": {
+      "text": "الشريحة السابقة"
+    },
+    "slides_next": {
+      "text": "الشريحة التالية"
+    },
+    "slides_strip_label": {
+      "text": "الشرائح"
+    },
+    "slides_slide_label": {
+      "text": "شريحة"
+    },
+    "slides_no_content": {
+      "text": "لا توجد شرائح بعد."
     }
   },
   "embeds_input": {},

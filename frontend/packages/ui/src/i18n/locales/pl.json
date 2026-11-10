@@ -2213,6 +2213,12 @@
       "day": {
         "text": "Dzień pogody"
       }
+    },
+    "slides": {
+      "text": "Slajdy",
+      "description": {
+        "text": "Twórz, edytuj i prezentuj slajdy."
+      }
     }
   },
   "apps_workspace": {},
@@ -7656,6 +7662,30 @@
       "unavailable": {
         "text": "Tytuł niedostępny"
       }
+    },
+    "slides_deck_default_title": {
+      "text": "Prezentacja"
+    },
+    "slides_count_singular": {
+      "text": "slajd"
+    },
+    "slides_count_plural": {
+      "text": "slajdów"
+    },
+    "slides_prev": {
+      "text": "Poprzedni slajd"
+    },
+    "slides_next": {
+      "text": "Następny slajd"
+    },
+    "slides_strip_label": {
+      "text": "Slajdy"
+    },
+    "slides_slide_label": {
+      "text": "Slajd"
+    },
+    "slides_no_content": {
+      "text": "Brak slajdów."
     }
   },
   "embeds_input": {},

@@ -1136,6 +1136,35 @@ resolvers.set("document", docsResolver); // legacy server type
 // App-skill route for docs app
 resolvers.set("app:docs:doc", docsResolver);
 
+// ── Direct: slides (slides_markup deck) ──────────────────────────────────────
+
+const slidesDeckResolver: PreviewResolver = async ({
+  embedId,
+  decodedContent,
+  embedData,
+  onFullscreen,
+}) => {
+  const { default: component } =
+    await import("../components/embeds/slides/SlidesDeckEmbedPreview.svelte");
+  return {
+    component,
+    props: {
+      id: embedId,
+      status: normalizeStatus(embedData.status) as
+        | "processing"
+        | "finished"
+        | "error",
+      title: decodedContent.title || "",
+      slideCount: decodedContent.slide_count || 0,
+      slidesMarkup: decodedContent.slides_markup || "",
+      isMobile: false,
+      onFullscreen,
+    },
+  };
+};
+resolvers.set("slides-deck", slidesDeckResolver);
+resolvers.set("deck", slidesDeckResolver); // backend type name
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /**

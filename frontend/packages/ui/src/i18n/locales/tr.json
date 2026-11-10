@@ -2213,6 +2213,12 @@
       "day": {
         "text": "Hava günü"
       }
+    },
+    "slides": {
+      "text": "Slaytlar",
+      "description": {
+        "text": "Slayt desteleri oluşturun, düzenleyin ve sunun."
+      }
     }
   },
   "apps_workspace": {},
@@ -7656,6 +7662,30 @@
       "unavailable": {
         "text": "Başlık mevcut değil"
       }
+    },
+    "slides_deck_default_title": {
+      "text": "Sunum"
+    },
+    "slides_count_singular": {
+      "text": "slayt"
+    },
+    "slides_count_plural": {
+      "text": "slayt"
+    },
+    "slides_prev": {
+      "text": "Önceki slayt"
+    },
+    "slides_next": {
+      "text": "Sonraki slayt"
+    },
+    "slides_strip_label": {
+      "text": "Slaytlar"
+    },
+    "slides_slide_label": {
+      "text": "Slayt"
+    },
+    "slides_no_content": {
+      "text": "Henüz slayt yok."
     }
   },
   "embeds_input": {},

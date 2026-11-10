@@ -2213,6 +2213,12 @@
       "day": {
         "text": "Weerdag"
       }
+    },
+    "slides": {
+      "text": "Dia's",
+      "description": {
+        "text": "Maak, bewerk en presenteer diavoorstellingen."
+      }
     }
   },
   "apps_workspace": {},
@@ -7656,6 +7662,30 @@
       "unavailable": {
         "text": "Titel niet beschikbaar"
       }
+    },
+    "slides_deck_default_title": {
+      "text": "Presentatie"
+    },
+    "slides_count_singular": {
+      "text": "dia"
+    },
+    "slides_count_plural": {
+      "text": "dia's"
+    },
+    "slides_prev": {
+      "text": "Vorige dia"
+    },
+    "slides_next": {
+      "text": "Volgende dia"
+    },
+    "slides_strip_label": {
+      "text": "Dia's"
+    },
+    "slides_slide_label": {
+      "text": "Dia"
+    },
+    "slides_no_content": {
+      "text": "Nog geen dia's."
     }
   },
   "embeds_input": {},

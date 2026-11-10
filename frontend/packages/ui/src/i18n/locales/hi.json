@@ -2213,6 +2213,12 @@
       "day": {
         "text": "मौसम दिन"
       }
+    },
+    "slides": {
+      "text": "स्लाइड",
+      "description": {
+        "text": "स्लाइड डेक बनाएं, संपादित करें और प्रस्तुत करें।"
+      }
     }
   },
   "apps_workspace": {},
@@ -7656,6 +7662,30 @@
       "unavailable": {
         "text": "शीर्षक उपलब्ध नहीं"
       }
+    },
+    "slides_deck_default_title": {
+      "text": "प्रस्तुति"
+    },
+    "slides_count_singular": {
+      "text": "स्लाइड"
+    },
+    "slides_count_plural": {
+      "text": "स्लाइड"
+    },
+    "slides_prev": {
+      "text": "पिछली स्लाइड"
+    },
+    "slides_next": {
+      "text": "अगली स्लाइड"
+    },
+    "slides_strip_label": {
+      "text": "स्लाइड"
+    },
+    "slides_slide_label": {
+      "text": "स्लाइड"
+    },
+    "slides_no_content": {
+      "text": "अभी कोई स्लाइड नहीं है।"
     }
   },
   "embeds_input": {},

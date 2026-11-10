@@ -2529,6 +2529,12 @@
       "requirements_placeholder": {
         "text": "Beschreibe, was die Ergebnisse erfüllen sollen."
       }
+    },
+    "slides": {
+      "text": "Folien",
+      "description": {
+        "text": "Erstelle, bearbeite und präsentiere Foliensätze."
+      }
     }
   },
   "apps_workspace": {
@@ -9228,6 +9234,30 @@
       "unavailable": {
         "text": "Titel nicht verfügbar"
       }
+    },
+    "slides_deck_default_title": {
+      "text": "Präsentation"
+    },
+    "slides_count_singular": {
+      "text": "Folie"
+    },
+    "slides_count_plural": {
+      "text": "Folien"
+    },
+    "slides_prev": {
+      "text": "Vorherige Folie"
+    },
+    "slides_next": {
+      "text": "Nächste Folie"
+    },
+    "slides_strip_label": {
+      "text": "Folien"
+    },
+    "slides_slide_label": {
+      "text": "Folie"
+    },
+    "slides_no_content": {
+      "text": "Noch keine Folien."
     }
   },
   "embeds_input": {

@@ -2213,6 +2213,12 @@
       "day": {
         "text": "Dia do tempo"
       }
+    },
+    "slides": {
+      "text": "Slides",
+      "description": {
+        "text": "Crie, edite e apresente slides."
+      }
     }
   },
   "apps_workspace": {},
@@ -7683,6 +7689,30 @@
       "unavailable": {
         "text": "Título indisponível"
       }
+    },
+    "slides_deck_default_title": {
+      "text": "Apresentação"
+    },
+    "slides_count_singular": {
+      "text": "slide"
+    },
+    "slides_count_plural": {
+      "text": "slides"
+    },
+    "slides_prev": {
+      "text": "Slide anterior"
+    },
+    "slides_next": {
+      "text": "Próximo slide"
+    },
+    "slides_strip_label": {
+      "text": "Slides"
+    },
+    "slides_slide_label": {
+      "text": "Slide"
+    },
+    "slides_no_content": {
+      "text": "Ainda não há slides."
     }
   },
   "embeds_input": {},

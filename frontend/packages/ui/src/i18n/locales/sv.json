@@ -2213,6 +2213,12 @@
       "day": {
         "text": "Väderdag"
       }
+    },
+    "slides": {
+      "text": "Bildspel",
+      "description": {
+        "text": "Skapa, redigera och presentera bildspel."
+      }
     }
   },
   "apps_workspace": {},
@@ -7656,6 +7662,30 @@
       "unavailable": {
         "text": "Titeln är inte tillgänglig"
       }
+    },
+    "slides_deck_default_title": {
+      "text": "Presentation"
+    },
+    "slides_count_singular": {
+      "text": "bild"
+    },
+    "slides_count_plural": {
+      "text": "bilder"
+    },
+    "slides_prev": {
+      "text": "Föregående bild"
+    },
+    "slides_next": {
+      "text": "Nästa bild"
+    },
+    "slides_strip_label": {
+      "text": "Bilder"
+    },
+    "slides_slide_label": {
+      "text": "Bild"
+    },
+    "slides_no_content": {
+      "text": "Inga bilder än."
     }
   },
   "embeds_input": {},

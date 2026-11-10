@@ -2213,6 +2213,12 @@
       "day": {
         "text": "วันสภาพอากาศ"
       }
+    },
+    "slides": {
+      "text": "สไลด์",
+      "description": {
+        "text": "สร้าง แก้ไข และนำเสนอสไลด์"
+      }
     }
   },
   "apps_workspace": {},
@@ -7656,6 +7662,30 @@
       "unavailable": {
         "text": "ไม่มีข้อมูลเรื่อง"
       }
+    },
+    "slides_deck_default_title": {
+      "text": "การนำเสนอ"
+    },
+    "slides_count_singular": {
+      "text": "สไลด์"
+    },
+    "slides_count_plural": {
+      "text": "สไลด์"
+    },
+    "slides_prev": {
+      "text": "สไลด์ก่อนหน้า"
+    },
+    "slides_next": {
+      "text": "สไลด์ถัดไป"
+    },
+    "slides_strip_label": {
+      "text": "สไลด์"
+    },
+    "slides_slide_label": {
+      "text": "สไลด์"
+    },
+    "slides_no_content": {
+      "text": "ยังไม่มีสไลด์"
     }
   },
   "embeds_input": {},

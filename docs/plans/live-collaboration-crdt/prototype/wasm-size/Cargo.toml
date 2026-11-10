@@ -1,0 +1,30 @@
+# Measures the wasm32 code-size cost of each CRDT engine in isolation (no wasm-bindgen,
+# no openmates code). Build with exactly one feature; compare against `--features none`.
+[package]
+name = "crdt-wasm-size"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[lib]
+crate-type = ["cdylib"]
+path = "src/lib.rs"
+
+[features]
+none = []
+yrs = ["dep:yrs"]
+loro = ["dep:loro"]
+
+[dependencies]
+yrs = { version = "=0.28.1", optional = true }
+loro = { version = "=1.17.1", optional = true }
+getrandom = { version = "0.3", features = ["wasm_js"] }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

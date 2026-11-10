@@ -50,6 +50,7 @@ import WebReadEmbedPreview from "../../../embeds/web/WebReadEmbedPreview.svelte"
 import BrowseEmbedPreview from "../../../embeds/web/BrowseEmbedPreview.svelte";
 import CodeGetDocsEmbedPreview from "../../../embeds/code/CodeGetDocsEmbedPreview.svelte";
 import DocsEmbedPreview from "../../../embeds/docs/DocsEmbedPreview.svelte";
+import { mountSlidesDeckPreview } from "./slidesDeckMount";
 import { docxModelToHtml } from "../../../embeds/docs/docsEmbedContent";
 import SheetEmbedPreview from "../../../embeds/sheets/SheetEmbedPreview.svelte";
 import ReminderEmbedPreview from "../../../embeds/reminder/ReminderEmbedPreview.svelte";
@@ -402,6 +403,13 @@ export class GroupRenderer implements EmbedRenderer {
         "docs-doc",
         (item, embedData, decodedContent, content) =>
           this.renderDocsComponent(item, embedData, decodedContent, content),
+      ],
+      [
+        "slides-deck",
+        (item, embedData, decodedContent, content) =>
+          mountSlidesDeckPreview(item, decodedContent, content, () =>
+            this.openFullscreen(item, embedData, decodedContent),
+          ),
       ],
       [
         "sheets-sheet",
