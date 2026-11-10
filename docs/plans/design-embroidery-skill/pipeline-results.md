@@ -176,7 +176,7 @@ not the area. The estimate now counts area and outline length (formula under
 The estimates are the fitted formula applied to the measured shapes. Ink/Stitch
 speed varies far more than the stitch count: 171 stitches/s (stars with border)
 to 1,364 stitches/s; the hoop-filling spotted ornament needed 125 s of Ink/Stitch
-and 150 s of sandbox time, close to the 180 s limit.
+and 150 s of sandbox time, close to the 180 s limit that applied then; the limit is now 600 s.
 
 Fill the hoop (`fit_hoop`, assertion `design-embroidery.prepare.fill-the-hoop`):
 the design is prepared once to learn its proportions, then sized so the design

@@ -2,8 +2,8 @@
 
 Every invocation is a registered generated-media batch: the parent
 ``app_skill_use`` embed is closed by ``run_generated_media_batch`` around the one
-result child that ``run_embroidery`` publishes. The time limits cover the 180 s
-sandbox run plus one model rework.
+result child that ``run_embroidery`` publishes. The time limits cover two 600 s
+sandbox runs (one more after a model rework) plus the rework itself.
 """
 
 from __future__ import annotations
@@ -23,8 +23,8 @@ TASK_NAME = "apps.design.tasks.skill_embroidery"
     name=TASK_NAME,
     base=BaseServiceTask,
     queue="app_images",
-    soft_time_limit=420,
-    time_limit=480,
+    soft_time_limit=1500,
+    time_limit=1560,
 )
 def embroidery_task(self: BaseServiceTask, app_id: str, skill_id: str, arguments: dict[str, Any]) -> dict[str, Any]:
     """Run the registered request batch; a payload without one is rejected explicitly."""

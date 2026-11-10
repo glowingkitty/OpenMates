@@ -94,8 +94,9 @@ def test_design_too_slow_to_convert_fails_before_inkstitch(tmp_path: Path, monke
 
     monkeypatch.setattr(pipeline, "_run_inkstitch", never_called)
     options = Options.from_dict({"width_mm": 400.0, "hoop": "none", "fabric": "normal"})
+    # About 134,000 estimated stitches need 191 s at the minimum rate; only 175 s of the run are left.
     with pytest.raises(PipelineError) as raised:
-        pipeline.run_convert(tmp_path, options, pipeline.time.monotonic())
+        pipeline.run_convert(tmp_path, options, pipeline.time.monotonic() - 420)
     assert raised.value.code == "too_many_stitches"
     assert raised.value.user_message == pipeline.TOO_SLOW_MESSAGE
 

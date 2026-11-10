@@ -5,7 +5,7 @@
 # internet access and no public traffic, and always kills it on exit. It uploads
 # the pipeline package (backend/apps/design/embroidery_sandbox, read as data and
 # never imported here) plus the untrusted SVG, runs the pipeline under a hard
-# 180 s limit and returns the delivered files as bytes. The worker never parses
+# 600 s limit and returns the delivered files as bytes. The worker never parses
 # the SVG geometry itself.
 
 from __future__ import annotations
@@ -33,10 +33,11 @@ EMBROIDERY_TEMPLATE_NAME = "openmates-embroidery"  # built by backend/scripts/bu
 PIPELINE_DIR = Path(__file__).resolve().parents[2] / "apps" / "design" / "embroidery_sandbox"
 PIPELINE_PACKAGE = "embroidery_sandbox"
 SANDBOX_ROOT = "/home/user/embroidery"
-RUN_LIMIT_SECONDS = 180
+RUN_LIMIT_SECONDS = 600
 COMMAND_GRACE_SECONDS = 15
-# E2B kills the sandbox by itself after this, even if our process dies first.
-SANDBOX_LIFETIME_SECONDS = 900
+# E2B kills the sandbox by itself after this, even if our process dies first. Covers the
+# check, one conversion and one more conversion after a model rework.
+SANDBOX_LIFETIME_SECONDS = 1500
 MAX_SOURCE_SVG_CHARS = 400_000
 MAX_FILE_BYTES = 25_000_000
 FILE_KEYS = ("dst", "pes", "exp", "jef", "vp3", "preview", "preview_transparent", "prepared_svg", "stitches")
@@ -307,12 +308,12 @@ class EmbroiderySession:
                                                 format="bytes"))
         except CommandExitException as exc:
             if exc.exit_code in TIMEOUT_EXIT_CODES:
-                raise EmbroideryError("timeout", "The conversion took longer than the 3 minute limit "
+                raise EmbroideryError("timeout", "The conversion took longer than the 10 minute limit "
                                                  "and was stopped.") from exc
             logger.warning("Embroidery pipeline exited with %s: %s", exc.exit_code, (exc.stderr or "")[-2000:])
             raise EmbroideryError("sandbox_failed", "The embroidery converter failed unexpectedly.") from exc
         except TimeoutException as exc:
-            raise EmbroideryError("timeout", "The conversion took longer than the 3 minute limit "
+            raise EmbroideryError("timeout", "The conversion took longer than the 10 minute limit "
                                              "and was stopped.") from exc
         except SandboxException as exc:
             raise EmbroideryError("sandbox_failed", "The embroidery converter failed unexpectedly.") from exc

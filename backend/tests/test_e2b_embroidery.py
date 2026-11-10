@@ -120,7 +120,7 @@ def test_convert_runs_isolated_and_always_kills_the_sandbox() -> None:
     run = asyncio.run(scenario())
     assert created == [{
         "template": "tmpl-123", "api_key": "test-key", "secure": True, "allow_internet_access": False,
-        "network": {"allow_public_traffic": False}, "timeout": 900,
+        "network": {"allow_public_traffic": False}, "timeout": 1500,
         "metadata": {"openmates_purpose": "design_embroidery"},
     }]
     assert sandbox.killed
@@ -130,8 +130,8 @@ def test_convert_runs_isolated_and_always_kills_the_sandbox() -> None:
     uploaded = {path.rsplit("/", 1)[-1] for path in sandbox.store if "/embroidery_sandbox/" in path}
     assert uploaded == set(UPLOADED_MODULES)
     command, kwargs = sandbox.commands_run[-1]
-    assert "timeout -s KILL 180s python -m embroidery_sandbox.pipeline convert" in command
-    assert kwargs["timeout"] == 195
+    assert "timeout -s KILL 600s python -m embroidery_sandbox.pipeline convert" in command
+    assert kwargs["timeout"] == 615
     options = json.loads(sandbox.store["/home/user/embroidery/run1/options.json"])
     assert options == {"width_mm": 90.0, "hoop": "130x180", "fabric": "normal"}
     seconds = session.sandbox_seconds

@@ -6733,6 +6733,12 @@ async def handle_main_processing(
         generated_embed_refs = list(resume_checkpoint.get("generated_embed_refs") or [])
         generated_embed_aliases = dict(resume_checkpoint.get("generated_embed_aliases") or {})
         authored_inline_outputs = list(resume_checkpoint.get("authored_inline_outputs") or [])
+        from backend.shared.python_utils.generated_media_graph import generated_output_file_index
+        same_turn_file_index = generated_output_file_index(authored_inline_outputs)
+        if same_turn_file_index:
+            request_data.embed_file_path_index = {
+                **(request_data.embed_file_path_index or {}), **same_turn_file_index,
+            }
         start_iteration = int(resume_checkpoint["next_iteration"])
         from backend.apps.ai.tasks.same_turn_skill_barrier import selected_resume_route
         try:

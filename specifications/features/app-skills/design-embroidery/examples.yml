@@ -117,6 +117,14 @@ billing:
     given: A conversion without model rework that keeps the sandbox running for 21 seconds.
     when: The result is delivered.
     then: The user is charged 5 credits.
+  - id: long-conversion-charged-in-full
+    given: >
+      A user with 20 credits and a large detailed design that keeps the sandbox running for 7 minutes and
+      10 seconds.
+    when: The result is delivered.
+    then: >
+      The conversion started because 20 credits cover the three reserved minutes. The user is charged 40 credits
+      for 8 started minutes and the balance is 20 credits below zero until credits are bought again.
   - id: rework-adds-tokens
     given: A conversion with one model rework and 48 seconds of sandbox time.
     when: The result is delivered.

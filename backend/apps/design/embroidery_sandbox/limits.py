@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 MAX_SOURCE_SVG_CHARS = 400_000
 MAX_STITCHES = 150_000
-RUN_LIMIT_SECONDS = 180
+RUN_LIMIT_SECONDS = 600
 MIN_WIDTH_MM = 20.0
 MAX_WIDTH_MM = 400.0
 MAX_COLOURS_WITHOUT_FINDING = 12
@@ -35,7 +35,7 @@ ERROR_MESSAGES: dict[str, str] = {
         "The design is too large to sew in one piece (more than 150,000 stitches). "
         "Try a smaller width."
     ),
-    "timeout": "The conversion took longer than the 3 minute limit and was stopped.",
+    "timeout": "The conversion took longer than the 10 minute limit and was stopped.",
     "sandbox_failed": "The embroidery converter failed unexpectedly.",
 }
 

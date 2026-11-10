@@ -24,8 +24,10 @@ logger = logging.getLogger(__name__)
 
 INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
 SANDBOX_MODEL_REF = "e2b/sandbox"
-# Balance check before work starts; the sandbox stops after 180 s (3 started minutes).
-MAX_SANDBOX_SECONDS = 180
+# Balance check before work starts: three started sandbox minutes are reserved, although a
+# conversion may run for up to 10 minutes. A longer run is charged in full afterwards and
+# may take the balance slightly below zero (overdraft policy, docs/architecture/billing.md).
+RESERVED_SANDBOX_SECONDS = 180
 REWORK_ESTIMATE_OUTPUT_TOKENS = 8_000
 
 PricingLookup = Callable[[str], Awaitable[dict[str, Any] | None]]
@@ -97,8 +99,8 @@ async def embroidery_credits(
 async def estimate_embroidery_credits(
     *, svg_chars: int, rework_possible: bool, rework_model: str, pricing_for: PricingLookup | None = None,
 ) -> int:
-    """Upper estimate for the balance check: a full sandbox run plus one rework when one may run."""
-    estimate = script_run_credits(MAX_SANDBOX_SECONDS)
+    """Reserve for the balance check: three sandbox minutes plus one rework when one may run."""
+    estimate = script_run_credits(RESERVED_SANDBOX_SECONDS)
     if rework_possible:
         rules = _token_rules(await (pricing_for or fetch_model_pricing)(rework_model), rework_model)
         input_tokens = svg_chars // 3 + 1_500

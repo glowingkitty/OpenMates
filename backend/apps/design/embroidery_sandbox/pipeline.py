@@ -65,7 +65,7 @@ MIN_STITCHES_PER_SECOND = 700
 FILL_UNDERLAY_EXTRA = {"light": 0.0, "normal": 0.0, "stretchy": 0.4}
 # Ink/Stitch start, realistic render and report on top of the stitch planning.
 FIXED_CONVERT_SECONDS = 10
-TOO_SLOW_MESSAGE = ("The design has too many stitches to convert within the 3 minute limit. "
+TOO_SLOW_MESSAGE = ("The design has too many stitches to convert within the 10 minute limit. "
                     "Try a smaller width.")
 # The pipeline stops itself a little before the provider's hard kill so it can
 # still report a clean timeout.

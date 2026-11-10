@@ -219,7 +219,7 @@ def test_celery_task_is_registered_on_the_images_worker() -> None:
 
     assert TASK_NAME == "apps.design.tasks.skill_embroidery"
     assert embroidery_task.name == TASK_NAME and embroidery_task.queue == "app_images"
-    assert embroidery_task.soft_time_limit == 420 and embroidery_task.time_limit == 480
+    assert embroidery_task.soft_time_limit == 1500 and embroidery_task.time_limit == 1560
 
 
 # contract-test: direct surface=gui.web assertions=design-embroidery.result.view-and-download,design-embroidery.convert.sandbox-inkstitch

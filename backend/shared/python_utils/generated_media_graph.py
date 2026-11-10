@@ -327,6 +327,21 @@ def authenticated_generated_outputs(
     return {ref: row for ref, row in outputs.items() if ref not in conflicts}
 
 
+def generated_output_file_index(authored_outputs: Sequence[Mapping[str, Any]]) -> dict[str, str]:
+    """Map this turn's finished generated refs and filenames to their embed IDs.
+
+    Lets a later skill call in the same turn (vectorize, modify, embroidery)
+    name a result that an earlier call in that turn produced.
+    """
+    index: dict[str, str] = {}
+    for ref, output in authenticated_generated_outputs(authored_outputs).items():
+        index[ref] = output["embed_id"]
+        filename = output.get("filename")
+        if isinstance(filename, str) and filename:
+            index[filename] = output["embed_id"]
+    return index
+
+
 def generated_image_filename(prompt: str, embed_id: str, extension: str) -> str:
     """Create a bounded download-safe name tied to this generated image identity."""
     import unicodedata
