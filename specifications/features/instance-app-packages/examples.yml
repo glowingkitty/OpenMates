@@ -59,6 +59,13 @@ contract:
   when: Events search assembles the response.
   then: That request shows a safe provider error, the other request still shows its events, and no internal details
     are exposed.
+- id: jobs-installed-provider-answers-coverage-gap
+  assertion_ids: [instance-app-packages.provider-contract, instance-app-packages.no-installed-provider-charges]
+  given: my_provider targets Jobs search with contract jobs.search@1, and the built-in source covers only Sweden.
+  when: Alice searches jobs in Germany and, in a second request, in Sweden.
+  then: The Germany request is answered by my_provider alone, without the built-in coverage-gap error and without
+    credits; the Sweden request shows built-in and my_provider listings interleaved, deduplicated by URL, each
+    labelled with its source, and is charged as before.
 - id: generic-results-interleaved
   assertion_ids: [instance-app-packages.provider-contract]
   given: Two installed providers serve the same paused skill through skill.requests@1; the first returns three

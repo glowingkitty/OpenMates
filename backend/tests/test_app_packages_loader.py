@@ -364,3 +364,21 @@ def test_flag_off_charges_everything(monkeypatch, tmp_path):
     group = {"results": [_event(PROVIDER_ID)], "providers": [PROVIDER_ID]}
     assert billing.chargeable_request_units("events", "search", 1, {"results": [group]}) == 1
 
+
+
+HOSTED_FLAG_CASES = [
+    ("", "production", True),
+    ("self_host", "production", True),
+    ("official_cloud", "development", True),
+    ("official_cloud", "production", False),
+    ("official_cloud", "", False),
+]
+
+
+# contract-test: direct surface=rest_api assertions=instance-app-packages.instance-availability
+@pytest.mark.parametrize(("mode", "environment", "expected"), HOSTED_FLAG_CASES)
+def test_flag_is_ignored_on_a_hosted_production_server(monkeypatch, mode, environment, expected):
+    monkeypatch.setenv(loader.ENABLED_ENV, "true")
+    monkeypatch.setenv("OPENMATES_DEPLOYMENT_MODE", mode)
+    monkeypatch.setenv("SERVER_ENVIRONMENT", environment)
+    assert loader.app_packages_enabled() is expected

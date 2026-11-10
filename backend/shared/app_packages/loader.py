@@ -102,7 +102,14 @@ class InvalidPackage(ValueError):
 
 
 def app_packages_enabled() -> bool:
-    return os.getenv(ENABLED_ENV, "").strip().lower() == "true"
+    """Flag state; always off on a hosted production server, where packaged providers are not billed."""
+    if os.getenv(ENABLED_ENV, "").strip().lower() != "true":
+        return False
+    hosted_production = (
+        os.getenv("OPENMATES_DEPLOYMENT_MODE", "") == "official_cloud"
+        and os.getenv("SERVER_ENVIRONMENT", "") != "development"
+    )
+    return not hosted_production
 
 
 def package_mount() -> Path:

@@ -152,16 +152,31 @@ entries. Results are never trusted to decide billing.
 ## Contracts
 
 A built-in skill opts in with `provider_contract: <app>.<skill>@<n>` in its
-`app.yml` skill definition. Paused skills without any provider accept the
+`app.yml` skill definition (today Events search and Jobs search). Paused skills without any provider accept the
 generic `skill.requests@1` contract without any `app.yml` change.
 
 | Contract | Target | Input | Output result |
 |---|---|---|---|
 | `events.search@1` | skills with `provider_contract: events.search@1` | one `EventsSearchRequestItem` (`query`, `location`, `lat`, `lon`, `start_date`, `end_date`, `event_type`, `count`, `past_events`) | `EventResult`: `title`, `url` (http/https), `date_start` (ISO 8601) required; optional `date_end`, `description`, `venue` (object), `event_type`, `organizer`, `fee`, `image_url` |
+| `jobs.search@1` | skills with `provider_contract: jobs.search@1` | one validated `JobsSearchRequestItem` (`model_dump(exclude_none)`) with the resolved `countries` list and the candidate `limit`; `provider`, `providers` and `country` are removed | `job_result`: `id`, `title`, `url` (http/https) required; optional `company`, `apply_url`, `location`, `country`, `remote` (bool), `employment_type`, `published_at`, `valid_through` (ISO 8601), `description` (up to 20,000 chars), `sector`, `role`, `seniority`, `organization_type`, `work_arrangement`, `salary_text`, `impact`, `detail_status`, `salary_min`, `salary_max` (finite numbers), `salary_currency`, `salary_period` |
 | `skill.requests@1` | any paused skill (see below) | one request item of the skill's public request schema | any JSON object, validated structurally (see below) |
 
 The worker sets each result's `provider` to the contribution `name` and
 `provider_id` to the contribution id; package values for both keys are replaced.
+
+**Jobs search routing** (`backend/apps/jobs/skills/search_skill.py`). A request
+selects installed providers by id or display name in `provider`/`providers`;
+`auto` runs the built-in country routing plus every installed provider.
+Installed providers declare no country coverage: each receives the request and
+returns `[]` when it is out of scope. When an installed provider is selected, a
+built-in limit (country not covered, radius, unsupported employment type) skips
+the built-in source with a `coverage_gap` / `unsupported_filter` warning instead
+of failing the request. Installed listings pass the same strict filters
+(`remote`, `employment_type`, `max_days_old`), are interleaved round-robin with
+the built-in listings (one source each), deduplicated by URL and then ranked by
+`relevance_criteria` like built-in listings. The group's `providers` lists every
+source asked for that request, so a group that also asked the built-in source
+is charged as before.
 
 ## Generic contract (`skill.requests@1`)
 
@@ -249,7 +264,8 @@ module names under `backend/shared/providers`, and `kv/data/providers/<id>` /
 `SECRET__<ID>__` references in backend code, compose files and `.env.example`.
 It also rejects selector values the target skill interprets itself, declared per
 contract in `contracts.RESERVED_PROVIDER_ID_SOURCES` (events search: `auto`,
-`none`, provider aliases and conference keys). Rejected packages never load, so
+`none`, provider aliases and conference keys; jobs search: `auto` and the
+built-in source aliases). Rejected packages never load, so
 their secrets are never resolved. Provider ids are also unique across packages.
 
 ## Availability and billing

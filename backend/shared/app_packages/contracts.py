@@ -5,6 +5,10 @@ of event results. Results are validated field by field; invalid entries are
 discarded and unknown fields are dropped. The worker, not the package, sets
 each result's ``provider`` (contribution name) and ``provider_id``.
 
+``jobs.search@1``: input is one validated jobs search request item (with the
+resolved ``countries`` list, without provider selectors); output is a list of
+``job_result`` objects (``id``, ``title`` and http(s) ``url`` required).
+
 ``skill.requests@1``: the generic contract for paused built-in skills without a
 provider (``generic_contract.py``). Input is one request item of the target
 skill; output is a list of JSON objects validated structurally.
@@ -13,6 +17,7 @@ from __future__ import annotations
 
 import importlib
 import json
+import math
 from datetime import datetime
 from typing import Any, Callable, Dict, FrozenSet, List, Optional
 from urllib.parse import urlsplit
@@ -35,6 +40,22 @@ EVENTS_INPUT_FIELDS = (
     "query", "location", "lat", "lon", "start_date", "end_date", "event_type", "count", "past_events",
 )
 VENUE_TEXT_FIELDS = ("name", "address", "city", "country", "postal_code", "region")
+
+JOBS_SEARCH_V1 = "jobs.search@1"
+MAX_JOB_ID_CHARS = 256
+# job_result text fields and their limits; id, title, url and apply_url are handled separately.
+JOBS_TEXT_FIELDS: Dict[str, int] = {
+    "company": MAX_TEXT_CHARS, "location": MAX_TEXT_CHARS, "country": 64, "employment_type": 64,
+    "description": MAX_DESCRIPTION_CHARS, "sector": MAX_TEXT_CHARS, "role": MAX_TEXT_CHARS,
+    "seniority": MAX_TEXT_CHARS, "organization_type": MAX_TEXT_CHARS, "work_arrangement": MAX_TEXT_CHARS,
+    "salary_text": MAX_TEXT_CHARS, "impact": MAX_TEXT_CHARS, "detail_status": 64,
+    "salary_currency": 16, "salary_period": 32,
+}
+JOBS_DATE_FIELDS = ("published_at", "valid_through")
+JOBS_NUMBER_FIELDS = ("salary_min", "salary_max")
+# Request fields the skill resolves itself: provider selectors and the singleton
+# country (the input always carries the resolved ``countries`` list).
+JOBS_INPUT_EXCLUDED_FIELDS = frozenset({"provider", "providers", "country"})
 
 
 def _text(value: Any, limit: int) -> Optional[str]:
@@ -121,9 +142,51 @@ def validate_events_search_result(raw: Any) -> Optional[Dict[str, Any]]:
     return result
 
 
+def _finite_number(value: Any) -> Optional[float]:
+    number = _number(value)
+    return number if number is not None and math.isfinite(number) else None
+
+
+def _job_id(value: Any) -> Optional[str]:
+    if isinstance(value, int) and not isinstance(value, bool):
+        return str(value)
+    return _text(value, MAX_JOB_ID_CHARS)
+
+
+def validate_jobs_search_result(raw: Any) -> Optional[Dict[str, Any]]:
+    """Return a sanitized job result or None when ``id``, ``title`` or ``url`` is invalid.
+
+    Only the ``job_result`` fields are kept; ``provider`` and ``provider_id``
+    are set by the server. Descriptions keep up to 20,000 chars, more than the
+    built-in source's 5,000, so full listing text is retained.
+    """
+    if not isinstance(raw, dict):
+        return None
+    job_id, title, url = _job_id(raw.get("id")), _text(raw.get("title"), MAX_TITLE_CHARS), _http_url(raw.get("url"))
+    if not (job_id and title and url):
+        return None
+    result: Dict[str, Any] = {"id": job_id, "title": title, "url": url}
+    optional: Dict[str, Any] = {
+        key: _text(raw.get(key), limit) for key, limit in JOBS_TEXT_FIELDS.items()
+    }
+    optional.update({key: _iso_datetime(raw.get(key)) for key in JOBS_DATE_FIELDS})
+    optional.update({key: _finite_number(raw.get(key)) for key in JOBS_NUMBER_FIELDS})
+    optional["apply_url"] = _http_url(raw.get("apply_url"))
+    optional["remote"] = raw.get("remote") if isinstance(raw.get("remote"), bool) else None
+    result.update({key: value for key, value in optional.items() if value is not None})
+    return result
+
+
+def jobs_search_input(request_item: Dict[str, Any]) -> Dict[str, Any]:
+    """Contract input: the validated request item without server-side provider selectors."""
+    return {key: value for key, value in request_item.items()
+            if value is not None and key not in JOBS_INPUT_EXCLUDED_FIELDS}
+
+
 ResultValidator = Callable[[Any], Optional[Dict[str, Any]]]
 CONTRACT_VALIDATORS: Dict[str, ResultValidator] = {
     EVENTS_SEARCH_V1: validate_events_search_result,
+    JOBS_SEARCH_V1: validate_jobs_search_result,
     SKILL_REQUESTS_V1: validate_generic_result,
 }
 # Contracts whose results are bounded by serialized size (per result and per call).
@@ -156,6 +219,7 @@ def validate_contract_results(contract: str, results: List[Any], *, provider_id:
 # loader rejects installed provider ids in this set.
 RESERVED_PROVIDER_ID_SOURCES: Dict[str, str] = {
     EVENTS_SEARCH_V1: "backend.apps.events.provider_aliases:reserved_provider_ids",
+    JOBS_SEARCH_V1: "backend.apps.jobs.provider_aliases:reserved_provider_ids",
 }
 # Reserved selector values for contracts that are not owned by a single skill.
 STATIC_RESERVED_PROVIDER_IDS: Dict[str, FrozenSet[str]] = {

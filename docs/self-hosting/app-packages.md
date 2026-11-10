@@ -33,6 +33,9 @@ openmates server env set OPENMATES_APP_PACKAGES_ENABLED --value true
 openmates server restart
 ```
 
+The hosted OpenMates production service ignores the flag, and the `apps`
+commands refuse to run there: packaged providers are not billed.
+
 With the flag off nothing is read from the package directory, even if packages
 are installed.
 

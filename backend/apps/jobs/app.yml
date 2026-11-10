@@ -87,6 +87,9 @@ skills:
       search is unavailable. Use relevance_criteria only for an explicit user goal.
       Never invent listing facts or broaden filters after empty results.
     class_path: backend.apps.jobs.skills.search_skill.SearchSkill
+    # Operator-installed app package providers may serve searches next to the
+    # built-in source (docs/architecture/apps/instance-app-packages.md).
+    provider_contract: jobs.search@1
     pricing:
       per_unit:
         credits: 1

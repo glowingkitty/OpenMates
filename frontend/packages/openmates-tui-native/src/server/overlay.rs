@@ -208,7 +208,14 @@ pub(super) fn write_environment(c: &Configuration) -> Result<()> {
     fs::write(&c.install_path.join(".env"), content.as_bytes(), 0o600)
 }
 pub(super) fn supported_action(c: &Configuration, action: &str) -> Result<()> {
+    // App package commands only change the package root and restart services,
+    // both of which the cloud lifecycle already supports. They stay limited to
+    // the development environment: packaged providers are not billed.
+    let app_packages = (action == "apps" || action.starts_with("apps "))
+        && c.install_path.join(".env").exists()
+        && env_get(&env(&c.install_path)?, "SERVER_ENVIRONMENT") == Some("development");
     if c.deployment_mode == "official_cloud"
+        && !app_packages
         && !matches!(
             action,
             "start"
@@ -355,6 +362,14 @@ mod tests {
         );
         assert!(services(&c, &Flags::from([("services".into(), json!("webapp"))])).is_err());
         assert!(supported_action(&c, "status").is_ok());
+        assert!(supported_action(&c, "apps install").is_err());
+        let env_path = c.install_path.join(".env");
+        fs::write(&env_path, b"SERVER_ENVIRONMENT=production\n", 0o600).unwrap();
+        assert!(supported_action(&c, "apps install").is_err());
+        fs::write(&env_path, b"SERVER_ENVIRONMENT=development\n", 0o600).unwrap();
+        assert!(supported_action(&c, "apps install").is_ok());
+        assert!(supported_action(&c, "apps").is_ok());
+        assert!(supported_action(&c, "appsx").is_err());
         for action in [
             "update",
             "verify",
