@@ -397,6 +397,53 @@ def test_team_node_fetch_preserves_cleanup_gate_after_strict_runtime_validation(
         assert not (tmp_path / "test-results/ci-runs/team/receipt.json").exists()
 
 
+@pytest.mark.parametrize("built", [True, False])
+def test_rust_core_job_is_refused_unless_the_run_built_the_core(tmp_path, monkeypatch, built):
+    import json
+
+    selector = "storage-team-portability.spec.ts"
+    environment = _team_node_environment()
+    source, harness = environment["source_commit"], environment["harness_commit"]
+    report = {"source_commit": source, "run_id": "7", "success": True, "harness_commit": harness,
+              "web_rust_core": built, "results": [{"exit_code": 0, "spec": selector}]}
+    archive = io.BytesIO()
+    with zipfile.ZipFile(archive, "w") as bundle:
+        bundle.writestr("ci-results.json", json.dumps(report))
+        bundle.writestr("ci-environment.json", json.dumps(environment))
+        bundle.writestr("ci-cleanup.json", json.dumps({
+            "run_id": "7", "harness_commit": harness, "containers_remaining": 0,
+            "volumes_remaining": 0, "private_account_files_removed": True,
+        }))
+    monkeypatch.setattr(ci_results, "download", lambda command, root, output: output.write(archive.getvalue()))
+    monkeypatch.setattr(ci_results, "RESERVE", 0)
+    monkeypatch.setattr(ci_results.shutil, "disk_usage",
+                        lambda _path: type("Usage", (), {"total": 100 * 1024**3,
+                                                         "used": 10 * 1024**3,
+                                                         "free": 90 * 1024**3})())
+    monkeypatch.setattr(ci_results, "attach_visual_evidence", lambda result, directory: result)
+
+    class Remote:
+        repo = "example/repo"
+
+        def request(self, endpoint):
+            if "/artifacts?" in endpoint:
+                return {"artifacts": [{"name": "isolated-test-results", "expired": False, "id": 8,
+                                       "size_in_bytes": len(archive.getvalue())}]}
+            if "/jobs?" in endpoint:
+                return {"jobs": [{"id": 9, "labels": ["ubuntu-latest"], "runner_name": "GitHub Actions 9"}]}
+            return {"head_sha": harness}
+
+    job = {"id": "rust", "source": source, "mode": "e2e", "run_id": 7, "state": "success",
+           "url": "https://example.test/7", "specs": json.dumps([selector]), "web_rust_core": 1}
+    if built:
+        assert ci_results.fetch(Remote(), job, tmp_path)["web_rust_core"] is True
+    else:
+        # A daemon older than the option dispatches without it; the green run is not Rust-on proof.
+        with pytest.raises(RuntimeError, match="did not build the web app with the Rust client core"):
+            ci_results.fetch(Remote(), job, tmp_path)
+        assert not (tmp_path / "test-results/ci-runs/rust/receipt.json").exists()
+
+
 @pytest.mark.parametrize("fault", ["", "source", "run", "harness", "profile", "green"])
 def test_node_startup_failure_envelope_is_retrievable_without_execution_claims(tmp_path, monkeypatch, fault):
     import json

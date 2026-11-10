@@ -1809,6 +1809,12 @@ def _fetch_reserved(github, job: dict, root: Path) -> dict:
             raise RuntimeError(
                 "Green GitHub job lacks passing source-bound test evidence"
             )
+        # The request alone proves nothing: a daemon older than the option
+        # dispatches without it and the run then tests the default build.
+        if job.get("web_rust_core") and report and report.get("web_rust_core") is not True:
+            raise RuntimeError(
+                "CI run did not build the web app with the Rust client core that the job requested"
+            )
         expected_harness_commit = (
             job.get("preparation_harness_commit") or run["head_sha"]
         )
@@ -2132,7 +2138,11 @@ def _fetch_reserved(github, job: dict, root: Path) -> dict:
             "mode": job["mode"],
             "selected_specs": json.loads(job["specs"]),
             "selected_case_title": job.get("case_title") or "",
-            **({"web_rust_core": True} if job.get("web_rust_core") else {}),
+            **(
+                {"web_rust_core": True}
+                if report and report.get("web_rust_core") is True
+                else {}
+            ),
             "coverage_scope": (
                 "recipe-target"
                 if job.get("mode") == "selfhost"
