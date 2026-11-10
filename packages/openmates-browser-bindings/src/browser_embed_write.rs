@@ -24,6 +24,8 @@ use wasm_bindgen::{JsCast, prelude::*};
 
 #[path = "browser_embed_keys.rs"]
 mod keys;
+#[path = "browser_embed_revision.rs"]
+mod revision;
 
 fn code(error: openmates_sdk::Error) -> JsValue {
     use openmates_sdk::Error as E;

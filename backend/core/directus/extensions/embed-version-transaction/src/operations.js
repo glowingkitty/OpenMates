@@ -227,6 +227,66 @@ async function lockIdentity(trx, value) {
   await trx.raw('SELECT pg_advisory_xact_lock(hashtextextended(?, 0))', [value]);
 }
 
+/* Stored marker of an images-generate image child: the server-derived catalog
+ * projection (store_embed_handler sets app_id/skill_id from the producer's
+ * `send_embed_data`, skill_id = embed type "generated_image") on a UUIDv5
+ * registered child. Only such heads may take the image-revision branches. */
+const GENERATED_IMAGE_APP_ID = 'images';
+const GENERATED_IMAGE_SKILL_ID = 'generated_image';
+
+function isGeneratedImageChild(embedId, head) {
+  return Boolean(head) && UUID_V5_RE.test(embedId) && head.parent_embed_id != null
+    && head.app_id === GENERATED_IMAGE_APP_ID && head.skill_id === GENERATED_IMAGE_SKILL_ID;
+}
+
+/** Union of two stored `s3_file_keys` lists (JSON text or arrays), first-seen order. */
+function unionFileKeys(existing, incoming) {
+  const parse = (value) => {
+    if (value == null) return [];
+    let list = value;
+    if (typeof value === 'string') {
+      try {
+        list = JSON.parse(value);
+      } catch {
+        fail(400, 'invalid_s3_file_keys');
+      }
+    }
+    if (!Array.isArray(list)) fail(400, 'invalid_s3_file_keys');
+    return list;
+  };
+  const merged = [];
+  const seen = new Set();
+  for (const ref of [...parse(existing), ...parse(incoming)]) {
+    if (!ref || typeof ref.bucket !== 'string' || typeof ref.key !== 'string' || !ref.key) {
+      fail(400, 'invalid_s3_file_keys');
+    }
+    const identity = `${ref.bucket}\u0000${ref.key}`;
+    if (!seen.has(identity)) {
+      seen.add(identity);
+      merged.push({ bucket: ref.bucket, key: ref.key });
+    }
+  }
+  return merged;
+}
+
+/* A later producer's next version of an existing registered child (images-generate
+ * revision, plan image-edit-as-embed-version). The child keeps its original parent,
+ * key, chat and creating message; only the version advances by exactly one, or a
+ * same-version replay/enrichment of an already advanced head. */
+async function requireChildRevisionHead(trx, embedId, actor, payload, version) {
+  const head = await trx(EMBEDS).where({ embed_id: embedId }).first();
+  if (!isGeneratedImageChild(embedId, head) || head.hashed_user_id !== actor || version < 2
+      || (payload.app_id != null && payload.app_id !== head.app_id)
+      || (payload.skill_id != null && payload.skill_id !== head.skill_id)
+      || head.parent_embed_id == null || head.parent_embed_id !== payload.parent_embed_id
+      || head.hashed_chat_id !== payload.hashed_chat_id
+      || head.hashed_message_id !== payload.hashed_message_id
+      || (head.root_embed_id != null && head.root_embed_id !== head.parent_embed_id)
+      || ![version - 1, version].includes(logicalEmbedVersion(head.version_number))) {
+    fail(403, 'project_context_required');
+  }
+}
+
 /** A UUIDv5 legacy head is allowed only when a sealed AI child owns this exact identity. */
 async function requireRegisteredChildWrite(trx, embedId, actor, payload) {
   const version = logicalEmbedVersion(payload.version_number, 400);
@@ -259,15 +319,17 @@ async function requireRegisteredChildWrite(trx, embedId, actor, payload) {
     ordinal: Number(output.producer_ordinal), subject_id: embedId,
     output_kind: 'embed', output_version: version,
   }).forShare().first();
+  // A revision output belongs to a later message's producer, not to the child's parent.
+  const revision = Boolean(producer) && producer.primary_embed_id !== payload.parent_embed_id;
+  if (revision) await requireChildRevisionHead(trx, embedId, actor, payload, version);
   if (!producer || !child || !['PENDING', 'COMPLETED'].includes(producer.state)
       || producer.invalidated_at || producer.hashed_user_id !== actor
-      || producer.primary_embed_id !== payload.parent_embed_id
       || producer.target_chat_id !== output.target_chat_id
       || producer.root_chat_id !== output.root_chat_id
       || output.hashed_user_id !== actor
       || payload.hashed_chat_id !== sha256(output.target_chat_id)
-      || payload.hashed_message_id !== sha256(producer.primary_message_id)
-      || (payload.root_embed_id != null && payload.root_embed_id !== producer.primary_embed_id)) {
+      || (!revision && payload.hashed_message_id !== sha256(producer.primary_message_id))
+      || (payload.root_embed_id != null && payload.root_embed_id !== payload.parent_embed_id)) {
     fail(403, 'project_context_required');
   }
   const chat = chats.get(output.target_chat_id);
@@ -351,7 +413,9 @@ export async function writeLegacyEmbedDiff(database, raw) {
   const input = exactFields(raw, new Set(['embed_id', 'actor_user_hash', 'row']),
     ['embed_id', 'actor_user_hash', 'row']);
   const embedId = boundedString(input.embed_id, 'invalid_embed_id', 512);
-  if (UUID_V5_RE.test(embedId)) fail(403, 'project_context_required');
+  // UUIDv5 is reserved for Project files and registered producer children. Only
+  // an existing registered child head (which has a parent) may hold history.
+  const reservedId = UUID_V5_RE.test(embedId);
   const actor = hexDigest(input.actor_user_hash, 'invalid_actor');
   const row = exactFields(input.row, HISTORY_FIELDS,
     ['version_number', 'encrypted_snapshot', 'encrypted_patch']);
@@ -361,15 +425,21 @@ export async function writeLegacyEmbedDiff(database, raw) {
     : boundedString(row.encrypted_snapshot, 'invalid_ciphertext', MAX_CIPHERTEXT_BYTES);
   const patch = row.encrypted_patch === null ? null
     : boundedString(row.encrypted_patch, 'invalid_ciphertext', MAX_CIPHERTEXT_BYTES);
-  if ((version === 1 && (!snapshot || patch)) || (version > 1 && !patch)) fail(400, 'invalid_history');
+  // Child image versions are full-replacement snapshots (no patch); checked against the head below.
+  if ((version === 1 && (!snapshot || patch)) || (version > 1 && !patch && !snapshot)) fail(400, 'invalid_history');
   const createdAt = row.created_at == null ? Math.floor(Date.now() / 1000)
     : safeInteger(row.created_at, 'invalid_timestamp');
   if (createdAt <= 0) fail(400, 'invalid_timestamp');
   return database.transaction(async (trx) => {
     await lockIdentity(trx, `embed:${embedId}`);
     const heads = await trx(EMBEDS).where({ embed_id: embedId }).forUpdate().limit(2);
+    const imageChild = heads.length === 1 && isGeneratedImageChild(embedId, heads[0]);
+    if (reservedId && !imageChild) fail(403, 'project_context_required');
     if (heads.length !== 1 || heads[0].hashed_user_id !== actor) fail(403, 'embed_access_denied');
     const embed = heads[0];
+    if (version > 1 && !patch && !imageChild) fail(400, 'invalid_history');
+    // An image version row is written before (base N, next N+1) or after its head; never further ahead.
+    if (imageChild && version > logicalEmbedVersion(embed.version_number) + 1) fail(400, 'invalid_version');
     if (await trx(PROJECT_ITEMS).where({ target_id_hash: sha256(embedId) })
       .whereIn('item_type', ['embed', 'upload']).first()) fail(403, 'project_context_required');
     if (embed.app_id === 'diagrams' && embed.skill_id === 'html' && version > 1) {
@@ -841,13 +911,22 @@ export async function writeLegacyEmbed(database, raw) {
           // acknowledged head immutable until an exact next-version output,
           // its old history, and both existing wrappers are durably present.
           // The client still verifies plaintext before the new ACK.
+          // A generated child (images-generate revision) may advance the same
+          // way under its unchanged parent, chat and creating message; its key
+          // is wrapped by the parent, so the parent's wrappers must be present.
+          // Only an images-generate image child (UUIDv5, parent, stored images
+          // catalog marker) takes the child branch; every other child keeps 409.
+          const childHead = isGeneratedImageChild(embedId, embed);
+          const keyOwner = childHead ? embed.parent_embed_id : embedId;
           if (matchingAcks.some((output) =>
             output.canonical_digest !== sha256(embed.encrypted_content ?? ''))
-            || bundle || embed.parent_embed_id != null
-            || storedPayload.parent_embed_id != null
-            || (embed.root_embed_id != null && embed.root_embed_id !== embedId)
-            || (storedPayload.root_embed_id != null && storedPayload.root_embed_id !== embedId)
-            || UUID_V5_RE.test(embedId)
+            || bundle
+            || (!childHead && embed.parent_embed_id != null)
+            || (storedPayload.parent_embed_id ?? null) !== (embed.parent_embed_id ?? null)
+            || (childHead && storedPayload.hashed_message_id !== embed.hashed_message_id)
+            || (embed.root_embed_id != null && embed.root_embed_id !== keyOwner)
+            || (storedPayload.root_embed_id != null && storedPayload.root_embed_id !== keyOwner)
+            || (!childHead && UUID_V5_RE.test(embedId))
             || !Number.isSafeInteger(storedPayload.version_number)
             || incomingVersion !== currentVersion + 1
             || typeof storedPayload.encrypted_content !== 'string'
@@ -892,12 +971,15 @@ export async function writeLegacyEmbed(database, raw) {
             embed_id: embedId, hashed_user_id: actor, version_number: currentVersion,
           }).forShare().first();
           const wrappers = await trx(EMBED_KEYS).where({
-            hashed_embed_id: sha256(embedId), hashed_user_id: actor,
+            hashed_embed_id: sha256(keyOwner), hashed_user_id: actor,
           }).forShare();
-          if (!history || (currentVersion === 1
-            ? typeof history.encrypted_snapshot !== 'string'
-              || !history.encrypted_snapshot || history.encrypted_patch != null
-            : typeof history.encrypted_patch !== 'string' || !history.encrypted_patch)
+          const fullSnapshot = typeof history?.encrypted_snapshot === 'string' && history.encrypted_snapshot;
+          if (!history || (childHead
+            // Child image versions are full-replacement snapshots.
+            ? !fullSnapshot || (currentVersion === 1 && history.encrypted_patch != null)
+            : currentVersion === 1
+              ? !fullSnapshot || history.encrypted_patch != null
+              : typeof history.encrypted_patch !== 'string' || !history.encrypted_patch)
             || !wrappers.some((key) => key.key_type === 'master' && key.encrypted_embed_key)
             || !wrappers.some((key) => key.key_type === 'chat'
               && key.hashed_chat_id === embed.hashed_chat_id && key.encrypted_embed_key)) {
@@ -950,6 +1032,12 @@ export async function writeLegacyEmbed(database, raw) {
       }
       const updated = { ...storedPayload, hashed_user_id: actor, hashed_embed_id: sha256(embedId) };
       delete updated.embed_id;
+      if (isGeneratedImageChild(embedId, embed) && 's3_file_keys' in updated) {
+        // Every version of a generated image keeps its files viewable and
+        // cleanable until the embed is deleted: any write (also a same-version
+        // replay carrying a stale subset) only ever grows the stored key list.
+        updated.s3_file_keys = JSON.stringify(unionFileKeys(embed.s3_file_keys, updated.s3_file_keys));
+      }
       if (preconditionMismatch) {
         await promoteAuthoredAssetReferences(trx, assetBinding, embedId, actor);
         return { status: 'idempotent', embed_id: embedId };

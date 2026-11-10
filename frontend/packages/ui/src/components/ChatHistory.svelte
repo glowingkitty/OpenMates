@@ -4,6 +4,7 @@ import { storageArchiveFetch } from "../config/api";
   import { searchResultImageUrl } from '../utils/searchPreviewImages';
   import { collectHeaderImageRefs } from './embeds/embedPreviewHydration';
   import { embedStore, embedRefIndexVersion } from '../services/embedStore';
+  import { publishChatMessageOrder } from '../services/rustCore/embeds/messageEmbedVersion';
   import { createEventDispatcher, tick, onMount, onDestroy, untrack } from "svelte"; // Removed afterUpdate for runes mode compatibility
   import type { Snippet, SvelteComponent } from 'svelte';
   import { flip } from 'svelte/animate';
@@ -409,6 +410,8 @@ import { storageArchiveFetch } from "../config/api";
  
   // Array that holds all chat messages using $state (Svelte 5 runes mode)
   let messages = $state<InternalMessage[]>([]);
+  // Image cards show the version valid at their message (core rule; no-op without the Rust core).
+  $effect(() => publishChatMessageOrder(currentChatId, messages));
   type ScheduledAssistantRender = {
     message: GlobalMessage;
     piiMappings: Map<string, PIIMapping>;

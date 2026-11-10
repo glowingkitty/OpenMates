@@ -9,11 +9,11 @@ flag:
   default: 'off'
   flag_off_behavior: original TypeScript path, byte-identical build output (guarded in CI)
 summary:
-  total: 107143
-  done: 8304
+  total: 107144
+  done: 8303
   partial: 0
-  missing: 98839
-  percent: 7.8
+  missing: 98841
+  percent: 7.7
 worker_namespaces_installed_not_progress:
   installed: 18
   total: 18
@@ -21,11 +21,11 @@ worker_namespaces_installed_not_progress:
 port_ledger:
   unit: TS code lines
   portable_files: 449
-  portable_code_lines: 107143
-  ported_code_lines: 8304
-  percent: 7.8
+  portable_code_lines: 107144
+  ported_code_lines: 8303
+  percent: 7.7
   ported_by_proof:
-    e2e-flag-on: 4113
+    e2e-flag-on: 4112
     vectors: 3954
     none: 237
   files_with_ported_code: 93
@@ -35,8 +35,8 @@ port_ledger:
     files: 55
     code_lines: 9550
   bridge_excluded:
-    files: 209
-    code_lines: 18594
+    files: 214
+    code_lines: 19169
   slices:
   - id: rust-web-auth-session-lane-behind-vite-openmates-cd767f7
     commit: cd767f7058
@@ -265,7 +265,7 @@ port_ledger:
     date: '2026-11-07'
     proof: e2e-flag-on
     functions: 1
-    ts_code_lines: 43
+    ts_code_lines: 42
   - id: team-decisions-in-shared-rust-core-worker-work-l-14f437b
     commit: 14f437bf00
     date: '2026-11-08'
@@ -461,8 +461,9 @@ units:
   what_moved: 'Decrypts stored embed rows next to the realm''s single WASM binding: every requested row is one `embed_open_row_fields`
     call (Rust `embed_write::read`, its three fields in one batched WebCrypto call). The unit holds no account state,
     so it is a pre-bind namespace like `crypto`: the embed key arrives per request (as the crypto...'
-  typescript_fallback: none declared (3 files)
-  unit_tests: [embedKeyResolution.test.ts, embedUnits.test.ts, readOps.test.ts]
+  typescript_fallback: none declared (4 files)
+  unit_tests: [childRevision.test.ts, embedKeyResolution.test.ts, embedUnits.test.ts, messageParentIds.test.ts,
+    readOps.test.ts]
   e2e_specs: [web-rust-core-embeds.spec.ts]
   vectors: [packages/openmates-rust/src/toon_decode_ts_vectors.json]
   open_gaps: [Embed RSS +1..+77 MB vs TypeScript in the embeds bench (noisy); see performance-history.yml.]
@@ -476,8 +477,9 @@ units:
     next to the Worker-side `chats_db` rows it writes. Rust owns key choice, every ciphertext, row/payload shapes
     and the revision-history decisions (embedWriteAdapter.ts sequences them); this unit persists the prepared rows
     (embe...
-  typescript_fallback: none declared (3 files)
-  unit_tests: [embedKeyResolution.test.ts, embedUnits.test.ts, readOps.test.ts]
+  typescript_fallback: none declared (4 files)
+  unit_tests: [childRevision.test.ts, embedKeyResolution.test.ts, embedUnits.test.ts, messageParentIds.test.ts,
+    readOps.test.ts]
   e2e_specs: [web-rust-core-embeds.spec.ts]
   vectors: []
   open_gaps: [Streamed write is wired for send_embed_data only.]

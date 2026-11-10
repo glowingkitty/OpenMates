@@ -32,6 +32,7 @@ import type { StreamCompletionInput } from '../embedWriteAdapter';
 import type { EmbedWriteProtocol, PersistedEmbedWrite } from './embedDataProtocol';
 import { rustEmbedData } from './embedDataClient';
 import { rustEmbedWriter } from './embedWriteSession';
+import { childRevisionIO, isChildRevisionEvent, runChildRevision } from './rustChildRevisionWrite';
 
 type EmbedData = SendEmbedDataPayload['payload'];
 type WriteUnit = UnitPort<EmbedWriteProtocol>;
@@ -92,7 +93,9 @@ async function persistHistory(service: ChatSynchronizationService, unit: WriteUn
 	}
 }
 
-async function afterPersist(persisted: PersistedEmbedWrite): Promise<void> {
+type PersistedRefs = Pick<PersistedEmbedWrite, 'embed_ref_registration' | 'child_ref_embed_ids'> & { local_entry: { contentRef: string } };
+
+async function afterPersist(persisted: PersistedRefs): Promise<void> {
 	const { embedStore, embedAvailabilityVersion } = await import('../../embedStore');
 	const registration = persisted.embed_ref_registration;
 	if (registration) {
@@ -149,6 +152,17 @@ export async function writeStreamedEmbedInRust(service: ChatSynchronizationServi
 	const chat = await chatDB.getChat(embedData.chat_id);
 	const { normalizeEmbedType } = await import('../../../data/embedRegistry.generated');
 	const input = { ...embedData, team_id: chat?.team_id ?? null, local_only: localOnly } as StreamCompletionInput;
+	if (isChildRevisionEvent(embedData)) {
+		// Version N+1 of an existing image child: never the stream-completion path.
+		const io = await childRevisionIO(service, lease, (version) => readCanonical(embedData, version),
+			async ({ registration }) => {
+				if (registration.op === 'store_embed') await afterPersist({ embed_ref_registration: registration.embed_ref_registration,
+					local_entry: { contentRef: registration.content_ref }, child_ref_embed_ids: registration.child_ref_embed_ids });
+			});
+		await runChildRevision(unit, input, normalizeEmbedType(embedData.type), io);
+		dispatchUpdated(service, embedData);
+		return true;
+	}
 	const persisted = await unit.request('prepareStreamCompletion', { payload: input, normalizedType: normalizeEmbedType(embedData.type) });
 
 	const isChild = Boolean(embedData.parent_embed_id);

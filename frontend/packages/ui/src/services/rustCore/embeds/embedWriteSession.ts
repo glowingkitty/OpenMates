@@ -64,9 +64,16 @@ export async function rustEmbedWriter(): Promise<EmbedWriteClient> {
 	return opening;
 }
 
+const closeHooks = new Set<() => void>();
+/** Page caches of opened embed plaintext register here; they are dropped with the session. */
+export function onRustEmbedWriterClosed(forget: () => void): void {
+	closeHooks.add(forget);
+}
+
 /** Closes the client before a logout/account-switch unbind (its keys are forgotten with the session). */
 export function closeRustEmbedWriter(): void {
 	const stale = current;
 	current = null;
+	for (const forget of closeHooks) forget();
 	stale?.client.then((client) => client.close(), () => undefined);
 }

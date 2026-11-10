@@ -55,6 +55,8 @@ COMPLETION_RESULT_FIELDS = frozenset({
     # design.embroidery: the numbers, threads and notes the assistant reports to the user.
     "title", "width_mm", "height_mm", "stitch_count", "thread_changes", "estimated_minutes",
     "hoop", "fits_hoop", "fabric", "reworked", "threads", "notes",
+    # images.generate revision: which version of the existing image this change made.
+    "version", "previous_version", "revision_note",
 })
 
 _INLINE_CARD_SKILLS = frozenset({("nutrition", "search_recipes"), ("design", "search_icons")})
@@ -411,11 +413,14 @@ async def run_generated_media_batch(
             if not isinstance(result, dict) or result.get("status") != "finished":
                 failures.append({"request_index": index, "error": "Generation did not finish"})
                 continue
+            # A revision is the next version of an earlier message's child, never this producer's own child.
+            output_id = str(result["embed_id"]) if result.get("revision") is True else child_id
             children.append({
                 "request_index": index,
-                "child_embed_id": child_id,
-                "embed_ref": generated_media_embed_ref(app_id, child_id),
+                "child_embed_id": output_id,
+                "embed_ref": generated_media_embed_ref(app_id, output_id),
                 "result": result,
+                **({"revision": True} if output_id != child_id else {}),
             })
         except RequiredRecoveryOutputError:
             raise
@@ -489,7 +494,7 @@ async def run_generated_media_batch(
         "status": "finished" if not failures else "partial" if children else "error",
         "results": [row["result"] for row in children],
         "completed_results": children,
-        "child_embed_ids": [row["child_embed_id"] for row in children],
+        "child_embed_ids": [row["child_embed_id"] for row in children if not row.get("revision")],
         "failed_results": failures,
         "input_embed_ids": list(dict.fromkeys(
             source_id for row in children for source_id in row.get("result", {}).get("input_embed_ids", [])
@@ -564,17 +569,26 @@ async def finalize_generated_media_parent(
     log_prefix: str,
     input_embed_ids: list[str] | None = None,
 ) -> None:
-    """Close the one producer after all request slots have reached a terminal state."""
+    """Close the one producer after all request slots have reached a terminal state.
+
+    A revision child (the next version of an earlier message's image) is never
+    listed in ``embed_ids``: a child has one parent and its key. The parent
+    records it as a pinned pointer ``pinned_embeds: [{embed_id, version, embed_ref}]``.
+    """
     ordered = sorted(children, key=lambda row: int(row["request_index"]))
-    child_ids = [str(row["child_embed_id"]) for row in ordered]
+    owned = [row for row in ordered if not row.get("revision")]
+    revisions = [row for row in ordered if row.get("revision")]
+    child_ids = [str(row["child_embed_id"]) for row in owned]
+    pinned = [dict(row["result"]["pinned_embed"]) for row in revisions]
     content = {
         "app_id": app_id,
         "skill_id": skill_id,
         "embed_ref": generated_media_parent_ref(app_id, parent_embed_id),
-        "status": "finished" if child_ids else "error",
-        "result_count": len(child_ids),
+        "status": "finished" if child_ids or pinned else "error",
+        "result_count": len(child_ids) + len(pinned),
         "embed_ids": child_ids,
-        "output_embed_refs": [str(row["embed_ref"]) for row in ordered],
+        "output_embed_refs": [str(row["embed_ref"]) for row in owned],
+        **({"pinned_embeds": pinned} if pinned else {}),
         "failed_results": failures,
         "input_embed_ids": list(dict.fromkeys([*(input_embed_ids or []), *(
             source_id for row in ordered for source_id in row.get("result", {}).get("input_embed_ids", [])
@@ -600,7 +614,7 @@ async def finalize_generated_media_parent(
         log_prefix=log_prefix,
         check_cache_status=False,
         producer_final_children=[
-            {"subject_id": child_id, "output_kind": "embed", "output_version": 1}
-            for child_id in child_ids
+            *({"subject_id": child_id, "output_kind": "embed", "output_version": 1} for child_id in child_ids),
+            *(output for row in revisions for output in row["result"]["producer_outputs"]),
         ],
     )

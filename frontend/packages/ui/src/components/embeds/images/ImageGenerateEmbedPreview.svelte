@@ -15,7 +15,7 @@
 -->
 
 <script lang="ts">
-  import { onDestroy } from 'svelte';
+  import { getContext, onDestroy, untrack } from 'svelte';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import ResultEmbedCard from '../ResultEmbedCard.svelte';
   import { text } from '@repo/ui';
@@ -28,6 +28,9 @@
   import { hasMediaEncryptionMetadata } from '../../../services/encryption/mediaEncryption';
   import SvgEmbedImage from '../code/SvgEmbedImage.svelte';
   import { cardImageFile } from './cardImageFile';
+  import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../../types/embedFullscreen';
+  import { EMBED_VERSIONS_ENABLED, embedVersionGeneration } from '../../../services/rustCore/embeds/messageEmbedVersion';
+  import { findMessageId, rememberFullscreenVersion, resolveImageVersionView, versionBadgeLabel } from './imageVersionScope';
   import { EMPTY_SVG_DRAFT, mergeSvgDraft, readSvgDraft, shouldShowDraftStatusOnly, shouldShowSvgDraft, svgDraftStageLabelKey, type SvgDraftStage, type SvgDraftState } from './svgDraft';
   
   /**
@@ -95,6 +98,10 @@
     svgDraft?: string;
     /** Initial drawing stage */
     draftStage?: SvgDraftStage;
+    /** Version this card shows (previews; in a chat message the Rust core decides it) */
+    version?: number;
+    /** Number of versions of the image (previews; badge only when above one) */
+    versionCount?: number;
   }
 
   let {
@@ -116,7 +123,11 @@
     previewImageUrl: previewImageUrlProp,
     svgDraft: svgDraftProp,
     draftStage: draftStageProp,
+    version: versionProp,
+    versionCount: versionCountProp,
   }: Props = $props();
+  const sourceChatContext = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
+  const sourceChatId = sourceChatContext?.lookupChatId ?? sourceChatContext?.chatId ?? null;
   
   // Local reactive state — updated via handleEmbedDataUpdated callback
   let localPrompt = $state<string | undefined>(undefined);
@@ -132,6 +143,20 @@
   let localTaskId = $state<string | undefined>(undefined);
   let localInputEmbedIds = $state<string[] | undefined>(undefined);
   let svgDraftState = $state<SvgDraftState>(EMPTY_SVG_DRAFT);
+
+  // Message-scoped version (images-generate.revision.message-shows-its-version):
+  // a card in a chat message shows the version valid at that message, which the
+  // Rust core resolves. Outside a message (or without the core) it shows the head.
+  // The card's version is fixed when it mounts (props are read once on purpose).
+  const initialVersion = untrack(() => ({ version: versionProp, count: versionCountProp ?? versionProp }));
+  const explicitVersion = initialVersion.version !== undefined;
+  let shownVersion = $state<number | undefined>(initialVersion.version);
+  let headVersion = $state<number | undefined>(initialVersion.count);
+  let messageId = $state<string | null>(null);
+  let versionReady = $state(!EMBED_VERSIONS_ENABLED || explicitVersion);
+  let latestHeadContent: Record<string, unknown> | null = null;
+  let versionRun = 0;
+  let versionBadge = $derived(versionBadgeLabel(shownVersion, headVersion));
 
   // Decrypted thumbnail URLs for input (reference) images — keyed by embed ID
   // S3 keys retained from the cache so we can release on unmount
@@ -292,7 +317,7 @@
   // The IntersectionObserver sets isInView=true when the embed is within 200px of the viewport,
   // preventing all images in a long chat from loading simultaneously.
   $effect(() => {
-    if (isInView && status === 'finished' && cardFile?.s3_key && s3BaseUrl && aesKey && hasMediaEncryptionMetadata(cardFile, aesNonce) && !imageUrl && !isLoadingImage) {
+    if (isInView && versionReady && status === 'finished' && cardFile?.s3_key && s3BaseUrl && aesKey && hasMediaEncryptionMetadata(cardFile, aesNonce) && !imageUrl && !isLoadingImage) {
       loadPreviewImage();
     }
   });
@@ -321,20 +346,96 @@
       svgDraftState = mergeSvgDraft(svgDraftState, next);
     }
 
-    // Update content from decoded data
+    // Update content from decoded data. In a chat message the head may be a
+    // later version than this message shows, so the core decides first.
     if (data.decodedContent) {
-      const content = data.decodedContent as unknown as ImageEmbedData;
-      
-      if (content.prompt) localPrompt = content.prompt;
-      if (content.model) localModel = content.model;
-      if (content.provider) localProvider = content.provider;
-      if (content.s3_base_url) localS3BaseUrl = content.s3_base_url;
-      if (content.files) localFiles = content.files;
-      if (content.aes_key) localAesKey = content.aes_key;
-      if (content.aes_nonce) localAesNonce = content.aes_nonce;
-      if (content.error) localError = content.error;
-      if (Array.isArray(content.input_embed_ids)) localInputEmbedIds = content.input_embed_ids;
+      if (messageId && !explicitVersion) {
+        latestHeadContent = data.decodedContent;
+        void refreshVersion();
+      } else {
+        applyContent(data.decodedContent);
+      }
     }
+  }
+
+  function applyContent(decoded: Record<string, unknown>) {
+    const content = decoded as unknown as ImageEmbedData;
+    // Another version has other files: drop the picture of the previous one.
+    const nextKey = cardImageFile(content.files)?.s3_key;
+    if (content.files && nextKey !== cardImageFile(localFiles)?.s3_key) {
+      if (retainedS3Key) releaseCachedImage(retainedS3Key);
+      retainedS3Key = undefined;
+      imageUrl = undefined;
+    }
+    if (content.prompt) localPrompt = content.prompt;
+    if (content.model) localModel = content.model;
+    if (content.provider) localProvider = content.provider;
+    if (content.s3_base_url) localS3BaseUrl = content.s3_base_url;
+    if (content.files) localFiles = content.files;
+    if (content.aes_key) localAesKey = content.aes_key;
+    if (content.aes_nonce) localAesNonce = content.aes_nonce;
+    if (content.error) localError = content.error;
+    if (Array.isArray(content.input_embed_ids)) localInputEmbedIds = content.input_embed_ids;
+  }
+
+  /** Ask the core which version this card's message shows and apply its content. */
+  async function refreshVersion() {
+    if (!messageId || explicitVersion) return;
+    const run = ++versionRun;
+    try {
+      const view = await resolveImageVersionView(messageId, id, sourceChatId);
+      if (run !== versionRun) return;
+      if (!view) {
+        shownVersion = undefined;
+        headVersion = undefined;
+        if (latestHeadContent) applyContent(latestHeadContent);
+        versionReady = true;
+        return;
+      }
+      shownVersion = view.version;
+      headVersion = view.headVersion;
+      if (view.waitingForHead) {
+        // The message pins a version this device stores with the next head update.
+        versionReady = false;
+        return;
+      }
+      if (view.content) {
+        storeResolved = true;
+        localStatus = 'finished';
+        applyContent(view.content);
+      } else if (latestHeadContent) {
+        applyContent(latestHeadContent);
+      }
+      versionReady = true;
+    } catch (versionError) {
+      if (run !== versionRun) return;
+      const code = (versionError as { code?: unknown })?.code;
+      console.error('[ImageGenerateEmbedPreview] Version of this message unavailable:', code ?? versionError);
+      imageError = typeof code === 'string' ? code : 'embed_version_unavailable';
+      versionReady = true;
+    }
+  }
+
+  // Find the card's message once it is attached, then follow pins and head updates.
+  $effect(() => {
+    if (!EMBED_VERSIONS_ENABLED || explicitVersion || !containerRef) return;
+    const element = containerRef;
+    let cancelled = false;
+    void findMessageId(element).then((found) => {
+      if (cancelled) return;
+      messageId = found;
+      if (!found) versionReady = true;
+    });
+    return () => { cancelled = true; };
+  });
+  $effect(() => {
+    void $embedVersionGeneration;
+    if (messageId) void refreshVersion();
+  });
+
+  function openFullscreen() {
+    rememberFullscreenVersion(id, shownVersion);
+    onFullscreen();
   }
 </script>
 
@@ -349,7 +450,7 @@
   {skillName}
   {taskId}
   {isMobile}
-  {onFullscreen}
+  onFullscreen={openFullscreen}
   showStatus={true}
   showSkillIcon={true}
   hasFullWidthImage={status === 'finished' && !!imageUrl && !error}
@@ -358,12 +459,15 @@
   {#snippet details({ isMobile: isMobileSnippet })}
     <ResultEmbedCard title={prompt || skillName} sourceLabel={modelDisplayName} faviconUrl={modelIconUrl} mediaOnly={status === 'finished' && !!imageUrl && !error} mediaFit="contain">
       {#snippet media()}
-    <div class="image-preview" class:mobile={isMobileSnippet} bind:this={containerRef}>
+    <div class="image-preview" class:mobile={isMobileSnippet} bind:this={containerRef} data-embed-version={shownVersion ?? 1}>
       {#if status === 'finished' && !error && imageUrl}
         <!-- Finished state with loaded image: show decrypted image with model info overlay -->
         <div class="image-content">
           <div class="image-container">
-            <img src={imageUrl} alt={prompt || 'Generated image'} class="preview-image" data-testid="image-generate-preview-image" />
+            <img src={imageUrl} alt={prompt || 'Generated image'} class="preview-image" data-testid="image-generate-preview-image" data-embed-version={shownVersion ?? 1} />
+            {#if versionBadge}
+              <span class="version-badge" data-testid="image-generate-version-badge">{versionBadge}</span>
+            {/if}
           </div>
 
         </div>
@@ -536,6 +640,21 @@
     background: var(--color-media-letterbox);
   }
   
+  /* Which version of the image this message shows (only when there are several). */
+  .version-badge {
+    position: absolute;
+    top: var(--spacing-4);
+    right: var(--spacing-4);
+    padding: var(--spacing-1) var(--spacing-3);
+    border-radius: var(--radius-2);
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    font-size: var(--font-size-tiny);
+    font-weight: 600;
+    line-height: 1.3;
+    pointer-events: none;
+  }
+
   .preview-image {
     /* Pinned to the box (not height: 100%): Safari cannot resolve a percentage
        height inside a flex item, which cropped square images top and bottom. */

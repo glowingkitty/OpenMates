@@ -106,6 +106,18 @@ assertions:
     type: invariant
     must: The preview file stored for a generated picture or vector graphic shows the whole picture in its own aspect ratio; it is scaled down to fit the preview size and never cropped or enlarged. A card that is wider or taller than the picture leaves empty space beside it instead of cutting it off.
     depends_on: [examples.create]
+  - id: images-generate.revision.same-embed-new-version
+    type: behavior
+    must: A change to a generated picture or vector graphic of the same chat does not create a second image embed. The existing image embed gains the next version, and every earlier version, including its files, stays stored and viewable until the embed is deleted. A reference to an uploaded image or to an image of another chat creates a new image as before.
+    depends_on: [models.VectorRequest.reference_images, examples.modify]
+  - id: images-generate.revision.message-shows-its-version
+    type: behavior
+    must: Every message shows the version of the image that was valid at that message; the message that created the image keeps showing version 1 and each changing message shows the version it produced, also after a reload and on another device. The image fullscreen offers the version history with each version's picture.
+    depends_on: [examples.modify]
+  - id: images-generate.revision.each-version-billed-once
+    type: invariant
+    must: Each version of an image is charged exactly once for what that version used; a change is never free because the image was charged before, and a retried delivery of the same version is never charged twice. A change that fails leaves the image at its previous version without a charge.
+    depends_on: [examples.billing]
   - id: images-generate.vector.token-metered-billing
     type: invariant
     must: A vector drawing is charged for everything it used and nothing else. Every author draft, correction and review call is priced from that call's reported input and output tokens at that model's price, and the exact sum is rounded down once to whole credits. Every sandbox run adds the Code Run price per started minute. A Recraft drawing costs its flat price, plus the review and follow-up calls when requirements were given. The platform minimum charge applies. A call without reported usage or without a price fails the request instead of being free or estimated.

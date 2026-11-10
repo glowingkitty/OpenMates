@@ -24,9 +24,19 @@ pub struct EncryptedDiffRow {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub encrypted_patch: Option<String>,
     pub created_at: i64,
+    /// Local durability marker of child revision rows
+    /// (`images-generate.revision.same-embed-new-version`): true once the
+    /// server stored this exact row (its `store_embed_diff` succeeded, or it
+    /// was adopted/cached from a canonical page). Never sent; omitted when
+    /// false, so every other row keeps its deployed IndexedDB shape.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub server_confirmed: bool,
+}
+fn is_false(value: &bool) -> bool {
+    !*value
 }
 impl EncryptedDiffRow {
-    fn new(embed_id: &str, version: i64, snapshot: Option<String>, patch: Option<String>, created_at: i64) -> Self {
+    pub(super) fn new(embed_id: &str, version: i64, snapshot: Option<String>, patch: Option<String>, created_at: i64) -> Self {
         Self {
             id: format!("{embed_id}_v{version}"),
             embed_id: embed_id.to_owned(),
@@ -34,7 +44,13 @@ impl EncryptedDiffRow {
             encrypted_snapshot: snapshot,
             encrypted_patch: patch,
             created_at,
+            server_confirmed: false,
         }
+    }
+    /// This row marked as stored by the server (see `server_confirmed`).
+    pub fn confirmed(mut self) -> Self {
+        self.server_confirmed = true;
+        self
     }
     /// `store_embed_diff` WebSocket payload (absent ciphertext is `null`).
     pub fn server_payload(&self, hashed_user_id: &str) -> Value {
@@ -99,6 +115,27 @@ pub fn validate_sealed_rows(rows: &[Value], embed_id: &str, declared_version: f6
         if !valid {
             return Err(Error::Protocol);
         }
+    }
+    Ok(())
+}
+
+/// Child revision (`images-generate.revision.same-embed-new-version`): the
+/// streamed history is exactly one snapshot-only row for `version` (children
+/// are full-replacement versions; `operations.js` accepts no other shape).
+///
+/// # Errors
+/// `Error::Protocol` for any other embed id, version, count, an empty
+/// snapshot or a present patch.
+pub fn validate_child_revision_rows(rows: &[Value], embed_id: &str, version: i64) -> Result<()> {
+    let [row] = rows else { return Err(Error::Protocol) };
+    let parsed = StreamedHistoryRow::parse(row);
+    let patch_absent = row.get("patch").is_none_or(Value::is_null);
+    if parsed.embed_id != Some(embed_id)
+        || parsed.version != Some(version)
+        || parsed.snapshot.is_none_or(str::is_empty)
+        || !patch_absent
+    {
+        return Err(Error::Protocol);
     }
     Ok(())
 }

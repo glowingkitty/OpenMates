@@ -6743,12 +6743,16 @@ class EmbedService(SlidesEmbedMixin):
         self, payload: dict[str, Any], *, producer_child_index: int | None = None,
         producer_final_children: list[dict[str, Any]] | None = None,
         s3_file_keys: list[dict[str, str]] | None = None,
+        producer_revision: dict[str, Any] | None = None,
     ) -> None:
         """Save each finished AI embed/version before exposing it to downstream work."""
         context = active_recovery_output_context.get()
         producer = active_verified_output_producer.get()
         if producer is not None and producer.classification == "registered_ai" and context is None:
             raise RequiredRecoveryOutputError("Registered embed producer lacks a recovery context")
+        if producer_revision is not None and (context is None or producer is None
+                                              or producer.classification != "registered_ai"):
+            raise RequiredRecoveryOutputError("Embed revision requires a registered producer")
         if context is None:
             references = _validated_recovery_storage_references(s3_file_keys)
             if references is not None and not self._volatile_incognito_publication_required():
@@ -6793,8 +6797,19 @@ class EmbedService(SlidesEmbedMixin):
                 producer_child_index is not None and 0 <= producer_child_index < 32
                 and data.get("embed_id") == self._registered_child_embed_id(producer.primary_embed_id, producer_child_index)
             )
+            revision_matches = False
+            if producer_revision is not None:
+                # The next version of an earlier message's child (images-generate.revision.*).
+                from backend.core.api.app.services.embed_revision_authority import verify_producer_revision
+                if primary or producer_child_index is not None:
+                    raise RequiredRecoveryOutputError("Embed revision cannot be a primary or registered child")
+                await verify_producer_revision(
+                    self.directus_service, producer=producer, data=data, revision=producer_revision,
+                )
+                revision_matches = True
             if (producer.target_chat_id != data.get("chat_id") or producer.owner_hash != context.owner_hash
-                    or not primary and not child_matches or primary and producer_child_index is not None):
+                    or not primary and not child_matches and not revision_matches
+                    or primary and producer_child_index is not None):
                 raise RequiredRecoveryOutputError("Embed producer intent identity mismatch")
         # A Project file requires its approved atomic commit envelope. A bare
         # embed replay would bypass that revision fence, so stop the producer
@@ -6816,6 +6831,10 @@ class EmbedService(SlidesEmbedMixin):
         from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
 
         references = _validated_recovery_storage_references(s3_file_keys)
+        # A revised child keeps the hash of the message that created it (the canonical
+        # head's, checked by verify_producer_revision); recovery ACK compares it to the head.
+        message_hash = (producer_revision["hashed_message_id"] if producer_revision is not None
+                        else hashlib.sha256(data["message_id"].encode()).hexdigest())
         outputs = [("embed", int(data.get("version_number") or 1), data)]
         for row in data.get("version_history_rows") or []:
             if isinstance(row, dict) and isinstance(row.get("version_number"), int):
@@ -6828,13 +6847,12 @@ class EmbedService(SlidesEmbedMixin):
                 canonical_bytes = json.dumps(
                     {"subject_id": data["embed_id"], "kind": output_kind,
                      "version": output_version, "content": stable_content,
-                     **({"s3_file_keys": references,
-                         "hashed_message_id": hashlib.sha256(data["message_id"].encode()).hexdigest()}
+                     **({"s3_file_keys": references, "hashed_message_id": message_hash}
                         if output_kind == "embed" and references is not None else {})},
                     sort_keys=True, separators=(",", ":"), ensure_ascii=False,
                 ).encode("utf-8")
                 commitment = recovery_service.content_commitment(canonical_bytes)
-                message_fields = ({"hashed_message_id": hashlib.sha256(data["message_id"].encode()).hexdigest()}
+                message_fields = ({"hashed_message_id": message_hash}
                                   if output_kind == "embed" and references is not None else {})
                 producer_fields = {"content_commitment": commitment, **message_fields}
                 if producer is not None and producer.classification == "registered_ai":
@@ -6974,6 +6992,7 @@ class EmbedService(SlidesEmbedMixin):
         producer_final_children: list[dict[str, Any]] | None = None,
         finished_cache_data: dict[str, Any] | None = None,
         finished_cache_vault_key_id: str | None = None,
+        producer_revision: dict[str, Any] | None = None,
     ) -> bool:
         """
         Send PLAINTEXT TOON embed content to client via WebSocket for client-side encryption and storage.
@@ -7108,9 +7127,17 @@ class EmbedService(SlidesEmbedMixin):
                 payload["payload"]["skill_id"] = skill_id
             if owner_pii_mappings:
                 payload["payload"]["owner_pii_mappings"] = owner_pii_mappings
+            if producer_revision is not None:
+                # Next version of an existing child (wire-contract.md, image-edit-as-embed-version).
+                payload["payload"]["revision"] = {
+                    "base_version": producer_revision.get("expected_version"),
+                    "base_snapshot_required": producer_revision.get("base_snapshot_required"),
+                }
 
             batch = _pending_finished_embed_batch.get()
             if batch is not None and status == "finished" and encryption_mode == "client":
+                if producer_revision is not None:
+                    raise RequiredRecoveryOutputError("Embed revision cannot join an unregistered composite batch")
                 if (batch["service"] is not self or status != "finished" or encryption_mode != "client"
                         or user_id_hash != batch["context"].owner_hash):
                     raise RequiredRecoveryOutputError("Composite publication batch identity mismatch")
@@ -7130,8 +7157,14 @@ class EmbedService(SlidesEmbedMixin):
                 await self._save_completed_embed_recovery(
                     payload, producer_child_index=producer_child_index,
                     producer_final_children=producer_final_children,
-                    s3_file_keys=(finished_cache_data or {}).get("s3_file_keys"),
+                    # A revision carries the file keys of every version in its sealed copy,
+                    # so a client persisting it later through recovery keeps them all.
+                    s3_file_keys=(producer_revision["s3_file_keys"] if producer_revision is not None
+                                  else (finished_cache_data or {}).get("s3_file_keys")),
+                    **({"producer_revision": producer_revision} if producer_revision is not None else {}),
                 )
+            elif producer_revision is not None:
+                raise RequiredRecoveryOutputError("Embed revision must be a finished client-encrypted output")
             return await self._publish_prepared_embed(
                 payload, user_id_hash=user_id_hash, finished_cache_data=finished_cache_data,
                 finished_cache_vault_key_id=finished_cache_vault_key_id,

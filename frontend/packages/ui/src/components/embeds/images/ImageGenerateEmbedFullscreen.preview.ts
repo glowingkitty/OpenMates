@@ -63,6 +63,13 @@ export const variants = {
 		status: 'processing'
 	},
 
+	/** Version 2 of 3 with badge (the timeline needs stored versions and stays empty in the preview) */
+	versionTwoOfThree: {
+		...defaultProps,
+		version: 2,
+		versionCount: 3
+	},
+
 	/** Square aspect ratio */
 	square: {
 		...defaultProps,

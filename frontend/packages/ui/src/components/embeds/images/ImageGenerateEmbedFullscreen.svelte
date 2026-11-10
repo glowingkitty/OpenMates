@@ -15,7 +15,7 @@
   import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../../types/embedFullscreen';
   const sourceChatContext = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
   const sourceChatId = sourceChatContext?.exampleChatId ?? sourceChatContext?.lookupChatId ?? sourceChatContext?.chatId ?? null;
-  import { onDestroy, getContext} from 'svelte';
+  import { onDestroy, getContext, untrack } from 'svelte';
   import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
   import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
   import { text, settingsDeepLink, panelState } from '@repo/ui';
@@ -32,6 +32,9 @@
   import { hasMediaEncryptionMetadata } from '../../../services/encryption/mediaEncryption';
   import SvgEmbedImage from '../code/SvgEmbedImage.svelte';
   import { readSvgDraft, shouldShowDraftStatusOnly, shouldShowSvgDraft, svgDraftStageLabelKey } from './svgDraft';
+  import EmbedVersionTimeline from '../shared/EmbedVersionTimeline.svelte';
+  import { EMBED_VERSIONS_ENABLED, embedContentAtVersion, embedHead } from '../../../services/rustCore/embeds/messageEmbedVersion';
+  import { takeFullscreenVersion, versionBadgeLabel } from './imageVersionScope';
 
   /**
    * Type for files metadata from embed content
@@ -75,6 +78,11 @@
     showChatButton?: boolean;
     /** Callback when user clicks the "chat" button */
     onShowChat?: () => void;
+    /** Version to open at (the card's message version); defaults to the version the card remembered, else the head. */
+    initialVersion?: number;
+    /** Preview only: the version shown and the number of versions, without the core. */
+    version?: number;
+    versionCount?: number;
   }
 
   let {
@@ -88,11 +96,24 @@
     navigateDirection,
     showChatButton = false,
     onShowChat,
+    initialVersion,
+    version: previewVersion,
+    versionCount,
   }: Props = $props();
 
   // ── Extract fields from data.decodedContent and data.embedData ──────────────
 
-  let dc = $derived(data.decodedContent);
+  // Image versions (`images-generate.revision.message-shows-its-version`): the fullscreen
+  // opens at the version of the message it came from; the timeline switches versions.
+  // Read once on open (on purpose): later version changes come from the timeline.
+  const startVersion = untrack(() => initialVersion ?? previewVersion ?? takeFullscreenVersion(embedId));
+  let headVersion = $state<number | undefined>(untrack(() => versionCount));
+  let shownVersion = $state<number | undefined>(startVersion);
+  let versionContent = $state<Record<string, unknown> | null>(null);
+  let versionError = $state<string | undefined>(undefined);
+  let versionBadge = $derived(versionBadgeLabel(shownVersion ?? headVersion, headVersion));
+
+  let dc = $derived(versionContent ?? data.decodedContent);
   let ed = $derived(data.embedData);
   let prompt = $derived(typeof dc.prompt === 'string' ? dc.prompt : undefined);
   let model = $derived(typeof dc.model === 'string' ? dc.model : undefined);
@@ -159,6 +180,54 @@
   // Track copy feedback state
   let showCopied = $state(false);
   
+  /** Drop the shown picture so the image effect loads the selected version's files. */
+  function resetImage() {
+    if (retainedPreviewKey) releaseCachedImage(retainedPreviewKey);
+    if (retainedFullKey) releaseCachedImage(retainedFullKey);
+    retainedPreviewKey = undefined;
+    retainedFullKey = undefined;
+    previewImageUrl = undefined;
+    fullImageUrl = undefined;
+    imageError = undefined;
+  }
+
+  /** Show version `version`: `toon` is its plaintext, null for the stored head. */
+  async function showVersion(version: number, toon: string | null) {
+    versionError = undefined;
+    const content = toon === null ? null : await decodeToonContent(toon);
+    if (toon !== null && !content) {
+      versionError = 'embed_version_content_undecodable';
+      return;
+    }
+    resetImage();
+    shownVersion = version;
+    versionContent = (content as Record<string, unknown> | null) ?? null;
+  }
+
+  function versionChatId(): string {
+    if (!sourceChatId) throw new Error('embed_version_chat_unknown');
+    return sourceChatId;
+  }
+
+  $effect(() => {
+    if (!EMBED_VERSIONS_ENABLED || !embedId || versionCount !== undefined) return;
+    const id = embedId;
+    void (async () => {
+      try {
+        const head = await embedHead(id);
+        headVersion = head?.version ?? 1;
+        if (startVersion && startVersion < headVersion) {
+          await showVersion(startVersion, await embedContentAtVersion(versionChatId(), id, startVersion));
+        } else {
+          shownVersion = headVersion;
+        }
+      } catch (err) {
+        console.error('[ImageGenerateEmbedFullscreen] Failed to open the image version:', err);
+        versionError = err instanceof Error ? err.message : String(err);
+      }
+    })();
+  });
+
   /**
    * Load the full-resolution image from S3 with progressive enhancement.
    * 1. Instantly show the cached preview (likely already decrypted by the inline preview)
@@ -491,11 +560,19 @@
             <div class="svg-draft draft-status" data-testid="image-generate-draft-status" data-stage={svgDraftState.stage}>
               <span class="svg-draft-stage" data-testid="image-generate-svg-draft-stage">{$text(draftStageLabelKey)}</span>
             </div>
+          {:else if versionError}
+            <div class="error-container" data-testid="image-generate-version-error">
+              <div class="error-icon">!</div>
+              <p class="error-message">{versionError}</p>
+            </div>
           {:else if fullImageUrl}
-            <div class="image-wrapper">
+            <div class="image-wrapper" data-embed-version={shownVersion ?? 1}>
               <a href={fullImageUrl} target="_blank" rel="noopener noreferrer" class="image-link" title={$text('embeds.image_generate.open_full_size')} onclick={handleImageClick}>
-                <img src={fullImageUrl} alt={prompt || 'Generated image'} class="result-primary-media full-image" />
+                <img src={fullImageUrl} alt={prompt || 'Generated image'} class="result-primary-media full-image" data-embed-version={shownVersion ?? 1} />
               </a>
+              {#if versionBadge}
+                <span class="version-badge" data-testid="image-generate-version-badge">{versionBadge}</span>
+              {/if}
             </div>
           {:else if previewImageUrl && isLoadingImage}
             <!-- Progressive: show preview while full-res loads -->
@@ -517,8 +594,19 @@
             </div>
           {/if}
         </div>
-
-
+        {#if embedId && headVersion && headVersion > 1}
+          <EmbedVersionTimeline
+            {embedId}
+            chatId={sourceChatId ?? undefined}
+            currentVersion={headVersion}
+            currentContent=""
+            initialVersion={shownVersion}
+            showChangesToggle={false}
+            loadVersionContent={(version) => embedContentAtVersion(versionChatId(), embedId, version)}
+            onVersionSelect={(version, content) => { void showVersion(version, content); }}
+            onVersionError={(version) => { versionError = `embed_version_unavailable:v${version}`; }}
+          />
+        {/if}
       {/if}
     </div>
   {/snippet}
@@ -623,6 +711,7 @@
   }
   
   .image-wrapper {
+    position: relative;
     width: 100%;
     max-width: 100%;
     max-height: 100%;
@@ -631,6 +720,21 @@
     justify-content: center;
   }
   
+  /* Version of the picture when the image has more than one */
+  .version-badge {
+    position: absolute;
+    top: var(--spacing-4);
+    right: var(--spacing-4);
+    padding: var(--spacing-1) var(--spacing-3);
+    border-radius: var(--radius-2);
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    font-size: var(--font-size-tiny);
+    font-weight: 600;
+    line-height: 1.3;
+    pointer-events: none;
+  }
+
   /* Clickable link wrapper for the image - opens full size in new tab */
   .image-link {
     width: 100%;

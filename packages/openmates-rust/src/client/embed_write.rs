@@ -18,12 +18,18 @@ pub mod coordinator;
 pub mod history;
 #[path = "embed_write_keys.rs"]
 pub mod keys;
+/// Message-scoped image versions and version-K content (`pinned_embeds`).
+#[path = "embed_pinned_version.rs"]
+pub mod pinned;
 #[path = "embed_write_payload.rs"]
 pub mod payload;
 #[path = "embed_write_read.rs"]
 pub mod read;
 #[path = "embed_write_ref_index.rs"]
 pub mod ref_index;
+/// Child revision persistence (version N+1 of a generated image child).
+#[path = "embed_child_revision.rs"]
+pub mod revision;
 #[path = "embed_write_session.rs"]
 pub mod session;
 #[path = "embed_write_status.rs"]
@@ -35,7 +41,9 @@ pub use history::{
 };
 pub use keys::{NonceSource, OsNonces};
 pub use payload::{PreparedEmbedWrite, ProcessingEmbedUpdate, StreamedEmbedData};
+pub use pinned::{MessageImageVersion, MessageParents, PinnedEmbed};
 pub use ref_index::{EmbedRefIndex, EmbedRefIndexEntry, ResolvedEmbedRef};
+pub use revision::{ChildRevision, ChildRevisionStep, ChildRevisionWrites, RevisionRowRole};
 pub use session::{AdoptedKey, EmbedWriteSession, KeyAdoption, KeyLookup, PlannedEmbedWrite};
 pub use status::EmbedStatus;
 
@@ -60,3 +68,6 @@ mod tests;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "embed_write_resolve_tests.rs"]
 mod resolve_tests;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "embed_child_revision_tests.rs"]
+mod child_revision_tests;

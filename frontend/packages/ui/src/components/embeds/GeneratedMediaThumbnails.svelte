@@ -15,6 +15,8 @@
   import { chatSyncService } from '../../services/chatSyncService';
   import { fetchAndDecryptImage, getCachedImageUrl, createImageUrlOwner } from './images/imageEmbedCrypto';
   import { hasMediaEncryptionMetadata } from '../../services/encryption/mediaEncryption';
+  import { EMBED_VERSIONS_ENABLED, embedVersionGeneration } from '../../services/rustCore/embeds/messageEmbedVersion';
+  import { findMessageId, resolveImageVersionView } from './images/imageVersionScope';
 
   /** Tiles shown in the card; the rest is summarized as "+N". */
   const MAX_TILES = 4;
@@ -32,6 +34,15 @@
   let generation = 0;
   let disposed = false;
   let retry = $state(0);
+  // In a chat message each child shows the version valid at that message (Rust core).
+  let host = $state<HTMLDivElement | undefined>(undefined);
+  let messageId = $state<string | null>(null);
+  $effect(() => {
+    if (!EMBED_VERSIONS_ENABLED || !host) return;
+    let cancelled = false;
+    void findMessageId(host).then((found) => { if (!cancelled) messageId = found; });
+    return () => { cancelled = true; };
+  });
 
   const visibleIds = $derived(childEmbedIds.slice(0, MAX_TILES));
   const hiddenCount = $derived(Math.max(0, childEmbedIds.length - MAX_TILES));
@@ -51,10 +62,12 @@
   $effect(() => {
     const ids = [...new Set(childEmbedIds)];
     void retry;
+    const scope = messageId;
+    if (scope) void $embedVersionGeneration;
     const current = ++generation;
     owner.destroy();
     owner = createImageUrlOwner();
-    void load(ids, current);
+    void load(ids, current, scope);
   });
 
   function publicUrl(content: Record<string, unknown>): string | undefined {
@@ -65,13 +78,19 @@
     return undefined;
   }
 
-  async function load(ids: string[], current: number) {
+  async function load(ids: string[], current: number, scope: string | null) {
     const next = new Map<string, string>();
     let promptReported = false;
     for (const id of ids) {
       try {
         const embed = await resolveEmbed(id, { chatId });
-        const content = embed?.content ? await decodeToonContent(embed.content) : null;
+        let content = embed?.content ? await decodeToonContent(embed.content) : null;
+        if (scope && content) {
+          const view = await resolveImageVersionView(scope, id, chatId);
+          // A pinned version newer than this device's head arrives with the next update.
+          if (view?.waitingForHead) continue;
+          if (view?.content) content = view.content;
+        }
         if (!content || disposed || current !== generation) continue;
         if (!promptReported && typeof content.prompt === 'string' && content.prompt.trim()) {
           promptReported = true;
@@ -104,7 +123,7 @@
   }
 </script>
 
-<div class="thumbnails" class:single={visibleIds.length === 1} data-testid="generated-media-thumbnails">
+<div class="thumbnails" bind:this={host} class:single={visibleIds.length === 1} data-testid="generated-media-thumbnails">
   {#each visibleIds as id (id)}
     {@const url = urls.get(id)}
     <div class="tile" data-testid="generated-media-thumbnail" data-embed-id={id}>

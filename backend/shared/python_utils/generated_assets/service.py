@@ -161,8 +161,22 @@ async def index_generated_asset(
     content_type: str,
     log_prefix: str,
     provenance_metadata: Optional[Dict[str, Any]] = None,
+    existing_record_id: Optional[str] = None,
+    retained_size_bytes: int = 0,
 ) -> bool:
-    """Create upload_files index record for generated media and update storage count."""
+    """Create upload_files index record for generated media and update storage count.
+
+    ``existing_record_id`` re-points the embed's one index row (``embed_id`` is
+    unique) at a new version of the same embed. The files of earlier versions
+    stay in storage and keep counting: the row's ``file_size_bytes`` stays the
+    sum of every version (``retained_size_bytes`` + the new files), because
+    deleting the embed frees exactly that amount
+    (``embed_methods.delete_upload_files_for_embeds``). Earlier versions' object
+    keys stay discoverable for cleanup through ``embeds.s3_file_keys`` and the
+    sealed recovery output, which both hold the union of all versions.
+    """
+    if retained_size_bytes and not existing_record_id:
+        raise ValueError("Retained bytes belong to an existing index row")
     file_size_bytes = sum(
         int(meta.get("size_bytes") or 0)
         for meta in files_metadata.values()
@@ -174,7 +188,7 @@ async def index_generated_asset(
         "content_hash": hashlib.sha256(content_hash_source).hexdigest(),
         "original_filename": original_filename,
         "content_type": content_type,
-        "file_size_bytes": file_size_bytes,
+        "file_size_bytes": file_size_bytes + retained_size_bytes,
         "s3_base_url": s3_base_url,
         "files_metadata": files_metadata,
         "aes_nonce": nonce_b64,
@@ -190,7 +204,15 @@ async def index_generated_asset(
     variants = [metadata for metadata in files_metadata.values() if isinstance(metadata, dict)]
     if not variants or any(metadata.get("encryption") != MEDIA_ENCRYPTION_V2 for metadata in variants):
         record["aes_key"] = aes_key_b64
-    success, error = await task._directus_service.create_item("upload_files", record)
+    if existing_record_id:
+        # A revision must not keep the old version's plaintext key on the row.
+        record.setdefault("aes_key", None)
+        updated = await task._directus_service.update_item(
+            "upload_files", existing_record_id, record, admin_required=True,
+        )
+        success, error = bool(updated), "update returned no row"
+    else:
+        success, error = await task._directus_service.create_item("upload_files", record)
     if not success:
         logger.warning("%s Failed to create generated asset upload_files record: %s", log_prefix, error)
         return False

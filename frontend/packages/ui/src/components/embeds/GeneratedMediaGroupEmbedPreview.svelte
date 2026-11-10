@@ -14,6 +14,7 @@
   import UnifiedEmbedPreview from './UnifiedEmbedPreview.svelte';
   import GeneratedMediaThumbnails from './GeneratedMediaThumbnails.svelte';
   import { generatedMediaChildIds } from './generatedMediaGroup';
+  import { pinnedEmbedsOf } from '../../services/rustCore/embeds/messageEmbedVersion';
 
   interface Props {
     id: string;
@@ -42,7 +43,9 @@
   let request = $state<GenerationRequestInfo>(EMPTY_GENERATION_REQUEST);
   const prompt = $derived(promptProp?.trim() || childPrompt || request.prompt || undefined);
   const skillName = $derived($text(`app_skills.${appId}.${skillId}`));
-  const childIds = $derived(currentChildIds ?? childEmbedIds);
+  // A change to an existing image pins that image's new version instead of listing a child.
+  let pinnedIds = $state<string[]>([]);
+  const childIds = $derived([...new Set([...(currentChildIds ?? childEmbedIds), ...pinnedIds])]);
   const count = $derived(Math.max(currentCount ?? 0, resultCount ?? 0, childIds.length));
 
   function handleUpdated(data: { decodedContent: Record<string, unknown> | null }) {
@@ -55,6 +58,20 @@
     currentError = typeof content.error === 'string' ? content.error : undefined;
     const ids = generatedMediaChildIds(content);
     if (ids.length > 0) currentChildIds = ids;
+    void readPins(content);
+  }
+
+  async function readPins(content: Record<string, unknown>) {
+    try {
+      const pins = await pinnedEmbedsOf(content);
+      if (pins.length === 0) return;
+      // The final manifest lists only owned children: the draft placeholder is gone.
+      currentChildIds = generatedMediaChildIds(content);
+      pinnedIds = pins.map((pin) => pin.embed_id);
+    } catch (pinError) {
+      console.error('[GeneratedMediaGroupEmbedPreview] Pinned versions unreadable:', pinError);
+      currentError = typeof (pinError as { code?: unknown })?.code === 'string' ? String((pinError as { code: string }).code) : 'embed_pins_unreadable';
+    }
   }
 
   // A vector graphic is drawn live: its drafts arrive as processing updates of

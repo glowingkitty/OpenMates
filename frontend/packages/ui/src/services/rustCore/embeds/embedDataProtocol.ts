@@ -15,6 +15,7 @@
  */
 import type { EmbedReadProtocol } from './readOps';
 import type { EmbedKeyWrapperRow, EncryptedDiffRow, PreparedEmbedWrite, StreamCompletionInput } from '../embedWriteAdapter';
+import type { ChildRevisionProtocol } from './childRevisionProtocol';
 
 export const EMBED_UNIT_CLOSE = /* @__PURE__ */ Object.freeze({ embedUnitClose: 1 as const });
 
@@ -99,4 +100,4 @@ export type EmbedWriteProtocol = {
 	openStoredRows: { request: { rows: StoredRowRequest[] }; response: StoredRowResult[] };
 	forgetChat: { request: { chatId: string }; response: null };
 	clear: { request: null; response: null };
-};
+} & ChildRevisionProtocol;

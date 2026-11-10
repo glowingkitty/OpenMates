@@ -4581,6 +4581,8 @@ export async function handleSendEmbedDataImpl(
       // Compile-time flag: the shared Worker's Rust unit chooses the key, encrypts and persists.
       if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1" && !persistenceIndexes &&
         await (await import("./rustCore/embeds/rustStreamedEmbedWrite")).writeStreamedEmbedInRust(serviceInstance, embedData, canonicalLease, options?.localOnly === true)) return;
+      // A new version of an existing image is persisted only by the Rust core; this branch would re-hash and overwrite its head.
+      if ((embedData as { revision?: unknown }).revision != null) throw new Error("embed_revision_requires_rust_core");
 
       // Import dependencies
       const embedStoreModule = await import("./embedStore");

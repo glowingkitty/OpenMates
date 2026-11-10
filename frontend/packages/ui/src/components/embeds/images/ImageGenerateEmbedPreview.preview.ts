@@ -100,6 +100,14 @@ export const variants = {
 		isMobile: false
 	},
 
+	/** Version 2 of 3 with badge: the card of the message that made version 2 */
+	versionTwoOfThree: {
+		...defaultProps,
+		id: 'preview-image-gen-version-2-of-3',
+		version: 2,
+		versionCount: 3
+	},
+
 	/** Mobile view */
 	mobile: {
 		...defaultProps,

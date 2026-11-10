@@ -44,7 +44,7 @@ const FINISHED_IMAGE =
 interface DraftProbe {
 	stage: string;
 	size: number;
-	/** Embed ids of finished image cards whose picture is loaded (off-screen cards unload theirs). */
+	/** `<embed id>@v<version>` of finished image cards whose picture is loaded (off-screen cards unload theirs). */
 	finishedIds: string[];
 	model: string;
 	/** The request shown on the card before a picture exists. */
@@ -64,15 +64,63 @@ async function probeDrawing(page: any): Promise<DraftProbe> {
 			requestModel: request?.querySelector('[data-testid="image-generate-request-model"]')?.textContent?.trim() ?? '',
 			requestInputImages: request?.querySelectorAll('[data-testid="image-generate-request-input"] img').length ?? 0,
 			size: image ? image.src.length : 0,
-			finishedIds: Array.from(document.querySelectorAll(finishedSelector)).map(
-				(image) => image.closest('[data-embed-id]')?.getAttribute('data-embed-id') ?? ''
-			),
+			finishedIds: Array.from(document.querySelectorAll(finishedSelector)).map((image) => {
+				const embedId = image.closest('[data-embed-id]')?.getAttribute('data-embed-id') ?? '';
+				return embedId ? `${embedId}@v${image.getAttribute('data-embed-version') ?? '1'}` : '';
+			}),
 			model: document.querySelector('[data-testid="using-model"]')?.textContent ?? ''
 		};
 	}, FINISHED_IMAGE);
 }
 
-/** Follow one drawing until `finishedTarget` different finished vector images have been shown. */
+interface MessagePicture {
+	messageId: string;
+	embedId: string;
+	version: string;
+	src: string;
+}
+
+/** The finished picture each chat message shows, in chat order (one per message). */
+async function messagePictures(page: any): Promise<MessagePicture[]> {
+	return page.evaluate((finishedSelector: string) => {
+		const pictures: { messageId: string; embedId: string; version: string; src: string }[] = [];
+		for (const message of Array.from(document.querySelectorAll('[data-message-id]'))) {
+			const image = message.querySelector(finishedSelector) as HTMLImageElement | null;
+			if (!image) continue;
+			pictures.push({
+				messageId: message.getAttribute('data-message-id') ?? '',
+				embedId: image.closest('[data-embed-id]')?.getAttribute('data-embed-id') ?? '',
+				version: image.getAttribute('data-embed-version') ?? '',
+				src: image.getAttribute('src') ?? ''
+			});
+		}
+		return pictures;
+	}, FINISHED_IMAGE);
+}
+
+/** Scroll through the chat so every message's card loads its picture, then read them. */
+async function readAllMessagePictures(page: any, expected: number): Promise<MessagePicture[]> {
+	const deadline = Date.now() + 60_000;
+	let pictures: MessagePicture[] = [];
+	while (Date.now() < deadline) {
+		for (const card of await page.locator('[data-message-id] [data-testid="embed-preview"][data-app-id="images"]').all()) {
+			await card.scrollIntoViewIfNeeded();
+		}
+		pictures = await messagePictures(page);
+		if (pictures.length >= expected && pictures.every((picture) => picture.src)) break;
+		await page.waitForTimeout(500);
+	}
+	return pictures;
+}
+
+/** One image embed for the whole chat; message N shows version N with its own picture. */
+function expectOneEmbedVersionPerMessage(pictures: MessagePicture[], label: string): void {
+	expect(pictures.map((picture) => picture.version), `${label}: each message shows its own version`).toEqual(['1', '2', '3']);
+	expect(new Set(pictures.map((picture) => picture.embedId)).size, `${label}: one image embed for the chat`).toBe(1);
+	expect(new Set(pictures.map((picture) => picture.src)).size, `${label}: the three messages show different pictures`).toBe(3);
+}
+
+/** Follow one drawing until `finishedTarget` different finished image versions have been shown. */
 async function followDrawing(
 	page: any, seen: Set<string>, finishedTarget: number,
 	onFirstProgress: () => Promise<void>, onFirstPicture: () => Promise<void>, wantsInputImage = false
@@ -123,6 +171,7 @@ function expectVisibleProgress(run: { sizes: Set<number>; stages: Set<string> },
 }
 
 // contract-test: direct surface=gui.web assertions=images-generate.vector.progressive-drafts,images-generate.vector.skill-authors-svg,images-generate.vector.references-vector-and-pixel
+// contract-test: direct surface=gui.web assertions=images-generate.revision.same-embed-new-version,images-generate.revision.message-shows-its-version
 test('embroidery vector graphic is made by the images skill, shows progress, and follow-ups modify it', async ({ page }) => {
 	test.setTimeout(1_500_000);
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
@@ -181,11 +230,15 @@ test('embroidery vector graphic is made by the images skill, shows progress, and
 		expect(modified.request.prompt.length, `follow-up ${index + 1} showed its prompt`).toBeGreaterThan(5);
 		expect(modified.request.inputImages, `follow-up ${index + 1} showed its input image`).toBeGreaterThan(0);
 
-		// A new finished image was added; the earlier one keeps its own card further up.
-		expect(seen.size, `follow-up ${index + 1} produced a new image`).toBe(target);
-		const newId = [...seen].find((embedId) => !before.has(embedId));
+		// A new version of the same image was made; the earlier message keeps its own picture.
+		expect(seen.size, `follow-up ${index + 1} produced a new version`).toBe(target);
+		const newVersion = [...seen].find((entry) => !before.has(entry)) ?? '';
+		const [newId, versionLabel] = newVersion.split('@v');
+		expect(versionLabel, `follow-up ${index + 1} made version ${target}`).toBe(String(target));
 		await expect(page.getByTestId('typing-indicator')).not.toBeVisible({ timeout: ANSWER_TIMEOUT });
-		const newImage = page.locator(`[data-embed-id="${newId}"] [data-testid="image-generate-preview-image"]`).first();
+		const newImage = page
+			.locator(`[data-embed-id="${newId}"] [data-testid="image-generate-preview-image"][data-embed-version="${target}"]`)
+			.first();
 		await newImage.scrollIntoViewIfNeeded();
 		await expect(newImage).toBeVisible({ timeout: ANSWER_TIMEOUT });
 		const src = await newImage.getAttribute('src');
@@ -195,6 +248,34 @@ test('embroidery vector graphic is made by the images skill, shows progress, and
 		await expect(page.getByTestId('svg-embed-visual')).toHaveCount(0);
 		await screenshot(page, `svg-modified-${index + 1}`);
 	}
+
+	// One image embed for the whole chat; each message shows the version it made.
+	const live = await readAllMessagePictures(page, 3);
+	log(`message pictures: ${JSON.stringify(live.map(({ messageId, version }) => ({ messageId, version })))}`);
+	expectOneEmbedVersionPerMessage(live, 'live');
+	await expect(page.getByTestId('image-generate-version-badge').first()).toBeVisible();
+
+	// The same after a reload: the versions come from the stored rows and the pins.
+	await page.reload();
+	const reloaded = await readAllMessagePictures(page, 3);
+	expectOneEmbedVersionPerMessage(reloaded, 'after reload');
+	expect(reloaded.map((picture) => picture.messageId)).toEqual(live.map((picture) => picture.messageId));
+	await screenshot(page, 'svg-versions-after-reload');
+
+	// Fullscreen from the last message opens at its version, with a timeline of all three.
+	const lastImage = page.locator(
+		`[data-message-id="${reloaded[2].messageId}"] [data-testid="image-generate-preview-image"][data-embed-version="3"]`
+	).first();
+	await lastImage.scrollIntoViewIfNeeded();
+	await lastImage.click();
+	const timeline = page.getByTestId('embed-version-timeline');
+	await expect(timeline).toBeVisible({ timeout: 30_000 });
+	for (const version of [1, 2, 3]) await expect(timeline.getByTestId(`version-dot-${version}`)).toBeVisible();
+	await expect(page.locator('.image-wrapper[data-embed-version="3"]')).toBeVisible({ timeout: 30_000 });
+	// Selecting version 1 shows the first picture.
+	await timeline.getByTestId('version-dot-1').click();
+	await expect(page.locator('.image-wrapper[data-embed-version="1"] img')).toBeVisible({ timeout: 30_000 });
+	await screenshot(page, 'svg-versions-fullscreen');
 
 	if (process.env.KEEP_VECTOR_CHAT !== '1') await deleteActiveChat(page, log);
 });

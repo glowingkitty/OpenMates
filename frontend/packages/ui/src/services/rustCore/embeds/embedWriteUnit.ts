@@ -33,9 +33,12 @@ import { getEmbedDiffs, persistPreparedEmbedWrite, putEmbedDiff } from '../embed
 import { isEmbedUnitClose, type EmbedWriteProtocol, type PersistedEmbedWrite } from './embedDataProtocol';
 import { createWorkerChatsDb, type ChatsDbOpener } from './embedWorkerIdb';
 import { createEmbedKeyHandlers, type EmbedKeyResolverPort } from './embedKeyResolution';
+import { createChildRevisionHandlers } from './childRevisionHandlers';
+import type { ChildRevisionFunctions, ChildRevisionWriterPort } from './childRevisionProtocol';
 
-export interface EmbedWriteBinding extends EmbedWriteFunctions {
-	BrowserEmbedWriter: new (master: CryptoKey) => EmbedWriterPort & EmbedKeyResolverPort & { free?: () => void };
+type WriterSession = EmbedWriterPort & EmbedKeyResolverPort & ChildRevisionWriterPort & { free?: () => void };
+export interface EmbedWriteBinding extends EmbedWriteFunctions, ChildRevisionFunctions {
+	BrowserEmbedWriter: new (master: CryptoKey) => WriterSession;
 }
 
 const CODE = /^[a-z][a-z0-9_]{0,63}$/;
@@ -82,7 +85,7 @@ function withoutLocalWrappers(prepared: PreparedEmbedWrite): PersistedEmbedWrite
 export function createEmbedWriteHandlers(binding: EmbedWriteBinding, openDb: ChatsDbOpener): {
 	handlers: UnitHandlers<EmbedWriteProtocol>; dispose(): void;
 } {
-	let writer: (EmbedWriterPort & EmbedKeyResolverPort & { free?: () => void }) | null = null;
+	let writer: WriterSession | null = null;
 	let disposed = false;
 	const session = () => {
 		if (disposed || !writer) throw new UnitRefusal('embed_write_not_initialized');
@@ -185,6 +188,7 @@ export function createEmbedWriteHandlers(binding: EmbedWriteBinding, openDb: Cha
 			return rust(() => session().reconstruct_versions(embedId, rows));
 		},
 		...createEmbedKeyHandlers(session, openDb, rust),
+		...createChildRevisionHandlers({ session, binding, openDb, rust }),
 		async classifyCanonicalRead(payload) {
 			const request = record(payload, 'request');
 			const { status, version, durableHead, body } = request;

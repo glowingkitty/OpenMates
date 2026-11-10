@@ -284,7 +284,7 @@ specifications:
     version: 1
     status: draft
     path: features/app-skills/images-generate
-    fingerprint: 1c340bf9899ca5e70fdf3fc94d839a4b0667df9826145273bae479fe44cf2ada
+    fingerprint: 34601073e11449e4af5eaea0d6aa514412bd5efefc1029e277240e5ff443facd
     required_applies_to:
     - rest_api
     - cli
@@ -4710,6 +4710,42 @@ assertions:
     specification_id: feature.app-skill.images-generate
     type: invariant
     fingerprint: 0ed5d5935a493492dac9b029f78b54d852ceb1845f2af1cd9d5e7577ef6bad73
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  images-generate.revision.same-embed-new-version:
+    specification: feature.app-skill.images-generate@1
+    specification_id: feature.app-skill.images-generate
+    type: behavior
+    fingerprint: c3bb024294acd4689a747bbb2a1b8762d48594b278603d605746e30ceb1cdcde
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  images-generate.revision.message-shows-its-version:
+    specification: feature.app-skill.images-generate@1
+    specification_id: feature.app-skill.images-generate
+    type: behavior
+    fingerprint: 8584ef790ea065cae02c32c5e69d40788f76a391a8a99e039f65b89175e0bb17
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  images-generate.revision.each-version-billed-once:
+    specification: feature.app-skill.images-generate@1
+    specification_id: feature.app-skill.images-generate
+    type: invariant
+    fingerprint: f15e48425013ab903eb64ecfd1f8946667a76df5cc27c399d32c6b12f4c1a8fd
     required_applies_to:
     - rest_api
     - cli
