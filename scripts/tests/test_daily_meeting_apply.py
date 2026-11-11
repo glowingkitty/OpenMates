@@ -84,14 +84,27 @@ def test_verification_compares_live_data():
 
 def test_task_plan_and_verification():
     plan = apply.plan_tasks(apply.task_rows(apply.parse_sections(NOTE)), TASKS)
-    assert [e["status"] for e in plan] == ["ready", "ready", "ready", "attention"]
+    assert [e["status"] for e in plan] == ["ready", "ready", "ready", "ready"]
     assert plan[0]["cmds"] == [["edit", "t1", "--priority", "high", "--add-label", "milestone:money"]]
-    assert plan[1]["cmds"] == [["done", "t2"]] and "--due" in plan[2]["cmds"][0]
-    assert "cannot change a due date" in plan[3]["reason"]
+    created_due, edited_due = 1794355200, 1794441600  # 2026-11-11 and 2026-11-12 at 00:00 UTC
+    assert plan[1]["cmds"] == [["done", "t2"]] and plan[2]["cmds"][0][-2:] == ["--due", str(created_due)]
+    assert plan[3]["cmds"] == [["edit", "t4", "--due", str(edited_due)]]
     after = [dict(TASKS[0], priority_level="high", labels=["milestone:money"]), dict(TASKS[1], status="done"),
-             {"task_id": "t3", "title": "Review the archives", "status": "todo", "priority_level": "high", "labels": []}]
-    assert [apply.verify_task(e, after) for e in plan[:3]] == ["", "", ""]
+             {"task_id": "t3", "title": "Review the archives", "status": "todo", "priority_level": "high", "labels": [],
+              "due_at": created_due}, dict(TASKS[2], due_at=edited_due)]
+    assert [apply.verify_task(e, after) for e in plan] == ["", "", "", ""]
     assert "priority_level" in apply.verify_task(plan[0], TASKS)
+    assert "due date is empty" in apply.verify_task(plan[3], TASKS)
+    assert "another due date" in apply.verify_task(plan[2], [dict(after[2], due_at=None)])
+
+
+def test_task_due_is_berlin_time_and_a_bad_due_needs_attention():
+    assert apply.task_due_epoch("2026-11-11 16:00") == 1794355200 + 15 * 3600  # 16:00 Berlin is 15:00 UTC
+    assert apply.task_due_epoch("2026-11-11") == 1794355200 and apply.task_due_epoch("next week") is None
+    row = {"action": "edit", "title": "Third task", "new_title": "", "priority": "", "status": "", "label": "",
+           "due": "tomorrow", "description": "", "assign": ""}
+    bad = apply.plan_tasks([row], TASKS)[0]
+    assert bad["status"] == "attention" and "YYYY-MM-DD" in bad["reason"] and not bad["cmds"]
 
 
 def test_report_marks_unverified_rows_and_lists_manual_sections():

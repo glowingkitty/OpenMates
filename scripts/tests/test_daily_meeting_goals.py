@@ -71,6 +71,20 @@ def test_meeting_script_has_goals_block_retro_and_structured_tables():
     assert "Goals:" in script and "Meeting: <" in script and "milestone does today's top task serve" in script
 
 
+def test_meeting_script_has_the_mentor_stance_and_the_daily_drift_check():
+    script = briefing.MEETING_SCRIPT
+    check_in, focus = script.index("Block 1 — Check-in"), script.index("Block 3 — Focus")
+    assert "**Mentor stance:**" in script and "critical mentor" in script and "praise only what the evidence supports" in script
+    drift = script.index("daily drift check")
+    assert check_in < drift < script.index("Block 2 — Safety net")  # the drift check is part of Block 1
+    block_1 = script[check_in:script.index("Block 2 — Safety net")]
+    assert "share that served the milestone" in block_1 and "name the drift plainly" in block_1
+    assert "does not count as drift" in block_1 and "**exactly one** open question" in block_1
+    assert "always gets the first work slot of the day" in script[focus:script.index("Block 4 — Reminders")]
+    assert "\nDrift: ~<n>% of the work since the last meeting served <milestone>" in script
+    assert "| edit | <title> | <new title> | <priority> | <status> | <label to add> | YYYY-MM-DD | <description> |" in script
+
+
 def test_goals_block_is_due_on_monday_and_carries_over_until_reviewed():
     tuesday, monday = date(2026, 11, 10), date(2026, 11, 9)
     assert goals.block_due(None, tuesday)[0] and "first one" in goals.block_due(None, tuesday)[1]

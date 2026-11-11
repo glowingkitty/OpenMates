@@ -33,8 +33,10 @@ What may be worked on is defined in [`FOCUS.md`](../../../FOCUS.md)
    exactly one question at a time, with a recommendation, then waits. The meeting
    has 6 blocks and is built for ADHD: Block 1 is a check-in in the founder's own
    words (what have you been up to, how happy with the progress 1-5, largest
-   priorities, energy today 1-5), then safety net (production alerts, chats waiting),
-   focus (max 3 tasks, each with a 5-minute first step, time slot and stop rule),
+   priorities, energy today 1-5) and ends with the daily drift check (below), then
+   safety net (production alerts, chats waiting),
+   focus (max 3 tasks, each with a 5-minute first step, time slot and stop rule; the
+   task that serves the current milestone gets the first work slot of the day),
    reminders in groups with times, parking lot, and an optional 5-minute backlog
    cleanup that is skipped when energy is low. Ideas that come up mid-meeting are
    parked in one line, and it ends with a three-line read-back. The meeting ends
@@ -112,9 +114,20 @@ The briefing shows chats by title (else the last prompt or reply in words, never
 slug) with their Task title, and Tasks, GitHub and Linear issues as "title (id)". The meeting
 script (`MEETING_SCRIPT`) tells Claude to speak and write the same way.
 
+## Mentor stance and the daily drift check
+Claude runs the meeting as a critical mentor, not as a note-taker: honest and constructive, it says
+plainly what the briefing's evidence shows and praises only what the evidence supports, without a
+lecture. Every meeting, at the end of Block 1, it compares the commits and the chats since the last
+meeting with the current milestone, states the rough share of the work that served it, names the
+drift and where the time went, and asks exactly one question that lets the founder draw the
+conclusion. Background work the founder approved to run on its own (the Rust rewrite, migrations named
+in the phase rules or the agreed adjustments) is named separately and does not count as drift. The
+result is the note's `Drift:` line, so the next meeting can say whether it got better or worse.
+
 ## Structured decisions note (reminder and Task tables)
 The note's `Reminder changes:` and `Task changes:` sections are tables, one row per change, with the exact
-reminder title, a time in every due and the plain Task title. `scripts/daily_meeting_apply.py plan|apply
+reminder title, a time in every due and the plain Task title. A Task's `Due` cell (`YYYY-MM-DD`, or `YYYY-MM-DD HH:MM` in Berlin time)
+is applied on `create` and on `edit` rows and checked on the live Task afterwards. `scripts/daily_meeting_apply.py plan|apply
 --note <file>` reads the live reminders (Mac) and live Tasks, resolves every row (exact title or a unique
 prefix), applies the unambiguous rows and then re-reads both lists. It prints one result per row (OK /
 FAILED / NEEDS ATTENTION) and exits 1 if any row is not applied and verified, so a change can no longer be

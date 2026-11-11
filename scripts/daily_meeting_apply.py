@@ -18,7 +18,7 @@ Docs: docs/contributing/guides/daily-meeting.md
 from __future__ import annotations
 
 import argparse
-from datetime import datetime
+from datetime import datetime, timezone
 import difflib
 import json
 from pathlib import Path
@@ -140,6 +140,18 @@ def berlin(value: str | None) -> str:
     return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(mac_reminders.TZ).strftime("%Y-%m-%d %H:%M")
 
 
+def task_due_epoch(value: str) -> int | None:
+    """Epoch seconds for a Task due cell: `YYYY-MM-DD HH:MM` is Berlin time, a bare date is that day
+    at 00:00 UTC (what the Tasks CLI stores for a date); None when the cell is not a date."""
+    text = value.strip()
+    try:
+        if len(text) == 10:
+            return int(datetime.strptime(text, "%Y-%m-%d").replace(tzinfo=timezone.utc).timestamp())
+        return int(datetime.strptime(text, "%Y-%m-%d %H:%M").replace(tzinfo=mac_reminders.TZ).timestamp())
+    except ValueError:
+        return None
+
+
 def plan_reminders(rows: list[dict], items: list[dict]) -> list[dict]:
     """One plan entry per row: status ready | attention | noop, a batch `ops` list and the `expect` check."""
     plan, seen = [], set()
@@ -205,30 +217,33 @@ def plan_tasks(rows: list[dict], tasks: list[dict]) -> list[dict]:
         entry = {"section": "Task", "n": number, "label": f'{row["action"]}: {row["title"][:70]}',
                  "status": "ready", "reason": "", "cmds": [], "expect": {}}
         action = row["action"]
+        due = task_due_epoch(row["due"]) if row["due"] else None
         if row["priority"] and row["priority"] not in PRIORITIES:
             entry.update(status="attention", reason=f"priority must be one of {', '.join(PRIORITIES)}")
+        elif row["due"] and due is None:
+            entry.update(status="attention", reason="due must be YYYY-MM-DD or YYYY-MM-DD HH:MM (Berlin)")
         elif action == "keep":
             entry["status"] = "noop"
         elif action == "create":
             cmd = ["create", "--title", row["title"]]
             for flag, key in (("--description", "description"), ("--priority", "priority"),
-                              ("--status", "status"), ("--label", "label"), ("--due", "due"),
-                              ("--assign", "assign")):
+                              ("--status", "status"), ("--label", "label"), ("--assign", "assign")):
                 if row[key]:
                     cmd += [flag, row[key]]
+            expect = {"kind": "create", "title": row["title"], "priority": row["priority"], "status": row["status"]}
+            if due is not None:
+                cmd += ["--due", str(due)]
+                expect["due_at"] = due
             entry.update(status="ready" if row["title"] else "attention", reason="" if row["title"] else "create needs a title",
-                         cmds=[cmd], expect={"kind": "create", "title": row["title"], "priority": row["priority"],
-                                             "status": row["status"]})
+                         cmds=[cmd], expect=expect)
         elif action in ("edit", "done", "delete"):
             task, why = resolve(row["title"], tasks)
             if task is None:
                 entry.update(status="attention", reason=why)
             elif task["task_id"] in seen:
                 entry.update(status="attention", reason="the same Task appears in two rows")
-            elif action == "edit" and row["due"]:
-                entry.update(status="attention", reason="`tasks edit` cannot change a due date: recreate the Task or drop the due column")
-            elif action == "edit" and not any(row[k] for k in ("new_title", "priority", "status", "label", "description")):
-                entry.update(status="attention", reason="edit needs at least one of new title, priority, status, label, description")
+            elif action == "edit" and not any(row[k] for k in ("new_title", "priority", "status", "label", "due", "description")):
+                entry.update(status="attention", reason="edit needs at least one of new title, priority, status, label, due, description")
             else:
                 seen.add(task["task_id"])
                 tid, expect = task["task_id"], {"kind": action, "id": task["task_id"]}
@@ -248,6 +263,9 @@ def plan_tasks(rows: list[dict], tasks: list[dict]) -> list[dict]:
                     if row["label"]:
                         cmd += ["--add-label", row["label"]]
                         expect["label"] = row["label"]
+                    if due is not None:
+                        cmd += ["--due", str(due)]
+                        expect["due_at"] = due
                     entry["cmds"] = [cmd]
                 entry["expect"] = expect
         else:
@@ -283,7 +301,11 @@ def verify_task(entry: dict, tasks: list[dict]) -> str:
     kind = expect["kind"]
     if kind == "create":
         match = [t for t in tasks if t["title"] == expect["title"]]
-        return "" if match else "created Task not found"
+        if not match:
+            return "created Task not found"
+        if "due_at" in expect and not any(t.get("due_at") == expect["due_at"] for t in match):
+            return "created Task has no or another due date"
+        return ""
     task = by_id.get(expect["id"])
     if kind == "delete":
         return "Task still exists" if task else ""
@@ -294,6 +316,8 @@ def verify_task(entry: dict, tasks: list[dict]) -> str:
             return f'{key} is {task.get(key)!r}, expected {expect[key]!r}'
     if "label" in expect and expect["label"] not in (task.get("labels") or []):
         return "label was not added"
+    if "due_at" in expect and task.get("due_at") != expect["due_at"]:
+        return f'due date is {task.get("due_at") or "empty"}, expected {expect["due_at"]} (epoch seconds)'
     return ""
 
 

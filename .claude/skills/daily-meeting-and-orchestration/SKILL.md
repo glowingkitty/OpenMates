@@ -12,6 +12,7 @@ posted to Discord). Its output is a decisions note the user pastes here:
 ```
 DECISIONS 2026-11-04
 Check-in: progress <1-5>, energy <1-5>; did: …; priorities: …
+Drift: ~<n>% of the work since the last meeting served <milestone>; the rest: …; founder's conclusion: …
 Focus: …
 Focus tasks:
 1. … (done when: …; milestone: …)
@@ -33,7 +34,7 @@ The note is the user's approved decision: apply it without re-asking, and ask
 only when an item is ambiguous (e.g. a reminder title matches none or several).
 
 ## Apply
-0. **Save the note** verbatim (the `Check-in:` line is context only: nothing to apply) as `logs/daily-meetings/<date>-decisions.md`
+0. **Save the note** verbatim (the `Check-in:` and `Drift:` lines are context only: nothing to apply) as `logs/daily-meetings/<date>-decisions.md`
    (chmod 600, private); the next briefing shows it as the previous meeting.
    Personal notes (health, authorities, private links) stay there, never in FOCUS.md.
 1. **FOCUS.md** (repo root, work-related only): set *Today's focus* (focus + the
@@ -51,8 +52,8 @@ only when an item is ambiguous (e.g. a reminder title matches none or several).
    done unless the report shows OK for every row**; put the report (or its failures) in the closing
    summary. Old-format notes (`- "title" -> move ...`) are still parsed. If the Mac is offline the
    reminder ops are saved to `<date>-pending-reminders.json` and the script says so.
-   The manual steps below (2, 3) remain only for what the script cannot do (for example `tasks edit`
-   has no due date: recreate the Task).
+   The manual steps below (2, 3) remain only for what the script cannot do. A Task's `Due` cell works on
+   `create` and `edit` rows (`openmates tasks edit <id> --due <date>`; a due date can be replaced, not cleared).
 2. **Reminders** via `scripts/mac_reminders.py` (manual fallback; the script above does this): FIRST run `mac_reminders.py sync` and
    `mac_reminders.py list` to read the live reminders from the Mac (titles, times and
    lists may have changed since the briefing; decide from the live state, not the note's
@@ -139,5 +140,9 @@ The briefing's "Alerts" section (production and dev reported issues, repeating e
 - Always ask about yesterday's tasks (done / not done / moved). Skip the question only when
   git commits make the answer obvious, and even then ask for a one-line confirmation.
 - Keep Claude usage low: Sonnet for most work, Rust work excepted.
+- Mentor stance: the meeting is run as a critical mentor (honest, constructive, evidence only). Block 1
+  ends with the daily drift check: share of the commits and chats since the last meeting that served
+  the current milestone, drift named plainly, exactly one question, approved background migrations
+  named separately. The milestone task gets the first work slot of the day.
 - Voice mode has no repo access: checks of the repo ("is bug X already fixed?") are done by
   the dev server when the note is applied, and the result goes into the closing summary.

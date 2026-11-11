@@ -1270,6 +1270,7 @@ async function handleTasks(
       projectIds: flags.project || flags.projects ? splitCsvFlag(flags.project ?? flags.projects) : undefined,
       planId: flags.plan === true ? null : typeof flags.plan === "string" ? flags.plan : undefined,
       priority: typeof flags.priority === "string" ? normalizeTaskPriority(flags.priority) : undefined,
+      dueAt: parseDueAt(flags.due),
       slug: typeof flags.slug === "string" ? flags.slug : undefined,
     }), scope);
     const updated = flags["delivery-id"]
@@ -14955,7 +14956,7 @@ function printTasksHelp(): void {
   openmates tasks history <task-id|short-id> [--limit <n>] [--json]
   openmates tasks restore <task-id|short-id> --entry <history-entry-id> [--state before|after] [--json]
   openmates tasks create --title <title> [--description <text>] [--assign user|openmates|external-ai|unassigned] [--chat <id>|--external-chat codex:<thread-uuid>|claude:<session-uuid> [--external-chat-title <title>]] [--project <id>] [--label <label>] [--priority <level>] [--status <status>] [--due <date>] [--json]
-  openmates tasks edit <task-id|short-id> [--title <title>] [--description <text>] [--chat <id>|--external-chat codex:<thread-uuid>|claude:<session-uuid> [--external-chat-title <title>]] [--label <label>] [--add-label <label>] [--remove-label <label>] [--priority <level>] [--assign user|openmates|external-ai|unassigned] [--status <status>] [--json]
+  openmates tasks edit <task-id|short-id> [--title <title>] [--description <text>] [--chat <id>|--external-chat codex:<thread-uuid>|claude:<session-uuid> [--external-chat-title <title>]] [--label <label>] [--add-label <label>] [--remove-label <label>] [--priority <level>] [--assign user|openmates|external-ai|unassigned] [--status <status>] [--due <date>] [--json]
   openmates tasks delete <task-id|short-id> --confirm [--json]
   openmates tasks start <task-id|short-id> [--json]
   openmates tasks status [<task-id|short-id>] [--json]
