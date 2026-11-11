@@ -32,7 +32,9 @@ from backend.apps.design.embroidery.content import (
     build_finished_content,
 )
 from backend.apps.design.embroidery.request import parse_embroidery_request
-from backend.apps.design.embroidery.rework import needs_rework, rework_for_embroidery, rework_result_notes
+from backend.apps.design.embroidery.rework import (
+    ReworkOutcome, needs_rework, rework_for_embroidery, rework_result_notes,
+)
 from backend.apps.design.embroidery.storage import (
     IncompleteEmbroideryFiles,
     require_complete_files,
@@ -44,7 +46,9 @@ from backend.apps.images.vector_author import VECTOR_AUTHOR_MODELS
 from backend.core.api.app.services.s3.config import get_bucket_name
 from backend.shared.providers.e2b_code_runner import get_e2b_api_key_async
 from backend.shared.python_utils.billing_utils import ensure_credit_headroom
-from backend.shared.python_utils.encrypted_embed_vectors import VectorSourceError, resolve_vector_source_embed
+from backend.shared.python_utils.encrypted_embed_vectors import (
+    ORIGIN_UPLOADED, VectorSourceError, resolve_vector_source_embed,
+)
 from backend.shared.python_utils.fresh_upload_images import FreshUploadImageUnavailable
 from backend.shared.python_utils.generated_assets import (
     build_download_url,
@@ -98,14 +102,19 @@ async def _assert_can_generate(task: Any, *, embed_id: str, chat_id: Any, messag
 
 async def _check_rework_convert(
     task: Any, *, request: Any, svg: str, options: Any, api_key: str, template: str,
+    keep_as_is: bool = False,
 ) -> tuple[Any, Any, Any, float]:
     """Check, optionally rework with the model, convert; returns total billed sandbox seconds.
 
     Without findings or instructions no model runs and one sandbox session does check and
     convert. Otherwise the check session is closed before the model call so the sandbox is
     not billed while idle, and a second session converts the reworked graphic.
+    ``keep_as_is`` (a file the user uploaded) never involves the model: the file is sewn as it is
+    and its findings are only named in the result.
     """
     async def rework() -> Any:
+        if keep_as_is:
+            return ReworkOutcome(svg=svg, reworked=False)
         return await rework_for_embroidery(
             svg=svg, findings=check.findings, width_mm=request.width_mm,
             instructions=request.instructions, task_id=str(task.request.id),
@@ -114,7 +123,7 @@ async def _check_rework_convert(
 
     async with open_embroidery_session(api_key=api_key, template=template) as first:
         check = await first.check(svg, options)
-        reworking = needs_rework(check.findings, request.instructions)
+        reworking = not keep_as_is and needs_rework(check.findings, request.instructions)
         if not reworking:
             outcome = await rework()
             run = await first.convert(outcome.svg, options)
@@ -204,6 +213,7 @@ async def run_embroidery(task: Any, app_id: str, skill_id: str, arguments: dict[
     try:
         check, outcome, run, sandbox_seconds = await _check_rework_convert(
             task, request=request, svg=source.svg, options=options, api_key=api_key, template=template,
+            keep_as_is=source.origin == ORIGIN_UPLOADED,
         )
     except EmbroideryError as exc:
         logger.info("%s Conversion failed with %s", log_prefix, exc.code)

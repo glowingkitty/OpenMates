@@ -116,7 +116,7 @@ models:
 assertions:
   - id: design-embroidery.request.vector-source
     type: behavior
-    must: design.embroidery accepts the exact reference of a vector graphic visible in the conversation, a generated or vectorized SVG image, an SVG code embed or an SVG file the user uploaded (its original vector is kept beside the picture shown in the chat and is sewn unchanged, never redrawn), and resolves it server-side. A pixel image, an upload without a kept vector source, or an unknown reference fails explicitly and tells the assistant to create a vector graphic first; nothing is converted and nothing is charged.
+    must: design.embroidery accepts the exact reference of a vector graphic visible in the conversation, a generated or vectorized SVG image, an SVG code embed or an SVG file the user uploaded (its original vector is kept beside the picture shown in the chat and is sewn unchanged and never redrawn; no model adjusts it, and what may not sew cleanly is only named in the result), and resolves it server-side. A pixel image, an upload without a kept vector source, or an unknown reference fails explicitly and tells the assistant to create a vector graphic first; nothing is converted and nothing is charged.
     depends_on: [models.EmbroideryRequest.source, examples.convert, examples.uploaded_svg, examples.invalid_source]
   - id: design-embroidery.prepare.fixed-rules
     type: behavior

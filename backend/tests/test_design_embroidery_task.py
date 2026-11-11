@@ -341,6 +341,22 @@ async def test_missing_source_embed_id_is_invalid_source(world: World) -> None:
     assert world.sessions == 0 and world.charges == []
 
 
+# contract-test: direct surface=rest_api assertions=design-embroidery.request.vector-source
+@pytest.mark.asyncio
+async def test_an_uploaded_svg_is_sewn_as_it_is_and_its_findings_are_only_named(world: World) -> None:
+    world.source = ResolvedVectorSource(svg=SOURCE_SVG, origin="uploaded_svg", label="fire-tail.svg")
+    world.findings = [{"code": "detail_below_1mm", "detail": "three shapes narrower than 1 mm"}]
+
+    await _run(world)
+
+    assert world.author_calls == [] and world.sessions == 1
+    assert world.converted[0][0] == SOURCE_SVG
+    content = world.published[-1]["content"]
+    assert content["reworked"] is False
+    codes = [note["code"] for note in content["notes"]]
+    assert "rework_failed" not in codes and not any(code.startswith("solved_") for code in codes)
+
+
 # contract-test: direct surface=rest_api assertions=design-embroidery.prepare.model-rework-only-when-needed,design-embroidery.billing.metered
 @pytest.mark.asyncio
 async def test_findings_trigger_exactly_one_rework_before_conversion(world: World) -> None:
