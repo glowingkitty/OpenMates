@@ -174,6 +174,40 @@ async def test_installed_results_pass_the_same_strict_filters_and_ranking(monkey
 
 
 # contract-test: direct surface=rest_api assertions=instance-app-packages.provider-contract
+async def test_any_country_and_listing_filters_reach_installed_providers_and_keep_listing_country(monkeypatch, _installed):
+    facts = {"visa_sponsorship": True, "experience_level": "entry", "education_level": "master",
+             "start_date": "2027-03-01", "languages": ["en"]}
+    calls = _fake_runner(monkeypatch, RunnerResult(ok=True, results=[
+        _package_job("us", country="US", **facts), _package_job("global", country=None, **facts),
+        _package_job("unstated", country="US")]))
+    payload = await _run(countries=["US", "GB"], requests=[{
+        "id": "r1", "query": "policy analyst", "visa_sponsorship": True, "experience_levels": ["entry"],
+        "education_levels": ["bachelor", "master"], "start_after": "2027-01-01", "languages": ["en"],
+        "min_salary": 50000, "salary_currency": "USD", "salary_period": "year", "deadline_after": "2026-12-01",
+        "min_contract_duration_months": 3, "max_contract_duration_months": 12, "start_before": "2027-06-30",
+    }])
+    assert calls[0]["input"] == {
+        "id": "r1", "query": "policy analyst", "countries": ["US", "GB"], "limit": 10,
+        "visa_sponsorship": True, "experience_levels": ["entry"], "education_levels": ["bachelor", "master"],
+        "start_after": "2027-01-01", "start_before": "2027-06-30", "languages": ["en"],
+        "min_salary": 50000.0, "salary_currency": "USD", "salary_period": "year", "deadline_after": "2026-12-01",
+        "min_contract_duration_months": 3, "max_contract_duration_months": 12,
+    }
+    assert _installed == []
+    group = payload["results"][0]
+    assert group["countries"] == ["US", "GB"] and group["providers"] == [PROVIDER_ID]
+    assert [(w["provider"], w["code"]) for w in group["warnings"]] == []
+    # Salary, deadline and contract length are unstated in every listing, so all are excluded.
+    assert group["results"] == []
+
+    loose = await _run(countries=["US"], requests=[{"query": "policy analyst", "visa_sponsorship": True,
+                                                    "experience_levels": ["entry"], "languages": ["en", "fr"]}])
+    jobs = loose["results"][0]["results"]
+    assert [(job["id"], job["country"]) for job in jobs] == [("us", "US"), ("global", None)]
+    assert jobs[0]["education_level"] == "master" and jobs[0]["start_date"] == "2027-03-01"
+
+
+# contract-test: direct surface=rest_api assertions=instance-app-packages.provider-contract
 async def test_installed_provider_failure_is_isolated_and_safe(monkeypatch):
     _fake_runner(monkeypatch, RunnerResult(ok=False, error_code="TIMEOUT", message="internal detail"))
     payload = await _run(countries=["SE"], requests=[{"id": "all", "query": "engineer"}])
@@ -219,6 +253,17 @@ def test_jobs_result_contract_validation():
     assert result["salary_max"] == 5000 and result["published_at"] == "2026-11-01"
     for dropped in ("apply_url", "remote", "salary_min", "valid_through", "extra", "free", "provider", "provider_id"):
         assert dropped not in result
+    facts = {"start_date": "2027-02-01", "contract_duration_months": 12.0, "visa_sponsorship": False,
+             "education_level": "doctorate", "experience_level": "lead", "experience_years_min": 5,
+             "impact_area": "Climate", "languages": ["EN", "de", "en", "english", 3], "country": "se"}
+    checked = validate_jobs_search_result({**_package_job("f"), **facts})
+    assert {key: checked.get(key) for key in facts} == {
+        **facts, "contract_duration_months": 12, "languages": ["en", "de"], "country": "SE"}
+    bad = {"start_date": "next spring", "contract_duration_months": 0, "visa_sponsorship": "yes",
+           "education_level": "PhD", "experience_level": "junior", "experience_years_min": -1,
+           "languages": "en", "country": "Germany"}
+    checked = validate_jobs_search_result({**_package_job("g"), **bad})
+    assert not set(bad).intersection(checked)
     for missing in ("id", "title", "url"):
         assert validate_jobs_search_result({**_package_job("x"), missing: None}) is None
     assert validate_jobs_search_result(_package_job("x", url="ftp://listings.example.org/x")) is None

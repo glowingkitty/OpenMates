@@ -4281,8 +4281,10 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'app_namespace_ts': 'jobs',
   'description': 'Search current Swedish job listings using JobTech. Germany is unavailable. '
                  'Preserve country, remote, employment and age filters. Radius search is '
-                 'unavailable. Use relevance_criteria only for an explicit user goal. Never invent '
-                 'listing facts or broaden filters after empty results.',
+                 'unavailable. Use relevance_criteria only for an explicit user goal. Set listing '
+                 'filters (visa, experience, education, start, contract length, deadline, salary, '
+                 'languages) only when the user asks; they drop listings that do not state the '
+                 'value. Never invent listing facts or broaden filters after empty results.',
   'description_key': 'app_skills.jobs.search.description',
   'output_schema': {'description': 'Jobs search response with one result group per input request.',
                     'properties': {'app_id': {'type': 'string'},
@@ -4311,7 +4313,33 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                              'company': {'type': ['string',
                                                                                                                                   'null'],
                                                                                                                          'x-ui': {'basic': True}},
-                                                                                                             'country': {'type': 'string',
+                                                                                                             'contract_duration_months': {'description': 'Fixed-term '
+                                                                                                                                                         'length; '
+                                                                                                                                                         'null '
+                                                                                                                                                         'when '
+                                                                                                                                                         'permanent '
+                                                                                                                                                         'or '
+                                                                                                                                                         'unstated.',
+                                                                                                                                          'type': ['integer',
+                                                                                                                                                   'null'],
+                                                                                                                                          'x-ui': {'basic': False}},
+                                                                                                             'country': {'description': 'ISO '
+                                                                                                                                        '3166-1 '
+                                                                                                                                        'alpha-2 '
+                                                                                                                                        'country '
+                                                                                                                                        'of '
+                                                                                                                                        'the '
+                                                                                                                                        'listing; '
+                                                                                                                                        'null '
+                                                                                                                                        'for '
+                                                                                                                                        'global '
+                                                                                                                                        'or '
+                                                                                                                                        'remote '
+                                                                                                                                        'listings '
+                                                                                                                                        'without '
+                                                                                                                                        'one.',
+                                                                                                                         'type': ['string',
+                                                                                                                                  'null'],
                                                                                                                          'x-ui': {'basic': False}},
                                                                                                              'description': {'type': ['string',
                                                                                                                                       'null'],
@@ -4319,14 +4347,67 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                              'detail_status': {'type': ['string',
                                                                                                                                         'null'],
                                                                                                                                'x-ui': {'basic': False}},
+                                                                                                             'education_level': {'description': 'Minimum '
+                                                                                                                                                'required '
+                                                                                                                                                'education.',
+                                                                                                                                 'enum': ['none',
+                                                                                                                                          'vocational',
+                                                                                                                                          'bachelor',
+                                                                                                                                          'master',
+                                                                                                                                          'doctorate',
+                                                                                                                                          None],
+                                                                                                                                 'type': ['string',
+                                                                                                                                          'null'],
+                                                                                                                                 'x-ui': {'basic': False}},
                                                                                                              'employment_type': {'type': ['string',
                                                                                                                                           'null'],
                                                                                                                                  'x-ui': {'basic': False}},
+                                                                                                             'experience_level': {'description': 'Normalized '
+                                                                                                                                                 'level; '
+                                                                                                                                                 'seniority '
+                                                                                                                                                 'keeps '
+                                                                                                                                                 'the '
+                                                                                                                                                 "source's "
+                                                                                                                                                 'wording.',
+                                                                                                                                  'enum': ['internship',
+                                                                                                                                           'entry',
+                                                                                                                                           'mid',
+                                                                                                                                           'senior',
+                                                                                                                                           'lead',
+                                                                                                                                           None],
+                                                                                                                                  'type': ['string',
+                                                                                                                                           'null'],
+                                                                                                                                  'x-ui': {'basic': False}},
+                                                                                                             'experience_years_min': {'type': ['integer',
+                                                                                                                                               'null'],
+                                                                                                                                      'x-ui': {'basic': False}},
                                                                                                              'id': {'type': 'string',
                                                                                                                     'x-ui': {'basic': False}},
-                                                                                                             'impact': {'type': ['string',
+                                                                                                             'impact': {'description': 'Why '
+                                                                                                                                       'the '
+                                                                                                                                       'work '
+                                                                                                                                       'matters',
+                                                                                                                        "in the source's words.": None,
+                                                                                                                        'type': ['string',
                                                                                                                                  'null'],
                                                                                                                         'x-ui': {'basic': False}},
+                                                                                                             'impact_area': {'description': 'Cause '
+                                                                                                                                            'or '
+                                                                                                                                            'problem '
+                                                                                                                                            'area '
+                                                                                                                                            'label',
+                                                                                                                             'such as climate.': None,
+                                                                                                                             'type': ['string',
+                                                                                                                                      'null'],
+                                                                                                                             'x-ui': {'basic': False}},
+                                                                                                             'languages': {'description': 'ISO '
+                                                                                                                                          '639-1 '
+                                                                                                                                          'working '
+                                                                                                                                          'languages.',
+                                                                                                                           'items': {'type': 'string'},
+                                                                                                                           'type': ['array',
+                                                                                                                                    'null'],
+                                                                                                                           'x-ui': {'basic': False}},
                                                                                                              'location': {'type': ['string',
                                                                                                                                    'null'],
                                                                                                                           'x-ui': {'basic': True}},
@@ -4365,14 +4446,25 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                              'seniority': {'type': ['string',
                                                                                                                                     'null'],
                                                                                                                            'x-ui': {'basic': False}},
+                                                                                                             'start_date': {'format': 'date',
+                                                                                                                            'type': ['string',
+                                                                                                                                     'null'],
+                                                                                                                            'x-ui': {'basic': False}},
                                                                                                              'title': {'type': 'string',
                                                                                                                        'x-ui': {'basic': True}},
                                                                                                              'url': {'format': 'uri',
                                                                                                                      'type': 'string',
                                                                                                                      'x-ui': {'basic': True}},
-                                                                                                             'valid_through': {'type': ['string',
+                                                                                                             'valid_through': {'description': 'Application '
+                                                                                                                                              'deadline '
+                                                                                                                                              '(ISO '
+                                                                                                                                              '8601).',
+                                                                                                                               'type': ['string',
                                                                                                                                         'null'],
                                                                                                                                'x-ui': {'basic': False}},
+                                                                                                             'visa_sponsorship': {'type': ['boolean',
+                                                                                                                                           'null'],
+                                                                                                                                  'x-ui': {'basic': False}},
                                                                                                              'work_arrangement': {'type': ['string',
                                                                                                                                            'null'],
                                                                                                                                   'x-ui': {'basic': False}}},
@@ -4399,11 +4491,13 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                 'type': 'array'}},
                     'type': 'object'},
   'schema': {'properties': {'countries': {'default': ['DE'],
-                                          'description': 'Select SE for the available source. DE '
-                                                         'remains accepted but returns an explicit '
-                                                         'coverage gap.',
-                                          'items': {'enum': ['DE', 'SE'], 'type': 'string'},
-                                          'maxItems': 2,
+                                          'description': 'ISO 3166-1 alpha-2 country codes. The '
+                                                         'built-in source covers SE; other '
+                                                         'countries return an explicit coverage '
+                                                         'gap unless an installed provider answers '
+                                                         'them.\n',
+                                          'items': {'pattern': '^[A-Z]{2}$', 'type': 'string'},
+                                          'maxItems': 10,
                                           'minItems': 1,
                                           'type': 'array',
                                           'uniqueItems': True,
@@ -4421,29 +4515,82 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                'combine '
                                                                                                'with '
                                                                                                'country.',
-                                                                                'items': {'enum': ['DE',
-                                                                                                   'SE'],
+                                                                                'items': {'pattern': '^[A-Z]{2}$',
                                                                                           'type': 'string'},
-                                                                                'maxItems': 2,
+                                                                                'maxItems': 10,
                                                                                 'minItems': 1,
                                                                                 'type': 'array',
                                                                                 'uniqueItems': True,
                                                                                 'x-ui': {'basic': False}},
                                                                   'country': {'description': 'Legacy '
                                                                                              'singleton '
+                                                                                             'ISO '
+                                                                                             '3166-1 '
+                                                                                             'alpha-2 '
                                                                                              'country '
-                                                                                             'override; '
-                                                                                             'DE '
-                                                                                             'is '
-                                                                                             'unavailable. '
+                                                                                             'override. '
                                                                                              'Do '
                                                                                              'not '
                                                                                              'combine '
                                                                                              'with '
                                                                                              'countries.',
-                                                                              'enum': ['DE', 'SE'],
+                                                                              'pattern': '^[A-Z]{2}$',
                                                                               'type': 'string',
                                                                               'x-ui': {'basic': False}},
+                                                                  'deadline_after': {'description': 'Keep '
+                                                                                                    'listings '
+                                                                                                    'whose '
+                                                                                                    'application '
+                                                                                                    'deadline '
+                                                                                                    'is '
+                                                                                                    'on '
+                                                                                                    'or '
+                                                                                                    'after '
+                                                                                                    'this '
+                                                                                                    'ISO '
+                                                                                                    'date; '
+                                                                                                    'listings '
+                                                                                                    'without '
+                                                                                                    'a '
+                                                                                                    'stated '
+                                                                                                    'deadline '
+                                                                                                    'are '
+                                                                                                    'excluded.\n',
+                                                                                     'format': 'date',
+                                                                                     'type': 'string',
+                                                                                     'x-ui': {'basic': False}},
+                                                                  'education_levels': {'description': 'Keep '
+                                                                                                      'listings '
+                                                                                                      'whose '
+                                                                                                      'required '
+                                                                                                      'education '
+                                                                                                      'level '
+                                                                                                      'is '
+                                                                                                      'one '
+                                                                                                      'of '
+                                                                                                      'these '
+                                                                                                      '(include '
+                                                                                                      'the '
+                                                                                                      "user's "
+                                                                                                      'level '
+                                                                                                      'and '
+                                                                                                      'every '
+                                                                                                      'lower '
+                                                                                                      'one); '
+                                                                                                      'unstated '
+                                                                                                      'levels '
+                                                                                                      'are '
+                                                                                                      'excluded.\n',
+                                                                                       'items': {'enum': ['none',
+                                                                                                          'vocational',
+                                                                                                          'bachelor',
+                                                                                                          'master',
+                                                                                                          'doctorate'],
+                                                                                                 'type': 'string'},
+                                                                                       'maxItems': 5,
+                                                                                       'type': 'array',
+                                                                                       'uniqueItems': True,
+                                                                                       'x-ui': {'basic': False}},
                                                                   'employment_type': {'description': 'Optional '
                                                                                                      'employment '
                                                                                                      'type '
@@ -4459,6 +4606,30 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                'apprenticeship'],
                                                                                       'type': 'string',
                                                                                       'x-ui': {'basic': False}},
+                                                                  'experience_levels': {'description': 'Keep '
+                                                                                                       'listings '
+                                                                                                       'whose '
+                                                                                                       'stated '
+                                                                                                       'experience '
+                                                                                                       'level '
+                                                                                                       'is '
+                                                                                                       'one '
+                                                                                                       'of '
+                                                                                                       'these; '
+                                                                                                       'unstated '
+                                                                                                       'levels '
+                                                                                                       'are '
+                                                                                                       'excluded.',
+                                                                                        'items': {'enum': ['internship',
+                                                                                                           'entry',
+                                                                                                           'mid',
+                                                                                                           'senior',
+                                                                                                           'lead'],
+                                                                                                  'type': 'string'},
+                                                                                        'maxItems': 5,
+                                                                                        'type': 'array',
+                                                                                        'uniqueItems': True,
+                                                                                        'x-ui': {'basic': False}},
                                                                   'id': {'description': 'Optional '
                                                                                         'request '
                                                                                         'ID for '
@@ -4467,6 +4638,36 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                         'results.',
                                                                          'type': 'string',
                                                                          'x-ui': {'basic': False}},
+                                                                  'languages': {'description': 'ISO '
+                                                                                               '639-1 '
+                                                                                               'codes '
+                                                                                               'of '
+                                                                                               'languages '
+                                                                                               'the '
+                                                                                               'user '
+                                                                                               'can '
+                                                                                               'work '
+                                                                                               'in. '
+                                                                                               'Keep '
+                                                                                               'listings '
+                                                                                               'whose '
+                                                                                               'stated '
+                                                                                               'working '
+                                                                                               'languages '
+                                                                                               'include '
+                                                                                               'at '
+                                                                                               'least '
+                                                                                               'one; '
+                                                                                               'unstated '
+                                                                                               'languages '
+                                                                                               'are '
+                                                                                               'excluded.\n',
+                                                                                'items': {'pattern': '^[a-z]{2}$',
+                                                                                          'type': 'string'},
+                                                                                'maxItems': 10,
+                                                                                'type': 'array',
+                                                                                'uniqueItems': True,
+                                                                                'x-ui': {'basic': False}},
                                                                   'limit': {'default': 10,
                                                                             'description': 'Maximum '
                                                                                            'final '
@@ -4489,6 +4690,25 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                'type': 'string',
                                                                                'x-ui': {'basic': True,
                                                                                         'control': 'location'}},
+                                                                  'max_contract_duration_months': {'description': 'Maximum '
+                                                                                                                  'stated '
+                                                                                                                  'contract '
+                                                                                                                  'duration '
+                                                                                                                  'in '
+                                                                                                                  'months, '
+                                                                                                                  'for '
+                                                                                                                  'fixed-term '
+                                                                                                                  'roles. '
+                                                                                                                  'Permanent '
+                                                                                                                  'or '
+                                                                                                                  'unstated '
+                                                                                                                  'durations '
+                                                                                                                  'are '
+                                                                                                                  'excluded.\n',
+                                                                                                   'maximum': 600,
+                                                                                                   'minimum': 1,
+                                                                                                   'type': 'integer',
+                                                                                                   'x-ui': {'basic': False}},
                                                                   'max_days_old': {'description': 'Maximum '
                                                                                                   'age '
                                                                                                   'in '
@@ -4501,6 +4721,59 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                    'minimum': 1,
                                                                                    'type': 'integer',
                                                                                    'x-ui': {'basic': False}},
+                                                                  'min_contract_duration_months': {'description': 'Minimum '
+                                                                                                                  'stated '
+                                                                                                                  'contract '
+                                                                                                                  'duration '
+                                                                                                                  'in '
+                                                                                                                  'months. '
+                                                                                                                  'Permanent '
+                                                                                                                  'or '
+                                                                                                                  'unstated '
+                                                                                                                  'durations '
+                                                                                                                  'are '
+                                                                                                                  'excluded.\n',
+                                                                                                   'maximum': 600,
+                                                                                                   'minimum': 1,
+                                                                                                   'type': 'integer',
+                                                                                                   'x-ui': {'basic': False}},
+                                                                  'min_salary': {'description': 'Minimum '
+                                                                                                'salary; '
+                                                                                                'requires '
+                                                                                                'salary_currency '
+                                                                                                'and '
+                                                                                                'salary_period. '
+                                                                                                'A '
+                                                                                                'listing '
+                                                                                                'passes '
+                                                                                                'when '
+                                                                                                'its '
+                                                                                                'highest '
+                                                                                                'stated '
+                                                                                                'salary '
+                                                                                                'in '
+                                                                                                'that '
+                                                                                                'currency '
+                                                                                                'reaches '
+                                                                                                'it '
+                                                                                                '(month '
+                                                                                                'and '
+                                                                                                'year '
+                                                                                                'convert, '
+                                                                                                'other '
+                                                                                                'periods '
+                                                                                                'must '
+                                                                                                'match). '
+                                                                                                'Listings '
+                                                                                                'without '
+                                                                                                'a '
+                                                                                                'comparable '
+                                                                                                'salary '
+                                                                                                'are '
+                                                                                                'excluded.\n',
+                                                                                 'exclusiveMinimum': 0,
+                                                                                 'type': 'number',
+                                                                                 'x-ui': {'basic': False}},
                                                                   'provider': {'description': 'One '
                                                                                               'explicit '
                                                                                               'source, '
@@ -4604,7 +4877,99 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                             'home '
                                                                                             'office.\n',
                                                                              'type': 'boolean',
-                                                                             'x-ui': {'basic': True}}},
+                                                                             'x-ui': {'basic': True}},
+                                                                  'salary_currency': {'description': 'ISO '
+                                                                                                     '4217 '
+                                                                                                     'currency '
+                                                                                                     'of '
+                                                                                                     'min_salary, '
+                                                                                                     'such '
+                                                                                                     'as '
+                                                                                                     'EUR. '
+                                                                                                     'No '
+                                                                                                     'conversion '
+                                                                                                     'between '
+                                                                                                     'currencies.',
+                                                                                      'pattern': '^[A-Z]{3}$',
+                                                                                      'type': 'string',
+                                                                                      'x-ui': {'basic': False}},
+                                                                  'salary_period': {'description': 'Period '
+                                                                                                   'of '
+                                                                                                   'min_salary.',
+                                                                                    'enum': ['hour',
+                                                                                             'day',
+                                                                                             'week',
+                                                                                             'month',
+                                                                                             'year'],
+                                                                                    'type': 'string',
+                                                                                    'x-ui': {'basic': False}},
+                                                                  'start_after': {'description': 'Keep '
+                                                                                                 'listings '
+                                                                                                 'whose '
+                                                                                                 'stated '
+                                                                                                 'start '
+                                                                                                 'date '
+                                                                                                 'is '
+                                                                                                 'on '
+                                                                                                 'or '
+                                                                                                 'after '
+                                                                                                 'this '
+                                                                                                 'ISO '
+                                                                                                 'date; '
+                                                                                                 'unstated '
+                                                                                                 'start '
+                                                                                                 'dates '
+                                                                                                 'are '
+                                                                                                 'excluded.',
+                                                                                  'format': 'date',
+                                                                                  'type': 'string',
+                                                                                  'x-ui': {'basic': False}},
+                                                                  'start_before': {'description': 'Keep '
+                                                                                                  'listings '
+                                                                                                  'whose '
+                                                                                                  'stated '
+                                                                                                  'start '
+                                                                                                  'date '
+                                                                                                  'is '
+                                                                                                  'on '
+                                                                                                  'or '
+                                                                                                  'before '
+                                                                                                  'this '
+                                                                                                  'ISO '
+                                                                                                  'date; '
+                                                                                                  'unstated '
+                                                                                                  'start '
+                                                                                                  'dates '
+                                                                                                  'are '
+                                                                                                  'excluded.',
+                                                                                   'format': 'date',
+                                                                                   'type': 'string',
+                                                                                   'x-ui': {'basic': False}},
+                                                                  'visa_sponsorship': {'description': 'Keep '
+                                                                                                      'only '
+                                                                                                      'listings '
+                                                                                                      'that '
+                                                                                                      'state '
+                                                                                                      'this '
+                                                                                                      'visa '
+                                                                                                      'sponsorship '
+                                                                                                      'value. '
+                                                                                                      'Listings '
+                                                                                                      'that '
+                                                                                                      'do '
+                                                                                                      'not '
+                                                                                                      'state '
+                                                                                                      'it '
+                                                                                                      'are '
+                                                                                                      'excluded, '
+                                                                                                      'as '
+                                                                                                      'for '
+                                                                                                      'every '
+                                                                                                      'listing '
+                                                                                                      'filter '
+                                                                                                      'below.\n',
+                                                                                       'type': 'boolean',
+                                                                                       'x-ui': {'basic': False}}},
                                                    'required': ['query'],
                                                    'type': 'object'},
                                          'maxItems': 5,
@@ -9843,7 +10208,7 @@ class JobsAppSkills:
         self._run_skill = run_skill
 
     def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Search current Swedish job listings using JobTech. Germany is unavailable. Preserve country, remote, employment and age filters. Radius search is unavailable. Use relevance_criteria only for an explicit user goal. Never invent listing facts or broaden filters after empty results.
+        """Search current Swedish job listings using JobTech. Germany is unavailable. Preserve country, remote, employment and age filters. Radius search is unavailable. Use relevance_criteria only for an explicit user goal. Set listing filters (visa, experience, education, start, contract length, deadline, salary, languages) only when the user asks; they drop listings that do not state the value. Never invent listing facts or broaden filters after empty results.
 
         Description key: app_skills.jobs.search.description
         Skill: jobs/search

@@ -66,6 +66,14 @@ contract:
   then: The Germany request is answered by my_provider alone, without the built-in coverage-gap error and without
     credits; the Sweden request shows built-in and my_provider listings interleaved, deduplicated by URL, each
     labelled with its source, and is charged as before.
+- id: jobs-listing-filters-and-own-country
+  assertion_ids: [instance-app-packages.provider-contract]
+  given: my_provider targets Jobs search with contract jobs.search@1 and returns a listing in the US that states
+    visa sponsorship, an entry experience level and English, a global listing without a country that states the
+    same facts, and a US listing that states none of them.
+  when: Alice searches jobs in the US and the UK with visa sponsorship, entry level and English.
+  then: my_provider receives the countries US and GB and the filters; the result shows the US listing with country
+    US and the global listing without a country, and leaves out the listing that does not state the filtered facts.
 - id: generic-results-interleaved
   assertion_ids: [instance-app-packages.provider-contract]
   given: Two installed providers serve the same paused skill through skill.requests@1; the first returns three

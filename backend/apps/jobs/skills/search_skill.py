@@ -9,19 +9,21 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import date
 import logging
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
 from backend.apps.base_skill import BaseSkill
+from backend.apps.jobs.listing_filters import matches_listing_filters
 from backend.apps.jobs.provider_aliases import PROVIDER_ALIASES
 from backend.shared.app_packages.contracts import jobs_search_input
 from backend.shared.app_packages.loader import get_installed_providers
 from backend.shared.app_packages.provider_dispatch import InstalledProviderOutcome, run_installed_providers
 from backend.shared.providers.jobs import jobtech
 from backend.shared.providers.jobs.common import ProviderError, normalize_employment_type, safe_url
+from backend.shared.python_utils.country_codes import iso_country, iso_language
 from backend.shared.python_utils.search_relevance import (
     MAX_RELEVANCE_CRITERIA_CHARS,
     MAX_SEARCH_RELEVANCE_CANDIDATES,
@@ -37,6 +39,12 @@ MAX_REQUESTS = 5
 MAX_LIMIT = 50
 DEFAULT_LIMIT = 10
 RANKING_UNAVAILABLE_MESSAGE = "Relevance criteria could not be applied; results remain in provider order."
+RANKING_FIELDS = (
+    "title", "company", "location", "country", "remote", "employment_type",
+    "description", "published_at", "salary_min", "salary_max", "salary_currency", "salary_period",
+    "start_date", "contract_duration_months", "visa_sponsorship", "education_level", "experience_level",
+    "experience_years_min", "valid_through", "organization_type", "impact_area", "languages",
+)
 PROVIDER_SEARCH = {"jobtech": jobtech.search_jobs}
 PROVIDER_COUNTRIES = {"jobtech": frozenset({"SE"})}
 APP_ID, SKILL_ID = "jobs", "search"
@@ -46,7 +54,14 @@ JOB_FIELDS = (
     "salary_max", "salary_currency", "salary_period", "provider",
     "sector", "role", "seniority", "organization_type", "work_arrangement",
     "salary_text", "valid_through", "impact", "detail_status",
+    "start_date", "contract_duration_months", "visa_sponsorship", "education_level",
+    "experience_level", "experience_years_min", "impact_area", "languages",
 )
+MAX_COUNTRIES = 10
+COUNTRY_NAMES = {"GERMANY": "DE", "DEUTSCHLAND": "DE", "SWEDEN": "SE", "SVERIGE": "SE"}
+EducationLevel = Literal["none", "vocational", "bachelor", "master", "doctorate"]
+ExperienceLevel = Literal["internship", "entry", "mid", "senior", "lead"]
+SalaryPeriod = Literal["hour", "day", "week", "month", "year"]
 
 
 class JobsSearchRequestItem(BaseModel):
@@ -65,6 +80,51 @@ class JobsSearchRequestItem(BaseModel):
     provider: str | None = None
     providers: list[str] | None = None
     relevance_criteria: str | None = Field(default=None, max_length=MAX_RELEVANCE_CRITERIA_CHARS)
+    # Listing filters; a listing that does not state the filtered value is excluded
+    # (backend/apps/jobs/listing_filters.py).
+    visa_sponsorship: bool | None = None
+    experience_levels: list[ExperienceLevel] | None = Field(default=None, max_length=5)
+    education_levels: list[EducationLevel] | None = Field(default=None, max_length=5)
+    start_after: date | None = None
+    start_before: date | None = None
+    min_contract_duration_months: int | None = Field(default=None, ge=1, le=600)
+    max_contract_duration_months: int | None = Field(default=None, ge=1, le=600)
+    deadline_after: date | None = None
+    min_salary: float | None = Field(default=None, gt=0)
+    salary_currency: str | None = Field(default=None, pattern=r"^[A-Za-z]{3}$")
+    salary_period: SalaryPeriod | None = None
+    languages: list[str] | None = Field(default=None, max_length=10)
+
+    @field_validator("experience_levels", "education_levels", "languages")
+    @classmethod
+    def _empty_list_is_absent(cls, value: list[str] | None) -> list[str] | None:
+        return list(dict.fromkeys(value)) if value else None
+
+    @field_validator("languages")
+    @classmethod
+    def _iso_languages(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return None
+        codes = [iso_language(code) for code in value]
+        if None in codes:
+            raise ValueError("languages must be ISO 639-1 codes such as en or de.")
+        return list(dict.fromkeys(code for code in codes if code))
+
+    @field_validator("salary_currency")
+    @classmethod
+    def _upper_currency(cls, value: str | None) -> str | None:
+        return value.upper() if value else None
+
+    @model_validator(mode="after")
+    def _consistent_ranges(self) -> "JobsSearchRequestItem":
+        if self.start_after and self.start_before and self.start_after > self.start_before:
+            raise ValueError("start_after must not be later than start_before.")
+        low, high = self.min_contract_duration_months, self.max_contract_duration_months
+        if low is not None and high is not None and low > high:
+            raise ValueError("min_contract_duration_months must not exceed max_contract_duration_months.")
+        if self.min_salary is not None and not (self.salary_currency and self.salary_period):
+            raise ValueError("min_salary requires salary_currency and salary_period.")
+        return self
 
 
 class JobsSearchResponse(BaseModel):
@@ -84,23 +144,25 @@ class JobsSearchResponse(BaseModel):
 
 
 def _country(value: str) -> str:
-    country = value.strip().upper()
-    country = {"GERMANY": "DE", "DEUTSCHLAND": "DE", "SWEDEN": "SE", "SVERIGE": "SE"}.get(country, country)
-    if country not in {"DE", "SE"}:
-        raise ValueError("Job search currently supports Germany (DE) and Sweden (SE).")
+    """Any ISO 3166-1 alpha-2 code; built-in source coverage is checked per provider."""
+    country = iso_country(COUNTRY_NAMES.get(value.strip().upper(), value))
+    if country is None:
+        raise ValueError("Select countries using ISO 3166-1 alpha-2 codes such as DE, SE or US.")
     return country
 
 
 def _countries(values: Any) -> list[str]:
     if not isinstance(values, list) or not values:
-        raise ValueError("Select at least one supported country (DE or SE).")
+        raise ValueError("Select at least one country (ISO 3166-1 alpha-2 code).")
     selected: list[str] = []
     for value in values:
         if not isinstance(value, str):
-            raise ValueError("Select countries using DE or SE country codes.")
+            raise ValueError("Select countries using ISO 3166-1 alpha-2 codes such as DE, SE or US.")
         country = _country(value)
         if country not in selected:
             selected.append(country)
+    if len(selected) > MAX_COUNTRIES:
+        raise ValueError(f"Select at most {MAX_COUNTRIES} countries.")
     return selected
 
 
@@ -252,27 +314,6 @@ def _normalized_job(raw: dict[str, Any], provider: str, requested_country: str) 
     return job
 
 
-def _matches_strict_filters(job: dict[str, Any], item: JobsSearchRequestItem) -> bool:
-    if item.remote is not None and job.get("remote") is not item.remote:
-        return False
-    if item.employment_type:
-        if normalize_employment_type(job.get("employment_type")) != item.employment_type:
-            return False
-    if item.max_days_old is not None:
-        published = job.get("published_at")
-        if not isinstance(published, str) or not published:
-            return False
-        try:
-            parsed = datetime.fromisoformat(published.replace("Z", "+00:00"))
-            if parsed.tzinfo is None:
-                parsed = parsed.replace(tzinfo=timezone.utc)
-        except ValueError:
-            return False
-        if parsed < datetime.now(timezone.utc) - timedelta(days=item.max_days_old):
-            return False
-    return True
-
-
 def _job_dedup_key(job: dict[str, Any]) -> tuple[str, ...]:
     country = str(job["country"])
     url = normalize_url_for_deduplication(job["url"])
@@ -410,7 +451,7 @@ class SearchSkill(BaseSkill):
                     job = _normalized_job(raw_job, provider, country)
                     if job is not None:
                         valid_rows += 1
-                        if _matches_strict_filters(job, item):
+                        if matches_listing_filters(job, item):
                             jobs.append(job)
             if response and valid_rows == 0:
                 warnings.append(_warning(request_id, provider, "invalid_response", "Job source returned unusable listings.", country=country))
@@ -424,7 +465,7 @@ class SearchSkill(BaseSkill):
                 continue
             succeeded += 1
             installed_sources.append([
-                job for job in map(_installed_job, outcome.results) if _matches_strict_filters(job, item)
+                job for job in map(_installed_job, outcome.results) if matches_listing_filters(job, item)
             ])
         jobs = stable_deduplicate_candidates(_interleave([jobs, *installed_sources]), key=_job_dedup_key)
         if installed_sources:
@@ -435,10 +476,7 @@ class SearchSkill(BaseSkill):
             # Several sources can each return the full candidate limit; the ranker
             # accepts a bounded list. The list is interleaved, so the cut keeps every source.
             jobs = jobs[:MAX_SEARCH_RELEVANCE_CANDIDATES]
-            projections = [{key: job.get(key) for key in (
-                "title", "company", "location", "country", "remote", "employment_type",
-                "description", "published_at", "salary_min", "salary_max", "salary_currency", "salary_period",
-            )} for job in jobs]
+            projections = [{key: job.get(key) for key in RANKING_FIELDS} for job in jobs]
             try:
                 ranking = await rank_search_candidates(
                     candidates=jobs, candidate_projections=projections,

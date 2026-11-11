@@ -103,8 +103,12 @@ assertions:
   type: behavior
   must: An installed provider implements a versioned contract declared by its target built-in skill, namely events.search@1, whose input is one EventsSearchRequestItem
     and whose output is a list of EventResult entries, and jobs.search@1, whose input is one jobs search request
-    item with its resolved countries and whose output is a list of job_result entries; installed jobs providers
-    receive every selected request regardless of the built-in source's country coverage. The skill merges, deduplicates, filters and renders installed-provider results with the
+    item with its resolved countries (any ISO 3166-1 alpha-2 codes) and listing filters and whose output is a list
+    of job_result entries with normalized listing facts (start date, contract duration in months, visa
+    sponsorship, education and experience level, minimum years of experience, impact area, working languages
+    and the listing's own country, absent for global listings); installed jobs providers receive every selected
+    request regardless of the built-in source's country coverage. Every listing filter excludes listings that
+    do not state the filtered value. The skill merges, deduplicates, filters and renders installed-provider results with the
     same rules and cards as built-in provider results and labels each result with the installed provider name.
     Results violating the contract are discarded, and a failing provider yields a safe per-request error without
     affecting other providers in the same request. Every built-in skill that is paused because it has no provider

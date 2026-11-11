@@ -99,14 +99,18 @@ async def test_invalid_country_selections_and_uncovered_sources_never_call_provi
 
     for name in jobs_search.PROVIDER_SEARCH:
         monkeypatch.setitem(jobs_search.PROVIDER_SEARCH, name, unexpected)
-    for top_level in ([], ["US"], ["DE", "US"]):
+    for top_level in ([], ["XX"], ["DE", "USA"], ["AT", "BE", "CH", "CZ", "DE", "DK", "ES", "FI", "FR", "IT", "NL"]):
         response = (await _skill().execute(countries=top_level, requests=[{"query": "engineer"}])).model_dump()
         assert response["success"] is False and response["error"] and response["results"] == []
+
+    # Any ISO 3166-1 alpha-2 code is accepted; without an installed provider it is a coverage gap.
+    response = (await _skill().execute(countries=["US"], requests=[{"query": "engineer"}])).model_dump()
+    assert response["success"] is False and response["results"][0]["error"] == "No requested jobs provider covers US."
 
     response = (await _skill().execute(requests=[
         {"id": "empty", "query": "engineer", "countries": []},
         {"id": "conflict", "query": "engineer", "country": "DE", "countries": ["SE"]},
-        {"id": "unsupported", "query": "engineer", "countries": ["US"]},
+        {"id": "unsupported", "query": "engineer", "countries": ["XX"]},
         {"id": "uncovered", "query": "engineer", "countries": ["DE", "SE"], "provider": "JobTech"},
         {"id": "radius", "query": "engineer", "countries": ["DE", "SE"],
          "location": "Berlin", "radius_km": 20},
@@ -152,3 +156,50 @@ async def test_nonempty_unusable_provider_response_is_an_error_not_no_results(mo
     assert payload["success"] is False
     assert payload["results"][0]["error"] == "All requested job sources failed."
     assert payload["warnings"][0]["code"] == "invalid_response"
+
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
+@pytest.mark.asyncio
+async def test_listing_filters_exclude_listings_that_do_not_state_the_value(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[dict[str, Any]] = []
+    stated = {
+        "visa_sponsorship": True, "experience_level": "mid", "education_level": "bachelor",
+        "start_date": "2027-02-01", "contract_duration_months": 12, "valid_through": "2027-01-15T00:00:00Z",
+        "salary_min": 4000, "salary_max": 5000, "salary_currency": "EUR", "salary_period": "month",
+        "languages": ["en", "de"],
+    }
+
+    async def jobtech(**kwargs: Any) -> list[dict[str, Any]]:
+        calls.append(kwargs)
+        return [_job("stated", country="SE", **stated), _job("unstated", country="SE"),
+                _job("senior", country="SE", **{**stated, "experience_level": "senior"})]
+
+    monkeypatch.setitem(jobs_search.PROVIDER_SEARCH, "jobtech", jobtech)
+    filters = {
+        "visa_sponsorship": True, "experience_levels": ["entry", "mid"], "education_levels": ["bachelor"],
+        "start_after": "2027-01-01", "start_before": "2027-03-01", "min_contract_duration_months": 6,
+        "max_contract_duration_months": 24, "deadline_after": "2027-01-10",
+        "min_salary": 55000, "salary_currency": "eur", "salary_period": "year", "languages": ["EN"],
+    }
+    payload = (await _skill().execute(countries=["SE"], requests=[{"query": "analyst", **filters}])).model_dump()
+    assert [job["id"] for job in payload["results"][0]["results"]] == ["stated"]
+    assert payload["results"][0]["results"][0]["languages"] == ["en", "de"]
+    assert "visa_sponsorship" not in calls[0]
+
+    # Each filter alone also drops the listing that does not state its value.
+    for name, value in filters.items():
+        if name in {"salary_currency", "salary_period"}:
+            continue
+        single = {name: value} if name != "min_salary" else {
+            "min_salary": 61000, "salary_currency": "EUR", "salary_period": "year"}
+        payload = (await _skill().execute(countries=["SE"], requests=[{"query": "analyst", **single}])).model_dump()
+        ids = [job["id"] for job in payload["results"][0]["results"]]
+        assert "unstated" not in ids, name
+        assert ids == ([] if name == "min_salary" else ["stated"] if name == "experience_levels" else ["stated", "senior"]), name
+
+    invalid = (await _skill().execute(countries=["SE"], requests=[
+        {"id": "salary", "query": "analyst", "min_salary": 50000},
+        {"id": "range", "query": "analyst", "start_after": "2027-03-01", "start_before": "2027-01-01"},
+        {"id": "language", "query": "analyst", "languages": ["english"]},
+        {"id": "level", "query": "analyst", "experience_levels": ["guru"]},
+    ])).model_dump()
+    assert all(group["error"] for group in invalid["results"])

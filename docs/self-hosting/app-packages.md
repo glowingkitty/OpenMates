@@ -91,6 +91,34 @@ It prints one JSON object on stdout: `{"results": [...]}` or
 `date_end`, `description`, `venue` (object), `event_type`, `organizer`, `fee`
 and `image_url`. Other fields are dropped, and invalid results are discarded.
 
+For `jobs.search@1` the input is one jobs search request with the requested
+`countries` (ISO 3166-1 alpha-2 codes), `limit` and any listing filters the user
+set (`remote`, `employment_type`, `max_days_old`, `visa_sponsorship`,
+`experience_levels`, `education_levels`, `start_after`, `start_before`,
+`min_contract_duration_months`, `max_contract_duration_months`,
+`deadline_after`, `min_salary` with `salary_currency` and `salary_period`,
+`languages`). Each result needs `id`, `title` and an `http(s)` `url`. Optional
+fields:
+
+- text: `company`, `location`, `description`, `sector`, `role`, `seniority`,
+  `organization_type`, `work_arrangement`, `salary_text`, `impact`,
+  `impact_area`, `employment_type`, `detail_status`, `salary_currency`,
+  `salary_period` (`hour`, `day`, `week`, `month` or `year`)
+- `country`: the listing's own ISO 3166-1 alpha-2 code; leave it out for
+  global or remote listings
+- `apply_url`; booleans `remote`, `visa_sponsorship`
+- ISO dates `published_at`, `valid_through` (application deadline),
+  `start_date`
+- numbers `salary_min`, `salary_max`; integers `contract_duration_months`
+  (fixed-term length), `experience_years_min`
+- `education_level`: `none`, `vocational`, `bachelor`, `master` or `doctorate`
+- `experience_level`: `internship`, `entry`, `mid`, `senior` or `lead`
+- `languages`: ISO 639-1 codes such as `["en", "de"]`
+
+Leave out what the listing does not state. OpenMates applies the request's
+filters to every result again and drops listings that do not state a filtered
+value.
+
 ### Serve a paused skill (`skill.requests@1`)
 
 Some built-in skills ship paused because no provider is configured (for example

@@ -6,8 +6,9 @@ discarded and unknown fields are dropped. The worker, not the package, sets
 each result's ``provider`` (contribution name) and ``provider_id``.
 
 ``jobs.search@1``: input is one validated jobs search request item (with the
-resolved ``countries`` list, without provider selectors); output is a list of
-``job_result`` objects (``id``, ``title`` and http(s) ``url`` required).
+resolved ``countries`` list and its listing filters, without provider selectors);
+output is a list of ``job_result`` objects (``id``, ``title`` and http(s) ``url``
+required; ``country`` is an ISO 3166-1 alpha-2 code or absent for global listings).
 
 ``skill.requests@1``: the generic contract for paused built-in skills without a
 provider (``generic_contract.py``). Input is one request item of the target
@@ -29,6 +30,7 @@ from backend.shared.app_packages.generic_contract import (
     SKILL_REQUESTS_V1,
     validate_generic_result,
 )
+from backend.shared.python_utils.country_codes import iso_country, iso_language
 
 EVENTS_SEARCH_V1 = "events.search@1"
 MAX_RESULTS_PER_CALL = 50
@@ -45,14 +47,28 @@ JOBS_SEARCH_V1 = "jobs.search@1"
 MAX_JOB_ID_CHARS = 256
 # job_result text fields and their limits; id, title, url and apply_url are handled separately.
 JOBS_TEXT_FIELDS: Dict[str, int] = {
-    "company": MAX_TEXT_CHARS, "location": MAX_TEXT_CHARS, "country": 64, "employment_type": 64,
+    "company": MAX_TEXT_CHARS, "location": MAX_TEXT_CHARS, "employment_type": 64,
     "description": MAX_DESCRIPTION_CHARS, "sector": MAX_TEXT_CHARS, "role": MAX_TEXT_CHARS,
     "seniority": MAX_TEXT_CHARS, "organization_type": MAX_TEXT_CHARS, "work_arrangement": MAX_TEXT_CHARS,
-    "salary_text": MAX_TEXT_CHARS, "impact": MAX_TEXT_CHARS, "detail_status": 64,
+    "salary_text": MAX_TEXT_CHARS, "impact": MAX_TEXT_CHARS, "impact_area": 200, "detail_status": 64,
     "salary_currency": 16, "salary_period": 32,
 }
-JOBS_DATE_FIELDS = ("published_at", "valid_through")
+# ``valid_through`` is the application deadline (last day the listing accepts applications).
+JOBS_DATE_FIELDS = ("published_at", "valid_through", "start_date")
 JOBS_NUMBER_FIELDS = ("salary_min", "salary_max")
+# Whole-number fields and their inclusive bounds.
+JOBS_INTEGER_FIELDS: Dict[str, tuple[int, int]] = {
+    "contract_duration_months": (1, 600), "experience_years_min": (0, 60),
+}
+JOBS_BOOL_FIELDS = ("remote", "visa_sponsorship")
+# Normalized enums; ``seniority`` keeps the source's own wording next to ``experience_level``.
+JOBS_EDUCATION_LEVELS = ("none", "vocational", "bachelor", "master", "doctorate")
+JOBS_EXPERIENCE_LEVELS = ("internship", "entry", "mid", "senior", "lead")
+JOBS_SALARY_PERIODS = ("hour", "day", "week", "month", "year")
+JOBS_ENUM_FIELDS: Dict[str, tuple[str, ...]] = {
+    "education_level": JOBS_EDUCATION_LEVELS, "experience_level": JOBS_EXPERIENCE_LEVELS,
+}
+MAX_JOB_LANGUAGES = 10
 # Request fields the skill resolves itself: provider selectors and the singleton
 # country (the input always carries the resolved ``countries`` list).
 JOBS_INPUT_EXCLUDED_FIELDS = frozenset({"provider", "providers", "country"})
@@ -171,10 +187,31 @@ def validate_jobs_search_result(raw: Any) -> Optional[Dict[str, Any]]:
     }
     optional.update({key: _iso_datetime(raw.get(key)) for key in JOBS_DATE_FIELDS})
     optional.update({key: _finite_number(raw.get(key)) for key in JOBS_NUMBER_FIELDS})
+    optional.update({key: _bounded_int(raw.get(key), *bounds) for key, bounds in JOBS_INTEGER_FIELDS.items()})
+    optional.update({key: raw.get(key) if isinstance(raw.get(key), bool) else None for key in JOBS_BOOL_FIELDS})
+    optional.update({key: raw.get(key) if raw.get(key) in values else None for key, values in JOBS_ENUM_FIELDS.items()})
     optional["apply_url"] = _http_url(raw.get("apply_url"))
-    optional["remote"] = raw.get("remote") if isinstance(raw.get("remote"), bool) else None
+    # ISO 3166-1 alpha-2; global or remote listings without a country keep None.
+    optional["country"] = iso_country(raw.get("country"))
+    optional["languages"] = _languages(raw.get("languages"))
     result.update({key: value for key, value in optional.items() if value is not None})
     return result
+
+
+def _bounded_int(value: Any, low: int, high: int) -> Optional[int]:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, float) and value.is_integer():
+        value = int(value)
+    return value if isinstance(value, int) and low <= value <= high else None
+
+
+def _languages(value: Any) -> Optional[List[str]]:
+    """Deduplicated ISO 639-1 codes; invalid entries are dropped."""
+    if not isinstance(value, list):
+        return None
+    codes = list(dict.fromkeys(code for item in value if (code := iso_language(item))))
+    return codes[:MAX_JOB_LANGUAGES] or None
 
 
 def jobs_search_input(request_item: Dict[str, Any]) -> Dict[str, Any]:

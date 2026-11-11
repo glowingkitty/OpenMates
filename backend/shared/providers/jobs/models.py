@@ -29,3 +29,12 @@ class JobListing(TypedDict):
     valid_through: NotRequired[str | None]
     impact: NotRequired[str | None]
     detail_status: NotRequired[str | None]
+    # Normalized listing facts used by request filters; None when the source does not state them.
+    start_date: NotRequired[str | None]
+    contract_duration_months: NotRequired[int | None]
+    visa_sponsorship: NotRequired[bool | None]
+    education_level: NotRequired[str | None]
+    experience_level: NotRequired[str | None]
+    experience_years_min: NotRequired[int | None]
+    impact_area: NotRequired[str | None]
+    languages: NotRequired[list[str] | None]

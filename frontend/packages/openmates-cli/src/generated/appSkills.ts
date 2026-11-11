@@ -4572,29 +4572,26 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "jobs",
     "skill_method_py": "search",
     "description_key": "app_skills.jobs.search.description",
-    "description": "Search current Swedish job listings using JobTech. Germany is unavailable. Preserve country, remote, employment and age filters. Radius search is unavailable. Use relevance_criteria only for an explicit user goal. Never invent listing facts or broaden filters after empty results.",
+    "description": "Search current Swedish job listings using JobTech. Germany is unavailable. Preserve country, remote, employment and age filters. Radius search is unavailable. Use relevance_criteria only for an explicit user goal. Set listing filters (visa, experience, education, start, contract length, deadline, salary, languages) only when the user asks; they drop listings that do not state the value. Never invent listing facts or broaden filters after empty results.",
     "schema": {
       "type": "object",
       "properties": {
         "countries": {
           "type": "array",
           "minItems": 1,
-          "maxItems": 2,
+          "maxItems": 10,
           "uniqueItems": true,
           "default": [
             "DE"
           ],
           "items": {
             "type": "string",
-            "enum": [
-              "DE",
-              "SE"
-            ]
+            "pattern": "^[A-Z]{2}$"
           },
           "x-ui": {
             "basic": true
           },
-          "description": "Select SE for the available source. DE remains accepted but returns an explicit coverage gap."
+          "description": "ISO 3166-1 alpha-2 country codes. The built-in source covers SE; other countries return an explicit coverage gap unless an installed provider answers them.\n"
         },
         "requests": {
           "type": "array",
@@ -4625,26 +4622,20 @@ export const APP_SKILL_METADATA = [
               },
               "country": {
                 "type": "string",
-                "enum": [
-                  "DE",
-                  "SE"
-                ],
+                "pattern": "^[A-Z]{2}$",
                 "x-ui": {
                   "basic": false
                 },
-                "description": "Legacy singleton country override; DE is unavailable. Do not combine with countries."
+                "description": "Legacy singleton ISO 3166-1 alpha-2 country override. Do not combine with countries."
               },
               "countries": {
                 "type": "array",
                 "minItems": 1,
-                "maxItems": 2,
+                "maxItems": 10,
                 "uniqueItems": true,
                 "items": {
                   "type": "string",
-                  "enum": [
-                    "DE",
-                    "SE"
-                  ]
+                  "pattern": "^[A-Z]{2}$"
                 },
                 "x-ui": {
                   "basic": false
@@ -4739,6 +4730,136 @@ export const APP_SKILL_METADATA = [
                   "basic": true
                 },
                 "description": "Optional user-stated career or impact goal that should change ranking. Use only explicit listing evidence; omit for a neutral search.\n"
+              },
+              "visa_sponsorship": {
+                "type": "boolean",
+                "x-ui": {
+                  "basic": false
+                },
+                "description": "Keep only listings that state this visa sponsorship value. Listings that do not state it are excluded, as for every listing filter below.\n"
+              },
+              "experience_levels": {
+                "type": "array",
+                "maxItems": 5,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "internship",
+                    "entry",
+                    "mid",
+                    "senior",
+                    "lead"
+                  ]
+                },
+                "x-ui": {
+                  "basic": false
+                },
+                "description": "Keep listings whose stated experience level is one of these; unstated levels are excluded."
+              },
+              "education_levels": {
+                "type": "array",
+                "maxItems": 5,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "none",
+                    "vocational",
+                    "bachelor",
+                    "master",
+                    "doctorate"
+                  ]
+                },
+                "x-ui": {
+                  "basic": false
+                },
+                "description": "Keep listings whose required education level is one of these (include the user's level and every lower one); unstated levels are excluded.\n"
+              },
+              "start_after": {
+                "type": "string",
+                "format": "date",
+                "x-ui": {
+                  "basic": false
+                },
+                "description": "Keep listings whose stated start date is on or after this ISO date; unstated start dates are excluded."
+              },
+              "start_before": {
+                "type": "string",
+                "format": "date",
+                "x-ui": {
+                  "basic": false
+                },
+                "description": "Keep listings whose stated start date is on or before this ISO date; unstated start dates are excluded."
+              },
+              "min_contract_duration_months": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 600,
+                "x-ui": {
+                  "basic": false
+                },
+                "description": "Minimum stated contract duration in months. Permanent or unstated durations are excluded.\n"
+              },
+              "max_contract_duration_months": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 600,
+                "x-ui": {
+                  "basic": false
+                },
+                "description": "Maximum stated contract duration in months, for fixed-term roles. Permanent or unstated durations are excluded.\n"
+              },
+              "deadline_after": {
+                "type": "string",
+                "format": "date",
+                "x-ui": {
+                  "basic": false
+                },
+                "description": "Keep listings whose application deadline is on or after this ISO date; listings without a stated deadline are excluded.\n"
+              },
+              "min_salary": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "x-ui": {
+                  "basic": false
+                },
+                "description": "Minimum salary; requires salary_currency and salary_period. A listing passes when its highest stated salary in that currency reaches it (month and year convert, other periods must match). Listings without a comparable salary are excluded.\n"
+              },
+              "salary_currency": {
+                "type": "string",
+                "pattern": "^[A-Z]{3}$",
+                "x-ui": {
+                  "basic": false
+                },
+                "description": "ISO 4217 currency of min_salary, such as EUR. No conversion between currencies."
+              },
+              "salary_period": {
+                "type": "string",
+                "enum": [
+                  "hour",
+                  "day",
+                  "week",
+                  "month",
+                  "year"
+                ],
+                "x-ui": {
+                  "basic": false
+                },
+                "description": "Period of min_salary."
+              },
+              "languages": {
+                "type": "array",
+                "maxItems": 10,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z]{2}$"
+                },
+                "x-ui": {
+                  "basic": false
+                },
+                "description": "ISO 639-1 codes of languages the user can work in. Keep listings whose stated working languages include at least one; unstated languages are excluded.\n"
               }
             },
             "required": [
@@ -4930,10 +5051,14 @@ export const APP_SKILL_METADATA = [
                       }
                     },
                     "country": {
-                      "type": "string",
+                      "type": [
+                        "string",
+                        "null"
+                      ],
                       "x-ui": {
                         "basic": false
-                      }
+                      },
+                      "description": "ISO 3166-1 alpha-2 country of the listing; null for global or remote listings without one."
                     },
                     "remote": {
                       "type": [
@@ -5032,7 +5157,8 @@ export const APP_SKILL_METADATA = [
                       ],
                       "x-ui": {
                         "basic": false
-                      }
+                      },
+                      "description": "Application deadline (ISO 8601)."
                     },
                     "impact": {
                       "type": [
@@ -5041,7 +5167,107 @@ export const APP_SKILL_METADATA = [
                       ],
                       "x-ui": {
                         "basic": false
+                      },
+                      "description": "Why the work matters",
+                      "in the source's words.": null
+                    },
+                    "impact_area": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "x-ui": {
+                        "basic": false
+                      },
+                      "description": "Cause or problem area label",
+                      "such as climate.": null
+                    },
+                    "start_date": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date",
+                      "x-ui": {
+                        "basic": false
                       }
+                    },
+                    "contract_duration_months": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "x-ui": {
+                        "basic": false
+                      },
+                      "description": "Fixed-term length; null when permanent or unstated."
+                    },
+                    "visa_sponsorship": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ],
+                      "x-ui": {
+                        "basic": false
+                      }
+                    },
+                    "education_level": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "enum": [
+                        "none",
+                        "vocational",
+                        "bachelor",
+                        "master",
+                        "doctorate",
+                        null
+                      ],
+                      "x-ui": {
+                        "basic": false
+                      },
+                      "description": "Minimum required education."
+                    },
+                    "experience_level": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "enum": [
+                        "internship",
+                        "entry",
+                        "mid",
+                        "senior",
+                        "lead",
+                        null
+                      ],
+                      "x-ui": {
+                        "basic": false
+                      },
+                      "description": "Normalized level; seniority keeps the source's wording."
+                    },
+                    "experience_years_min": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "x-ui": {
+                        "basic": false
+                      }
+                    },
+                    "languages": {
+                      "type": [
+                        "array",
+                        "null"
+                      ],
+                      "items": {
+                        "type": "string"
+                      },
+                      "x-ui": {
+                        "basic": false
+                      },
+                      "description": "ISO 639-1 working languages."
                     },
                     "detail_status": {
                       "type": [
@@ -9881,7 +10107,7 @@ export class JobsAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Search current Swedish job listings using JobTech. Germany is unavailable. Preserve country, remote, employment and age filters. Radius search is unavailable. Use relevance_criteria only for an explicit user goal. Never invent listing facts or broaden filters after empty results.
+   * Search current Swedish job listings using JobTech. Germany is unavailable. Preserve country, remote, employment and age filters. Radius search is unavailable. Use relevance_criteria only for an explicit user goal. Set listing filters (visa, experience, education, start, contract length, deadline, salary, languages) only when the user asks; they drop listings that do not state the value. Never invent listing facts or broaden filters after empty results.
    * Description key: app_skills.jobs.search.description
    * Skill: jobs/search
    */
