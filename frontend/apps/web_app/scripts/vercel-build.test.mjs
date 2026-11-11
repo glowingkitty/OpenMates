@@ -30,10 +30,14 @@ write('built/openmates_browser_bg.wasm', 'wasm');
 const depInfo = `${repo}/target/out.wasm: ${repo}/packages/core/src/lib.rs ${repo}/packages/core/src/data\\ file.json /outside/registry/dep.rs\n`;
 const cache = join(repo, 'cache/package');
 
-test('only listed branches build with the Rust core', () => {
-	assert.deepEqual(RUST_CORE_BRANCHES, ['dev']);
+test('dev, main and every production build use the Rust core; other builds do not', () => {
+	assert.deepEqual(RUST_CORE_BRANCHES, ['dev', 'main']);
 	assert.equal(rustCoreBranch({ VERCEL_GIT_COMMIT_REF: 'dev' }), true);
-	assert.equal(rustCoreBranch({ VERCEL_GIT_COMMIT_REF: 'main' }), false);
+	assert.equal(rustCoreBranch({ VERCEL_GIT_COMMIT_REF: 'main' }), true);
+	// A production build started from the command line has no branch name.
+	assert.equal(rustCoreBranch({ VERCEL_ENV: 'production' }), true);
+	assert.equal(rustCoreBranch({ VERCEL_ENV: 'preview', VERCEL_GIT_COMMIT_REF: 'some-branch' }), false);
+	assert.equal(rustCoreBranch({ VERCEL_ENV: 'preview' }), false);
 	assert.equal(rustCoreBranch({}), false);
 });
 

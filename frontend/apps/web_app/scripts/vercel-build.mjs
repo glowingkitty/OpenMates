@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 // Vercel build entry for the web app (vercel.json buildCommand).
 //
-// Branches in RUST_CORE_BRANCHES are built with the shared Rust client core
-// (VITE_OPENMATES_RUST_CORE=1 plus the wasm package); every other branch builds
-// without it. Add a branch here to switch its deployments to the core.
+// Branches in RUST_CORE_BRANCHES and every production deployment are built with
+// the shared Rust client core (VITE_OPENMATES_RUST_CORE=1 plus the wasm package);
+// every other build is without it. A production build started from the command
+// line carries no branch name, so the production environment counts on its own.
 //
 // The package is built from source with build-rust-core-web.mjs and kept in the
 // build cache together with a digest of every file cargo read for it, so a
@@ -18,7 +19,7 @@ import { homedir, tmpdir } from 'node:os';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-export const RUST_CORE_BRANCHES = ['dev'];
+export const RUST_CORE_BRANCHES = ['dev', 'main'];
 const TOOLCHAIN = '1.98.1';
 const WASM_BINDGEN_VERSION = '0.2.129';
 const WASM_BINDGEN_ARCHIVE = `wasm-bindgen-${WASM_BINDGEN_VERSION}-x86_64-unknown-linux-musl`;
@@ -31,9 +32,9 @@ const DEP_INFO = 'wasm32-unknown-unknown/wasm-web/openmates_browser_bindings.d';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
 
-/** True when this deployment's branch is built with the Rust client core. */
+/** True when this deployment (a listed branch, or any production build) is built with the Rust client core. */
 export function rustCoreBranch(env) {
-	return RUST_CORE_BRANCHES.includes(env.VERCEL_GIT_COMMIT_REF ?? '');
+	return env.VERCEL_ENV === 'production' || RUST_CORE_BRANCHES.includes(env.VERCEL_GIT_COMMIT_REF ?? '');
 }
 
 /** Repo-relative source files from a cargo dep-info file (`target: dep dep ...`, spaces escaped). */
@@ -168,7 +169,7 @@ function main() {
 		// The branch list is the only switch; a project-level value must not enable half of it.
 		delete env.VITE_OPENMATES_RUST_CORE;
 		delete env.OPENMATES_RUST_CORE_PKG;
-		console.log(`RUST-CORE-OFF: branch "${env.VERCEL_GIT_COMMIT_REF ?? ''}" is not in RUST_CORE_BRANCHES`);
+		console.log(`RUST-CORE-OFF: branch "${env.VERCEL_GIT_COMMIT_REF ?? ''}" is not in RUST_CORE_BRANCHES and this is not a production build`);
 	}
 	execFileSync('pnpm', ['--filter', 'web_app', 'build'], { cwd: root, env, stdio: 'inherit' });
 }
