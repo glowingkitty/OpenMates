@@ -95,12 +95,12 @@ when a skill or this file points to it.
 - Every behavior fix/feature updates relevant E2E coverage; never weaken tests.
 - Testing Projects: use clear natural-language Project names ("Kitchen
   renovation"), never timestamps or numbers (`naturalProjectName()` helper).
-- Builds, unit tests and benchmarks (cargo, vitest, vite build, …) run on the
+- Builds, unit tests, `svelte-check` and benchmarks (cargo, vitest, vite build, …) run on the
   dev server only via `python3 scripts/heavy_slot.py run -- <cmd>` (waits for a
   healthy host, max 2 at once, CPU/memory capped); the Bash guard blocks direct
   runs. Product E2E and full suites use isolated GitHub CI: `sessions.py
   ci-source` → `ci_coordinator.py submit --mode <rust-check|vitest|pytest|e2e|…>`
-  → `ci_coordinator.py wait <id>`. Direct: lint/typecheck, `cargo fmt`, light
+  → `ci_coordinator.py wait <id>`. Direct: lint, `tsc`, `cargo fmt`, light
   script pytest.
 - CI cost: for a UI-only or otherwise narrow change, first run only the
   cheapest proving check (component spec, lint, the one affected spec); submit

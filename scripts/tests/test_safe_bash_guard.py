@@ -118,7 +118,6 @@ def test_blocks_destructive_git_cleanup() -> None:
 def test_allows_scoped_static_frontend_checks() -> None:
     commands = [
         "pnpm --dir frontend/apps/web_app lint",
-        "pnpm --dir frontend/apps/web_app check",
         "pnpm --dir frontend/apps/web_app check-types",
         "pnpm exec tsc --noEmit",
         "pnpm exec tsc --watch=false --noEmit",
@@ -127,6 +126,13 @@ def test_allows_scoped_static_frontend_checks() -> None:
     for command in commands:
         result = run_guard(command)
         assert result.returncode == 0, (command, result.stderr)
+
+
+def test_whole_package_type_check_script_needs_the_heavy_slot() -> None:
+    # The `check` script runs the whole-package type-check (several GB per run).
+    result = run_guard("pnpm --dir frontend/apps/web_app check")
+    assert result.returncode == 2, result.stderr
+    assert "heavy_slot.py" in json.loads(result.stderr)["reason"]
 
 
 def test_local_unit_tests_and_builds_go_to_ci() -> None:

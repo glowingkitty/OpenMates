@@ -8,6 +8,11 @@ commands are therefore allowed only through this wrapper, which:
 - waits until `host_load_guard` reports the host healthy,
 - holds one of MAX_SLOTS host-wide slots (flock) for the whole run, so at most
   MAX_SLOTS heavy commands run at once (others wait in line),
+- admits a run only when the host has room for its whole memory cap on top of
+  the overload threshold, counting the cap of a run in another slot that
+  started less than SETTLE_SECONDS ago (its memory is not in use yet). On
+  2026-11-11 two runs admitted in the same second grew to ~9 GB together with
+  8 GB available and froze the host,
 - runs the command in a systemd user scope capped at CPU_QUOTA and MEMORY_MAX,
   at low CPU/IO priority, with CARGO_BUILD_JOBS limited.
 
@@ -37,6 +42,8 @@ import host_load_guard  # noqa: E402 - sibling module; path set up above for dir
 MAX_SLOTS = 2
 CPU_QUOTA = "400%"
 MEMORY_MAX = "6G"
+MEMORY_MAX_BYTES = 6 * host_load_guard.GIB
+SETTLE_SECONDS = 180
 CARGO_JOBS = "4"
 DEFAULT_TIMEOUT_SECONDS = 3600
 POLL_SECONDS = 5
@@ -79,6 +86,53 @@ def holders(directory: Path) -> list[dict]:
     return result
 
 
+def recent_starts(directory: Path, now: float) -> int:
+    """Count busy slots whose run started less than SETTLE_SECONDS ago."""
+    count = 0
+    for slot in holders(directory):
+        if slot["busy"]:
+            started = (directory / f"slot-{slot['slot']}.lock").stat().st_mtime
+            count += now - started < SETTLE_SECONDS
+    return count
+
+
+def memory_shortfall(mem_available_bytes: int, recent: int) -> str | None:
+    """Return why a new run does not fit in memory, or None when it does."""
+    needed = (host_load_guard.THRESHOLDS.block_mem_available_bytes
+              + MEMORY_MAX_BYTES * (1 + recent))
+    if mem_available_bytes >= needed:
+        return None
+    gib = host_load_guard.GIB
+    return (f"MemAvailable {mem_available_bytes / gib:.1f} GiB < {needed / gib:.0f} GiB needed "
+            f"(run cap {MEMORY_MAX_BYTES // gib} GiB x {1 + recent} + overload threshold)")
+
+
+def admit(directory: Path) -> tuple[tuple[int, int] | None, str]:
+    """Take a slot when the host is healthy and has memory for the run.
+
+    Admission is serialized by a gate lock, and the slot file is stamped before
+    the gate is released, so two waiting runs cannot both count the same free memory.
+    """
+    gate = os.open(directory / "admission.lock", os.O_RDWR | os.O_CREAT, 0o644)
+    try:
+        fcntl.flock(gate, fcntl.LOCK_EX)
+        sample, decision = host_load_guard.current_decision()
+        if decision.overloaded:
+            return None, "host overloaded: " + "; ".join(decision.reasons)
+        shortfall = memory_shortfall(sample.mem_available_bytes, recent_starts(directory, time.time()))
+        if shortfall:
+            return None, shortfall
+        acquired = try_acquire(directory)
+        if acquired is None:
+            return None, "all heavy slots busy"
+        os.ftruncate(acquired[0], 0)  # also sets mtime = start time for recent_starts()
+        os.utime(acquired[0])
+        return acquired, ""
+    finally:
+        fcntl.flock(gate, fcntl.LOCK_UN)
+        os.close(gate)
+
+
 def wrapped_command(command: list[str]) -> list[str]:
     limited = ["nice", "-n", "10"]
     if shutil.which("ionice"):
@@ -103,20 +157,17 @@ def run(command: list[str], timeout: float) -> int:
     directory = slot_dir()
     announced = False
     while True:
-        _, decision = host_load_guard.current_decision()
-        acquired = None if decision.overloaded else try_acquire(directory)
+        acquired, why = admit(directory)
         if acquired is not None:
             break
         if time.monotonic() >= deadline:
-            print("heavy_slot: host overloaded or all heavy slots busy until timeout", file=sys.stderr)
+            print(f"heavy_slot: gave up after timeout ({why})", file=sys.stderr)
             return EXIT_UNAVAILABLE
         if not announced:
-            why = "host overloaded: " + "; ".join(decision.reasons) if decision.overloaded else "all heavy slots busy"
             print(f"heavy_slot: waiting ({why})", file=sys.stderr)
             announced = True
         time.sleep(POLL_SECONDS)
     fd, slot = acquired
-    os.ftruncate(fd, 0)
     os.write(fd, " ".join(command).encode()[:300])
     env = dict(os.environ, CARGO_BUILD_JOBS=os.environ.get("CARGO_BUILD_JOBS", CARGO_JOBS))
     host_load_guard.append_event(

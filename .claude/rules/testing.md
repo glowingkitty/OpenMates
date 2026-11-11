@@ -36,16 +36,18 @@ paths:
   number in a name for a privacy regression.
 
 ## Where checks run
-- Locally in the worktree: lint, typecheck (`tsc`, `svelte-check`), `cargo
+- Locally in the worktree: lint, `tsc`, `cargo
   fmt/metadata/tree`, and pytest of `scripts/` tooling (light; still refused
   while the host is overloaded).
 - Builds, unit tests and benchmarks (`cargo build/test/check/clippy/run/bench`,
-  `rustc`, `wasm-pack`, vitest, `vite`/`svelte-kit`/`pnpm build`, local
+  `rustc`, `wasm-pack`, vitest, `svelte-check` (several GB per run),
+  `vite`/`svelte-kit`/`pnpm build`, local
   headless-browser benches) may run on the dev server only through
   `python3 scripts/heavy_slot.py run -- <command>`: it waits until
   `host_load_guard` reports a healthy host, allows at most 2 heavy commands
-  host-wide at once and runs each in a systemd scope capped at 4 CPUs and 6 GB
-  RAM with low priority. `.claude/hooks/bash-guard.sh` blocks direct runs.
+  host-wide at once, starts one only when its 6 GB fit in free memory, and runs
+  each in a systemd scope capped at 4 CPUs and 6 GB RAM with low priority. One
+  heavy command per chat at a time; parallel lanes queue, they never bypass it. `.claude/hooks/bash-guard.sh` blocks direct runs.
   Prefer isolated GitHub CI (`ci_coordinator.py submit --mode
   rust-check|rust-wasm|rust-native-dev|vitest|pytest`) for full suites.
 - Product REST/WebSocket, CLI/SDK and browser E2E: isolated GitHub CI only (one
