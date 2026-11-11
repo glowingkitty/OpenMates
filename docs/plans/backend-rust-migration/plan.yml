@@ -107,6 +107,66 @@ decisions:
   - id: D-8
     status: proposed
     decision: Client-encrypted data stays opaque to the Rust server exactly as today. Auth, session, billing and Vault transit code is ported with its existing tests before any route that depends on it moves.
+  - id: D-9
+    status: proposed
+    decision: (User direction 2026-11-12.) Rust and Python run side by side during the transition. They are separate processes that meet only at Dragonfly (queues, pub/sub), Directus, Vault, S3 and internal HTTP; no Python import of backend Rust and no Rust embedding of Python. Rust is the default for backend code; Python remains only where the stays_python list gives a reason.
+  - id: D-10
+    status: proposed
+    decision: The agent rule "backend code is Rust" comes into force in stages, each tied to what Rust can actually do at that point (see agent_instructions). A blanket rule today would block bug fixes in the 480k lines that have no Rust counterpart yet.
+
+# ---------------------------------------------------------------------------
+# How the migration stays out of the way of other running work.
+# ---------------------------------------------------------------------------
+isolation:
+  - New code lives only in new directories (backend/rust/, packages/openmates-wire). No existing file is edited until a unit flips.
+  - Rust services ship dark - present in the compose files and running, but receiving no traffic and no jobs until their unit flips.
+  - One flag per unit (OPENMATES_RUST_<UNIT>), off by default. Isolated CI runs the unit's E2E and pytest set with the flag on; dev flips after that is green; the flag and the Python path are deleted in the same deploy. Flag off stays byte-identical, so every other chat's tests see the Python backend unchanged.
+  - One backend migration lane at a time until the web core is rust-default. Each lane checks scripts/agent_peers.py first and does not start a unit whose old paths another chat is editing.
+  - Shared hot files (backend/core/docker-compose*.yml, deployment/*/Caddyfile, tasks/celery_config.py, routes/websockets.py) get only small additive edits, one deploy each, never mixed with a refactor.
+  - packages/openmates-rust is not touched at the start. openmates-wire begins with new server-side types only; pulling types out of the client crate waits until the web flips land.
+  - A unit is frozen while it is rust-twin. The freeze is announced on its OpenMates Task and in docs/migration/rust/backend-units.yml, lasts days, and a deploy guard warns on edits to its old paths.
+  - Server crates join the root cargo workspace but build and test in their own CI mode (cargo -p), so client rust-check time does not grow. Local builds go through scripts/heavy_slot.py like all others.
+  - Production follows the normal dev to main release. A unit flips on production only after it has run on dev for one release.
+
+# ---------------------------------------------------------------------------
+# Where Python stays, and why. Everything else is in scope for Rust.
+# ---------------------------------------------------------------------------
+stays_python:
+  - what: App skills and their provider clients (backend/apps/* except ai core, backend/shared/providers)
+    why: They depend on Python libraries with no equal in Rust (pymupdf, reportlab, python-docx, Pillow, cairosvg, sympy, vendor SDKs), change weekly and are I/O bound. Operator-installed app packages are Python by contract. They run in on-demand hosts (D-6), so they cost memory only while used.
+  - what: Code the model writes and runs in E2B sandboxes (design, images.modify, code execution payloads)
+    why: The sandbox language is Python by product design.
+  - what: backend/scripts, evaluation scripts, one-off data migrations, pytest suites and CI tooling
+    why: Not part of the running server; no memory or latency to gain.
+  - what: Email rendering (mjml, premailer) until the email lane decides
+    why: Template tooling; ported only if the template tests pass with a Rust renderer.
+  - what: AI pipeline (backend/apps/ai) until its own re-plan
+    why: Not a permanent exception - it moves last because it is the most changed code and provider streaming behavior is tuned per provider.
+
+# ---------------------------------------------------------------------------
+# Agent instructions. Each stage lands in the same deploy as the capability it
+# points to, so no chat is told to use something that does not exist yet.
+# ---------------------------------------------------------------------------
+agent_instructions:
+  files:
+    - .claude/rules/backend-rust.md (new; paths backend/**, packages/openmates-wire/**; modelled on .claude/rules/client-core.md)
+    - CLAUDE.md (Repository line and a short "Backend core" section pointing to the rule)
+    - .claude/rules/cli-sdk.md line 61 and docs/architecture/platforms/README.md line 53 (remove "begins only after every client")
+    - specifications/surfaces/sdk/examples.yml line 39 (approved; changed only with the user's confirmation, Q-1)
+  stages:
+    - stage: A
+      lands_with: TASK-2
+      rule: New backend services, new background job queues and new realtime endpoints are written in Rust. No new Python container, Celery queue or Celery worker. Existing Python may still be fixed and extended where no Rust counterpart exists.
+    - stage: B
+      lands_with: each unit flip
+      rule: For a unit at rust-twin or later, changes go to Rust only. A fix that must touch the frozen Python carries "python-only - bugfix-in-frozen-code <unit>" in the deploy message.
+    - stage: C
+      lands_with: svc-foundation having auth, Directus, cache and billing in Rust (during TASK-8)
+      rule: New REST routes and new WebSocket message types are written in Rust.
+    - stage: D
+      lands_with: the ai-pipeline re-plan
+      rule: New non-skill backend logic is Rust without exception; Python edits are limited to the stays_python list.
+  guard: A deploy guard (warn-only for two weeks, then blocking) checks added Python files and new Celery routes against the stage in force; pure deletions always pass.
 
 # ---------------------------------------------------------------------------
 # Unit inventory. Status enum: python-only | rust-twin | rust-default |
@@ -173,11 +233,11 @@ tasks:
       - docs/migration/rust/backend-units.yml - this Plan's unit_inventory with status; authoritative after this task.
     done: Baseline numbers for dev and one selfhost-sized run are recorded in docs/migration/rust/backend-baseline.md.
   - id: TASK-2
-    title: Workspace crates and the wire-types crate
-    create: [packages/openmates-wire, backend/rust/server (health endpoint only), backend/rust/jobs (empty runner), Dockerfile and compose service for each, ci_coordinator rust-check coverage]
-    move: Message and API types the server needs from packages/openmates-rust/src/client/transport.rs, ws_link/ and sdk_transport.rs into openmates-wire; the client crate re-exports them.
-    done: Both services build in CI, start in the isolated stack and report memory under 30 MB idle; client suites stay green.
-    dependencies: [TASK-1, coordination with the client-core lanes that edit transport.rs]
+    title: Workspace crates, dark services, agent rule stage A
+    create: [packages/openmates-wire (new server-side types only), backend/rust/server (health endpoint only), backend/rust/jobs (empty runner), Dockerfile and compose service for each, a ci_coordinator mode that builds and tests only the server crates, .claude/rules/backend-rust.md and the CLAUDE.md lines for stage A]
+    not_in_this_task: Moving types out of packages/openmates-rust. That is a later task, after the web flips land, so the client lanes are not disturbed.
+    done: Both services build in CI, start in the isolated stack with no traffic and report memory under 30 MB idle; no existing test changes result; stage A rule is live.
+    dependencies: [TASK-1, Q-1]
   - id: TASK-3
     title: jobs-scheduler and the first I/O queue (reminder)
     note: Smallest end-to-end proof of the job runner - queue format on Dragonfly, retries, idempotency keys, tracing, a Python enqueue helper for producers that are still Python.
@@ -254,3 +314,5 @@ open_questions:
     question: The approved SDK Specification (specifications/surfaces/sdk/examples.yml line 39) and docs/architecture/platforms/README.md line 53 say a backend Rust migration begins only after every client and its cleanup is complete. Starting now needs that sentence changed, which needs the user's confirmation.
   - id: Q-2
     question: Approve the order in D-1 (jobs first, realtime second, REST and AI last)?
+  - id: Q-3
+    question: Approve the staged agent rule (D-10) instead of an immediate blanket "Rust only" rule?
