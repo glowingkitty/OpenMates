@@ -13,6 +13,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet};
 #[path = "saved_chat_read_metadata.rs"]
 pub(super) mod metadata;
+#[path = "saved_chat_oversized_join.rs"]
+mod oversized_join;
 /// Encode one exact-resource path segment, once. Query form encoding uses `+`
 /// for spaces and must not be reused here. The caller separately refuses dot
 /// segments; the backend's decoded-slash routing limitation remains explicit.

@@ -25342,7 +25342,7 @@ assertions:
       surface: gui.web
     - &id3267
       path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
-      line: 1106
+      line: 1108
       name: authenticated startup observes HTTP-cache cold fill and two same-route
         warm reloads
       surface: gui.web
@@ -86315,7 +86315,7 @@ assertions:
       surface: gui.web
     - &id10884
       path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
-      line: 983
+      line: 985
       name: recent chats replay the selected window while IndexedDB reconciliation
         waits
       surface: gui.web
@@ -199659,7 +199659,7 @@ assertions:
     supporting_tests:
     - &id25375
       path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
-      line: 1106
+      line: 1108
       name: authenticated startup observes HTTP-cache cold fill and two same-route
         warm reloads
       surface: gui.web

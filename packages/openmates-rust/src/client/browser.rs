@@ -215,6 +215,8 @@ impl Client {
     }
     /// Single browser viewing page: existing canonical SDK auth/crypto/selectors,
     /// with an owned JSON handoff. This confers no complete history or durable ACK.
+    /// An empty page with an oversized cursor is resolved with one exact-row read
+    /// (`resolve_oversized_saved_row`); the joined row must still fit this frame.
     pub async fn browser_saved_chat_read_json(&mut self,principal:&str,id:&str,
         options:saved_chat_read::SavedChatReadOptions)->Result<zeroize::Zeroizing<String>> {
         self.browser_canonical_json_current(principal)?;
@@ -224,7 +226,12 @@ impl Client {
         }
         let admission=sync_capability::AsyncCryptoScope::begin(self)?;admission.check_chat(self,id)?;
         // A successful public view is guarded before ANY post-await refusal.
-        let output=self.saved_chat_read(id,options).await.map(plaintext::Plain::new);
+        let output=match self.saved_chat_read(id,options).await.map(plaintext::Plain::new){
+            // A page whose only selected row exceeded the page budget carries its
+            // cursor instead; the core reads that one row exactly (no history replay).
+            Ok(mut read)=>self.resolve_oversized_saved_row(id,&mut read).await.map(|()|read),
+            Err(error)=>Err(error),
+        };
         admission.check_chat(self,id)?;self.browser_canonical_json_current(principal)?;
         let output=output?;
         if output.window.chat.id!=id||output.chat_metadata.id!=id||output.window.history_complete
