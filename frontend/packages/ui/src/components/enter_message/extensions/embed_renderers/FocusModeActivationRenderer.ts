@@ -28,6 +28,7 @@ import { activateProjectFocusAfterConsent } from "../../../../services/projectFo
 import { deactivateProjectFocus, getActiveProjectFocus } from "../../../../services/projectService";
 import { webSocketService } from "../../../../services/websocketService";
 import { pendingFocusActivationStore } from "../../../../stores/pendingFocusActivationStore";
+import { resolveEmbed, decodeToonContent } from "../../../../services/embedResolver";
 import { loadAcceptedProjectSpecialistFocusDocument } from "../../../../services/agenticProjectContextService";
 
 // Track mounted components for cleanup
@@ -81,6 +82,23 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
       );
     }
 
+    // Persisted content of an assistant-created Project activation (no countdown).
+    let created: { projectId: string; projectName: string } | null = null;
+    try {
+      const embed = (context.decodedContent ? { content: null } : attrs.id ? await resolveEmbed(attrs.id) : null) as { content?: unknown } | null;
+      const fields = context.decodedContent
+        ?? (embed?.content ? ((await decodeToonContent(embed.content as string)) as Record<string, unknown> | null) : null);
+      if (fields?.project_created === true && typeof fields.project_id === "string") {
+        created = {
+          projectId: fields.project_id,
+          projectName: typeof fields.project_name === "string" ? fields.project_name : "",
+        };
+        alreadyActive = true;
+      }
+    } catch (e) {
+      console.debug("[FocusModeActivationRenderer] Could not read activation embed content:", e);
+    }
+
     console.debug("[FocusModeActivationRenderer] Rendering:", {
       focusId,
       appId,
@@ -123,6 +141,18 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
           focusModeName,
           alreadyActive,
           chatId,
+          ...(created
+            ? {
+                projectCreated: true,
+                projectId: created.projectId,
+                projectName: created.projectName,
+                // onUndoCreatedProject is intentionally not wired: the client core's
+                // undo_created has no web Worker binding yet.
+                onOpenProject: (id: string) => {
+                  window.location.hash = `project-id=${encodeURIComponent(id)}`;
+                },
+              }
+            : {}),
           onAcceptProject: async () => {
             if (!projectId || activeChatStore.get() !== chatId) throw new Error("Project request is no longer current");
             const chat = await chatDB.getChat(chatId);

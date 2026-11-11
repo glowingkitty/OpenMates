@@ -82,6 +82,7 @@
   } from '../../services/projectRemoteSources';
   import { broadcastProjectFilesChanged, PROJECTS_CHANGED_EVENT } from '../../services/projectBrowserEvents';
   import {
+    projectApplicationFolder,
     projectBrowserItemName,
     projectVirtualBreadcrumbs,
     projectVirtualBrowserView,
@@ -430,6 +431,8 @@
     if (entry.kind === 'virtual-folder') return currentFolderHash === null && directParentPath(entry.folder.path) === (currentVirtualPath ?? '.');
     if (currentFolderHash !== null) return (entry.item.encrypted.hashed_folder_id ?? null) === currentFolderHash;
     if (entry.item.encrypted.hashed_folder_id) return false;
+    const applicationFolder = projectApplicationFolder(entry.item);
+    if (applicationFolder) return applicationFolder === currentVirtualPath;
     const path = entry.item.metadata.source === 'hosted_project_file' && typeof entry.item.metadata.path === 'string'
       ? entry.item.metadata.path : null;
     return path ? directParentPath(path) === (currentVirtualPath ?? '.') : currentVirtualPath === null;
@@ -1849,7 +1852,9 @@
         teamId: project.teamId,
       });
       if (selectedProject?.project_id !== project.project_id) return null;
-      const type = String(head.content.type || item.metadata.embed_type || 'code');
+      // An adopted application link carries no embed_type; never fall back to a code snippet.
+      const type = String(head.content.type || item.metadata.embed_type
+        || (projectApplicationFolder(item) ? 'application' : 'code'));
       return {
         embedData: {
           embed_id: item.target_id,
@@ -1858,7 +1863,7 @@
           content: JSON.stringify(head.content),
           version_number: head.revision,
         },
-        decodedContent: head.content,
+        decodedContent: { ...head.content, type },
       };
     } catch {
       // Older linked embeds may only have a chat/master wrapper. The card's
@@ -2423,13 +2428,20 @@
                     appIconName="files"
                     status="finished"
                     skillName={folder.name}
-                    customStatusText="Hosted path"
+                    customStatusText={`${folder.children?.length ?? 0} ${(folder.children?.length ?? 0) === 1 ? 'entry' : 'entries'}`}
                     showSkillIcon={false}
                     onFullscreen={() => openVirtualFolder(folder)}
                   >
                     {#snippet details()}
                       <span class="folder-card-contents">
-                        <span class="folder-child-row"><span class="folder-child-icon child-folder" aria-hidden="true"></span><span>{folder.name}</span><small>Folder</small></span>
+                        {#each (folder.children ?? []).slice(0, 3) as entry (`${entry.kind}:${entry.name}`)}
+                          <span class="folder-child-row" data-testid="project-folder-child"><span class:child-folder={entry.kind === 'folder'} class="folder-child-icon" aria-hidden="true"></span><span>{entry.name}</span><small>{entry.kind === 'folder' ? 'Folder' : 'File'}</small></span>
+                        {:else}
+                          <span class="folder-empty-row">Empty folder</span>
+                        {/each}
+                        {#if (folder.children?.length ?? 0) > 3}
+                          <span class="folder-more-row">+ {(folder.children?.length ?? 0) - 3} more files &amp; folders</span>
+                        {/if}
                       </span>
                     {/snippet}
                   </UnifiedEmbedPreview>
@@ -2439,7 +2451,7 @@
                   <span class="remote-cloud-badge" data-testid="project-remote-cloud-badge" role="img" aria-label="Stored remotely" title="Stored remotely"></span>
                   <span class="remote-list-icon" data-app="files" aria-hidden="true"></span>
                   <strong>{folder.name}</strong>
-                  <small>Hosted path</small>
+                  <small>{folder.children?.length ?? 0} {(folder.children?.length ?? 0) === 1 ? 'entry' : 'entries'}</small>
                 </button>
               {/if}
             {/each}

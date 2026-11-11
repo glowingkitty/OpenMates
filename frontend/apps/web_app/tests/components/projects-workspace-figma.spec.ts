@@ -767,3 +767,31 @@ for (const width of [393, 1512]) {
     await expect(page.getByTestId('project-settings-button')).toBeVisible();
   });
 }
+
+// contract-test: supporting surface=gui.web assertions=projects.surface.semantic-parity
+test('shows a hosted application inside its folder, not at the Project root', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1512, height: 921 });
+  await page.goto(preview(1512, 'hostedApplication'));
+  await waitForProjectsPreview(page);
+  await waitForLexend(page);
+
+  const folderCard = page.getByTestId('project-virtual-folder-card');
+  await expect(folderCard).toHaveCount(1);
+  await expect(folderCard).toContainText('web-app');
+  await expect(folderCard.getByTestId('project-folder-child')).toHaveText([/src\s*Folder/, /package\.json\s*File/]);
+  await expect(page.getByTestId('project-item-card')).toHaveCount(0);
+  await expect(page.getByText('Code snippet')).toHaveCount(0);
+  await expect(page.getByTestId('project-folders-panel')).toContainText('1 folders, 0 files and embeds');
+  await testInfo.attach('projects-hosted-application-root', { body: await page.getByTestId('project-folders-panel').screenshot(), contentType: 'image/png' });
+
+  await folderCard.locator('.unified-embed-preview').click();
+  const cards = page.getByTestId('project-item-card');
+  await expect(cards).toHaveCount(2);
+  await expect(cards.first()).toContainText('Recipe Manager');
+  await expect(cards.first()).toContainText('3 files');
+  await expect(page.getByText('Code snippet')).toHaveCount(0);
+  await expect(page.getByTestId('project-virtual-folder-card')).toHaveCount(1);
+  await expect(page.getByTestId('project-virtual-folder-card')).toContainText('src');
+  await expect(page.getByTestId('project-folders-panel')).toContainText('1 folders, 2 files and embeds');
+  await testInfo.attach('projects-hosted-application-opened-folder', { body: await page.getByTestId('project-folders-panel').screenshot(), contentType: 'image/png' });
+});
