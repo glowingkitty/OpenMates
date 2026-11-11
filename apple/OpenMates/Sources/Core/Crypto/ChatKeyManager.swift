@@ -186,10 +186,14 @@ final class ChatKeyManager: ObservableObject {
                 results = []
             }
             guard capturedGeneration == generation, !Task.isCancelled, operationIsCurrent() else { return }
+            var installedAny = false
             for (record, result) in zip(records, results) {
                 guard let capturedFence = fences[record.chatId], isCurrent(capturedFence, for: record.chatId) else { continue }
-                install(result, wrapper: record.encryptedChatKey)
+                if install(result, wrapper: record.encryptedChatKey, notify: false) { installedAny = true }
             }
+            // One notification for the whole batch: listeners re-scan all keys,
+            // and a per-key Task + post made the bulk load cost ~100 µs/key.
+            if installedAny { notifyEmbedKeyMaterialAvailable() }
         }
         guard capturedGeneration == generation, !Task.isCancelled, operationIsCurrent() else { return }
         isReady = true
@@ -216,12 +220,12 @@ final class ChatKeyManager: ObservableObject {
 
     /// Cache one core unwrap result; logs failures without key material.
     @discardableResult
-    private func install(_ result: UnwrappedChatKeyRecord, wrapper: String) -> Bool {
+    private func install(_ result: UnwrappedChatKeyRecord, wrapper: String, notify: Bool = true) -> Bool {
         switch result.outcome {
         case .unwrapped(let rawKey):
             chatKeys[result.chatId] = SymmetricKey(data: rawKey)
             rememberEncryptedKey(wrapper, for: result.chatId)
-            notifyEmbedKeyMaterialAvailable()
+            if notify { notifyEmbedKeyMaterialAvailable() }
             if NativeSyncPerfLog.verboseCrypto {
                 print("[ChatKeyManager] loaded key chat=\(result.chatId.prefix(8)) cached=\(chatKeys.count)")
             }
@@ -360,6 +364,7 @@ final class ChatKeyManager: ObservableObject {
             print("[ChatKeyManager] message batch returned \(results.count) of \(messages.count) messages")
             return messages
         }
+        let decoder = JSONDecoder()
         return zip(messages, results).map { message, fields in
             var decrypted = message
             if let content = Self.plaintext(fields.content, field: "content", id: chatId) {
@@ -367,7 +372,7 @@ final class ChatKeyManager: ObservableObject {
             }
             if let json = Self.plaintext(fields.piiMappings, field: "pii_mappings", id: chatId),
                let data = json.data(using: .utf8),
-               let mappings = try? JSONDecoder().decode([PIIMapping].self, from: data) {
+               let mappings = try? decoder.decode([PIIMapping].self, from: data) {
                 decrypted.piiMappings = mappings
             }
             if let value = Self.plaintext(fields.thinkingContent, field: "thinking_content", id: chatId) {
@@ -476,7 +481,15 @@ final class ChatKeyManager: ObservableObject {
     }
 
     private static func fingerprint(_ encryptedChatKey: String) -> String {
-        SHA256.hash(data: Data(encryptedChatKey.utf8)).map { String(format: "%02x", $0) }.joined()
+        // Table-driven hex: `String(format:)` per byte cost ~1 µs each, 32 per key.
+        let digits = Array("0123456789abcdef".utf8)
+        var hex: [UInt8] = []
+        hex.reserveCapacity(64)
+        for byte in SHA256.hash(data: Data(encryptedChatKey.utf8)) {
+            hex.append(digits[Int(byte >> 4)])
+            hex.append(digits[Int(byte & 0x0f)])
+        }
+        return String(decoding: hex, as: UTF8.self)
     }
 
     private static func keysEqual(_ lhs: SymmetricKey, _ rhs: SymmetricKey) -> Bool {

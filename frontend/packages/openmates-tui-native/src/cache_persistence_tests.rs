@@ -10,6 +10,33 @@ use crate::{
 use serde_json::json;
 use std::sync::Mutex as BlockingMutex;
 
+/// Synchronous section calls straight on the core engine, as a second
+/// process over the same directory would make them.
+trait SyncCalls {
+    fn read_sync_cache(&self, owner: &str, key: &str, master: &[u8; 32], mode: crate::storage::SyncReadMode) -> Result<Option<crate::storage::SyncCacheRead>>;
+    fn read_sync_chat(&self, owner: &str, key: &str, master: &[u8; 32], chat: &str) -> Result<Option<Value>>;
+    fn prepare_sync_sections(&self, snapshot: Value, partial: Option<Vec<String>>) -> Result<crate::storage::PreparedSections>;
+    fn write_sync_sections(&self, owner: &str, key: &str, master: &[u8; 32], prepared: crate::storage::PreparedSections) -> Result<bool>;
+    fn revoke_sync_freshness(&self, owner: &str, key: &str) -> Result<()>;
+}
+impl SyncCalls for Store {
+    fn read_sync_cache(&self, owner: &str, key: &str, master: &[u8; 32], mode: crate::storage::SyncReadMode) -> Result<Option<crate::storage::SyncCacheRead>> {
+        self.cache_engine().read_sync_cache(self, owner, key, master, mode)
+    }
+    fn read_sync_chat(&self, owner: &str, key: &str, master: &[u8; 32], chat: &str) -> Result<Option<Value>> {
+        self.cache_engine().read_sync_chat(self, owner, key, master, chat)
+    }
+    fn prepare_sync_sections(&self, snapshot: Value, partial: Option<Vec<String>>) -> Result<crate::storage::PreparedSections> {
+        self.cache_engine().prepare_sync_sections(snapshot, partial)
+    }
+    fn write_sync_sections(&self, owner: &str, key: &str, master: &[u8; 32], prepared: crate::storage::PreparedSections) -> Result<bool> {
+        self.cache_engine().write_sync_sections(self, owner, key, master, prepared)
+    }
+    fn revoke_sync_freshness(&self, owner: &str, key: &str) -> Result<()> {
+        self.cache_engine().revoke_sync_freshness(self, owner, key)
+    }
+}
+
 const A: &str = "11111111-1111-4111-8111-111111111111";
 const B: &str = "22222222-2222-4222-8222-222222222222";
 
@@ -61,12 +88,7 @@ impl Profile {
     }
     /// A fresh "process": new Store, empty in-memory evidence.
     fn process(&self) -> RuntimeStore {
-        RuntimeStore {
-            store: Arc::new(Store::with_backend(self.directory.path().to_path_buf(), self.keyring.clone()).unwrap()),
-            queue: Arc::new(Mutex::new(())),
-            generation: Arc::new(AtomicU64::new(0)),
-            deferred: Arc::default(),
-        }
+        RuntimeStore::from_store(Arc::new(Store::with_backend(self.directory.path().to_path_buf(), self.keyring.clone()).unwrap()))
     }
     fn client(&self) -> Client {
         Client::new(&self.session.api_url, Some(self.session.clone())).unwrap()

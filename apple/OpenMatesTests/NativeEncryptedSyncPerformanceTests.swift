@@ -271,6 +271,80 @@ final class NativeEncryptedSyncPerformanceTests: XCTestCase {
                 self.assertDisplayed(displayed, expected: fixture.expectedMessages)
             })
 
+        // 8. Chat open split: store load alone, then decrypt alone on messages loaded
+        // untimed, so the decrypt cost is separate from the SwiftData fetch + mapping.
+        var loaded: [Message] = []
+        try await measure("chat_open_window_store_load",
+            prepare: { loaded = [] },
+            body: {
+                loaded = readStore.loadLatestMessageWindow(chatId: busyChatId)
+                return loaded.count
+            },
+            verify: {
+                XCTAssertEqual(loaded.count, ChatStore.boundedWindowSize)
+            })
+        try await measure("chat_open_full_1000_store_load",
+            prepare: { loaded = [] },
+            body: {
+                loaded = readStore.loadMessages(chatId: busyChatId)
+                return loaded.count
+            },
+            verify: {
+                XCTAssertEqual(loaded.count, Self.messageCount)
+            })
+        try await measure("chat_open_window_decrypt_only",
+            prepare: {
+                displayed = []
+                loaded = readStore.loadLatestMessageWindow(chatId: busyChatId)
+            },
+            body: {
+                displayed = await Self.perFieldDecrypt(loaded, chatId: busyChatId, keyManager: keyManager)
+                return displayed.count
+            },
+            verify: {
+                XCTAssertEqual(displayed.count, ChatStore.boundedWindowSize)
+                self.assertDisplayed(displayed, expected: fixture.expectedMessages)
+            })
+        try await measure("core_chat_open_window_decrypt_only",
+            prepare: {
+                displayed = []
+                loaded = readStore.loadLatestMessageWindow(chatId: busyChatId)
+            },
+            body: {
+                displayed = await ChatViewModel.decryptMessagesForDisplay(loaded, chatId: busyChatId)
+                return displayed.count
+            },
+            verify: {
+                XCTAssertEqual(displayed.count, ChatStore.boundedWindowSize)
+                self.assertDisplayed(displayed, expected: fixture.expectedMessages)
+            })
+        try await measure("chat_open_full_1000_decrypt_only",
+            prepare: {
+                displayed = []
+                loaded = readStore.loadMessages(chatId: busyChatId)
+            },
+            body: {
+                displayed = await Self.perFieldDecrypt(loaded, chatId: busyChatId, keyManager: keyManager)
+                return displayed.count
+            },
+            verify: {
+                XCTAssertEqual(displayed.count, Self.messageCount)
+                self.assertDisplayed(displayed, expected: fixture.expectedMessages)
+            })
+        try await measure("core_chat_open_full_1000_decrypt_only",
+            prepare: {
+                displayed = []
+                loaded = readStore.loadMessages(chatId: busyChatId)
+            },
+            body: {
+                displayed = await ChatViewModel.decryptMessagesForDisplay(loaded, chatId: busyChatId)
+                return displayed.count
+            },
+            verify: {
+                XCTAssertEqual(displayed.count, Self.messageCount)
+                self.assertDisplayed(displayed, expected: fixture.expectedMessages)
+            })
+
         let attachment = XCTAttachment(string: perfLines.joined(separator: "\n"))
         attachment.name = "apple-perf-summary"
         attachment.lifetime = .keepAlways

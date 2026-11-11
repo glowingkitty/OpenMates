@@ -365,3 +365,139 @@ fn block_on_without_runtime<F: std::future::Future>(future: F) -> F::Output {
         std::thread::park();
     }
 }
+
+/// Per-phase cost of the batched decrypts at the shapes of the Swift
+/// `NativeEncryptedSyncPerformanceTests` (600 chats, 1000 messages of ~400
+/// characters, half with 4 extra short fields). Run it ignored, in release
+/// mode, with output capture off.
+#[test]
+#[ignore = "benchmark; prints timings"]
+fn rust_cost_of_the_swift_perf_phases() {
+    use openmates_sdk::crypto::encrypt_bytes;
+    use std::time::Instant;
+
+    let master = vec![7u8; 32];
+    let mut master_arr = [0u8; 32];
+    master_arr.copy_from_slice(&master);
+    let enc = |text: &str, key: &[u8]| {
+        let mut k = [0u8; 32];
+        k.copy_from_slice(key);
+        encrypt_bytes(text.as_bytes(), &k).unwrap()
+    };
+
+    let chat_keys: Vec<Vec<u8>> = (0..600u32).map(|i| vec![(i % 251) as u8 + 1; 32]).collect();
+    // Format C wrapper: base64(IV || ciphertext || tag), no OM header.
+    let wrappers: Vec<WrappedChatKeyRecord> = chat_keys
+        .iter()
+        .enumerate()
+        .map(|(i, key)| {
+            let framed = STANDARD
+                .decode(encrypt_bytes(key, &master_arr).unwrap())
+                .unwrap();
+            WrappedChatKeyRecord {
+                chat_id: format!("perf-chat-{i:04}"),
+                encrypted_chat_key: STANDARD.encode(&framed[6..]),
+            }
+        })
+        .collect();
+    let metadata: Vec<(String, Vec<u8>, [Option<String>; 4])> = chat_keys
+        .iter()
+        .enumerate()
+        .map(|(i, key)| {
+            (
+                format!("perf-chat-{i:04}"),
+                key.clone(),
+                [
+                    Some(enc(&format!("Synthetic chat {i} title"), key)),
+                    Some(enc("general_knowledge", key)),
+                    Some(enc("message-circle", key)),
+                    Some(enc(
+                        &format!("Synthetic summary for chat {i}: a short deterministic description of the topic."),
+                        key,
+                    )),
+                ],
+            )
+        })
+        .collect();
+    let key = chat_keys[0].clone();
+    let messages: Vec<EncryptedMessageRecord> = (0..1000)
+        .map(|i| {
+            let user = i % 2 == 0;
+            EncryptedMessageRecord {
+                message_id: format!("perf-msg-{i:04}"),
+                encrypted_content: Some(enc(
+                    &format!("Synthetic message {i}. {}", "Lorem ipsum dolor sit amet. ".repeat(14)),
+                    &key,
+                )),
+                encrypted_pii_mappings: user.then(|| {
+                    enc(
+                        &format!("[{{\"placeholder\":\"[EMAIL_1]\",\"original\":\"user{i}@example.org\",\"type\":\"EMAIL\"}}]"),
+                        &key,
+                    )
+                }),
+                encrypted_thinking_content: (!user)
+                    .then(|| enc(&format!("Synthetic reasoning for message {i}."), &key)),
+                encrypted_sender_name: (!user).then(|| enc("Synthetic Mate", &key)),
+                encrypted_category: (!user).then(|| enc("general_knowledge", &key)),
+                encrypted_model_name: (!user).then(|| enc("synthetic-model", &key)),
+            }
+        })
+        .collect();
+
+    fn median_ms(mut body: impl FnMut()) -> f64 {
+        let mut runs: Vec<f64> = (0..9)
+            .map(|_| {
+                let start = Instant::now();
+                body();
+                start.elapsed().as_secs_f64() * 1000.0
+            })
+            .collect();
+        runs.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        runs[4]
+    }
+
+    println!();
+    println!(
+        "rust key bulk load, 600 keys (sync): {:.3} ms",
+        median_ms(|| {
+            unwrap_chat_keys_now(master.clone(), wrappers.clone()).unwrap();
+        })
+    );
+    println!(
+        "rust key bulk load, 600 keys (pool hand-off): {:.3} ms",
+        median_ms(|| {
+            let (m, w) = (master.clone(), wrappers.clone());
+            block_on_without_runtime(on_pool(move || unwrap_chat_keys_now(m, w))).unwrap();
+        })
+    );
+    println!(
+        "rust metadata, 600 chats x 4 fields (sync): {:.3} ms",
+        median_ms(|| {
+            let chats = metadata
+                .iter()
+                .map(|(id, k, f)| EncryptedChatMetadataRecord {
+                    chat_id: id.clone(),
+                    chat_key: k.clone(),
+                    encrypted_title: f[0].clone(),
+                    encrypted_category: f[1].clone(),
+                    encrypted_icon: f[2].clone(),
+                    encrypted_chat_summary: f[3].clone(),
+                    encrypted_active_focus_id: None,
+                })
+                .collect();
+            decrypt_chat_metadata_now(chats);
+        })
+    );
+    println!(
+        "rust messages, 1000 (sync): {:.3} ms",
+        median_ms(|| {
+            decrypt_messages_now(key.clone(), messages.clone()).unwrap();
+        })
+    );
+    println!(
+        "rust messages, 50-window (sync): {:.3} ms",
+        median_ms(|| {
+            decrypt_messages_now(key.clone(), messages[950..].to_vec()).unwrap();
+        })
+    );
+}

@@ -23,6 +23,9 @@ pub mod remote_command;
 #[cfg(all(feature = "workflow-yaml", unix))]
 pub mod source_host;
 pub mod session;
+/// Shell session runtime (restore, persist, admission, logout); native only.
+#[cfg(not(target_arch = "wasm32"))]
+pub mod shell_session;
 pub mod task_order;
 pub mod test_result_embed;
 pub mod toon_decode;

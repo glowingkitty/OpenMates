@@ -242,11 +242,7 @@ impl ChatFirstPageSink for NativeChatFirstPageSink {
     {
         Box::pin(async move {
             if !self.generation.is_current() { return Err(Error::Cancelled); }
-            let receipt = ChatRefreshDurableReceipt {
-                ciphertext_sha256: candidate.ciphertext_sha256()?,
-                credential_revision: candidate.credential_revision(),
-            };
-            openmates::session_runtime::persist(client, &self.store, self.passphrase.clone()).await?;
+            let receipt = openmates::session_runtime::persist_for(client, &self.store, self.passphrase.clone(), &candidate).await?;
             if !self.generation.is_current() { return Err(Error::Cancelled); }
             let publication = client.commit_chat_first_page(candidate, receipt)?;
             self.replies.send(Reply { epoch: self.epoch, view: View::ChatFirstPage(NativeChatFirstPagePublication {
@@ -1208,6 +1204,13 @@ impl Actor {
         )
         .await
     }
+    /// Persist, then take the durable receipt the core mints for `candidate`.
+    async fn persist_for<C: openmates_sdk::shell_session::DurableCandidate + Sync>(
+        &mut self,
+        candidate: &C,
+    ) -> Result<ChatRefreshDurableReceipt> {
+        openmates::session_runtime::persist_for(&mut self.client, &self.store, self.passphrase.clone(), candidate).await
+    }
     async fn authorized(&mut self, replies: &mpsc::Sender<Reply>, epoch: Stamp) -> Result<()> {
         self.authorized_with_inventory(replies, epoch, false).await.map(|_| ())
     }
@@ -1587,11 +1590,7 @@ impl Actor {
                 // The actor remains sole Client owner across read, exact
                 // cache+session save and ACK, explicit commit, and publication.
                 self.client.validate_chat_refresh(&refresh)?;
-                let receipt = ChatRefreshDurableReceipt {
-                    ciphertext_sha256: refresh.ciphertext_sha256()?,
-                    credential_revision: refresh.credential_revision(),
-                };
-                self.persist().await?;
+                let receipt = self.persist_for(&refresh).await?;
                 if !store_generation.is_current() { return Err(Error::Cancelled); }
                 let publication = self.client.commit_chat_refresh(refresh, receipt)?;
                 if self.live_cancel.is_cancelled() {
@@ -2150,11 +2149,7 @@ impl Actor {
                         match read {
                             ChatViewRead::Canonical(candidate) => {
                                 self.client.validate_chat_view(&candidate)?;
-                                let receipt = ChatRefreshDurableReceipt {
-                                    ciphertext_sha256: candidate.ciphertext_sha256()?,
-                                    credential_revision: candidate.credential_revision(),
-                                };
-                                self.persist().await?;
+                                let receipt = self.persist_for(&candidate).await?;
                                 if !generation.is_current() { return Err(Error::Cancelled); }
                                 let publication = self.client.commit_chat_view(candidate, receipt)?;
                                 return Self::emit(replies, epoch, View::CanonicalChat(NativeCanonicalChatPublication {
@@ -2163,11 +2158,7 @@ impl Actor {
                             },
                             ChatViewRead::CacheSettled(candidate) => {
                                 self.client.validate_cache_settlement(&candidate)?;
-                                let receipt = ChatRefreshDurableReceipt {
-                                    ciphertext_sha256: candidate.ciphertext_sha256()?,
-                                    credential_revision: candidate.credential_revision(),
-                                };
-                                self.persist().await?;
+                                let receipt = self.persist_for(&candidate).await?;
                                 if !generation.is_current() { return Err(Error::Cancelled); }
                                 let publication = self.client.commit_cache_settlement(candidate, receipt)?;
                                 return Self::emit(replies, epoch, View::CacheSettled(NativeCacheSettlementPublication {

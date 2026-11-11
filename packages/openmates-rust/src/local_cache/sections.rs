@@ -1,17 +1,28 @@
-//! Sectioned native sync cache: one encrypted index record (Chat-list inputs,
-//! freshness receipt and a manifest), one encrypted record per Chat with
-//! content and one shared record. Layout of the plaintext sections is owned by
-//! `openmates_sdk::client::snapshot_sections`; this module owns encryption,
-//! owner/epoch scoping, change-only atomic publication and legacy migration.
+//! The sectioned cache layout: one index record, one shared record and one
+//! record per chat, each an encrypted `CacheRecord`.
 //!
-//! Crash safety: records are written first (fsynced, renamed), then the
-//! directory is synced, then the index commits by atomic replace. Every record
-//! carries a random set ID that the committed index must name; a record whose
-//! set ID differs (crash between record and index) reads as absent content.
-//! The legacy single-file record stays readable until the first sectioned
-//! commit removes it. All records share the legacy record's lock.
-use super::*;
-use std::collections::{BTreeMap, BTreeSet};
+//! Part of the shared client core (`local_cache`); moved unchanged from the
+//! TUI `storage_sections.rs`, on-disk format byte-compatible (proved by the
+//! golden records in `golden/`). Spec: `client-core.cache`.
+//! Write order is the commit protocol: section records first (durable after a
+//! barrier), then the index last; a reader never follows an index to a section
+//! that is not on disk, and a section whose set id no longer matches the index
+//! is treated as absent. There is no multi-key transaction.
+use super::{
+    ByteStore, CacheAdmission, CacheContext, CacheRecord, Durability, MAX_LOCAL_RECORD_BYTES,
+    REVOCATION_LOCK, SESSION_LOCK, cache_file_name, cache_record_encoded_len, encode_bounded_json,
+    engine::{CacheEngine, DurableCache, cache_publication_mac},
+    open,
+};
+use crate::error::{Error, Result};
+use hmac::Mac;
+use serde::Deserialize;
+use sha2::{Digest, Sha256};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    sync::PoisonError,
+};
+use zeroize::Zeroizing;
 
 const LAYOUT: &str = "openmates-native-cache-sections-v1";
 /// Records may exceed their pre-encoded section by this much framing.
@@ -57,21 +68,21 @@ pub(super) struct Manifest {
 }
 
 /// What an authenticated sync-cache read restored.
-pub(crate) enum SyncCacheRead {
+pub enum SyncCacheRead {
     /// Only the Chat-list index (sectioned layout); content stays on disk.
     Index(serde_json::Value),
     /// A complete snapshot (legacy single file, or every section assembled).
     Complete(serde_json::Value),
 }
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub(crate) enum SyncReadMode {
+pub enum SyncReadMode {
     Index,
     Complete,
 }
 
 /// Bounded, pre-encoded sections. Capacity admission only: no key, epoch,
 /// owner or durability authority is consumed until `write_sync_sections`.
-pub(crate) struct PreparedSections {
+pub struct PreparedSections {
     index: Zeroizing<Vec<u8>>,
     index_chats: BTreeSet<String>,
     shared: Option<Zeroizing<Vec<u8>>>,
@@ -81,7 +92,7 @@ pub(crate) struct PreparedSections {
 }
 
 fn encode_section(value: &serde_json::Value) -> Result<Zeroizing<Vec<u8>>> {
-    let bytes = encode_bounded_cache(value)?;
+    let bytes = encode_bounded_json(value)?;
     if cache_record_encoded_len(bytes.len() + RECORD_FRAMING_BYTES)? > MAX_LOCAL_RECORD_BYTES {
         return Err(Error::Invalid("The local record is too large."));
     }
@@ -99,7 +110,9 @@ fn section_record(set: &str, chat: Option<&str>, section: &[u8]) -> Result<Zeroi
     Ok(bytes)
 }
 fn index_record(manifest: &Manifest, snapshot: &[u8]) -> Result<Zeroizing<Vec<u8>>> {
-    let mut bytes = Zeroizing::new(Vec::with_capacity(snapshot.len() + 160 + manifest.records.len() * 120));
+    let mut bytes = Zeroizing::new(Vec::with_capacity(
+        snapshot.len() + 160 + manifest.records.len() * 120,
+    ));
     bytes.extend_from_slice(b"{\"version\":1,\"layout\":");
     bytes.extend_from_slice(&serde_json::to_vec(LAYOUT)?);
     bytes.extend_from_slice(b",\"shared\":");
@@ -115,14 +128,14 @@ fn valid_set(set: &str) -> bool {
     uuid::Uuid::parse_str(set).is_ok_and(|id| id.hyphenated().to_string() == set)
 }
 
-impl Store {
+impl<S: ByteStore> CacheEngine<S> {
     /// Pure, bounded preparation (runs before any credential publication).
-    pub(crate) fn prepare_sync_sections(
+    pub fn prepare_sync_sections(
         &self,
         snapshot: serde_json::Value,
         partial: Option<Vec<String>>,
     ) -> Result<PreparedSections> {
-        let sections = openmates_sdk::client::snapshot_sections::split(snapshot)?;
+        let sections = crate::client::snapshot_sections::split(snapshot)?;
         let index_chats = sections
             .index
             .get("chats")
@@ -145,8 +158,7 @@ impl Store {
         for (chat, section) in sections.chats {
             chats.push((chat, encode_section(&serde_json::Value::Object(section))?));
         }
-        #[cfg(test)]
-        self.cache_serializations.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        self.count_encoding();
         Ok(PreparedSections {
             index,
             index_chats,
@@ -159,26 +171,30 @@ impl Store {
     /// Authenticated read of the sync cache. Index mode reads only the index
     /// record of a sectioned layout; a legacy single file is read completely.
     /// A durable freshness revocation removes the receipt before restore.
-    pub(crate) fn read_sync_cache(
+    pub fn read_sync_cache(
         &self,
+        admission: &dyn CacheAdmission,
         owner: &str,
         cache_key: &str,
         key: &[u8; 32],
         mode: SyncReadMode,
     ) -> Result<Option<SyncCacheRead>> {
         let epoch = self.active_epoch()?;
-        let _session_guard = self.lock("session.lock")?;
+        let _session_guard = self.lock(SESSION_LOCK)?;
         self.require_epoch(&epoch)?;
-        let envelope = self.cache_session(owner)?;
-        let _cache_guard = self.lock(&format!("{}.lock", cache_name(owner, cache_key)))?;
-        let revoked = self.read(&cache_name(owner, &freshness_marker_key(cache_key)))?.is_some();
-        let read = match self.read_sections_locked(&envelope, owner, cache_key, key, &epoch, mode)? {
+        let context = admission.admit(owner)?;
+        let _cache_guard = self.lock(&format!("{}.lock", cache_file_name(owner, cache_key)))?;
+        let revoked = self
+            .bytes
+            .get(&cache_file_name(owner, &freshness_marker_key(cache_key)))?
+            .is_some();
+        let read = match self.read_sections_locked(&context, owner, cache_key, key, &epoch, mode)? {
             Some(read) => Some(read),
             None => self
-                .read_legacy_locked(&envelope, owner, cache_key, key)?
+                .read_legacy_locked(&context, owner, cache_key, key)?
                 .map(SyncCacheRead::Complete),
         };
-        let _fence = self.lock("revocation.lock")?;
+        let _fence = self.lock(REVOCATION_LOCK)?;
         self.require_epoch(&epoch)?;
         Ok(read.map(|read| {
             if !revoked {
@@ -186,7 +202,7 @@ impl Store {
             }
             let strip = |mut value: serde_json::Value| {
                 if let Some(root) = value.as_object_mut() {
-                    root.remove(openmates_sdk::client::snapshot_sections::CHAT_LIST_FRESHNESS_FIELD);
+                    root.remove(crate::client::snapshot_sections::CHAT_LIST_FRESHNESS_FIELD);
                 }
                 value
             };
@@ -199,42 +215,48 @@ impl Store {
 
     /// One Chat's content section from the committed sectioned layout, after
     /// `read_sync_cache` loaded its manifest. Absent/stale records are None.
-    pub(crate) fn read_sync_chat(
+    pub fn read_sync_chat(
         &self,
+        admission: &dyn CacheAdmission,
         owner: &str,
         cache_key: &str,
         key: &[u8; 32],
         chat: &str,
     ) -> Result<Option<serde_json::Value>> {
         let epoch = self.active_epoch()?;
-        let _session_guard = self.lock("session.lock")?;
-        let envelope = self.cache_session(owner)?;
-        let _cache_guard = self.lock(&format!("{}.lock", cache_name(owner, cache_key)))?;
+        let _session_guard = self.lock(SESSION_LOCK)?;
+        let context = admission.admit(owner)?;
+        let _cache_guard = self.lock(&format!("{}.lock", cache_file_name(owner, cache_key)))?;
         let manifest = self.current_manifest(owner, cache_key, &epoch)?;
         let section = match manifest.records.get(chat) {
-            Some(set) => self.read_section_locked(&envelope, owner, cache_key, key, &epoch, Some(chat), set)?,
+            Some(set) => {
+                self.read_section_locked(&context, owner, cache_key, key, &epoch, Some(chat), set)?
+            }
             None => None,
         };
-        let _fence = self.lock("revocation.lock")?;
+        let _fence = self.lock(REVOCATION_LOCK)?;
         self.require_epoch(&epoch)?;
         Ok(section.map(serde_json::Value::Object))
     }
 
     /// Every committed section not yet restored: `{"shared":..,"chats":{..}}`.
-    pub(crate) fn read_sync_remainder(
+    pub fn read_sync_remainder(
         &self,
+        admission: &dyn CacheAdmission,
         owner: &str,
         cache_key: &str,
         key: &[u8; 32],
         loaded: &[String],
     ) -> Result<serde_json::Value> {
         let epoch = self.active_epoch()?;
-        let _session_guard = self.lock("session.lock")?;
-        let envelope = self.cache_session(owner)?;
-        let _cache_guard = self.lock(&format!("{}.lock", cache_name(owner, cache_key)))?;
+        let _session_guard = self.lock(SESSION_LOCK)?;
+        let context = admission.admit(owner)?;
+        let _cache_guard = self.lock(&format!("{}.lock", cache_file_name(owner, cache_key)))?;
         let manifest = self.current_manifest(owner, cache_key, &epoch)?;
         let shared = match &manifest.shared {
-            Some(set) => self.read_section_locked(&envelope, owner, cache_key, key, &epoch, None, set)?,
+            Some(set) => {
+                self.read_section_locked(&context, owner, cache_key, key, &epoch, None, set)?
+            }
             None => None,
         };
         let mut chats = serde_json::Map::new();
@@ -243,12 +265,12 @@ impl Store {
                 continue;
             }
             if let Some(section) =
-                self.read_section_locked(&envelope, owner, cache_key, key, &epoch, Some(chat), set)?
+                self.read_section_locked(&context, owner, cache_key, key, &epoch, Some(chat), set)?
             {
                 chats.insert(chat.clone(), serde_json::Value::Object(section));
             }
         }
-        let _fence = self.lock("revocation.lock")?;
+        let _fence = self.lock(REVOCATION_LOCK)?;
         self.require_epoch(&epoch)?;
         Ok(serde_json::json!({"shared": shared, "chats": chats}))
     }
@@ -257,49 +279,72 @@ impl Store {
     /// the cache. The next authenticated restore drops the receipt; the next
     /// successful sectioned publication (which never contains a revoked
     /// receipt) removes the marker. Idempotent and cheap when already present.
-    pub(crate) fn revoke_sync_freshness(&self, owner: &str, cache_key: &str) -> Result<()> {
+    pub fn revoke_sync_freshness(
+        &self,
+        admission: &dyn CacheAdmission,
+        owner: &str,
+        cache_key: &str,
+    ) -> Result<()> {
         let epoch = self.active_epoch()?;
-        let _session_guard = self.lock("session.lock")?;
-        self.cache_session(owner)?;
-        let _cache_guard = self.lock(&format!("{}.lock", cache_name(owner, cache_key)))?;
-        let marker = cache_name(owner, &freshness_marker_key(cache_key));
-        if self.read(&marker)?.is_some() {
+        let _session_guard = self.lock(SESSION_LOCK)?;
+        admission.admit(owner)?;
+        let _cache_guard = self.lock(&format!("{}.lock", cache_file_name(owner, cache_key)))?;
+        let marker = cache_file_name(owner, &freshness_marker_key(cache_key));
+        if self.bytes.get(&marker)?.is_some() {
             return Ok(());
         }
-        let _fence = self.lock("revocation.lock")?;
+        let _fence = self.lock(REVOCATION_LOCK)?;
         self.require_epoch(&epoch)?;
-        self.atomic_write(&marker, b"{\"version\":1}")
+        self.bytes
+            .put(&marker, b"{\"version\":1}", Durability::Now)?;
+        Ok(())
     }
 
     /// Change-only publication of prepared sections. Unchanged records (same
     /// epoch, key/AAD binding, plaintext digest and exact current file) are
     /// not rewritten; content of Chats a partial client never restored is
     /// retained. Returns whether anything was written or removed.
-    pub(crate) fn write_sync_sections(
+    pub fn write_sync_sections(
         &self,
+        admission: &dyn CacheAdmission,
         owner: &str,
         cache_key: &str,
         key: &[u8; 32],
         prepared: PreparedSections,
     ) -> Result<bool> {
         let epoch = self.active_epoch()?;
-        let _session_guard = self.lock("session.lock")?;
-        let envelope = self.cache_session(owner)?;
-        let legacy = cache_name(owner, cache_key);
+        let _session_guard = self.lock(SESSION_LOCK)?;
+        let context = admission.admit(owner)?;
+        let legacy = cache_file_name(owner, cache_key);
         let _cache_guard = self.lock(&format!("{legacy}.lock"))?;
         let previous = match self.loaded_manifest(owner, cache_key, &epoch) {
             Some(manifest) => manifest,
             // Never read in this process: learn the committed record names so
             // a complete replacement can remove superseded records.
-            None => match self.read_index_locked(&envelope, owner, cache_key, key, &epoch)? {
+            None => match self.read_index_locked(&context, owner, cache_key, key, &epoch)? {
                 Some((manifest, _)) => manifest,
-                None => Manifest { epoch: epoch.clone(), ..Default::default() },
+                None => Manifest {
+                    epoch: epoch.clone(),
+                    ..Default::default()
+                },
             },
         };
         let mut changed = false;
-        let mut next = Manifest { epoch: epoch.clone(), ..Default::default() };
+        let mut next = Manifest {
+            epoch: epoch.clone(),
+            ..Default::default()
+        };
         for (chat, section) in &prepared.chats {
-            let set = self.publish_section(&envelope, owner, cache_key, key, &epoch, Some(chat), section, &mut changed)?;
+            let set = self.publish_section(
+                &context,
+                owner,
+                cache_key,
+                key,
+                &epoch,
+                Some(chat),
+                section,
+                &mut changed,
+            )?;
             next.records.insert(chat.clone(), set);
         }
         if let Some(loaded) = &prepared.partial {
@@ -313,7 +358,16 @@ impl Store {
             }
         }
         next.shared = match (&prepared.shared, &prepared.partial) {
-            (Some(section), _) => Some(self.publish_section(&envelope, owner, cache_key, key, &epoch, None, section, &mut changed)?),
+            (Some(section), _) => Some(self.publish_section(
+                &context,
+                owner,
+                cache_key,
+                key,
+                &epoch,
+                None,
+                section,
+                &mut changed,
+            )?),
             (None, Some(_)) => previous.shared.clone(),
             (None, None) => None,
         };
@@ -321,39 +375,44 @@ impl Store {
             // Every renamed record must be durable before the index names it.
             self.bytes.barrier()?;
         }
-        let index_name = cache_name(owner, &index_key(cache_key));
+        let index_name = cache_file_name(owner, &index_key(cache_key));
         let plaintext = index_record(&next, &prepared.index)?;
-        let aad = cache_aad(&envelope, &index_key(cache_key))?;
+        let aad = context.aad(&index_key(cache_key))?;
         if !self.reuse_durable(&index_name, key, &epoch, &aad, &plaintext)? {
-            self.publish_record(&index_name, key, &epoch, &aad, &plaintext, true)?;
+            self.publish_sealed(&index_name, key, &epoch, &aad, &plaintext, Durability::Now)?;
             changed = true;
         }
         self.remember_manifest(owner, cache_key, next.clone());
         // Superseded files only after the commit; failures leave harmless orphans.
         let mut removed = false;
-        for chat in previous.records.keys().filter(|chat| !next.records.contains_key(*chat)) {
-            removed |= self.remove_present(&cache_name(owner, &chat_key(cache_key, chat)))?;
+        for chat in previous
+            .records
+            .keys()
+            .filter(|chat| !next.records.contains_key(*chat))
+        {
+            removed |= self.remove_present(&cache_file_name(owner, &chat_key(cache_key, chat)))?;
         }
         if previous.shared.is_some() && next.shared.is_none() {
-            removed |= self.remove_present(&cache_name(owner, &shared_key(cache_key)))?;
+            removed |= self.remove_present(&cache_file_name(owner, &shared_key(cache_key)))?;
         }
         removed |= self.remove_present(&legacy)?;
-        removed |= self.remove_present(&cache_name(owner, &freshness_marker_key(cache_key)))?;
+        removed |=
+            self.remove_present(&cache_file_name(owner, &freshness_marker_key(cache_key)))?;
         if removed {
             self.bytes.barrier()?;
         }
-        let _fence = self.lock("revocation.lock")?;
+        let _fence = self.lock(REVOCATION_LOCK)?;
         self.require_epoch(&epoch)?;
         Ok(changed || removed)
     }
 
     /// After a legacy single-file publication: make it authoritative again.
     pub(super) fn retire_sections_locked(&self, owner: &str, cache_key: &str) -> Result<()> {
-        if self.remove_present(&cache_name(owner, &index_key(cache_key)))? {
+        if self.remove_present(&cache_file_name(owner, &index_key(cache_key)))? {
             self.bytes.barrier()?;
         }
-        if let Ok(mut manifests) = self.section_manifests.lock() {
-            manifests.remove(&cache_name(owner, cache_key));
+        if let Ok(mut manifests) = self.manifests.lock() {
+            manifests.remove(&cache_file_name(owner, cache_key));
         }
         Ok(())
     }
@@ -361,63 +420,79 @@ impl Store {
     /// Caller holds session.lock and the family lock.
     pub(super) fn read_sections_locked(
         &self,
-        envelope: &Envelope,
+        context: &CacheContext,
         owner: &str,
         cache_key: &str,
         key: &[u8; 32],
         epoch: &str,
         mode: SyncReadMode,
     ) -> Result<Option<SyncCacheRead>> {
-        let Some((manifest, snapshot)) = self.read_index_locked(envelope, owner, cache_key, key, epoch)? else {
+        let Some((manifest, snapshot)) =
+            self.read_index_locked(context, owner, cache_key, key, epoch)?
+        else {
             return Ok(None);
         };
         self.remember_manifest(owner, cache_key, manifest.clone());
         if mode == SyncReadMode::Index {
-            return Ok(Some(SyncCacheRead::Index(serde_json::Value::Object(snapshot))));
+            return Ok(Some(SyncCacheRead::Index(serde_json::Value::Object(
+                snapshot,
+            ))));
         }
         let shared = match &manifest.shared {
-            Some(set) => self.read_section_locked(envelope, owner, cache_key, key, epoch, None, set)?,
+            Some(set) => {
+                self.read_section_locked(context, owner, cache_key, key, epoch, None, set)?
+            }
             None => None,
         };
         let mut chats = Vec::with_capacity(manifest.records.len());
         for (chat, set) in &manifest.records {
-            if let Some(section) = self.read_section_locked(envelope, owner, cache_key, key, epoch, Some(chat), set)? {
+            if let Some(section) =
+                self.read_section_locked(context, owner, cache_key, key, epoch, Some(chat), set)?
+            {
                 chats.push((chat.clone(), section));
             }
         }
         Ok(Some(SyncCacheRead::Complete(
-            openmates_sdk::client::snapshot_sections::assemble(snapshot, shared, chats)?,
+            crate::client::snapshot_sections::assemble(snapshot, shared, chats)?,
         )))
     }
 
     fn read_index_locked(
         &self,
-        envelope: &Envelope,
+        context: &CacheContext,
         owner: &str,
         cache_key: &str,
         key: &[u8; 32],
         epoch: &str,
     ) -> Result<Option<(Manifest, serde_json::Map<String, serde_json::Value>)>> {
-        let name = cache_name(owner, &index_key(cache_key));
-        let aad = cache_aad(envelope, &index_key(cache_key))?;
+        let name = cache_file_name(owner, &index_key(cache_key));
+        let aad = context.aad(&index_key(cache_key))?;
         let Some(plaintext) = self.read_record(&name, key, epoch, &aad)? else {
             return Ok(None);
         };
         let record: IndexRecord = serde_json::from_slice(&plaintext)?;
         if record.version != 1
             || record.layout != LAYOUT
-            || !record.records.values().chain(record.shared.iter()).all(|set| valid_set(set))
+            || !record
+                .records
+                .values()
+                .chain(record.shared.iter())
+                .all(|set| valid_set(set))
         {
             return Err(Error::Protocol);
         }
-        let manifest = Manifest { epoch: epoch.to_owned(), shared: record.shared, records: record.records };
+        let manifest = Manifest {
+            epoch: epoch.to_owned(),
+            shared: record.shared,
+            records: record.records,
+        };
         Ok(Some((manifest, record.snapshot)))
     }
 
     #[allow(clippy::too_many_arguments)]
     fn read_section_locked(
         &self,
-        envelope: &Envelope,
+        context: &CacheContext,
         owner: &str,
         cache_key: &str,
         key: &[u8; 32],
@@ -429,8 +504,8 @@ impl Store {
             Some(chat) => chat_key(cache_key, chat),
             None => shared_key(cache_key),
         };
-        let name = cache_name(owner, &record_key);
-        let aad = cache_aad(envelope, &record_key)?;
+        let name = cache_file_name(owner, &record_key);
+        let aad = context.aad(&record_key)?;
         let Some(plaintext) = self.read_record(&name, key, epoch, &aad)? else {
             return Ok(None);
         };
@@ -440,9 +515,9 @@ impl Store {
         }
         // A record from an uncommitted publication is absent content.
         if record.set != set {
-            self.durable_caches
+            self.durable
                 .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .unwrap_or_else(PoisonError::into_inner)
                 .remove(&name);
             return Ok(None);
         }
@@ -457,22 +532,30 @@ impl Store {
         epoch: &str,
         aad: &[u8],
     ) -> Result<Option<Zeroizing<Vec<u8>>>> {
-        let Some((bytes, identity)) = self.read_with_identity(name)? else {
+        let Some((bytes, version)) = self.read_with_version(name)? else {
             return Ok(None);
         };
         let record: CacheRecord = serde_json::from_slice(&bytes)?;
         if record.version != 1 {
             return Err(Error::Protocol);
         }
-        let plaintext = decrypt(key, &record.ciphertext, aad)?;
-        if let Some(identity) = identity {
-            self.remember_durable_cache(name, DurableCache {
-                epoch: epoch.to_owned(),
-                binding: Zeroizing::new(cache_publication_mac(key, epoch, aad)?.finalize().into_bytes().into()),
-                plaintext_digest: Sha256::digest(plaintext.as_slice()).into(),
-                identity,
-                synced: false,
-            });
+        let plaintext = open(key, &record.ciphertext, aad)?;
+        if let Some(version) = version {
+            self.remember_durable(
+                name,
+                DurableCache {
+                    epoch: epoch.to_owned(),
+                    binding: Zeroizing::new(
+                        cache_publication_mac(key, epoch, aad)?
+                            .finalize()
+                            .into_bytes()
+                            .into(),
+                    ),
+                    plaintext_digest: Sha256::digest(plaintext.as_slice()).into(),
+                    version,
+                    synced: false,
+                },
+            );
         }
         Ok(Some(plaintext))
     }
@@ -481,7 +564,7 @@ impl Store {
     #[allow(clippy::too_many_arguments)]
     fn publish_section(
         &self,
-        envelope: &Envelope,
+        context: &CacheContext,
         owner: &str,
         cache_key: &str,
         key: &[u8; 32],
@@ -494,8 +577,8 @@ impl Store {
             Some(chat) => chat_key(cache_key, chat),
             None => shared_key(cache_key),
         };
-        let name = cache_name(owner, &record_key);
-        let aad = cache_aad(envelope, &record_key)?;
+        let name = cache_file_name(owner, &record_key);
+        let aad = context.aad(&record_key)?;
         if let Some(set) = self.remembered_set(owner, cache_key, chat) {
             let plaintext = section_record(&set, chat, section)?;
             if self.reuse_durable(&name, key, epoch, &aad, &plaintext)? {
@@ -504,110 +587,42 @@ impl Store {
         }
         let set = uuid::Uuid::new_v4().to_string();
         let plaintext = section_record(&set, chat, section)?;
-        self.publish_record(&name, key, epoch, &aad, &plaintext, false)?;
+        self.publish_sealed(
+            &name,
+            key,
+            epoch,
+            &aad,
+            &plaintext,
+            Durability::AfterBarrier,
+        )?;
         *changed = true;
         Ok(set)
     }
 
     fn remembered_set(&self, owner: &str, cache_key: &str, chat: Option<&str>) -> Option<String> {
-        let manifests = self.section_manifests.lock().ok()?;
-        let manifest = manifests.get(&cache_name(owner, cache_key))?;
+        let manifests = self.manifests.lock().ok()?;
+        let manifest = manifests.get(&cache_file_name(owner, cache_key))?;
         match chat {
             Some(chat) => manifest.records.get(chat).cloned(),
             None => manifest.shared.clone(),
         }
     }
 
-    /// The exact plaintext is already durable at `name`: same epoch, key/AAD
-    /// binding, digest and file identity. Fsyncs a loaded record once.
-    fn reuse_durable(&self, name: &str, key: &[u8; 32], epoch: &str, aad: &[u8], plaintext: &[u8]) -> Result<bool> {
-        let binding = cache_publication_mac(key, epoch, aad)?;
-        let digest: [u8; 32] = Sha256::digest(plaintext).into();
-        let mut caches = self.durable_caches.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-        let Some(evidence) = caches.get_mut(name) else {
-            return Ok(false);
-        };
-        if evidence.epoch != epoch
-            || evidence.plaintext_digest != digest
-            || binding.verify_slice(evidence.binding.as_ref()).is_err()
-        {
-            return Ok(false);
-        }
-        let Some(file) = self.bytes.open_existing(name, false)? else {
-            return Ok(false);
-        };
-        if FileByteStore::identity(&file)? != evidence.identity {
-            return Ok(false);
-        }
-        if !evidence.synced {
-            file.sync_all()?;
-            self.bytes.barrier()?;
-            evidence.synced = true;
-        }
-        Ok(true)
-    }
-
-    fn publish_record(
-        &self,
-        name: &str,
-        key: &[u8; 32],
-        epoch: &str,
-        aad: &[u8],
-        plaintext: &[u8],
-        sync_directory: bool,
-    ) -> Result<()> {
-        self.durable_caches
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .remove(name);
-        let encoded = serde_json::to_vec(&CacheRecord { version: 1, ciphertext: encrypt(key, plaintext, aad)? })?;
-        if encoded.len() > MAX_LOCAL_RECORD_BYTES {
-            return Err(Error::Invalid("The local record is too large."));
-        }
-        let file = {
-            let _fence = self.lock("revocation.lock")?;
-            self.require_epoch(epoch)?;
-            self.atomic_write_file_with(name, &encoded, sync_directory)?
-        };
-        if let Some(identity) = FileByteStore::identity(&file).ok() {
-            self.remember_durable_cache(name, DurableCache {
-                epoch: epoch.to_owned(),
-                binding: Zeroizing::new(cache_publication_mac(key, epoch, aad)?.finalize().into_bytes().into()),
-                plaintext_digest: Sha256::digest(plaintext).into(),
-                identity,
-                synced: true,
-            });
-        }
-        Ok(())
-    }
-
-    fn remember_durable_cache(&self, name: &str, evidence: DurableCache) {
-        self.durable_caches
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .insert(name.to_owned(), evidence);
-    }
     fn remember_manifest(&self, owner: &str, cache_key: &str, manifest: Manifest) {
-        if let Ok(mut manifests) = self.section_manifests.lock() {
-            manifests.insert(cache_name(owner, cache_key), manifest);
+        if let Ok(mut manifests) = self.manifests.lock() {
+            manifests.insert(cache_file_name(owner, cache_key), manifest);
         }
     }
     fn loaded_manifest(&self, owner: &str, cache_key: &str, epoch: &str) -> Option<Manifest> {
-        self.section_manifests
+        self.manifests
             .lock()
             .ok()?
-            .get(&cache_name(owner, cache_key))
+            .get(&cache_file_name(owner, cache_key))
             .filter(|manifest| manifest.epoch == epoch)
             .cloned()
     }
     fn current_manifest(&self, owner: &str, cache_key: &str, epoch: &str) -> Result<Manifest> {
-        self.loaded_manifest(owner, cache_key, epoch).ok_or(Error::Cancelled)
-    }
-    fn remove_present(&self, name: &str) -> Result<bool> {
-        if self.bytes.open_existing(name, false)?.is_none() {
-            return Ok(false);
-        }
-        self.remove(name)?;
-        Ok(true)
+        self.loaded_manifest(owner, cache_key, epoch)
+            .ok_or(Error::Cancelled)
     }
 }

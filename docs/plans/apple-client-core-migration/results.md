@@ -58,3 +58,22 @@ persist_messages 865, cold_load_from_disk 36.
 
 Open: the core message and key phases cost about 130 microseconds per item,
 against about 8 per metadata field. Where that time goes is not explained yet.
+
+## A3a follow-up: where chat open time goes (2026-11-11)
+
+Run 42955959638 (apple-unit, candidate d17fce83), same process, median ms.
+
+| Phase | n | Swift (old) | Core (new) |
+|---|---|---|---|
+| chat key bulk load | 600 | 76 | 25 |
+| chat list metadata decrypt | 600 | 223 | 22 |
+| chat open window, store load only | 50 | 10 | 10 |
+| chat open window, decrypt only | 50 | 67 | 31 |
+| chat open full, store load only | 1000 | 130 | 130 |
+| chat open full, decrypt only | 1000 | 1289 | 656 |
+
+Key bulk load: per-key fingerprint formatting and one notification per key
+removed (one notification per batch). Rust alone needs about 17 ms for the
+1000 messages (Linux release benchmark `rust_cost_of_the_swift_perf_phases`),
+so about 640 ms of the core decrypt-only phase is Swift work in
+`ChatViewModel.decryptMessagesForDisplay`; not yet located.
