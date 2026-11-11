@@ -28,6 +28,10 @@ export interface WorkflowAuthoringRequest {
   signal: AbortSignal;
   /** Ask the server for an unsaved draft session (status `draft`, nothing persisted). */
   draftOnly?: boolean;
+  /** Chat the authoring was started from (chat Recommendation); the server bills it to that chat. */
+  sourceChatId?: string;
+  /** User message id of that chat turn; sent only with sourceChatId. */
+  sourceMessageId?: string;
 }
 
 export interface WorkflowAuthoringHandlers {
@@ -60,7 +64,11 @@ async function streamSession(request: WorkflowAuthoringRequest, handlers: Workfl
       handlers.onPreview(event);
     }
   };
-  const options = request.draftOnly ? { draftOnly: true } : undefined;
+  const options = request.draftOnly || request.sourceChatId ? {
+    ...(request.draftOnly ? { draftOnly: true } : {}),
+    ...(request.sourceChatId ? { sourceChatId: request.sourceChatId } : {}),
+    ...(request.sourceChatId && request.sourceMessageId ? { sourceMessageId: request.sourceMessageId } : {}),
+  } : undefined;
   const stream = () => streamWorkflowInstruction(request.instruction, request.workflowId, onEvent, request.signal, request.idempotencyKey, options);
   try {
     return await stream();

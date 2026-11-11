@@ -15648,7 +15648,7 @@
       "text": "Wann anwenden"
     },
     "practices": {
-      "text": "Erinnerung (Markdown)"
+      "text": "Erinnerung"
     },
     "empty": {
       "text": "Hier sind noch keine Erinnerungen gespeichert."
@@ -15814,6 +15814,33 @@
     },
     "body_placeholder": {
       "text": "Schreibe die Erinnerung. Füge ein Embed aus einem Chat ein, um es einzubinden."
+    },
+    "create": {
+      "text": "Erinnerung erstellen"
+    },
+    "create_title": {
+      "text": "Neue Erinnerung"
+    },
+    "sort_recently_modified": {
+      "text": "Zuletzt geändert"
+    },
+    "sort_recently_added": {
+      "text": "Zuletzt hinzugefügt"
+    },
+    "sort_title": {
+      "text": "Titel A–Z"
+    },
+    "sort_label": {
+      "text": "Erinnerungen sortieren"
+    },
+    "modified_on": {
+      "text": "Geändert am {date}"
+    },
+    "app": {
+      "text": "App"
+    },
+    "app_none": {
+      "text": "Keine"
     }
   },
   "metadata": {
@@ -26301,35 +26328,14 @@
       }
     },
     "side_panel": {
-      "kicker_draft": {
-        "text": "Workflow-Entwurf"
-      },
-      "kicker_saved": {
-        "text": "Workflow"
-      },
-      "title_label": {
-        "text": "Workflow-Name"
-      },
       "close": {
         "text": "Workflow-Editor schließen"
-      },
-      "save": {
-        "text": "Workflow speichern"
-      },
-      "saving": {
-        "text": "Wird gespeichert…"
       },
       "generating": {
         "text": "Workflow-Entwurf wird erstellt…"
       },
       "loading": {
         "text": "Workflow wird geladen…"
-      },
-      "unsaved_hint": {
-        "text": "Noch nicht gespeichert. Prüfe den Entwurf und speichere ihn dann."
-      },
-      "saved_hint": {
-        "text": "In deinen Workflows gespeichert. Er bleibt pausiert, bis du ihn aktivierst."
       },
       "load_failed": {
         "text": "Der Workflow konnte nicht geladen werden. Bitte versuche es erneut."

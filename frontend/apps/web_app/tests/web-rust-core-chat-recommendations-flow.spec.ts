@@ -9,8 +9,11 @@
  * recommendation opens an unsaved draft in Settings > Memories; only Save removes the
  * recommendation and adds the encrypted "Memory created: <title>" history event whose
  * link opens the memory. The state survives a reload. A workflow recommendation opens
- * the workflow side panel; Save adds "Workflow created: <title>". Dismiss removes the
- * last one for good, and with the setting off no card is shown.
+ * the regular workflow editor beside the chat; Save (workflow-save-draft) adds
+ * "Workflow created: <title>" and shows the saved workflow in the same editor.
+ * Closing the editor returns to the chat at the same scroll offset at 1280px
+ * (side by side) and 390px (editor covers the chat). Dismiss removes the last one
+ * for good, and with the setting off no card is shown.
  *
  * Runs only in the CI lane that builds the Rust core package (web-rust-core-* specs).
  * Mock mode (E2E_USE_MOCKS): the chat_recommendations fixture provides the reply and
@@ -32,10 +35,26 @@ const USE_MOCKS = Boolean(process.env.E2E_USE_MOCKS);
 const PROMPT = 'Help me plan my visit to an open source conference with talks, hallway time and rest.';
 const RESPONSE_MARKER = 'Open source conference recommendations test';
 
+type PaneRequest = { chatId: string; recommendationId: string; mode: 'create' | 'update'; workflowId: string | null; instruction: string };
 type StreamWindow = typeof window & {
   __workflowStreamCases: unknown[][];
   __workflowStreamBodies: Array<Record<string, unknown>>;
+  __openmatesE2EWorkflowSidePanel?: { open: (request: PaneRequest) => void };
 };
+
+/** Scroll offset of the chat history (the element the user scrolls). */
+function chatScrollTop(page: Page): Promise<number> {
+  return page.getByTestId('chat-pane').getByTestId('chat-history-container').evaluate((element: HTMLElement) => Math.round(element.scrollTop));
+}
+
+/** Scroll the chat history half way (when it can scroll) and return the settled offset. */
+async function scrollChatToMiddle(page: Page): Promise<number> {
+  const history = page.getByTestId('chat-pane').getByTestId('chat-history-container');
+  await expect(history).toHaveAttribute('data-scroll-state', 'ready', { timeout: 20000 });
+  await history.evaluate((element: HTMLElement) => { element.scrollTop = Math.floor((element.scrollHeight - element.clientHeight) / 2); });
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  return chatScrollTop(page);
+}
 
 function apiUrl(): string {
   const url = new URL(process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://app.dev.openmates.org');
@@ -53,7 +72,7 @@ const graph = {
   edges: [{ from: 'manual', to: 'message' }]
 };
 
-/** Draft-only authoring stream for the workflow side panel (same events as the server). */
+/** Draft-only authoring stream for the chat workflow editor (same events as the server). */
 function workflowDraftEvents(title: string): unknown[] {
   const sessionId = `recommendation-draft-${Date.now()}`;
   const previewWorkflow = { id: `preview-${sessionId}`, title, description: 'Weekly open source conference digest.', category: 'general_knowledge', status: 'draft', enabled: false, current_version_id: '', graph };
@@ -194,7 +213,8 @@ test.describe('chat recommendations', () => {
       await expect(card).toHaveAttribute('data-count', String(total - 1), { timeout: 20000 });
       const memoryNotice = page.locator('[data-testid="context-entry-event"][data-kind="memory"]');
       await expect(memoryNotice).toHaveCount(1, { timeout: 20000 });
-      await expect(memoryNotice.getByTestId('context-entry-event-label')).toHaveText(`Memory created: ${memoryTitle}`);
+      await expect(memoryNotice.getByTestId('context-entry-event-label')).toHaveText(memoryTitle);
+      await expect(memoryNotice.getByTestId('context-entry-event-open')).toHaveAttribute('aria-label', `Memory created: ${memoryTitle}`);
       await screenshot(page, 'memory-created-notice');
 
       // The notice link opens the saved memory itself (no draft).
@@ -210,31 +230,59 @@ test.describe('chat recommendations', () => {
       await expect(page.getByTestId('recommendation-title').filter({ hasText: memoryTitle })).toHaveCount(0);
       await expect(memoryNotice).toHaveCount(1, { timeout: 30000 });
 
-      // Workflow: Create opens the side panel draft; Save adds the history event.
+      // Workflow: Create opens the draft in the regular editor beside the chat; Save adds the history event.
       const workflowTitle = await showKind('workflow');
       await page.evaluate((events) => { (window as StreamWindow).__workflowStreamCases.push(events); }, workflowDraftEvents(workflowTitle));
       await page.getByTestId('recommendation-action').click();
-      const panel = page.getByTestId('workflow-side-panel');
+      const panel = page.getByTestId('workflow-chat-pane');
       await expect(panel).toBeVisible({ timeout: 20000 });
+      await expect(panel).toHaveAttribute('data-layout', 'side');
+      await expect(page.getByTestId('chat-pane')).toHaveAttribute('data-split-layout', 'split');
       await expect.poll(() => page.evaluate(() => (window as StreamWindow).__workflowStreamBodies.length)).toBe(1);
       const streamBody = await page.evaluate(() => (window as StreamWindow).__workflowStreamBodies[0]);
       expect(streamBody).toMatchObject({ draft_only: true });
       expect(String(streamBody.text)).toContain(`Create a workflow: ${workflowTitle}`);
-      await expect(page.getByTestId('workflow-side-panel-title')).toHaveValue(workflowTitle, { timeout: 20000 });
+      await expect(panel).toHaveAttribute('data-state', 'draft', { timeout: 20000 });
+      await expect(page.getByTestId('workflow-draft-title-input')).toHaveValue(workflowTitle);
       await expect(card).toHaveAttribute('data-count', String(total - 1));
+      await screenshot(page, 'workflow-draft-beside-chat');
       const created = page.waitForResponse((response) => response.request().method() === 'POST' && /\/v1\/workflows$/.test(new URL(response.url()).pathname));
-      await page.getByTestId('workflow-side-panel-save').click();
+      await page.getByTestId('workflow-save-draft').click();
       const workflowId = (await (await created).json()).workflow.id as string;
       createdWorkflows.push(workflowId);
-      await expect(panel).toHaveAttribute('data-saved', 'true', { timeout: 20000 });
-      await page.getByTestId('workflow-side-panel-close').click();
+      await expect(panel).toHaveAttribute('data-state', 'saved', { timeout: 20000 });
+      await expect(page.getByTestId('workspace-detail-title')).toHaveText(workflowTitle);
+      await expect(page.getByTestId('toggle-workflow')).toBeVisible();
+      await expect(page.getByTestId('workflow-save-draft')).toHaveCount(0);
+      await screenshot(page, 'workflow-saved-beside-chat');
+      await panel.getByTestId('workflow-detail-back').click();
       await expect(panel).toHaveCount(0);
+      await expect(page.getByTestId('chat-pane')).toHaveAttribute('data-split-layout', 'full');
       const workflowNotice = page.locator(`[data-testid="context-entry-event"][data-kind="workflow"][data-entry-id="${workflowId}"]`);
       await expect(workflowNotice).toHaveCount(1, { timeout: 20000 });
-      await expect(workflowNotice.getByTestId('context-entry-event-label')).toHaveText(`Workflow created: ${workflowTitle}`);
+      await expect(workflowNotice.getByTestId('context-entry-event-label')).toHaveText(workflowTitle);
+      await expect(workflowNotice.getByTestId('context-entry-event-open')).toHaveAttribute('aria-label', `Workflow created: ${workflowTitle}`);
       await expect(workflowNotice.getByTestId('context-entry-event-open')).toHaveAttribute('href', `/#workflow-id=${workflowId}&workflow-tab=details`);
       await expect(card).toHaveAttribute('data-count', String(total - 2), { timeout: 20000 });
       await screenshot(page, 'workflow-created-notice');
+
+      // Closing the editor returns to the chat at the scroll offset it had when the editor
+      // opened: side by side at 1280px and covering the inert chat at 390px.
+      for (const viewport of [{ width: 1280, height: 900, layout: 'side' }, { width: 390, height: 844, layout: 'fullscreen' }]) {
+        await page.setViewportSize({ width: viewport.width, height: viewport.height });
+        const before = await scrollChatToMiddle(page);
+        await page.evaluate((request) => (window as StreamWindow).__openmatesE2EWorkflowSidePanel?.open(request), { chatId, recommendationId: `scroll-check-${viewport.width}`, mode: 'update' as const, workflowId, instruction: '' });
+        await expect(panel).toHaveAttribute('data-layout', viewport.layout, { timeout: 20000 });
+        await expect(panel).toHaveAttribute('data-state', 'saved', { timeout: 20000 });
+        await expect(page.getByTestId('workspace-detail-title')).toHaveText(workflowTitle);
+        if (viewport.layout === 'fullscreen') await expect(page.getByTestId('chat-pane')).toHaveAttribute('inert', '');
+        await screenshot(page, `workflow-editor-open-${viewport.width}`);
+        await panel.getByTestId('workflow-detail-back').click();
+        await expect(panel).toHaveCount(0);
+        await expect.poll(() => chatScrollTop(page)).toBe(before);
+        await screenshot(page, `chat-after-editor-close-${viewport.width}`);
+      }
+      await page.setViewportSize({ width: 1280, height: 900 });
 
       // No dismiss control; saved entries stay removed and the rest remain after a reload.
       await expect(page.getByTestId('recommendation-dismiss')).toHaveCount(0);

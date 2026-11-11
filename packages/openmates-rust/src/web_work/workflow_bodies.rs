@@ -239,5 +239,29 @@ fn instruction(input: &Value) -> Decision {
     if truthy(record.get("idempotency_key")) {
         body.raw("idempotency_key", record, "idempotency_key");
     }
+    // Authoring started from a chat Recommendation: the server owner-checks
+    // the chat and bills every authoring call to it (and to the turn's user
+    // message). Absent members keep the body byte-identical to before.
+    let source_chat_id = optional_text(record, "source_chat_id")?;
+    let source_message_id = optional_text(record, "source_message_id")?;
+    if source_message_id.is_some() && source_chat_id.is_none() {
+        return Err("bad_field:source_message_id".to_owned());
+    }
+    if let Some(chat_id) = source_chat_id {
+        body.value("source_chat_id", json!(chat_id));
+    }
+    if let Some(message_id) = source_message_id {
+        body.value("source_message_id", json!(message_id));
+    }
     Ok(body.request(path.to_owned(), "POST", Map::new()))
+}
+
+/// A missing, `null` or empty member is absent; any other non-string is refused.
+fn optional_text<'a>(record: &'a Map<String, Value>, key: &str) -> Result<Option<&'a str>, String> {
+    match record.get(key) {
+        None | Some(Value::Null) => Ok(None),
+        Some(Value::String(text)) if text.is_empty() => Ok(None),
+        Some(Value::String(text)) => Ok(Some(text)),
+        Some(_) => Err(format!("bad_field:{key}")),
+    }
 }

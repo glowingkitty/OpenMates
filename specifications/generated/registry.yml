@@ -991,7 +991,7 @@ specifications:
     version: 11
     status: draft
     path: features/workflows-ui
-    fingerprint: 8bd8ef4943f9ddab85766bfbcf184bdc0d1463be7aa1b434484e826a2db39d6e
+    fingerprint: 7a4006905058140f3d931dde43a3ebc06294198e7d3c2b8ca51d07444970e30a
     required_applies_to:
     - gui.web
   feature.workspace-shell:
@@ -13791,6 +13791,13 @@ assertions:
     specification_id: feature.workflows-ui
     type: behavior
     fingerprint: 129e7aae003c80402c99fc3ae4bc8c924f9dd110da0fabe1b759cd91926750af
+    required_applies_to:
+    - gui.web
+  workflows-ui.chat-pane.regular-editor:
+    specification: feature.workflows-ui@11
+    specification_id: feature.workflows-ui
+    type: behavior
+    fingerprint: 141f0d8b3c1dfdeb4d9f040f6d98417f1835abf0b26336e2d83dcd1c9024fde8
     required_applies_to:
     - gui.web
   workspace-shell.nav.released-surfaces-visible:

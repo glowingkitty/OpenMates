@@ -4,7 +4,8 @@
      for discovering new apps that support memories.
 
      Architecture: See docs/architecture/app-skills.md
-     Route: settings_memories (top-level, shown in sidebar nav)
+     Route: settings_memories (top-level, shown in sidebar nav); settings_memories/create and
+            settings_memories/<id> (or memories/<id> deep links) show only the memory's own page.
      Navigation: Clicking a category navigates to apps/{appId}/settings_memories/{categoryId}
                  with cameFrom='settings_memories' so back-navigation returns here.
 -->
@@ -20,21 +21,28 @@
     import { text } from '@repo/ui';
     import { allAppsInitialFilter } from '../../stores/allAppsFilterStore';
 
-    import MemoriesEditor from './MemoriesEditor.svelte';
+    import MemoriesEditor, { type MemoryEditorView } from './MemoriesEditor.svelte';
     import { defaultMemoryEditorService, recommendationMemoryEditorService } from '../../services/memoryEditorService';
     import { memoryDraftSuggestion } from '../../stores/memoryDraftSuggestionStore';
 
-    /** Route: settings_memories or settings_memories/<memory id> (deep link). */
+    /**
+     * Route: settings_memories (list), settings_memories/create, or settings_memories/<memory id>
+     * (also reached as memories/<id> by deep links from chat rows, recommendations and mentions).
+     */
     let { activeSettingsView = 'settings_memories' }: { activeSettingsView?: string } = $props();
     let deepLinkMemoryId = $derived(
         decodeURIComponent(activeSettingsView.split('&')[0].match(/^(?:settings_memories|memories)\/([^/]+)$/)?.[1] ?? '') || null,
+    );
+    let editorView = $derived<MemoryEditorView>(
+        deepLinkMemoryId === 'create' ? { kind: 'create' }
+            : deepLinkMemoryId ? { kind: 'entry', id: deepLinkMemoryId } : { kind: 'list' },
     );
     // Only a draft addressed to the opened memory is shown; it stays unsaved.
     let deepLinkSuggestion = $derived(
         $memoryDraftSuggestion && $memoryDraftSuggestion.id === deepLinkMemoryId
             ? { title: $memoryDraftSuggestion.title, memory: $memoryDraftSuggestion.memory, when_to_use: $memoryDraftSuggestion.when_to_use,
                 load_mode: $memoryDraftSuggestion.load_mode, valid_from: $memoryDraftSuggestion.valid_from, valid_until: $memoryDraftSuggestion.valid_until,
-                is_new: $memoryDraftSuggestion.is_new, base_document: $memoryDraftSuggestion.base_document }
+                app_id: $memoryDraftSuggestion.app_id, is_new: $memoryDraftSuggestion.is_new, base_document: $memoryDraftSuggestion.base_document }
             : null,
     );
     // A draft opened from a chat Recommendation resolves it when saved.
@@ -140,6 +148,19 @@
     }
 
     /**
+     * Memory subpages live under settings_memories/ so the header Back button returns to this list.
+     */
+    function navigateMemories(view: MemoryEditorView, title: string) {
+        const settingsTitle = $text('settings.settings_memories');
+        dispatch('openSettings', view.kind === 'list'
+            ? { settingsPath: 'settings_memories', direction: 'backward', icon: 'settings_memories', title: settingsTitle }
+            : {
+                settingsPath: view.kind === 'create' ? 'settings_memories/create' : `settings_memories/${encodeURIComponent(view.id)}`,
+                direction: 'forward', icon: 'settings_memories', title: title || settingsTitle,
+            });
+    }
+
+    /**
      * Navigate to All Apps with the "Memories" filter pre-set,
      * so the user sees only apps that define memories categories.
      */
@@ -157,14 +178,20 @@
 </script>
 
 <SettingsPageContainer maxWidth="wide">
+{#if editorView.kind !== 'list'}
+    {#if isAuthenticated}
+        <MemoriesEditor source="personal" projectId={null} service={memoriesService} view={editorView}
+            suggestion={deepLinkSuggestion} onNavigate={navigateMemories} />
+    {/if}
+{:else}
 <div class="settings-memories-hub">
     <p class="encryption-notice">{$text('memories.sources_help')}</p>
 
     {#if isAuthenticated}
-        <div class="private-memories" data-testid="settings-memories-private">
-            <SettingsSectionHeading title={$text('memories.private_memories')} icon="app" />
-            <MemoriesEditor source="personal" projectId={null} service={memoriesService}
-                initialMemoryId={deepLinkMemoryId} suggestion={deepLinkSuggestion} />
+        <div data-testid="settings-memories-private">
+            <SettingsSectionHeading title={$text('memories.private_memories')} icon="settings_memories" />
+            <MemoriesEditor source="personal" projectId={null} service={memoriesService} view={editorView}
+                suggestion={null} onNavigate={navigateMemories} />
         </div>
     {/if}
 
@@ -228,6 +255,7 @@
         />
     </div>
 </div>
+{/if}
 </SettingsPageContainer>
 
 <style>
@@ -246,10 +274,6 @@
         line-height: 1.5;
         margin: 0 0 1rem 0;
         padding: 0 0.5rem;
-    }
-
-    .private-memories {
-        margin-bottom: 1.5rem;
     }
 
     .empty-state {

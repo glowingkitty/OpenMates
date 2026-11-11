@@ -36,6 +36,12 @@ logger = logging.getLogger(__name__)
 
 REQUEST_CLAIM_TTL_SECONDS = 600
 REQUEST_ID_PATTERN = r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+# Same shape as a chat turn's message id; the usage row links the charge to that turn.
+MESSAGE_ID_MAX_LENGTH = 128
+
+
+def _claim_key(user_id_hash: str, request_id: str) -> str:
+    return f"memory_suggestion_request:{user_id_hash}:{request_id}"
 
 
 async def _claim_request(cache_service: Any, user_id_hash: str, request_id: Optional[str]) -> str:
@@ -43,11 +49,24 @@ async def _claim_request(cache_service: Any, user_id_hash: str, request_id: Opti
     if request_id is None:
         return str(uuid.uuid4())
     client = await cache_service.client
-    key = f"memory_suggestion_request:{user_id_hash}:{request_id}"
+    key = _claim_key(user_id_hash, request_id)
     if not await client.set(key, "1", nx=True, ex=REQUEST_CLAIM_TTL_SECONDS):
         logger.info("Memory suggestion request refused as duplicate delivery")
         raise HTTPException(status_code=409, detail="duplicate_request")
     return request_id
+
+
+async def _release_unbilled_request(cache_service: Any, user_id_hash: str, request_id: Optional[str]) -> None:
+    """Free the claim of an attempt that produced no result and charged nothing.
+
+    The same request_id may then be retried. Once any charge was made the claim
+    is kept, so one request_id is never billed for a second model call.
+    """
+    if request_id is None:
+        return
+    client = await cache_service.client
+    await client.delete(_claim_key(user_id_hash, request_id))
+    logger.info("Memory suggestion request claim released after an unbilled failure")
 
 
 class PreviewMessage(BaseModel):
@@ -63,6 +82,7 @@ class UpdatePreviewRequest(BaseModel):
     memory_markdown: str = Field(min_length=1, max_length=24_000, repr=False)
     messages: List[PreviewMessage] = Field(min_length=1, max_length=24, repr=False)
     request_id: Optional[str] = Field(default=None, pattern=REQUEST_ID_PATTERN)
+    message_id: Optional[str] = Field(default=None, min_length=1, max_length=MESSAGE_ID_MAX_LENGTH)
 
 
 @router.post("/update-preview", include_in_schema=False)
@@ -92,8 +112,10 @@ async def update_preview(request: Request, response: Response, body: UpdatePrevi
     buckets = priced_buckets(usage_events[-1] if usage_events else telemetry)
     if buckets:
         await charge_preview(billing, config_manager.get_model_pricing, user_id=user.id, user_id_hash=user_id_hash,
-                             chat_id=body.chat_id, operation_id=task_id, buckets=buckets)
+                             chat_id=body.chat_id, operation_id=task_id, buckets=buckets, message_id=body.message_id)
     if error is not None:
+        if not buckets:
+            await _release_unbilled_request(state.cache_service, user_id_hash, body.request_id)
         raise HTTPException(status_code=502, detail="Memory update preview failed")
     return {"status": "unchanged"} if updated is None else {"status": "updated", "body": updated}
 
@@ -106,12 +128,16 @@ class CreateDraftRequest(BaseModel):
     user_message: str = Field(min_length=1, max_length=8_000, repr=False)
     assistant_response: str = Field(min_length=1, max_length=8_000, repr=False)
     request_id: Optional[str] = Field(default=None, pattern=REQUEST_ID_PATTERN)
+    message_id: Optional[str] = Field(default=None, min_length=1, max_length=MESSAGE_ID_MAX_LENGTH)
 
 
 @router.post("/create-draft", include_in_schema=False)
 @limiter.limit("20/minute")
 async def create_draft(request: Request, response: Response, body: CreateDraftRequest) -> Dict[str, Any]:
-    """Generate one unsaved memory document (load_mode ask_first) from a recommendation; billed like update-preview."""
+    """Generate one unsaved memory document (load_mode ask_first) from a recommendation; billed like update-preview.
+
+    Returns {title, when_to_use, body, app_id}; app_id is one of the discovered app ids or null.
+    """
     state = request.app.state
     user = await _user(request, response)
     if not await state.directus_service.chat.check_chat_ownership(body.chat_id, user.id):
@@ -127,6 +153,8 @@ async def create_draft(request: Request, response: Response, body: CreateDraftRe
             task_id=task_id, model_id=POSTPROCESSING_MODEL_ID, title=body.title, summary=body.summary,
             user_message=body.user_message, assistant_response=body.assistant_response,
             secrets_manager=state.secrets_manager, usage_callback=usage_events.append,
+            # The optional app_id is chosen within the same model call, only from these ids.
+            app_ids=(getattr(state, "discovered_apps_metadata", None) or {}).keys(),
         )
         error: Optional[MemoryPreviewError] = None
     except MemoryPreviewError as exc:
@@ -134,8 +162,11 @@ async def create_draft(request: Request, response: Response, body: CreateDraftRe
     buckets = priced_buckets(usage_events[-1] if usage_events else telemetry)
     if buckets:
         await charge_preview(billing, config_manager.get_model_pricing, user_id=user.id, user_id_hash=user_id_hash,
-                             chat_id=body.chat_id, operation_id=task_id, buckets=buckets, purpose="memory_create_draft")
+                             chat_id=body.chat_id, operation_id=task_id, buckets=buckets, purpose="memory_create_draft",
+                             message_id=body.message_id)
     if error is not None or draft is None:
+        if not buckets:
+            await _release_unbilled_request(state.cache_service, user_id_hash, body.request_id)
         raise HTTPException(status_code=502, detail="Memory draft generation failed")
     return draft
 

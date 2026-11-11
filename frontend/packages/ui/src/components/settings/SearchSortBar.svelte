@@ -33,6 +33,9 @@
         onFocusIn = undefined,
         onInput = undefined,
         onClear = undefined,
+        searchTestid = undefined,
+        sortTestid = undefined,
+        sortLabel = 'Sort',
     }: {
         /** Current search query — use bind:searchQuery in parent */
         searchQuery?: string;
@@ -52,6 +55,12 @@
         onInput?: ((value: string) => void) | undefined;
         /** Called when the delete/clear button is pressed — clears the query */
         onClear?: (() => void) | undefined;
+        /** data-testid of the search input */
+        searchTestid?: string | undefined;
+        /** data-testid of the native sort select */
+        sortTestid?: string | undefined;
+        /** Accessible label of the sort select */
+        sortLabel?: string;
     } = $props();
 
     function handleClear() {
@@ -71,6 +80,7 @@
             placeholder={searchPlaceholder}
             bind:value={searchQuery}
             aria-label={searchPlaceholder}
+            data-testid={searchTestid}
             onfocusin={onFocusIn}
             oninput={(e) => onInput?.((e.target as HTMLInputElement).value)}
         />
@@ -110,7 +120,8 @@
             <select
                 class="sort-select"
                 bind:value={sortBy}
-                aria-label="Sort"
+                aria-label={sortLabel}
+                data-testid={sortTestid}
             >
                 {#each sortOptions as option}
                     <option value={option.value}>{option.label}</option>

@@ -10,6 +10,8 @@ export interface MemoryDraftPayload {
   load_mode?: 'auto_include' | 'ask_first' | 'mention_only';
   valid_from?: string;
   valid_until?: string;
+  /** App the memory belongs to (suggested by the server); unknown ids are ignored by the editor. */
+  app_id?: string;
   /** True when the draft creates a memory that does not exist yet. */
   is_new?: boolean;
   /** Saved document at preview time; Save reports a conflict if it changed meanwhile. */

@@ -1,4 +1,11 @@
-<!-- Compact category identity and Workflow/Runs boundary. Each node saves independently. -->
+<!--
+  Compact category identity and Workflow/Runs boundary. Each node saves independently.
+  `state` selects the header mode:
+  - 'saved': a persisted workflow; identity edits, enable toggle, tabs, run/delete/export.
+  - 'draft': an unsaved workflow; title/description inputs report through onDraftIdentity,
+    the enable toggle stays off and disabled, and Save (workflow-save-draft) persists it.
+  - 'provisional': a read-only preview (AI authoring, guest template); only Close.
+-->
 <script lang="ts">
   import { text } from '../../i18n/translations';
   import HeaderActionMenu from '../HeaderActionMenu.svelte';
@@ -7,75 +14,110 @@
   import WorkspaceReportIssueButton from '../workspace/WorkspaceReportIssueButton.svelte';
   import IconTabBar, { type IconTabItem } from '../IconTabBar.svelte';
   import { getCategoryGradientColors, getLucideIcon, getValidIconName } from '../../utils/categoryUtils';
-  let { title, description, category, icon, createdAt, nextRunAt, enabled, canEnable, canRun, lastStartedRunId = null, activeTab = 'template', saving, provisional = false, onTabChange, onToggleEnabled, onRunWorkflow, onDeleteWorkflow, onOpenHome, onOpenShare, onExport, onUpdateIdentity, onDraftIdentity }: {
-    title: string; description: string; category: string; icon: string; createdAt?: number | null; nextRunAt?: number | null;
-    enabled: boolean; canEnable: boolean; canRun: boolean; lastStartedRunId?: string | null; activeTab: 'template' | 'runs'; saving: boolean; provisional?: boolean;
-    onTabChange: (tab: 'template' | 'runs') => void; onToggleEnabled: () => void | Promise<void>; onRunWorkflow: () => void | Promise<void>; onDeleteWorkflow: () => void | Promise<void>; onOpenHome: () => void; onOpenShare: () => void; onExport: () => void; onOpenRuns: () => void; runsHref: string;
+
+  interface WorkflowDetailIdentity {
+    title: string; description: string; category: string; icon: string;
+    /** Close control. */
+    onOpenHome: () => void;
+  }
+  /** Persisted workflow header with every owner action. */
+  export interface WorkflowDetailSavedProps extends WorkflowDetailIdentity {
+    state: 'saved';
+    createdAt?: number | null; nextRunAt?: number | null;
+    enabled: boolean; canEnable: boolean; canRun: boolean; lastStartedRunId?: string | null; activeTab: 'template' | 'runs'; saving: boolean;
+    onTabChange: (tab: 'template' | 'runs') => void; onToggleEnabled: () => void | Promise<void>; onRunWorkflow: () => void | Promise<void>; onDeleteWorkflow: () => void | Promise<void>; onOpenShare: () => void; onExport: () => void; onOpenRuns: () => void; runsHref: string;
     onUpdateIdentity: (title: string, description: string) => Promise<void>;
     onDraftIdentity: (title: string, description: string) => void;
-  } = $props();
+  }
+  /** Unsaved workflow header: editable identity and Save. */
+  export interface WorkflowDetailDraftProps extends WorkflowDetailIdentity {
+    state: 'draft';
+    saving: boolean;
+    canSave: boolean;
+    onDraftIdentity: (title: string, description: string) => void;
+    onSaveDraft: () => void | Promise<void>;
+  }
+  /** Read-only preview header. */
+  export interface WorkflowDetailProvisionalProps extends WorkflowDetailIdentity {
+    state: 'provisional';
+  }
+  export type WorkflowDetailPageProps = WorkflowDetailSavedProps | WorkflowDetailDraftProps | WorkflowDetailProvisionalProps;
+
+  // The props are a union narrowed by `state`; this component is not a custom element.
+  // svelte-ignore custom_element_props_identifier
+  let props: WorkflowDetailPageProps = $props();
+  const saved = $derived(props.state === 'saved' ? props : null);
+  const draft = $derived(props.state === 'draft' ? props : null);
+  const enabled = $derived(saved?.enabled ?? false);
   let editing = $state(false); let draftTitle = $state(''); let draftDescription = $state('');
   const tr = (key: string) => $text(`workflows.builder.${key}`);
-  const Identity = $derived(getLucideIcon(getValidIconName(icon, category)));
-  const gradient = $derived(getCategoryGradientColors(category) ?? getCategoryGradientColors('general_knowledge'));
+  const Identity = $derived(getLucideIcon(getValidIconName(props.icon, props.category)));
+  const gradient = $derived(getCategoryGradientColors(props.category) ?? getCategoryGradientColors('general_knowledge'));
   const headerStyle = $derived(`--workflow-gradient-start:${gradient?.start};--workflow-gradient-end:${gradient?.end}`);
   const viewTabs = $derived<IconTabItem[]>([
     { id: 'template', label: tr('workflow'), iconClass: 'workflow-icon', testId: 'workflow-tab-template', controls: 'tabpanel-template' },
     { id: 'runs', label: tr('run_history'), iconClass: 'task-icon', testId: 'workflow-tab-runs', controls: 'tabpanel-runs' },
   ]);
-  function metadata(): string {
-    if (enabled && nextRunAt && nextRunAt > Date.now() / 1000) return `${tr('next_run')} ${new Intl.DateTimeFormat(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' }).format(new Date(nextRunAt * 1000))}`;
+  function metadata(workflow: WorkflowDetailSavedProps): string {
+    const { nextRunAt, createdAt } = workflow;
+    if (workflow.enabled && nextRunAt && nextRunAt > Date.now() / 1000) return `${tr('next_run')} ${new Intl.DateTimeFormat(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' }).format(new Date(nextRunAt * 1000))}`;
     if (!createdAt) return '';
     const minutes = Math.round((createdAt * 1000 - Date.now()) / 60000);
     return `${tr('created')} ${new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' }).format(Math.abs(minutes) < 60 ? minutes : Math.round(minutes / 1440), Math.abs(minutes) < 60 ? 'minute' : 'day')}`;
   }
-  function editIdentity(): void { draftTitle = title; draftDescription = description; editing = true; }
+  function editIdentity(): void { draftTitle = props.title; draftDescription = props.description; editing = true; }
 </script>
 
 <div class="header-toolbar" data-testid="workflow-detail-actions" use:headerOverlayControls>
-    <HeaderActionMenu resetKey={title} hasShare={!provisional} actionCount={provisional ? 0 : canRun ? 3 : 2} forceOverflow>
+    <HeaderActionMenu resetKey={props.title} hasShare={!!saved} actionCount={saved ? (saved.canRun ? 3 : 2) : 0} forceOverflow>
       {#snippet report()}<WorkspaceReportIssueButton toolbar/>{/snippet}
-      {#snippet share()}<div class="new-chat-button-wrapper"><button type="button" class="header-action" data-testid="workflow-share" aria-label={tr('share')} onclick={onOpenShare} use:tooltip><span class="clickable-icon icon_share top-button" aria-hidden="true"></span><span class="action-label">{tr('share')}</span></button></div>{/snippet}
+      {#snippet share()}<div class="new-chat-button-wrapper"><button type="button" class="header-action" data-testid="workflow-share" aria-label={tr('share')} onclick={() => saved?.onOpenShare()} use:tooltip><span class="clickable-icon icon_share top-button" aria-hidden="true"></span><span class="action-label">{tr('share')}</span></button></div>{/snippet}
       {#snippet actions()}
-        {#if !provisional}
-        <div class="new-chat-button-wrapper"><button type="button" class="header-action" data-testid="workflow-export" aria-label={tr('file_export_aria')} disabled={saving} onclick={onExport} use:tooltip><span class="clickable-icon icon_download top-button" aria-hidden="true"></span><span class="action-label">{tr('file_export_saved')}</span></button></div>
-        {#if canRun}<div class="new-chat-button-wrapper"><button type="button" class="header-action" data-testid="run-workflow" aria-label={tr('run_now')} disabled={saving} onclick={() => void onRunWorkflow()} use:tooltip><span class="workflow-icon icon-play size-20" aria-hidden="true"></span><span class="action-label">{tr('run_now')}</span></button></div>{/if}
-        <div class="new-chat-button-wrapper"><button type="button" class="header-action" data-testid="delete-workflow" aria-label={tr('delete_workflow')} disabled={saving} onclick={() => void onDeleteWorkflow()} use:tooltip><span class="clickable-icon icon_delete top-button" aria-hidden="true"></span><span class="action-label">{tr('delete_workflow')}</span></button></div>
+        {#if saved}
+        <div class="new-chat-button-wrapper"><button type="button" class="header-action" data-testid="workflow-export" aria-label={tr('file_export_aria')} disabled={saved.saving} onclick={saved.onExport} use:tooltip><span class="clickable-icon icon_download top-button" aria-hidden="true"></span><span class="action-label">{tr('file_export_saved')}</span></button></div>
+        {#if saved.canRun}<div class="new-chat-button-wrapper"><button type="button" class="header-action" data-testid="run-workflow" aria-label={tr('run_now')} disabled={saved.saving} onclick={() => void saved?.onRunWorkflow()} use:tooltip><span class="workflow-icon icon-play size-20" aria-hidden="true"></span><span class="action-label">{tr('run_now')}</span></button></div>{/if}
+        <div class="new-chat-button-wrapper"><button type="button" class="header-action" data-testid="delete-workflow" aria-label={tr('delete_workflow')} disabled={saved.saving} onclick={() => void saved?.onDeleteWorkflow()} use:tooltip><span class="clickable-icon icon_delete top-button" aria-hidden="true"></span><span class="action-label">{tr('delete_workflow')}</span></button></div>
         {/if}
       {/snippet}
-      {#snippet close()}<div class="new-chat-button-wrapper"><button type="button" class="header-action" data-testid="workflow-detail-back" aria-label={tr('back')} onclick={onOpenHome} use:tooltip><span class="clickable-icon icon_close top-button" aria-hidden="true"></span><span class="action-label">{tr('back')}</span></button></div>{/snippet}
+      {#snippet close()}<div class="new-chat-button-wrapper"><button type="button" class="header-action" data-testid="workflow-detail-back" aria-label={tr('back')} onclick={props.onOpenHome} use:tooltip><span class="clickable-icon icon_close top-button" aria-hidden="true"></span><span class="action-label">{tr('back')}</span></button></div>{/snippet}
     </HeaderActionMenu>
 </div>
-<section class="workflow-detail-header" data-testid="workspace-detail-header" data-header-system="workflow-detail" data-category={category} data-icon={getValidIconName(icon, category)} style={headerStyle}>
+<section class="workflow-detail-header" data-testid="workspace-detail-header" data-header-system="workflow-detail" data-detail-state={props.state} data-category={props.category} data-icon={getValidIconName(props.icon, props.category)} style={headerStyle}>
   <span class="kicker">{tr('workflow')}</span>
   <div class="identity">
     <div data-testid="workflow-identity-icon" aria-hidden="true"><Identity size={38}/></div>
-    {#if editing && !provisional}
-      <form onsubmit={async event => { event.preventDefault(); await onUpdateIdentity(draftTitle, draftDescription); editing = false; }}>
-        <input aria-label={tr('workflow_name')} bind:value={draftTitle} oninput={() => onDraftIdentity(draftTitle, draftDescription)} required/>
-        <input aria-label={tr('description')} bind:value={draftDescription} oninput={() => onDraftIdentity(draftTitle, draftDescription)}/>
-        <button class="save" type="submit" disabled={saving}>{tr('save')}</button>
+    {#if draft}
+      <form data-testid="workflow-draft-identity" onsubmit={event => { event.preventDefault(); void draft?.onSaveDraft(); }}>
+        <input aria-label={tr('workflow_name')} data-testid="workflow-draft-title-input" value={draft.title} oninput={event => draft?.onDraftIdentity(event.currentTarget.value, draft.description)} required/>
+        <input aria-label={tr('description')} data-testid="workflow-draft-description-input" placeholder={tr('add_description')} value={draft.description} oninput={event => draft?.onDraftIdentity(draft.title, event.currentTarget.value)}/>
+        <button class="save" type="submit" data-testid="workflow-save-draft" disabled={draft.saving || !draft.canSave}>{tr('save')}</button>
       </form>
-    {:else if provisional}
-      <h1 data-testid="workspace-detail-title">{title}</h1>
+    {:else if editing && saved}
+      <form onsubmit={async event => { event.preventDefault(); await saved?.onUpdateIdentity(draftTitle, draftDescription); editing = false; }}>
+        <input aria-label={tr('workflow_name')} bind:value={draftTitle} oninput={() => saved?.onDraftIdentity(draftTitle, draftDescription)} required/>
+        <input aria-label={tr('description')} bind:value={draftDescription} oninput={() => saved?.onDraftIdentity(draftTitle, draftDescription)}/>
+        <button class="save" type="submit" disabled={saved.saving}>{tr('save')}</button>
+      </form>
+    {:else if !saved}
+      <h1 data-testid="workspace-detail-title">{props.title}</h1>
     {:else}
-      <button type="button" class="identity-edit" onclick={editIdentity}><h1 data-testid="workspace-detail-title">{title}</h1></button>
+      <button type="button" class="identity-edit" onclick={editIdentity}><h1 data-testid="workspace-detail-title">{props.title}</h1></button>
     {/if}
-    <button type="button" class="toggle" role="switch" aria-checked={enabled} aria-label={tr('workflow_on')} data-testid="toggle-workflow" disabled={saving || (!enabled && !canEnable)} onclick={() => void onToggleEnabled()}>
+    <button type="button" class="toggle" role="switch" aria-checked={enabled} aria-label={tr('workflow_on')} data-testid="toggle-workflow" disabled={!saved || saved.saving || (!saved.enabled && !saved.canEnable)} onclick={() => void saved?.onToggleEnabled()}>
       <span class="workflow-icon icon-workflow size-16" aria-hidden="true"></span><span data-testid="workflow-enabled-state" data-enabled={enabled ? 'true' : 'false'}>{tr(enabled ? 'workflow_on' : 'workflow_off')}</span><i class:enabled></i>
     </button>
-    {#if provisional && description}<p data-testid="workspace-detail-description">{description}</p>{:else if !provisional && !editing}<button type="button" class="identity-edit description-edit" onclick={editIdentity}><p data-testid="workspace-detail-description">{description || tr('add_description')}</p></button>{/if}
+    {#if props.state === 'provisional' && props.description}<p data-testid="workspace-detail-description">{props.description}</p>{:else if saved && !editing}<button type="button" class="identity-edit description-edit" onclick={editIdentity}><p data-testid="workspace-detail-description">{props.description || tr('add_description')}</p></button>{/if}
   </div>
-  {#if !provisional}<span class="metadata" data-testid="workflow-detail-metadata">{metadata()}</span>{/if}
-  {#if lastStartedRunId}<span class="run-started" data-testid="workflow-run-started" data-run-id={lastStartedRunId}>{tr('run_started')}</span>{/if}
+  {#if saved}<span class="metadata" data-testid="workflow-detail-metadata">{metadata(saved)}</span>{/if}
+  {#if saved?.lastStartedRunId}<span class="run-started" data-testid="workflow-run-started" data-run-id={saved.lastStartedRunId}>{tr('run_started')}</span>{/if}
 </section>
-{#if !provisional}<div class="workflow-tabs">
+{#if saved}<div class="workflow-tabs">
   <IconTabBar
     items={viewTabs}
-    activeId={activeTab}
+    activeId={saved.activeTab}
     ariaLabel={tr('workflow')}
     testId="workflow-view-tabs"
-    onChange={(tab) => onTabChange(tab as 'template' | 'runs')}
+    onChange={(tab) => saved?.onTabChange(tab as 'template' | 'runs')}
   />
 </div>{/if}
 
@@ -99,6 +141,7 @@
   .workflow-tabs { display:flex; position:relative; width:max-content; margin:1.5rem auto -1.4rem; z-index:3; }
   button:disabled { opacity:.5; cursor:default; }
   .identity form { display:grid; gap:.4rem; max-width:25rem; width:100%; }
+  .identity input::placeholder { color:var(--color-font-secondary); }
   .identity input { box-sizing:border-box; width:100%; border:0; border-radius:.7rem; padding:.45rem .65rem; background:var(--color-grey-0); color:var(--color-font-primary); font:inherit; font-size:var(--font-size-p); }
   .save { justify-self:center; border:0; border-radius:.7rem; padding:.4rem 1.2rem; background:var(--color-button-primary); color:var(--color-font-button); cursor:pointer; }
   .run-started { position:absolute; bottom:2.1rem; font-size:var(--font-size-small); }

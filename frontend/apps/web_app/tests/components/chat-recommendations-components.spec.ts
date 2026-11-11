@@ -4,7 +4,8 @@
  * RecommendationsCard (category gradient, one embed preview at a time, Create/Update below
  * it, pager, busy state, no dismiss control),
  * ContextEntryEventNotice (saved-entry chat history notice with deep link) and the
- * WorkflowSidePanelView shell (side and fullscreen layouts, draft/saved/error states).
+ * WorkflowChatPaneLayout shell of the regular workflow editor opened from a chat
+ * (side and fullscreen layouts, authoring/draft/saved/error states).
  * Plan: docs/plans/chat-recommendations/plan.yml
  */
 import { expect, test } from '../helpers/cookie-audit';
@@ -131,15 +132,18 @@ test('recommendations card disables the action while a draft is prepared and sho
 test('saved-entry notice labels kind and action and links to the entry', async ({ page }) => {
 	await openPreview(page, 'ContextEntryEventNotice', 'width=680');
 	const notice = page.getByTestId('context-entry-event');
-	await expect(notice.getByTestId('context-entry-event-label')).toHaveText('Memory created: Conference day pacing');
+	await expect(notice.getByTestId('context-entry-event-label')).toHaveText('Conference day pacing');
 	await expect(notice.getByTestId('context-entry-event-open')).toBeEnabled();
-	await expect(notice.getByTestId('context-entry-event-open')).toHaveText('Open');
+	await expect(notice.getByTestId('context-entry-event-open')).toHaveAttribute('aria-label', 'Memory created: Conference day pacing');
+	await expect(notice.getByTestId('context-entry-event-open')).not.toContainText('Open');
 
 	await openPreview(page, 'ContextEntryEventNotice', 'width=680&variant=memory_updated');
-	await expect(page.getByTestId('context-entry-event-label')).toHaveText('Memory updated: Conference day pacing');
+	await expect(page.getByTestId('context-entry-event-label')).toHaveText('Conference day pacing');
+	await expect(page.getByTestId('context-entry-event-open')).toHaveAttribute('aria-label', 'Memory updated: Conference day pacing');
 
 	await openPreview(page, 'ContextEntryEventNotice', 'width=680&variant=workflow_updated');
-	await expect(page.getByTestId('context-entry-event-label')).toHaveText('Workflow updated: Weekly open source conference digest');
+	await expect(page.getByTestId('context-entry-event-label')).toHaveText('Weekly open source conference digest');
+	await expect(page.getByTestId('context-entry-event-open')).toHaveAttribute('aria-label', 'Workflow updated: Weekly open source conference digest');
 	await expect(page.getByTestId('context-entry-event-open')).toHaveAttribute('href', /workflow-id=preview-workflow/);
 
 	await openPreview(page, 'ContextEntryEventNotice', 'width=680&variant=missing');
@@ -147,46 +151,79 @@ test('saved-entry notice labels kind and action and links to the entry', async (
 	await expect(page.getByTestId('context-entry-event-open')).toHaveCount(0);
 });
 
+/** Resolve with the detail of the next window event of this name. */
+function nextPreviewEvent(page: any, name: string): Promise<unknown> {
+	return page.evaluate((eventName: string) => new Promise((resolve) =>
+		window.addEventListener(eventName, (event) => resolve((event as CustomEvent).detail ?? null), { once: true })), name);
+}
+
 // contract-test: direct surface=gui.web assertions=app-memories.suggestions.post-processor,workflows-ui.authoring.composer-and-preview
-test('workflow side panel shows an unsaved draft with save, then saved and error states', async ({ page }) => {
-	await openPreview(page, 'workflows/WorkflowSidePanelView', 'width=640');
-	const panel = page.getByTestId('workflow-side-panel');
-	await expect(panel).toHaveAttribute('data-layout', 'side');
-	await expect(panel).toHaveAttribute('data-saved', 'false');
-	await expect(panel.getByTestId('workflow-side-panel-kicker')).toHaveText('Workflow draft');
-	await expect(panel.getByTestId('workflow-side-panel-title')).toHaveValue('Weekly school weather brief');
-	await expect(panel.getByTestId('workflow-side-panel-save')).toBeEnabled();
-	await expect(panel.getByTestId('workflow-side-panel-hint')).toHaveText('Not saved yet. Review the draft, then save it.');
-	await expect(panel.getByTestId('workflow-side-panel-close')).toHaveAttribute('aria-label', 'Close workflow editor');
-	await expectInside(page, 'workflow-side-panel', 'workflow-side-panel-save');
-	// The close control is a round icon button; global button styles must not stretch it.
-	const closeBox = await panel.getByTestId('workflow-side-panel-close').boundingBox();
-	expect(Math.abs(closeBox!.width - closeBox!.height)).toBeLessThanOrEqual(2);
+test('chat workflow editor shows the regular draft editor with save, then authoring, saved and error states', async ({ page }, testInfo) => {
+	await openPreview(page, 'workflows/WorkflowChatPaneLayout', 'width=640');
+	const pane = page.getByTestId('workflow-chat-pane');
+	await expect(pane).toHaveAttribute('data-layout', 'side');
+	await expect(pane).toHaveAttribute('data-state', 'draft');
+	// The regular workflow header and editor, not a chat-only shell.
+	await expect(pane.getByTestId('workspace-detail-header')).toHaveAttribute('data-detail-state', 'draft');
+	await expect(pane.getByTestId('workflow-draft-title-input')).toHaveValue('Weekly school weather brief');
+	await expect(pane.getByTestId('workflow-save-draft')).toBeEnabled();
+	await expect(pane.getByTestId('toggle-workflow')).toBeDisabled();
+	await expect(pane.getByTestId('workflow-editor')).toBeVisible();
+	await expect(pane).not.toContainText('Not saved yet');
+	await expectInside(page, 'workflow-chat-pane', 'workflow-save-draft');
+	await expectInside(page, 'workflow-chat-pane', 'workflow-detail-back');
+	await testInfo.attach('workflow-chat-pane-draft', { body: await pane.screenshot(), contentType: 'image/png' });
+	const saved = nextPreviewEvent(page, 'workflow-preview-save-draft');
+	await pane.getByTestId('workflow-save-draft').click();
+	expect(await saved).toEqual({ title: 'Weekly school weather brief' });
+	const closed = nextPreviewEvent(page, 'workflow-preview-close');
+	await pane.getByTestId('workflow-detail-back').click();
+	await closed;
 
-	await openPreview(page, 'workflows/WorkflowSidePanelView', 'width=640&variant=authoring');
-	await expect(page.getByTestId('workflow-side-panel-save')).toBeDisabled();
+	await openPreview(page, 'workflows/WorkflowChatPaneLayout', 'width=640&variant=authoring');
+	await expect(page.getByTestId('workflow-chat-pane')).toHaveAttribute('data-state', 'authoring');
+	await expect(page.getByTestId('workspace-detail-header')).toHaveAttribute('data-detail-state', 'provisional');
+	await expect(page.getByTestId('workflow-ai-pending-preview')).toBeVisible();
+	await expect(page.getByTestId('workflow-ai-accepted-nodes')).toBeVisible();
+	await expect(page.getByTestId('workflow-ai-stop')).toBeEnabled();
+	await expect(page.getByTestId('workflow-save-draft')).toHaveCount(0);
+	await testInfo.attach('workflow-chat-pane-authoring', { body: await page.getByTestId('workflow-chat-pane').screenshot(), contentType: 'image/png' });
+	const stopped = nextPreviewEvent(page, 'workflow-preview-stop');
+	await page.getByTestId('workflow-ai-stop').click();
+	await stopped;
 
-	await openPreview(page, 'workflows/WorkflowSidePanelView', 'width=640&variant=saved');
-	await expect(page.getByTestId('workflow-side-panel')).toHaveAttribute('data-saved', 'true');
-	await expect(page.getByTestId('workflow-side-panel-hint')).toHaveText('Saved to your workflows. It stays paused until you enable it.');
+	await openPreview(page, 'workflows/WorkflowChatPaneLayout', 'width=640&variant=saved');
+	await expect(page.getByTestId('workflow-chat-pane')).toHaveAttribute('data-state', 'saved');
+	await expect(page.getByTestId('workspace-detail-title')).toHaveText('Weekly school weather brief');
+	await expect(page.getByTestId('workflow-enabled-state')).toHaveAttribute('data-enabled', 'false');
+	await expect(page.getByTestId('toggle-workflow')).toBeVisible();
+	await expect(page.getByTestId('workflow-view-tabs')).toBeVisible();
+	await expect(page.getByTestId('workflow-template-test-now')).toBeVisible();
+	await expect(page.getByTestId('workflow-save-draft')).toHaveCount(0);
+	await expect(page.getByTestId('workflow-chat-pane')).not.toContainText('Saved to your workflows');
+	await testInfo.attach('workflow-chat-pane-saved', { body: await page.getByTestId('workflow-chat-pane').screenshot(), contentType: 'image/png' });
 
-	await openPreview(page, 'workflows/WorkflowSidePanelView', 'width=640&variant=error');
-	await expect(page.getByTestId('workflow-side-panel-error')).toContainText('could not be generated');
-	await expect(page.getByTestId('workflow-side-panel-retry')).toHaveText('Try again');
+	await openPreview(page, 'workflows/WorkflowChatPaneLayout', 'width=640&variant=error');
+	await expect(page.getByTestId('workflow-chat-pane-error')).toContainText('could not be generated');
+	await expect(page.getByTestId('workflow-chat-pane-retry')).toHaveText('Try again');
+	await expect(page.getByTestId('workflow-detail-back')).toBeVisible();
+	const retried = nextPreviewEvent(page, 'workflow-preview-retry');
+	await page.getByTestId('workflow-chat-pane-retry').click();
+	await retried;
 });
 
 // contract-test: direct surface=gui.web assertions=workflows-ui.authoring.composer-and-preview
-test('workflow side panel fullscreen layout fits a phone viewport', async ({ page }) => {
-	await openPreview(page, 'workflows/WorkflowSidePanelView', 'width=390&variant=fullscreen', { width: 390, height: 844 });
-	const panel = page.getByTestId('workflow-side-panel');
-	await expect(panel).toHaveAttribute('data-layout', 'fullscreen');
-	const box = await panel.boundingBox();
+test('chat workflow editor fullscreen layout fits a phone viewport', async ({ page }, testInfo) => {
+	await openPreview(page, 'workflows/WorkflowChatPaneLayout', 'width=390&variant=fullscreen', { width: 390, height: 844 });
+	const pane = page.getByTestId('workflow-chat-pane');
+	await expect(pane).toHaveAttribute('data-layout', 'fullscreen');
+	const box = await pane.boundingBox();
 	expect(box!.width).toBeLessThanOrEqual(391);
-	await expectInside(page, 'workflow-side-panel', 'workflow-side-panel-save');
-	await expectInside(page, 'workflow-side-panel', 'workflow-side-panel-close');
-	// The editable name keeps a readable width next to the close and save controls.
-	const titleBox = await panel.getByTestId('workflow-side-panel-title').boundingBox();
+	await expectInside(page, 'workflow-chat-pane', 'workflow-save-draft');
+	await expectInside(page, 'workflow-chat-pane', 'workflow-detail-back');
+	await expectInside(page, 'workflow-chat-pane', 'workflow-draft-title-input');
+	// The editable name keeps a readable width on a phone.
+	const titleBox = await pane.getByTestId('workflow-draft-title-input').boundingBox();
 	expect(titleBox!.width).toBeGreaterThanOrEqual(120);
-	const closeBox = await panel.getByTestId('workflow-side-panel-close').boundingBox();
-	expect(Math.abs(closeBox!.width - closeBox!.height)).toBeLessThanOrEqual(2);
+	await testInfo.attach('workflow-chat-pane-phone', { body: await pane.screenshot(), contentType: 'image/png' });
 });

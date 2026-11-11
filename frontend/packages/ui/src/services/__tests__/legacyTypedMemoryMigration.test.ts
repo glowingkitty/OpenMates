@@ -35,7 +35,7 @@ vi.mock('../../stores/authStore', async () => ({ authStore: (await import('svelt
 vi.mock('../../stores/userProfile', async () => ({ userProfile: (await import('svelte/store')).writable({ user_id: 'u', encrypted_settings: 'x' }) }));
 
 import {
-  buildMemoryDocumentFromLegacy, classifyLegacyEntry, createDefaultMigrationDeps, describeLegacyType, deriveMemoryDocumentId, migrateLegacyTypedMemories,
+  applyLegacyAppIdBackfill, buildMemoryDocumentFromLegacy, classifyLegacyEntry, createDefaultMigrationDeps, describeLegacyType, deriveMemoryDocumentId, migrateLegacyTypedMemories,
   LEGACY_EXPORT_SETTINGS_KEY, type LegacyTypedEntry, type MigrationDeps,
 } from '../legacyTypedMemoryMigration';
 import { parseRuleDocument } from '../../utils/ruleDocuments';
@@ -140,5 +140,36 @@ describe('legacy typed memory migration', () => {
     const translate = (key: string) => `[T:${key}]`;
     expect(describeLegacyType(translate, 'travel', 'unknown_type')).toBe('');
     expect(describeLegacyType((key) => key, 'travel', 'unknown_type')).toBe('');
+  });
+});
+
+describe('legacy memory app_id', () => {
+  // contract-test: supporting surface=gui.web assertions=app-memories.migration.client-auto
+  it('keeps the legacy app as app_id on newly migrated documents', async () => {
+    await migrateLegacyTypedMemories(deps([travel]));
+    expect(parseRuleDocument(state.documents[0].document).app_id).toBe('travel');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=app-memories.migration.client-auto
+  it('backfills app_id once from the recovery export without touching the body', async () => {
+    const id = await deriveMemoryDocumentId('entry-1');
+    const old = '---\ntitle: "Preferred airlines: x"\nwhen_to_use: Airlines.\nload_mode: ask_first\n---\n- **Airline**: Lufthansa\n';
+    const edited = '---\ntitle: Own\napp_id: maps\n---\nBody\n';
+    const documents = [
+      { id, source: 'personal' as const, document: old },
+      { id: 'personal:edited', source: 'personal' as const, document: edited },
+    ];
+    const settings: Record<string, unknown> = { [LEGACY_EXPORT_SETTINGS_KEY]: [
+      { id: 'entry-1', app_id: 'travel', item_type: 't', item_key: 'k', value: {}, outcome: 'memory', document_id: id },
+      { id: 'entry-5', app_id: 'travel', item_type: 't', item_key: 'k', value: {}, outcome: 'memory', document_id: 'personal:edited' },
+      { id: 'entry-6', app_id: 'events', item_type: 'saved_events', item_key: 'k', value: {}, outcome: 'saved' },
+    ] };
+    expect(applyLegacyAppIdBackfill(settings, documents)).toBe(true);
+    const fields = parseRuleDocument(documents[0].document);
+    expect(fields.app_id).toBe('travel');
+    expect(fields.body).toBe(parseRuleDocument(old).body);
+    expect(documents[0].document.endsWith('---\n- **Airline**: Lufthansa\n')).toBe(true);
+    expect(documents[1].document).toBe(edited);
+    expect(applyLegacyAppIdBackfill(settings, documents)).toBe(false);
   });
 });

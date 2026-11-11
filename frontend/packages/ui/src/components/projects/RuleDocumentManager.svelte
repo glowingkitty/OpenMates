@@ -2,7 +2,7 @@
   import { untrack } from 'svelte';
   import { text } from '../../i18n/translations';
   import { defaultMemoryEditorService } from '../../services/memoryEditorService';
-  import MemoriesEditor, { type MemoryDraftSuggestion, type MemoryEditorService } from '../settings/MemoriesEditor.svelte';
+  import MemoriesEditor, { type MemoryDraftSuggestion, type MemoryEditorService, type MemoryEditorView } from '../settings/MemoriesEditor.svelte';
 
   interface Props {
     projectId: string | null;
@@ -16,6 +16,16 @@
   let { projectId, onClose, service: providedService, initialMemoryId = null, suggestion = null }: Props = $props();
   let service = $derived(providedService ?? defaultMemoryEditorService);
   let source = $state<'personal' | 'project'>(untrack(() => projectId ? 'project' : 'personal'));
+  // Projects show the list and the memory pages in place (no settings route).
+  let view = $state<MemoryEditorView>(untrack(() => initialMemoryId ? { kind: 'entry', id: initialMemoryId } : { kind: 'list' }));
+  let activeSuggestion = $state<MemoryDraftSuggestion | null>(untrack(() => suggestion));
+  function selectSource(next: 'personal' | 'project') {
+    source = next; view = { kind: 'list' }; activeSuggestion = null;
+  }
+  function navigate(next: MemoryEditorView) {
+    if (next.kind === 'list') activeSuggestion = null;
+    view = next;
+  }
 </script>
 
 <section class="rule-manager" data-testid="rule-document-manager" aria-label={$text('memories.manage')}>
@@ -25,12 +35,12 @@
   </div>
   <p>{$text('memories.guide_description')}</p>
   <div class="scope" role="group" aria-label={$text('memories.scope')}>
-    <button type="button" aria-pressed={source === 'personal'} onclick={() => source = 'personal'} data-testid="rule-scope-personal">{$text('memories.source_personal')}</button>
+    <button type="button" aria-pressed={source === 'personal'} onclick={() => selectSource('personal')} data-testid="rule-scope-personal">{$text('memories.source_personal')}</button>
     {#if projectId}
-      <button type="button" aria-pressed={source === 'project'} onclick={() => source = 'project'} data-testid="rule-scope-project">{$text('memories.source_project')}</button>
+      <button type="button" aria-pressed={source === 'project'} onclick={() => selectSource('project')} data-testid="rule-scope-project">{$text('memories.source_project')}</button>
     {/if}
   </div>
-  <MemoriesEditor {source} {projectId} {service} {initialMemoryId} {suggestion} />
+  <MemoriesEditor {source} {projectId} {service} {view} suggestion={activeSuggestion} onNavigate={navigate} />
 </section>
 
 <style>

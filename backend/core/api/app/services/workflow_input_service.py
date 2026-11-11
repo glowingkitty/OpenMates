@@ -681,6 +681,7 @@ class WorkflowInputService:
         on_event: Callable[[dict[str, Any]], None] | None = None,
         idempotency_key: str | None = None,
         source_chat_id: str | None = None,
+        source_message_id: str | None = None,
         execution_mode: Literal["saved", "run_once"] = "saved",
         return_outputs: dict[str, dict[str, str]] | None = None,
         transient_context: dict[str, Any] | None = None,
@@ -688,6 +689,8 @@ class WorkflowInputService:
     ) -> WorkflowInputSessionResult:
         if execution_mode == "run_once" and not source_chat_id:
             raise ValueError("One-time chat workflows require a source chat")
+        if source_message_id and not source_chat_id:
+            raise ValueError("A source message requires its source chat")
         started = time.perf_counter()
         resolved_vault_key_id = self._resolve_vault_key_id(user_id, vault_key_id)
         key_resolved_at = time.perf_counter()
@@ -713,6 +716,7 @@ class WorkflowInputService:
         )
         session["timezone"] = timezone
         session["source_chat_id"] = source_chat_id
+        session["source_message_id"] = source_message_id
         session["execution_mode"] = execution_mode
         session["return_outputs"] = return_outputs or {}
         # Authorized Project authoring history is provider context only. It
@@ -1682,6 +1686,11 @@ class WorkflowInputService:
             # explicit request/registry fields to Jev and Gemini.
             context["_billing_user_id"] = session["user_id"]
             context["_billing_session_id"] = session["id"]
+            # Authoring started from a chat is charged to that chat (personal
+            # sessions only; the route verified chat ownership before start).
+            if session.get("source_chat_id") and not session.get("team_id"):
+                context["_billing_source_chat_id"] = session["source_chat_id"]
+                context["_billing_source_message_id"] = session.get("source_message_id")
         if getattr(self.planner, "requires_workflow_lookup", False):
             # Keep owner credentials and library contents out of model input.
             # The NL planner invokes these only after it has classified an edit.
@@ -2102,6 +2111,7 @@ def _session_private_state(session: dict[str, Any]) -> dict[str, Any]:
         "team_id": session.get("team_id"),
         "timezone": session.get("timezone"),
         "source_chat_id": session.get("source_chat_id"),
+        "source_message_id": session.get("source_message_id"),
         "execution_mode": session.get("execution_mode", "saved"),
         "return_outputs": deepcopy(session.get("return_outputs") or {}),
         "authoring_metrics": deepcopy(session.get("authoring_metrics")),

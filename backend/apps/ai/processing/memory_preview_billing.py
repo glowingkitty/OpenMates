@@ -29,8 +29,12 @@ def priced_buckets(telemetry: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
 async def charge_preview(billing: Any, pricing_lookup: Callable[[str, str], Any], *, user_id: str, user_id_hash: str, chat_id: str,
                          operation_id: str, buckets: List[Dict[str, Any]],
-                         purpose: str = "memory_update_preview") -> int:
-    """Charge token usage to the chat. The record never contains memory or chat text."""
+                         purpose: str = "memory_update_preview", message_id: Optional[str] = None) -> int:
+    """Charge token usage to the chat. The record never contains memory or chat text.
+
+    message_id: the turn's user message id (the id a chat turn's own usage row
+    carries), so the charge also groups under that turn.
+    """
     breakdown = build_model_usage_breakdown(buckets, pricing_lookup)
     credits = breakdown["credits_charged"]
     usage_details = {
@@ -41,6 +45,8 @@ async def charge_preview(billing: Any, pricing_lookup: Callable[[str, str], Any]
         "purpose": purpose,
         "llm_usage_breakdown": breakdown,
     }
+    if message_id:
+        usage_details["message_id"] = message_id
     await billing.charge_user_credits(
         user_id=user_id, credits_to_deduct=credits, user_id_hash=user_id_hash,
         app_id="ai", skill_id=purpose, idempotency_key=operation_id,

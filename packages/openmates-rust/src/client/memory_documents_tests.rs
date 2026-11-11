@@ -10,6 +10,7 @@ fn ids(documents: &[PersonalMemoryDocument]) -> Vec<&str> {
     documents.iter().map(|d| d.id.as_str()).collect()
 }
 
+// contract-test: supporting surface=sdks.rust assertions=app-memories.lifecycle.encrypted-crud
 #[test]
 fn create_on_empty_settings_writes_the_web_record_layout() {
     let change = write_memory_plaintext(None, "personal:a", DOC, MemoryWriteMode::Create).unwrap();
@@ -24,6 +25,7 @@ fn create_on_empty_settings_writes_the_web_record_layout() {
     assert_eq!(back[0].document.as_str(), DOC);
 }
 
+// contract-test: supporting surface=sdks.rust assertions=app-memories.lifecycle.encrypted-crud
 #[test]
 fn update_keeps_unrelated_settings_and_merges_legacy_entries_like_the_web_client() {
     // A literal, not `json!`: serde_json sorts keys, and this test pins the stored order.
@@ -51,6 +53,7 @@ fn update_keeps_unrelated_settings_and_merges_legacy_entries_like_the_web_client
     assert_eq!(back[0].document.as_str(), DOC2);
 }
 
+// contract-test: supporting surface=sdks.rust assertions=app-memories.lifecycle.encrypted-crud
 #[test]
 fn delete_removes_the_id_from_both_keys_and_returns_its_document() {
     let settings = json!({"rule_documents":[{"id":"personal:a","document":DOC}],
@@ -70,6 +73,7 @@ fn delete_removes_the_id_from_both_keys_and_returns_its_document() {
     ));
 }
 
+// contract-test: supporting surface=sdks.rust assertions=app-memories.lifecycle.encrypted-crud
 #[test]
 fn refuses_missing_existing_invalid_and_oversized_writes_with_web_codes() {
     let one = json!({"memory_documents":[{"id":"personal:a","document":DOC}]}).to_string();
@@ -111,12 +115,25 @@ fn refuses_missing_existing_invalid_and_oversized_writes_with_web_codes() {
     );
 }
 
+// contract-test: supporting surface=sdks.rust assertions=app-memories.document.canonical-shape
 #[test]
 fn server_canonical_documents_are_accepted() {
     // Shape of backend memory_document.build_memory_document (yaml.safe_dump).
     let document = "---\ntitle: 'Job search: profile'\nwhen_to_use: Use for CVs.\nload_mode: ask_first\nvalid_until: '2027-01-31'\n---\n\n- Rust\n- Berlin\n";
     validate_memory_document(document).unwrap();
     validate_memory_document(&format!("\u{FEFF}{document}")).unwrap();
+}
+
+// contract-test: supporting surface=sdks.rust assertions=app-memories.document.canonical-shape,app-memories.compatibility.legacy-documents
+#[test]
+fn accepts_optional_timestamp_and_app_metadata() {
+    let document = "---\ntitle: Trip\ncreated_at: 1700000000\nupdated_at: 1700000500\napp_id: travel\n---\nBody\n";
+    validate_memory_document(document).unwrap();
+    let duplicate = "---\ntitle: Trip\napp_id: travel\napp_id: maps\n---\nBody\n";
+    assert_eq!(
+        validate_memory_document(duplicate).err().map(|e| e.code()),
+        Some("invalid_rule_document")
+    );
 }
 
 // contract-test: supporting surface=sdks.rust assertions=sdk.encryption.local-only

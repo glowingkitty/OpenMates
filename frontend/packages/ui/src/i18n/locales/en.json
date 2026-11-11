@@ -15743,7 +15743,7 @@
       "text": "When to use"
     },
     "practices": {
-      "text": "Memory (Markdown)"
+      "text": "Memory"
     },
     "empty": {
       "text": "No Memories saved here yet."
@@ -15909,6 +15909,33 @@
     },
     "body_placeholder": {
       "text": "Write the Memory. Paste an embed from a chat to include it."
+    },
+    "create": {
+      "text": "Create memory"
+    },
+    "create_title": {
+      "text": "New memory"
+    },
+    "sort_recently_modified": {
+      "text": "Most recently modified"
+    },
+    "sort_recently_added": {
+      "text": "Recently added"
+    },
+    "sort_title": {
+      "text": "Title A–Z"
+    },
+    "sort_label": {
+      "text": "Sort memories"
+    },
+    "modified_on": {
+      "text": "Modified {date}"
+    },
+    "app": {
+      "text": "App"
+    },
+    "app_none": {
+      "text": "None"
     }
   },
   "metadata": {
@@ -27949,35 +27976,14 @@
       }
     },
     "side_panel": {
-      "kicker_draft": {
-        "text": "Workflow draft"
-      },
-      "kicker_saved": {
-        "text": "Workflow"
-      },
-      "title_label": {
-        "text": "Workflow name"
-      },
       "close": {
         "text": "Close workflow editor"
-      },
-      "save": {
-        "text": "Save workflow"
-      },
-      "saving": {
-        "text": "Saving…"
       },
       "generating": {
         "text": "Generating the workflow draft…"
       },
       "loading": {
         "text": "Loading the workflow…"
-      },
-      "unsaved_hint": {
-        "text": "Not saved yet. Review the draft, then save it."
-      },
-      "saved_hint": {
-        "text": "Saved to your workflows. It stays paused until you enable it."
       },
       "load_failed": {
         "text": "The workflow could not be loaded. Please try again."

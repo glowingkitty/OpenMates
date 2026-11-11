@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildWholeDocumentPatch, isMemoryActive, isMemoryExpired, parseRuleDocument, serializeRuleDocument, validateRuleCatalog } from '../ruleDocuments';
+import { buildWholeDocumentPatch, isMemoryActive, isMemoryExpired, parseRuleDocument, serializeRuleDocument, stampMemorySave, validateRuleCatalog } from '../ruleDocuments';
 import { applyProjectFilePatch } from '../projectFilePatch';
 
 const guide = '---\ntitle: Python practices\ndescription: Reliable services.\nwhen_to_use: Writing Python.\n---\n- Release resources.\n- Preserve cancellation.\n';
@@ -98,5 +98,30 @@ describe('encrypted Project document patch', () => {
     const path = '.openmates/rules/guide.md';
     const patch = buildWholeDocumentPatch(original, updated, path);
     expect(applyProjectFilePatch(original, patch, path).content).toBe(updated);
+  });
+});
+
+describe('Memory display metadata', () => {
+  // contract-test: supporting surface=gui.web assertions=app-memories.document.canonical-shape,app-memories.compatibility.legacy-documents
+  it('round-trips created_at, updated_at and app_id and keeps old documents unchanged', () => {
+    const fields = { ...parseRuleDocument(guide), created_at: 1_700_000_000, updated_at: 1_700_000_500, app_id: 'travel' };
+    const document = serializeRuleDocument(fields);
+    expect(parseRuleDocument(document)).toEqual(fields);
+    expect(parseRuleDocument(document).body).not.toContain('created_at');
+    expect(parseRuleDocument(guide)).not.toHaveProperty('created_at');
+    expect(parseRuleDocument(guide)).not.toHaveProperty('app_id');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=app-memories.document.canonical-shape
+  it.each(['created_at: soon', 'updated_at: -4', 'created_at: 1.5', 'app_id: 12', 'app_id: ""'])('rejects malformed metadata %s', (line) => {
+    expect(() => parseRuleDocument(guide.replace('title: Python practices', `title: Python practices\n${line}`))).toThrow();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=app-memories.document.canonical-shape
+  it('keeps the first save time and moves the update time on every save', () => {
+    const base = parseRuleDocument(guide);
+    const first = stampMemorySave(base, null, 100);
+    expect(first).toMatchObject({ created_at: 100, updated_at: 100 });
+    expect(stampMemorySave({ ...first, title: 'Renamed' }, first, 250)).toMatchObject({ created_at: 100, updated_at: 250 });
   });
 });

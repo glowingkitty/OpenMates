@@ -110,10 +110,12 @@
   }
 
   async function openWorkflow(item: ChatRecommendation): Promise<void> {
-    const instruction = buildWorkflowInstruction(item, await loadRecommendationTurn(chatId));
+    const turn = await loadRecommendationTurn(chatId);
+    const instruction = buildWorkflowInstruction(item, turn);
     openWorkflowSidePanel({
       chatId, recommendationId: item.id, mode: item.action,
       workflowId: item.action === 'update' ? item.target_id : null, instruction,
+      ...(turn.messageId ? { sourceMessageId: turn.messageId } : {}),
     });
   }
 

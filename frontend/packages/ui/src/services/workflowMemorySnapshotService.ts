@@ -11,7 +11,19 @@ import { workflowWorkspaceStore, type WorkflowGraph } from '../stores/workflowWo
 const PERSONAL_PREFIX = 'personal:';
 const toMentionId = (documentId: string): string => documentId.replace(PERSONAL_PREFIX, '');
 
-export interface MentionableMemory { id: string; title: string }
+export interface MentionableMemory { id: string; title: string; /** Unix seconds of the latest save, when the document records it. */ updatedAt?: number }
+
+/**
+ * Display order for the mention picker: memories with a save time first (newest first), then the
+ * rest in reverse stored order (newest stored first). Pure; does not mutate the input.
+ */
+export function sortMemoriesByRecency<T extends { updatedAt?: number }>(memories: readonly T[]): T[] {
+  const dated = memories.map((memory, index) => ({ memory, index })).filter(entry => typeof entry.memory.updatedAt === 'number');
+  const undated = memories.map((memory, index) => ({ memory, index })).filter(entry => typeof entry.memory.updatedAt !== 'number');
+  dated.sort((a, b) => (b.memory.updatedAt as number) - (a.memory.updatedAt as number) || b.index - a.index);
+  undated.sort((a, b) => b.index - a.index);
+  return [...dated, ...undated].map(entry => entry.memory);
+}
 
 async function contentRevision(document: string): Promise<string> {
   const bytes = new TextEncoder().encode(document);
@@ -31,11 +43,13 @@ export function createPersonalMemoryReader(): MemoryReader {
 
 /** Personal memories the author can mention; expired ones are excluded. */
 export async function listMentionableMemories(now = Date.now()): Promise<MentionableMemory[]> {
-  return (await listPersonalRuleDocuments()).flatMap(item => {
+  const entries = (await listPersonalRuleDocuments()).flatMap((item): MentionableMemory[] => {
     const fields = parseRuleDocument(item.document);
     if (fields.valid_until && now > Date.parse(fields.valid_until)) return [];
-    return [{ id: toMentionId(item.id), title: fields.title }];
+    const updatedAt = typeof fields.updated_at === 'number' ? fields.updated_at : undefined;
+    return [{ id: toMentionId(item.id), title: fields.title, ...(updatedAt === undefined ? {} : { updatedAt }) }];
   });
+  return sortMemoriesByRecency(entries);
 }
 
 /** Save path: snapshot every mentioned memory into the graph before it is persisted to the Vault. */

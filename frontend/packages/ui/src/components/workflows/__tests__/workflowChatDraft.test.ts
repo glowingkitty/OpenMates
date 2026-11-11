@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { WorkflowDetail, WorkflowGraph } from '../../../stores/workflowWorkspaceStore';
 import type { WorkflowAcceptedPreview, WorkflowInputSession } from '../../../services/workflowInputService';
 import type { WorkflowSidePanelRequest } from '../../../stores/workflowSidePanelStore';
-import { draftFromSession, draftFromWorkflow, previewFromStreamEvent, saveTarget, shouldStartAuthoring } from '../workflowSidePanelDraft';
+import { draftFromSession, draftFromWorkflow, previewFromStreamEvent, saveTarget, shouldStartAuthoring } from '../workflowChatDraft';
 
 const graph: WorkflowGraph = {
   version: 2,

@@ -1255,6 +1255,72 @@ def test_stream_route_emits_provisional_preview_and_final_session() -> None:
     assert service.list_workflows("alice") == []
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.provisional-validation,workflows-ui.authoring.composer-and-preview
+def test_input_routes_owner_check_the_source_chat_before_paid_authoring() -> None:
+    from types import SimpleNamespace
+
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from backend.core.api.app.routes.workflows import (
+        ensure_workflows_enabled, get_current_user_or_api_key, get_workflow_input_service, limiter, router,
+    )
+    from backend.core.api.app.services.workflow_input_service import WorkflowInputSessionResult
+
+    starts: list[dict[str, Any]] = []
+    ownership_checks: list[tuple[str, str]] = []
+
+    class SessionService:
+        def start(self, *args: Any, **kwargs: Any) -> WorkflowInputSessionResult:
+            del args
+            starts.append(kwargs)
+            return WorkflowInputSessionResult(session_id="session-1", status="needs_clarification", event_cursor=0)
+
+    class Chats:
+        async def check_chat_ownership(self, chat_id: str, user_id: str) -> bool:
+            ownership_checks.append((chat_id, user_id))
+            return chat_id == "own-chat"
+
+    class Teams:
+        async def require_team_role(self, *args: Any) -> None:
+            return None
+
+    app = FastAPI()
+    app.state.limiter = limiter
+    app.state.directus_service = SimpleNamespace(chat=Chats(), team=Teams())
+    app.include_router(router)
+    app.dependency_overrides[ensure_workflows_enabled] = lambda: None
+    app.dependency_overrides[get_current_user_or_api_key] = lambda: SimpleNamespace(id="alice", vault_key_id=None)
+    app.dependency_overrides[get_workflow_input_service] = lambda: SessionService()
+
+    with TestClient(app) as client:
+        for path in ("/v1/workflows/input", "/v1/workflows/input/stream"):
+            foreign = client.post(path, json={"text": "Rain workflow", "source_chat_id": "someone-elses-chat"})
+            assert foreign.status_code == 404 and foreign.json()["detail"] == "Chat not found"
+            assert starts == []
+            owned = client.post(path, json={"text": "Rain workflow", "source_chat_id": "own-chat",
+                                            "source_message_id": "own-chat-turn-1"})
+            assert owned.status_code == 200
+            assert starts[-1]["source_chat_id"] == "own-chat"
+            assert starts[-1]["source_message_id"] == "own-chat-turn-1"
+            starts.clear()
+        # No chat: no ownership lookup and no chat link (workflows workspace authoring).
+        ownership_checks.clear()
+        assert client.post("/v1/workflows/input", json={"text": "Rain workflow"}).status_code == 200
+        assert ownership_checks == [] and starts[-1]["source_chat_id"] is None
+        # Team authoring is owner-checked but never linked to a member's personal chat.
+        team = client.post("/v1/workflows/input?team_id=team-1",
+                           json={"text": "Rain workflow", "source_chat_id": "own-chat"})
+        assert team.status_code == 200 and ownership_checks == [("own-chat", "alice")]
+        assert starts[-1]["source_chat_id"] is None and starts[-1]["source_message_id"] is None
+        # A message id needs its chat; an over-long chat id is refused before any lookup.
+        assert client.post("/v1/workflows/input", json={"text": "Rain workflow",
+                                                        "source_message_id": "turn"}).status_code == 422
+        assert client.post("/v1/workflows/input", json={"text": "Rain workflow",
+                                                        "source_chat_id": "c" * 65}).status_code == 422
+        assert ownership_checks == [("own-chat", "alice")]
+
+
 # contract-test: supporting surface=rest_api assertions=workflows-ui.authoring.composer-and-preview
 def test_session_routes_serialize_nested_graph_edges_with_public_aliases() -> None:
     import json

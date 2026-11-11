@@ -27,7 +27,9 @@ pub const MAX_DOCUMENTS: usize = 24;
 pub const MAX_CATALOG_CHARS: usize = 64_000;
 const MAX_BODY_CHARS: usize = 20_000;
 const MAX_ID_CHARS: usize = 240;
-const HEADER_KEYS: [&str; 7] = [
+// `created_at`/`updated_at` (unix seconds) and `app_id` are optional display
+// metadata the web editor writes; old documents without them stay valid.
+const HEADER_KEYS: [&str; 10] = [
     "title",
     "description",
     "when_to_use",
@@ -35,6 +37,9 @@ const HEADER_KEYS: [&str; 7] = [
     "valid_from",
     "valid_until",
     "references",
+    "created_at",
+    "updated_at",
+    "app_id",
 ];
 const SETTINGS_ROUTE: &str = "/v1/settings/encrypted-account";
 

@@ -38,9 +38,16 @@ class WorkflowAuthoringBillingError(RuntimeError):
 class WorkflowAuthoringBilling:
     def __init__(self, *, user_id: str, session_id: str,
                  config_manager: Any = None, app_id: str = APP_ID, skill_id: str = SKILL_ID,
-                 team_id: str | None = None, team_precheck: Any = None) -> None:
+                 team_id: str | None = None, team_precheck: Any = None,
+                 source_chat_id: str | None = None, source_message_id: str | None = None) -> None:
         if not user_id or not session_id:
             raise WorkflowAuthoringBillingError("WORKFLOW_AUTHORING_BILLING_INVALID_CONTEXT")
+        # A chat link is only for personal charges started from that (owner-checked)
+        # chat; a team ledger never carries a member's personal chat.
+        if (source_message_id and not source_chat_id) or (source_chat_id and team_id):
+            raise WorkflowAuthoringBillingError("WORKFLOW_AUTHORING_BILLING_INVALID_CONTEXT")
+        self.source_chat_id = source_chat_id or None
+        self.source_message_id = source_message_id or None
         self.user_id = user_id
         self.session_id = session_id
         self.user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
@@ -154,8 +161,14 @@ class WorkflowAuthoringBilling:
             jev_server if model == JEV_MODEL else
             ("Inception", "US") if model == MERCURY_MODEL else ("Google AI Studio", "US")
         )
+        # Without a chat the charge stays "direct". With one, the usage row
+        # carries chat_id (and the turn's message_id, as a chat turn does) and
+        # the billing service resolves source "chat", like a memory draft.
+        chat_link = ({"source": "chat", "chat_id": self.source_chat_id,
+                      **({"message_id": self.source_message_id} if self.source_message_id else {})}
+                     if self.source_chat_id else {"source": "direct"})
         details = {
-            "source": "direct",
+            **chat_link,
             "operation_id": operation_id,
             "model_used": model,
             "server_provider": server_provider,

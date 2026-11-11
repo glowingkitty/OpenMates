@@ -105,3 +105,19 @@ def test_invalid_canonical_fields_are_rejected(old, new):
 def test_public_app_memory_rejects_private_only_fields():
     with pytest.raises(ValueError):
         parse_memory_md(CANONICAL, memory_id="app:code:x", source="app", app_id="code")
+
+# contract-test: supporting surface=rest_api assertions=app-memories.document.canonical-shape,app-memories.compatibility.legacy-documents
+def test_display_metadata_is_accepted_and_never_reaches_the_body_or_prompt():
+    document = CANONICAL.replace("title: Trip\n", "title: Trip\ncreated_at: 1700000000\nupdated_at: 1700000500\napp_id: travel\n")
+    memory = parse_memory_md(document, memory_id="p:1", source="personal")
+    assert memory.app_id is None
+    prompt = memories_prompt([memory])
+    for leaked in ("created_at", "updated_at", "1700000500", "app_id"):
+        assert leaked not in memory.body and leaked not in prompt
+
+
+# contract-test: supporting surface=rest_api assertions=app-memories.document.canonical-shape
+@pytest.mark.parametrize("extra", ["created_at: soon\n", "updated_at: -1\n", "created_at: true\n", "app_id: 12\n", "app_id: ''\n"])
+def test_malformed_display_metadata_is_rejected(extra):
+    with pytest.raises(ValueError):
+        parse_memory_md(CANONICAL.replace("title: Trip\n", f"title: Trip\n{extra}"), memory_id="p:1", source="personal")

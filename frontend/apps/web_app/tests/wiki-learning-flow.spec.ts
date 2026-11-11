@@ -127,7 +127,9 @@ test('wiki actions save one encrypted Study interest and submit in the same chat
   await recordDraftCheckpoint(page, 'study-editor-open');
   await expect(page.getByTestId('rule-body')).toHaveText(new RegExp(sourceUrl));
   await page.getByTestId('memory-delete').click();
-  await expect(page.getByTestId('rule-title')).not.toHaveValue(`Study interest: ${title}`);
+  // Delete returns to the Memories list, which no longer shows the study memory.
+  await expect(page.getByTestId('memories-editor')).toHaveAttribute('data-page', 'list');
+  await expect(page.getByTestId('memory-row').filter({ hasText: `Study interest: ${title}` })).toHaveCount(0);
   await recordDraftCheckpoint(page, 'study-editor-cleanup');
   await returnToChatWorkspace(page, originalUrl);
   await recordDraftCheckpoint(page, 'chat-reopened');

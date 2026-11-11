@@ -7,8 +7,8 @@ vi.mock('../../config/api', () => ({ getApiEndpoint: (path: string) => `https://
 
 import {
   NETWORK_RETRY_DELAY_MS, NEW_MEMORY_DRAFT_ID, RECOMMENDATION_DRAFT_WIRE, RecommendationDraftError, buildWorkflowInstruction,
-  latestTurn, newMemoryDraft, parseUpdatePreviewResponse, previewMessageText, requestCreateMemoryDraft,
-  requestUpdatePreview, toPreviewMessages, updateMemoryDraft,
+  latestTurn, newMemoryDraft, parseCreateDraftResponse, parseUpdatePreviewResponse, previewMessageText, requestCreateMemoryDraft,
+  latestTurnMessageId, loadRecommendationTurn, requestUpdatePreview, toPreviewMessages, updateMemoryDraft,
 } from '../recommendationDrafts';
 import { chatDB } from '../db';
 import { listPersonalRuleDocuments } from '../ruleDocumentService';
@@ -169,8 +169,57 @@ describe('recommendation memory drafts', () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=app-memories.suggestions.post-processor
+  it('puts the app chosen by the create-draft response into the draft and drops malformed ids', async () => {
+    const generated = serializeRuleDocument({ title: 'Trips', when_to_use: 'travel', body: 'Window seat', load_mode: 'ask_first' });
+    expect(parseCreateDraftResponse({ body: generated, app_id: 'travel' })).toEqual({ body: generated, app_id: 'travel' });
+    expect(parseCreateDraftResponse({ body: generated, app_id: 'Not An App' })).toEqual({ body: generated });
+    expect(parseCreateDraftResponse({ body: generated, app_id: null })).toEqual({ body: generated });
+    vi.mocked(chatDB.getMessagesForChat).mockResolvedValue(turnMessages as never);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ body: generated, app_id: 'travel' }), { status: 200 }));
+    const draft = await requestCreateMemoryDraft('chat-1', { title: 'Trips', summary: 'seat' });
+    expect(draft).toMatchObject({ id: NEW_MEMORY_DRAFT_ID, title: 'Trips', app_id: 'travel', is_new: true });
+    expect(newMemoryDraft({ body: generated })).not.toHaveProperty('app_id');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=app-memories.suggestions.post-processor
   it('reports a missing memory as a typed error', async () => {
     vi.mocked(listPersonalRuleDocuments).mockResolvedValue([]);
     await expect(requestUpdatePreview('c', 'missing')).rejects.toMatchObject({ code: 'memory_not_found' });
+  });
+});
+
+describe('recommendation turn billing link', () => {
+  beforeEach(() => { vi.restoreAllMocks(); });
+
+  const linkedTurn = [
+    { role: 'user', content: 'Find open source conferences', created_at: 1, message_id: 'chat1-u1' },
+    { role: 'assistant', content: 'FOSDEM is in Brussels.', created_at: 2, message_id: 'chat1-a1', user_message_id: 'chat1-u1' },
+    { role: 'user', content: 'Which ones are in Germany?', created_at: 4, message_id: 'chat1-u2' },
+    { role: 'assistant', content: 'FrOSCon in Sankt Augustin.', created_at: 5, message_id: 'chat1-a2' },
+  ];
+
+  // contract-test: supporting surface=gui.web assertions=app-memories.suggestions.billing
+  it('picks the user message id of the latest turn, as a chat turn usage row does', async () => {
+    expect(latestTurnMessageId(linkedTurn)).toBe('chat1-u2');
+    expect(latestTurnMessageId([...linkedTurn.slice(0, 3), { ...linkedTurn[3], user_message_id: 'chat1-linked' }])).toBe('chat1-linked');
+    expect(latestTurnMessageId([{ role: 'user', content: 'only a question', created_at: 1, message_id: 'u' }])).toBeUndefined();
+    vi.mocked(chatDB.getMessagesForChat).mockResolvedValue(linkedTurn as never);
+    expect(await loadRecommendationTurn('chat-1')).toEqual({
+      userMessage: 'Which ones are in Germany?', assistantResponse: 'FrOSCon in Sankt Augustin.', messageId: 'chat1-u2',
+    });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=app-memories.suggestions.billing
+  it('sends message_id with both billed draft requests when the turn is known', async () => {
+    vi.mocked(chatDB.getMessagesForChat).mockResolvedValue(linkedTurn as never);
+    vi.mocked(listPersonalRuleDocuments).mockResolvedValue([{ id: 'personal:1', source: 'personal', document: memoryDocument }]);
+    const generated = serializeRuleDocument({ title: 'Conferences', when_to_use: 'events', body: 'Likes FOSDEM', load_mode: 'ask_first' });
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({ body: generated }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: 'unchanged' }), { status: 200 }));
+    await requestCreateMemoryDraft('chat-1', { title: 'Conferences', summary: 'events' });
+    await requestUpdatePreview('chat-1', '1');
+    const bodies = fetchSpy.mock.calls.map(call => JSON.parse(String((call[1] as RequestInit).body)));
+    expect(bodies.map(body => body.message_id)).toEqual(['chat1-u2', 'chat1-u2']);
   });
 });

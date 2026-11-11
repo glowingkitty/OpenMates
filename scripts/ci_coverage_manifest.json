@@ -342,6 +342,8 @@
         "components/composer-ghost-suggestion.spec.ts",
         "components/workflow-prompt-composer.spec.ts",
         "components/workflow-run-provenance.spec.ts",
+        "components/settings-memories-list.spec.ts",
+        "components/workflow-memory-picker.spec.ts",
         "components/workflow-detail-tabs.spec.ts",
         "components/workflow-sidebar.spec.ts",
         "components/workflow-binding-review.spec.ts",

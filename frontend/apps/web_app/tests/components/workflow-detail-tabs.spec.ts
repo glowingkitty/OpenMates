@@ -2,19 +2,27 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- Existing Playwright helpers expose CommonJS exports. */
 export {};
 
-import type { Page } from '@playwright/test';
+import type { Page, TestInfo } from '@playwright/test';
 import { waitForComponentPreview } from '../helpers/component-preview';
 
 const { expect, test } = require('../helpers/cookie-audit');
 
-const preview = (variant?: string) =>
-	`/dev/preview/workflows/WorkflowDetailPage?${new URLSearchParams({
+const previewOf = (component: string, variant?: string, width = '430') =>
+	`/dev/preview/workflows/${component}?${new URLSearchParams({
 		theme: 'light',
 		background: '#dbeafe',
-		width: '430',
+		width,
 		chrome: '0',
 		...(variant ? { variant } : {})
 	})}`;
+const preview = (variant?: string) => previewOf('WorkflowDetailPage', variant);
+
+/** Resolve with the detail of the next window event of this name. */
+const nextPreviewEvent = <T>(page: Page, name: string) =>
+	page.evaluate((eventName) => new Promise<T>(resolve =>
+		window.addEventListener(eventName, (event) => resolve((event as CustomEvent<T>).detail), { once: true })), name);
+
+const SAVED_ONLY_TEST_IDS = ['workflow-view-tabs', 'workflow-detail-metadata', 'workflow-export', 'delete-workflow', 'run-workflow', 'workflow-share'];
 
 test.describe('Workflow detail tabs', () => {
 	for (const theme of ['light', 'dark']) {
@@ -119,4 +127,68 @@ test.describe('Workflow detail tabs', () => {
 		expect(iconBox!.height).toBe(20);
 		await expect(pill).toHaveCSS('background-image', /linear-gradient/);
 	});
+	// contract-test: supporting surface=gui.web assertions=workflows-ui.detail.stable-visual-header
+	test('draft header edits the identity, keeps the workflow off and saves through Save', async ({ page }: { page: Page }, testInfo: TestInfo) => {
+		await page.setViewportSize({ width: 430, height: 844 });
+		await page.goto(preview('draft'), { waitUntil: 'domcontentloaded' });
+		await waitForComponentPreview(page);
+		const header = page.getByTestId('workspace-detail-header');
+		await expect(header).toHaveAttribute('data-detail-state', 'draft');
+		await expect(page.getByTestId('workflow-draft-title-input')).toHaveValue('Weekly AI events');
+		await expect(page.getByTestId('workflow-draft-description-input')).toHaveValue('Find useful AI events every week.');
+		await expect(page.getByTestId('toggle-workflow')).toBeDisabled();
+		await expect(page.getByTestId('toggle-workflow')).toHaveAttribute('aria-checked', 'false');
+		await expect(page.getByTestId('workflow-enabled-state')).toHaveAttribute('data-enabled', 'false');
+		for (const id of SAVED_ONLY_TEST_IDS) await expect(page.getByTestId(id)).toHaveCount(0);
+		await expect(page.getByTestId('workflow-save-draft')).toBeEnabled();
+		await testInfo.attach('workflow-detail-draft-header', { body: await header.screenshot(), contentType: 'image/png' });
+
+		const identity = nextPreviewEvent<{ title: string; description: string }>(page, 'workflow-preview-draft-identity');
+		await page.getByTestId('workflow-draft-title-input').fill('Weekly AI meetups');
+		expect(await identity).toEqual({ title: 'Weekly AI meetups', description: 'Find useful AI events every week.' });
+		await page.getByTestId('workflow-draft-title-input').focus();
+		await testInfo.attach('workflow-detail-draft-header-editing', { body: await header.screenshot(), contentType: 'image/png' });
+
+		const saved = nextPreviewEvent(page, 'workflow-preview-save-draft');
+		await page.getByTestId('workflow-save-draft').click();
+		await saved;
+		const closed = nextPreviewEvent(page, 'workflow-preview-close');
+		await page.getByTestId('workflow-detail-back').click();
+		await closed;
+	});
+	// contract-test: supporting surface=gui.web assertions=workflows-ui.detail.stable-visual-header
+	test('editor pane shows an unsaved draft with Save and no saved-workflow actions', async ({ page }: { page: Page }, testInfo: TestInfo) => {
+		await page.setViewportSize({ width: 900, height: 1000 });
+		await page.goto(previewOf('WorkflowEditorPane', 'draft', '900'), { waitUntil: 'domcontentloaded' });
+		const canvas = await waitForComponentPreview(page);
+		await expect(page.getByTestId('workspace-detail-header')).toHaveAttribute('data-detail-state', 'draft');
+		await expect(page.getByTestId('workflow-draft-title-input')).toHaveValue('Weekly school weather brief');
+		await expect(page.getByTestId('workflow-template-panel')).toBeVisible();
+		await expect(page.getByTestId('workflow-editor')).toBeVisible();
+		await expect(page.getByTestId('workflow-template-test-now')).toHaveCount(0);
+		await expect(page.getByTestId('workflow-version-selector')).toHaveCount(0);
+		await expect(page.getByTestId('toggle-workflow')).toBeDisabled();
+		for (const id of SAVED_ONLY_TEST_IDS) await expect(page.getByTestId(id)).toHaveCount(0);
+		await testInfo.attach('workflow-editor-pane-draft', { body: await canvas.screenshot(), contentType: 'image/png' });
+
+		const saved = nextPreviewEvent<{ title: string }>(page, 'workflow-preview-save-draft');
+		await page.getByTestId('workflow-save-draft').click();
+		expect(await saved).toEqual({ title: 'Weekly school weather brief' });
+	});
+	for (const [variant, enabled] of [['saved', 'false'], ['saved-enabled', 'true']] as const) {
+		// contract-test: supporting surface=gui.web assertions=workflows-ui.detail.shared-template-runs-tabs
+		test(`editor pane shows the ${variant} workflow with tabs, enable state and Test now`, async ({ page }: { page: Page }, testInfo: TestInfo) => {
+			await page.setViewportSize({ width: 900, height: 1000 });
+			await page.goto(previewOf('WorkflowEditorPane', variant, '900'), { waitUntil: 'domcontentloaded' });
+			const canvas = await waitForComponentPreview(page);
+			await expect(page.getByTestId('workspace-detail-header')).toHaveAttribute('data-detail-state', 'saved');
+			await expect(page.getByTestId('workspace-detail-title')).toHaveText('Weekly school weather brief');
+			await expect(page.getByTestId('workflow-enabled-state')).toHaveAttribute('data-enabled', enabled);
+			await expect(page.getByTestId('workflow-view-tabs')).toBeVisible();
+			await expect(page.getByTestId('workflow-save-draft')).toHaveCount(0);
+			await expect(page.getByTestId('workflow-template-panel')).toBeVisible();
+			await expect(page.getByTestId('workflow-template-test-now')).toBeVisible();
+			await testInfo.attach(`workflow-editor-pane-${variant}`, { body: await canvas.screenshot(), contentType: 'image/png' });
+		});
+	}
 });

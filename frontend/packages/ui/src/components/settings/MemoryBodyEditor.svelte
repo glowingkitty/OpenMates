@@ -95,8 +95,9 @@
 <div class="memory-body-editor" class:disabled bind:this={element}></div>
 
 <style>
-  .memory-body-editor { min-width: 0; border: 1px solid var(--color-grey-25); border-radius: 0.8rem; background: var(--color-grey-10); text-align: start; }
-  .memory-body-editor :global(.tiptap) { min-height: 9rem; padding: var(--spacing-5) var(--spacing-6); outline: 0; caret-color: var(--color-font-primary); overflow-wrap: anywhere; }
+  /* Same surface as SettingsTextarea, so the editor reads as one more settings field. */
+  .memory-body-editor { min-width: 0; margin: 0 0.625rem; border: none; border-radius: 1.5rem; background: var(--color-grey-0); box-shadow: 0 0.25rem 0.25rem rgba(0, 0, 0, 0.1); text-align: start; }
+  .memory-body-editor :global(.tiptap) { min-height: 9rem; padding: 1.0625rem 1.4375rem; outline: 0; caret-color: var(--color-font-primary); overflow-wrap: anywhere; }
   .memory-body-editor :global(.tiptap p) { margin: 0; min-height: 1.4em; }
   .memory-body-editor :global(.tiptap p.is-editor-empty:first-child::before) { content: attr(data-placeholder); float: inline-start; height: 0; color: var(--color-font-tertiary); pointer-events: none; }
   .memory-body-editor:focus-within { box-shadow: 0 0 0 0.125rem var(--color-primary-start); }

@@ -43,13 +43,19 @@ export interface UpdatePreviewRequestBody {
   memory_id: string;
   memory_markdown: string;
   messages: UpdatePreviewMessage[];
+  /** The turn's user message id, when known (see RecommendationTurn.messageId). */
+  message_id?: string;
 }
 
 /** body is the full updated canonical Markdown document. */
 export type UpdatePreviewResult = { status: 'updated'; body: string } | { status: 'unchanged' };
 
-/** The previous user message and the last assistant response, decrypted on this device. */
-export interface RecommendationTurn { userMessage: string; assistantResponse: string }
+/**
+ * The previous user message and the last assistant response, decrypted on this device.
+ * messageId: the turn's user message id (the id a chat turn's own usage row carries), so
+ * the server bills a draft or workflow authoring to that turn. Absent when unknown.
+ */
+export interface RecommendationTurn { userMessage: string; assistantResponse: string; messageId?: string }
 
 const nonEmpty = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0;
 
@@ -85,13 +91,34 @@ export function latestTurn(messages: UpdatePreviewMessage[]): RecommendationTurn
   };
 }
 
-async function chatPreviewMessages(chatId: string): Promise<UpdatePreviewMessage[]> {
+type TurnSourceMessage = {
+  role: string; content?: unknown; created_at?: number; message_id?: unknown; user_message_id?: unknown;
+};
+
+/** User message id of the turn latestTurn picks: the last assistant reply's user_message_id, else the user message before it. */
+export function latestTurnMessageId(messages: ReadonlyArray<TurnSourceMessage>): string | undefined {
+  const turn = [...messages]
+    .filter(message => (message.role === 'user' || message.role === 'assistant')
+      && typeof message.content === 'string' && previewMessageText(message.content) !== '')
+    .sort((a, b) => (a.created_at ?? 0) - (b.created_at ?? 0));
+  const assistantIndex = turn.map(message => message.role).lastIndexOf('assistant');
+  if (assistantIndex < 0) return undefined;
+  const linked = turn[assistantIndex].user_message_id;
+  if (nonEmpty(linked)) return linked;
+  const userId = turn.slice(0, assistantIndex).reverse().find(message => message.role === 'user')?.message_id;
+  return nonEmpty(userId) ? userId : undefined;
+}
+
+async function chatTurnSource(chatId: string): Promise<{ messages: UpdatePreviewMessage[]; messageId?: string }> {
   // getMessagesForChat decrypts with the chat key on this device.
-  return toPreviewMessages(await chatDB.getMessagesForChat(chatId));
+  const raw: ReadonlyArray<TurnSourceMessage> = await chatDB.getMessagesForChat(chatId);
+  const messageId = latestTurnMessageId(raw);
+  return { messages: toPreviewMessages(raw), ...(messageId ? { messageId } : {}) };
 }
 
 export async function loadRecommendationTurn(chatId: string): Promise<RecommendationTurn> {
-  return latestTurn(await chatPreviewMessages(chatId));
+  const { messages, messageId } = await chatTurnSource(chatId);
+  return { ...latestTurn(messages), ...(messageId ? { messageId } : {}) };
 }
 
 /** Instruction for the existing AI workflow authoring stream (side panel draft). */
@@ -117,12 +144,14 @@ function draftFields(canonicalDocument: string): Omit<MemoryDraftPayload, 'id'> 
   return {
     title: fields.title, memory: fields.body, when_to_use: fields.when_to_use,
     load_mode: fields.load_mode, valid_from: fields.valid_from, valid_until: fields.valid_until,
+    ...(fields.app_id ? { app_id: fields.app_id } : {}),
   };
 }
 
-/** body: canonical Markdown document returned by create-draft. */
-export function newMemoryDraft(input: { body: string }): MemoryDraftPayload {
-  return { id: NEW_MEMORY_DRAFT_ID, ...draftFields(input.body), is_new: true };
+/** body: canonical Markdown document returned by create-draft; app_id: the app the server chose, if any. */
+export function newMemoryDraft(input: { body: string; app_id?: string }): MemoryDraftPayload {
+  const draft: MemoryDraftPayload = { id: NEW_MEMORY_DRAFT_ID, ...draftFields(input.body), is_new: true };
+  return input.app_id ? { ...draft, app_id: input.app_id } : draft;
 }
 
 /** body: canonical Markdown document returned by the update preview. */
@@ -191,8 +220,11 @@ export function parseUpdatePreviewResponse(raw: unknown): UpdatePreviewResult {
   throw new RecommendationDraftError('request_failed');
 }
 
-/** Throws unless the response carries a parseable canonical memory document. */
-export function parseCreateDraftResponse(raw: unknown): { body: string } {
+/** Same shape as the server's app id check; the editor further ignores ids it does not know. */
+const DRAFT_APP_ID = /^[a-z][a-z0-9_]{0,63}$/;
+
+/** Throws unless the response carries a parseable canonical memory document; a malformed app_id is dropped. */
+export function parseCreateDraftResponse(raw: unknown): { body: string; app_id?: string } {
   const item = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {};
   if (!nonEmpty(item.body)) throw new RecommendationDraftError('request_failed');
   try {
@@ -200,7 +232,8 @@ export function parseCreateDraftResponse(raw: unknown): { body: string } {
   } catch {
     throw new RecommendationDraftError('request_failed');
   }
-  return { body: item.body };
+  return typeof item.app_id === 'string' && DRAFT_APP_ID.test(item.app_id)
+    ? { body: item.body, app_id: item.app_id } : { body: item.body };
 }
 
 /**
@@ -218,6 +251,7 @@ export async function requestCreateMemoryDraft(
     summary: recommendation.summary,
     user_message: turn.userMessage,
     assistant_response: turn.assistantResponse,
+    ...(turn.messageId ? { message_id: turn.messageId } : {}),
   });
   return newMemoryDraft(parseCreateDraftResponse(raw));
 }
@@ -227,9 +261,10 @@ export async function requestUpdatePreview(chatId: string, memoryId: string): Pr
   document: EditableRuleDocument; result: UpdatePreviewResult;
 }> {
   const document = await loadPersonalMemory(memoryId);
+  const { messages, messageId } = await chatTurnSource(chatId);
   const body: UpdatePreviewRequestBody = {
     chat_id: chatId, memory_id: document.id, memory_markdown: document.document,
-    messages: await chatPreviewMessages(chatId),
+    messages, ...(messageId ? { message_id: messageId } : {}),
   };
   const raw = await postBilled(RECOMMENDATION_DRAFT_WIRE.updatePreviewPath, body);
   return { document, result: parseUpdatePreviewResponse(raw) };

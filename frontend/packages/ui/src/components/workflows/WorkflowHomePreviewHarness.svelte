@@ -44,10 +44,8 @@
       <WorkflowDetailPage
         title={displayedTemplate!.title} description={displayedTemplate!.description ?? displayedTemplate!.summary}
         category={displayedTemplate!.category} icon={displayedTemplate!.icon}
-        enabled={false} canEnable={false} canRun={false} saving={false} provisional activeTab="template"
-        onTabChange={() => {}} onToggleEnabled={() => {}} onRunWorkflow={() => {}} onDeleteWorkflow={() => {}}
-        onOpenHome={() => { outgoingTemplate = selectedGuestTemplate; selectedGuestTemplate = null; }} onOpenShare={() => {}} onExport={() => {}}
-        onOpenRuns={() => {}} runsHref="" onUpdateIdentity={async () => {}} onDraftIdentity={() => {}}
+        state="provisional"
+        onOpenHome={() => { outgoingTemplate = selectedGuestTemplate; selectedGuestTemplate = null; }}
       />
       <div id="tabpanel-template" data-testid="workflow-template-panel" role="tabpanel" aria-label="Workflow template">
         <div data-testid="workflow-editor">

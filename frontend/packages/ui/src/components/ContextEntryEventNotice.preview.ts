@@ -17,7 +17,7 @@ const props = {
 export default props;
 export const variants = {
   memory_updated: { ...props, event: { ...event, action: 'updated' as const } },
-  workflow_created: { ...props, event: { ...event, kind: 'workflow' as const, entry_id: 'preview-workflow', title: 'Weekly open source conference digest' } },
+  workflow_created: { ...props, event: { ...event, kind: 'workflow' as const, entry_id: 'preview-workflow', title: 'Weekly open source conference digest that summarises every talk, speaker announcement, schedule change and community discussion from the whole week' } },
   workflow_updated: { ...props, event: { ...event, kind: 'workflow' as const, action: 'updated' as const, entry_id: 'preview-workflow', title: 'Weekly open source conference digest' } },
   missing: { ...props, checkExists: async (_event: ContextEntryHistoryEvent) => false },
 };

@@ -19,7 +19,7 @@ GOOD = {"title": "Open source conferences in Europe", "when_to_use": "Recommendi
 # contract-test: supporting surface=rest_api assertions=app-memories.suggestions.post-processor
 def test_interpret_builds_canonical_ask_first_document():
     out = draft_mod.interpret_draft(GOOD)
-    assert set(out) == {"title", "when_to_use", "body"}
+    assert set(out) == {"title", "when_to_use", "body", "app_id"} and out["app_id"] is None
     assert "load_mode: ask_first" in out["body"] and "valid_until" in out["body"]
 
 
@@ -48,6 +48,36 @@ def test_run_uses_recommendation_and_chat_inputs(monkeypatch):
     assert "Open source" in prompt and "Find FOSDEM" in prompt and "FOSDEM is in Brussels" in prompt
     assert seen["observability_purpose"] == "memory_create_draft"
     assert draft["title"] == GOOD["title"] and telemetry["input_tokens"] == 1
+    assert "app_id" not in seen["tool_definition"]["function"]["parameters"]["properties"]
+
+
+# contract-test: supporting surface=rest_api assertions=app-memories.suggestions.post-processor
+def test_run_offers_app_ids_in_the_same_single_call_and_validates_the_choice(monkeypatch):
+    calls = []
+
+    async def fake(**kw):
+        calls.append(kw)
+        return SimpleNamespace(error_message=None, arguments={**GOOD, "app_id": "events"}, usage_telemetry=None)
+    monkeypatch.setattr(draft_mod, "call_preprocessing_llm", fake)
+    draft, _ = asyncio.run(draft_mod.run_memory_create_draft(
+        task_id="t", model_id="m", title="Open source", summary="Europe events", user_message="Find FOSDEM",
+        assistant_response="FOSDEM is in Brussels", secrets_manager=None, usage_callback=lambda _e: None,
+        app_ids=["travel", "events", "privacy", "Bad-Id"]))
+    assert len(calls) == 1
+    schema = calls[0]["tool_definition"]["function"]["parameters"]
+    assert schema["properties"]["app_id"]["enum"] == ["events", "travel"]
+    assert "app_id" not in schema["required"]
+    assert draft["app_id"] == "events"
+    assert "app_id" not in draft["body"]
+    # The shared module-level tool is never mutated by one request.
+    assert "app_id" not in draft_mod.MEMORY_DRAFT_TOOL["function"]["parameters"]["properties"]
+
+
+# contract-test: supporting surface=rest_api assertions=app-memories.suggestions.post-processor
+@pytest.mark.parametrize("chosen", ["weather", "privacy", 7, "", None])
+def test_interpret_drops_app_ids_that_were_not_offered(chosen):
+    out = draft_mod.interpret_draft({**GOOD, "app_id": chosen}, ["travel", "events", "privacy"])
+    assert out["app_id"] is None
 
 
 # contract-test: supporting surface=rest_api assertions=app-memories.suggestions.post-processor,app-memories.suggestions.billing
@@ -76,7 +106,8 @@ class _Chat:
 
 def _request():
     state = SimpleNamespace(directus_service=SimpleNamespace(chat=_Chat()), cache_service=None,
-                            encryption_service=None, secrets_manager=None)
+                            encryption_service=None, secrets_manager=None,
+                            discovered_apps_metadata={"travel": {}, "events": {}})
     return SimpleNamespace(app=SimpleNamespace(state=state))
 
 
@@ -118,7 +149,8 @@ async def test_create_draft_returns_document_and_charges(monkeypatch):
 
     async def fake_run(**kw):
         kw["usage_callback"]({"input_tokens": 3, "output_tokens": 4})
-        return draft_mod.interpret_draft(GOOD), None
+        charged["offered"] = sorted(kw["app_ids"])
+        return draft_mod.interpret_draft({**GOOD, "app_id": "travel"}, kw["app_ids"]), None
 
     async def fake_charge(*_a, **kw):
         charged.update(kw)
@@ -129,5 +161,6 @@ async def test_create_draft_returns_document_and_charges(monkeypatch):
     monkeypatch.setattr(route, "run_memory_create_draft", fake_run)
     monkeypatch.setattr(route, "charge_preview", fake_charge)
     out = await route.create_draft.__wrapped__(_request(), None, _body("chat-1"))
-    assert set(out) == {"title", "when_to_use", "body"} and "load_mode: ask_first" in out["body"]
+    assert set(out) == {"title", "when_to_use", "body", "app_id"} and "load_mode: ask_first" in out["body"]
+    assert out["app_id"] == "travel" and charged["offered"] == ["events", "travel"]
     assert charged["purpose"] == "memory_create_draft" and charged["chat_id"] == "chat-1"

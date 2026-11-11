@@ -104,3 +104,32 @@ fn instruction_body_sends_draft_only_instead_of_optimistic_save_and_defaults_unc
     .unwrap();
     assert!(draft.contains("draft_only") && !draft.contains("optimistic_save"));
 }
+
+#[test]
+fn instruction_body_carries_the_source_chat_and_turn_only_when_given() {
+    let base = r#"{"route":"stream","text":"Go","timezone":"UTC","draft_only":true"#;
+    let plain = run_json("workflowInputBody", &format!("{base}}}")).unwrap();
+    assert!(!plain.contains("source_chat_id") && !plain.contains("source_message_id"));
+    let empty = run_json("workflowInputBody", &format!("{base},\"source_chat_id\":null,\"source_message_id\":\"\"}}")).unwrap();
+    assert_eq!(empty, plain);
+    let linked = run_json(
+        "workflowInputBody",
+        &format!("{base},\"source_chat_id\":\"chat-1\",\"source_message_id\":\"chat-1-turn\"}}"),
+    )
+    .unwrap();
+    let linked: Value = serde_json::from_str(&linked).expect("request json");
+    let steps = linked["steps"].as_array().expect("ordered body steps");
+    let names: Vec<&str> = steps.iter().filter_map(|step| step[0].as_str()).collect();
+    assert_eq!(&names[names.len() - 2..], ["source_chat_id", "source_message_id"]);
+    assert_eq!(steps[names.len() - 2][1]["value"], json!("chat-1"));
+    assert_eq!(steps[names.len() - 1][1]["value"], json!("chat-1-turn"));
+}
+
+#[test]
+fn instruction_body_refuses_a_turn_without_its_chat_or_a_non_string_chat() {
+    let base = r#"{"route":"stream","text":"Go","timezone":"UTC""#;
+    let orphan = run_json("workflowInputBody", &format!("{base},\"source_message_id\":\"turn\"}}"));
+    assert_eq!(orphan.unwrap_err(), "bad_field:source_message_id");
+    let numeric = run_json("workflowInputBody", &format!("{base},\"source_chat_id\":7}}"));
+    assert_eq!(numeric.unwrap_err(), "bad_field:source_chat_id");
+}

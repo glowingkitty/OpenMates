@@ -75,7 +75,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import PdfSearchEmbedFullscreen from './embeds/pdf/PdfSearchEmbedFullscreen.svelte';
     import RecordingEmbedFullscreen from './embeds/audio/RecordingEmbedFullscreen.svelte';
     import WorkflowRunEmbedFullscreen from './embeds/workflows/WorkflowRunEmbedFullscreen.svelte';
-    import WorkflowSidePanel from './workflows/WorkflowSidePanel.svelte';
+    import WorkflowChatPane from './workflows/WorkflowChatPane.svelte';
+    import { createChatScrollKeeper } from './activeChatScrollKeeper';
     import { installWorkflowSidePanelE2EHook } from './workflows/workflowSidePanelE2EHook';
     import { workflowSidePanel, closeWorkflowSidePanel } from '../stores/workflowSidePanelStore';
     import type { AudioWaveformData } from '../utils/audioWaveform';
@@ -5223,12 +5224,13 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         (showEmbedFullscreen && embedFullscreenData && fullscreenHasChatContext) ||
         (showWikiFullscreen && wikiFullscreenData && wikiFullscreenHasChatContext)
     )));
-    // Workflow side panel (chat Recommendations): editor right of the 400px chat
-    // at >= 1024px, fullscreen over the chat below. An embed or wiki fullscreen
-    // opened from the chat takes the pane; the panel stays mounted (hidden) so
-    // its unsaved draft survives. Minimize-chat stays an embed-only control.
+    // Workflow editor opened from chat Recommendations (WorkflowChatPane): right
+    // of the 400px chat at >= 1024px, covering the chat below. An embed or wiki
+    // fullscreen opened from the chat takes the pane; the editor stays mounted
+    // (hidden) so its unsaved draft survives. Minimize-chat stays embed-only.
     const workflowPanelRequest = $derived($workflowSidePanel);
     const workflowPanelVisible = $derived(Boolean(workflowPanelRequest && !showEmbedFullscreen && !showWikiFullscreen));
+    const workflowPaneCoversChat = $derived(workflowPanelVisible && !isUltraWide);
     const hasSplitChatContext = $derived(embedSplitChatContext || (isUltraWide && workflowPanelVisible));
     const showSideBySideFullscreen = $derived(embedSplitChatContext && !forceOverlayMode);
     const showChatButtonInFullscreen = $derived(embedSplitChatContext && forceOverlayMode);
@@ -7972,6 +7974,13 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     // Closing returns to the parent or workspace without starting a new input session.
     let closingChat = $state(false);
     let chatNavigationPane = $state<HTMLDivElement | null>(null);
+    // Workflow editor (WorkflowChatPane): closing it returns to the chat at the scroll position it had when the editor opened.
+    const workflowPaneScroll = createChatScrollKeeper();
+    // Pre-effect: record the offset before the DOM switches to the split layout.
+    $effect.pre(() => {
+        const paneChatId = workflowPanelRequest?.chatId ?? null;
+        untrack(() => workflowPaneScroll.update(paneChatId, currentChat?.chat_id ?? null, chatNavigationPane, () => chatHistoryRef?.scrollToBottom()));
+    });
     let previousNavigationChatId: string | null = null;
     $effect(() => {
         const chatId = !showWelcome ? (currentChat?.chat_id ?? 'new-chat') : null;
@@ -14089,8 +14098,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 class:fullscreen={isFullscreen} 
                 class:side-by-side-chat={showSideBySideLayout}
                 class:chat-pane-hidden={hasSplitChatContext && forceOverlayMode}
-                inert={hasSplitChatContext && forceOverlayMode}
-                aria-hidden={hasSplitChatContext && forceOverlayMode}
+                inert={(hasSplitChatContext && forceOverlayMode) || workflowPaneCoversChat}
+                aria-hidden={(hasSplitChatContext && forceOverlayMode) || workflowPaneCoversChat}
                 class:side-by-side-entering={sideBySideAnimating && sideBySideAnimationDirection === 'enter'}
                 class:side-by-side-exiting={sideBySideAnimating && sideBySideAnimationDirection === 'exit'}
                 onanimationend={finishSplitAnimation}
@@ -15774,8 +15783,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             {#if workflowPanelRequest}
                 {@const panelRequest = workflowPanelRequest}
                 <div
-                    data-testid="workflow-side-panel-container"
-                    class="fullscreen-embed-container workflow-side-panel-container"
+                    data-testid="workflow-chat-pane-container"
+                    class="fullscreen-embed-container workflow-chat-pane-container"
                     class:side-panel={showSideBySideLayout}
                     class:overlay-mode={!showSideBySideLayout}
                     class:side-by-side-entering={sideBySideAnimating && sideBySideAnimationDirection === 'enter'}
@@ -15783,7 +15792,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     hidden={!workflowPanelVisible}
                 >
                     {#key panelRequest}
-                        <WorkflowSidePanel request={panelRequest} fullscreen={!showSideBySideLayout} onClose={closeWorkflowSidePanel} />
+                        <WorkflowChatPane request={panelRequest} fullscreen={!showSideBySideLayout} onClose={closeWorkflowSidePanel} />
                     {/key}
                 </div>
             {/if}
@@ -16068,8 +16077,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         height: 100%;
     }
 
-    /* Workflow side panel stays mounted while an embed or wiki fullscreen takes the pane. */
-    .workflow-side-panel-container[hidden] {
+    /* The workflow editor stays mounted while an embed or wiki fullscreen takes the pane. */
+    .workflow-chat-pane-container[hidden] {
         display: none;
     }
 

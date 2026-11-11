@@ -25,7 +25,16 @@ export interface RuleDocumentFields {
   valid_from?: string;
   valid_until?: string;
   references?: MemoryReference[];
+  /** Unix seconds of the first save; absent on documents saved before this field existed. */
+  created_at?: number;
+  /** Unix seconds of the latest save. */
+  updated_at?: number;
+  /** Optional app the memory belongs to (icon/colour only); unknown ids are ignored by the UI. */
+  app_id?: string;
 }
+
+/** Display metadata kept beside the memory text; never part of the body sent to a model. */
+export const MEMORY_METADATA_FIELDS = ['created_at', 'updated_at', 'app_id'] as const;
 
 export interface CustomRuleDocument {
   id: string;
@@ -50,7 +59,7 @@ export function parseRuleDocument(document: string): RuleDocumentFields {
   const header: unknown = parsed.toJS({ maxAliasCount: 0 });
   if (!header || typeof header !== 'object' || Array.isArray(header)) throw new Error('invalid_rule_document');
   const record = header as Record<string, unknown>;
-  const allowed = ['title', 'description', 'when_to_use', 'load_mode', 'valid_from', 'valid_until', 'references'];
+  const allowed = ['title', 'description', 'when_to_use', 'load_mode', 'valid_from', 'valid_until', 'references', ...MEMORY_METADATA_FIELDS];
   if (Object.keys(record).some((key) => !allowed.includes(key)) || !('title' in record)) throw new Error('invalid_rule_document');
   const text = (field: string, max: number): string | undefined => {
     if (!(field in record)) return undefined;
@@ -76,6 +85,17 @@ export function parseRuleDocument(document: string): RuleDocumentFields {
   }
   if (fields.valid_from && fields.valid_until && Date.parse(fields.valid_from) > Date.parse(fields.valid_until)) {
     throw new Error('invalid_rule_document');
+  }
+  for (const field of ['created_at', 'updated_at'] as const) {
+    if (!(field in record)) continue;
+    const value = record[field];
+    if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) throw new Error('invalid_rule_document');
+    fields[field] = value;
+  }
+  if ('app_id' in record) {
+    const value = record.app_id;
+    if (typeof value !== 'string' || !value.trim() || value.length > 64) throw new Error('invalid_rule_document');
+    fields.app_id = value.trim();
   }
   if ('references' in record) {
     const refs = record.references;
@@ -106,9 +126,21 @@ export function serializeRuleDocument(fields: RuleDocumentFields): string {
   if (fields.valid_from) header.valid_from = fields.valid_from;
   if (fields.valid_until) header.valid_until = fields.valid_until;
   if (fields.references?.length) header.references = fields.references.map(({ kind, id }) => ({ kind, id }));
+  if (fields.created_at !== undefined) header.created_at = fields.created_at;
+  if (fields.updated_at !== undefined) header.updated_at = fields.updated_at;
+  if (fields.app_id?.trim()) header.app_id = fields.app_id.trim();
   const document = `---\n${stringify(header)}---\n${fields.body.trim()}\n`;
   parseRuleDocument(document);
   return document;
+}
+
+/**
+ * Stamps save times: created_at is kept from the stored document (or set now on the
+ * first save), updated_at is always now. Pure; the editor calls it right before saving.
+ */
+export function stampMemorySave(fields: RuleDocumentFields, previous: RuleDocumentFields | null, nowSeconds: number): RuleDocumentFields {
+  const created = previous?.created_at ?? fields.created_at ?? nowSeconds;
+  return { ...fields, created_at: created, updated_at: nowSeconds };
 }
 
 type MemoryWindow = Pick<RuleDocumentFields, 'valid_from' | 'valid_until'>;

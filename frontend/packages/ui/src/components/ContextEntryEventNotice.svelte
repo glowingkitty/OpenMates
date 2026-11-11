@@ -1,7 +1,7 @@
 <!-- frontend/packages/ui/src/components/ContextEntryEventNotice.svelte
      Chat history system event written when the user saved a memory or workflow from a
-     chat Recommendation: "Memory created: <title>" with a link that opens the entry, or
-     "No longer exists" when it was deleted later. Rendered only in the owner's view
+     chat Recommendation: one line with the entry icon and title (full sentence as aria-label/title); the whole
+     row opens the entry, or says "No longer exists" when it was deleted later. Rendered only in the owner's view
      (never in shared or public chats); the event is not sent to the AI.
      Plan: docs/plans/chat-recommendations/plan.yml (wire_contract.system_event)
 -->
@@ -39,25 +39,41 @@
 
 <span class="context-entry-event" data-testid="context-entry-event" data-kind={event.kind}
   data-action={event.action} data-entry-id={event.entry_id}>
-  <span class="entry-icon" class:workflow={event.kind === 'workflow'} aria-hidden="true"></span>
-  <span class="entry-label" data-testid="context-entry-event-label">{label}</span>
   {#if exists === false}
-    <span class="entry-missing" data-testid="context-entry-event-missing">{$text('recommendations.entry_missing')}</span>
+    <span class="entry-row" title={label}>
+      <span class="entry-icon" class:workflow={event.kind === 'workflow'} aria-hidden="true"></span>
+      <span class="entry-label" data-testid="context-entry-event-label">{event.title}</span>
+      <span class="entry-missing" data-testid="context-entry-event-missing">{$text('recommendations.entry_missing')}</span>
+    </span>
   {:else if event.kind === 'workflow'}
-    <a class="entry-open" data-testid="context-entry-event-open" href={workflowHref}>{$text('recommendations.open_entry')}</a>
+    <a class="entry-row entry-open" data-testid="context-entry-event-open" href={workflowHref}
+      aria-label={label} title={label}>
+      <span class="entry-icon workflow" aria-hidden="true"></span>
+      <span class="entry-label" data-testid="context-entry-event-label">{event.title}</span>
+    </a>
   {:else}
-    <button type="button" class="entry-open" data-testid="context-entry-event-open" disabled={exists === null}
-      onclick={() => onOpenMemory(event)}>{$text('recommendations.open_entry')}</button>
+    <button type="button" class="entry-row entry-open" data-testid="context-entry-event-open"
+      disabled={exists === null} aria-label={label} title={label}
+      onclick={() => onOpenMemory(event)}>
+      <span class="entry-icon" aria-hidden="true"></span>
+      <span class="entry-label" data-testid="context-entry-event-label">{event.title}</span>
+    </button>
   {/if}
 </span>
 
 <style>
   .context-entry-event {
-    display: inline-flex;
-    flex-wrap: wrap;
+    display: flex;
+    min-width: 0;
+    max-width: 100%;
+    color: var(--color-grey-60);
+  }
+  .entry-row {
+    display: flex;
     align-items: center;
     gap: var(--spacing-2);
-    color: var(--color-grey-60);
+    min-width: 0;
+    max-width: 100%;
   }
   .entry-icon {
     flex: none;
@@ -71,7 +87,12 @@
     -webkit-mask-image: url("@openmates/ui/static/icons/workflow.svg");
     mask-image: url("@openmates/ui/static/icons/workflow.svg");
   }
-  .entry-label { overflow-wrap: anywhere; }
+  .entry-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .entry-open {
     padding: 0 !important;
     margin: 0 !important;
@@ -83,10 +104,12 @@
     color: var(--color-primary);
     font: inherit;
     font-weight: 600;
-    text-decoration: underline;
+    text-decoration: none;
+    text-align: start;
     cursor: pointer;
   }
+  .entry-open:hover .entry-label { text-decoration: underline; }
   .entry-open:disabled { opacity: 0.55; cursor: default; }
   .entry-open:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
-  .entry-missing { font-style: italic; }
+  .entry-missing { flex: none; font-style: italic; }
 </style>

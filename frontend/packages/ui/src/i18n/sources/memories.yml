@@ -82,9 +82,9 @@ when_to_use:
   de: Wann anwenden
   verified_by_human: []
 practices:
-  context: Memory management or source-scoped loaded context
-  en: Memory (Markdown)
-  de: Erinnerung (Markdown)
+  context: Label of the Memory text field
+  en: Memory
+  de: Erinnerung
   verified_by_human: []
 empty:
   context: Memory management or source-scoped loaded context
@@ -360,4 +360,49 @@ body_placeholder:
   context: Placeholder of the Memory text editor
   en: Write the Memory. Paste an embed from a chat to include it.
   de: Schreibe die Erinnerung. Füge ein Embed aus einem Chat ein, um es einzubinden.
+  verified_by_human: []
+create:
+  context: Button above the Memories list that opens the create Memory page
+  en: Create memory
+  de: Erinnerung erstellen
+  verified_by_human: []
+create_title:
+  context: Title of the page that creates a new Memory
+  en: New memory
+  de: Neue Erinnerung
+  verified_by_human: []
+sort_recently_modified:
+  context: Memories list sort option, newest change first (default)
+  en: Most recently modified
+  de: Zuletzt geändert
+  verified_by_human: []
+sort_recently_added:
+  context: Memories list sort option, newest created first
+  en: Recently added
+  de: Zuletzt hinzugefügt
+  verified_by_human: []
+sort_title:
+  context: Memories list sort option, alphabetical by title
+  en: Title A–Z
+  de: Titel A–Z
+  verified_by_human: []
+sort_label:
+  context: Accessible label of the Memories list sort control
+  en: Sort memories
+  de: Erinnerungen sortieren
+  verified_by_human: []
+modified_on:
+  context: Second line of a Memory row; {date} is the last modified date
+  en: 'Modified {date}'
+  de: 'Geändert am {date}'
+  verified_by_human: []
+app:
+  context: Heading of the optional app a Memory belongs to
+  en: App
+  de: App
+  verified_by_human: []
+app_none:
+  context: App dropdown option when the Memory belongs to no app
+  en: None
+  de: Keine
   verified_by_human: []

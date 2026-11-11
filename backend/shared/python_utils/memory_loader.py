@@ -25,6 +25,9 @@ _FRONTMATTER = re.compile(r"\A---\r?\n(.*?)\r?\n---(?:\r?\n|$)(.*)\Z", re.S)
 
 
 _HEADER_KEYS = {"title", "description", "when_to_use", "load_mode", "valid_from", "valid_until", "references"}
+# Display metadata written by the clients (Settings > Memories sort and app icon).
+# Validated but never loaded into the definition or the prompt.
+_DISPLAY_KEYS = {"created_at", "updated_at", "app_id"}
 LoadMode = Literal["auto_include", "ask_first", "mention_only"]
 
 class MemoryReference(BaseModel):
@@ -92,6 +95,19 @@ class MemoryDefinition(BaseModel):
         return f"{self.id}: {self.title}.{description} When to use: {when}"
 
 
+def _validate_display_metadata(header: dict) -> None:
+    """created_at/updated_at are unix seconds; app_id is a short id (unknown ids are ignored by clients)."""
+    for key in ("created_at", "updated_at"):
+        if key in header:
+            value = header[key]
+            if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                raise ValueError(f"Memory {key} must be unix seconds")
+    if "app_id" in header:
+        value = header["app_id"]
+        if not isinstance(value, str) or not value.strip() or len(value) > 64:
+            raise ValueError("Memory app_id must be a short app identifier")
+
+
 def parse_memory_md(
     document: str, *, memory_id: str, source: Literal["app", "personal", "project"],
     app_id: str | None = None, project_id: str | None = None,
@@ -108,8 +124,10 @@ def parse_memory_md(
         raise ValueError("Invalid Memory frontmatter") from exc
     if not isinstance(header, dict):
         raise ValueError("Memory frontmatter must be a mapping")
-    if not set(header) <= _HEADER_KEYS or "title" not in header:
-        raise ValueError("Memory frontmatter supports title, description, when_to_use, load_mode, valid_from, valid_until and references only")
+    if not set(header) <= _HEADER_KEYS | _DISPLAY_KEYS or "title" not in header:
+        raise ValueError("Memory frontmatter supports title, description, when_to_use, load_mode, valid_from, valid_until, "
+                         "references, created_at, updated_at and app_id only")
+    _validate_display_metadata(header)
     values: dict = {}
     title = header["title"]
     if not isinstance(title, str) or not title.strip():

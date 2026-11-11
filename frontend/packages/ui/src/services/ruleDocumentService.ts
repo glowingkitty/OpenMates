@@ -469,7 +469,7 @@ export async function personalDocumentMemoryEntries() {
     const fields = parseRuleDocument(document.document);
     return { id: `account-memory-${document.id.replace(/^personal:/, '')}`, app_id: 'openmates', item_key: fields.title,
       item_value: { title: fields.title, document: document.document } as Record<string, unknown>, settings_group: 'memories',
-      created_at: 0, updated_at: 0, item_version: 1 };
+      created_at: fields.created_at ?? 0, updated_at: fields.updated_at ?? fields.created_at ?? 0, item_version: 1 };
   });
   publishPersonalDocumentMemories(owner, revision, entries);
   return entries;

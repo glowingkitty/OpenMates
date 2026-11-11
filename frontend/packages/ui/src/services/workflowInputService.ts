@@ -14,10 +14,21 @@ async function normalizedWork(work: WorkClient, session: WorkflowInputSession): 
   return (await workDecide<{ session: WorkflowInputSession }>(work, 'workflowInputSession', { session })).session;
 }
 
+/** Optional members of a streamed instruction; each is decided only in the Rust core Worker. */
+export type WorkflowInstructionOptions = {
+  draftOnly?: boolean;
+  /** Chat the authoring was started from (a chat Recommendation); its charges are billed to it. */
+  sourceChatId?: string;
+  /** User message id of that chat turn; requires sourceChatId. */
+  sourceMessageId?: string;
+};
+
 /** Flag on: an instruction request (path and ordered body) decided in the Worker. */
-async function instructionWork(work: WorkClient, route: 'input' | 'stream', text: string, selectedWorkflowId?: string, idempotencyKey?: string, draftOnly?: boolean): Promise<{ path: string; body: string }> {
+async function instructionWork(work: WorkClient, route: 'input' | 'stream', text: string, selectedWorkflowId?: string, idempotencyKey?: string, options?: WorkflowInstructionOptions): Promise<{ path: string; body: string }> {
   const request = await workDecide<WorkRequest>(work, 'workflowInputBody', {
-    route, text, selected_workflow_id: selectedWorkflowId, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, idempotency_key: idempotencyKey, ...(draftOnly ? { draft_only: true } : {}),
+    route, text, selected_workflow_id: selectedWorkflowId, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, idempotency_key: idempotencyKey, ...(options?.draftOnly ? { draft_only: true } : {}),
+    ...(options?.sourceChatId ? { source_chat_id: options.sourceChatId } : {}),
+    ...(options?.sourceMessageId ? { source_message_id: options.sourceMessageId } : {}),
   });
   return { path: request.path, body: JSON.stringify(await buildWorkBody(request.steps, {}, {})) };
 }
@@ -106,13 +117,14 @@ export async function streamWorkflowInstruction(
   onEvent: (event: WorkflowInputStreamEvent) => void,
   signal?: AbortSignal,
   idempotencyKey?: string,
-  options?: { draftOnly?: boolean },
+  options?: WorkflowInstructionOptions,
 ): Promise<WorkflowInputSession> {
-  // draftOnly is decided only in the Rust core Worker; no TypeScript twin exists.
+  // draftOnly and the source chat are decided only in the Rust core Worker; no TypeScript twin exists.
   if (options?.draftOnly && !RUST_WORK) throw new Error('draftOnly requires the Rust core');
+  if ((options?.sourceChatId || options?.sourceMessageId) && !RUST_WORK) throw new Error('A source chat requires the Rust core');
   const work = RUST_WORK ? workClient() : null;
   const request = work
-    ? await instructionWork(work, 'stream', text, selectedWorkflowId, idempotencyKey, options?.draftOnly)
+    ? await instructionWork(work, 'stream', text, selectedWorkflowId, idempotencyKey, options)
     : { path: '/v1/workflows/input/stream', body: instructionBody(text, selectedWorkflowId, idempotencyKey) };
   const response = await workflowApiFetch(request.path, {
     method: 'POST', body: request.body

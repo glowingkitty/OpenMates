@@ -18,6 +18,8 @@ export interface WorkflowSidePanelRequest {
   workflowId: string | null;
   /** Authoring instruction for the existing AI authoring stream. */
   instruction: string;
+  /** User message id of the chat turn the recommendation belongs to, when known (usage attribution). */
+  sourceMessageId?: string;
 }
 
 /** Emitted once when the user saves the workflow opened from a recommendation. */

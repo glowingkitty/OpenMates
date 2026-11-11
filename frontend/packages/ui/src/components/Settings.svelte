@@ -148,6 +148,9 @@ changes to the documentation (to keep the documentation up to date).
 
         if (cleanPath.startsWith('projects/')) return 'project';
 
+        // Memory deep links (memories/<id>) keep the Memories menu icon.
+        if (/^(?:settings_memories|memories)(?:\/|$)/.test(cleanPath)) return 'settings_memories';
+
         if (cleanPath.startsWith('privacy/auto-deletion/')) return 'delete';
 
         const cleanProvidedIcon = providedIcon?.trim();

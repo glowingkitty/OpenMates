@@ -13,7 +13,7 @@
     isAppsWorkspaceHandoffCurrent, appsWorkflowInstruction, queueAppsWorkspaceChatHandoff } from '@repo/ui/services/appsWorkspaceChatHandoffService';
 	import { onMount, untrack } from 'svelte';
 	import { workspacePaneMotion } from '@repo/ui/utils/workspacePaneMotion';
-	import { graphWithMemorySnapshots, refreshWorkflowMemorySnapshots } from '@repo/ui/services/workflowMemorySnapshotService';
+	import { refreshWorkflowMemorySnapshots } from '@repo/ui/services/workflowMemorySnapshotService';
 	import { derived, get } from 'svelte/store';
 	import { goto, pushState, replaceState } from '$app/navigation';
 	import {
@@ -40,34 +40,29 @@
 		consumeProjectWorkflowTarget,
 		projectWorkflowAssociationWarning,
 		saveWorkflowToProjectTarget,
-		upsertWorkflowTemplateProjection,
 		workflowWorkspaceStore,
 		type ProjectCreationTarget
 	} from '@repo/ui';
 	import { text } from '@repo/ui';
 	import { workflowTemplates, workflowTemplateGraph, websiteChangesGraph } from '@repo/ui/components/workflows/workflowTemplates.ts';
 	import { sortWorkflowContinue, sortAllWorkflows, type WorkflowSortMode } from '@repo/ui/components/workflows/workflowHomeSorting';
-	import {
-		workflowIcon,
-		workflowGraphReady
-	} from '@repo/ui/components/workflows/workflowBuilder.ts';
+	import { workflowIcon } from '@repo/ui/components/workflows/workflowBuilder.ts';
 	import WorkspacePromptComposer from '@repo/ui/components/workspace/WorkspacePromptComposer.svelte';
-	import WorkflowEditorWorkspace from '@repo/ui/components/workflows/WorkflowEditorWorkspace.svelte';
+	import WorkflowEditorPane from '@repo/ui/components/workflows/WorkflowEditorPane.svelte';
+	import WorkflowProvisionalView from '@repo/ui/components/workflows/WorkflowProvisionalView.svelte';
+	import { maintainTemplateProjection as refreshTemplateProjection, type WorkflowEditorAuthoring, type WorkflowEditorPaneState } from '@repo/ui/components/workflows/workflowEditorPane';
 	import WorkflowAuthoringStatus from '@repo/ui/components/workflows/WorkflowAuthoringStatus.svelte';
 	import WorkflowUnsavedGuard from '@repo/ui/components/workflows/WorkflowUnsavedGuard.svelte';
-	import WorkflowBindingReview from '@repo/ui/components/workflows/WorkflowBindingReview.svelte';
-	import { downloadWorkflowFile, isWorkflowFileName, readWorkflowFile } from '@repo/ui/services/workflowFileService';
+	import { isWorkflowFileName, readWorkflowFile } from '@repo/ui/services/workflowFileService';
 	import { committedWorkflows, getWorkflowInstruction, stopWorkflowInstruction, undoWorkflowInstruction, workflowNodeChanges, type WorkflowAcceptedPreview, type WorkflowInputChange, type WorkflowInputSession } from '@repo/ui/services/workflowInputService';
 	import { runWorkflowAuthoring } from '@repo/ui/components/workflows/workflowAuthoringRun';
-	import WorkflowRunHistory from '@repo/ui/components/workflows/WorkflowRunHistory.svelte';
 	import WorkflowCompletionStatus from '@repo/ui/components/workflows/WorkflowCompletionStatus.svelte';
-	import WorkflowVersionHistory from '@repo/ui/components/workflows/WorkflowVersionHistory.svelte';
 	import { userProfile } from '@repo/ui/stores/userProfile.ts';
 	import { WorkflowApiError } from '@repo/ui/stores/workflowWorkspaceStore.ts';
 	import { activeTeamId, setActiveTeamContext } from '@repo/ui/stores/teamStore';
 	import { advanceCompletionStartupContext, completionLinkAfterNavigation, decideCompletionPersonalContext, isWorkflowCompletionLink, preservesCompletionLinkOnTeamChange, readWorkflowCompletionLink, runConfirmsWorkflowChatTarget, type CompletionStartupContext, type HandledCompletionLink, type PersonalCompletionSwitch } from '$lib/workflowCompletionRoute';
 	import { completeWorkflowLogin, type WorkflowLoginSuccess } from '$lib/workflowCompletionAuth';
-	import type { WorkflowBindingRequirement, WorkflowDetail, WorkflowGraph, WorkflowRun, WorkflowSummary } from '@repo/ui';
+	import type { WorkflowDetail, WorkflowGraph, WorkflowSummary } from '@repo/ui';
 	const completionGeneration = derived(workflowWorkspaceStore, (workspace) => workspace.generation);
 	let completionStartupContext: CompletionStartupContext | null =
 		typeof window !== 'undefined' && isWorkflowCompletionLink(window.location.hash)
@@ -101,7 +96,6 @@
 
 	let workflows = $derived<WorkflowSummary[]>($workflowWorkspaceStore.workflows);
 	let selectedWorkflow = $derived<WorkflowDetail | null>($workflowWorkspaceStore.selectedWorkflow);
-	let runs = $derived<WorkflowRun[]>($workflowWorkspaceStore.runs);
 	let saving = $state(false);
 	let routeError = $state<string | null>(null);
 	$effect(() => {
@@ -114,17 +108,11 @@
 	});
 	let completionChatStatus = $state<'idle' | 'checking' | 'waiting' | 'unavailable'>('idle');
 	let completionRetry = $state(0);
-	let authoringReminder = $state<string | null>(null);
 	let runContentRetention = $state<'last_5' | 'none'>('last_5');
-	let selectedRunContentRetention = $state<'last_5' | 'none'>('last_5');
-	let editorTitle = $state('');
-	let editorDescription = $state('');
-	let editorGraph = $state<WorkflowGraph | null>(null);
-	let editorDirty = $state(false);
-	let workflowGraphRef = $state<WorkflowEditorWorkspace | null>(null);
-	let editorHasPendingDraft = $state(false);
-	let identityResetSignal = $state(0);
-	let hydratedEditorWorkflow: WorkflowDetail | null = null;
+	// The one-workflow editor owns its edit state; the route reads it for guards and layout.
+	let editorPane = $state<WorkflowEditorPane | null>(null);
+	let editorPaneState = $state<WorkflowEditorPaneState>({ graphReady: false, dirty: false, saving: false });
+	let busy = $derived(saving || editorPaneState.saving);
 	let verifyingMissingWorkflow: { id: string; generation: number } | null = null;
 	let pendingNavigation = $state<{ action: () => void | Promise<void> } | null>(null);
 	let browseMode = $state<'recent' | 'workflows' | 'templates'>('recent');
@@ -178,7 +166,6 @@
 	let handledPersonalCompletionLink: HandledCompletionLink | null = null;
 	const pendingInputKey = (teamId: string | null) => teamId ? `workflow-ai-pending:${teamId}` : 'workflow-ai-pending';
 	const lastBatchKey = (teamId: string | null) => teamId ? `workflow-ai-last-batch:${teamId}` : 'workflow-ai-last-batch';
-	let lastStartedRunId = $state<string | null>(null);
 	let workflowImportInput = $state<HTMLInputElement | null>(null);
 	let draggingWorkflowFile = $state(false);
 	let guestTemplate = $state<{ item: WorkflowContinueItem; graph: WorkflowGraph; description: string } | null>(null);
@@ -249,17 +236,8 @@
 	);
 	let visibleWorkflowLandingItems = $derived(canRenderWorkflowData ? workflowLandingItems : []);
 	let visibleBrowseItems = $derived(canRenderWorkflowData ? browseItems : workflowTemplateItems);
-	let editorActivationReady = $derived(
-		editorGraph && selectedWorkflow?.binding_requirements?.every(requirement => selectedWorkflow?.completed_binding_requirements?.some(completed => completed.type === requirement.type && completed.node_id === requirement.node_id)) !== false
-			? workflowGraphReady(editorGraph, { requireSchedule: true }) : false
-	);
-	let savedRunReady = $derived(
-		selectedWorkflow && selectedWorkflow.binding_requirements?.every(requirement => selectedWorkflow?.completed_binding_requirements?.some(completed => completed.type === requirement.type && completed.node_id === requirement.node_id)) !== false
-			? workflowGraphReady(selectedWorkflow.graph) : false
-	);
-
 	async function importWorkflowFile(file: File): Promise<void> {
-		if (!canLoadWorkflows || saving || pendingSaveSessionId) return;
+		if (!canLoadWorkflows || busy || pendingSaveSessionId) return;
 		if (!isWorkflowFileName(file.name)) {
 			routeError = $text('workflows.builder.file_import_choose');
 			return;
@@ -288,31 +266,6 @@
 		void importWorkflowFile(file);
 	}
 
-	async function confirmBinding(requirement: WorkflowBindingRequirement): Promise<void> {
-		if (!selectedWorkflow || editorDirty || saving || workflowGraphRef?.hasPendingDraft()) return;
-		const node = selectedWorkflow.graph.nodes.find(item => item.id === requirement.node_id);
-		const input: WorkflowBindingRequirement & { chat_id?: string; new_chat?: boolean } = { ...requirement };
-		if (requirement.type === 'chat_destination') {
-			const chatId = String(node?.config?.chat_id ?? '').trim();
-			if (chatId) input.chat_id = chatId;
-			else if (String(node?.config?.title ?? '').trim()) input.new_chat = true;
-			else { routeError = $text('workflows.builder.file_binding_chat_missing'); return; }
-		}
-		saving = true;
-		routeError = null;
-		try {
-			const updated = await workflowWorkspaceStore.completeBindingRequirement(selectedWorkflow.id, input);
-			resetEditor(updated);
-		} catch (bindingError) {
-			routeError = bindingError instanceof Error ? bindingError.message : $text('workflows.builder.file_binding_failed');
-		} finally {
-			saving = false;
-		}
-	}
-	let hasTimeTrigger = $derived(
-		editorGraph?.nodes.some((node) => node.type === 'schedule_trigger') ?? false
-	);
-
 	onMount(() => {
 		routeAlive = true;
 		if (window.location.pathname !== '/') {
@@ -334,7 +287,7 @@
 		window.addEventListener('hashchange', syncWorkflowHashFromLocation);
 		window.addEventListener('popstate', syncWorkflowHashFromLocation);
 		const refreshVisibleWorkflow = () => {
-			if (!routeAlive || !canLoadWorkflows || editorDirty || saving || workflowGraphRef?.hasPendingDraft()) return;
+			if (!routeAlive || !canLoadWorkflows || busy || editorPane?.hasUnsavedChanges()) return;
 			void workflowWorkspaceStore.loadWorkflows().catch(() => undefined);
 			const selectedId = $workflowWorkspaceStore.selectedWorkflowId;
 			if (selectedId) void workflowWorkspaceStore.selectWorkflow(selectedId).catch(() => undefined);
@@ -399,7 +352,7 @@
 	function syncWorkflowHashFromLocation(): void {
 		const nextState = readWorkflowHashState(window.location.hash);
 		if (
-			(editorDirty || workflowGraphRef?.hasPendingDraft()) &&
+			editorPane?.hasUnsavedChanges() &&
 			(nextState.workflowId !== workflowHashState.workflowId ||
 				nextState.tab !== workflowHashState.tab ||
 				nextState.runId !== workflowHashState.runId)
@@ -486,7 +439,7 @@
 	}
 
 	function requestNavigation(action: () => void | Promise<void>): void {
-		if (editorDirty || workflowGraphRef?.hasPendingDraft()) {
+		if (editorPane?.hasUnsavedChanges()) {
 			pendingNavigation = { action };
 			return;
 		}
@@ -525,10 +478,7 @@
 	async function saveAndContinueNavigation(): Promise<void> {
 		const navigation = pendingNavigation;
 		if (!navigation) return;
-		if (workflowGraphRef?.hasPendingDraft() && !await workflowGraphRef.savePendingDraft()) return;
-		if (editorDirty) await saveSelectedWorkflow();
-		if (editorDirty) return;
-		identityResetSignal += 1;
+		if (editorPane && !await editorPane.saveChanges()) return;
 		pendingNavigation = null;
 		await navigation.action();
 	}
@@ -536,9 +486,7 @@
 	async function discardAndContinueNavigation(): Promise<void> {
 		const navigation = pendingNavigation;
 		if (!navigation) return;
-		workflowGraphRef?.discardPendingDraft();
-		undoEditorChanges();
-		identityResetSignal += 1;
+		editorPane?.discardChanges();
 		pendingNavigation = null;
 		await navigation.action();
 	}
@@ -556,13 +504,11 @@
 	async function selectWorkflow(workflowId: string) {
 		routeError = null;
 		const sameWorkflowAlreadySelected = $workflowWorkspaceStore.selectedWorkflowId === workflowId;
-		if (!sameWorkflowAlreadySelected) authoringReminder = null;
 		const workflow = await workflowWorkspaceStore.selectWorkflow(workflowId);
-		if (sameWorkflowAlreadySelected && (editorDirty || saving || pendingSaveSessionId || streamController || workflowGraphRef?.hasPendingDraft())) return;
+		if (sameWorkflowAlreadySelected && (busy || pendingSaveSessionId || streamController || editorPane?.hasUnsavedChanges())) return;
 		const latest = $workflowWorkspaceStore.selectedWorkflow;
 		const currentWorkflow = latest?.id === workflowId ? latest : workflow;
-		selectedRunContentRetention = currentWorkflow.run_content_retention ?? 'last_5';
-		resetEditor(currentWorkflow);
+		editorPane?.resetTo(currentWorkflow);
 		aiChange = null;
 		aiSession = null;
 		undoConflict = false;
@@ -811,13 +757,6 @@
 	});
 
 	$effect(() => {
-		const workflow = selectedWorkflow;
-		if (!workflow || hydratedEditorWorkflow === workflow || editorDirty || saving || pendingSaveSessionId || streamController || editorHasPendingDraft || workflowGraphRef?.hasPendingDraft()) return;
-		selectedRunContentRetention = workflow.run_content_retention ?? 'last_5';
-		resetEditor(workflow);
-	});
-
-	$effect(() => {
 		const teamId = $activeTeamId;
 		if (observedTeamId === undefined) {
 			observedTeamId = teamId;
@@ -859,7 +798,7 @@
 
 	async function submitBlankWorkflow(): Promise<void> {
 		const title = blankWorkflowTitle.trim();
-		if (!title || saving) return;
+		if (!title || busy) return;
 		const created = await createWorkflow(title, blankWorkflowGraph(), false);
 		if (created) closeBlankWorkflowCreator();
 	}
@@ -900,7 +839,7 @@
 	}
 
   function consumeAppsWorkflowHandoff(): void {
-    if (!canLoadWorkflows || saving || pendingSaveSessionId) return;
+    if (!canLoadWorkflows || busy || pendingSaveSessionId) return;
     const request = takeAppsWorkspaceWorkflowHandoff();
     if (!request || !isAppsWorkspaceHandoffCurrent(request)) return;
     if (request.attachments?.length) { void queueAppsWorkspaceChatHandoff(request); return; }
@@ -912,12 +851,12 @@
     return () => window.removeEventListener(APPS_WORKSPACE_WORKFLOW_HANDOFF_EVENT, consumeAppsWorkflowHandoff);
   });
   $effect(() => {
-    if (canLoadWorkflows && !saving && !pendingSaveSessionId) untrack(consumeAppsWorkflowHandoff);
+    if (canLoadWorkflows && !busy && !pendingSaveSessionId) untrack(consumeAppsWorkflowHandoff);
   });
 
 	async function submitWorkflowInput(text: string = workflowInputText): Promise<boolean> {
 		const instruction = text.trim();
-		if (!instruction || saving || pendingSaveSessionId || !canLoadWorkflows) return false;
+		if (!instruction || busy || pendingSaveSessionId || !canLoadWorkflows) return false;
 		workflowInputText = instruction;
 		await authorWorkflow(instruction);
 		return !routeError;
@@ -973,7 +912,7 @@
 	}
 
 	async function authorWorkflow(instruction: string, workflowId?: string, existingSessionId?: string): Promise<void> {
-		if (saving) return;
+		if (busy) return;
 		const generation = workflowWorkspaceStore.getGeneration();
 		const teamId = $activeTeamId;
 		const stillCurrent = () => routeAlive && $activeTeamId === teamId && workflowWorkspaceStore.isCurrentGeneration(generation);
@@ -1144,8 +1083,7 @@
 					openWorkflowDetails(updated.id);
 				}
 				const mutation = session.mutations?.find(item => item.target_id === updated.id);
-				resetEditor(updated);
-				identityResetSignal += 1;
+				editorPane?.resetTo(updated, { resetIdentity: true });
 				aiChange = session.changes?.find(change => change.workflow_id === updated.id) ?? {
 					workflow_id: updated.id,
 					...workflowNodeChanges(before?.graph.nodes ?? mutation?.before?.graph?.nodes ?? [], updated.graph.nodes)
@@ -1173,7 +1111,7 @@
 	}
 
 	async function undoAiChanges(): Promise<void> {
-		if (!selectedWorkflow || saving) return;
+		if (!selectedWorkflow || busy) return;
 		const sessionId = aiSession?.session_id || localStorage.getItem(`workflow-ai-session:${selectedWorkflow.id}`);
 		if (!sessionId) return;
 		saving = true;
@@ -1191,8 +1129,7 @@
 			undoConflict = false;
 			await workflowWorkspaceStore.loadWorkflows({ force: true });
 			const restored = await workflowWorkspaceStore.selectWorkflow(selectedWorkflow.id, { force: true });
-			resetEditor(restored);
-			identityResetSignal += 1;
+			editorPane?.resetTo(restored, { resetIdentity: true });
 		} catch (cause) {
 			routeError = cause instanceof Error ? cause.message : $text('workflows.builder.ai_undo_failed');
 		} finally {
@@ -1201,7 +1138,7 @@
 	}
 
 	async function undoCreatedAiChanges(): Promise<void> {
-		if (!createdAiSession?.undo_available || saving) return;
+		if (!createdAiSession?.undo_available || busy) return;
 		saving = true;
 		routeError = null;
 		try {
@@ -1226,7 +1163,7 @@
 	}
 
 	function resumePendingSave(): void {
-		if (!pendingSaveSessionId || saving) return;
+		if (!pendingSaveSessionId || busy) return;
 		const key = pendingInputKey($activeTeamId);
 		const raw = sessionStorage.getItem(key);
 		if (!raw) return;
@@ -1275,7 +1212,7 @@
 		description?: string,
 		identity?: { category: string; icon: string }
 	): Promise<boolean> {
-		if (!canLoadWorkflows || saving) return false;
+		if (!canLoadWorkflows || busy) return false;
 		const workflowProjectTarget = projectWorkflowTarget;
 		const creationGeneration = workflowWorkspaceStore.getGeneration();
 		saving = true;
@@ -1323,98 +1260,9 @@
 		}
 	}
 
-	async function setSelectedWorkflowEnabled(enabled: boolean) {
-		if (!selectedWorkflow) return;
-		saving = true;
-		routeError = null;
-		try {
-			const workflow = await workflowWorkspaceStore.setWorkflowEnabled(
-				selectedWorkflow.id,
-				enabled
-			);
-			resetEditor(workflow);
-			clearAiReview(workflow.id);
-		} catch (saveError) {
-			routeError = saveError instanceof Error ? saveError.message : 'Failed to update workflow.';
-		} finally {
-			saving = false;
-		}
-	}
-
-	async function runSelectedWorkflow() {
-		if (!selectedWorkflow || saving || !savedRunReady) return;
-		const workflowId = selectedWorkflow.id;
-		saving = true;
-		routeError = null;
-		try {
-			const run = await workflowWorkspaceStore.runWorkflow(workflowId);
-			lastStartedRunId = run.id;
-			openWorkflowRuns(workflowId, run.id);
-		} catch (runError) {
-			routeError = runError instanceof Error ? runError.message : 'Failed to run workflow.';
-		} finally {
-			saving = false;
-		}
-	}
-
-	async function deleteSelectedWorkflow() {
-		if (
-			!selectedWorkflow ||
-			!window.confirm(`Delete “${selectedWorkflow.title}”? This cannot be undone.`)
-		)
-			return;
-		saving = true;
-		routeError = null;
-		try {
-			await workflowWorkspaceStore.deleteWorkflow(selectedWorkflow.id);
-			openWorkflowHome();
-		} catch (deleteError) {
-			routeError =
-				deleteError instanceof Error ? deleteError.message : 'Failed to delete workflow.';
-		} finally {
-			saving = false;
-		}
-	}
-
-	async function saveSelectedWorkflow() {
-		if (!selectedWorkflow || !editorGraph) return;
-		saving = true;
-		routeError = null;
-		try {
-			const workflow = await workflowWorkspaceStore.patchWorkflow(selectedWorkflow.id, {
-				title: editorTitle.trim() || selectedWorkflow.title,
-				description: editorDescription.trim(),
-				graph: editorGraph,
-				run_content_retention: selectedRunContentRetention
-			});
-			resetEditor(workflow);
-			clearAiReview(workflow.id);
-			saving = false;
-			await maintainTemplateProjection(workflow);
-		} catch (saveError) {
-			routeError = saveError instanceof Error ? saveError.message : 'Failed to save workflow.';
-		} finally {
-			saving = false;
-		}
-	}
-
 	async function maintainTemplateProjection(workflow: WorkflowDetail): Promise<void> {
-		try {
-			await upsertWorkflowTemplateProjection(workflow);
-		} catch (projectionError) {
-			const message =
-				projectionError instanceof Error
-					? projectionError.message
-					: 'Could not update the encrypted workflow template projection.';
-			routeError = `Workflow saved, but its shareable template was not updated: ${message}`;
-		}
-	}
-
-	async function handleWorkflowVersionRestored(workflow: WorkflowDetail): Promise<void> {
-		resetEditor(workflow);
-		identityResetSignal += 1;
-		clearAiReview(workflow.id);
-		await maintainTemplateProjection(workflow);
+		const warning = await refreshTemplateProjection(workflow);
+		if (warning) routeError = warning;
 	}
 
 	function blankWorkflowGraph(): WorkflowGraph {
@@ -1434,14 +1282,6 @@
 		};
 	}
 
-	function resetEditor(workflow: WorkflowDetail) {
-		editorTitle = workflow.title;
-		editorDescription = workflow.description ?? '';
-		editorGraph = cloneGraph(workflow.graph);
-		editorDirty = false;
-		hydratedEditorWorkflow = workflow;
-	}
-
 	function clearAiReview(workflowId: string): void {
 		aiChange = null;
 		aiSession = null;
@@ -1449,60 +1289,8 @@
 		localStorage.removeItem(`workflow-ai-session:${workflowId}`);
 	}
 
-	function undoEditorChanges() {
-		if (selectedWorkflow) resetEditor(selectedWorkflow);
-	}
-
-	function cloneGraph(graph: WorkflowGraph): WorkflowGraph {
-		return JSON.parse(JSON.stringify(graph)) as WorkflowGraph;
-	}
-
 	function retentionLabel(value: 'last_5' | 'none' | undefined): string {
 		return value === 'none' ? 'No durable run content' : 'Keep latest 5 encrypted runs';
-	}
-
-	async function saveNodeGraph(graph: WorkflowGraph): Promise<void> {
-		if (!selectedWorkflow) throw new Error('Workflow unavailable');
-		saving = true;
-		routeError = null;
-		authoringReminder = null;
-		try {
-			const workflow = await workflowWorkspaceStore.patchWorkflow(selectedWorkflow.id, {
-				graph: await graphWithMemorySnapshots(graph),
-				title: editorTitle.trim() || selectedWorkflow.title,
-				description: editorDescription,
-				icon: workflowIcon(editorTitle, selectedWorkflow.icon, graph)
-			});
-			authoringReminder =
-				workflow.authoring_warnings?.map((warning) => warning.message).join(' ') || null;
-			resetEditor(workflow);
-			identityResetSignal += 1;
-			clearAiReview(workflow.id);
-			await maintainTemplateProjection(workflow);
-		} catch (error) {
-			routeError = error instanceof Error ? error.message : 'Failed to save workflow';
-			throw error;
-		} finally {
-			saving = false;
-		}
-	}
-
-	async function updateWorkflowIdentity(title: string, description: string): Promise<void> {
-		if (!selectedWorkflow) return;
-		saving = true;
-		try {
-			const workflow = await workflowWorkspaceStore.patchWorkflow(selectedWorkflow.id, {
-				title: title.trim(),
-				description,
-				graph: editorGraph ?? selectedWorkflow.graph,
-				run_content_retention: selectedRunContentRetention
-			});
-			resetEditor(workflow);
-			clearAiReview(workflow.id);
-			await maintainTemplateProjection(workflow);
-		} finally {
-			saving = false;
-		}
 	}
 
 	function authoringPhaseMessage(phase: typeof authoringPhase): string {
@@ -1512,10 +1300,34 @@
 		return $text('workflows.builder.ai_saving');
 	}
 
-	function updateEditorGraph(graph: WorkflowGraph): void {
-		editorGraph = graph;
-		editorDirty = true;
-	}
+	let editorAuthoring = $derived.by<WorkflowEditorAuthoring | null>(() => {
+		if (!selectedWorkflow) return null;
+		const selectedId = selectedWorkflow.id;
+		const createdByAi = createdAiWorkflowIds.includes(selectedId);
+		return {
+			busy: saving,
+			hydrationPaused: saving || !!pendingSaveSessionId || !!streamController,
+			preview: activeEditorPreview && pendingPreviewTargetId === selectedId ? { workflow: activeEditorPreview, phase: authoringPhase ?? 'saving', acceptedNodeCount: acceptedNodeCounts[activeEditorPreview.id] ?? 0, baseGraph: selectedWorkflow.graph } : null,
+			testNowHidden: !!activeEditorPreview,
+			partialNotice: partialNotice && partialWorkflowIds.includes(selectedId) ? partialNotice : null,
+			info: {
+				createdDisabled: createdByAi,
+				assumptions: authoringAssumptionsWorkflowId === selectedId ? authoringAssumptions : [],
+				onUndoCreated: createdByAi && createdAiSession?.undo_available ? () => void undoCreatedAiChanges() : null
+			},
+			review: aiChange && !activeEditorPreview && aiChange.workflow_id === selectedId ? {
+				change: aiChange,
+				savedLabel: $text('workflows.builder.ai_changes_saved'),
+				undoAvailable: !!aiSession?.undo_available,
+				undoConflict,
+				onUndo: () => void undoAiChanges(),
+				onOpenHistory: () => document.querySelector<HTMLButtonElement>('[data-testid="workflow-version-selector"]')?.click()
+			} : null,
+			aiAddedNodeIds: aiChange?.workflow_id === selectedId ? aiChange.added_node_ids : [],
+			aiEditedNodeIds: aiChange?.workflow_id === selectedId ? aiChange.edited_node_ids : [],
+			onSaved: (workflow) => clearAiReview(workflow.id)
+		};
+	});
 </script>
 
 {#if routeReady && !workflowsEnabled}
@@ -1620,7 +1432,7 @@
 								submitLabel="Create workflow"
 								submittingLabel="Creating..."
 								disabled={false}
-								submitting={saving || !!pendingSaveSessionId}
+								submitting={busy || !!pendingSaveSessionId}
 								testId="workflow-input-composer"
 								inputTestId="workflow-input-textarea"
 								submitTestId="workflow-input-submit"
@@ -1650,7 +1462,7 @@
 						class="workflow-management"
 						class:opening={workflowOpening}
 						class:closing={workflowClosing}
-						class:composer-docked={!!displayedProvisionalWorkflow || (!!selectedWorkflow && !displayedRunsView && !!editorGraph)}
+						class:composer-docked={!!displayedProvisionalWorkflow || (!!selectedWorkflow && !displayedRunsView && editorPaneState.graphReady)}
 						class:composer-focused={editorComposerFocused}
 						data-testid="workflow-management"
 						transition:workspacePaneMotion
@@ -1677,14 +1489,8 @@
 										description={displayedGuestTemplate.description}
 										category={displayedGuestTemplate.item.category ?? 'general_knowledge'}
 										icon={displayedGuestTemplate.item.icon ?? 'workflow'}
-										enabled={false} canEnable={false} canRun={false} saving={false} provisional
-										activeTab="template"
-										onTabChange={() => undefined} onToggleEnabled={() => undefined}
-										onRunWorkflow={() => undefined} onDeleteWorkflow={() => undefined}
+										state="provisional"
 										onOpenHome={() => { guestTemplate = null; }}
-										onOpenShare={() => undefined} onExport={() => undefined}
-										onOpenRuns={() => undefined} runsHref=""
-										onUpdateIdentity={async () => undefined} onDraftIdentity={() => undefined}
 									/>
 									<div id="tabpanel-template" data-testid="workflow-template-panel" role="tabpanel" aria-label="Workflow template">
 										<div data-testid="workflow-editor">
@@ -1692,129 +1498,36 @@
 										</div>
 									</div>
 								{:else if displayedProvisionalWorkflow}
-									<WorkflowDetailPage
-										title={displayedProvisionalWorkflow.title}
-										description={displayedProvisionalWorkflow.description ?? ''}
-										category={displayedProvisionalWorkflow.category ?? 'general_knowledge'}
-										icon={workflowIcon(displayedProvisionalWorkflow.title, displayedProvisionalWorkflow.icon, displayedProvisionalWorkflow.graph)}
-										enabled={false} canEnable={false} canRun={false} saving={true} provisional
-										activeTab="template"
-										onTabChange={() => undefined} onToggleEnabled={() => undefined}
-										onRunWorkflow={() => undefined} onDeleteWorkflow={() => undefined}
-										onOpenHome={() => { provisionalDismissed = true; provisionalFullscreen = null; }}
-										onOpenShare={() => undefined} onExport={() => undefined}
-										onOpenRuns={() => undefined} runsHref=""
-										onUpdateIdentity={async () => undefined} onDraftIdentity={() => undefined}
+									<WorkflowProvisionalView
+										workflow={displayedProvisionalWorkflow}
+										pendingMessage={pendingSaveMessage}
+										phase={authoringPhase}
+										acceptedNodeCount={acceptedNodeCounts[displayedProvisionalWorkflow.id] ?? 0}
+										onClose={() => { provisionalDismissed = true; provisionalFullscreen = null; }}
 									/>
-									<div id="tabpanel-template" data-testid="workflow-template-panel" role="tabpanel" aria-label="Workflow template">
-										<div data-testid="workflow-editor">
-											<div class="workflow-ai-pending" data-testid="workflow-ai-processing" role="status">{pendingSaveMessage || (authoringPhase === 'saving' ? $text('workflows.builder.ai_preview_saving') : $text('workflows.builder.processing'))}</div>
-											<div class="workflow-authoring-info" data-testid="workflow-authoring-info" role="status">
-												{#if (acceptedNodeCounts[displayedProvisionalWorkflow.id] ?? 0) > 0}<p data-testid="workflow-ai-accepted-nodes">{$text(acceptedNodeCounts[displayedProvisionalWorkflow.id] === 1 ? 'workflows.builder.ai_validated_step' : 'workflows.builder.ai_validated_steps', { values: { count: acceptedNodeCounts[displayedProvisionalWorkflow.id] } })}</p>{/if}
-												<p>{$text('workflows.builder.ai_preview_pending')}</p>
-											</div>
-											<div data-testid="workflow-ai-pending-preview" data-disabled="true" data-save-status={authoringPhase ?? 'saving'}>
-												<WorkflowGraphRenderer graph={displayedProvisionalWorkflow.graph} readOnly onChange={() => undefined} onSave={null}/>
-											</div>
-										</div>
-									</div>
 								{:else if selectedWorkflow}
-									{#key `${selectedWorkflow.id}:${identityResetSignal}`}
-									<WorkflowDetailPage
-										title={editorTitle || selectedWorkflow.title}
-										description={editorDescription}
-										category={selectedWorkflow.category ?? 'general_knowledge'}
-										icon={workflowIcon(
-											selectedWorkflow.title,
-											selectedWorkflow.icon,
-											editorGraph ?? undefined
-										)}
-										createdAt={selectedWorkflow.created_at}
-										nextRunAt={selectedWorkflow.next_run_at}
-										enabled={selectedWorkflow.enabled}
-										canEnable={editorActivationReady && !editorDirty}
-										canRun={savedRunReady}
-										{lastStartedRunId}
-										activeTab={displayedRunsView ? 'runs' : 'template'}
-										{saving}
-										onTabChange={requestWorkflowTab}
-										onToggleEnabled={() => setSelectedWorkflowEnabled(!selectedWorkflow?.enabled)}
-										onUpdateIdentity={updateWorkflowIdentity}
-										onDraftIdentity={(title, description) => {
-										editorTitle = title;
-										editorDescription = description;
-										editorDirty = true;
-									}}
-										onRunWorkflow={runSelectedWorkflow}
-										onDeleteWorkflow={deleteSelectedWorkflow}
-										onOpenHome={requestWorkflowHome}
-										onOpenShare={requestWorkflowShare}
-										onExport={() => { if (!selectedWorkflow) return; try { downloadWorkflowFile(selectedWorkflow); } catch (exportError) { routeError = exportError instanceof Error ? exportError.message : $text('workflows.builder.file_export_failed'); } }}
-										onOpenRuns={() => requestWorkflowTab('runs')}
-										runsHref={workflowStateHref(selectedWorkflow.id, 'runs')}
+									{@const workflowId = selectedWorkflow.id}
+									<WorkflowEditorPane
+										bind:this={editorPane}
+										source={{
+											kind: 'saved',
+											workflow: selectedWorkflow,
+											activeTab: displayedRunsView ? 'runs' : 'template',
+											selectedRunId,
+											runsHref: workflowStateHref(workflowId, 'runs'),
+											editorHref: workflowStateHref(workflowId, 'details'),
+											onTabChange: requestWorkflowTab,
+											onOpenRun: (runId) => openWorkflowRuns(workflowId, runId),
+											onOpenEditor: () => openWorkflowDetails(workflowId),
+											onShare: requestWorkflowShare,
+											onDeleted: () => openWorkflowHome(),
+											onRequestNavigation: requestNavigation,
+											authoring: editorAuthoring
+										}}
+										onClose={requestWorkflowHome}
+										onError={(message) => { routeError = message; }}
+										onStateChange={(state) => { editorPaneState = state; }}
 									/>
-									{/key}
-									{#if !displayedRunsView && selectedWorkflow.binding_requirements?.length}
-										<WorkflowBindingReview requirements={selectedWorkflow.binding_requirements} completed={selectedWorkflow.completed_binding_requirements ?? []} graph={editorGraph ?? selectedWorkflow.graph} {saving} hasUnsavedChanges={editorDirty || !!workflowGraphRef?.hasPendingDraft()} onEdit={(nodeId) => workflowGraphRef?.openNodeEditor(nodeId)} onConfirm={confirmBinding} />
-									{/if}
-
-									{#if displayedRunsView}
-										<WorkflowRunHistory
-											workflow={selectedWorkflow}
-											{runs}
-											{selectedRunId}
-											onSelectRun={(runId) => openWorkflowRuns(selectedWorkflow.id, runId)}
-											editorHref={workflowStateHref(selectedWorkflow.id, 'details')}
-											onOpenEditor={() => openWorkflowDetails(selectedWorkflow.id)}
-										/>
-									{:else}
-										<div
-											id="tabpanel-template"
-											data-testid="workflow-template-panel"
-											role="tabpanel"
-											aria-label="Workflow template"
-										>
-											<WorkflowVersionHistory
-												workflow={selectedWorkflow}
-												disabled={saving}
-												onRequestNavigation={requestNavigation}
-												onRestored={handleWorkflowVersionRestored}
-											>
-												{#if editorGraph}
-													{@const selectedId = selectedWorkflow.id}
-													{@const createdByAi = createdAiWorkflowIds.includes(selectedId)}
-													<WorkflowEditorWorkspace
-														bind:this={workflowGraphRef}
-														workflowId={selectedId}
-														graph={editorGraph}
-														{saving}
-														preview={activeEditorPreview && pendingPreviewTargetId === selectedId ? { workflow: activeEditorPreview, phase: authoringPhase ?? 'saving', acceptedNodeCount: acceptedNodeCounts[activeEditorPreview.id] ?? 0, baseGraph: selectedWorkflow.graph } : null}
-														partialNotice={partialNotice && partialWorkflowIds.includes(selectedId) ? partialNotice : null}
-														info={{
-															createdDisabled: createdByAi,
-															reminder: authoringReminder,
-															assumptions: authoringAssumptionsWorkflowId === selectedId ? authoringAssumptions : [],
-															onUndoCreated: createdByAi && createdAiSession?.undo_available ? () => void undoCreatedAiChanges() : null
-														}}
-														review={aiChange && !activeEditorPreview && aiChange.workflow_id === selectedId ? {
-															change: aiChange,
-															savedLabel: $text('workflows.builder.ai_changes_saved'),
-															undoAvailable: !!aiSession?.undo_available,
-															undoConflict,
-															onUndo: () => void undoAiChanges(),
-															onOpenHistory: () => document.querySelector<HTMLButtonElement>('[data-testid="workflow-version-selector"]')?.click()
-														} : null}
-														testNow={hasTimeTrigger && !activeEditorPreview ? { disabled: saving || editorDirty || !savedRunReady, label: $text('workflows.builder.test_now'), onRun: () => void runSelectedWorkflow() } : null}
-														aiAddedNodeIds={aiChange?.workflow_id === selectedId ? aiChange.added_node_ids : []}
-														aiEditedNodeIds={aiChange?.workflow_id === selectedId ? aiChange.edited_node_ids : []}
-														onChange={updateEditorGraph}
-														onSave={saveNodeGraph}
-														onDraftStateChange={(hasDraft) => { editorHasPendingDraft = hasDraft; }}
-													/>
-												{/if}
-											</WorkflowVersionHistory>
-										</div>
-									{/if}
 								{:else}
 									<div class="empty-detail">
 										<h2>Build your first workflow</h2>
@@ -1833,12 +1546,12 @@
 									onRecordingClose={() => undefined}/>
 									{#if saving}<WorkflowAuthoringStatus message={pendingSaveMessage || $text('workflows.builder.processing')} stop={{ requested: stopRequested, label: stopRequested ? $text('workflows.builder.ai_stopping') : $text('workflows.builder.stop'), onStop: () => void stopAuthoring() }} check={null}/>{/if}
 							</div>
-						{:else if selectedWorkflow && !displayedRunsView && editorGraph}
+						{:else if selectedWorkflow && !displayedRunsView && editorPaneState.graphReady}
 							<div class="workflow-ai-composer" data-testid="workflow-ai-editor-composer">
 								<WorkspacePromptComposer surface="workflows" bind:value={editorInstruction}
 									bind:focusActive={editorComposerFocused}
 									placeholder={$text('workflows.builder.ai_edit_placeholder')} submitLabel={$text('workflows.builder.ai_edit_submit')} submittingLabel={$text('workflows.builder.ai_edit_submitting')}
-									disabled={!canRenderWorkflowData} submitting={saving || !!pendingSaveSessionId} testId="workflow-ai-edit-composer" inputTestId="workflow-ai-edit-textarea"
+									disabled={!canRenderWorkflowData} submitting={busy || !!pendingSaveSessionId} testId="workflow-ai-edit-composer" inputTestId="workflow-ai-edit-textarea"
 									submitTestId="workflow-ai-edit-submit" micTestId="workflow-ai-edit-mic" onSubmit={submitEditorInstruction}
 									onMicClick={() => { voiceTarget = 'editor'; }} recording={voiceTarget === 'editor'}
 									submitDictationOnFinish={true}
@@ -1847,7 +1560,7 @@
 								{#if pendingSaveSessionId || authoringPhase}<WorkflowAuthoringStatus
 									message={pendingSaveMessage || authoringPhaseMessage(authoringPhase)}
 									stop={pendingSaveSessionId && saving ? { requested: stopRequested, label: stopRequested ? 'Stopping...' : 'Stop', onStop: () => void stopAuthoring() } : null}
-									check={pendingSaveSessionId && !saving ? { label: $text('workflows.builder.ai_check_status'), onCheck: resumePendingSave } : null}/>{/if}
+									check={pendingSaveSessionId && !busy ? { label: $text('workflows.builder.ai_check_status'), onCheck: resumePendingSave } : null}/>{/if}
 							</div>
 						{/if}
 					</section>
@@ -1855,7 +1568,7 @@
 
 				{#if pendingNavigation}
 					<WorkflowUnsavedGuard
-						{saving}
+						saving={busy}
 						onStay={() => (pendingNavigation = null)}
 						onDiscard={() => void discardAndContinueNavigation()}
 						onSave={() => void saveAndContinueNavigation()}
@@ -1902,8 +1615,8 @@
 										type="submit"
 										class="primary"
 										data-testid="workflow-blank-create"
-										disabled={saving || !blankWorkflowTitle.trim()}
-										>{saving ? 'Creating...' : 'Create'}</button
+										disabled={busy || !blankWorkflowTitle.trim()}
+										>{busy ? 'Creating...' : 'Create'}</button
 									>
 								</div>
 							</form>
@@ -1928,13 +1641,10 @@
 	.workflow-guest-signup:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 	.workflow-ai-composer{position:relative;z-index:var(--z-index-raised-2);flex:none;box-sizing:border-box;width:100%;margin:-36px 0 0;padding:36px 1rem max(12px,env(safe-area-inset-bottom));background:linear-gradient(to bottom,transparent,var(--color-grey-10) 36px);pointer-events:none}
 	.workflow-management.composer-focused .workflow-ai-composer { background: transparent; }
-	.workflow-ai-composer :global(.workspace-prompt-composer),.workflow-ai-pending{pointer-events:auto}
+	.workflow-ai-composer :global(.workspace-prompt-composer){pointer-events:auto}
 	.workflow-import-dropzone{display:grid;justify-items:center;gap:.4rem;width:100%;border:2px dashed transparent;border-radius:var(--radius-5)}.workflow-import-dropzone.dragging{border-color:var(--color-button-primary);background:var(--color-grey-10)}.workflow-import-hint{font-size:var(--font-size-small);color:var(--color-font-secondary)}
 	.workflow-ai-assumptions{max-width:42rem;margin:.75rem auto;text-align:center;color:var(--color-font-secondary);font-size:var(--font-size-small)}
 	.workflow-ai-partial-warning{max-width:56rem;margin:.75rem auto;padding:.75rem 1rem;border:1px solid var(--color-warning, var(--color-button-primary));border-radius:.75rem;background:var(--color-grey-10);color:var(--color-font-primary)}
-	.workflow-ai-pending{display:flex;justify-content:center;align-items:center;gap:.75rem;max-width:42rem;margin:.75rem auto;color:var(--color-font-secondary)}
-	.workflow-authoring-info{box-sizing:border-box;width:min(42rem,calc(100% - 2rem));margin:1rem auto;padding:.75rem 1rem;border-radius:var(--radius-8,20px);color:var(--color-font-secondary);background:var(--color-grey-10);font-size:var(--font-size-small,.875rem)}
-	.workflow-authoring-info p{margin:.25rem 0}
 	.workflows-route-state {
 		min-height: calc(100vh - 90px);
 		display: grid;

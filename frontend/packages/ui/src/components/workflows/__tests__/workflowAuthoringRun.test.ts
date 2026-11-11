@@ -59,6 +59,18 @@ describe('runWorkflowAuthoring', () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=workflows-ui.authoring.composer-and-preview,app-memories.suggestions.post-processor
+  it('passes the source chat and turn of a chat Recommendation as stream options', async () => {
+    service.streamWorkflowInstruction.mockResolvedValue(session('draft'));
+    await runWorkflowAuthoring(request({ draftOnly: true, sourceChatId: 'chat-1', sourceMessageId: 'chat-1-turn' }), handlers());
+    expect(service.streamWorkflowInstruction.mock.calls[0][5]).toEqual({
+      draftOnly: true, sourceChatId: 'chat-1', sourceMessageId: 'chat-1-turn',
+    });
+    // A turn id never travels without its chat.
+    await runWorkflowAuthoring(request({ draftOnly: true, sourceMessageId: 'orphan-turn' }), handlers());
+    expect(service.streamWorkflowInstruction.mock.calls[1][5]).toEqual({ draftOnly: true });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=workflows-ui.authoring.composer-and-preview,app-memories.suggestions.post-processor
   it('keeps the stream call unchanged without draftOnly', async () => {
     service.streamWorkflowInstruction.mockResolvedValue(session('executed'));
     await runWorkflowAuthoring(request(), handlers());

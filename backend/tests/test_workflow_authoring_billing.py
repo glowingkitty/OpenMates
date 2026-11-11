@@ -553,3 +553,83 @@ async def test_mercury_workflow_attempt_retains_its_admitted_cache_tariff(ledger
     await billing.settle(model=billing_module.MERCURY_MODEL, provider_step='mercury:0',
                          usage={'input_tokens': 33000, 'output_tokens': 950, 'cache_read_input_tokens': 29700})
     assert calls[0]['credits'] == 2
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=billing.credits.idempotent-charge,workflows.authoring.compact-plan
+async def test_chat_started_authoring_links_every_charge_to_the_chat_turn(monkeypatch, ledger):
+    from backend.core.api.app.services.billing_service import _resolve_usage_source
+    calls, _, _ = ledger
+    chat = {"_billing_source_chat_id": "chat-1", "_billing_source_message_id": "chat-1-turn"}
+
+    class MeteredAuthor(Author):
+        async def generate(self, **kwargs):
+            result, _ = await super().generate(**kwargs)
+            assert "chat-1" not in repr(kwargs)
+            return result, {"input_tokens": 450, "output_tokens": 90}
+
+    # Jev preselection stage plus generation.
+    await planner_module.WorkflowRegistryPlanner(secrets_manager=None)._plan(
+        "Daily forecast", {"timezone": "UTC", "_billing_user_id": "owner",
+                           "_billing_session_id": "chat-session", **chat}, Decisions(), MeteredAuthor(forecast_plan()))
+    # A correction retry after an invalid first generation.
+    configure(monkeypatch)
+    bad = forecast_plan()
+    bad["steps"][1]["message"][0]["ref"]["field"] = "invented_output"
+
+    class RetryAuthor:
+        calls = 0
+
+        async def generate(self, **kwargs):
+            self.calls += 1
+            return deepcopy(bad if self.calls == 1 else forecast_plan()), {"input_tokens": 450, "output_tokens": 90}
+
+    await planner_module.WorkflowRegistryPlanner(secrets_manager=None)._plan(
+        "Daily forecast", {"timezone": "UTC", "_billing_user_id": "owner",
+                           "_billing_session_id": "chat-retry-session", **chat}, object(), RetryAuthor())
+    assert [call["usage_details"]["provider_step"] for call in calls] == ["jev:0", "gemini:0", "gemini:0", "gemini:1"]
+    for call in calls:
+        details = call["usage_details"]
+        assert (details["chat_id"], details["message_id"], details["source"]) == ("chat-1", "chat-1-turn", "chat")
+        assert "team_id" not in call
+        # The billing service keeps the chat on the usage row (not a workflow-run source).
+        assert _resolve_usage_source(details, api_key_hash=None, chat_id=details["chat_id"]) == "chat"
+        assert (call["app_id"], call["skill_id"]) == ("workflows", "create-or-modify")
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=billing.credits.idempotent-charge,workflows.authoring.compact-plan
+async def test_workspace_authoring_stays_direct_and_team_charges_refuse_a_chat(ledger):
+    from backend.core.api.app.services.billing_service import _resolve_usage_source
+    calls, _, _ = ledger
+    billing = billing_module.WorkflowAuthoringBilling(user_id="owner", session_id="workspace-session")
+    await billing.settle(model=billing_module.GEMINI_MODEL, provider_step="gemini:0",
+                         usage={"input_tokens": 450, "output_tokens": 90})
+    details = calls[0]["usage_details"]
+    assert details["source"] == "direct" and "chat_id" not in details and "message_id" not in details
+    assert _resolve_usage_source(details, api_key_hash=None, chat_id=None) == "direct"
+    for invalid in ({"team_id": "team-1", "source_chat_id": "chat-1"}, {"source_message_id": "turn"}):
+        with pytest.raises(billing_module.WorkflowAuthoringBillingError,
+                           match="WORKFLOW_AUTHORING_BILLING_INVALID_CONTEXT"):
+            billing_module.WorkflowAuthoringBilling(user_id="owner", session_id="s", **invalid)
+
+
+# contract-test: supporting surface=rest_api assertions=billing.credits.idempotent-charge,workflows.authoring.compact-plan
+def test_input_service_passes_the_source_chat_to_billing_only_for_personal_sessions():
+    seen = []
+
+    class Planner:
+        atomic_authoring = True
+        requires_workflow_overview = False
+
+        def plan(self, *, text, context):
+            seen.append({key: context.get(key) for key in ("_billing_source_chat_id", "_billing_source_message_id")})
+            return {"action": "needs_clarification", "message": "Which city?"}
+
+    service = WorkflowInputService(workflow_service=workflow_service(), planner=Planner())
+    service.start(user_id="owner", text="Rain workflow", source_chat_id="chat-1", source_message_id="chat-1-turn")
+    service.start(user_id="owner", text="Rain workflow")
+    assert seen == [{"_billing_source_chat_id": "chat-1", "_billing_source_message_id": "chat-1-turn"},
+                    {"_billing_source_chat_id": None, "_billing_source_message_id": None}]
+    with pytest.raises(ValueError, match="source message requires"):
+        service.start(user_id="owner", text="Rain workflow", source_message_id="turn")

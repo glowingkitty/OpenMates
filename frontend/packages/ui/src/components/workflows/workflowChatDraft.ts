@@ -1,6 +1,6 @@
-// frontend/packages/ui/src/components/workflows/workflowSidePanelDraft.ts
+// frontend/packages/ui/src/components/workflows/workflowChatDraft.ts
 //
-// Pure helpers for the chat workflow side panel (WorkflowSidePanel.svelte):
+// Pure helpers for the workflow editor shown in a chat (WorkflowChatPane.svelte):
 // turning a draft-only authoring session or stream preview into an editable,
 // unsaved draft, and deciding how a save is persisted and reported.
 

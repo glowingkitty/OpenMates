@@ -13,6 +13,8 @@
  *   embed saved flag without reminders when the embed still resolves, otherwise they are dropped.
  *   Reminder defaults are dropped.
  * - Every run recomputes its work from stored state, so it is crash-safe and resumable.
+ * - The entry's app becomes the document's `app_id`; documents migrated before that field
+ *   existed get it once from the recovery export (backfillLegacyMemoryAppIds), body unchanged.
  *
  * TRANSITIONAL: remove together with the legacy read+delete route once clients migrated.
  */
@@ -21,6 +23,7 @@ import { authStore } from '../stores/authStore';
 import { userProfile } from '../stores/userProfile';
 import { MAX_RULE_DOCUMENTS, parseRuleDocument, serializeRuleDocument } from '../utils/ruleDocuments';
 import { updateAccountSettings } from './ruleDocumentService';
+import type { CustomRuleDocument } from '../utils/ruleDocuments';
 
 export const LEGACY_EXPORT_SETTINGS_KEY = 'legacy_typed_memory_export';
 const MAX_EXPORT_BYTES = 400_000;
@@ -114,7 +117,51 @@ export function buildMemoryDocumentFromLegacy(entry: LegacyTypedEntry, typeDescr
   const title = `${typeName}: ${entryTitle.replace(/\s+/g, ' ')}`.slice(0, 180).trim();
   const body = renderEntryBody(entry.value) || `- ${entryTitle}`;
   const when = (typeDescription || `Relevant ${humanize(entry.appId)} ${typeName.toLowerCase()} preferences.`).trim().slice(0, 1200);
-  return serializeRuleDocument({ title, when_to_use: when, body: body.slice(0, 19_000), load_mode: 'ask_first' });
+  return serializeRuleDocument({
+    title, when_to_use: when, body: body.slice(0, 19_000), load_mode: 'ask_first',
+    ...(LEGACY_APP_ID.test(entry.appId) ? { app_id: entry.appId } : {}),
+  });
+}
+
+/** Shape of a legacy app id (backend `memory_loader._APP_ID`). */
+const LEGACY_APP_ID = /^[a-z][a-z0-9_]{0,63}$/;
+const FRONTMATTER_END = /^(\uFEFF?---\r?\n[\s\S]*?\r?\n)(---(?:\r?\n|$)[\s\S]*)$/;
+
+/**
+ * Adds `app_id` from the recovery export to migrated documents that have none. The line is
+ * inserted before the closing fence, so the body and every other header line stay byte-identical.
+ * Idempotent: documents that already carry an app_id (or were edited into an invalid shape) are skipped.
+ * Returns true when at least one document changed.
+ */
+export function applyLegacyAppIdBackfill(settings: Record<string, unknown>, documents: CustomRuleDocument[]): boolean {
+  let changed = false;
+  for (const record of readExport(settings)) {
+    if (record?.outcome !== 'memory' || typeof record.document_id !== 'string' || typeof record.app_id !== 'string'
+      || !LEGACY_APP_ID.test(record.app_id) || NON_MEMORY_APP_IDS.has(record.app_id)) continue;
+    const target = documents.find((doc) => doc.id === record.document_id);
+    if (!target) continue;
+    let before: ReturnType<typeof parseRuleDocument>;
+    // A document the user since edited into a shape this parser refuses is left untouched.
+    try { before = parseRuleDocument(target.document); } catch { continue; }
+    if (before.app_id) continue;
+    const match = target.document.match(FRONTMATTER_END);
+    if (!match) continue;
+    const updated = `${match[1]}app_id: ${record.app_id}\n${match[2]}`;
+    const after = parseRuleDocument(updated);
+    if (after.body !== before.body || after.app_id !== record.app_id) continue;
+    target.document = updated;
+    changed = true;
+  }
+  return changed;
+}
+
+let backfilled = false;
+/** One synced write per page load at most; later runs are no-ops once nothing is left to backfill. */
+export async function backfillLegacyMemoryAppIds(): Promise<boolean> {
+  if (backfilled) return false;
+  const changed = await updateAccountSettings(applyLegacyAppIdBackfill);
+  backfilled = true;
+  return changed;
 }
 
 /** Injectable boundaries so the migration is testable without browser storage. */
@@ -302,7 +349,10 @@ export function startLegacyTypedMemoryMigration(depsFactory: () => Promise<Migra
   started = true;
   const run = async () => {
     if (!get(authStore).isAuthenticated || !get(userProfile).user_id || !get(userProfile).encrypted_settings) return;
-    try { await migrateLegacyTypedMemories(await depsFactory()); }
+    try {
+      await migrateLegacyTypedMemories(await depsFactory());
+      await backfillLegacyMemoryAppIds();
+    }
     catch (error) { console.warn('[legacyTypedMemoryMigration] Run skipped; will retry', error); }
   };
   userProfile.subscribe(() => { void run(); });
