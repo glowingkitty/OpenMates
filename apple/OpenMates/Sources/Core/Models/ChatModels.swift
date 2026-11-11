@@ -457,7 +457,7 @@ struct Message: Identifiable, Decodable, Sendable {
     let role: MessageRole
     var content: String? {         // Decrypted content (set client-side after decryption)
         didSet {
-            guard content != oldValue else { return }
+            guard !deferRenderRebuild, content != oldValue else { return }
             renderDocument = ChatHistoryRenderDocument.build(for: self)
         }
     }
@@ -469,19 +469,19 @@ struct Message: Identifiable, Decodable, Sendable {
     let embedRefs: [EmbedRef]?
     var modelName: String? {
         didSet {
-            guard modelName != oldValue else { return }
+            guard !deferRenderRebuild, modelName != oldValue else { return }
             renderDocument = ChatHistoryRenderDocument.build(for: self)
         }
     }
     var senderName: String? {
         didSet {
-            guard senderName != oldValue else { return }
+            guard !deferRenderRebuild, senderName != oldValue else { return }
             renderDocument = ChatHistoryRenderDocument.build(for: self)
         }
     }
     var category: String? {
         didSet {
-            guard category != oldValue else { return }
+            guard !deferRenderRebuild, category != oldValue else { return }
             renderDocument = ChatHistoryRenderDocument.build(for: self)
         }
     }
@@ -495,6 +495,26 @@ struct Message: Identifiable, Decodable, Sendable {
     let encryptedThinkingSignature: String?
     let thinkingTokenCount: Int?
     private(set) var renderDocument: ChatHistoryRenderDocument?
+    /// True only inside `applyDecryptedDisplayFields`, which rebuilds the render
+    /// document once instead of once per changed field.
+    private var deferRenderRebuild = false
+
+    /// Applies decrypted display fields and rebuilds the render document at most
+    /// once (the per-field `didSet` rebuilds re-parse the markdown each time).
+    mutating func applyDecryptedDisplayFields(
+        content: String?, modelName: String?, senderName: String?, category: String?
+    ) {
+        let before = (self.content, self.modelName, self.senderName, self.category)
+        deferRenderRebuild = true
+        if let content { self.content = content }
+        if let modelName { self.modelName = modelName }
+        if let senderName { self.senderName = senderName }
+        if let category { self.category = category }
+        deferRenderRebuild = false
+        let changed = before.0 != self.content || before.1 != self.modelName
+            || before.2 != self.senderName || before.3 != self.category
+        if changed { renderDocument = ChatHistoryRenderDocument.build(for: self) }
+    }
 
     /// Resolve an explicit database alias without borrowing plaintext from an
     /// older edit or another chat. A valid canonical body always wins.

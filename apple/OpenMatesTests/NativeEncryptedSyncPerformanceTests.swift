@@ -345,6 +345,45 @@ final class NativeEncryptedSyncPerformanceTests: XCTestCase {
                 self.assertDisplayed(displayed, expected: fixture.expectedMessages)
             })
 
+        // Fine-grained split of core_chat_open_full_1000_decrypt_only: record
+        // building, the bare FFI call, and mapping results back into Messages.
+        guard let rawKey = keyManager.key(for: busyChatId) else {
+            return XCTFail("missing chat key for the busy chat")
+        }
+        let keyData = rawKey.withUnsafeBytes { Data($0) }
+        var records: [EncryptedMessageRecord] = []
+        var results: [MessageFieldsRecord] = []
+        var mapped: [Message] = []
+        loaded = readStore.loadMessages(chatId: busyChatId)
+        try await measure("core_chat_open_full_1000_build_records",
+            prepare: { records = [] },
+            body: {
+                records = Self.encryptedRecords(loaded)
+                return records.count
+            },
+            verify: {
+                XCTAssertEqual(records.count, Self.messageCount)
+            })
+        try await measure("core_chat_open_full_1000_ffi_only",
+            prepare: { results = [] },
+            body: {
+                results = try await batchDecryptMessages(chatKey: keyData, messages: records)
+                return results.count
+            },
+            verify: {
+                XCTAssertEqual(results.count, Self.messageCount)
+            })
+        try await measure("core_chat_open_full_1000_map_results",
+            prepare: { mapped = [] },
+            body: {
+                mapped = Self.applyResults(results, to: loaded)
+                return mapped.count
+            },
+            verify: {
+                XCTAssertEqual(mapped.count, Self.messageCount)
+                self.assertDisplayed(mapped, expected: fixture.expectedMessages)
+            })
+
         let attachment = XCTAttachment(string: perfLines.joined(separator: "\n"))
         attachment.name = "apple-perf-summary"
         attachment.lifetime = .keepAlways
@@ -402,6 +441,45 @@ final class NativeEncryptedSyncPerformanceTests: XCTestCase {
             XCTAssertEqual(chat.category, expected?.category)
             XCTAssertEqual(chat.icon, expected?.icon)
             XCTAssertEqual(chat.chatSummary, expected?.summary)
+        }
+    }
+
+    /// Mirror of the record construction inside `ChatKeyManager.decryptMessages`.
+    private static func encryptedRecords(_ messages: [Message]) -> [EncryptedMessageRecord] {
+        messages.map { message in
+            EncryptedMessageRecord(
+                messageId: message.id,
+                encryptedContent: message.content?.isEmpty != false ? message.encryptedContent : nil,
+                encryptedPiiMappings: message.piiMappings == nil ? message.encryptedPIIMappings : nil,
+                encryptedThinkingContent: message.thinkingContent == nil ? message.encryptedThinkingContent : nil,
+                encryptedSenderName: message.senderName == nil ? message.encryptedSenderName : nil,
+                encryptedCategory: message.category == nil ? message.encryptedCategory : nil,
+                encryptedModelName: message.modelName == nil ? message.encryptedModelName : nil)
+        }
+    }
+
+    private static func decryptedText(_ outcome: FieldDecryptOutcome?) -> String? {
+        if case .decrypted(let value) = outcome { return value }
+        return nil
+    }
+
+    /// Mirror of the result mapping inside `ChatKeyManager.decryptMessages`.
+    private static func applyResults(_ results: [MessageFieldsRecord], to messages: [Message]) -> [Message] {
+        let decoder = JSONDecoder()
+        return zip(messages, results).map { message, fields in
+            var decrypted = message
+            if let json = decryptedText(fields.piiMappings),
+               let data = json.data(using: .utf8),
+               let mappings = try? decoder.decode([PIIMapping].self, from: data) {
+                decrypted.piiMappings = mappings
+            }
+            if let value = decryptedText(fields.thinkingContent) { decrypted.thinkingContent = value }
+            decrypted.applyDecryptedDisplayFields(
+                content: decryptedText(fields.content),
+                modelName: decryptedText(fields.modelName),
+                senderName: decryptedText(fields.senderName),
+                category: decryptedText(fields.category))
+            return decrypted
         }
     }
 

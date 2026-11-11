@@ -77,3 +77,21 @@ removed (one notification per batch). Rust alone needs about 17 ms for the
 1000 messages (Linux release benchmark `rust_cost_of_the_swift_perf_phases`),
 so about 640 ms of the core decrypt-only phase is Swift work in
 `ChatViewModel.decryptMessagesForDisplay`; not yet located.
+
+## A3a follow-up 2: one render rebuild per decrypted message (2026-11-11)
+
+Run 42959964856 (apple-unit, candidate 1db90c02; a faster runner than the runs
+above, so compare within this run only), median ms.
+
+| Phase | n | Swift (old) | Core (new) |
+|---|---|---|---|
+| chat key bulk load | 600 | 35 | 14 |
+| chat list metadata decrypt | 600 | 99 | 14 |
+| chat open window, decrypt only | 50 | 34 | 10 |
+| chat open full, decrypt only | 1000 | 751 | 206 |
+| chat open full, store load + decrypt | 1000 | 831 | 282 |
+
+Split of the core decrypt-only phase: build records 0, core call 20, mapping
+results back into `Message` 182. The mapping is one markdown parse per message
+(`ChatHistoryRenderDocument.build`); before this change the decrypt path
+triggered it once per field set (up to four times per message).

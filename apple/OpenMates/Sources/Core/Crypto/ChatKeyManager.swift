@@ -367,9 +367,7 @@ final class ChatKeyManager: ObservableObject {
         let decoder = JSONDecoder()
         return zip(messages, results).map { message, fields in
             var decrypted = message
-            if let content = Self.plaintext(fields.content, field: "content", id: chatId) {
-                decrypted.content = content
-            }
+            let content = Self.plaintext(fields.content, field: "content", id: chatId)
             if let json = Self.plaintext(fields.piiMappings, field: "pii_mappings", id: chatId),
                let data = json.data(using: .utf8),
                let mappings = try? decoder.decode([PIIMapping].self, from: data) {
@@ -378,15 +376,11 @@ final class ChatKeyManager: ObservableObject {
             if let value = Self.plaintext(fields.thinkingContent, field: "thinking_content", id: chatId) {
                 decrypted.thinkingContent = value
             }
-            if let value = Self.plaintext(fields.senderName, field: "sender_name", id: chatId) {
-                decrypted.senderName = value
-            }
-            if let value = Self.plaintext(fields.category, field: "category", id: chatId) {
-                decrypted.category = value
-            }
-            if let value = Self.plaintext(fields.modelName, field: "model_name", id: chatId) {
-                decrypted.modelName = value
-            }
+            decrypted.applyDecryptedDisplayFields(
+                content: content,
+                modelName: Self.plaintext(fields.modelName, field: "model_name", id: chatId),
+                senderName: Self.plaintext(fields.senderName, field: "sender_name", id: chatId),
+                category: Self.plaintext(fields.category, field: "category", id: chatId))
             return decrypted
         }
     }
