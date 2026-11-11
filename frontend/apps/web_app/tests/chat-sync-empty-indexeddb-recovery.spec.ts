@@ -705,8 +705,14 @@ test('current-version partial IndexedDB schema is recreated without dropping loc
 		expect(dbState.storeNames).toContain('embed_diffs');
 		expect(dbState.storeNames).toContain('daily_inspirations');
 		expect(dbState.storeNames).toContain('chat_compression_checkpoints');
-		expect(dbState.hasSeededChat).toBe(true);
-		expect(dbState.hasSeededMessage).toBe(true);
+		// The seeded chat is unknown to the server. Once the repaired rows reach sync, the
+		// server's authoritative chat list may remove it; that removal line names the chat
+		// and proves the row survived the repair. Without it the rows must still be there.
+		const removedBySync = consoleLogs.some((entry) =>
+			entry.includes(`Removed locally stale chat ${PARTIAL_SCHEMA_CHAT_ID} `)
+		);
+		expect(dbState.hasSeededChat || removedBySync).toBe(true);
+		expect(dbState.hasSeededMessage || removedBySync).toBe(true);
 	}).toPass({ timeout: 30000, intervals: [1000, 2000, 5000] });
 });
 
