@@ -1,6 +1,6 @@
 //! Commands a shell sends to the view-model actor and events it receives back.
 //! Request ids are typed so a stale reply can be matched to the request that
-//! caused it. Spec: `a2-design.md` (View model); the actor lands in later lanes.
+//! caused it. Spec: `a2-design.md` (View model); served by `actor_flows.rs`.
 use super::error::ViewErrorKind;
 use super::records::{ChatListRow, ChatWindowRecord, ListCompleteness, StreamEvent};
 use crate::session::Session;

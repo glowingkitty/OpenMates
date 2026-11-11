@@ -12,9 +12,9 @@ async fn cancelled_live_tick_does_not_touch_storage_or_publish_model() {
     let (_directory, mut actor) = super::tests::fixture().await;
     let (send, mut receive) = mpsc::channel(4);
     actor.live_cancel.cancel();
-    let before = actor.client.ciphertext_snapshot();
+    let before = actor.core.client_mut().ciphertext_snapshot();
     actor.live_update(&send).await.unwrap();
-    assert_eq!(actor.client.ciphertext_snapshot(), before);
+    assert_eq!(actor.core.client_mut().ciphertext_snapshot(), before);
     assert!(receive.try_recv().is_err());
 }
 #[test]
@@ -282,9 +282,9 @@ async fn prepared_actor_mode(
     } else {
         live_peer().await
     };
-    let mut session = actor.client.clone_session().unwrap();
+    let mut session = actor.core.client_mut().clone_session().unwrap();
     session.api_url = api.clone();
-    actor.client.reset(&api, Some(session)).unwrap();
+    actor.core.client_mut().reset(&api, Some(session)).unwrap();
     let (send, _receive) = mpsc::channel(32);
     actor.monitor(&send, Stamp::default()).await.unwrap();
     let monitor = actor.live_monitor.as_ref().unwrap();
@@ -310,10 +310,10 @@ async fn actual_live_read_persists_encrypted_snapshot_and_exact_credentials_befo
         panic!("expected durable live publication")
     };
     actor
-        .client
+        .core.client_mut()
         .validate_chat_publication(&publication)
         .unwrap();
-    let session = actor.client.clone_session().unwrap();
+    let session = actor.core.client_mut().clone_session().unwrap();
     let durable = actor
         .store
         .read_cache(
@@ -324,7 +324,7 @@ async fn actual_live_read_persists_encrypted_snapshot_and_exact_credentials_befo
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(durable, actor.client.ciphertext_snapshot());
+    assert_eq!(durable, actor.core.client_mut().ciphertext_snapshot());
     assert!(!durable.to_string().contains("Durable external title"));
     assert!(!durable.to_string().contains("transient must not persist"));
     assert_eq!(
@@ -333,7 +333,7 @@ async fn actual_live_read_persists_encrypted_snapshot_and_exact_credentials_befo
     );
     let stored = actor
         .store
-        .load(actor.passphrase.clone())
+        .load(actor.passphrase.get())
         .await
         .unwrap()
         .unwrap();
@@ -361,7 +361,7 @@ async fn durable_revocation_failure_has_no_plaintext_publication_or_old_state_re
     // existing actor error/persistence policy; no stale snapshot rollback.
     assert_eq!(
         actor
-            .client
+            .core.client_mut()
             .clone_session()
             .unwrap()
             .cookies
@@ -409,7 +409,7 @@ async fn known_validation_expiry_security_notification_precedes_failing_store_cl
         receive.recv().await.unwrap().view,
         View::Monitor(Error::Expired, _)
     ));
-    assert!(actor.client.session().is_none());
+    assert!(actor.core.client_mut().session().is_none());
     tokio::time::timeout(Duration::from_secs(4), server)
         .await
         .unwrap()
@@ -430,9 +430,9 @@ async fn known_start_expiry_security_notification_precedes_failing_store_clear()
         );
         respond_http_status(&mut stream, 401, json!({"detail":"expired"})).await;
     });
-    let mut session = actor.client.clone_session().unwrap();
+    let mut session = actor.core.client_mut().clone_session().unwrap();
     session.api_url = api.clone();
-    actor.client.reset(&api, Some(session)).unwrap();
+    actor.core.client_mut().reset(&api, Some(session)).unwrap();
     let _permissions = deny_fixture_profile_writes(&directory);
     let (send, mut receive) = mpsc::channel(8);
     let result = tokio::time::timeout(
@@ -477,7 +477,7 @@ async fn dropped_live_read_future_retains_hint_and_cancelled_tick_waits_fresh_to
 async fn foreground_recovery_grant_is_removed_when_future_is_dropped() {
     let (_directory, mut actor) = super::tests::fixture().await;
     let mut operation = Box::pin(async {
-        let _grant = ForegroundRecoveryGrant::new(&mut actor.client).unwrap();
+        let _grant = ForegroundRecoveryGrant::new(actor.core.client_mut()).unwrap();
         std::future::pending::<()>().await;
     });
     assert!(matches!(
@@ -487,7 +487,7 @@ async fn foreground_recovery_grant_is_removed_when_future_is_dropped() {
     drop(operation);
     assert!(matches!(
         actor
-            .client
+            .core.client_mut()
             .completion_recovery_jobs(&CancellationToken::new())
             .await,
         Err(Error::Unavailable {
@@ -501,9 +501,9 @@ async fn cold_authenticated_start_pumps_once_without_hint_and_idle_ticks_do_not_
     use std::sync::atomic::Ordering;
     let (_directory, mut actor) = super::tests::fixture().await;
     let (api, release, server, requests) = live_peer_observed(false).await;
-    let mut session = actor.client.clone_session().unwrap();
+    let mut session = actor.core.client_mut().clone_session().unwrap();
     session.api_url = api.clone();
-    actor.client.reset(&api, Some(session)).unwrap();
+    actor.core.client_mut().reset(&api, Some(session)).unwrap();
     let (send, _receive) = mpsc::channel(32);
     actor.monitor(&send, Stamp::default()).await.unwrap();
     assert!(
@@ -575,13 +575,13 @@ async fn malformed_local_checkpoint_authenticates_first_then_quiesces_without_re
     use std::sync::atomic::Ordering;
     let (directory, mut actor) = super::tests::fixture().await;
     let (api, release, server, requests) = live_peer_observed(false).await;
-    let mut session = actor.client.clone_session().unwrap();
+    let mut session = actor.core.client_mut().clone_session().unwrap();
     session.api_url = api.clone();
-    actor.client.reset(&api, Some(session)).unwrap();
+    actor.core.client_mut().reset(&api, Some(session)).unwrap();
     let (send, _receive) = mpsc::channel(32);
     actor.monitor(&send, Stamp::default()).await.unwrap();
     actor.live_monitor.as_ref().unwrap().take_pending().unwrap();
-    let session = actor.client.clone_session().unwrap();
+    let session = actor.core.client_mut().clone_session().unwrap();
     let before = fixture_file_hashes(directory.path());
     actor
         .store
@@ -642,7 +642,7 @@ fn owned_cached_snapshot(count: usize) -> Value {
     json!({"chats":chats,"wrappers":[],"history":history,"embeds":{},"embed_keys":[],"team_wrapped_key":null})
 }
 async fn stage_owned_cached_actor(actor: &mut Actor) -> watch::Receiver<Option<NativeCachedChatViews>> {
-    actor.client.restore_ciphertext_snapshot(&owned_cached_snapshot(6)).unwrap();
+    actor.core.client_mut().restore_ciphertext_snapshot(&owned_cached_snapshot(6)).unwrap();
     actor.persist().await.unwrap();
     actor.stage_cached_views(Stamp::default());
     let receiver=actor.cached_views.subscribe();
@@ -668,8 +668,8 @@ async fn cached_frame_paints_while_real_background_auth_is_still_pending() {
         let started=Arc::new(tokio::sync::Notify::new());
         let release_auth=Arc::new(tokio::sync::Notify::new());
         let (api,release_hint,server,requests)=live_peer_observed_with_hold(false,Some((started.clone(),release_auth.clone()))).await;
-        let mut session=actor.client.clone_session().unwrap();session.api_url=api.clone();
-        actor.client.reset(&api,Some(session)).unwrap();
+        let mut session=actor.core.client_mut().clone_session().unwrap();session.api_url=api.clone();
+        actor.core.client_mut().reset(&api,Some(session)).unwrap();
         let (send,_receive)=mpsc::channel(32);
         actor.monitor(&send,Stamp::default()).await.unwrap();
         let receiver=stage_owned_cached_actor(&mut actor).await;
@@ -753,8 +753,8 @@ async fn fresh_owner_reset_invalidates_independent_cached_lane_without_waiting_f
         let receiver=stage_owned_cached_actor(&mut actor).await;
         let lane=receiver.borrow().clone().unwrap();
         let queued=lane.publish(CHAT,Stamp::default(),CancellationToken::new()).unwrap().unwrap();
-        let mut replacement=actor.client.clone_session().unwrap();replacement.master_key=Zeroizing::new([8;32]);replacement.api_url="https://different.example.invalid".into();
-        actor.client.reset("https://different.example.invalid",Some(replacement)).unwrap();
+        let mut replacement=actor.core.client_mut().clone_session().unwrap();replacement.master_key=Zeroizing::new([8;32]);replacement.api_url="https://different.example.invalid".into();
+        actor.core.client_mut().reset("https://different.example.invalid",Some(replacement)).unwrap();
         let View::CachedChat(publication)=queued.view else {panic!("cached view")};
         assert!(matches!(publication.into_window(),Err(Error::Cancelled)));
         assert!(!lane.views.is_valid());
@@ -787,12 +787,12 @@ async fn native_process_selection_is_inert_and_has_bounded_inline_future_for_eve
     let (_directory, mut actor) = super::tests::fixture().await;
     let checks = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let observed = checks.clone();
-    actor.client.set_private_operation_gate(Some(std::sync::Arc::new(move || {
+    actor.core.client_mut().set_private_operation_gate(Some(std::sync::Arc::new(move || {
         observed.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         Err(Error::Forbidden)
     })));
-    let before = actor.client.ciphertext_snapshot();
-    let owner = actor.client.session().unwrap().session_id.clone();
+    let before = actor.core.client_mut().ciphertext_snapshot();
+    let owner = actor.core.client_mut().session().unwrap().session_id.clone();
     let generation = actor.store.generation_guard();
     let (send, mut receive) = mpsc::channel(4);
     let commands = vec![
@@ -823,8 +823,8 @@ async fn native_process_selection_is_inert_and_has_bounded_inline_future_for_eve
         drop(operation);
         assert!(!cancel.is_cancelled());
         assert_eq!(checks.load(std::sync::atomic::Ordering::SeqCst), 0);
-        assert_eq!(actor.client.ciphertext_snapshot(), before);
-        assert_eq!(actor.client.session().unwrap().session_id, owner);
+        assert_eq!(actor.core.client_mut().ciphertext_snapshot(), before);
+        assert_eq!(actor.core.client_mut().session().unwrap().session_id, owner);
         assert_eq!(actor.pair_phase, 0);
         assert!(actor.passphrase.is_some());
         assert!(generation.is_current());
@@ -854,8 +854,8 @@ async fn genuine_disconnected_owner_keeps_cached_offline_read_only_without_canon
         let frame=cached_frame(&mut ui);
         assert!(frame.contains("CACHED_RENDER_READY"));
         assert!(frame.to_ascii_lowercase().contains("offline"));
-        assert!(actor.client.try_cached_default_chat_list(false).unwrap().is_none());
-        assert_eq!(actor.client.ciphertext_snapshot()["history"][CHAT].as_array().unwrap().len(),6);
+        assert!(actor.core.client_mut().try_cached_default_chat_list(false).unwrap().is_none());
+        assert_eq!(actor.core.client_mut().ciphertext_snapshot()["history"][CHAT].as_array().unwrap().len(),6);
     }).await.unwrap();
 }
 #[test]
@@ -875,21 +875,21 @@ async fn real_canonical_save_queue_checks_sdk_request_owner_and_native_generatio
         for change in ["request", "owner-key", "store", "none"] {
             let (_directory,mut actor,server)=prepared_actor().await;
             let _receiver=stage_owned_cached_actor(&mut actor).await;
-            let request=CancellationToken::new();actor.client.set_operation_cancel(request.clone());
-            let ChatViewRead::Canonical(candidate)=actor.client.read_chat_view(actor.live_monitor.as_ref(),CHAT,request.clone()).await.unwrap()
+            let request=CancellationToken::new();actor.core.client_mut().set_operation_cancel(request.clone());
+            let ChatViewRead::Canonical(candidate)=actor.core.client_mut().read_chat_view(actor.live_monitor.as_ref(),CHAT,request.clone()).await.unwrap()
                 else {panic!("real metadata/history success cannot use cached provenance")};
-            actor.client.validate_chat_view(&candidate).unwrap();
+            actor.core.client_mut().validate_chat_view(&candidate).unwrap();
             let receipt=ChatRefreshDurableReceipt{ciphertext_sha256:candidate.ciphertext_sha256().unwrap(),credential_revision:candidate.credential_revision()};
             let generation=actor.store.generation_guard();actor.persist().await.unwrap();
-            let publication=NativeCanonicalChatPublication{publication:actor.client.commit_chat_view(candidate,receipt).unwrap(),store_generation:generation};
+            let publication=NativeCanonicalChatPublication{publication:actor.core.client_mut().commit_chat_view(candidate,receipt).unwrap(),store_generation:generation};
             let mut ui=Ui::new();ui.set_authenticated(true);
             let cached=actor.cached_views.borrow().clone().unwrap().views.publish(CHAT,CancellationToken::new()).unwrap().unwrap().into_window().unwrap();
             ui.set_cached_chat(cached.chat);
             match change {
                 "request"=>request.cancel(),
                 "owner-key"=>{
-                    let mut session=actor.client.clone_session().unwrap();session.master_key=zeroize::Zeroizing::new([8;32]);
-                    let api=session.api_url.clone();actor.client.reset(&api,Some(session)).unwrap();
+                    let mut session=actor.core.client_mut().clone_session().unwrap();session.master_key=zeroize::Zeroizing::new([8;32]);
+                    let api=session.api_url.clone();actor.core.client_mut().reset(&api,Some(session)).unwrap();
                 },
                 "store"=>actor.store.revoke().await.unwrap(),
                 "none"=>{},_=>unreachable!(),
@@ -913,9 +913,9 @@ async fn boot_admits_real_username_and_cached_home_before_pending_first_global_s
         // Complete correlated reuse is tested independently below.
         let (api,release_hint,server,requests)=live_peer_observed_config(false,Some((started.clone(),release.clone())),false).await;
         let (_directory,mut actor)=super::tests::fixture().await;
-        let mut session=actor.client.clone_session().unwrap();session.api_url=api.clone();
-        actor.client.reset(&api,Some(session)).unwrap();
-        actor.client.restore_ciphertext_snapshot(&owned_cached_snapshot(6)).unwrap();
+        let mut session=actor.core.client_mut().clone_session().unwrap();session.api_url=api.clone();
+        actor.core.client_mut().reset(&api,Some(session)).unwrap();
+        actor.core.client_mut().restore_ciphertext_snapshot(&owned_cached_snapshot(6)).unwrap();
         actor.persist().await.unwrap();
         let receiver=actor.cached_views.subscribe();
         let (send,mut receive)=mpsc::channel(32);
@@ -958,7 +958,7 @@ async fn queued_initial_auth_is_negative_fenced_without_extending_cache_reader_l
             let publication=NativeAuthPublication{owner:owner.clone(),request:request.clone(),username:"FixtureOwner".into(),expires_at:None};
             match change {
                 "cancel"=>request.cancel(),
-                "owner-key"=>{let mut session=actor.client.clone_session().unwrap();session.master_key=Zeroizing::new([8;32]);let api=session.api_url.clone();actor.client.reset(&api,Some(session)).unwrap();},
+                "owner-key"=>{let mut session=actor.core.client_mut().clone_session().unwrap();session.master_key=Zeroizing::new([8;32]);let api=session.api_url.clone();actor.core.client_mut().reset(&api,Some(session)).unwrap();},
                 "store"=>actor.store.revoke().await.unwrap(),
                 "closed-reader-only"=>owner.views.close(),
                 "none"=>{},_=>unreachable!(),
@@ -992,11 +992,11 @@ async fn boot_consumes_one_current_empty_inventory_for_the_same_final_list_witho
     tokio::time::timeout(Duration::from_secs(15),async {
         let (api,release_hint,server,requests)=live_peer_observed_config(false,None,true).await;
         let (_directory,mut actor)=super::tests::fixture().await;
-        let mut session=actor.client.clone_session().unwrap();session.api_url=api.clone();
-        actor.client.reset(&api,Some(session)).unwrap();
-        actor.client.set_interactive(true);actor.client.set_identity(openmates_sdk::ClientIdentity::Cli);
-        actor.client.restore_ciphertext_snapshot(&owned_cached_snapshot(6)).unwrap();
-        let history=actor.client.ciphertext_snapshot()["history"].clone();actor.persist().await.unwrap();
+        let mut session=actor.core.client_mut().clone_session().unwrap();session.api_url=api.clone();
+        actor.core.client_mut().reset(&api,Some(session)).unwrap();
+        actor.core.client_mut().set_interactive(true);actor.core.client_mut().set_identity(openmates_sdk::ClientIdentity::Cli);
+        actor.core.client_mut().restore_ciphertext_snapshot(&owned_cached_snapshot(6)).unwrap();
+        let history=actor.core.client_mut().ciphertext_snapshot()["history"].clone();actor.persist().await.unwrap();
         let (send,mut receive)=mpsc::channel(32);
         actor.boot(&send,Stamp::default()).await.unwrap();actor.boot_sync(&send,Stamp::default()).await.unwrap();
         let mut auth=0;let mut final_items=None;
@@ -1007,10 +1007,10 @@ async fn boot_consumes_one_current_empty_inventory_for_the_same_final_list_witho
         assert_eq!(auth,1);
         let items=final_items.unwrap();assert_eq!(items.len(),1);assert_eq!(items[0].id,CHAT);
         assert_eq!(requests.load(std::sync::atomic::Ordering::SeqCst),2,"first monitor + original complete recovery inventory; final list consumes the existing proof");
-        assert_eq!(actor.client.ciphertext_snapshot()["history"],history,"metadata inventory cannot replace or promote selected full history");
-        let durable=actor.store.load(actor.passphrase.clone()).await.unwrap().unwrap();
+        assert_eq!(actor.core.client_mut().ciphertext_snapshot()["history"],history,"metadata inventory cannot replace or promote selected full history");
+        let durable=actor.store.load(actor.passphrase.get()).await.unwrap().unwrap();
         let persisted=actor.store.read_cache(durable.hashed_email.clone(),cache_key(&durable),durable.master_key.clone()).await.unwrap().unwrap();
-        assert_eq!(persisted,actor.client.ciphertext_snapshot(),"original final credential/cache save actually completed");
+        assert_eq!(persisted,actor.core.client_mut().ciphertext_snapshot(),"original final credential/cache save actually completed");
         let lane=actor.cached_views.borrow().clone().unwrap();
         let cached=lane.views.publish(CHAT,CancellationToken::new()).unwrap().unwrap().into_window().unwrap();
         assert!(cached.cached && !cached.history_complete);
@@ -1022,17 +1022,17 @@ async fn real_monitor_traffic_after_boot_inventory_forces_the_original_final_lis
     tokio::time::timeout(Duration::from_secs(15),async {
         let (api,release_hint,server,requests)=live_peer_observed_config(false,None,true).await;
         let (_directory,mut actor)=super::tests::fixture().await;
-        let mut session=actor.client.clone_session().unwrap();session.api_url=api.clone();
-        actor.client.reset(&api,Some(session)).unwrap();
-        actor.client.set_interactive(true);actor.client.set_identity(openmates_sdk::ClientIdentity::Cli);
-        actor.client.restore_ciphertext_snapshot(&owned_cached_snapshot(6)).unwrap();actor.persist().await.unwrap();
+        let mut session=actor.core.client_mut().clone_session().unwrap();session.api_url=api.clone();
+        actor.core.client_mut().reset(&api,Some(session)).unwrap();
+        actor.core.client_mut().set_interactive(true);actor.core.client_mut().set_identity(openmates_sdk::ClientIdentity::Cli);
+        actor.core.client_mut().restore_ciphertext_snapshot(&owned_cached_snapshot(6)).unwrap();actor.persist().await.unwrap();
         let (send,_receive)=mpsc::channel(32);
         let proof=actor.authorized_with_inventory(&send,Stamp::default(),true).await.unwrap().expect("actual complete empty peer inventory");
         assert_eq!(requests.load(std::sync::atomic::Ordering::SeqCst),2);
         let monitor=actor.live_monitor.as_ref().unwrap();
         assert!(monitor.take_pending().unwrap().is_some());
         release_hint.send(()).unwrap();monitor.changed().await.unwrap();
-        let items=actor.client.list_with_fresh_chat_inventory(Workspace::Chats,proof,&actor.live_cancel).await.unwrap();
+        let items=actor.core.client_mut().list_with_fresh_chat_inventory(Workspace::Chats,proof,&actor.live_cancel).await.unwrap();
         actor.persist().await.unwrap();
         assert_eq!(items.len(),1);assert_eq!(items[0].id,CHAT);
         assert_eq!(requests.load(std::sync::atomic::Ordering::SeqCst),3,"real keyless monitor frame invalidates reuse while Client stays exclusively owned");
@@ -1059,23 +1059,23 @@ async fn cache_settlement_native_final_save_and_delayed_consumption_keep_store_r
                 // Closing after exactly one metadata read also denies any
                 // accidental warm all-history request in this regression.
             });
-            let mut session=actor.client.clone_session().unwrap();session.api_url=api.clone();
-            actor.client.reset(&api,Some(session)).unwrap();actor.client.validate_session().await.unwrap();
-            actor.client.restore_ciphertext_snapshot(&snapshot).unwrap();actor.persist().await.unwrap();
-            let request=CancellationToken::new();actor.client.set_operation_cancel(request.clone());
-            let ChatViewRead::CacheSettled(candidate)=actor.client.read_chat_view_prefer_cache(None,CHAT,request.clone()).await.unwrap()
+            let mut session=actor.core.client_mut().clone_session().unwrap();session.api_url=api.clone();
+            actor.core.client_mut().reset(&api,Some(session)).unwrap();actor.core.client_mut().validate_session().await.unwrap();
+            actor.core.client_mut().restore_ciphertext_snapshot(&snapshot).unwrap();actor.persist().await.unwrap();
+            let request=CancellationToken::new();actor.core.client_mut().set_operation_cancel(request.clone());
+            let ChatViewRead::CacheSettled(candidate)=actor.core.client_mut().read_chat_view_prefer_cache(None,CHAT,request.clone()).await.unwrap()
                 else {panic!("warm cache cannot wait for full history")};
-            actor.client.validate_cache_settlement(&candidate).unwrap();
+            actor.core.client_mut().validate_cache_settlement(&candidate).unwrap();
             let receipt=ChatRefreshDurableReceipt{ciphertext_sha256:candidate.ciphertext_sha256().unwrap(),credential_revision:candidate.credential_revision()};
             let generation=actor.store.generation_guard();actor.persist().await.unwrap();
-            let publication=NativeCacheSettlementPublication{publication:actor.client.commit_cache_settlement(candidate,receipt).unwrap(),store_generation:generation};
-            let session=actor.client.clone_session().unwrap();
+            let publication=NativeCacheSettlementPublication{publication:actor.core.client_mut().commit_cache_settlement(candidate,receipt).unwrap(),store_generation:generation};
+            let session=actor.core.client_mut().clone_session().unwrap();
             let persisted=actor.store.read_cache(session.hashed_email.clone(),cache_key(&session),session.master_key.clone()).await.unwrap().unwrap();
             assert_eq!(persisted["history"][CHAT].as_array().unwrap().len(),70);
             assert!(!persisted.to_string().contains("CACHED_RENDER_READY"));
             match change {
                 "request"=>request.cancel(),
-                "owner-key"=>{let mut session=actor.client.clone_session().unwrap();session.master_key=zeroize::Zeroizing::new([8;32]);let api=session.api_url.clone();actor.client.reset(&api,Some(session)).unwrap();},
+                "owner-key"=>{let mut session=actor.core.client_mut().clone_session().unwrap();session.master_key=zeroize::Zeroizing::new([8;32]);let api=session.api_url.clone();actor.core.client_mut().reset(&api,Some(session)).unwrap();},
                 "store"=>actor.store.revoke().await.unwrap(),
                 "none"=>{},_=>unreachable!(),
             }
@@ -1096,12 +1096,12 @@ async fn actor_dispatch_open_runs_recovery_then_saves_and_queues_warm_settlement
         let (_directory,mut actor)=super::tests::fixture().await;
         let snapshot=owned_cached_snapshot(70);
         let (api,release,server,requests)=live_peer_observed_config_with_cache(false,None,true,Some(snapshot.clone())).await;
-        let mut session=actor.client.clone_session().unwrap();session.api_url=api.clone();
-        actor.client.reset(&api,Some(session)).unwrap();
+        let mut session=actor.core.client_mut().clone_session().unwrap();session.api_url=api.clone();
+        actor.core.client_mut().reset(&api,Some(session)).unwrap();
         let (send,mut receive)=mpsc::channel(32);
         actor.monitor(&send,Stamp::default()).await.unwrap();
         actor.live_monitor.as_ref().unwrap().take_pending().unwrap();
-        actor.client.restore_ciphertext_snapshot(&snapshot).unwrap();actor.persist().await.unwrap();
+        actor.core.client_mut().restore_ciphertext_snapshot(&snapshot).unwrap();actor.persist().await.unwrap();
         while receive.try_recv().is_ok() {}
         let before=requests.load(std::sync::atomic::Ordering::SeqCst);
         assert!(actor.recovery_start_needed);
@@ -1116,11 +1116,11 @@ async fn actor_dispatch_open_runs_recovery_then_saves_and_queues_warm_settlement
             if let View::CacheSettled(publication)=reply.view {assert!(reply.epoch==epoch);settlement=Some(publication);}
         }
         let publication=settlement.expect("actual dispatch must route a sealed cache-settlement reply");
-        let session=actor.client.clone_session().unwrap();
+        let session=actor.core.client_mut().clone_session().unwrap();
         let persisted=actor.store.read_cache(session.hashed_email.clone(),cache_key(&session),session.master_key.clone()).await.unwrap().unwrap();
         assert_eq!(persisted["history"][CHAT].as_array().unwrap().len(),70);
         assert!(!persisted.to_string().contains("CACHED_RENDER_READY"));
-        let stored=actor.store.load(actor.passphrase.clone()).await.unwrap().unwrap();
+        let stored=actor.store.load(actor.passphrase.get()).await.unwrap().unwrap();
         assert_eq!(stored.cookies,session.cookies,"publication must follow the exact final credential save/ACK");
         let window=publication.into_window().unwrap();assert_eq!(window.chat.messages.len(),70);assert!(!window.history_complete);
         let mut ui=Ui::new();ui.set_authenticated(true);ui.set_settled_chat(window.chat);

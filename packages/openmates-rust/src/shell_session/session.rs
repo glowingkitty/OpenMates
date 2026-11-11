@@ -145,18 +145,57 @@ impl<S: ByteStore + 'static> ShellSession<S> {
                 .load(generation)
                 .await?
                 .ok_or(Error::Authentication)?;
-            if session_digest(&durable)? != credential_digest(client)? {
+            self.restore_loaded_at(client, &durable, generation, cancel, load)
+                .await
+                .map(|_| ())
+        })
+    }
+
+    /// [`Self::restore`] for credentials the shell has just loaded from its
+    /// store (the view-model `Start` command carries them), so the store is
+    /// not read twice (a vault load runs a password KDF). `durable` must be
+    /// exactly the client's credentials. Returns whether a cached index existed.
+    ///
+    /// # Errors
+    /// As [`Self::restore`].
+    pub fn restore_loaded<'a>(
+        &'a self,
+        client: &'a mut Client,
+        durable: &'a crate::session::Session,
+        cancel: &'a CancellationToken,
+        load: CacheLoad,
+    ) -> BoxFuture<'a, Result<bool>> {
+        Box::pin(async move {
+            let ops = self.ops().clone();
+            let generation = ops.generation();
+            current(client, &ops, generation, cancel)?;
+            self.restore_loaded_at(client, durable, generation, cancel, load)
+                .await
+        })
+    }
+
+    async fn restore_loaded_at(
+        &self,
+        client: &mut Client,
+        durable: &crate::session::Session,
+        generation: u64,
+        cancel: &CancellationToken,
+        load: CacheLoad,
+    ) -> Result<bool> {
+        let ops = self.ops().clone();
+        {
+            if session_digest(durable)? != credential_digest(client)? {
                 return Err(Error::Cancelled);
             }
             let owner = durable.hashed_email.clone();
-            let key = cache_key(&durable);
+            let key = cache_key(durable);
             let master = durable.master_key.clone();
             let mode = match &load {
                 CacheLoad::Deferred {
                     revoke_list_freshness,
                 } => {
                     self.defer_sync_cache(*revoke_list_freshness);
-                    return current(client, &ops, generation, cancel);
+                    return current(client, &ops, generation, cancel).map(|()| false);
                 }
                 CacheLoad::Full => SyncReadMode::Complete,
                 CacheLoad::Index | CacheLoad::Chat(_) => SyncReadMode::Index,
@@ -166,6 +205,7 @@ impl<S: ByteStore + 'static> ShellSession<S> {
                 .read_sync_cache(owner.clone(), key.clone(), master.clone(), mode)
                 .await?;
             current(client, &ops, generation, cancel)?;
+            let found = read.is_some();
             let restored = match read {
                 None => Ok(()),
                 Some(SyncCacheRead::Complete(snapshot)) => {
@@ -190,8 +230,8 @@ impl<S: ByteStore + 'static> ShellSession<S> {
                 client.forget_session();
                 return Err(error);
             }
-            Ok(())
-        })
+            Ok(found)
+        }
     }
 
     /// Cache-first Chat open: decrypt only this Chat's cached content section
@@ -352,6 +392,24 @@ impl<S: ByteStore + 'static> ShellSession<S> {
             client.invalidate_chat_list_freshness();
             self.persist(client, credentials).await?;
             current(client, &ops, generation, cancel)
+        })
+    }
+
+    /// Announce sign-out ahead of the session's owner: advance the generation
+    /// (every queued or later operation captured before refuses) and make the
+    /// revocation durable, without waiting for credential cleanup. A shell
+    /// calls this from a lane that does not wait for a busy client (a stalled
+    /// keyring cannot delay it); the later [`Self::logout`] repeats it.
+    ///
+    /// # Errors
+    /// Revocation errors; the shell then reports logout as failed.
+    pub fn revoke_credentials<'a>(
+        &'a self,
+        credentials: &'a dyn CredentialPersistence,
+    ) -> BoxFuture<'a, Result<()>> {
+        Box::pin(async move {
+            self.ops().advance();
+            credentials.revoke().await
         })
     }
 

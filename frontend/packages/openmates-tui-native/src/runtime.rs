@@ -26,9 +26,11 @@ use openmates::{
     error::{Error, Result},
     model::{Chat, Item, Message, Mutation, StreamUpdate, Workspace},
     runtime_store::{RuntimeStore, RuntimeStoreGeneration},
-    storage::Session,
+    session_runtime::SharedPassphrase,
+    storage::{CacheBytes, Session},
     ui::{Ui, UiCommand},
 };
+use openmates_sdk::view_model::{self as core_view, RequestId, RevocationHandle, ViewCommand, ViewCore};
 use ratatui::{Terminal, backend::CrosstermBackend};
 use std::{
     io::{self, IsTerminal, Write},
@@ -37,6 +39,9 @@ use std::{
 use tokio::sync::{mpsc, watch};
 use tokio_util::sync::CancellationToken;
 use zeroize::{Zeroize, Zeroizing};
+
+#[path = "runtime_core_host.rs"]
+mod core_host;
 
 struct TerminalGuard {
     was_raw: bool,
@@ -809,15 +814,15 @@ struct RecoveryPersistence {
 }
 impl RecoveryPersistence {
     fn new(actor: &Actor) -> Result<Self> {
-        let session = actor.client.session().ok_or(Error::Authentication)?;
+        let session = actor.core.client().session().ok_or(Error::Authentication)?;
         let owner = ["id", "user_id"]
             .into_iter()
-            .filter_map(|key| actor.client.user()[key].as_str())
+            .filter_map(|key| actor.core.client().user()[key].as_str())
             .find(|owner| !owner.is_empty())
             .ok_or(Error::Authentication)?;
         Ok(Self {
             store: actor.store.clone(),
-            passphrase: actor.passphrase.clone(),
+            passphrase: actor.passphrase.get(),
             generation: actor.store.generation(),
             api: session.api_url.clone(),
             owner_hash: session.hashed_email.clone(),
@@ -874,9 +879,12 @@ impl CanonicalRecoveryPersistence for RecoveryPersistence {
     }
 }
 struct Actor {
-    client: Client,
+    /// The core view-model actor state: the one Client, its session runtime
+    /// and the credential backend (lane L6b). Chat list start, boot sync,
+    /// refresh, team switch and logout run in the core (`core_host.rs`).
+    core: ViewCore<CacheBytes>,
     store: RuntimeStore,
-    passphrase: Option<Zeroizing<String>>,
+    passphrase: SharedPassphrase,
     pair_phase: u8,
     relay: Option<tokio::task::JoinHandle<()>>,
     explicit_api: Option<String>,
@@ -948,8 +956,12 @@ async fn actor(
             args.trusted_account,
         )
         .map_err(|_| Error::Forbidden)?;
+        let store = RuntimeStore::new(Some(profile.state_dir), args.encrypted_vault).await?;
+        let passphrase = SharedPassphrase::default();
+        let core = ViewCore::new(client, store.shell().clone(),
+            openmates::session_runtime::shared_credentials(&store, passphrase.clone()));
         Ok::<_, Error>(Actor {
-            client,
+            core,
             trusted_path,
             trusted_verified: false,
             live_monitor: None,
@@ -966,8 +978,8 @@ async fn actor(
             last_live_hint: None,
             cached_views,
             cached_views_blocked: false,
-            store: RuntimeStore::new(Some(profile.state_dir), args.encrypted_vault).await?,
-            passphrase: None,
+            store,
+            passphrase,
             pair_phase: 0,
             relay: None,
             explicit_api: profile.api_url_override,
@@ -988,8 +1000,8 @@ async fn actor(
             return;
         }
     };
-    let mut controls = fenced_controls(controls, state.store.clone(), replies.clone());
-    state.client.set_consent_receiver(decisions);
+    let mut controls = fenced_controls(controls, state.core.revocation_handle(), replies.clone());
+    state.core.client_mut().set_consent_receiver(decisions);
     // Mailbox tick performs no network on an idle connection. Reads remain in
     // the keyless SDK task; control/request work always wins actor admission.
     let mut live_tick = tokio::time::interval(Duration::from_millis(250));
@@ -1022,13 +1034,13 @@ async fn actor(
         if syncing {
             if let Ok(mut slot) = boot_sync_preempt.lock() { slot.take(); }
             // A preempted background sync resumes once the queue is idle again.
-            if result == Err(Error::Cancelled) && cancel.is_cancelled() && state.client.session().is_some() {
+            if result == Err(Error::Cancelled) && cancel.is_cancelled() && state.core.client_mut().session().is_some() {
                 boot_sync = Some(epoch);
                 continue;
             }
-            if state.client.session().is_some() { inspirations = Some(epoch); }
+            if state.core.client_mut().session().is_some() { inspirations = Some(epoch); }
         }
-        if booting && result.is_ok() && state.client.session().is_some() {
+        if booting && result.is_ok() && state.core.client_mut().session().is_some() {
             boot_sync = Some(epoch);
         }
         if result.is_err() {
@@ -1050,7 +1062,7 @@ async fn actor(
         state.relay = None;
         if result.is_err()
             && result != Err(Error::Expired)
-            && state.client.session().is_some()
+            && state.core.client_mut().session().is_some()
             && state.pair_phase == 0
         {
             // A later request can fail after an earlier refresh rotated its cookie.
@@ -1066,7 +1078,7 @@ async fn actor(
         }
         if let Err(mut error) = result {
             if matches!(error, Error::Expired) {
-                state.passphrase = None;
+                state.passphrase.set(None);
                 state.pair_phase = 0;
                 let _ = replies
                     .send(Reply {
@@ -1074,8 +1086,8 @@ async fn actor(
                         view: View::SignedOut,
                     })
                     .await;
-                let cleanup = state.store.clear().await;
-                let _ = state.client.logout().await;
+                let cleanup = state.core.clear_credentials().await;
+                let _ = state.core.client_mut().logout().await;
                 if let Err(cleanup_error) = cleanup {
                     error = cleanup_error;
                 }
@@ -1108,14 +1120,14 @@ async fn actor(
 /// profile must already be durably revoked before that actor becomes available.
 fn fenced_controls(
     mut incoming: mpsc::UnboundedReceiver<Request>,
-    store: RuntimeStore,
+    revocation: RevocationHandle<CacheBytes>,
     replies: mpsc::Sender<Reply>,
 ) -> mpsc::UnboundedReceiver<Request> {
     let (forward, receiver) = mpsc::unbounded_channel();
     tokio::spawn(async move {
         while let Some(request) = incoming.recv().await {
             if matches!(&request.work, Work::Command(UiCommand::Logout))
-                && let Err(error) = store.revoke().await
+                && let Err(error) = revocation.revoke().await
             {
                 let _ = replies
                     .send(Reply {
@@ -1159,7 +1171,7 @@ impl Actor {
         // and retains any known monitor denial when a witness exists.
         let monitor = self.live_monitor.as_ref();
         let generation = self.store.generation_guard();
-        let staged = self.client.stage_cached_chat_views(monitor, CancellationToken::new());
+        let staged = self.core.client().stage_cached_chat_views(monitor, CancellationToken::new());
         let next = match staged {
             Ok(views) if generation.is_current() => Some(NativeCachedChatViews {
                 views: std::sync::Arc::new(views), store_generation: generation, security: epoch.security,
@@ -1177,14 +1189,14 @@ impl Actor {
             return Ok(());
         };
         self.trusted_verified = false;
-        self.client.validate_session().await?;
+        self.core.client_mut().validate_session().await?;
         use openmates::cli::trusted_account as trusted;
         if login {
-            trusted::save(path, self.client.user()["id"].as_str().unwrap_or(""))
+            trusted::save(path, self.core.client().user()["id"].as_str().unwrap_or(""))
                 .map_err(|_| Error::Forbidden)?;
         } else {
             let expected = trusted::load(path).map_err(|_| Error::Forbidden)?;
-            trusted::verify(expected.as_deref(), self.client.user())
+            trusted::verify(expected.as_deref(), self.core.client().user())
                 .map_err(|_| Error::Forbidden)?;
         }
         self.trusted_verified = true;
@@ -1197,19 +1209,14 @@ impl Actor {
             .map_err(|_| Error::Cancelled)
     }
     async fn persist(&mut self) -> Result<()> {
-        openmates::session_runtime::persist(
-            &mut self.client,
-            &self.store,
-            self.passphrase.clone(),
-        )
-        .await
+        self.core.persist().await
     }
     /// Persist, then take the durable receipt the core mints for `candidate`.
     async fn persist_for<C: openmates_sdk::shell_session::DurableCandidate + Sync>(
         &mut self,
         candidate: &C,
     ) -> Result<ChatRefreshDurableReceipt> {
-        openmates::session_runtime::persist_for(&mut self.client, &self.store, self.passphrase.clone(), candidate).await
+        self.core.persist_for(candidate).await
     }
     async fn authorized(&mut self, replies: &mpsc::Sender<Reply>, epoch: Stamp) -> Result<()> {
         self.authorized_with_inventory(replies, epoch, false).await.map(|_| ())
@@ -1224,13 +1231,7 @@ impl Actor {
         // This can start monitors and foreground recovery. Remove any restored
         // receipt durably before those effects, including a crash before a
         // recovery checkpoint/final save. Failure refuses their dispatch.
-        openmates::session_runtime::revoke_chat_cache_before_dispatch(
-            &mut self.client,
-            &self.store,
-            self.passphrase.clone(),
-            &self.live_cancel,
-        )
-        .await?;
+        self.core.revoke_list_freshness_before_dispatch(&self.live_cancel).await?;
         let generation = self.store.generation_guard();
         let request = self.live_cancel.clone();
         // Reuse the already-required first monitor's authenticated session read
@@ -1260,11 +1261,11 @@ impl Actor {
         if !generation.is_current() || request.is_cancelled() || !owner.views.is_owner_current() {
             return Err(Error::Cancelled);
         }
-        let session = self.client.session().ok_or(Error::Authentication)?;
+        let session = self.core.client().session().ok_or(Error::Authentication)?;
         // The SDK stage above requires the principal established by actual
         // authentication. A raw restored Session cannot issue this greeting.
         let username = ["username", "display_name"].into_iter()
-            .filter_map(|key| self.client.user()[key].as_str())
+            .filter_map(|key| self.core.client().user()[key].as_str())
             .find(|name| !name.is_empty()).unwrap_or("OpenMates").to_owned();
         let publication = NativeAuthPublication { owner, request, username,
             expires_at: session.paired_session_expires_at };
@@ -1278,11 +1279,11 @@ impl Actor {
         self.monitor_admission(replies, epoch).await.map(|_| ())
     }
     async fn monitor_admission(&mut self, replies: &mpsc::Sender<Reply>, epoch: Stamp) -> Result<MonitorAdmission> {
-        self.client.set_operation_cancel(self.live_cancel.clone());
+        self.core.client_mut().set_operation_cancel(self.live_cancel.clone());
         // Periodic membership checks do not reconnect a healthy monitor or
         // manufacture another initial full-refresh event every 30 seconds.
         if let Some(monitor) = self.live_monitor.as_ref().filter(|m| m.is_valid()) {
-            let checked = self.client.validate_chat_monitor(monitor).await;
+            let checked = self.core.client_mut().validate_chat_monitor(monitor).await;
             let security = matches!(checked, Err(Error::Expired | Error::Authentication | Error::Forbidden));
             let admission = match checked {
                 Ok(()) => MonitorAdmission::Ready,
@@ -1330,7 +1331,7 @@ impl Actor {
             }
         });
         let started = async {
-            let mut grant = ForegroundRecoveryGrant::new(&mut self.client)?;
+            let mut grant = ForegroundRecoveryGrant::new(self.core.client_mut())?;
             grant.start_chat_monitor(lifetime.clone(), events).await
         }
         .await;
@@ -1404,13 +1405,13 @@ impl Actor {
             return Ok(CompletionRecoveryPumpOutcome::default());
         }
         // Existing Team/Direct recovery keeps its original ordinary policy.
-        let inventory = inventory && self.client.supports_cached_default_chat_list();
+        let inventory = inventory && self.core.client_mut().supports_cached_default_chat_list();
         let cancel = self.live_cancel.clone();
-        self.client.set_operation_cancel(cancel.clone());
+        self.core.client_mut().set_operation_cancel(cancel.clone());
         let mut canonical = RecoveryPersistence::new(self)?;
         let store = self.store.clone();
         let pumped = async {
-            let mut grant = ForegroundRecoveryGrant::new(&mut self.client)?;
+            let mut grant = ForegroundRecoveryGrant::new(self.core.client_mut())?;
             let total: CompletionRecoveryPumpOutcome;
             // Selected work gets the first two slots; the remaining six still
             // service bounded context backlog, so staying on one chat cannot
@@ -1481,7 +1482,7 @@ impl Actor {
                 if error == Error::Forbidden
                     && let Some(monitor) = self.live_monitor.as_ref()
                 {
-                    match self.client.validate_chat_monitor(monitor).await {
+                    match self.core.client_mut().validate_chat_monitor(monitor).await {
                         Err(denial @ (Error::Expired | Error::Forbidden)) => {
                             security = Some(denial)
                         }
@@ -1579,20 +1580,19 @@ impl Actor {
         let Some(hint) = self.live_pending.as_ref() else {
             return Ok(());
         };
-        self.client.set_operation_cancel(self.live_cancel.clone());
+        self.core.client_mut().set_operation_cancel(self.live_cancel.clone());
         let store_generation = self.store.generation_guard();
-        let refreshed = self
-            .client
+        let refreshed = self.core.client_mut()
             .refresh_chat_monitor_prefer_cache(monitor, hint, selected.as_deref())
             .await;
         match refreshed {
             Ok(refresh) => {
                 // The actor remains sole Client owner across read, exact
                 // cache+session save and ACK, explicit commit, and publication.
-                self.client.validate_chat_refresh(&refresh)?;
+                self.core.client_mut().validate_chat_refresh(&refresh)?;
                 let receipt = self.persist_for(&refresh).await?;
                 if !store_generation.is_current() { return Err(Error::Cancelled); }
-                let publication = self.client.commit_chat_refresh(refresh, receipt)?;
+                let publication = self.core.client_mut().commit_chat_refresh(refresh, receipt)?;
                 if self.live_cancel.is_cancelled() {
                     return Err(Error::Cancelled);
                 }
@@ -1673,7 +1673,7 @@ impl Actor {
         }
     }
     async fn boot(&mut self, replies: &mpsc::Sender<Reply>, epoch: Stamp) -> Result<()> {
-        let session = match self.store.load(self.passphrase.clone()).await {
+        let session = match self.store.load(self.passphrase.get()).await {
             Ok(value) => value,
             Err(Error::Locked)
                 if self.store.storage_mode().await?
@@ -1683,86 +1683,37 @@ impl Actor {
                 return Ok(());
             }
             Err(Error::Expired) => {
-                self.store.clear().await?;
+                self.core.clear_credentials().await?;
                 None
             }
             Err(error) => return Err(error),
         };
         if let Some(session) = session {
-            let api = self
-                .explicit_api
-                .as_deref()
-                .unwrap_or(&session.api_url)
-                .to_owned();
-            let app = openmates::profile::application_origin(
-                &api,
-                self.explicit_app.clone(),
-                self.installed_app.as_ref().map(|(api, _)| api.as_str()),
-                self.installed_app.as_ref().map(|(_, app)| app.clone()),
-            )?;
-            self.client.set_app_origin(app)?;
-            self.client.reset(&api, Some(session.clone()))?;
-            self.trusted_verified = false;
-            self.verify_trusted(false).await?;
-            if let Some(snapshot) = self
-                .store
-                .read_cache(
-                    session.hashed_email.clone(),
-                    cache_key(&session),
-                    session.master_key.clone(),
-                )
-                .await?
-            {
-                self.client.restore_ciphertext_snapshot(&snapshot)?;
-                if let Some(name) = self.client.display_name_hint() {
-                    Self::emit(replies, epoch, View::Greeting(name)).await?;
-                }
-                Self::emit(
-                    replies,
-                    epoch,
-                    View::Items(Workspace::Chats, openmates::home_items::arrange(&self.client, self.client.cached_chat_items()?)),
-                )
-                .await?;
-            }
-            // Authenticate and admit the monitor now; global recovery and the
-            // list refresh follow as a preemptible background BootSync.
-            self.authorized_admission(replies, epoch).await?;
+            // Core Start: credentials, trusted account, cached index and list
+            // before any other network request, then admission. Global
+            // recovery and the list refresh follow as a preemptible BootSync.
+            let sink = core_host::TerminalSink { replies: replies.clone(), epoch };
+            let cancel = self.live_cancel.clone();
+            core_view::handle(self, ViewCommand::Start { credentials: Box::new(session) }, &sink, &cancel).await?;
         } else {
             Self::emit(replies, epoch, View::SignedOut).await?;
         }
         Ok(())
     }
-    /// Background half of boot: global recovery with inventory, then the list.
+    /// Background half of boot (core `boot_sync`): global recovery with
+    /// inventory, then the list, persisted before it is published.
     async fn boot_sync(&mut self, replies: &mpsc::Sender<Reply>, epoch: Stamp) -> Result<()> {
-        if self.client.session().is_none() {
-            return Ok(());
-        }
-        let generation = self.store.generation_guard();
+        let sink = core_host::TerminalSink { replies: replies.clone(), epoch };
         let cancel = self.live_cancel.clone();
-        // Reuse only the same-batch complete empty inventory returned after
-        // actual recovery/journal admission and its existing durable save.
-        // No phase1b/cache/history data is promoted to full selected reads.
-        let proof = self
-            .recover_before_view_with_inventory(replies, epoch, None, false, true)
-            .await?
-            .fresh_inventory;
-        if cancel.is_cancelled() || !generation.is_current() { return Err(Error::Cancelled); }
-        let items = if let Some(proof) = proof {
-            self.client.list_with_fresh_chat_inventory(Workspace::Chats, proof, &cancel).await?
-        } else {
-            self.client.list(Workspace::Chats).await?
-        };
-        self.persist().await?;
-        if cancel.is_cancelled() || !generation.is_current() { return Err(Error::Cancelled); }
-        Self::emit(replies, epoch, View::Items(Workspace::Chats, openmates::home_items::arrange(&self.client, items))).await
+        core_view::boot_sync(self, &sink, &cancel).await
     }
     /// The home banner is optional: a failed read leaves the banner empty and
     /// never fails the actor request.
     async fn home_inspirations(&mut self, replies: &mpsc::Sender<Reply>, epoch: Stamp) -> Result<()> {
-        if self.client.session().is_none() {
+        if self.core.client().session().is_none() {
             return Ok(());
         }
-        match self.client.daily_inspirations("en").await {
+        match self.core.client_mut().daily_inspirations("en").await {
             Ok(mut list) => {
                 list.retain(|inspiration| inspiration.surface == "chats");
                 Self::emit(replies, epoch, View::Inspirations(list)).await
@@ -1778,12 +1729,12 @@ impl Actor {
     ) -> Result<()> {
         match self.pair_phase {
             1 => {
-                if self.client.poll_pair().await? == "approved" {
+                if self.core.client_mut().poll_pair().await? == "approved" {
                     self.pair_phase = 2;
                     Self::emit(replies, epoch, View::PairPin).await?;
                 }
             }
-            3 if self.client.finish_pair().await? => {
+            3 if self.core.client_mut().finish_pair().await? => {
                 self.pair_phase = 4;
                 self.finish_pair(replies, epoch, cancel).await?;
             }
@@ -1811,7 +1762,7 @@ impl Actor {
         }
         self.store
             .begin_session_cancellable(
-                self.client.clone_session().ok_or(Error::Authentication)?,
+                self.core.client_mut().clone_session().ok_or(Error::Authentication)?,
                 cancel.clone(),
             )
             .await?;
@@ -1825,37 +1776,147 @@ impl Actor {
             return Ok(());
         }
         result?;
-        self.client.acknowledge_pair().await?;
+        self.core.client_mut().acknowledge_pair().await?;
         if cancel.is_cancelled() {
-            self.store.clear().await?;
-            let _ = self.client.logout().await;
-            self.passphrase = None;
+            self.core.clear_credentials().await?;
+            let _ = self.core.client_mut().logout().await;
+            self.passphrase.set(None);
             self.pair_phase = 0;
             return Err(Error::Cancelled);
         }
         self.pair_phase = 0;
         self.authorized(replies, epoch).await?;
-        let items = self.client.list(Workspace::Chats).await?;
+        let items = self.core.client_mut().list(Workspace::Chats).await?;
         self.persist().await?;
-        Self::emit(replies, epoch, View::Items(Workspace::Chats, openmates::home_items::arrange(&self.client, items))).await
+        Self::emit(replies, epoch, View::Items(Workspace::Chats, core_view::arrange_chat_list(self.core.client(), items))).await
     }
     async fn abort_pair(&mut self) -> Result<()> {
         let prepared = self.pair_phase == 4;
         self.pair_phase = 0;
         let cleanup = if prepared {
-            self.passphrase = None;
-            self.store.clear().await
+            self.passphrase.set(None);
+            self.core.clear_credentials().await
         } else {
             Ok(())
         };
-        let cancelled = self.client.cancel_pair().await;
+        let cancelled = self.core.client_mut().cancel_pair().await;
         // Also cover cancellation immediately after relay acknowledgement removed
         // its PairState, before the UI accepted the newly persisted session.
         if prepared {
-            let _ = self.client.logout().await;
+            let _ = self.core.client_mut().logout().await;
         }
         cleanup?;
         cancelled
+    }
+    /// Bridged `OpenChat` (until lane L7 moves the chat window into the
+    /// core): selected recovery, cached first page, canonical read, durable
+    /// receipt and publication, exactly the former `Open(Chats)` path.
+    async fn open_chat(&mut self, id: String, replies: &mpsc::Sender<Reply>, epoch: Stamp,
+        cancel: &CancellationToken) -> Result<()> {
+        let cancel = cancel.clone();
+        let generation = self.store.generation_guard();
+        let view = {
+            uuid::Uuid::parse_str(&id)
+                .map_err(|_| Error::Invalid("A full chat ID is required."))?;
+            if self.core.client_mut().is_ephemeral_chat(&id) {
+                return Err(Error::Invalid(
+                    "Volatile chats have no saved recovery history.",
+                ));
+            }
+            self.recover_before_view(replies, epoch, Some(id.clone()), true)
+                .await?;
+            let mut first_page = NativeChatFirstPageSink {
+                store: self.store.clone(), generation: generation.clone(),
+                passphrase: self.passphrase.get(), replies: replies.clone(), epoch,
+            };
+            let read = self.core.client_mut().read_chat_view_prefer_cache_with_first_page(
+                self.live_monitor.as_ref(), &id, cancel.clone(), &mut first_page,
+            ).await?;
+            if !generation.is_current() { return Err(Error::Cancelled); }
+            self.live_selected = Some(id.clone());
+            match read {
+                ChatViewRead::Canonical(candidate) => {
+                    self.core.client_mut().validate_chat_view(&candidate)?;
+                    let receipt = self.persist_for(&candidate).await?;
+                    if !generation.is_current() { return Err(Error::Cancelled); }
+                    let publication = self.core.client_mut().commit_chat_view(candidate, receipt)?;
+                    return Self::emit(replies, epoch, View::CanonicalChat(NativeCanonicalChatPublication {
+                        publication, store_generation: generation,
+                    })).await;
+                },
+                ChatViewRead::CacheSettled(candidate) => {
+                    self.core.client_mut().validate_cache_settlement(&candidate)?;
+                    let receipt = self.persist_for(&candidate).await?;
+                    if !generation.is_current() { return Err(Error::Cancelled); }
+                    let publication = self.core.client_mut().commit_cache_settlement(candidate, receipt)?;
+                    return Self::emit(replies, epoch, View::CacheSettled(NativeCacheSettlementPublication {
+                        publication, store_generation: generation,
+                    })).await;
+                },
+                ChatViewRead::CachedOffline(publication) => {
+                    if self.cached_views_blocked { return Err(Error::Forbidden); }
+                    View::CachedChatOffline(NativeCachedChatPublication {
+                        publication, store_generation: generation.clone(),
+                    })
+                },
+            }
+        };
+        self.persist().await?;
+        if !generation.is_current() { return Err(Error::Cancelled); }
+        Self::emit(replies, epoch, view).await
+    }
+    /// Bridged `MarkRead`: the read receipt for every device, then persist.
+    async fn mark_read(&mut self, chat_id: String, cancel: &CancellationToken) -> Result<()> {
+        self.core.client_mut().set_operation_cancel(cancel.clone());
+        self.core.client_mut().mark_chat_read(&chat_id).await?;
+        self.persist().await
+    }
+    /// Bridged `Send` (until lane L9 moves send and streaming into the core):
+    /// mention resolution, streamed send, persistence even when cancelled.
+    async fn send_message(&mut self, chat_id: Option<String>, text: String,
+        replies: &mpsc::Sender<Reply>, epoch: Stamp, cancel: &CancellationToken) -> Result<()> {
+        let cancel = cancel.clone();
+        // Same send-time mention resolution as `chats send`; an
+        // unknown mention fails before dispatch and restores the draft.
+        let resolved = self.core.client_mut().resolve_mentions(&text).await?;
+        if !resolved.unresolved.is_empty() {
+            return Err(Error::Invalid(
+                "Unknown @mention. Nothing was sent; check the mention name.",
+            ));
+        }
+        let text = resolved.processed_message;
+        let (stream, mut updates) = mpsc::channel(64);
+        let output = replies.clone();
+        self.relay = Some(tokio::spawn(async move {
+            while let Some(update) = updates.recv().await {
+                if output
+                    .send(Reply {
+                        epoch,
+                        view: View::Stream(update),
+                    })
+                    .await
+                    .is_err()
+                {
+                    break;
+                }
+            }
+        }));
+        let result = self.core.client_mut()
+            .send_message(chat_id.as_deref(), &text, stream, cancel.clone())
+            .await;
+        if let Some(relay) = self.relay.as_mut() {
+            let _ = relay.await;
+        }
+        self.relay = None;
+        // Preserve rotated cookies and any admitted encrypted state, including cancellation.
+        let persisted = self.persist().await;
+        if cancel.is_cancelled() {
+            return Err(Error::Cancelled);
+        }
+        persisted?;
+        let chat = result?;
+        self.live_selected = Some(chat.id.clone());
+        Self::emit(replies, epoch, View::Sent(chat)).await
     }
     async fn dispatch(&mut self, request: Request, replies: &mpsc::Sender<Reply>) -> Result<()> {
         if matches!(&request.work, Work::Command(
@@ -1976,62 +2037,62 @@ impl Actor {
                     tfa,
                 } => Box::pin(async move {
                     let _request_cancel = &cancel;
-                    if self.client.session().is_some() {
+                    if self.core.client().session().is_some() {
                         return Err(Error::Invalid(
                             "Sign out before signing in to another account.",
                         ));
                     }
-                    self.client
+                    self.core.client_mut()
                         .login_password(&email, &password, tfa.as_deref())
                         .await?;
                     if let Err(error) = self.verify_trusted(true).await {
-                        let _ = self.client.logout().await;
+                        let _ = self.core.client_mut().logout().await;
                         self.trusted_verified = false;
                         return Err(error);
                     }
                     if cancel.is_cancelled() {
-                        let _ = self.client.logout().await;
+                        let _ = self.core.client_mut().logout().await;
                         return Err(Error::Cancelled);
                     }
                     if let Err(error) = self
                         .store
                         .begin_session_cancellable(
-                            self.client.clone_session().ok_or(Error::Authentication)?,
+                            self.core.client_mut().clone_session().ok_or(Error::Authentication)?,
                             cancel.clone(),
                         )
                         .await
                     {
-                        let _ = self.client.logout().await;
+                        let _ = self.core.client_mut().logout().await;
                         return Err(error);
                     }
-                    self.passphrase = Some(password);
+                    self.passphrase.set(Some(password));
                     if let Err(error) = self.persist().await {
-                        let _ = self.client.logout().await;
-                        self.passphrase = None;
+                        let _ = self.core.client_mut().logout().await;
+                        self.passphrase.set(None);
                         return Err(error);
                     }
                     if cancel.is_cancelled() {
-                        let cleanup = self.store.clear().await;
-                        let _ = self.client.logout().await;
-                        self.passphrase = None;
+                        let cleanup = self.core.clear_credentials().await;
+                        let _ = self.core.client_mut().logout().await;
+                        self.passphrase.set(None);
                         cleanup?;
                         return Err(Error::Cancelled);
                     }
                     self.authorized(replies, epoch).await?;
-                    let items = self.client.list(Workspace::Chats).await?;
+                    let items = self.core.client_mut().list(Workspace::Chats).await?;
                     self.persist().await?;
-                    Self::emit(replies, epoch, View::Items(Workspace::Chats, openmates::home_items::arrange(&self.client, items))).await
+                    Self::emit(replies, epoch, View::Items(Workspace::Chats, core_view::arrange_chat_list(self.core.client(), items))).await
                 }),
                 UiCommand::Unlock { passphrase } => Box::pin(async move {
                     let _request_cancel = &cancel;
-                    self.passphrase = Some(passphrase);
+                    self.passphrase.set(Some(passphrase));
                     let result = if self.pair_phase == 4 {
                         self.finish_pair(replies, epoch, &cancel).await
                     } else {
                         self.boot(replies, epoch).await
                     };
                     if result.is_err() {
-                        self.passphrase = None
+                        self.passphrase.set(None)
                     }
                     result
                 }),
@@ -2039,19 +2100,19 @@ impl Actor {
                     let _request_cancel = &cancel;
                     self.trusted_verified = false;
                     self.pair_phase = 0;
-                    self.passphrase = None;
-                    let (remote, local) = tokio::join!(self.client.logout(), self.store.clear());
-                    Self::emit(replies, epoch, View::SignedOut).await?;
-                    local?;
-                    remote
+                    self.passphrase.set(None);
+                    // Core logout: local revocation and cleanup with remote
+                    // logout, SignedOut always, local error before remote.
+                    let sink = core_host::TerminalSink { replies: replies.clone(), epoch };
+                    core_view::handle(self, ViewCommand::Logout, &sink, &cancel).await
                 }),
                 UiCommand::Cancel => Box::pin(async move {
                     let _request_cancel = &cancel;
                     self.abort_pair().await?;
-                    if self.client.session().is_some() {
+                    if self.core.client().session().is_some() {
                         self.authorized(replies, epoch).await?;
-                        if let Ok(items) = self.client.cached_chat_items() {
-                            Self::emit(replies, epoch, View::Items(Workspace::Chats, openmates::home_items::arrange(&self.client, items)))
+                        if let Ok(items) = self.core.client_mut().cached_chat_items() {
+                            Self::emit(replies, epoch, View::Items(Workspace::Chats, core_view::arrange_chat_list(self.core.client(), items)))
                                 .await?;
                         }
                     } else {
@@ -2061,10 +2122,10 @@ impl Actor {
                 }),
                 UiCommand::BeginPair => Box::pin(async move {
                     let _request_cancel = &cancel;
-                    if self.client.session().is_some() {
+                    if self.core.client().session().is_some() {
                         return Err(Error::Invalid("Sign out before pairing another account."));
                     }
-                    let challenge = self.client.begin_pair().await?;
+                    let challenge = self.core.client_mut().begin_pair().await?;
                     self.pair_phase = 1;
                     if cancel.is_cancelled() {
                         self.abort_pair().await?;
@@ -2077,8 +2138,8 @@ impl Actor {
                     vault_passphrase,
                 } => Box::pin(async move {
                     let _request_cancel = &cancel;
-                    self.client.submit_pair_pin(&pin).await?;
-                    self.passphrase = vault_passphrase;
+                    self.core.client_mut().submit_pair_pin(&pin).await?;
+                    self.passphrase.set(vault_passphrase);
                     self.pair_phase = 3;
                     Self::emit(
                         replies,
@@ -2088,106 +2149,39 @@ impl Actor {
                     .await
                 }),
                 UiCommand::SwitchTeam(team) => Box::pin(async move {
-                    let _request_cancel = &cancel;
-                    self.client.set_team(team.as_deref())?;
-                    self.persist().await?;
-                    self.authorized(replies, epoch).await?;
-                    let items = self.client.list(Workspace::Chats).await?;
-                    self.persist().await?;
-                    Self::emit(replies, epoch, View::Items(Workspace::Chats, openmates::home_items::arrange(&self.client, items))).await
+                    let sink = core_host::TerminalSink { replies: replies.clone(), epoch };
+                    core_view::handle(self, ViewCommand::SwitchTeam { team_id: team }, &sink, &cancel).await
+                }),
+                UiCommand::Refresh(Workspace::Chats) => Box::pin(async move {
+                    let sink = core_host::TerminalSink { replies: replies.clone(), epoch };
+                    core_view::handle(self, ViewCommand::RefreshChats, &sink, &cancel).await
                 }),
                 UiCommand::Refresh(workspace) => Box::pin(async move {
                     let _request_cancel = &cancel;
-                    if workspace == Workspace::Chats
-                        && self.client.has_chat_sync_cursor()
-                        && self.client.supports_cached_default_chat_list()
-                    {
-                        // architecture.sync@2: with a feed cursor and no pending or
-                        // uncertain recovery, one feed catch-up over the cached index
-                        // replaces the global recovery discovery and phased sync.
-                        let idle = completion_recovery_adapter::load_pending(&self.client, &self.store)
-                            .await
-                            .is_ok_and(|pending| pending.is_empty());
-                        if idle {
-                            self.client.set_operation_cancel(cancel.clone());
-                            if let Some(items) = self.client.chat_list_from_feed().await? {
-                                self.persist().await?;
-                                return Self::emit(replies, epoch, View::Items(workspace, if workspace == Workspace::Chats { openmates::home_items::arrange(&self.client, items) } else { items })).await;
-                            }
-                        }
-                    }
-                    if workspace == Workspace::Chats {
-                        self.recover_before_view(replies, epoch, self.live_selected.clone(), true)
-                            .await?;
-                    }
-                    let items = self.client.list(workspace).await?;
+                    let items = self.core.client_mut().list(workspace).await?;
                     self.persist().await?;
-                    Self::emit(replies, epoch, View::Items(workspace, if workspace == Workspace::Chats { openmates::home_items::arrange(&self.client, items) } else { items })).await
+                    Self::emit(replies, epoch, View::Items(workspace, items)).await
+                }),
+                UiCommand::Open(Workspace::Chats, id) => Box::pin(async move {
+                    let sink = core_host::TerminalSink { replies: replies.clone(), epoch };
+                    let command = ViewCommand::OpenChat { request: RequestId(epoch.view), chat_id: id };
+                    core_view::handle(self, command, &sink, &cancel).await
                 }),
                 UiCommand::Open(workspace, id) => Box::pin(async move {
                     let _request_cancel = &cancel;
                     let generation = self.store.generation_guard();
-                    let view = if workspace == Workspace::Chats {
-                        uuid::Uuid::parse_str(&id)
-                            .map_err(|_| Error::Invalid("A full chat ID is required."))?;
-                        if self.client.is_ephemeral_chat(&id) {
-                            return Err(Error::Invalid(
-                                "Volatile chats have no saved recovery history.",
-                            ));
-                        }
-                        self.recover_before_view(replies, epoch, Some(id.clone()), true)
-                            .await?;
-                        let mut first_page = NativeChatFirstPageSink {
-                            store: self.store.clone(), generation: generation.clone(),
-                            passphrase: self.passphrase.clone(), replies: replies.clone(), epoch,
-                        };
-                        let read = self.client.read_chat_view_prefer_cache_with_first_page(
-                            self.live_monitor.as_ref(), &id, cancel.clone(), &mut first_page,
-                        ).await?;
-                        if !generation.is_current() { return Err(Error::Cancelled); }
-                        self.live_selected = Some(id.clone());
-                        match read {
-                            ChatViewRead::Canonical(candidate) => {
-                                self.client.validate_chat_view(&candidate)?;
-                                let receipt = self.persist_for(&candidate).await?;
-                                if !generation.is_current() { return Err(Error::Cancelled); }
-                                let publication = self.client.commit_chat_view(candidate, receipt)?;
-                                return Self::emit(replies, epoch, View::CanonicalChat(NativeCanonicalChatPublication {
-                                    publication, store_generation: generation,
-                                })).await;
-                            },
-                            ChatViewRead::CacheSettled(candidate) => {
-                                self.client.validate_cache_settlement(&candidate)?;
-                                let receipt = self.persist_for(&candidate).await?;
-                                if !generation.is_current() { return Err(Error::Cancelled); }
-                                let publication = self.client.commit_cache_settlement(candidate, receipt)?;
-                                return Self::emit(replies, epoch, View::CacheSettled(NativeCacheSettlementPublication {
-                                    publication, store_generation: generation,
-                                })).await;
-                            },
-                            ChatViewRead::CachedOffline(publication) => {
-                                if self.cached_views_blocked { return Err(Error::Forbidden); }
-                                View::CachedChatOffline(NativeCachedChatPublication {
-                                    publication, store_generation: generation.clone(),
-                                })
-                            },
-                        }
-                    } else {
-                        View::Item(workspace, self.client.detail(workspace, &id).await?)
-                    };
+                    let view = View::Item(workspace, self.core.client_mut().detail(workspace, &id).await?);
                     self.persist().await?;
                     if !generation.is_current() { return Err(Error::Cancelled); }
                     Self::emit(replies, epoch, view).await
                 }),
                 UiCommand::MarkRead(chat_id) => Box::pin(async move {
-                    let _request_cancel = &cancel;
-                    self.client.set_operation_cancel(cancel.clone());
-                    self.client.mark_chat_read(&chat_id).await?;
-                    self.persist().await
+                    let sink = core_host::TerminalSink { replies: replies.clone(), epoch };
+                    core_view::handle(self, ViewCommand::MarkRead { chat_id }, &sink, &cancel).await
                 }),
                 UiCommand::Mutate(mutation) => Box::pin(async move {
                     let _request_cancel = &cancel;
-                    self.client.set_operation_cancel(cancel.clone());
+                    self.core.client_mut().set_operation_cancel(cancel.clone());
                     let workspace = match &mutation {
                         Mutation::Create { workspace, .. }
                         | Mutation::Update { workspace, .. }
@@ -2195,7 +2189,7 @@ impl Actor {
                         Mutation::RunWorkflow { .. } => Workspace::Workflows,
                         Mutation::SetSetting { .. } => Workspace::Settings,
                     };
-                    let item = self.client.mutate(mutation).await?;
+                    let item = self.core.client_mut().mutate(mutation).await?;
                     self.persist().await?;
                     Self::emit(replies, epoch, View::MutationSucceeded).await?;
                     if workspace == Workspace::Apps
@@ -2203,54 +2197,14 @@ impl Actor {
                     {
                         Self::emit(replies, epoch, View::Item(workspace, item)).await?;
                     }
-                    let items = self.client.list(workspace).await?;
+                    let items = self.core.client_mut().list(workspace).await?;
                     self.persist().await?;
-                    Self::emit(replies, epoch, View::Items(workspace, if workspace == Workspace::Chats { openmates::home_items::arrange(&self.client, items) } else { items })).await
+                    Self::emit(replies, epoch, View::Items(workspace, if workspace == Workspace::Chats { core_view::arrange_chat_list(self.core.client(), items) } else { items })).await
                 }),
                 UiCommand::Send { chat_id, text } => Box::pin(async move {
-                    let _request_cancel = &cancel;
-                    // Same send-time mention resolution as `chats send`; an
-                    // unknown mention fails before dispatch and restores the draft.
-                    let resolved = self.client.resolve_mentions(&text).await?;
-                    if !resolved.unresolved.is_empty() {
-                        return Err(Error::Invalid(
-                            "Unknown @mention. Nothing was sent; check the mention name.",
-                        ));
-                    }
-                    let text = resolved.processed_message;
-                    let (stream, mut updates) = mpsc::channel(64);
-                    let output = replies.clone();
-                    self.relay = Some(tokio::spawn(async move {
-                        while let Some(update) = updates.recv().await {
-                            if output
-                                .send(Reply {
-                                    epoch,
-                                    view: View::Stream(update),
-                                })
-                                .await
-                                .is_err()
-                            {
-                                break;
-                            }
-                        }
-                    }));
-                    let result = self
-                        .client
-                        .send_message(chat_id.as_deref(), &text, stream, cancel.clone())
-                        .await;
-                    if let Some(relay) = self.relay.as_mut() {
-                        let _ = relay.await;
-                    }
-                    self.relay = None;
-                    // Preserve rotated cookies and any admitted encrypted state, including cancellation.
-                    let persisted = self.persist().await;
-                    if cancel.is_cancelled() {
-                        return Err(Error::Cancelled);
-                    }
-                    persisted?;
-                    let chat = result?;
-                    self.live_selected = Some(chat.id.clone());
-                    Self::emit(replies, epoch, View::Sent(chat)).await
+                    let sink = core_host::TerminalSink { replies: replies.clone(), epoch };
+                    let command = ViewCommand::Send { request: RequestId(epoch.view), chat_id, text };
+                    core_view::handle(self, command, &sink, &cancel).await
                 }),
                 UiCommand::Share {
                     chat_id,
@@ -2259,8 +2213,7 @@ impl Actor {
                     include_sensitive,
                 } => Box::pin(async move {
                     let _request_cancel = &cancel;
-                    let uri = self
-                        .client
+                    let uri = self.core.client_mut()
                         .share_chat(&chat_id, expires_in, &password, include_sensitive)
                         .await?;
                     self.persist().await?;
@@ -2273,7 +2226,7 @@ impl Actor {
                     overwrite,
                 } => Box::pin(async move {
                     let _request_cancel = &cancel;
-                    self.client
+                    self.core.client_mut()
                         .download(workspace, &id, &destination, overwrite)
                         .await?;
                     self.persist().await?;
@@ -2293,6 +2246,7 @@ impl Actor {
         }
     }
 }
+#[cfg(test)]
 fn cache_key(session: &Session) -> String {
     openmates::session_runtime::cache_key(session)
 }
@@ -2332,10 +2286,13 @@ mod tests {
         builder.create(&profile).unwrap();
         let store = RuntimeStore::new(Some(profile), true).await.unwrap();
         let session = fixture_session();
+        let passphrase = SharedPassphrase::new(Some(Zeroizing::new("fixture passphrase".into())));
+        let core = ViewCore::new(Client::new(&session.api_url, Some(session.clone())).unwrap(),
+            store.shell().clone(), openmates::session_runtime::shared_credentials(&store, passphrase.clone()));
         let actor = Actor {
-            client: Client::new(&session.api_url, Some(session.clone())).unwrap(),
+            core,
             store,
-            passphrase: Some(Zeroizing::new("fixture passphrase".into())),
+            passphrase,
             pair_phase: 0,
             relay: None,
             explicit_api: None,
@@ -2429,7 +2386,7 @@ mod tests {
         assert!(
             actor
                 .store
-                .load(actor.passphrase.clone())
+                .load(actor.passphrase.get())
                 .await
                 .unwrap()
                 .is_some()
@@ -2442,14 +2399,14 @@ mod tests {
             actor.finish_pair(&replies, Stamp::default(), &cancel).await,
             Err(Error::Cancelled)
         );
-        assert!(actor.client.session().is_none());
+        assert!(actor.core.client().session().is_none());
         assert!(actor.passphrase.is_none());
         assert!(actor.store.load(None).await.unwrap().is_none());
     }
     #[tokio::test]
     async fn another_login_cannot_replace_an_active_owner() {
         let (_directory, mut actor) = fixture().await;
-        let original = actor.client.session().unwrap().session_id.clone();
+        let original = actor.core.client().session().unwrap().session_id.clone();
         let (replies, _) = mpsc::channel(8);
         let request = Request {
             epoch: Stamp::default(),
@@ -2466,7 +2423,7 @@ mod tests {
                 "Sign out before signing in to another account."
             ))
         );
-        assert_eq!(actor.client.session().unwrap().session_id, original);
+        assert_eq!(actor.core.client().session().unwrap().session_id, original);
     }
     #[tokio::test]
     async fn priority_logout_is_admitted_when_ordinary_queue_is_full() {
@@ -2504,7 +2461,7 @@ mod tests {
         actor.persist().await.unwrap();
         let (critical, incoming) = mpsc::unbounded_channel();
         let (replies, _views) = mpsc::channel(8);
-        let mut pending = fenced_controls(incoming, actor.store.clone(), replies);
+        let mut pending = fenced_controls(incoming, actor.core.revocation_handle(), replies);
         critical
             .send(Request {
                 epoch: Stamp::default(),
@@ -2522,13 +2479,13 @@ mod tests {
         assert!(
             actor
                 .store
-                .load(actor.passphrase.clone())
+                .load(actor.passphrase.get())
                 .await
                 .unwrap()
                 .is_none()
         );
         assert_eq!(actor.persist().await, Err(Error::Locked));
-        assert!(actor.client.session().is_some());
+        assert!(actor.core.client().session().is_some());
     }
     #[tokio::test]
     async fn stalled_protocol_work_releases_actor_for_logout_after_cancellation() {
@@ -2564,7 +2521,7 @@ mod tests {
             .await;
         // The observer was dropped; cleanup still precedes notification.
         assert_eq!(result, Err(Error::Cancelled));
-        assert!(actor.client.session().is_none());
+        assert!(actor.core.client().session().is_none());
         assert!(actor.passphrase.is_none());
         assert!(actor.store.load(None).await.unwrap().is_none());
     }

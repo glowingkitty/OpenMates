@@ -22,19 +22,43 @@ pub use openmates_sdk::shell_session::cache_key;
 /// Which part of the protected sync cache a command restores before dispatch.
 pub use openmates_sdk::shell_session::CacheLoad;
 
-/// This profile's credential store for one core call: `RuntimeStore`
-/// operations on the shared ordered queue, with the vault passphrase if any.
-struct NativeCredentials<'a> {
-    store: &'a RuntimeStore,
-    passphrase: Option<Zeroizing<String>>,
+/// The vault passphrase of the running profile, shared between the TUI actor
+/// (login, unlock and pairing set it) and the credential backend the core
+/// view-model actor owns. Never `Debug`; the value is zeroized on drop.
+#[derive(Clone, Default)]
+pub struct SharedPassphrase(std::sync::Arc<std::sync::Mutex<Option<Zeroizing<String>>>>);
+impl SharedPassphrase {
+    pub fn new(passphrase: Option<Zeroizing<String>>) -> Self {
+        Self(std::sync::Arc::new(std::sync::Mutex::new(passphrase)))
+    }
+    /// A copy of the current passphrase, if any.
+    pub fn get(&self) -> Option<Zeroizing<String>> {
+        self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone()
+    }
+    pub fn set(&self, passphrase: Option<Zeroizing<String>>) {
+        *self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = passphrase;
+    }
+    pub fn is_some(&self) -> bool {
+        self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner).is_some()
+    }
+    pub fn is_none(&self) -> bool {
+        !self.is_some()
+    }
 }
-impl CredentialPersistence for NativeCredentials<'_> {
+
+/// This profile's credential store: `RuntimeStore` operations on the shared
+/// ordered queue, with the vault passphrase current at each call.
+struct NativeCredentials {
+    store: RuntimeStore,
+    passphrase: SharedPassphrase,
+}
+impl CredentialPersistence for NativeCredentials {
     fn load(&self, generation: u64) -> BoxFuture<'_, Result<Option<Session>>> {
-        Box::pin(self.store.load_at(generation, self.passphrase.clone()))
+        Box::pin(self.store.load_at(generation, self.passphrase.get()))
     }
     fn store(&self, snapshot: CredentialSnapshot, generation: u64) -> BoxFuture<'_, Result<CredentialSave>> {
         Box::pin(async move {
-            Ok(match self.store.save_unless_superseded_at(generation, snapshot.session, self.passphrase.clone()).await? {
+            Ok(match self.store.save_unless_superseded_at(generation, snapshot.session, self.passphrase.get()).await? {
                 SessionSave::Saved(_) => CredentialSave::Saved,
                 SessionSave::Superseded(stored) => CredentialSave::Superseded(Box::new(stored)),
             })
@@ -47,8 +71,14 @@ impl CredentialPersistence for NativeCredentials<'_> {
         Box::pin(self.store.cleanup())
     }
 }
-fn credentials(store: &RuntimeStore, passphrase: Option<Zeroizing<String>>) -> NativeCredentials<'_> {
-    NativeCredentials { store, passphrase }
+fn credentials(store: &RuntimeStore, passphrase: Option<Zeroizing<String>>) -> NativeCredentials {
+    NativeCredentials { store: store.clone(), passphrase: SharedPassphrase::new(passphrase) }
+}
+
+/// The credential backend the core view-model actor owns for the terminal
+/// session: reads the passphrase from `passphrase` at every call.
+pub fn shared_credentials(store: &RuntimeStore, passphrase: SharedPassphrase) -> std::sync::Arc<dyn CredentialPersistence> {
+    std::sync::Arc::new(NativeCredentials { store: store.clone(), passphrase })
 }
 
 /// Account/settings reads and writes that never use cached Chats or embeds.
