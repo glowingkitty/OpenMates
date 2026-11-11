@@ -1201,6 +1201,9 @@
     }
   },
   "holds": {
+    "cli-native-agentic-app-real.spec.ts": {
+      "next_action": "Real Gemini inference against dev with the personal test account: run only on the dev host with the personal-dev lease and the native CLI binary in OPENMATES_NATIVE_CLI. Never submit this provider-billed flow to isolated CI."
+    },
     "web-browse-real.spec.ts": {
       "next_action": "Real Jev/text-helper inference and E2B sessions: run only against dev with automatic chat routing, the isolated personal test profile, explicit shared-runtime lease and exact owned-source check. Account authentication is excluded from recordings; demo website credentials are public training fixtures. Never submit this provider-billed flow to isolated CI. Deterministic component and HTTP boundaries run in CI separately."
     },
