@@ -86,7 +86,9 @@ behavior or material scope growth; keep the patch and evidence.
    appendix of attempts.
 3b. Videos must come from a run whose source is the deployed commit. Older-commit
    recordings are never proof for the current change. Download or open the
-   screenshots, inspect them, and send them to the user with `SendUserFile`.
+   screenshots, inspect them, and send them to the user with `SendUserFile`;
+   without that tool, open them with the Read tool and post the full signed
+   link (see "How to show an image" in `CLAUDE.md`).
 4. Report missing capture, expiry or upload failure beside the test result.
    Retry uploads or renew signed links from S3; never rerun a test just for
    media. Do not pass `--ack` (Claude has no delivered-message ID).

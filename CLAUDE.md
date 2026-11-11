@@ -72,6 +72,12 @@ when a skill or this file points to it.
   from the current look (deployed `/dev/preview` page or app screen) when the
   task changes existing UI. Sub-agents hand back screenshot paths; the parent
   sends them. No screenshot possible: say so and why before going on.
+- How to show an image: use `SendUserFile` when the tool exists. When it does
+  not, open the image file with the Read tool (the user sees it in the chat)
+  and add the full signed link from `ci_evidence.py --upload` as a markdown
+  link. Both count as shown; a missing `SendUserFile` is never a reason to skip
+  proof or to say images cannot be shared. Screenshots are the running proof
+  during the work, without being asked; videos come with the final reply.
 - Web UI order: `/dev/preview` component page and its focused component spec
   first (`/verify-component-preview`), screenshots shown and defects fixed
   there; route-level or full E2E specs only after that.
