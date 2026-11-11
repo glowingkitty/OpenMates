@@ -119931,12 +119931,12 @@ assertions:
     direct_tests:
     - &id15332
       path: backend/tests/test_images_enhance.py
-      line: 509
+      line: 510
       name: test_a_produced_result_is_charged_once_and_handed_to_the_requester
       surface: rest_api
     - &id15333
       path: backend/tests/test_images_enhance.py
-      line: 665
+      line: 666
       name: test_the_provider_keeps_the_nearest_supported_aspect_ratio
       surface: rest_api
     supporting_tests: []
@@ -119956,97 +119956,97 @@ assertions:
     direct_tests:
     - &id15334
       path: backend/tests/test_images_enhance.py
-      line: 278
+      line: 279
       name: test_the_price_comes_from_the_provider_pricing_entry
       surface: rest_api
     - &id15335
       path: backend/tests/test_images_enhance.py
-      line: 294
+      line: 295
       name: test_malformed_requests_are_refused_before_any_work
       surface: rest_api
     - &id15336
       path: backend/tests/test_images_enhance.py
-      line: 314
+      line: 315
       name: test_access_and_source_checks_refuse_without_a_job_or_charge
       surface: rest_api
     - &id15337
       path: backend/tests/test_images_enhance.py
-      line: 354
+      line: 355
       name: test_a_job_records_the_scope_under_the_shared_project_link_rule
       surface: rest_api
     - &id15338
       path: backend/tests/test_images_enhance.py
-      line: 372
+      line: 373
       name: test_a_stale_version_is_a_conflict_without_a_job_or_charge
       surface: rest_api
     - &id15339
       path: backend/tests/test_images_enhance.py
-      line: 384
+      line: 385
       name: test_too_few_credits_is_402_without_a_job
       surface: rest_api
     - &id15340
       path: backend/tests/test_images_enhance.py
-      line: 394
+      line: 395
       name: test_a_replay_returns_the_same_job_and_dispatches_once
       surface: rest_api
     - &id15341
       path: backend/tests/test_images_enhance.py
-      line: 416
+      line: 417
       name: test_new_jobs_are_limited_per_user_per_minute
       surface: rest_api
     - &id15342
       path: backend/tests/test_images_enhance.py
-      line: 509
+      line: 510
       name: test_a_produced_result_is_charged_once_and_handed_to_the_requester
       surface: rest_api
     - &id15343
       path: backend/tests/test_images_enhance.py
-      line: 555
+      line: 556
       name: test_a_failed_enhance_costs_nothing_and_leaves_no_files
       surface: rest_api
     - &id15344
       path: backend/tests/test_images_enhance.py
-      line: 572
+      line: 573
       name: test_a_refused_charge_deletes_the_result_and_charges_nothing
       surface: rest_api
     - &id15345
       path: backend/tests/test_images_enhance.py
-      line: 585
+      line: 586
       name: test_an_undelivered_uncommitted_result_is_refunded_and_deleted_on_expiry
       surface: rest_api
     - &id15346
       path: backend/tests/test_images_enhance.py
-      line: 620
+      line: 621
       name: test_a_hard_killed_worker_job_fails_and_is_refunded_once_after_the_stale_limit
       surface: rest_api
     - &id15347
       path: backend/tests/test_images_enhance.py
-      line: 647
+      line: 648
       name: test_a_job_with_a_result_is_never_refunded_by_the_stale_claim_rule
       surface: rest_api
     - &id15348
       path: backend/tests/test_images_enhance.py
-      line: 677
+      line: 678
       name: test_a_delivered_but_unsaved_result_stays_charged_and_saveable_until_expiry
       surface: rest_api
     - &id15349
       path: backend/tests/test_images_enhance.py
-      line: 711
+      line: 712
       name: test_a_replayed_start_hands_over_the_result_and_records_the_delivery
       surface: rest_api
     - &id15350
       path: backend/tests/test_images_enhance.py
-      line: 723
+      line: 724
       name: test_a_duplicate_delivery_that_cannot_claim_the_job_touches_nothing
       surface: rest_api
     - &id15351
       path: backend/tests/test_images_enhance.py
-      line: 755
+      line: 756
       name: test_an_unexpected_failure_fails_only_the_row_this_run_owns
       surface: rest_api
     - &id15352
       path: backend/tests/test_images_enhance.py
-      line: 786
+      line: 787
       name: test_a_transport_failure_after_the_charge_fails_the_job_for_the_sweep_to_refund
       surface: rest_api
     supporting_tests: []

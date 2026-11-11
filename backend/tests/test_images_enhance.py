@@ -206,9 +206,10 @@ class World:
         self.directus = Directus({
             "embeds": [{
                 "id": "row-1", "embed_id": EMBED_ID, "hashed_user_id": _hash(USER_ID), "hashed_chat_id": _hash(CHAT_ID),
-                "hashed_team_id": None, "version_number": version, "app_id": "images", "skill_id": "generated_image",
+                "hashed_team_id": None, "version_number": version, "app_id": None, "skill_id": None,
                 "s3_file_keys": json.dumps([{"bucket": "chatfiles", "key": SOURCE_KEY}]),
             }],
+            "upload_files": [{"id": "file-1", "embed_id": EMBED_ID, "user_id": USER_ID, "content_type": "image/png"}],
             "projects": [{"id": "p", "project_id": PROJECT_ID, "hashed_user_id": _hash(USER_ID), "hashed_team_id": None}],
             "project_items": [],
             "image_enhance_jobs": [],
@@ -322,7 +323,7 @@ async def test_access_and_source_checks_refuse_without_a_job_or_charge(world: Wo
     elif case == "foreign_file":
         body = world.body(source={**source, "s3_key": f"{OTHER_USER}/someone_else.png"})
     elif case == "not_image":
-        world.directus.collections["embeds"][0]["skill_id"] = "diagram"
+        world.directus.collections["upload_files"][0]["content_type"] = "application/pdf"
     elif case == "team_scope":
         body = world.body(scope={"kind": "chat", "chat_id": CHAT_ID, "team_id": "team-1"})
     elif case == "other_chat":

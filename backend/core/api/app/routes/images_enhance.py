@@ -56,7 +56,6 @@ logger = logging.getLogger(__name__)
 
 UUID_PATTERN = r"^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
 ID_PATTERN = r"^[A-Za-z0-9._:-]{1,128}$"
-IMAGE_TYPES = frozenset({("images", "generated_image"), ("images", "upload")})
 MAX_SOURCE_SIDE = 8192
 USER_LIMIT_PER_MINUTE = 10
 USER_LIMIT_PER_DAY = 100
@@ -140,7 +139,7 @@ def _json_list(value: Any) -> list:
 async def _owned_embed(directus: Any, *, embed_id: str, owner_hash: str) -> Dict[str, Any]:
     rows = await directus.get_items("embeds", params={
         "filter[embed_id][_eq]": embed_id, "filter[hashed_user_id][_eq]": owner_hash,
-        "fields": "id,embed_id,hashed_user_id,hashed_chat_id,hashed_team_id,version_number,s3_file_keys,app_id,skill_id",
+        "fields": "id,embed_id,hashed_user_id,hashed_chat_id,hashed_team_id,version_number,s3_file_keys",
         "limit": 2,
     }, admin_required=True, no_cache=True, raise_on_error=True)
     if not isinstance(rows, list) or len(rows) != 1:
@@ -166,6 +165,21 @@ async def _live_project_file_links(directus: Any, *, embed_id: str, project_id: 
     if not isinstance(links, list):
         raise HTTPException(status_code=503, detail="project_lookup_failed")
     return links
+
+
+async def _is_image(directus: Any, *, embed_id: str, user_id: str) -> bool:
+    """True when the owner's file index holds exactly one image record for this embed.
+
+    The embed row carries no server-readable type (its content is client-encrypted);
+    the file index written by image generation and by uploads names the content type.
+    """
+    rows = await directus.get_items("upload_files", params={
+        "filter[embed_id][_eq]": embed_id, "filter[user_id][_eq]": user_id,
+        "fields": "id,content_type", "limit": 2,
+    }, admin_required=True, no_cache=True, raise_on_error=True)
+    if not isinstance(rows, list) or len(rows) != 1:
+        return False
+    return str(rows[0].get("content_type") or "").startswith("image/")
 
 
 async def _require_scope(directus: Any, *, scope: ChatScope | ProjectScope, embed: Dict[str, Any], user_id: str) -> str:
@@ -245,7 +259,7 @@ async def start_enhance(
 
     _validate_source_encoding(body.source)
     embed = await _owned_embed(directus, embed_id=body.embed_id, owner_hash=owner_hash)
-    if (embed.get("app_id"), embed.get("skill_id")) not in IMAGE_TYPES:
+    if not await _is_image(directus, embed_id=body.embed_id, user_id=current_user.id):
         raise HTTPException(status_code=422, detail="not_an_image")
     scope_id = await _require_scope(directus, scope=body.scope, embed=embed, user_id=current_user.id)
     head = _logical_version(embed.get("version_number"))
