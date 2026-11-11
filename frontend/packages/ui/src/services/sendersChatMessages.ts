@@ -2336,11 +2336,15 @@ export async function sendNewMessageImpl(
 		}
 	} else {
 		try {
-			// Presentation-only system events (context_entry, voice_call) never reach the AI.
-			messageHistory = await loadLocalSavedHistoryForSend(
+			// Presentation-only system events (context_entry, voice_call) never reach the AI,
+			// but they are server rows that advance messages_v. Decide whether history is
+			// needed from the stored rows and filter afterwards: a first voice turn after a
+			// "call started" event must still carry its history, or the server finds a
+			// short AI cache for an existing chat and asks for an unbound legacy resend.
+			messageHistory = await withoutPresentationOnlyEvents(await loadLocalSavedHistoryForSend(
 				message.chat_id, chat?.team_id,
-				(id) => chatDB.getMessagesForChat(id).then(withoutPresentationOnlyEvents)
-			);
+				(id) => chatDB.getMessagesForChat(id)
+			));
 			if (messageHistory.length > 0) {
 				console.debug(
 					`[ChatSyncService:Senders] Loaded ${messageHistory.length} local messages for durable saved-chat history`
