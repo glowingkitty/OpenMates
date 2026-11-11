@@ -28,6 +28,7 @@
  */
 
 import { codingIdentifierRanges } from "../../../../../secret-scanner/src/identifierRanges";
+import { embedReferenceRanges, overlapsAnyRange } from "../../../../../secret-scanner/src/embedReferenceRanges";
 
 /** Types of PII that can be detected */
 export type PIIType =
@@ -794,6 +795,10 @@ export function detectPII(
     });
   }
   const hasUrlExclusions = urlExclusionZones.length > 0;
+  // Embed references (`(embed:<ref>)` targets and ```json embed reference
+  // blocks) are machine-generated ids. Any detection touching them would make
+  // the ref unresolvable, so no regex or personal-data match may overlap them.
+  const embedZones = embedReferenceRanges(text);
 
   // ── Phase 1: Regex-based PII pattern detection ──────────────────────────
   if (text.length >= MIN_PII_TEXT_LENGTH) {
@@ -815,6 +820,8 @@ export function detectPII(
         const endIndex = startIndex + matchText.length;
 
         if (pattern.type === "PHONE" && identifierRanges.some((range) => startIndex < range.end && endIndex > range.start)) continue;
+
+        if (overlapsAnyRange(startIndex, endIndex, embedZones)) continue;
 
         // Skip matches that fall inside a URL — URL path segments often
         // false-positive as phone numbers, IBANs, etc.
@@ -903,7 +910,7 @@ export function detectPII(
             (startIndex <= range.start && endIndex >= range.end),
         );
 
-        if (!overlaps) {
+        if (!overlaps && !overlapsAnyRange(startIndex, endIndex, embedZones)) {
           // Use the actual text from the input (preserving original case)
           const matchText = text.substring(startIndex, endIndex);
           const matchId = `pii-PERSONAL_DATA-${entry.id}-${startIndex}`;

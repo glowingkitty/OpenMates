@@ -241,6 +241,8 @@ pub fn merge_matches_json(input: &str) -> Result<String, String> {
     hard.extend(known);
     hard.extend(ranges_of(generated_regex(), text, &index));
     hard.extend(ranges_of(protected_regex(), text, &index));
+    // Model spans never cut into an embed ref (`protectedRanges` in webPIIMatches.ts).
+    hard.extend(super::embed_refs::embed_reference_ranges(text, &index));
 
     let mut order: Vec<usize> = (0..entities.len()).collect();
     order.sort_by_key(|&i| (entities[i].start, std::cmp::Reverse(entities[i].end)));

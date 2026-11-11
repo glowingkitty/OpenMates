@@ -1,8 +1,10 @@
 //! Synchronous PII detection of the web composer: regex patterns, URL and
 //! coding-identifier exclusion, exclusions by stable id, disabled categories and
-//! user-defined personal data entries. Port of `detectPII` in
+//! user-defined personal data entries; embed references are never matched.
+//! Port of `detectPII` in
 //! `piiDetectionService.ts` (UTF-16 offsets, TS-bug-compatible overlap rules).
 //! spec: specifications/features/pii-protection#pii.composer.detect-redact-exclude
+use super::embed_refs::{embed_reference_ranges, overlaps_any};
 use super::pii_table::{category, fit, patterns, secret_suffix, valid};
 use super::protocol;
 use super::utf16::{Utf16Index, WS_CLASS, index_of, js_trim, len16, units};
@@ -142,6 +144,9 @@ pub(crate) fn detect(text: &str, options: &Options) -> Vec<Match> {
         return Vec::new();
     }
     let index = Utf16Index::new(text);
+    // No pattern or personal-data match may touch an embed ref (an id; redacting
+    // it makes the upload unresolvable). Same rule as the TS detector.
+    let embeds = embed_reference_ranges(text, &index);
     let mut matches: Vec<Match> = Vec::new();
     let mut covered: Vec<(usize, usize)> = Vec::new();
     let mut counts: HashMap<&str, usize> = HashMap::new();
@@ -157,7 +162,7 @@ pub(crate) fn detect(text: &str, options: &Options) -> Vec<Match> {
                 if pattern.kind == "PHONE" && identifiers.iter().any(|&(rs, re)| s < re && e > rs) {
                     continue;
                 }
-                if urls.iter().any(|&(zs, ze)| s >= zs && e <= ze) || overlaps_covered(&covered, s, e) {
+                if overlaps_any(&embeds, s, e) || urls.iter().any(|&(zs, ze)| s >= zs && e <= ze) || overlaps_covered(&covered, s, e) {
                     continue;
                 }
                 let matched = &text[bs..be];
@@ -181,13 +186,13 @@ pub(crate) fn detect(text: &str, options: &Options) -> Vec<Match> {
             }
         }
     }
-    personal_pass(text, options, &mut matches, &mut covered);
+    personal_pass(text, options, &embeds, &mut matches, &mut covered);
     matches.sort_by_key(|m| m.start);
     matches
 }
 
 /// Phase 2: case-insensitive substring detection of user-defined entries (JS `toLowerCase` + `indexOf`).
-fn personal_pass(text: &str, options: &Options, matches: &mut Vec<Match>, covered: &mut Vec<(usize, usize)>) {
+fn personal_pass(text: &str, options: &Options, embeds: &[(usize, usize)], matches: &mut Vec<Match>, covered: &mut Vec<(usize, usize)>) {
     if options.entries.is_empty() {
         return;
     }
@@ -205,7 +210,7 @@ fn personal_pass(text: &str, options: &Options, matches: &mut Vec<Match>, covere
             while from < lower.len() {
                 let Some(at) = index_of(&lower, &needle, from) else { break };
                 let (s, e) = (at, at + width);
-                if !overlaps_covered(covered, s, e) {
+                if !overlaps_covered(covered, s, e) && !overlaps_any(embeds, s, e) {
                     let id = format!("pii-PERSONAL_DATA-{}-{s}", entry.id);
                     if !options.excluded_ids.contains(&id) {
                         let placeholder =

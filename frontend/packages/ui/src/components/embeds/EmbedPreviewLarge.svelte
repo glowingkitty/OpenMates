@@ -302,7 +302,11 @@
   function trackNavigationSurface(stage: HTMLElement) {
     let card: HTMLElement | null = null;
     const measure = () => {
-      const next = stage.querySelector<HTMLElement>('[data-testid="embed-preview"]');
+      // A preview that failed to resolve renders only its error bar; that bar is
+      // then the card surface, so the shell does not keep the large placeholder
+      // height. The loading state is not a surface and keeps the reserved height.
+      const next = stage.querySelector<HTMLElement>('[data-testid="embed-preview"]')
+        ?? stage.querySelector<HTMLElement>('.embed-reference-preview-error');
       if (next !== card) {
         if (card) resize.unobserve(card);
         card = next;

@@ -86,6 +86,10 @@ assertions:
     type: privacy
     must: The composer's sensitive-data preview does not scan the labels of mention chips (Projects, Project folders and files, skills, models, mates, memories), because they are app-provided references sent as ids, not text the user wrote. A Project whose name contains a number is not highlighted, and highlights in text after a chip stay on the detected characters. Text the user types next to a chip is scanned as before.
     depends_on: [models.ComposerDetection, examples.mention_labels]
+  - id: pii.composer.embed-references-not-scanned
+    type: privacy
+    must: Personal-data detection and redaction never alter an embed reference in message text, on web (with and without the Rust core) and in the CLI. The target of a markdown embed link such as "[!](embed:<ref>)" and a fenced json embed reference block carrying embed_id or embed_ids are left byte-for-byte unchanged by pattern, configured-entry and on-device model detection, so an uploaded file always resolves to its preview. The display text of an embed link and all other text are scanned as before.
+    depends_on: [models.ComposerDetection, examples.embed_references]
   - id: pii.web.enhanced-default-and-opt-out
     type: privacy
     must: The official production web app enables Enhanced personal data protection by default, including for existing preferences without an enhanced flag. Its Privacy switch persists the user's choice. With the master protection switch on, turning enhancement off retains complete basic patterns, configured private entries and current-send exclusions. A restored off preference is respected before model initialization or licensing starts. Turning it off releases the worker and stops subsequent model downloads, scans and licensing requests; it cannot retract requests already sent. Changes invalidate obsolete previews and prepared sends without clearing newer typing. Existing master-off behavior remains unchanged.

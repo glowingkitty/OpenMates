@@ -47,6 +47,7 @@ const os = require('os');
 const JSZip = require('jszip');
 const {
 	createSignupLogger,
+	getE2EDebugUrl,
 	getTestAccount
 } = require('./signup-flow-helpers');
 const { submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
@@ -335,7 +336,11 @@ test('CLI file upload - text/code/docs/sheets files with PII + image file', asyn
 		]));
 		logCheckpoint('Created CSV, DOCX, and XLSX files with private emails.');
 
-		const imagePath = SAMPLE_PNG;
+		// The CLI builds the embed ref from `<filename>:<embed id>`. This digit run
+		// makes the ref phone-number-like on every run, so personal-data
+		// redaction of the message would cut into it if refs were not shielded.
+		const imagePath = path.join(tmpDir, 'whiteboard-0301-2345-678.png');
+		fs.copyFileSync(SAMPLE_PNG, imagePath);
 		logCheckpoint(`Using image fixture: ${imagePath}`);
 
 		// ── Text file upload ─────────────────────────────────────────────
@@ -445,6 +450,22 @@ test('CLI file upload - text/code/docs/sheets files with PII + image file', asyn
 			imageSendResult.code,
 			`Image send failed. stdout: ${imageSendResult.stdout.slice(0, 1000)} stderr: ${imageSendResult.stderr.slice(0, 1000)}`
 		).toBe(0);
+
+		// ── Web rendering of the uploaded image ───────────────────────────
+		// The reference in the stored user message must still resolve: the large
+		// preview renders its card and never the "Preview unavailable" bar.
+		logCheckpoint('Opening the chat in the web app to check the image preview...');
+		await page.goto(getE2EDebugUrl(`/#chat-id=${encodeURIComponent(targetChatId)}`), { waitUntil: 'domcontentloaded' });
+		const imageMessage = page.getByTestId('message-user').filter({ has: page.getByTestId('embed-preview-large') }).last();
+		await expect(imageMessage).toBeVisible({ timeout: 60_000 });
+		const imagePreview = imageMessage.getByTestId('embed-preview-large').first();
+		await expect(imagePreview.getByTestId('embed-preview').first()).toBeVisible({ timeout: 45_000 });
+		await expect(page.getByText('Preview unavailable')).toHaveCount(0);
+		await test.info().attach('cli-uploaded-image-large-preview', {
+			body: await imageMessage.screenshot(),
+			contentType: 'image/png'
+		});
+		logCheckpoint('Uploaded image large preview rendered in the web app.');
 
 		// ── Share link ────────────────────────────────────────────────────
 

@@ -1,5 +1,6 @@
 /** Model output adaptation only: no input or detections are stored outside memory. */
 import { detectPII, PII_TYPE_TO_CATEGORY, type PIIDetectionOptions, type PIIMatch, type PIIType } from './piiDetectionService';
+import { embedReferenceRanges } from '../../../../../secret-scanner/src/embedReferenceRanges';
 
 export interface WebPIIEntity { label: string; original: string; start: number; end: number; confidence: number }
 
@@ -51,7 +52,8 @@ export function modelPIIMatchId(type: PIIType, value: string): string {
 }
 
 function protectedRanges(text: string): Array<{ start: number; end: number }> {
-  return Array.from(text.matchAll(/https?:\/\/[^\s]+|\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi), m => ({ start: m.index!, end: m.index! + m[0].length }));
+  // Embed refs are ids, never model-detectable personal data (see embedReferenceRanges).
+  return [...embedReferenceRanges(text), ...Array.from(text.matchAll(/https?:\/\/[^\s]+|\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi), m => ({ start: m.index!, end: m.index! + m[0].length }))];
 }
 const overlaps = (start: number, end: number, range: { start: number; end: number }) => start < range.end && end > range.start;
 const mandatoryCategories = new Set(['api_keys', 'generic_secrets', 'private_keys', 'jwt_tokens']);

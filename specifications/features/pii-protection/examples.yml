@@ -81,6 +81,18 @@ mention_labels:
     when: The user types "call me at +49 151 23456789" after the chip.
     then: Exactly the typed phone number is highlighted, not the chip.
 
+embed_references:
+  - id: upload-ref-with-phone-like-id
+    assertion_ids: [pii.composer.embed-references-not-scanned]
+    given: A message carries an upload whose reference contains a phone-like digit run, such as "[!](embed:x-81ede84d-0123-4567-91b3--2e1a33)".
+    when: The user sends it together with the text "call +49 2123 21234".
+    then: The phone number is replaced with a placeholder, the embed reference is unchanged and the upload preview renders.
+  - id: json-reference-block-unchanged
+    assertion_ids: [pii.composer.embed-references-not-scanned]
+    given: A message contains a fenced json block with an embed_id whose value contains a phone-like digit run.
+    when: The message is redacted before send.
+    then: The block is unchanged; a phone number elsewhere in the message is still replaced.
+
 message_reveal:
   - id: owner-message-hidden-by-default
     input: {viewer: owner, reveal_state: hidden, mapping_available: true}

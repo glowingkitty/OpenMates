@@ -8,6 +8,8 @@ use std::{
     sync::{Mutex, OnceLock},
 };
 
+#[cfg(test)]
+mod embed_ref_tests;
 mod placeholder;
 
 /// Caller policy; no state directory or installed CLI preferences are consulted.
@@ -479,7 +481,14 @@ fn prepare_internal(
         })
         .unwrap_or_default();
     let tokens = ranges_for(&regex(r"\[[A-Za-z][A-Za-z0-9_]*\]"), text);
-    let token_index = RangeIndex::from_ranges(&tokens);
+    let mut token_index = RangeIndex::from_ranges(&tokens);
+    // Embed refs in the message (e.g. an appended upload reference block) are
+    // ids, not personal data: known values, patterns and personal entries never
+    // cut into them, exactly like existing tokens. Redacting one would make the
+    // upload unresolvable. Same grammar as `embedReferenceRanges` (TS).
+    for (start, end) in crate::web_composer::embed_refs::embed_reference_byte_ranges(text) {
+        token_index.insert(start, end);
+    }
     let mut accepted = RangeIndex::default();
     let mut ranges = Vec::new();
     for r in &tokens {

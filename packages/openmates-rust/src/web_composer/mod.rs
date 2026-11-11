@@ -10,6 +10,7 @@
 //! spec: specifications/features/pii-protection#pii.composer.detect-redact-exclude
 
 pub mod code_language;
+pub(crate) mod embed_refs;
 pub mod mentions;
 pub mod paste;
 pub mod pii_detect;
@@ -21,6 +22,8 @@ pub mod url_kinds;
 pub(crate) mod utf16;
 pub mod web_pii;
 
+#[cfg(test)]
+mod embed_refs_tests;
 #[cfg(test)]
 mod language_url_tests;
 #[cfg(test)]
