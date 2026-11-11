@@ -28,6 +28,18 @@ pub struct CoreConfig {
     pub api_url: String,
     /// Web app origin used as the auth `Origin` and pairing destination.
     pub app_url: Option<String>,
+    /// Absolute path of an existing, OS-provided container directory for the
+    /// core cache (Apple: the app-group or Application Support folder; it
+    /// may contain symlinks). Set together with `cache_directory_name`.
+    /// Required by `ViewModelCore`; `OpenMatesCore` ignores it.
+    #[uniffi(default = None)]
+    pub cache_container: Option<String>,
+    /// One plain path component (e.g. `core-cache`): the cache directory the
+    /// core creates `0700` inside `cache_container`, refusing a symlink or a
+    /// directory not private to this user. Swift passes names only; the core
+    /// does all file IO there.
+    #[uniffi(default = None)]
+    pub cache_directory_name: Option<String>,
 }
 
 /// Opaque credential snapshot for the Keychain. `payload` is the serialized core
@@ -66,7 +78,7 @@ pub trait CoreListener: Send + Sync {
 /// Cancelling is idempotent, thread-safe and never blocks.
 #[derive(uniffi::Object)]
 pub struct CoreCancellation {
-    token: CancellationToken,
+    pub(crate) token: CancellationToken,
 }
 
 #[uniffi::export]
@@ -119,7 +131,19 @@ impl Drop for ActiveGuard {
     }
 }
 
-fn join_result<T>(
+/// The core runtime pattern of this crate: a small multi-thread pool whose
+/// workers are named [`RUNTIME_THREAD_NAME`] (plan D-1).
+pub(crate) fn build_runtime() -> Result<Runtime, CoreError> {
+    tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(RUNTIME_WORKERS)
+        .thread_name(RUNTIME_THREAD_NAME)
+        .enable_all()
+        .build()
+        .map_err(|_| CoreError::internal("core runtime could not start"))
+}
+
+/// A spawned core task's result; a cancelled or panicked task is `Internal`.
+pub(crate) fn join_result<T>(
     result: Result<Result<T, CoreError>, tokio::task::JoinError>,
 ) -> Result<T, CoreError> {
     match result {
@@ -202,12 +226,7 @@ impl OpenMatesCore {
     /// `Invalid` for a bad API or app URL; `Internal` if the runtime cannot start.
     #[uniffi::constructor]
     pub fn new(config: CoreConfig) -> Result<Arc<Self>, CoreError> {
-        let runtime = tokio::runtime::Builder::new_multi_thread()
-            .worker_threads(RUNTIME_WORKERS)
-            .thread_name(RUNTIME_THREAD_NAME)
-            .enable_all()
-            .build()
-            .map_err(|_| CoreError::internal("core runtime could not start"))?;
+        let runtime = build_runtime()?;
         let handle = runtime.handle().clone();
         // The HTTP client may register with the reactor; build inside the runtime.
         let entered = runtime.enter();

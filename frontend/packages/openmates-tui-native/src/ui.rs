@@ -613,18 +613,26 @@ impl Ui {
     /// effects. Composer text, selection, scroll, focus and own-send state stay
     /// owned by this terminal. Recent-list absence alone never closes a chat.
     pub fn apply_live_chat_models(&mut self, models: crate::client::ChatModels) {
+        self.apply_live_chat_items(models.items);
+        self.apply_live_selection(models.selection);
+    }
+    /// The live chat list; the selected row stays selected by id.
+    pub fn apply_live_chat_items(&mut self, items: Vec<Item>) {
         let index = index(Workspace::Chats);
         let selected = self.items[index]
             .get(self.selected[index])
             .map(|item| item.id.clone());
-        self.set_items(Workspace::Chats, models.items);
+        self.set_items(Workspace::Chats, items);
         if let Some(id) = selected
             && let Some(position) = self.items[index].iter().position(|item| item.id == id)
         {
             self.selected[index] = position;
         }
-        let cached_settlement = matches!(&models.selection, crate::client::ChatSelectionUpdate::CacheSettled(_));
-        match models.selection {
+    }
+    /// The live update of the open chat (from the core's live window).
+    pub fn apply_live_selection(&mut self, selection: crate::client::ChatSelectionUpdate) {
+        let cached_settlement = matches!(&selection, crate::client::ChatSelectionUpdate::CacheSettled(_));
+        match selection {
             crate::client::ChatSelectionUpdate::Updated(chat)
             | crate::client::ChatSelectionUpdate::CacheSettled(chat) => {
                 if let Some((saved, _, _, cached)) = self.chat_origin.as_mut()

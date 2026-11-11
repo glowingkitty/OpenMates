@@ -5,9 +5,11 @@
 //!
 //! This is the shared-core side of the "View model" section in
 //! `docs/plans/apple-client-core-migration/a2-design.md` (lanes L6a records
-//! and events, L6b actor). Conversions are fallible; the actor serves
-//! `Start`, the boot sync, `RefreshChats`, `SwitchTeam` and `Logout` and
-//! bridges the remaining commands to its shell host (`ViewHost::bridge`).
+//! and events, L6b actor, L7 chat window). Conversions are fallible; the
+//! actor serves `Start`, the boot sync, `RefreshChats`, `SwitchTeam`,
+//! `Logout`, `OpenChat`, `LoadOlder`, `CloseChat`, `MarkRead` and live window
+//! updates, and bridges `Send` and `Cancel` to its shell host
+//! (`ViewHost::bridge`).
 //!
 //! Records contain only `String`, integers, `bool`, `Vec`, `Option` and enums so
 //! they can be exported through UniFFI without redesign.
@@ -21,7 +23,13 @@ mod arrange;
 mod convert;
 mod error;
 mod events;
+#[cfg(not(target_arch = "wasm32"))]
+mod first_page;
 mod records;
+#[cfg(not(target_arch = "wasm32"))]
+mod window;
+#[cfg(not(target_arch = "wasm32"))]
+mod window_flows;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use actor::{RevocationHandle, ViewCore};
@@ -40,6 +48,8 @@ pub use records::{
     ChatListRow, ChatRowStatus, ChatWindowRecord, ChatWindowSource, EmbedRef, ListCompleteness,
     MessageRecord, MessageRole, MessageStatus, PiiRestoration, StreamEvent,
 };
+#[cfg(not(target_arch = "wasm32"))]
+pub use window_flows::{close_chat, load_older, mark_read, open_chat};
 
 #[cfg(all(test, unix))]
 mod actor_tests;
@@ -49,3 +59,5 @@ mod arrange_tests;
 mod convert_tests;
 #[cfg(test)]
 mod events_tests;
+#[cfg(all(test, unix))]
+mod window_tests;

@@ -80,7 +80,7 @@ mod monitor;
 pub use monitor::{PreparedInitialSync,InitialSyncControl,InitialSyncRead,InitialSyncMetadataBatch};
 #[doc(hidden)]
 pub use monitor::{PreparedOwnedChatMonitor,OwnedChatMonitorStartStep,OwnedChatMonitorStartApply,OwnedChatMonitorReady,OwnedChatMonitorStartControl,OwnedChatMonitorStartTerminal};
-pub use monitor::cached_view::{CacheSettlementCandidate, CacheSettlementPublication, ChatFirstPageCandidate, ChatFirstPagePublication, ChatFirstPageSink, CanonicalChatCandidate, CanonicalChatPublication, CachedChatPublication, CachedChatViews, CachedChatWindow, ChatViewRead};
+pub use monitor::cached_view::{CacheSettlementCandidate, CacheSettlementPublication, ChatFirstPageCandidate, ChatFirstPagePublication, ChatFirstPageSink, CanonicalChatCandidate, CanonicalChatPublication, CachedChatPublication, CachedChatViews, CachedChatWindow, ChatOwnerLease, ChatViewRead};
 pub use monitor::{
     ChatInvalidation, ChatModels, ChatMonitor, ChatMonitorAccessDenial, ChatPublication,
     ChatRefresh, ChatRefreshDurableReceipt, ChatSelectionUpdate,

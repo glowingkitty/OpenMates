@@ -33,6 +33,9 @@ pub use settlement::{CacheSettlementCandidate, CacheSettlementPublication};
 mod first_page;
 pub use first_page::{ChatFirstPageCandidate, ChatFirstPagePublication, ChatFirstPageSink};
 pub(in crate::client) use first_page::FirstPageRead;
+#[path = "cached_view_open.rs"]
+mod open;
+pub use open::ChatOwnerLease;
 
 const MAX_CACHED_CHATS: usize = 20;
 const MAX_CACHED_MESSAGES: usize = 30;

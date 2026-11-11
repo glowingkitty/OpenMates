@@ -15,8 +15,8 @@ use crossterm::{
 use futures_util::StreamExt;
 use openmates::{
     client::{
-        ChatFirstPageCandidate, ChatFirstPagePublication, ChatFirstPageSink, CacheSettlementPublication, CachedChatPublication, CachedChatViews, CachedChatWindow, ChatViewRead, CanonicalChatPublication,
-        ChatInvalidation, ChatMonitor, ChatMonitorAccessDenial, ChatPublication,
+        CachedChatPublication, CachedChatViews, CachedChatWindow,
+        ChatInvalidation, ChatMonitorAccessDenial, ChatSelectionUpdate,
         ChatRefreshDurableReceipt, Client, FreshChatInventory,
     },
     completion_recovery_adapter::{
@@ -119,56 +119,6 @@ impl NativeAuthPublication {
 }
 #[derive(Clone, Copy)]
 enum MonitorAdmission { Ready, Offline, Denied(Error) }
-struct NativeCacheSettlementPublication {
-    publication: CacheSettlementPublication,
-    store_generation: RuntimeStoreGeneration,
-}
-impl NativeCacheSettlementPublication {
-    fn into_window(self) -> Result<CachedChatWindow> {
-        if !self.store_generation.is_current() { return Err(Error::Cancelled); }
-        let mut window = self.publication.into_window()?;
-        if !self.store_generation.is_current() { window.zeroize(); return Err(Error::Cancelled); }
-        Ok(window)
-    }
-}
-struct NativeLivePublication {
-    publication: ChatPublication,
-    store_generation: RuntimeStoreGeneration,
-    request: CancellationToken,
-}
-impl std::ops::Deref for NativeLivePublication {
-    type Target = ChatPublication;
-    fn deref(&self) -> &ChatPublication { &self.publication }
-}
-impl NativeLivePublication {
-    fn into_models(self) -> Result<openmates::client::ChatModels> {
-        if !self.store_generation.is_current() || self.request.is_cancelled() { return Err(Error::Cancelled); }
-        let mut models = Zeroizing::new(self.publication.into_models()?);
-        if !self.store_generation.is_current() || self.request.is_cancelled() {
-            return Err(Error::Cancelled);
-        }
-        Ok(std::mem::replace(&mut *models, openmates::client::ChatModels {
-            items: vec![], selection: openmates::client::ChatSelectionUpdate::Unchanged,
-        }))
-    }
-}
-struct NativeCanonicalChatPublication {
-    publication: CanonicalChatPublication,
-    store_generation: RuntimeStoreGeneration,
-}
-impl NativeCanonicalChatPublication {
-    fn into_chat(self) -> Result<Chat> {
-        if !self.store_generation.is_current() { return Err(Error::Cancelled); }
-        let chat = self.publication.into_chat()?;
-        if !self.store_generation.is_current() {
-            let mut rejected = CachedChatWindow { chat, has_more_before: None,
-                history_complete: false, cached: false, refreshing: false, pii_restoration: "page_local" };
-            rejected.zeroize();
-            return Err(Error::Cancelled);
-        }
-        Ok(chat)
-    }
-}
 impl NativeCachedChatViews {
     fn publish(&self, id: &str, epoch: Stamp, cancel: CancellationToken) -> Result<Option<Reply>> {
         if self.security != epoch.security || !self.store_generation.is_current() {
@@ -193,6 +143,25 @@ fn close_cached_views(receiver: &watch::Receiver<Option<NativeCachedChatViews>>)
     let current = receiver.borrow().clone();
     if let Some(current) = current { current.views.close(); }
 }
+/// Paint a core window reply. A force-logout, revocation or owner change may
+/// arrive while the reply waits in the bounded channel: the late fence drops
+/// it, and a rejected open completion also hides the cached chat.
+fn apply_window(ui: &mut Ui, window: core_host::Fenced<core_view::ChatWindowRecord>) {
+    use core_view::ChatWindowSource as Source;
+    let source=window.value.source;
+    match window.into_inner().and_then(|record|core_host::chat_from_window(&record)) {
+        Ok(chat)=>match source {
+            Source::Cached|Source::FirstPage=>ui.set_cached_chat(chat),
+            Source::CacheSettled=>ui.set_settled_chat(chat),
+            Source::Canonical=>ui.set_chat(chat),
+            Source::CachedOffline=>ui.set_cached_chat_offline(chat),
+            Source::Live=>ui.apply_live_selection(ChatSelectionUpdate::Updated(chat)),
+            Source::LiveSettled=>ui.apply_live_selection(ChatSelectionUpdate::CacheSettled(chat)),
+        },
+        Err(_) if matches!(source,Source::FirstPage|Source::CacheSettled|Source::Canonical)=>ui.hide_cached_chat(),
+        Err(_)=>{},
+    }
+}
 fn apply_cached_chat(ui: &mut Ui, publication: NativeCachedChatPublication) {
     // Optional cache display never suppresses the queued canonical read. An old
     // owner/lifetime/generation is simply ineligible for this immediate preview.
@@ -201,61 +170,6 @@ fn apply_cached_chat(ui: &mut Ui, publication: NativeCachedChatPublication) {
     }
 }
 
-fn apply_canonical_chat(ui: &mut Ui, publication: NativeCanonicalChatPublication) {
-    if let Ok(chat) = publication.into_chat() { ui.set_chat(chat); }
-    else { ui.hide_cached_chat(); }
-}
-
-fn apply_cached_chat_offline(ui: &mut Ui, publication: NativeCachedChatPublication) {
-    if let Ok(window) = publication.into_window() {
-        ui.set_cached_chat_offline(window.chat);
-    }
-}
-
-struct NativeChatFirstPagePublication {
-    publication: ChatFirstPagePublication,
-    store_generation: RuntimeStoreGeneration,
-}
-impl NativeChatFirstPagePublication {
-    fn into_window(self) -> Result<CachedChatWindow> {
-        if !self.store_generation.is_current() { return Err(Error::Cancelled); }
-        let mut window = self.publication.into_window()?;
-        if !self.store_generation.is_current() { window.zeroize(); return Err(Error::Cancelled); }
-        Ok(window)
-    }
-}
-struct NativeChatFirstPageSink {
-    store: RuntimeStore,
-    generation: RuntimeStoreGeneration,
-    passphrase: Option<Zeroizing<String>>,
-    replies: mpsc::Sender<Reply>,
-    epoch: Stamp,
-}
-impl ChatFirstPageSink for NativeChatFirstPageSink {
-    fn admit_checkpoint<'a>(&'a mut self, _client: &'a Client, checkpoint_json_bytes: usize)
-        -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<bool>> + Send + 'a>>
-    {
-        Box::pin(async move {
-            if !self.generation.is_current() { return Err(Error::Cancelled); }
-            let accepted = self.store.admits_ciphertext_checkpoint(checkpoint_json_bytes)?;
-            if !self.generation.is_current() { return Err(Error::Cancelled); }
-            Ok(accepted)
-        })
-    }
-    fn first_page<'a>(&'a mut self, client: &'a mut Client, candidate: ChatFirstPageCandidate)
-        -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>>
-    {
-        Box::pin(async move {
-            if !self.generation.is_current() { return Err(Error::Cancelled); }
-            let receipt = openmates::session_runtime::persist_for(client, &self.store, self.passphrase.clone(), &candidate).await?;
-            if !self.generation.is_current() { return Err(Error::Cancelled); }
-            let publication = client.commit_chat_first_page(candidate, receipt)?;
-            self.replies.send(Reply { epoch: self.epoch, view: View::ChatFirstPage(NativeChatFirstPagePublication {
-                publication, store_generation: self.generation.clone(),
-            }) }).await.map_err(|_| Error::Cancelled)
-        })
-    }
-}
 enum View {
     /// Cached display name for the first paint (before authentication).
     Greeting(String),
@@ -269,16 +183,16 @@ enum View {
     SignedOut,
     Unlock,
     Items(Workspace, Vec<Item>),
-    Chat(Chat),
-    CanonicalChat(NativeCanonicalChatPublication),
-    CacheSettled(NativeCacheSettlementPublication),
-    ChatFirstPage(NativeChatFirstPagePublication),
+    /// A core chat window (cached, first page, strict, offline or live).
+    Window(core_host::Fenced<core_view::ChatWindowRecord>),
+    /// The chat list of a live update (selection kept by id).
+    LiveItems(core_host::Fenced<Vec<Item>>),
+    /// The open chat became unreadable.
+    ChatUnavailable(String),
     CachedChat(NativeCachedChatPublication),
-    CachedChatOffline(NativeCachedChatPublication),
     ChatOpenFailed(Error),
     Sent(Chat),
     Monitor(Error, CancellationToken),
-    Live(NativeLivePublication),
     AccessDenied(ChatMonitorAccessDenial, CancellationToken),
     Item(Workspace, Item),
     Stream(StreamUpdate),
@@ -309,8 +223,17 @@ impl PendingCachedSelection {
             View::Monitor(Error::Expired|Error::Authentication|Error::Forbidden,lifetime)=>return !lifetime.is_cancelled(),
             _=>{},
         }
-        self.epoch==reply.epoch&&matches!(&reply.view,View::Chat(_)|View::CanonicalChat(_)|View::CacheSettled(_)|View::CachedChatOffline(_)|View::ChatOpenFailed(_)|View::Sent(_)|View::Item(..)|View::MutationSucceeded|View::Done)
+        self.epoch==reply.epoch&&(matches!(&reply.view,View::Window(window) if completes_open(window.value.source))
+            ||matches!(&reply.view,View::ChatOpenFailed(_)|View::Sent(_)|View::Item(..)|View::MutationSucceeded|View::Done))
     }
+}
+/// Window sources that settle an open (a cached or first page still refreshes).
+fn completes_open(source: core_view::ChatWindowSource) -> bool {
+    use core_view::ChatWindowSource::*;
+    matches!(source, Canonical | CacheSettled | CachedOffline)
+}
+fn is_live(source: core_view::ChatWindowSource) -> bool {
+    matches!(source, core_view::ChatWindowSource::Live | core_view::ChatWindowSource::LiveSettled)
 }
 struct Reply {
     epoch: Stamp,
@@ -320,8 +243,8 @@ impl Stamp {
     fn accepts(self, reply: &Reply) -> bool {
         let view_bound = match &reply.view {
             View::ChatOpenFailed(Error::Expired | Error::Authentication | Error::Forbidden) => false,
-            View::Chat(_) | View::CanonicalChat(_) | View::CacheSettled(_) | View::ChatFirstPage(_) | View::CachedChat(_) | View::CachedChatOffline(_)
-                | View::ChatOpenFailed(_) | View::Item(..) | View::Share(_) | View::MutationSucceeded => true,
+            View::Window(window) => !is_live(window.value.source),
+            View::CachedChat(_) | View::ChatOpenFailed(_) | View::Item(..) | View::Share(_) | View::MutationSucceeded => true,
             _ => false,
         };
         reply.epoch.security == self.security && (reply.epoch.view == self.view || !view_bound)
@@ -526,27 +449,16 @@ async fn run_terminal(args: Args) -> Result<()> {
                     View::Greeting(name)=>ui.set_username_hint(&name),
                     View::Inspirations(list)=>ui.set_inspirations(list),
                     View::Items(workspace,items)=>ui.set_items(workspace,items),
-                    View::Chat(chat)=>ui.set_chat(chat),
-                    View::CanonicalChat(publication)=>apply_canonical_chat(&mut ui,publication),
-                    View::CacheSettled(publication)=>{
-                        if let Ok(window)=publication.into_window(){ui.set_settled_chat(window.chat);}
-                        else {ui.hide_cached_chat();}
-                    },
-                    View::ChatFirstPage(publication)=>{
+                    View::Window(window)=>{
                         // Disarm opportunistic old-cache paint before accepting
-                        // the fresh first page. This remains read-only/loading.
-                        pending_cached_selection=None;
-                        if let Ok(window)=publication.into_window(){ui.set_cached_chat(window.chat);}
-                        else {ui.hide_cached_chat();}
+                        // a fresh first page. This remains read-only/loading.
+                        if window.value.source==core_view::ChatWindowSource::FirstPage {pending_cached_selection=None;}
+                        apply_window(&mut ui,window);
                     },
+                    View::LiveItems(items)=>{if let Ok(items)=items.into_inner(){ui.apply_live_chat_items(items);}},
+                    View::ChatUnavailable(chat_id)=>ui.apply_live_selection(ChatSelectionUpdate::Unavailable{chat_id}),
                     View::CachedChat(publication)=>apply_cached_chat(&mut ui, publication),
-                    View::CachedChatOffline(publication)=>apply_cached_chat_offline(&mut ui, publication),
                     View::Sent(chat)=>{ui.send_succeeded();if reply.epoch.view==epoch.view{ui.set_chat(chat);}},
-                    View::Live(publication)=>{
-                        // A force-logout/revocation may arrive while the durable
-                        // actor reply waits in this bounded channel.
-                        if let Ok(models)=publication.into_models(){ui.apply_live_chat_models(models);}
-                    },
                     View::AccessDenied(denial,lifetime)=>{
                         if lifetime.is_cancelled(){continue}
                         match denial {
@@ -892,7 +804,6 @@ struct Actor {
     installed_app: Option<(String, String)>,
     trusted_path: Option<std::path::PathBuf>,
     trusted_verified: bool,
-    live_monitor: Option<ChatMonitor>,
     // Retained across dropped/canceled read futures; cleared only after
     // publication or selected-instance/context invalidation.
     live_pending: Option<ChatInvalidation>,
@@ -900,7 +811,6 @@ struct Actor {
     live_epoch: Stamp,
     live_cancel: CancellationToken,
     live_retry_at: Option<tokio::time::Instant>,
-    live_selected: Option<String>,
     // Root merges the explicit foreground recovery-pump adapter at this seam.
     // These bounded IDs grant no claim/lease and are never interpreted by UI.
     recovery_hints: std::collections::BTreeSet<String>,
@@ -964,13 +874,11 @@ async fn actor(
             core,
             trusted_path,
             trusted_verified: false,
-            live_monitor: None,
             live_pending: None,
             live_lifetime: None,
             live_epoch: Stamp::default(),
             live_cancel: CancellationToken::new(),
             live_retry_at: None,
-            live_selected: None,
             recovery_hints: Default::default(),
             recovery_start_needed: true,
             recovery_blocked: false,
@@ -1021,7 +929,7 @@ async fn actor(
         },
         _=std::future::ready(()), if inspirations.is_some() && boot_sync.is_none() =>
             inspirations.take().map(|epoch| Request { epoch, work: Work::Inspirations, cancel: state.live_cancel.clone() }),
-        _=live_tick.tick(), if state.live_monitor.as_ref().is_some_and(|m|m.is_valid()) && !state.live_cancel.is_cancelled()
+        _=live_tick.tick(), if state.core.chat_monitor().is_some_and(|m|m.is_valid()) && !state.live_cancel.is_cancelled()
             =>Some(Request{epoch:state.live_epoch,work:Work::Live,cancel:state.live_cancel.clone()}),
     } {
         let background = matches!(&request.work, Work::Live | Work::Inspirations | Work::Command(UiCommand::MarkRead(_)));
@@ -1109,7 +1017,7 @@ async fn actor(
         }
     }
     state.retire_cached_views();
-    state.live_monitor.take();
+    state.core.set_chat_monitor(None);
     if let Some(lifetime) = state.live_lifetime.take() {
         lifetime.cancel();
     }
@@ -1169,7 +1077,7 @@ impl Actor {
         // A disconnected socket does not revoke owned cache data. The SDK
         // requires the actual previously authenticated principal/owner epoch,
         // and retains any known monitor denial when a witness exists.
-        let monitor = self.live_monitor.as_ref();
+        let monitor = self.core.chat_monitor();
         let generation = self.store.generation_guard();
         let staged = self.core.client().stage_cached_chat_views(monitor, CancellationToken::new());
         let next = match staged {
@@ -1282,8 +1190,8 @@ impl Actor {
         self.core.client_mut().set_operation_cancel(self.live_cancel.clone());
         // Periodic membership checks do not reconnect a healthy monitor or
         // manufacture another initial full-refresh event every 30 seconds.
-        if let Some(monitor) = self.live_monitor.as_ref().filter(|m| m.is_valid()) {
-            let checked = self.core.client_mut().validate_chat_monitor(monitor).await;
+        if self.core.chat_monitor().is_some_and(|m| m.is_valid()) {
+            let checked = self.core.validate_chat_monitor().await;
             let security = matches!(checked, Err(Error::Expired | Error::Authentication | Error::Forbidden));
             let admission = match checked {
                 Ok(()) => MonitorAdmission::Ready,
@@ -1304,7 +1212,7 @@ impl Actor {
             }
             return Ok(admission);
         }
-        self.live_monitor.take();
+        self.core.set_chat_monitor(None);
         self.live_pending.take();
         self.last_live_hint.take();
         if let Some(previous) = self.live_lifetime.take() {
@@ -1345,7 +1253,7 @@ impl Actor {
         self.persist().await?;
         match started {
             Ok(monitor) => {
-                self.live_monitor = Some(monitor);
+                self.core.set_chat_monitor(Some(monitor));
                 self.cached_views_blocked = false;
                 // The monitor admission's exact credential/cache persist has
                 // completed. Publish immutable cached data BEFORE recovery or
@@ -1398,8 +1306,8 @@ impl Actor {
             return Err(Error::Cancelled);
         }
         if !self
-            .live_monitor
-            .as_ref()
+            .core
+            .chat_monitor()
             .is_some_and(|monitor| monitor.is_valid())
         {
             return Ok(CompletionRecoveryPumpOutcome::default());
@@ -1480,9 +1388,9 @@ impl Actor {
                 // Generic job/Direct Forbidden is not an account revocation.
                 // Fresh current session/Team admission confirms any scope clear.
                 if error == Error::Forbidden
-                    && let Some(monitor) = self.live_monitor.as_ref()
+                    && self.core.chat_monitor().is_some()
                 {
-                    match self.core.client_mut().validate_chat_monitor(monitor).await {
+                    match self.core.validate_chat_monitor().await {
                         Err(denial @ (Error::Expired | Error::Forbidden)) => {
                             security = Some(denial)
                         }
@@ -1538,16 +1446,16 @@ impl Actor {
             return Ok(());
         }
         if !self
-            .live_monitor
-            .as_ref()
+            .core
+            .chat_monitor()
             .is_some_and(|monitor| monitor.is_valid())
         {
             return Ok(());
         }
         if self.live_pending.is_none() {
             self.live_pending = self
-                .live_monitor
-                .as_ref()
+                .core
+                .chat_monitor()
                 .ok_or(Error::Cancelled)?
                 .take_pending()?;
         }
@@ -1562,60 +1470,47 @@ impl Actor {
                 }
             }
         }
-        let selected = self.live_selected.clone();
+        let selected = self.core.open_chat_id().map(str::to_owned);
         let canonical_changed = self
-            .recover_before_view(replies, self.live_epoch, selected.clone(), false)
+            .recover_before_view(replies, self.live_epoch, selected, false)
             .await?;
         if revisit && !canonical_changed {
             self.last_live_hint = self.live_pending.take();
             return Ok(());
         }
-        let Some(monitor) = self
-            .live_monitor
-            .as_ref()
-            .filter(|monitor| monitor.is_valid())
-        else {
+        if !self.core.chat_monitor().is_some_and(|monitor| monitor.is_valid()) {
             return Ok(());
-        };
+        }
         let Some(hint) = self.live_pending.as_ref() else {
             return Ok(());
         };
-        self.core.client_mut().set_operation_cancel(self.live_cancel.clone());
-        let store_generation = self.store.generation_guard();
-        let refreshed = self.core.client_mut()
-            .refresh_chat_monitor_prefer_cache(monitor, hint, selected.as_deref())
-            .await;
+        // Core live read: the open chat is the selected chat; read, exact
+        // cache+session save and ACK, commit, then list and window events.
+        let sink = core_host::TerminalSink::new(replies, self.live_epoch, self.store.generation_guard(), &self.live_cancel).live()
+            .owned_by(&self.core, self.core.open_chat_id());
+        let refreshed = self.core.refresh_live(hint, &sink, &self.live_cancel).await;
         match refreshed {
-            Ok(refresh) => {
-                // The actor remains sole Client owner across read, exact
-                // cache+session save and ACK, explicit commit, and publication.
-                self.core.client_mut().validate_chat_refresh(&refresh)?;
-                let receipt = self.persist_for(&refresh).await?;
-                if !store_generation.is_current() { return Err(Error::Cancelled); }
-                let publication = self.core.client_mut().commit_chat_refresh(refresh, receipt)?;
-                if self.live_cancel.is_cancelled() {
-                    return Err(Error::Cancelled);
-                }
-                Self::emit(replies, self.live_epoch, View::Live(NativeLivePublication {
-                    publication, store_generation, request: self.live_cancel.clone(),
-                })).await?;
+            Ok(()) => {
                 self.stage_cached_views(self.live_epoch);
                 self.last_live_hint = self.live_pending.take();
                 Ok(())
             }
             Err(error @ (Error::Expired | Error::Forbidden))
                 if self
-                    .live_monitor
-                    .as_ref()
+                    .core
+                    .chat_monitor()
                     .is_some_and(|monitor| !monitor.is_valid()) =>
             {
                 self.live_pending.take();
                 let denial = self
-                    .live_monitor
-                    .as_ref()
+                    .core
+                    .chat_monitor()
                     .ok_or(Error::Cancelled)?
                     .access_denial()?;
                 if let Some(denial) = denial {
+                    if let ChatMonitorAccessDenial::ChatUnavailable { chat_id } = &denial {
+                        self.core.close_chat(chat_id);
+                    }
                     let lifetime = self.live_lifetime.clone().unwrap_or_default();
                     Self::emit(
                         replies,
@@ -1633,16 +1528,16 @@ impl Actor {
             }
             Err(Error::Cancelled)
                 if self
-                    .live_monitor
-                    .as_ref()
+                    .core
+                    .chat_monitor()
                     .is_some_and(|monitor| monitor.is_valid()) =>
             {
                 // An ordinary UI Cancel invalidates only this read token.
                 // Keep the hint for the next admitted active token. Even a
                 // forced outer-future drop leaves live_pending owned by Actor;
                 // tick is disabled while live_cancel stays canceled.
-                self.live_monitor
-                    .as_ref()
+                self.core
+                    .chat_monitor()
                     .ok_or(Error::Cancelled)?
                     .requeue(self.live_pending.take().ok_or(Error::Cancelled)?)?;
                 self.persist().await?;
@@ -1651,8 +1546,8 @@ impl Actor {
             Err(error @ (Error::Offline | Error::Protocol | Error::Io)) => {
                 // A failed read has no write retry. Preserve hint until a
                 // bounded later canonical read; rotated cookies remain durable.
-                self.live_monitor
-                    .as_ref()
+                self.core
+                    .chat_monitor()
                     .ok_or(Error::Cancelled)?
                     .requeue(self.live_pending.take().ok_or(Error::Cancelled)?)?;
                 self.live_retry_at = Some(tokio::time::Instant::now() + Duration::from_secs(2));
@@ -1692,8 +1587,8 @@ impl Actor {
             // Core Start: credentials, trusted account, cached index and list
             // before any other network request, then admission. Global
             // recovery and the list refresh follow as a preemptible BootSync.
-            let sink = core_host::TerminalSink { replies: replies.clone(), epoch };
             let cancel = self.live_cancel.clone();
+            let sink = core_host::TerminalSink::new(replies, epoch, self.store.generation_guard(), &cancel);
             core_view::handle(self, ViewCommand::Start { credentials: Box::new(session) }, &sink, &cancel).await?;
         } else {
             Self::emit(replies, epoch, View::SignedOut).await?;
@@ -1703,8 +1598,8 @@ impl Actor {
     /// Background half of boot (core `boot_sync`): global recovery with
     /// inventory, then the list, persisted before it is published.
     async fn boot_sync(&mut self, replies: &mpsc::Sender<Reply>, epoch: Stamp) -> Result<()> {
-        let sink = core_host::TerminalSink { replies: replies.clone(), epoch };
         let cancel = self.live_cancel.clone();
+        let sink = core_host::TerminalSink::new(replies, epoch, self.store.generation_guard(), &cancel);
         core_view::boot_sync(self, &sink, &cancel).await
     }
     /// The home banner is optional: a failed read leaves the banner empty and
@@ -1808,69 +1703,6 @@ impl Actor {
         cleanup?;
         cancelled
     }
-    /// Bridged `OpenChat` (until lane L7 moves the chat window into the
-    /// core): selected recovery, cached first page, canonical read, durable
-    /// receipt and publication, exactly the former `Open(Chats)` path.
-    async fn open_chat(&mut self, id: String, replies: &mpsc::Sender<Reply>, epoch: Stamp,
-        cancel: &CancellationToken) -> Result<()> {
-        let cancel = cancel.clone();
-        let generation = self.store.generation_guard();
-        let view = {
-            uuid::Uuid::parse_str(&id)
-                .map_err(|_| Error::Invalid("A full chat ID is required."))?;
-            if self.core.client_mut().is_ephemeral_chat(&id) {
-                return Err(Error::Invalid(
-                    "Volatile chats have no saved recovery history.",
-                ));
-            }
-            self.recover_before_view(replies, epoch, Some(id.clone()), true)
-                .await?;
-            let mut first_page = NativeChatFirstPageSink {
-                store: self.store.clone(), generation: generation.clone(),
-                passphrase: self.passphrase.get(), replies: replies.clone(), epoch,
-            };
-            let read = self.core.client_mut().read_chat_view_prefer_cache_with_first_page(
-                self.live_monitor.as_ref(), &id, cancel.clone(), &mut first_page,
-            ).await?;
-            if !generation.is_current() { return Err(Error::Cancelled); }
-            self.live_selected = Some(id.clone());
-            match read {
-                ChatViewRead::Canonical(candidate) => {
-                    self.core.client_mut().validate_chat_view(&candidate)?;
-                    let receipt = self.persist_for(&candidate).await?;
-                    if !generation.is_current() { return Err(Error::Cancelled); }
-                    let publication = self.core.client_mut().commit_chat_view(candidate, receipt)?;
-                    return Self::emit(replies, epoch, View::CanonicalChat(NativeCanonicalChatPublication {
-                        publication, store_generation: generation,
-                    })).await;
-                },
-                ChatViewRead::CacheSettled(candidate) => {
-                    self.core.client_mut().validate_cache_settlement(&candidate)?;
-                    let receipt = self.persist_for(&candidate).await?;
-                    if !generation.is_current() { return Err(Error::Cancelled); }
-                    let publication = self.core.client_mut().commit_cache_settlement(candidate, receipt)?;
-                    return Self::emit(replies, epoch, View::CacheSettled(NativeCacheSettlementPublication {
-                        publication, store_generation: generation,
-                    })).await;
-                },
-                ChatViewRead::CachedOffline(publication) => {
-                    if self.cached_views_blocked { return Err(Error::Forbidden); }
-                    View::CachedChatOffline(NativeCachedChatPublication {
-                        publication, store_generation: generation.clone(),
-                    })
-                },
-            }
-        };
-        self.persist().await?;
-        if !generation.is_current() { return Err(Error::Cancelled); }
-        Self::emit(replies, epoch, view).await
-    }
-    /// Bridged `MarkRead`: the read receipt for every device, then persist.
-    async fn mark_read(&mut self, chat_id: String, cancel: &CancellationToken) -> Result<()> {
-        self.core.client_mut().set_operation_cancel(cancel.clone());
-        self.core.client_mut().mark_chat_read(&chat_id).await?;
-        self.persist().await
-    }
     /// Bridged `Send` (until lane L9 moves send and streaming into the core):
     /// mention resolution, streamed send, persistence even when cancelled.
     async fn send_message(&mut self, chat_id: Option<String>, text: String,
@@ -1915,7 +1747,8 @@ impl Actor {
         }
         persisted?;
         let chat = result?;
-        self.live_selected = Some(chat.id.clone());
+        // The sent chat becomes the open window, so live updates follow it.
+        self.core.track_sent_chat(RequestId(epoch.view), &chat)?;
         Self::emit(replies, epoch, View::Sent(chat)).await
     }
     async fn dispatch(&mut self, request: Request, replies: &mpsc::Sender<Reply>) -> Result<()> {
@@ -1933,12 +1766,11 @@ impl Actor {
             &request.work,
             Work::Command(UiCommand::Logout | UiCommand::SwitchTeam(_))
         ) {
-            self.live_monitor.take();
+            self.core.set_chat_monitor(None);
             self.live_pending.take();
             if let Some(lifetime) = self.live_lifetime.take() {
                 lifetime.cancel();
             }
-            self.live_selected = None;
             self.recovery_hints.clear();
             self.recovery_start_needed = true;
             self.recovery_blocked = false;
@@ -2103,7 +1935,7 @@ impl Actor {
                     self.passphrase.set(None);
                     // Core logout: local revocation and cleanup with remote
                     // logout, SignedOut always, local error before remote.
-                    let sink = core_host::TerminalSink { replies: replies.clone(), epoch };
+                    let sink = core_host::TerminalSink::new(replies, epoch, self.store.generation_guard(), &cancel);
                     core_view::handle(self, ViewCommand::Logout, &sink, &cancel).await
                 }),
                 UiCommand::Cancel => Box::pin(async move {
@@ -2149,11 +1981,11 @@ impl Actor {
                     .await
                 }),
                 UiCommand::SwitchTeam(team) => Box::pin(async move {
-                    let sink = core_host::TerminalSink { replies: replies.clone(), epoch };
+                    let sink = core_host::TerminalSink::new(replies, epoch, self.store.generation_guard(), &cancel);
                     core_view::handle(self, ViewCommand::SwitchTeam { team_id: team }, &sink, &cancel).await
                 }),
                 UiCommand::Refresh(Workspace::Chats) => Box::pin(async move {
-                    let sink = core_host::TerminalSink { replies: replies.clone(), epoch };
+                    let sink = core_host::TerminalSink::new(replies, epoch, self.store.generation_guard(), &cancel);
                     core_view::handle(self, ViewCommand::RefreshChats, &sink, &cancel).await
                 }),
                 UiCommand::Refresh(workspace) => Box::pin(async move {
@@ -2163,7 +1995,8 @@ impl Actor {
                     Self::emit(replies, epoch, View::Items(workspace, items)).await
                 }),
                 UiCommand::Open(Workspace::Chats, id) => Box::pin(async move {
-                    let sink = core_host::TerminalSink { replies: replies.clone(), epoch };
+                    let sink = core_host::TerminalSink::new(replies, epoch, self.store.generation_guard(), &cancel)
+                        .owned_by(&self.core, Some(&id));
                     let command = ViewCommand::OpenChat { request: RequestId(epoch.view), chat_id: id };
                     core_view::handle(self, command, &sink, &cancel).await
                 }),
@@ -2176,7 +2009,7 @@ impl Actor {
                     Self::emit(replies, epoch, view).await
                 }),
                 UiCommand::MarkRead(chat_id) => Box::pin(async move {
-                    let sink = core_host::TerminalSink { replies: replies.clone(), epoch };
+                    let sink = core_host::TerminalSink::new(replies, epoch, self.store.generation_guard(), &cancel);
                     core_view::handle(self, ViewCommand::MarkRead { chat_id }, &sink, &cancel).await
                 }),
                 UiCommand::Mutate(mutation) => Box::pin(async move {
@@ -2202,7 +2035,7 @@ impl Actor {
                     Self::emit(replies, epoch, View::Items(workspace, if workspace == Workspace::Chats { core_view::arrange_chat_list(self.core.client(), items) } else { items })).await
                 }),
                 UiCommand::Send { chat_id, text } => Box::pin(async move {
-                    let sink = core_host::TerminalSink { replies: replies.clone(), epoch };
+                    let sink = core_host::TerminalSink::new(replies, epoch, self.store.generation_guard(), &cancel);
                     let command = ViewCommand::Send { request: RequestId(epoch.view), chat_id, text };
                     core_view::handle(self, command, &sink, &cancel).await
                 }),
@@ -2300,13 +2133,11 @@ mod tests {
             installed_app: None,
             trusted_path: None,
             trusted_verified: false,
-            live_monitor: None,
             live_pending: None,
             live_lifetime: None,
             live_epoch: Stamp::default(),
             live_cancel: CancellationToken::new(),
             live_retry_at: None,
-            live_selected: None,
             recovery_hints: Default::default(),
             recovery_start_needed: true,
             recovery_blocked: false,
@@ -2328,14 +2159,14 @@ mod tests {
                 security: 3,
                 view: 12
             },
-            view: View::Chat(Chat::default())
+            view: core_host::test_window(&Chat { id: "chat".into(), ..Chat::default() }, core_view::ChatWindowSource::Canonical)
         }));
         assert!(!current.accepts(&Reply {
             epoch: Stamp {
                 security: 4,
                 view: 11
             },
-            view: View::Chat(Chat::default())
+            view: core_host::test_window(&Chat { id: "chat".into(), ..Chat::default() }, core_view::ChatWindowSource::Canonical)
         }));
         assert!(!current.accepts(&Reply {
             epoch: Stamp {
@@ -2349,7 +2180,7 @@ mod tests {
         }));
         assert!(current.accepts(&Reply {
             epoch: current,
-            view: View::Chat(Chat::default())
+            view: core_host::test_window(&Chat { id: "chat".into(), ..Chat::default() }, core_view::ChatWindowSource::Canonical)
         }));
         // A late owned list may populate its cache, but cannot navigate the UI.
         assert!(current.accepts(&Reply {

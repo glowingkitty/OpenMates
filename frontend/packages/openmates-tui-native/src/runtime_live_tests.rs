@@ -1,10 +1,11 @@
 //! PRIVATE DRAFT native durability/order regressions — not executed.
 // contract-test: supporting surface=cli assertions=chats.messages.client-encrypted
 use super::*;
+use openmates::client::ChatViewRead;
 #[tokio::test]
 async fn idle_actor_has_no_monitor_and_cannot_schedule_live_profile_io() {
     let (_directory, actor) = super::tests::fixture().await;
-    assert!(actor.live_monitor.is_none());
+    assert!(actor.core.chat_monitor().is_none());
     assert!(actor.recovery_hints.is_empty());
 }
 #[tokio::test]
@@ -287,7 +288,7 @@ async fn prepared_actor_mode(
     actor.core.client_mut().reset(&api, Some(session)).unwrap();
     let (send, _receive) = mpsc::channel(32);
     actor.monitor(&send, Stamp::default()).await.unwrap();
-    let monitor = actor.live_monitor.as_ref().unwrap();
+    let monitor = actor.core.chat_monitor().unwrap();
     assert!(monitor.take_pending().unwrap().is_some());
     release.send(()).unwrap();
     tokio::time::timeout(Duration::from_secs(4), monitor.changed())
@@ -305,14 +306,13 @@ async fn actual_live_read_persists_encrypted_snapshot_and_exact_credentials_befo
         .await
         .unwrap()
         .unwrap();
-    let reply = receive.recv().await.unwrap();
-    let View::Live(publication) = reply.view else {
-        panic!("expected durable live publication")
-    };
-    actor
-        .core.client_mut()
-        .validate_chat_publication(&publication)
-        .unwrap();
+    let mut items = None;
+    while let Ok(reply) = receive.try_recv() {
+        if let View::LiveItems(live) = reply.view {
+            items = Some(live);
+        }
+    }
+    let items = items.expect("expected a durable live list publication");
     let session = actor.core.client_mut().clone_session().unwrap();
     let durable = actor
         .store
@@ -328,8 +328,9 @@ async fn actual_live_read_persists_encrypted_snapshot_and_exact_credentials_befo
     assert!(!durable.to_string().contains("Durable external title"));
     assert!(!durable.to_string().contains("transient must not persist"));
     assert_eq!(
-        publication.models().unwrap().items[0].title,
-        "Durable external title"
+        items.into_inner().unwrap()[0].title,
+        "Durable external title",
+        "the late fence admits the durable list"
     );
     let stored = actor
         .store
@@ -341,7 +342,7 @@ async fn actual_live_read_persists_encrypted_snapshot_and_exact_credentials_befo
         stored.cookies.get("auth_refresh_token").map(String::as_str),
         Some("rotated-synthetic")
     );
-    actor.live_monitor.take();
+    actor.core.set_chat_monitor(None);
     tokio::time::timeout(Duration::from_secs(4), server)
         .await
         .unwrap()
@@ -369,7 +370,7 @@ async fn durable_revocation_failure_has_no_plaintext_publication_or_old_state_re
             .map(String::as_str),
         Some("rotated-synthetic")
     );
-    actor.live_monitor.take();
+    actor.core.set_chat_monitor(None);
     tokio::time::timeout(Duration::from_secs(4), server)
         .await
         .unwrap()
@@ -468,7 +469,7 @@ async fn dropped_live_read_future_retains_hint_and_cancelled_tick_waits_fresh_to
     assert!(!actor.live_cancel.is_cancelled());
     assert!(actor.live_pending.is_some());
     // Only this local test's partial peer is stopped; no runtime/backend exists.
-    actor.live_monitor.take();
+    actor.core.set_chat_monitor(None);
     server.abort();
     let _ = server.await;
 }
@@ -508,8 +509,8 @@ async fn cold_authenticated_start_pumps_once_without_hint_and_idle_ticks_do_not_
     actor.monitor(&send, Stamp::default()).await.unwrap();
     assert!(
         actor
-            .live_monitor
-            .as_ref()
+            .core
+            .chat_monitor()
             .unwrap()
             .take_pending()
             .unwrap()
@@ -527,7 +528,7 @@ async fn cold_authenticated_start_pumps_once_without_hint_and_idle_ticks_do_not_
         actor.live_update(&send).await.unwrap();
     }
     assert_eq!(requests.load(Ordering::SeqCst), after);
-    actor.live_monitor.take();
+    actor.core.set_chat_monitor(None);
     drop(release);
     tokio::time::timeout(Duration::from_secs(4), server)
         .await
@@ -580,7 +581,7 @@ async fn malformed_local_checkpoint_authenticates_first_then_quiesces_without_re
     actor.core.client_mut().reset(&api, Some(session)).unwrap();
     let (send, _receive) = mpsc::channel(32);
     actor.monitor(&send, Stamp::default()).await.unwrap();
-    actor.live_monitor.as_ref().unwrap().take_pending().unwrap();
+    actor.core.chat_monitor().unwrap().take_pending().unwrap();
     let session = actor.core.client_mut().clone_session().unwrap();
     let before = fixture_file_hashes(directory.path());
     actor
@@ -622,7 +623,7 @@ async fn malformed_local_checkpoint_authenticates_first_then_quiesces_without_re
     for (path, hash) in pending_files {
         assert_eq!(preserved.get(&path), Some(&hash));
     }
-    actor.live_monitor.take();
+    actor.core.set_chat_monitor(None);
     drop(release);
     tokio::time::timeout(Duration::from_secs(4), server)
         .await
@@ -689,7 +690,7 @@ async fn cached_frame_paints_while_real_background_auth_is_still_pending() {
         // or replaced merely to make this earlier cached frame available.
         release_auth.notify_one();
         background.await.unwrap();
-        actor.live_monitor.take();drop(release_hint);
+        actor.core.set_chat_monitor(None);drop(release_hint);
         tokio::time::timeout(Duration::from_secs(4),server).await.unwrap().unwrap();
     }).await.unwrap();
 }
@@ -704,7 +705,7 @@ async fn native_store_revocation_rejects_already_queued_cached_plaintext() {
         let View::CachedChat(publication)=reply.view else {panic!("cached view")};
         assert!(matches!(publication.into_window(),Err(Error::Cancelled)));
         assert!(matches!(lane.publish(CHAT,Stamp::default(),CancellationToken::new()),Err(Error::Cancelled)));
-        actor.live_monitor.take();
+        actor.core.set_chat_monitor(None);
         tokio::time::timeout(Duration::from_secs(4),server).await.unwrap().unwrap();
     }).await.unwrap();
 }
@@ -722,7 +723,7 @@ async fn queued_cached_reply_requires_current_view_security_and_request_lifetime
         let reply=lane.publish(CHAT,current,cancel.clone()).unwrap().unwrap();cancel.cancel();
         let mut ui=Ui::new();ui.set_authenticated(true);apply_owned_cached_reply(&mut ui,current,reply);
         assert!(!ui.is_cached_chat_refreshing());
-        actor.live_monitor.take();
+        actor.core.set_chat_monitor(None);
         tokio::time::timeout(Duration::from_secs(4),server).await.unwrap().unwrap();
     }).await.unwrap();
 }
@@ -736,13 +737,13 @@ async fn retired_reader_cannot_demote_a_later_canonical_view_or_cancel_actor_wor
         let queued=old.publish(CHAT,current,CancellationToken::new()).unwrap().unwrap();
         actor.stage_cached_views(current);
         assert!(!actor.live_cancel.is_cancelled());
-        assert!(actor.live_monitor.as_ref().unwrap().is_valid());
+        assert!(actor.core.chat_monitor().unwrap().is_valid());
         let mut ui=Ui::new();ui.set_authenticated(true);
         ui.set_chat(Chat{id:CHAT.into(),title:"Owned cached title".into(),messages:vec![Message{content:"CANONICAL_STAYS".into(),..Default::default()}],..Default::default()});
         apply_owned_cached_reply(&mut ui,current,queued);
         assert!(!ui.is_cached_chat_refreshing());
         assert!(cached_frame(&mut ui).contains("CANONICAL_STAYS"));
-        actor.live_monitor.take();
+        actor.core.set_chat_monitor(None);
         tokio::time::timeout(Duration::from_secs(4),server).await.unwrap().unwrap();
     }).await.unwrap();
 }
@@ -758,7 +759,7 @@ async fn fresh_owner_reset_invalidates_independent_cached_lane_without_waiting_f
         let View::CachedChat(publication)=queued.view else {panic!("cached view")};
         assert!(matches!(publication.into_window(),Err(Error::Cancelled)));
         assert!(!lane.views.is_valid());
-        actor.live_monitor.take();
+        actor.core.set_chat_monitor(None);
         tokio::time::timeout(Duration::from_secs(4),server).await.unwrap().unwrap();
     }).await.unwrap();
 }
@@ -837,7 +838,7 @@ async fn genuine_disconnected_owner_keeps_cached_offline_read_only_without_canon
     tokio::time::timeout(Duration::from_secs(10),async {
         let (_directory,mut actor,server)=prepared_actor().await;
         let _receiver=stage_owned_cached_actor(&mut actor).await;
-        actor.live_monitor.as_ref().unwrap().close();
+        actor.core.chat_monitor().unwrap().close();
         // Close the actual peer listener before the selected read. This is a
         // genuine transport failure after authenticated owner admission, not
         // an injected success or a fabricated cached publication.
@@ -845,10 +846,15 @@ async fn genuine_disconnected_owner_keeps_cached_offline_read_only_without_canon
         let current=Stamp{security:0,view:1};
         let (send,mut receive)=mpsc::channel(4);
         actor.dispatch(Request{epoch:current,work:Work::Command(UiCommand::Open(Workspace::Chats,CHAT.into())),cancel:CancellationToken::new()},&send).await.unwrap();
-        let reply=receive.recv().await.unwrap();
-        let View::CachedChatOffline(publication)=reply.view else {panic!("Offline cannot be normal canonical Chat")};
+        let mut offline=None;
+        while let Ok(reply)=receive.try_recv() {
+            if let View::Window(window)=reply.view {
+                assert!(!matches!(window.value.source,core_view::ChatWindowSource::Canonical|core_view::ChatWindowSource::CacheSettled),"Offline cannot be normal canonical Chat");
+                if window.value.source==core_view::ChatWindowSource::CachedOffline {offline=Some(window);}
+            }
+        }
         let mut ui=Ui::new();ui.set_authenticated(true);
-        apply_cached_chat_offline(&mut ui,publication);
+        apply_window(&mut ui,offline.expect("a disconnected owner gets the read-only offline window"));
         assert!(ui.is_cached_chat_read_only());
         assert!(!ui.is_cached_chat_refreshing());
         let frame=cached_frame(&mut ui);
@@ -876,12 +882,18 @@ async fn real_canonical_save_queue_checks_sdk_request_owner_and_native_generatio
             let (_directory,mut actor,server)=prepared_actor().await;
             let _receiver=stage_owned_cached_actor(&mut actor).await;
             let request=CancellationToken::new();actor.core.client_mut().set_operation_cancel(request.clone());
-            let ChatViewRead::Canonical(candidate)=actor.core.client_mut().read_chat_view(actor.live_monitor.as_ref(),CHAT,request.clone()).await.unwrap()
-                else {panic!("real metadata/history success cannot use cached provenance")};
+            // The monitor is lent to the read (disjoint from the client borrow).
+            let monitor=actor.core.set_chat_monitor(None);
+            let read=actor.core.client_mut().read_chat_view(monitor.as_ref(),CHAT,request.clone()).await.unwrap();
+            actor.core.set_chat_monitor(monitor);
+            let ChatViewRead::Canonical(candidate)=read else {panic!("real metadata/history success cannot use cached provenance")};
             actor.core.client_mut().validate_chat_view(&candidate).unwrap();
             let receipt=ChatRefreshDurableReceipt{ciphertext_sha256:candidate.ciphertext_sha256().unwrap(),credential_revision:candidate.credential_revision()};
             let generation=actor.store.generation_guard();actor.persist().await.unwrap();
-            let publication=NativeCanonicalChatPublication{publication:actor.core.client_mut().commit_chat_view(candidate,receipt).unwrap(),store_generation:generation};
+            let chat=actor.core.client_mut().commit_chat_view(candidate,receipt).unwrap().into_chat().unwrap();
+            let record=core_view::chat_window_from_chat(&chat,core_view::ChatWindowSource::Canonical,Some(false),true,false,core_view::PiiRestoration::AllCachedUserRows).unwrap();
+            let (replies,_queued)=mpsc::channel(1);
+            let publication=core_host::TerminalSink::new(&replies,Stamp::default(),generation,&request).owned_by(&actor.core,Some(CHAT)).window_for(record);
             let mut ui=Ui::new();ui.set_authenticated(true);
             let cached=actor.cached_views.borrow().clone().unwrap().views.publish(CHAT,CancellationToken::new()).unwrap().unwrap().into_window().unwrap();
             ui.set_cached_chat(cached.chat);
@@ -894,11 +906,11 @@ async fn real_canonical_save_queue_checks_sdk_request_owner_and_native_generatio
                 "store"=>actor.store.revoke().await.unwrap(),
                 "none"=>{},_=>unreachable!(),
             }
-            apply_canonical_chat(&mut ui,publication);
+            apply_window(&mut ui,publication);
             assert!(!ui.is_cached_chat_read_only());
             if change=="none" {assert!(cached_frame(&mut ui).contains("CACHED_RENDER_READY"));}
             else {assert!(!cached_frame(&mut ui).contains("CACHED_RENDER_READY"),"rejected canonical must not reopen content: {change}");}
-            actor.live_monitor.take();server.await.unwrap();
+            actor.core.set_chat_monitor(None);server.await.unwrap();
         }
     }).await.unwrap();
 }
@@ -944,7 +956,7 @@ async fn boot_admits_real_username_and_cached_home_before_pending_first_global_s
         let (mut actor,result)=boot.await.unwrap();result.unwrap();
         while let Ok(reply)=receive.try_recv(){assert!(!matches!(reply.view,View::AdmittedAuth(_)),"duplicate authorized/validate block must not reissue a greeting");}
         assert_eq!(requests.load(std::sync::atomic::Ordering::SeqCst),3,"first monitor + recovery + unchanged final canonical list; no middle validation or second monitor check");
-        actor.live_monitor.take();drop(release_hint);server.await.unwrap();
+        actor.core.set_chat_monitor(None);drop(release_hint);server.await.unwrap();
     }).await.unwrap();
 }
 #[tokio::test]
@@ -967,7 +979,7 @@ async fn queued_initial_auth_is_negative_fenced_without_extending_cache_reader_l
                 assert_eq!(publication.into_auth().unwrap().0,"FixtureOwner");
                 if change=="closed-reader-only"{assert!(owner.views.publish(CHAT,CancellationToken::new()).is_err(),"negative observer cannot reopen cache model lifetime");}
             } else {assert!(publication.into_auth().is_err(),"{change}");}
-            actor.live_monitor.take();server.await.unwrap();
+            actor.core.set_chat_monitor(None);server.await.unwrap();
         }
     }).await.unwrap();
 }
@@ -983,7 +995,7 @@ async fn known_initial_monitor_denial_never_issues_auth_even_before_global_recov
             denial|=matches!(reply.view,View::Monitor(Error::Expired|Error::Forbidden|Error::Authentication,_));
         }
         assert!(denial);
-        actor.live_monitor.take();server.await.unwrap();
+        actor.core.set_chat_monitor(None);server.await.unwrap();
     }).await.unwrap();
 }
 
@@ -1014,7 +1026,7 @@ async fn boot_consumes_one_current_empty_inventory_for_the_same_final_list_witho
         let lane=actor.cached_views.borrow().clone().unwrap();
         let cached=lane.views.publish(CHAT,CancellationToken::new()).unwrap().unwrap().into_window().unwrap();
         assert!(cached.cached && !cached.history_complete);
-        actor.live_monitor.take();drop(release_hint);server.await.unwrap();
+        actor.core.set_chat_monitor(None);drop(release_hint);server.await.unwrap();
     }).await.unwrap();
 }
 #[tokio::test]
@@ -1029,14 +1041,14 @@ async fn real_monitor_traffic_after_boot_inventory_forces_the_original_final_lis
         let (send,_receive)=mpsc::channel(32);
         let proof=actor.authorized_with_inventory(&send,Stamp::default(),true).await.unwrap().expect("actual complete empty peer inventory");
         assert_eq!(requests.load(std::sync::atomic::Ordering::SeqCst),2);
-        let monitor=actor.live_monitor.as_ref().unwrap();
+        let monitor=actor.core.chat_monitor().unwrap();
         assert!(monitor.take_pending().unwrap().is_some());
         release_hint.send(()).unwrap();monitor.changed().await.unwrap();
         let items=actor.core.client_mut().list_with_fresh_chat_inventory(Workspace::Chats,proof,&actor.live_cancel).await.unwrap();
         actor.persist().await.unwrap();
         assert_eq!(items.len(),1);assert_eq!(items[0].id,CHAT);
         assert_eq!(requests.load(std::sync::atomic::Ordering::SeqCst),3,"real keyless monitor frame invalidates reuse while Client stays exclusively owned");
-        actor.live_monitor.take();server.await.unwrap();
+        actor.core.set_chat_monitor(None);server.await.unwrap();
     }).await.unwrap();
 }
 
@@ -1068,7 +1080,11 @@ async fn cache_settlement_native_final_save_and_delayed_consumption_keep_store_r
             actor.core.client_mut().validate_cache_settlement(&candidate).unwrap();
             let receipt=ChatRefreshDurableReceipt{ciphertext_sha256:candidate.ciphertext_sha256().unwrap(),credential_revision:candidate.credential_revision()};
             let generation=actor.store.generation_guard();actor.persist().await.unwrap();
-            let publication=NativeCacheSettlementPublication{publication:actor.core.client_mut().commit_cache_settlement(candidate,receipt).unwrap(),store_generation:generation};
+            let window=actor.core.client_mut().commit_cache_settlement(candidate,receipt).unwrap().into_window().unwrap();
+            let record=core_view::chat_window_from_cached(&window,core_view::ChatWindowSource::CacheSettled).unwrap();
+            assert_eq!(record.messages.len(),70);assert!(!record.history_complete);
+            let (replies,_queued)=mpsc::channel(1);
+            let publication=core_host::TerminalSink::new(&replies,Stamp::default(),generation,&request).owned_by(&actor.core,Some(CHAT)).window_for(record);
             let session=actor.core.client_mut().clone_session().unwrap();
             let persisted=actor.store.read_cache(session.hashed_email.clone(),cache_key(&session),session.master_key.clone()).await.unwrap().unwrap();
             assert_eq!(persisted["history"][CHAT].as_array().unwrap().len(),70);
@@ -1079,12 +1095,9 @@ async fn cache_settlement_native_final_save_and_delayed_consumption_keep_store_r
                 "store"=>actor.store.revoke().await.unwrap(),
                 "none"=>{},_=>unreachable!(),
             }
-            let result=publication.into_window();assert_eq!(result.is_ok(),change=="none","{change}");
-            if let Ok(window)=result {
-                assert_eq!(window.chat.messages.len(),70);assert!(!window.history_complete);
-                let mut ui=Ui::new();ui.set_authenticated(true);ui.set_settled_chat(window.chat);
-                assert!(!ui.is_cached_chat_read_only());assert!(cached_frame(&mut ui).contains("CACHED_RENDER_READY"));
-            }
+            let mut ui=Ui::new();ui.set_authenticated(true);apply_window(&mut ui,publication);
+            assert!(!ui.is_cached_chat_read_only());
+            assert_eq!(cached_frame(&mut ui).contains("CACHED_RENDER_READY"),change=="none","{change}");
             server.await.unwrap();
         }
     }).await.unwrap();
@@ -1100,7 +1113,7 @@ async fn actor_dispatch_open_runs_recovery_then_saves_and_queues_warm_settlement
         actor.core.client_mut().reset(&api,Some(session)).unwrap();
         let (send,mut receive)=mpsc::channel(32);
         actor.monitor(&send,Stamp::default()).await.unwrap();
-        actor.live_monitor.as_ref().unwrap().take_pending().unwrap();
+        actor.core.chat_monitor().unwrap().take_pending().unwrap();
         actor.core.client_mut().restore_ciphertext_snapshot(&snapshot).unwrap();actor.persist().await.unwrap();
         while receive.try_recv().is_ok() {}
         let before=requests.load(std::sync::atomic::Ordering::SeqCst);
@@ -1108,12 +1121,14 @@ async fn actor_dispatch_open_runs_recovery_then_saves_and_queues_warm_settlement
         let epoch=Stamp{security:3,view:7};let cancel=CancellationToken::new();
         actor.dispatch(Request{epoch,work:Work::Command(UiCommand::Open(Workspace::Chats,CHAT.into())),cancel:cancel.clone()},&send).await.unwrap();
         assert!(!actor.recovery_start_needed && !actor.recovery_blocked,"Open must run its existing recovery gate before settling");
-        assert_eq!(actor.live_selected.as_deref(),Some(CHAT));
+        assert_eq!(actor.core.open_chat_id(),Some(CHAT));
         assert!(requests.load(std::sync::atomic::Ordering::SeqCst)>before+1,"recovery discovery and selected authorization must both run");
         let mut settlement=None;
         while let Ok(reply)=receive.try_recv() {
-            assert!(!matches!(&reply.view,View::CanonicalChat(_)|View::Chat(_)),"warm cache may not become canonical history");
-            if let View::CacheSettled(publication)=reply.view {assert!(reply.epoch==epoch);settlement=Some(publication);}
+            if let View::Window(window)=reply.view {
+                assert!(window.value.source!=core_view::ChatWindowSource::Canonical,"warm cache may not become canonical history");
+                if window.value.source==core_view::ChatWindowSource::CacheSettled {assert!(reply.epoch==epoch);settlement=Some(window);}
+            }
         }
         let publication=settlement.expect("actual dispatch must route a sealed cache-settlement reply");
         let session=actor.core.client_mut().clone_session().unwrap();
@@ -1122,10 +1137,10 @@ async fn actor_dispatch_open_runs_recovery_then_saves_and_queues_warm_settlement
         assert!(!persisted.to_string().contains("CACHED_RENDER_READY"));
         let stored=actor.store.load(actor.passphrase.get()).await.unwrap().unwrap();
         assert_eq!(stored.cookies,session.cookies,"publication must follow the exact final credential save/ACK");
-        let window=publication.into_window().unwrap();assert_eq!(window.chat.messages.len(),70);assert!(!window.history_complete);
-        let mut ui=Ui::new();ui.set_authenticated(true);ui.set_settled_chat(window.chat);
+        assert_eq!(publication.value.messages.len(),70);assert!(!publication.value.history_complete);
+        let mut ui=Ui::new();ui.set_authenticated(true);apply_window(&mut ui,publication);
         assert!(!ui.is_cached_chat_read_only());assert!(cached_frame(&mut ui).contains("CACHED_RENDER_READY"));
-        actor.live_monitor.take();drop(release);server.await.unwrap();
+        actor.core.set_chat_monitor(None);drop(release);server.await.unwrap();
     }).await.unwrap();
 }
 

@@ -10,8 +10,10 @@ paths are under `frontend/packages/openmates-tui-native/src/`.
   `shell_session/` (restore, persist, admission, logout), `view_model/`
   (records, events, actor, open, send).
 - Native shells pass a directory; the core's `FileByteStore` does the file IO.
-  Apple passes the app-group `core-cache` path (symlinks resolved, created with
-  complete-until-first-unlock protection). A Swift callback adapter would cost
+  Apple passes its OS-provided container path (symlinks allowed) plus the name
+  `core-cache`; the core opens the container directly (a sandbox cannot walk
+  its ancestors from `/`) and creates `core-cache` `0700` with `O_NOFOLLOW`
+  (`FileByteStore::open_in`; complete-until-first-unlock protection). A Swift callback adapter would cost
   two FFI crossings per record (about 1200 for 600 chat sections) and could not
   keep the fsync ordering. Swift writes no cache bytes at all.
 - `ByteStore` is a synchronous trait (`get`, `version`, `put` with
@@ -76,7 +78,7 @@ one section file for instant chat open.
 | L6a | view-model records and events (no TUI change; can start at once) | none |
 | L6b | actor: start, list, sync, refresh, team, logout, live list | medium (`runtime.rs`) |
 | L7 | open, paging, live window | medium |
-| L8 | Apple binding: `CoreConfig.cache_directory`, start/open/paging, listener | regenerated Swift file; serialize with A3 |
+| L8 | Apple binding: `CoreConfig.cache_container` + `cache_directory_name`, start/open/paging, listener | regenerated Swift file; serialize with A3 |
 | L9 | send, stream, cancel (for A5) | low |
 
 Every lane: TUI crate tests through `heavy_slot`, rust-check, sdk-conformance,

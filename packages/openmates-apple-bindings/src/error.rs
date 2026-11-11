@@ -97,6 +97,14 @@ impl From<SdkError> for CoreError {
     }
 }
 
+/// A Swift callback (credential store, listener) failed outside its declared
+/// error type (for example it threw a foreign error): a binding failure.
+impl From<uniffi::UnexpectedUniFFICallbackError> for CoreError {
+    fn from(_: uniffi::UnexpectedUniFFICallbackError) -> Self {
+        Self::internal("Swift callback failed unexpectedly")
+    }
+}
+
 impl CoreError {
     pub(crate) fn internal(reason: &'static str) -> Self {
         Self::Internal {

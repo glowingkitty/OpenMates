@@ -1,8 +1,8 @@
 //! The two seams between the core view-model actor and a shell: the event
 //! sink the shell listens on, and the host hooks for the parts a shell still
 //! implements during the migration (profile origin, account checks, session
-//! admission with the live monitor, completion recovery, and the bridged
-//! chat-window and send commands that lanes L7 and L9 move into the core).
+//! admission that starts the live monitor, completion recovery, and the
+//! bridged send commands that lane L9 moves into the core).
 //! Spec: `a2-design.md` (View model); native only.
 use super::{ViewCommand, ViewEvent, actor::ViewCore};
 use crate::{client::FreshChatInventory, error::Result, local_cache::ByteStore, session::Session};
@@ -83,8 +83,24 @@ pub trait ViewHost<S: ByteStore + 'static>: Send {
     /// sync-feed catch-up instead of recovery and the phased sync.
     fn recovery_idle(&mut self) -> BoxFuture<'_, bool>;
 
-    /// A command the core does not serve yet (`OpenChat`, `LoadOlder`,
-    /// `CloseChat`, `MarkRead`, `Send`, `Cancel`).
+    /// Completion recovery of `chat_id` alone, after its cached window was
+    /// emitted and before its strict read (bridged until the recovery pump
+    /// moves in L5). A host without recovery returns `Ok(())`.
+    ///
+    /// # Errors
+    /// Recovery and security errors; they fail the open.
+    fn recover_before_open<'a>(
+        &'a mut self,
+        sink: &'a Self::Sink,
+        chat_id: &'a str,
+    ) -> BoxFuture<'a, Result<()>>;
+
+    /// Whether a read-only cached window may be shown when the strict read
+    /// is offline. A host returns `false` after a known authentication or
+    /// access denial, so the open fails with `Forbidden` instead.
+    fn offline_cache_allowed(&self) -> bool;
+
+    /// A command the core does not serve yet (`Send`, `Cancel`).
     ///
     /// # Errors
     /// The shell's own command errors.

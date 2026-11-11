@@ -3,7 +3,9 @@
 // runtime, the credential snapshot round trip, OPAQUE pair login, the
 // password-v2 vector and the batched chat decryption calls (A3a: chat-key
 // unwrap, chat-list metadata, message window) against the cross-client
-// fixtures, all through the generated Swift API. No network.
+// fixtures, and the view-model core (A2 lane L8: signed-out start against a
+// temp cache directory and the Keychain store), all through the generated
+// Swift API. No network.
 import CryptoKit
 import Foundation
 import XCTest
@@ -24,6 +26,25 @@ private final class CredentialRecorder: CoreListener, @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         return revisions
+    }
+}
+
+/// Credential store with nothing stored. The unsigned CI simulator build has
+/// no Keychain entitlement (status -34018), so these tests cannot use
+/// `KeychainCredentialStore`.
+private final class EmptyCredentialStore: CredentialStore, @unchecked Sendable {
+    func load() throws -> Data? { nil }
+    func credentialsChanged(snapshot: CredentialSnapshotRecord) {}
+    func delete() throws {}
+}
+
+/// Core view events as delivered on the main actor by `CoreViewEventRelay`.
+@MainActor
+private final class ViewEventLog {
+    private(set) var events: [ViewEventRecord] = []
+
+    func append(_ event: ViewEventRecord) {
+        events.append(event)
     }
 }
 
@@ -125,6 +146,56 @@ final class OpenMatesCoreBridgeTests: XCTestCase {
         let cleared = try await core.credentialSnapshot()
         XCTAssertNil(cleared)
         core.setListener(listener: nil)
+    }
+
+    // MARK: - View-model core (A2 lane L8)
+
+    // contract-test: supporting surface=gui.apple assertions=client-core.credentials.snapshot-boundary
+    @MainActor
+    func testViewModelCoreStartsSignedOutFromAnEmptyCredentialStore() async throws {
+        // The OS-provided container is passed as is (symlinks allowed); the
+        // core creates the private directory `name` inside it.
+        let container = FileManager.default.temporaryDirectory.path
+        let name = "core-cache-\(UUID().uuidString)"
+        let directory = (container as NSString).appendingPathComponent(name)
+        defer { try? FileManager.default.removeItem(atPath: directory) }
+        let store = EmptyCredentialStore()
+        let log = ViewEventLog()
+        let relay = CoreViewEventRelay { log.append($0) }
+        let core = try ViewModelCore(
+            config: CoreConfig(
+                apiUrl: Self.apiURL, appUrl: nil,
+                cacheContainer: container, cacheDirectoryName: name),
+            credentials: store, listener: relay)
+
+        try await core.start(cancellation: nil)
+        try await waitUntil { !log.events.isEmpty }
+        XCTAssertEqual(log.events, [.session(event: .signedOut)])
+        // The core created the private cache directory itself.
+        var isDirectory: ObjCBool = false
+        XCTAssertTrue(FileManager.default.fileExists(atPath: directory, isDirectory: &isDirectory))
+        XCTAssertTrue(isDirectory.boolValue)
+        do {
+            try await core.refreshChats(cancellation: nil)
+            XCTFail("refresh without a session succeeded")
+        } catch let error as CoreError {
+            XCTAssertEqual(error, .Authentication)
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=client-core.credentials.snapshot-boundary
+    func testViewModelCoreRejectsACacheDirectoryNameWithASeparator() {
+        XCTAssertThrowsError(try ViewModelCore(
+            config: CoreConfig(
+                apiUrl: Self.apiURL, appUrl: nil,
+                cacheContainer: FileManager.default.temporaryDirectory.path,
+                cacheDirectoryName: "nested/core-cache"),
+            credentials: EmptyCredentialStore(),
+            listener: CoreViewEventRelay { _ in })) { error in
+            guard case .Invalid = error as? CoreError else {
+                return XCTFail("expected CoreError.Invalid, got \(error)")
+            }
+        }
     }
 
     // contract-test: supporting surface=gui.apple assertions=auth.pair-login.single-use-zk

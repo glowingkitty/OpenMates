@@ -89,6 +89,75 @@ fn open_creates_missing_directories_privately_and_refuses_a_symlinked_leaf() {
 }
 
 #[test]
+fn open_in_creates_a_private_directory_inside_the_container() {
+    let container = tempfile::tempdir().unwrap();
+    // The container itself need not be private, only owned by this user.
+    std::fs::set_permissions(container.path(), std::fs::Permissions::from_mode(0o755)).unwrap();
+    let store = FileByteStore::open_in(container.path(), "core-cache").unwrap();
+    store.put("a.json", b"x", Durability::Now).unwrap();
+    let path = container.path().join("core-cache");
+    assert_eq!(
+        std::fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+        0o700
+    );
+    assert!(path.join("a.json").is_file());
+    // Reopening the existing directory works.
+    FileByteStore::open_in(container.path(), "core-cache").unwrap();
+}
+
+#[test]
+fn open_in_refuses_a_symlinked_or_nonprivate_directory() {
+    let container = tempfile::tempdir().unwrap();
+    let target = container.path().join("target");
+    std::fs::create_dir(&target).unwrap();
+    std::fs::set_permissions(&target, std::fs::Permissions::from_mode(0o700)).unwrap();
+    symlink(&target, container.path().join("link")).unwrap();
+    assert!(FileByteStore::open_in(container.path(), "link").is_err());
+    std::fs::set_permissions(&target, std::fs::Permissions::from_mode(0o755)).unwrap();
+    assert_eq!(
+        FileByteStore::open_in(container.path(), "target").err(),
+        Some(ByteStoreError::NotPrivate)
+    );
+}
+
+#[test]
+fn open_in_refuses_bad_names_and_unusable_containers() {
+    let container = tempfile::tempdir().unwrap();
+    for name in ["", ".", "..", "a/b"] {
+        assert_eq!(
+            FileByteStore::open_in(container.path(), name).err(),
+            Some(ByteStoreError::InvalidName),
+            "{name:?}"
+        );
+    }
+    assert_eq!(
+        FileByteStore::open_in(Path::new("relative"), "cache").err(),
+        Some(ByteStoreError::RelativePath)
+    );
+    assert_eq!(
+        FileByteStore::open_in(&container.path().join("a").join(".."), "cache").err(),
+        Some(ByteStoreError::NonNormalizedPath)
+    );
+    let missing = container.path().join("missing");
+    assert_eq!(
+        FileByteStore::open_in(&missing, "cache").err(),
+        Some(ByteStoreError::Io)
+    );
+    assert!(!missing.exists(), "a missing container is never created");
+}
+
+#[test]
+fn open_in_accepts_a_container_reached_through_a_symlink() {
+    let root = tempfile::tempdir().unwrap();
+    let real = root.path().join("real");
+    std::fs::create_dir(&real).unwrap();
+    let alias = root.path().join("alias");
+    symlink(&real, &alias).unwrap();
+    FileByteStore::open_in(&alias, "cache").unwrap();
+    assert!(real.join("cache").is_dir());
+}
+
+#[test]
 fn names_with_separators_are_refused_for_writes() {
     let (_directory, store) = store();
     assert!(store.put("../escape", b"x", Durability::Now).is_err());

@@ -7,6 +7,7 @@
 //! their credential backend behind [`CredentialPersistence`]. Native targets
 //! only (needs the blocking queue of `local_cache::CacheStore`). Spec:
 //! `client-core.cache` and the credential rules in `client-core`.
+mod acknowledged;
 mod admission;
 mod credentials;
 mod receipt;
@@ -14,6 +15,7 @@ mod session;
 #[cfg(all(test, unix))]
 mod session_tests;
 
+pub use acknowledged::{AcknowledgedCredentials, CredentialVault, session_cache_context};
 pub use admission::FreshSessionAdmission;
 pub use credentials::{
     CREDENTIAL_ACKNOWLEDGEMENT_TIMEOUT, CredentialPersistence, CredentialSave,

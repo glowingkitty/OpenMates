@@ -1045,6 +1045,10 @@
 		94C1A8E5E73CD120A26D5C0D /* EmbedPreviewCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F32DCD66F5FF2FF5D20B6E6 /* EmbedPreviewCard.swift */; };
 		94E103DB02065550A6FFEB01 /* PasswordV2KDFTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41DA05561DA367325AE893DB /* PasswordV2KDFTests.swift */; };
 		94F65E02256250AD6CE9D3B6 /* ChatKeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9FBFD8D921E0469DA412993 /* ChatKeyManager.swift */; };
+		0C0EC0DE1A2B3C4D5E6F7102 /* KeychainCredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C0EC0DE1A2B3C4D5E6F7101 /* KeychainCredentialStore.swift */; };
+		0C0EC0DE1A2B3C4D5E6F7103 /* KeychainCredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C0EC0DE1A2B3C4D5E6F7101 /* KeychainCredentialStore.swift */; };
+		0C0EC0DE1A2B3C4D5E6F7112 /* CoreViewEventRelay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C0EC0DE1A2B3C4D5E6F7111 /* CoreViewEventRelay.swift */; };
+		0C0EC0DE1A2B3C4D5E6F7113 /* CoreViewEventRelay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C0EC0DE1A2B3C4D5E6F7111 /* CoreViewEventRelay.swift */; };
 		954EA6C3B6C340409F4150CE /* WatchItemOpenModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F435CD70F5F4F94B62677FC6 /* WatchItemOpenModel.swift */; };
 		958CB89143FCF67759110367 /* ModelFixtureUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84F0FD6430850FD0BD815632 /* ModelFixtureUITests.swift */; };
 		95977AAB78509FBAC175F5C5 /* ActiveChatsWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F60C96829D5BC130BBB8293 /* ActiveChatsWidget.swift */; };
@@ -2544,6 +2548,8 @@
 		B9AB0A8B97AAA56FCA4620E2 /* EventsSearchIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventsSearchIntent.swift; sourceTree = "<group>"; };
 		B9E6F51404637FC0EFC12D7D /* ComposerSearchSuggestionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerSearchSuggestionTests.swift; sourceTree = "<group>"; };
 		B9FBFD8D921E0469DA412993 /* ChatKeyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatKeyManager.swift; sourceTree = "<group>"; };
+		0C0EC0DE1A2B3C4D5E6F7101 /* KeychainCredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainCredentialStore.swift; sourceTree = "<group>"; };
+		0C0EC0DE1A2B3C4D5E6F7111 /* CoreViewEventRelay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreViewEventRelay.swift; sourceTree = "<group>"; };
 		BA2529A349283903685194DB /* EmbedWireFormatTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbedWireFormatTests.swift; sourceTree = "<group>"; };
 		BA289A12DF31DE5271132348 /* NewsEmbedRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewsEmbedRenderer.swift; sourceTree = "<group>"; };
 		BA38E6B1EF5E18691C537307 /* MapsSearchEmbedRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapsSearchEmbedRenderer.swift; sourceTree = "<group>"; };
@@ -4013,6 +4019,7 @@
 		9D95A79CD7967392A0824642 /* Core */ = {
 			isa = PBXGroup;
 			children = (
+				0C0EC0DE1A2B3C4D5E6F7120 /* CoreBridge */,
 				CBBC1C583F7E6B90D265D0AB /* Crypto */,
 				4E2FD35C6CEBA066BD355C75 /* Diagnostics */,
 				CE71C13D38D011E9E3B0F1B2 /* I18n */,
@@ -4142,6 +4149,15 @@
 				95941EC4C04271F22559A0C1 /* FocusPhaseModels.swift */,
 			);
 			path = Models;
+			sourceTree = "<group>";
+		};
+		0C0EC0DE1A2B3C4D5E6F7120 /* CoreBridge */ = {
+			isa = PBXGroup;
+			children = (
+				0C0EC0DE1A2B3C4D5E6F7111 /* CoreViewEventRelay.swift */,
+				0C0EC0DE1A2B3C4D5E6F7101 /* KeychainCredentialStore.swift */,
+			);
+			path = CoreBridge;
 			sourceTree = "<group>";
 		};
 		CBBC1C583F7E6B90D265D0AB /* Crypto */ = {
@@ -5499,6 +5515,8 @@
 				E9BC872A2912C9174031BCC1 /* ChatHistoryRenderDocument.swift in Sources */,
 				11AA657DBA58D817D0969838 /* ChatImportView.swift in Sources */,
 				9847067BF30DFA7BC22F9483 /* ChatKeyManager.swift in Sources */,
+				0C0EC0DE1A2B3C4D5E6F7102 /* KeychainCredentialStore.swift in Sources */,
+				0C0EC0DE1A2B3C4D5E6F7112 /* CoreViewEventRelay.swift in Sources */,
 				0D059F14E00015EF9968496C /* ChatListRow.swift in Sources */,
 				299F491D32ECBFB2859E67A0 /* ChatManagementIntents.swift in Sources */,
 				E42D8E8B5BBEBB6A249DD0FE /* ChatMessageWindowClient.swift in Sources */,
@@ -6302,6 +6320,8 @@
 				E4D1C77862CFDD324C3C3B25 /* ChatHistoryRenderDocument.swift in Sources */,
 				ED68C36CB2B59960BAF97944 /* ChatImportView.swift in Sources */,
 				94F65E02256250AD6CE9D3B6 /* ChatKeyManager.swift in Sources */,
+				0C0EC0DE1A2B3C4D5E6F7103 /* KeychainCredentialStore.swift in Sources */,
+				0C0EC0DE1A2B3C4D5E6F7113 /* CoreViewEventRelay.swift in Sources */,
 				CA1F3A16641229B3A5CF236E /* ChatListRow.swift in Sources */,
 				3A690A1E74206FCB478DA8D6 /* ChatManagementIntents.swift in Sources */,
 				ADF7906F1BBDDD27CDB12424 /* ChatMessageWindowClient.swift in Sources */,

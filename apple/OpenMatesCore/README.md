@@ -14,6 +14,14 @@ the "Build OpenMatesCore" script phase
 (`packages/openmates-apple-bindings/build-xcframework.sh --xcode-phase`) into
 `$(DERIVED_FILE_DIR)/OpenMatesCore` and linked with `-lopenmates_apple_bindings`.
 
+## Cache directory of `ViewModelCore`
+
+Swift passes `CoreConfig.cacheContainer` (an existing OS-provided directory,
+used as is, symlinks allowed) and `cacheDirectoryName` (one plain name such as
+`core-cache`); the core creates that directory `0700` inside the container and
+does all cache file IO there. It never walks the container's ancestors, which a
+sandboxed app cannot read.
+
 ## Watch arm64_32: no TLS in the core
 
 The 32-bit Apple Watch slice (`arm64_32-apple-watchos`, built with nightly and

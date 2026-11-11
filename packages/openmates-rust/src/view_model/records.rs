@@ -134,6 +134,9 @@ pub enum ChatWindowSource {
     Canonical,
     /// Window updated from a live event.
     Live,
+    /// Window updated from a live event with authorized cached content; not
+    /// a complete-history receipt.
+    LiveSettled,
 }
 
 /// How personal data tokens in a window were restored.

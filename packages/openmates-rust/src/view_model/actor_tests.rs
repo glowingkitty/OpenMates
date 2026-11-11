@@ -1,6 +1,7 @@
 //! The core view-model actor over a real cache directory, an in-memory
 //! credential store, a recording host and a recording sink: cached chat list
 //! before admission and network, logout ordering, bridging and cancellation.
+//! The fixtures are shared with `window_tests.rs`.
 use super::*;
 use crate::{
     client::{Client, CredentialSnapshot, FreshChatInventory},
@@ -19,13 +20,13 @@ use std::sync::{Arc, Mutex};
 use tokio_util::sync::CancellationToken;
 use zeroize::Zeroizing;
 
-const OWNER: &str = "synthetic-owner";
-const CHAT: &str = "11111111-1111-4111-8111-111111111111";
+pub(super) const OWNER: &str = "synthetic-owner";
+pub(super) const CHAT: &str = "11111111-1111-4111-8111-111111111111";
 const EPOCH: &str = "c4f86cef-590c-4a5e-8120-eb6a27ded8a2";
 // Network access fails at once: the tests prove which steps need none.
-const API: &str = "https://never-contact.example.invalid";
+pub(super) const API: &str = "https://never-contact.example.invalid";
 
-fn session() -> Session {
+pub(super) fn session() -> Session {
     Session {
         api_url: API.into(),
         session_id: "synthetic-session".into(),
@@ -42,7 +43,7 @@ fn session() -> Session {
 }
 
 /// One chat whose key is wrapped with the session master key.
-fn snapshot() -> serde_json::Value {
+pub(super) fn snapshot() -> serde_json::Value {
     let row = json!({"id": CHAT, "messages_v": 1, "last_edited_overall_timestamp": 1,
         "encrypted_chat_key": crate::crypto::encrypt_bytes(&[9; 32], &[7; 32]).unwrap(),
         "encrypted_title": crate::crypto::encrypt_combined("Synthetic cached title", &[9; 32]).unwrap()});
@@ -54,9 +55,9 @@ fn snapshot() -> serde_json::Value {
 }
 
 #[derive(Default)]
-struct Memory {
-    stored: Mutex<Option<Session>>,
-    log: Mutex<Vec<&'static str>>,
+pub(super) struct Memory {
+    pub(super) stored: Mutex<Option<Session>>,
+    pub(super) log: Mutex<Vec<&'static str>>,
 }
 
 impl CredentialPersistence for Memory {
@@ -89,10 +90,10 @@ impl CredentialPersistence for Memory {
 }
 
 #[derive(Default)]
-struct Sink(Mutex<Vec<ViewEvent>>);
+pub(super) struct Sink(Mutex<Vec<ViewEvent>>);
 
 impl Sink {
-    fn events(&self) -> Vec<ViewEvent> {
+    pub(super) fn events(&self) -> Vec<ViewEvent> {
         self.0.lock().unwrap().clone()
     }
 }
@@ -106,10 +107,12 @@ impl ViewSink for Sink {
     }
 }
 
-struct Host {
-    core: ViewCore<FileByteStore>,
+pub(super) struct Host {
+    pub(super) core: ViewCore<FileByteStore>,
     /// Hook calls, with the number of events emitted when each ran.
-    calls: Vec<(String, usize)>,
+    pub(super) calls: Vec<(String, usize)>,
+    /// What `offline_cache_allowed` answers.
+    pub(super) offline_allowed: bool,
 }
 
 impl ViewHost<FileByteStore> for Host {
@@ -133,7 +136,8 @@ impl ViewHost<FileByteStore> for Host {
     fn admit<'a>(&'a mut self, sink: &'a Sink) -> BoxFuture<'a, Result<()>> {
         Box::pin(async move {
             self.calls.push(("admit".into(), sink.events().len()));
-            Ok(())
+            // Stand-in for actual authentication of the restored session.
+            self.core.client_mut().adopt_test_principal(OWNER)
         })
     }
     fn recover_before_list<'a>(
@@ -150,6 +154,20 @@ impl ViewHost<FileByteStore> for Host {
     fn recovery_idle(&mut self) -> BoxFuture<'_, bool> {
         Box::pin(async move { true })
     }
+    fn recover_before_open<'a>(
+        &'a mut self,
+        sink: &'a Sink,
+        chat_id: &'a str,
+    ) -> BoxFuture<'a, Result<()>> {
+        Box::pin(async move {
+            self.calls
+                .push((format!("recover open {chat_id}"), sink.events().len()));
+            Ok(())
+        })
+    }
+    fn offline_cache_allowed(&self) -> bool {
+        self.offline_allowed
+    }
     fn bridge<'a>(
         &'a mut self,
         command: ViewCommand,
@@ -158,11 +176,8 @@ impl ViewHost<FileByteStore> for Host {
     ) -> BoxFuture<'a, Result<()>> {
         Box::pin(async move {
             let name = match command {
-                ViewCommand::OpenChat { request, chat_id } => {
-                    format!("open {} {chat_id}", request.0)
-                }
-                ViewCommand::MarkRead { chat_id } => format!("read {chat_id}"),
                 ViewCommand::Send { .. } => "send".into(),
+                ViewCommand::Cancel => "cancel".into(),
                 _ => "other".into(),
             };
             self.calls.push((name, sink.events().len()));
@@ -171,13 +186,13 @@ impl ViewHost<FileByteStore> for Host {
     }
 }
 
-struct Fixture {
+pub(super) struct Fixture {
     _dir: tempfile::TempDir,
-    host: Host,
-    credentials: Arc<Memory>,
+    pub(super) host: Host,
+    pub(super) credentials: Arc<Memory>,
 }
 
-fn fixture() -> Fixture {
+pub(super) fn fixture() -> Fixture {
     use std::os::unix::fs::PermissionsExt;
     let mut builder = tempfile::Builder::new();
     builder.permissions(std::fs::Permissions::from_mode(0o700));
@@ -207,6 +222,7 @@ fn fixture() -> Fixture {
         host: Host {
             core,
             calls: Vec::new(),
+            offline_allowed: true,
         },
         credentials,
         _dir: dir,
@@ -214,7 +230,7 @@ fn fixture() -> Fixture {
 }
 
 /// Write the synthetic cache and credentials as an earlier run would have.
-async fn persisted(f: &mut Fixture) {
+pub(super) async fn persisted(f: &mut Fixture) {
     let core = f.host.core_mut();
     core.client_mut().reset(API, Some(session())).unwrap();
     core.client_mut()
@@ -224,7 +240,7 @@ async fn persisted(f: &mut Fixture) {
     core.client_mut().reset(API, None).unwrap();
 }
 
-fn names(calls: &[(String, usize)]) -> Vec<&str> {
+pub(super) fn names(calls: &[(String, usize)]) -> Vec<&str> {
     calls.iter().map(|(name, _)| name.as_str()).collect()
 }
 
@@ -369,34 +385,35 @@ async fn revocation_handle_fences_the_queue_without_the_actor() {
 }
 
 #[tokio::test]
-async fn window_and_send_commands_are_bridged_to_the_host_unchanged() {
+async fn only_send_and_cancel_are_bridged_to_the_host() {
     let mut f = fixture();
     let sink = Sink::default();
     let cancel = CancellationToken::new();
     for command in [
-        ViewCommand::OpenChat {
-            request: RequestId(7),
-            chat_id: CHAT.into(),
-        },
-        ViewCommand::MarkRead {
-            chat_id: CHAT.into(),
-        },
         ViewCommand::Send {
             request: RequestId(8),
             chat_id: None,
             text: "synthetic".into(),
         },
+        ViewCommand::Cancel,
     ] {
         handle(&mut f.host, command, &sink, &cancel).await.unwrap();
     }
-    assert_eq!(
-        names(&f.host.calls),
-        [
-            format!("open 7 {CHAT}").as_str(),
-            &format!("read {CHAT}"),
-            "send"
-        ]
-    );
+    // The core serves window commands itself: a malformed id never reaches
+    // the host, and closing a chat that is not open does nothing.
+    let open = ViewCommand::OpenChat {
+        request: RequestId(7),
+        chat_id: "not-a-chat-id".into(),
+    };
+    assert!(matches!(
+        handle(&mut f.host, open, &sink, &cancel).await,
+        Err(Error::Invalid(_))
+    ));
+    let close = ViewCommand::CloseChat {
+        chat_id: CHAT.into(),
+    };
+    handle(&mut f.host, close, &sink, &cancel).await.unwrap();
+    assert_eq!(names(&f.host.calls), ["send", "cancel"]);
     assert!(sink.events().is_empty());
 }
 

@@ -1,7 +1,8 @@
 //! The view-model actor's command handling: `Start` (credentials → cached
 //! index → cached chat list → admission), the background boot sync, chat
-//! list refresh, team switch and logout, plus routing of the commands still
-//! bridged to the shell host. Moved from the TUI `runtime.rs` actor
+//! list refresh, team switch and logout, plus routing of the chat window
+//! commands (`window_flows.rs`) and of the commands still bridged to the
+//! shell host (`Send`, `Cancel`). Moved from the TUI `runtime.rs` actor
 //! (`boot`, `boot_sync`, `Refresh`, `SwitchTeam`, `Logout`); spec
 //! `a2-design.md` (View model) and `architecture.sync@2` (bounded start).
 //!
@@ -12,6 +13,7 @@
 use super::{
     ListCompleteness, SessionEvent, ViewCommand, ViewEvent,
     actor_host::{ListRecovery, ViewHost, ViewSink},
+    window_flows,
 };
 use crate::{
     error::{Error, Result},
@@ -22,8 +24,8 @@ use crate::{
 use futures_util::future::BoxFuture;
 use tokio_util::sync::CancellationToken;
 
-/// Handle one command. `Start`, `RefreshChats`, `SwitchTeam` and `Logout` run
-/// in the core; every other command goes to [`ViewHost::bridge`] unchanged.
+/// Handle one command. Every command except `Send` and `Cancel` runs in the
+/// core; those two go to [`ViewHost::bridge`] unchanged.
 /// The background boot sync is not a command: the shell schedules
 /// [`boot_sync`] after a successful `Start` when it is idle.
 ///
@@ -40,6 +42,16 @@ pub fn handle<'a, S: ByteStore + 'static, H: ViewHost<S>>(
         ViewCommand::RefreshChats => refresh_chats(host, sink, cancel),
         ViewCommand::SwitchTeam { team_id } => switch_team(host, team_id, sink, cancel),
         ViewCommand::Logout => logout(host, sink),
+        ViewCommand::OpenChat { request, chat_id } => {
+            window_flows::open_chat(host, request, chat_id, sink, cancel)
+        }
+        ViewCommand::LoadOlder { request, chat_id } => {
+            window_flows::load_older(host, request, chat_id, sink, cancel)
+        }
+        ViewCommand::CloseChat { chat_id } => {
+            Box::pin(async move { window_flows::close_chat(host, &chat_id) })
+        }
+        ViewCommand::MarkRead { chat_id } => window_flows::mark_read(host, chat_id, cancel),
         bridged => host.bridge(bridged, sink, cancel),
     }
 }
@@ -72,6 +84,7 @@ pub fn start<'a, S: ByteStore + 'static, H: ViewHost<S>>(
 ) -> BoxFuture<'a, Result<()>> {
     Box::pin(async move {
         let api = host.prepare_start(&credentials)?;
+        host.core_mut().retire_window();
         host.core_mut()
             .client_mut()
             .reset(&api, Some(credentials.clone()))?;
@@ -162,8 +175,9 @@ pub fn refresh_chats<'a, S: ByteStore + 'static, H: ViewHost<S>>(
 }
 
 /// Switch the active scope (`None`: personal), persist it, admit the session
-/// in the new scope and publish its chat list. The shell retires scope-bound
-/// state (live monitor, cached views) before calling.
+/// in the new scope and publish its chat list. The open window and the live
+/// monitor are retired first; the shell retires its own scope-bound state
+/// (cached views, monitor lifetime) before calling.
 ///
 /// # Errors
 /// Scope, persistence, admission and sync errors.
@@ -174,6 +188,10 @@ pub fn switch_team<'a, S: ByteStore + 'static, H: ViewHost<S>>(
     _cancel: &'a CancellationToken,
 ) -> BoxFuture<'a, Result<()>> {
     Box::pin(async move {
+        // Scope-bound state: the old scope's window and monitor never see
+        // data of the new scope.
+        host.core_mut().retire_window();
+        host.core_mut().set_chat_monitor(None);
         host.core_mut().client_mut().set_team(team_id.as_deref())?;
         host.core_mut().persist().await?;
         host.admit(sink).await?;
@@ -194,6 +212,8 @@ pub fn logout<'a, S: ByteStore + 'static, H: ViewHost<S>>(
     sink: &'a H::Sink,
 ) -> BoxFuture<'a, Result<()>> {
     Box::pin(async move {
+        host.core_mut().retire_window();
+        host.core_mut().set_chat_monitor(None);
         let result = host.core_mut().logout().await;
         sink.emit(ViewEvent::Session(SessionEvent::SignedOut))
             .await?;

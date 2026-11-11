@@ -1,13 +1,14 @@
 //! The view-model actor state of the shared client core: the one `Client`
-//! of a shell profile, its `ShellSession` (cache, persistence, logout) and the
-//! shell's credential backend. Shells drive it with `ViewCommand`s through
-//! [`super::handle`] and receive `ViewEvent`s through a [`super::ViewSink`].
+//! of a shell profile, its `ShellSession` (cache, persistence, logout), the
+//! shell's credential backend, the live chat monitor and the open chat
+//! window. Shells drive it with `ViewCommand`s through [`super::handle`] and
+//! receive `ViewEvent`s through a [`super::ViewSink`].
 //!
-//! Lane L6b of `docs/plans/apple-client-core-migration/a2-design.md` (moved
-//! from the TUI `runtime.rs` actor). Native only. Spec: `client-core` (one
-//! core, thin shells) and `client-core.cache`.
+//! Lanes L6b and L7 of `docs/plans/apple-client-core-migration/a2-design.md`
+//! (moved from the TUI `runtime.rs` actor). Native only. Spec: `client-core`
+//! (one core, thin shells) and `client-core.cache`.
 use crate::{
-    client::{ChatRefreshDurableReceipt, Client},
+    client::{ChatMonitor, ChatRefreshDurableReceipt, Client},
     error::{Error, Result},
     local_cache::ByteStore,
     model::Item,
@@ -17,16 +18,24 @@ use futures_util::future::BoxFuture;
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 
-use super::{ListCompleteness, ViewEvent, arrange::arrange_chat_list, chat_list_row_from_item};
+use super::{
+    ChatWindowRecord, ListCompleteness, ViewEvent, arrange::arrange_chat_list,
+    chat_list_row_from_item, window::OpenWindow,
+};
 
 /// The actor state a shell owns exactly once per profile. The `Client` is
 /// reachable only through this value, so restore, persistence, receipts and
 /// logout always use the same session runtime and credential backend.
 pub struct ViewCore<S: ByteStore + 'static> {
-    client: Client,
-    session: ShellSession<S>,
-    credentials: Arc<dyn CredentialPersistence>,
+    pub(super) client: Client,
+    pub(super) session: ShellSession<S>,
+    pub(super) credentials: Arc<dyn CredentialPersistence>,
     eager_cached_content: bool,
+    /// The admitted live chat monitor; chat reads use it as their owner and
+    /// denial witness. Started by the shell host during admission.
+    pub(super) monitor: Option<ChatMonitor>,
+    /// The one open chat window (`OpenChat` until `CloseChat`).
+    pub(super) window: Option<OpenWindow>,
 }
 
 impl<S: ByteStore + 'static> ViewCore<S> {
@@ -43,7 +52,47 @@ impl<S: ByteStore + 'static> ViewCore<S> {
             session,
             credentials,
             eager_cached_content: true,
+            monitor: None,
+            window: None,
         }
+    }
+
+    /// The admitted live chat monitor, when one is running.
+    pub fn chat_monitor(&self) -> Option<&ChatMonitor> {
+        self.monitor.as_ref()
+    }
+
+    /// Install (or with `None` retire) the live chat monitor the shell host
+    /// admitted; returns the previous one. Retiring it does not close the
+    /// open window: chat reads then run without a monitor witness.
+    pub fn set_chat_monitor(&mut self, monitor: Option<ChatMonitor>) -> Option<ChatMonitor> {
+        std::mem::replace(&mut self.monitor, monitor)
+    }
+
+    /// Re-check the installed monitor's session and scope admission with the
+    /// server (`Client::validate_chat_monitor`).
+    ///
+    /// # Errors
+    /// `Cancelled` without a monitor, else as `Client::validate_chat_monitor`.
+    pub fn validate_chat_monitor(&mut self) -> BoxFuture<'_, Result<()>> {
+        Box::pin(async move {
+            let monitor = self.monitor.as_ref().ok_or(Error::Cancelled)?;
+            self.client.validate_chat_monitor(monitor).await
+        })
+    }
+
+    /// Id of the open chat window, if any. Recovery and live reads treat it
+    /// as the selected chat.
+    pub fn open_chat_id(&self) -> Option<&str> {
+        self.window.as_ref().map(|window| window.chat_id.as_str())
+    }
+
+    /// The last window published for the open chat; `None` before its first
+    /// page or when no chat is open.
+    pub fn open_window(&self) -> Option<&ChatWindowRecord> {
+        self.window
+            .as_ref()
+            .and_then(|window| window.record.as_ref())
     }
 
     /// Whether `Start` loads the remainder of the cache (every chat's content)

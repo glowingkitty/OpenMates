@@ -2,7 +2,9 @@
 //!
 //! Moved unchanged in behaviour from the TUI `storage.rs` file primitives. The
 //! invariants it protects: the store directory is reached by walking from `/`
-//! with `O_NOFOLLOW` descriptors (no intermediate symlink can redirect a write);
+//! with `O_NOFOLLOW` descriptors (no intermediate symlink can redirect a write),
+//! or, for sandboxed apps, created as one `O_NOFOLLOW` child of an OS-provided
+//! container (`open_in`);
 //! the directory is `0700` and every record `0600`, owned by the effective
 //! user with a single link; a write is temp file + fsync + rename (+ directory
 //! fsync), so readers see the old or the new record, never a torn one.
@@ -105,6 +107,66 @@ impl FileByteStore {
                 check_private(&directory, true)?;
             }
         }
+        check_private(&directory, true)?;
+        Ok(Self { root: directory })
+    }
+
+    /// Open (creating as needed) the private store directory `name` inside the
+    /// existing, OS-provided `container` (an app sandbox container such as
+    /// Apple's Application Support or temporary directory).
+    ///
+    /// Unlike [`Self::open`] it does not walk from `/`: inside an app sandbox
+    /// the container's ancestors are not readable. The container path is
+    /// opened directly, so symlinks in it are followed (the OS hands out paths
+    /// like `/var/...` that resolve to `/private/var/...`); it must be a
+    /// directory owned by this user and is never created. `name` is created
+    /// `0700` and opened with `O_NOFOLLOW`, so a symlink planted at `name`
+    /// cannot redirect writes, and it must be private.
+    ///
+    /// # Errors
+    /// `RelativePath`/`NonNormalizedPath` for an unusable container path,
+    /// `InvalidName` when `name` is not one plain component, `NotPrivate`
+    /// when the container is not owned by this user or `name` is not a
+    /// private directory, `Io` (also for a missing container).
+    pub fn open_in(container: &Path, name: &str) -> Result<Self> {
+        if !container.is_absolute() {
+            return Err(ByteStoreError::RelativePath);
+        }
+        if container
+            .components()
+            .any(|component| matches!(component, Component::CurDir | Component::ParentDir))
+        {
+            return Err(ByteStoreError::NonNormalizedPath);
+        }
+        validate_name(name)?;
+        let parent = File::from(
+            rustix::fs::open(
+                container,
+                OFlags::RDONLY | OFlags::DIRECTORY | OFlags::CLOEXEC,
+                Mode::empty(),
+            )
+            .map_err(|_| ByteStoreError::Io)?,
+        );
+        let metadata = parent.metadata()?;
+        if !metadata.is_dir() || metadata.uid() != rustix::process::geteuid().as_raw() {
+            return Err(ByteStoreError::NotPrivate);
+        }
+        let flags = OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC;
+        let fd = match rustix::fs::openat(&parent, name, flags, Mode::empty()) {
+            Ok(fd) => fd,
+            Err(rustix::io::Errno::NOENT) => {
+                match rustix::fs::mkdirat(&parent, name, Mode::RUSR | Mode::WUSR | Mode::XUSR) {
+                    // A concurrent opener may have created it first; the
+                    // private check below still decides.
+                    Ok(()) | Err(rustix::io::Errno::EXIST) => {}
+                    Err(_) => return Err(ByteStoreError::Io),
+                }
+                rustix::fs::openat(&parent, name, flags, Mode::empty())
+                    .map_err(|_| ByteStoreError::Io)?
+            }
+            Err(_) => return Err(ByteStoreError::Io),
+        };
+        let directory = File::from(fd);
         check_private(&directory, true)?;
         Ok(Self { root: directory })
     }

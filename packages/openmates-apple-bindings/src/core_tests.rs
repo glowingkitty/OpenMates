@@ -9,6 +9,8 @@ fn core() -> Arc<OpenMatesCore> {
     OpenMatesCore::new(CoreConfig {
         api_url: API.into(),
         app_url: Some("https://app.example.invalid".into()),
+        cache_container: None,
+        cache_directory_name: None,
     })
     .unwrap()
 }
@@ -170,6 +172,8 @@ fn invalid_api_url_is_a_typed_error() {
     let result = OpenMatesCore::new(CoreConfig {
         api_url: "ftp://bad".into(),
         app_url: None,
+        cache_container: None,
+        cache_directory_name: None,
     });
     assert!(matches!(result, Err(CoreError::Invalid { .. })));
 }
