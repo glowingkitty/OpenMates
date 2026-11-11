@@ -20,3 +20,12 @@ def test_production_preserves_openmates_route_parity_and_credentialed_workspace(
     assert prod.count(r"header_regexp apps_workspace_origin Origin ^https://(app\.)?openmates\.org$") == 2
     assert "*.openmatesusercontent.org {" in prod
     assert "dns gandi" in prod
+
+
+def test_memory_suggestion_routes_are_reachable_for_the_web_app():
+    """The web app calls these with the session cookie; an unlisted path is cut off by the proxy."""
+    for name in ("dev_server", "prod_server"):
+        text = (ROOT / "deployment" / name / "Caddyfile").read_text()
+        listed = [line for line in text.splitlines() if "/v1/memory-suggestions/*" in line]
+        # Origin-checked webapp paths, the CORS preflight matcher and the actual-request matcher.
+        assert len(listed) == 3, name
