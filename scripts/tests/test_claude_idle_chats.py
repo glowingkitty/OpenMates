@@ -44,3 +44,8 @@ def test_chat_with_a_background_command_is_kept():
 def test_hand_started_chat_and_own_chat_are_kept():
     assert not decide(chat(is_worker=False), NOW, DAY, "other").close
     assert not decide(chat(), NOW, DAY, own_session_id="chat-a").close
+
+
+def test_default_limit_is_three_hours() -> None:
+    import claude_idle_chats
+    assert claude_idle_chats.DEFAULT_MAX_IDLE_HOURS == 3.0

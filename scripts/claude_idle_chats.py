@@ -10,7 +10,8 @@ A chat is closed only when every rule holds:
     started by hand in a terminal),
   * its recorded state is ``idle``,
   * its state and its transcript (sub-agent transcripts included) have not
-    changed for longer than the limit (default 24 hours),
+    changed for longer than the limit (default 3 hours; a closed chat still
+    answers a later message, after a start-up delay of a few minutes),
   * it has no child process other than its tool (MCP) servers, so no background
     command is still running,
   * it is not the chat that runs this script.
@@ -37,7 +38,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
-DEFAULT_MAX_IDLE_HOURS = 24.0
+DEFAULT_MAX_IDLE_HOURS = 3.0
 TERM_WAIT_SECONDS = 20.0
 WORKER_MARKERS = ("--sdk-url", "/code/sessions/")
 TOOL_SERVER_MARKER = "mcp"

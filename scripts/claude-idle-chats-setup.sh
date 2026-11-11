@@ -1,6 +1,6 @@
 #!/bin/bash
 # Install the systemd user timer that closes Claude chat processes idle for
-# more than 24 hours (scripts/claude_idle_chats.py reap), once an hour.
+# more than 3 hours (scripts/claude_idle_chats.py reap), every 30 minutes.
 # Closed chats keep their transcript; events go to
 # <canonical checkout>/logs/claude-idle-chats/events.jsonl. Idempotent.
 set -euo pipefail
@@ -14,7 +14,7 @@ mkdir -p "$SYSTEMD_DIR"
 
 cat > "$SYSTEMD_DIR/openmates-claude-idle-chats.service" <<UNIT
 [Unit]
-Description=Close Claude chat processes idle for more than 24 hours
+Description=Close Claude chat processes idle for more than 3 hours
 
 [Service]
 Type=oneshot
@@ -25,11 +25,11 @@ UNIT
 
 cat > "$SYSTEMD_DIR/openmates-claude-idle-chats.timer" <<UNIT
 [Unit]
-Description=Close idle Claude chat processes once an hour
+Description=Close idle Claude chat processes every 30 minutes
 
 [Timer]
 OnBootSec=10min
-OnUnitActiveSec=1h
+OnUnitActiveSec=30min
 AccuracySec=1min
 
 [Install]
