@@ -1,7 +1,8 @@
 """Instance app packages: the generic ``skill.requests@1`` contract for paused skills.
 
 Covers target eligibility, the metadata overlay class swap, the delegate skill
-(validation, provider selection, round-robin merge, failures), the generic
+(validation, provider selection, round-robin merge, failures), the flat-schema
+delegate (whole tool input as one item, original response shape), the generic
 result validator, optional secrets and the billing exemption. The runner is
 faked at the client boundary; runner isolation is covered by
 test_app_packages_runner.py.
@@ -21,10 +22,14 @@ import yaml
 
 from backend.apps.base_app import BaseApp
 from backend.core.api.app.routes import apps_api
-from backend.shared.app_packages import billing, contracts, delegate_skill, loader, overlay, provider_dispatch
+from backend.shared.app_packages import (
+    billing, contracts, delegate_flat_skill, delegate_skill, loader, overlay, provider_dispatch,
+)
+from backend.shared.app_packages.delegate_flat_skill import InstalledProviderFlatSkill
 from backend.shared.app_packages.delegate_skill import InstalledProviderSkill
 from backend.shared.app_packages.generic_contract import (
-    DELEGATE_CLASS_PATH, SKILL_REQUESTS_V1, accepts_generic_contract, validate_generic_result,
+    DELEGATE_CLASS_PATH, FLAT_DELEGATE_CLASS_PATH, SKILL_REQUESTS_V1, accepts_generic_contract,
+    validate_generic_result,
 )
 from backend.shared.app_packages.runner_client import RunnerResult
 from backend.shared.python_schemas.app_metadata_schemas import AppSkillDefinition, skill_has_provider_support
@@ -67,6 +72,7 @@ def _reset(monkeypatch):
         monkeypatch.delenv(name, raising=False)
     loader.reset_installed_packages_cache()
     delegate_skill.resolve_original_skill_models.cache_clear()
+    delegate_flat_skill.resolve_flat_skill_models.cache_clear()
     yield
     loader.reset_installed_packages_cache()
 
@@ -114,6 +120,9 @@ def _synthetic_apps(tmp_path: Path) -> Path:
         {**base, "id": "local", "tool_schema": requests_schema},
         {**base, "id": "flat", "provider_required": True, "providers": [],
          "tool_schema": {"type": "object", "properties": {"query": {"type": "string"}}}},
+        {**base, "id": "no_schema", "provider_required": True, "providers": []},
+        {**base, "id": "requests_not_array", "provider_required": True, "providers": [],
+         "tool_schema": {"type": "object", "properties": {"requests": {"type": "string"}}}},
         {**base, "id": "declared", "provider_required": True, "providers": [],
          "provider_contract": "myapp.declared@1", "tool_schema": requests_schema},
     ]
@@ -125,7 +134,8 @@ def _synthetic_apps(tmp_path: Path) -> Path:
 
 # contract-test: direct surface=rest_api assertions=instance-app-packages.manifest-validation
 @pytest.mark.parametrize("skill_id, accepted", [
-    ("paused", True), ("with_builtin", False), ("local", False), ("flat", False), ("declared", False),
+    ("paused", True), ("with_builtin", False), ("local", False), ("flat", True), ("no_schema", False),
+    ("requests_not_array", False), ("declared", False),
 ])
 def test_generic_contract_target_eligibility(tmp_path, skill_id, accepted):
     apps_dir = _synthetic_apps(tmp_path)
@@ -327,6 +337,102 @@ def test_original_models_are_resolved_from_skill_module():
     assert models.response_defaults["provider"] == "Unavailable"
     with pytest.raises(delegate_skill.DelegateConfigurationError):
         delegate_skill.resolve_original_skill_models("backend.apps.missing_module.Skill")
+
+
+# --------------------------------------------------------------------------- flat-schema delegate
+
+FLAT_APP, FLAT_SKILL = "business", "search_trademarks"
+FLAT_APP_DIR = loader.BUILTIN_APPS_DIR / FLAT_APP
+FLAT_INPUT = {"queries": ["Example name"], "regions": ["US", "EU"], "match": "exact"}
+
+
+def _raw_flat_app() -> Dict[str, Any]:
+    return yaml.safe_load((FLAT_APP_DIR / "app.yml").read_text(encoding="utf-8"))
+
+
+def _flat_skill_of(config: Dict[str, Any]) -> Dict[str, Any]:
+    return next(s for s in config["skills"] if s["id"] == FLAT_SKILL)
+
+
+@pytest.fixture
+def flat_providers(monkeypatch, tmp_path):
+    flat = {"app": FLAT_APP, "skill": FLAT_SKILL}
+    _install(tmp_path, [_entry(skill_hint=HINT, **flat), _entry(SECOND, SECOND_NAME, **flat)])
+    enable(monkeypatch, tmp_path)
+    return tmp_path
+
+
+def _flat_delegate() -> InstalledProviderFlatSkill:
+    raw = _flat_skill_of(_raw_flat_app())
+    skill = object.__new__(InstalledProviderFlatSkill)
+    skill.app_id, skill.skill_id = FLAT_APP, FLAT_SKILL
+    definition = SimpleNamespace(delegated_class_path=str(raw["class_path"]).strip(), tool_schema=raw["tool_schema"])
+    skill.app = SimpleNamespace(get_skill_by_id=lambda _sid: definition)
+    return skill
+
+
+# contract-test: direct surface=rest_api assertions=instance-app-packages.manifest-validation,instance-app-packages.instance-availability
+def test_flat_paused_skill_accepts_generic_contract_and_overlays_flat_delegate(flat_providers):
+    raw = _raw_flat_app()
+    assert accepts_generic_contract(_flat_skill_of(raw))
+    (provider, _second) = loader.get_installed_providers(FLAT_APP, FLAT_SKILL)
+    assert provider.contract == SKILL_REQUESTS_V1 and provider.skill_hint == HINT
+    skill = _flat_skill_of(overlay.apply_app_package_overlay(FLAT_APP, raw))
+    assert skill["class_path"] == FLAT_DELEGATE_CLASS_PATH
+    assert skill["delegated_class_path"] == str(_flat_skill_of(raw)["class_path"]).strip()
+    assert skill["preprocessor_hint"] == HINT and [p["id"] for p in skill["providers"]] == [FIRST, SECOND]
+    assert skill_has_provider_support(AppSkillDefinition(**skill))
+
+
+# contract-test: direct surface=rest_api assertions=instance-app-packages.provider-contract
+@pytest.mark.anyio
+async def test_flat_delegate_passes_whole_input_and_keeps_original_shape(monkeypatch, flat_providers):
+    calls = _fake_runner(monkeypatch, {FIRST: RunnerResult(ok=True, results=[_result("a1"), _result("a2")]),
+                                       SECOND: RunnerResult(ok=True, results=[_result("b1")])})
+    response = await _flat_delegate().execute(
+        secrets_manager=None, user_id="user-1", chat_id="chat-1", nice_classes=None, **FLAT_INPUT,
+    )
+    expected_input = {"queries": ["Example name"], "regions": ["US", "EU"], "nice_classes": [],
+                      "status": "active", "match": "exact", "max_results": 10}
+    assert [c["input"] for c in calls] == [expected_input, expected_input]
+    assert {c["contract"] for c in calls} == {SKILL_REQUESTS_V1}
+    # Original response model: results live in its first list-of-objects field, never a top-level results array.
+    assert "results" not in response
+    assert [r["title"] for r in response["matches"]] == ["a1", "b1", "a2"]
+    assert response["matches"][0]["provider_id"] == FIRST and response["result_count"] == 3
+    assert response["query"] == "Example name" and response["regions"] == ["US", "EU"]
+    assert response["match"] == "exact" and response["status"] == "finished"
+    assert response["success"] is True and response["error"] is None and response["coverage"] == []
+    assert response["provider"] == f"{FIRST_NAME}, {SECOND_NAME}" and response["providers"] == [FIRST, SECOND]
+    assert response["limitation"]
+
+
+# contract-test: direct surface=rest_api assertions=instance-app-packages.provider-contract
+@pytest.mark.anyio
+async def test_flat_delegate_validation_selection_and_failures(monkeypatch, flat_providers):
+    calls = _fake_runner(monkeypatch, {FIRST: RunnerResult(ok=False, error_code="TIMEOUT", message="internal"),
+                                       SECOND: RunnerResult(ok=True, results=[_result("b1")])})
+    invalid = await _flat_delegate().execute(queries=[], regions=["US"])
+    assert calls == [] and invalid["success"] is False and invalid["error"].startswith("Invalid request: queries")
+    selected = await _flat_delegate().execute(provider=SECOND, **FLAT_INPUT)
+    assert [c["provider"] for c in calls] == [SECOND] and selected["providers"] == [SECOND]
+    both = await _flat_delegate().execute(**FLAT_INPUT)
+    assert both["warnings"] == [f"{FIRST_NAME} did not respond in time."] and both["partial"] is True
+    assert both["error"] is None and "internal" not in json.dumps(both)
+
+
+# contract-test: direct surface=rest_api assertions=instance-app-packages.instance-availability,instance-app-packages.no-installed-provider-charges
+def test_flat_base_app_dispatch_is_never_charged(monkeypatch, flat_providers):
+    calls = _fake_runner(monkeypatch, {FIRST: RunnerResult(ok=True, results=[_result("a")]),
+                                       SECOND: RunnerResult(ok=True, results=[])})
+    app = BaseApp(app_dir=str(FLAT_APP_DIR), register_http_routes=False,
+                  preloaded_config_dict=overlay.apply_app_package_overlay(FLAT_APP, _raw_flat_app()))
+    assert app.skill_classes[FLAT_SKILL] is InstalledProviderFlatSkill
+    import asyncio
+    response = asyncio.run(app.dispatch_skill(FLAT_SKILL, dict(FLAT_INPUT)))
+    assert response["matches"][0]["provider_id"] == FIRST and calls[0]["input"]["queries"] == ["Example name"]
+    assert apps_api.chargeable_skill_units(FLAT_APP, FLAT_SKILL, dict(FLAT_INPUT), response) == 0
+    assert billing.even_request_charge_items(FLAT_APP, FLAT_SKILL, dict(FLAT_INPUT), response, 10) == []
 
 
 # --------------------------------------------------------------------------- optional secrets

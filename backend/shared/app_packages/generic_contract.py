@@ -2,11 +2,14 @@
 
 A built-in skill that is paused because it has no provider (``provider_required:
 true``, no built-in ``providers``, no ``provider_contract`` and a public
-``tool_schema`` with a top-level ``requests`` array) accepts installed providers
-through this one contract. No per-skill contract or code exists in the repository:
+``tool_schema`` with properties) accepts installed providers through this one
+contract. No per-skill contract or code exists in the repository:
 
 - input: one request item of the skill's public request schema, validated by the
-  skill's own request item model when one can be resolved;
+  skill's own request item model when one can be resolved. A skill whose schema
+  has a top-level ``requests`` array runs providers once per item; a skill with a
+  flat schema (no ``requests`` property) passes its whole validated tool input as
+  the single item (``delegate_flat_skill``);
 - output: a list of JSON objects. The server validates them structurally only
   (``validate_generic_result``) and stamps ``provider`` / ``provider_id``.
 
@@ -23,6 +26,7 @@ SKILL_REQUESTS_V1 = "skill.requests@1"
 GENERIC_CONTRACTS: FrozenSet[str] = frozenset({SKILL_REQUESTS_V1})
 # Class that serves an eligible skill once an installed provider targets it.
 DELEGATE_CLASS_PATH = "backend.shared.app_packages.delegate_skill.InstalledProviderSkill"
+FLAT_DELEGATE_CLASS_PATH = "backend.shared.app_packages.delegate_flat_skill.InstalledProviderFlatSkill"
 
 # Request item fields a caller may use to pick installed providers by id or name.
 PROVIDER_SELECTOR_FIELDS: Tuple[str, ...] = ("provider", "providers", "provider_platform")
@@ -47,6 +51,22 @@ SERVER_OWNED_KEYS: FrozenSet[str] = frozenset({
 })
 
 
+def _schema_properties(skill: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    schema = skill.get("tool_schema")
+    properties = schema.get("properties") if isinstance(schema, dict) else None
+    return properties if isinstance(properties, dict) and properties else None
+
+def has_requests_array(skill: Any) -> bool:
+    """True when the skill's public tool schema has a top-level ``requests`` array."""
+    properties = _schema_properties(skill) if isinstance(skill, dict) else None
+    requests = properties.get("requests") if properties else None
+    return isinstance(requests, dict) and requests.get("type") == "array"
+
+def is_flat_schema(skill: Any) -> bool:
+    """True when the public tool schema has properties but no ``requests`` property."""
+    properties = _schema_properties(skill) if isinstance(skill, dict) else None
+    return properties is not None and "requests" not in properties
+
 def accepts_generic_contract(skill: Any) -> bool:
     """True when a raw built-in skill definition may be served by ``skill.requests@1``."""
     if not isinstance(skill, dict):
@@ -55,11 +75,11 @@ def accepts_generic_contract(skill: Any) -> bool:
         return False
     if not str(skill.get("class_path") or "").strip():
         return False
-    schema = skill.get("tool_schema")
-    properties = schema.get("properties") if isinstance(schema, dict) else None
-    requests = properties.get("requests") if isinstance(properties, dict) else None
-    return isinstance(requests, dict) and requests.get("type") == "array"
+    return has_requests_array(skill) or is_flat_schema(skill)
 
+def delegate_class_path(skill: Dict[str, Any]) -> str:
+    """Generic delegate for an eligible skill: per request item, or the flat tool input."""
+    return DELEGATE_CLASS_PATH if has_requests_array(skill) else FLAT_DELEGATE_CLASS_PATH
 
 def is_url_key(key: str) -> bool:
     return key == "url" or key.endswith("_url")

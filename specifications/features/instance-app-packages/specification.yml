@@ -58,7 +58,7 @@ models:
   GenericSkillRequestsContract:
     name: {type: string, required: true, constraints: {equals: skill.requests@1}}
     target: {type: built_in_skill, required: true, constraints: {provider_required: true, no_built_in_providers: true,
-      no_provider_contract: true, tool_schema_requests_array: true}}
+      no_provider_contract: true, tool_schema_requests_array_or_flat: true}}
     input: {type: skill_request_item, required: true, constraints: {validated_by_target_request_item_model: true}}
     output: {type: array, items: json_object, required: true, constraints: {max_items: 50, max_depth: 6,
       max_string_chars: 20000, max_result_bytes: 65536, max_call_bytes: 1048576, url_keys_http_only: true,
@@ -114,7 +114,8 @@ assertions:
     affecting other providers in the same request. Every built-in skill that is paused because it has no provider
     (provider_required with no built-in providers and no declared contract) also accepts the generic contract
     skill.requests@1 without any per-skill contract or code. Its input is one request item validated by the
-    skill's own request model; its output is a list of JSON objects that the server bounds structurally (count,
+    skill's own request model; for a skill with a flat tool schema the whole validated tool input is that one
+    item and the results are returned in the skill's original response shape. Its output is a list of JSON objects that the server bounds structurally (count,
     depth, string and total size, http(s)-only URL fields) and attributes to the provider. A request item may
     select installed providers by id or name; otherwise all of them run, and their results are interleaved
     round-robin in a stable provider order.

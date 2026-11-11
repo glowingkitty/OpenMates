@@ -17,6 +17,7 @@ keeps the original path in ``delegated_class_path``. This class:
 
 Provider failures become short safe per-group messages. Billing never reads
 this output: the registry decides (``billing.served_only_by_installed_providers``).
+Skills with a flat tool schema use the subclass in ``delegate_flat_skill``.
 Architecture: docs/architecture/apps/instance-app-packages.md ("Generic contract").
 """
 from __future__ import annotations
@@ -66,7 +67,7 @@ class OriginalSkillModels:
 # Original skill model resolution
 # --------------------------------------------------------------------------
 
-def _is_model(value: Any) -> bool:
+def is_model(value: Any) -> bool:
     return isinstance(value, type) and issubclass(value, BaseModel) and value is not BaseModel
 
 
@@ -74,7 +75,7 @@ def _list_item_model(annotation: Any) -> Optional[Type[BaseModel]]:
     """``List[X]`` / ``list[X]`` / ``Optional[List[X]]`` -> X when X is a model."""
     if get_origin(annotation) in (list, List):
         args = get_args(annotation)
-        return args[0] if args and _is_model(args[0]) else None
+        return args[0] if args and is_model(args[0]) else None
     for arg in get_args(annotation):
         found = _list_item_model(arg)
         if found is not None:
@@ -87,10 +88,10 @@ def _requests_item_model(model: Type[BaseModel]) -> Optional[Type[BaseModel]]:
     return _list_item_model(field.annotation) if field is not None else None
 
 
-def _module_models(module: ModuleType) -> List[Tuple[str, Type[BaseModel]]]:
+def module_models(module: ModuleType) -> List[Tuple[str, Type[BaseModel]]]:
     return [
         (name, value) for name, value in vars(module).items()
-        if _is_model(value) and value.__module__ == module.__name__
+        if is_model(value) and value.__module__ == module.__name__
     ]
 
 
@@ -104,7 +105,7 @@ def _execute_item_model(skill_class: type) -> Optional[Type[BaseModel]]:
                   and p.kind not in (p.VAR_POSITIONAL, p.VAR_KEYWORD)), None)
     if first is None or isinstance(first.annotation, str):
         return None
-    if _is_model(first.annotation):
+    if is_model(first.annotation):
         return _requests_item_model(first.annotation)
     return _list_item_model(first.annotation)
 
@@ -113,7 +114,7 @@ def _resolve_item_model(skill_class: type, module: ModuleType) -> Optional[Type[
     from_signature = _execute_item_model(skill_class)
     if from_signature is not None:
         return from_signature
-    models = _module_models(module)
+    models = module_models(module)
     from_request = list(dict.fromkeys(
         item for name, model in models if name.endswith("Request")
         and (item := _requests_item_model(model)) is not None
@@ -124,7 +125,7 @@ def _resolve_item_model(skill_class: type, module: ModuleType) -> Optional[Type[
     return items[0] if len(items) == 1 else None
 
 
-def _accepts(model: Type[BaseModel], payload: Dict[str, Any]) -> bool:
+def accepts_payload(model: Type[BaseModel], payload: Dict[str, Any]) -> bool:
     try:
         model.model_validate(payload)
     except ValidationError:
@@ -134,7 +135,7 @@ def _accepts(model: Type[BaseModel], payload: Dict[str, Any]) -> bool:
 
 def _resolve_response_shape(module: ModuleType) -> Tuple[Dict[str, Any], bool]:
     """Response defaults and whether the original model lists providers as objects."""
-    for name, model in _module_models(module):
+    for name, model in module_models(module):
         if not name.endswith("Response") or "results" not in model.model_fields:
             continue
         try:
@@ -144,16 +145,15 @@ def _resolve_response_shape(module: ModuleType) -> Tuple[Dict[str, Any], bool]:
                          module.__name__, name)
             continue
         provider_objects = (
-            not _accepts(model, {"results": [], "providers": ["p"]})
-            and _accepts(model, {"results": [], "providers": [{"id": "p", "name": "P"}]})
+            not accepts_payload(model, {"results": [], "providers": ["p"]})
+            and accepts_payload(model, {"results": [], "providers": [{"id": "p", "name": "P"}]})
         )
         return defaults, provider_objects
     return {}, False
 
 
-@lru_cache(maxsize=64)
-def resolve_original_skill_models(class_path: str) -> OriginalSkillModels:
-    """Resolve the request item model and response defaults of the original skill class."""
+def import_original_skill(class_path: str) -> Tuple[ModuleType, type]:
+    """Import the original skill module and class named by ``delegated_class_path``."""
     module_path, _, class_name = class_path.strip().rpartition(".")
     if not module_path:
         raise DelegateConfigurationError(f"invalid delegated class path '{class_path}'")
@@ -166,6 +166,13 @@ def resolve_original_skill_models(class_path: str) -> OriginalSkillModels:
     skill_class = getattr(module, class_name, None)
     if not isinstance(skill_class, type):
         raise DelegateConfigurationError(f"'{class_path}' is not a class")
+    return module, skill_class
+
+
+@lru_cache(maxsize=64)
+def resolve_original_skill_models(class_path: str) -> OriginalSkillModels:
+    """Resolve the request item model and response defaults of the original skill class."""
+    module, skill_class = import_original_skill(class_path)
     item_model = _resolve_item_model(skill_class, module)
     if item_model is None:
         logger.info("[AppPackages] No request item model found for %s; items are passed as JSON objects", class_path)
@@ -244,7 +251,7 @@ def build_group(request_id: Any, outcomes: Sequence[InstalledProviderOutcome]) -
     return group
 
 
-def _error_group(request_id: Any, message: str) -> Dict[str, Any]:
+def error_group(request_id: Any, message: str) -> Dict[str, Any]:
     return {"id": request_id, "results": [], "providers": [], "error": message}
 
 
@@ -294,12 +301,12 @@ class InstalledProviderSkill(BaseSkill):
                           providers: Sequence[InstalledProvider], secrets_manager: Any) -> Dict[str, Any]:
         request_id = raw.get("id") if isinstance(raw, dict) and raw.get("id") is not None else index + 1
         if index >= MAX_REQUESTS_PER_CALL:
-            return _error_group(request_id, TOO_MANY_REQUESTS_ERROR)
+            return error_group(request_id, TOO_MANY_REQUESTS_ERROR)
         if not providers:
-            return _error_group(request_id, UNAVAILABLE_ERROR)
+            return error_group(request_id, UNAVAILABLE_ERROR)
         contract_input, error = validate_request_item(models.item_model, raw)
         if contract_input is None:
-            return _error_group(request_id, error or "Invalid request.")
+            return error_group(request_id, error or "Invalid request.")
         outcomes = await run_installed_providers(
             # Selectors are read from the raw item: the item model may not declare them.
             self.app_id, self.skill_id, select_provider_ids(raw, providers), contract_input, secrets_manager,

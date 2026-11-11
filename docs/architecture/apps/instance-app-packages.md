@@ -213,12 +213,14 @@ is charged as before.
 ## Generic contract (`skill.requests@1`)
 
 Code: `backend/shared/app_packages/generic_contract.py` (rules),
-`delegate_skill.py` (execution), `overlay.py` (class swap).
+`delegate_skill.py` (execution), `delegate_flat_skill.py` (flat schemas),
+`overlay.py` (class swap).
 
 **Eligible target.** A built-in skill accepts `skill.requests@1` when its
 `app.yml` definition has `provider_required: true`, no `provider_contract`, no
 built-in `providers` (empty or absent), a `class_path`, and a `tool_schema`
-whose top-level `requests` property is an array. These are the skills shipped
+with properties: either a top-level `requests` array, or a flat schema without
+a `requests` property (a non-array `requests` is refused). These are the skills shipped
 paused for lack of a provider. Any other target rejects the package. Reserved
 ids for this contract: `auto`, `all`, `any`, `none`, `default`, `unavailable`,
 `multi`, in addition to the built-in provider namespace and cross-package
@@ -229,7 +231,8 @@ overlay adds the provider entries, removes `default_enabled: false`, replaces
 `preprocessor_hint` with the joined `skill_hint`s (or removes the paused
 "unavailable" hint when no provider gives one), stores the original class path
 in `delegated_class_path` and sets `class_path` to
-`backend.shared.app_packages.delegate_skill.InstalledProviderSkill`. Chat skill
+`backend.shared.app_packages.delegate_skill.InstalledProviderSkill` (flat
+schemas: `delegate_flat_skill.InstalledProviderFlatSkill`). Chat skill
 execution, REST skill routes, anonymous REST and workflows all resolve the class
 from this metadata, so none of them changes. The REST route builds its OpenAPI
 request/response models from `delegated_class_path`. Preview metadata from the
@@ -254,6 +257,19 @@ concurrently, at most 10 items per call:
 4. Results are merged round-robin across providers in registry order (sorted by
    package id, then manifest order): first result of each provider, then the
    second, and so on. No server-side caps beyond the validator or sorting.
+
+**Flat schemas** (`InstalledProviderFlatSkill`, set as `class_path` instead).
+The tool input (call arguments named by the public `tool_schema` properties;
+context such as user or chat ids is never included) is validated by the module's
+single `*Request` model without a `requests` field (or a typed `execute`
+argument), nulls dropped, and the whole result is the single `input` item; the
+same selectors and round-robin merge apply. The response keeps the original
+`*Response` model (its defaults must validate from `{}`): results go into its
+`results` field, else its first list-of-objects field; input values it declares
+under the same name, or as the singular of a list input (`queries` -> `query`,
+joined with ", "), are echoed, never execution fields such as `status`, `success`
+or `error`; `provider`, `providers`, `error`, `warnings` and, when declared,
+`result_count`, `success` and `partial` are set.
 
 **Result validation** (`validate_generic_result`): each result must be a JSON
 object; at most 50 results per provider call; keys must match

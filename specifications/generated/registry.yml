@@ -700,7 +700,7 @@ specifications:
     version: 1
     status: draft
     path: features/instance-app-packages
-    fingerprint: b8669e7f91ae127e07e2d1b09ee450a3b098f04c0476cc34096b3436af0e73d4
+    fingerprint: e3c45aad774470248f353220c039700b9bb30f432925c0728262c491e205e35c
     required_applies_to:
     - rest_api
     - cli
@@ -8978,7 +8978,7 @@ assertions:
     specification: feature.instance-app-packages@1
     specification_id: feature.instance-app-packages
     type: behavior
-    fingerprint: ae046935c71e5f0e2b55c9e2e845d23bb5a67106e68f4181cc003a9fe6b78668
+    fingerprint: 815d87521c97b1158f14543254c02a9c857358ff1d09ea3456aa5bdcc24fed23
     required_applies_to:
     - rest_api
     - cli
@@ -8987,7 +8987,7 @@ assertions:
     specification: feature.instance-app-packages@1
     specification_id: feature.instance-app-packages
     type: behavior
-    fingerprint: b4a146283b2bbe03a332dee6d5fa27f3296b50ab45d0ba619363bc2f2006355f
+    fingerprint: b99804b22f4676f9f6813fddad3ed8fba6fb47a57f61a5547ee3acae8e997031
     required_applies_to:
     - rest_api
     - cli

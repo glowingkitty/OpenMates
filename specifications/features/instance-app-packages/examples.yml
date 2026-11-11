@@ -42,6 +42,14 @@ availability:
   when: Bob asks for a dentist appointment in Example City.
   then: Appointment search is offered with the provider's hint, the provider receives Bob's validated request item,
     and Bob sees its results labelled Example provider.
+- id: generic-contract-unpauses-flat-skill
+  assertion_ids: [instance-app-packages.instance-availability, instance-app-packages.provider-contract]
+  given: Trademark search is paused because it has no provider and its tool input is flat (names, regions, match),
+    not a list of requests. The operator installs my.package, whose provider my_provider targets
+    business.search_trademarks with contract skill.requests@1.
+  when: Bob asks whether "Example name" is registered in the US.
+  then: The provider receives Bob's whole validated search input as one item, and Bob sees its matches in the
+    normal trademark result card, labelled Example provider and never charged.
 - id: removal-restores-pause
   assertion_ids: [instance-app-packages.instance-availability]
   given: my.events is the only installed provider for Events search.

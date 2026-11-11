@@ -106,6 +106,31 @@ def test_duplicate_provider_id_across_packages_keeps_first_only(tmp_path):
     assert [p.package_id for p in providers] == [PACKAGE_ID]
 
 
+def _flat_paused_apps(tmp_path):
+    # A paused, provider-less skill with a flat tool schema (no top-level requests array).
+    skill = {"id": "lookup", "name_translation_key": "x", "description_translation_key": "x",
+             "class_path": "my.skills.LookupSkill", "provider_required": True, "providers": [],
+             "tool_schema": {"type": "object", "properties": {"queries": {"type": "array"}}}}
+    apps_dir = tmp_path / "apps"
+    (apps_dir / "myapp").mkdir(parents=True)
+    (apps_dir / "myapp" / "app.yml").write_text(yaml.safe_dump({"id": "myapp", "skills": [skill]}), encoding="utf-8")
+    return apps_dir
+
+
+# contract-test: direct surface=rest_api assertions=instance-app-packages.manifest-validation
+@pytest.mark.parametrize("contract, accepted", [("skill.requests@1", True), ("myapp.lookup@1", False)])
+def test_flat_paused_skill_accepts_only_the_generic_contract(tmp_path, contract, accepted):
+    apps_dir = _flat_paused_apps(tmp_path)
+    root = tmp_path / "root"
+    entry = provider_entry(app="myapp", skill="lookup", contract=contract, id="my_provider", name="My provider",
+                           secrets=[], skill_hint="Use for lookups on example.org.")
+    install_example(root, manifest(providers=[entry]))
+    providers = loader.load_installed_packages(root, apps_dir=apps_dir).for_skill("myapp", "lookup")
+    assert [p.provider_id for p in providers] == (["my_provider"] if accepted else [])
+    if accepted:
+        assert providers[0].skill_hint == "Use for lookups on example.org."
+
+
 # Built-in ids from other apps, provider configs, Vault paths and selector values.
 COLLIDING_PROVIDER_IDS = ["openai", "brave", "google_maps", "stripe", "pretalx", "auto", "none", "39c3", "gpn24"]
 

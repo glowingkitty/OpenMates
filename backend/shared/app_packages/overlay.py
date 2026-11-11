@@ -8,8 +8,9 @@ only; removing a package (or disabling app packages) and restarting yields the
 unmodified metadata again.
 
 Skills paused without any provider that receive a ``skill.requests@1`` provider
-are also switched to the generic ``InstalledProviderSkill`` class
-(``class_path``), keeping the original class path in ``delegated_class_path`` so
+are also switched to a generic delegate class (``class_path``):
+``InstalledProviderSkill`` for a ``requests`` array schema,
+``InstalledProviderFlatSkill`` for a flat schema, keeping the original class path in ``delegated_class_path`` so
 the delegate can reuse the skill's request and response models. Every execution
 path resolves the class from this metadata, so no call site changes.
 """
@@ -19,9 +20,9 @@ import copy
 from typing import Any, Dict, List
 
 from backend.shared.app_packages.generic_contract import (
-    DELEGATE_CLASS_PATH,
     SKILL_REQUESTS_V1,
     accepts_generic_contract,
+    delegate_class_path,
 )
 from backend.shared.app_packages.loader import InstalledProvider, get_installed_packages
 
@@ -84,7 +85,7 @@ def _overlay_delegated_skill(skill: Dict[str, Any], providers: List[InstalledPro
         # The built-in hint of a paused skill describes it as unavailable.
         skill.pop("preprocessor_hint", None)
     skill["delegated_class_path"] = str(skill["class_path"]).strip()
-    skill["class_path"] = DELEGATE_CLASS_PATH
+    skill["class_path"] = delegate_class_path(skill)
 
 
 def apply_app_package_overlay(app_id: str, raw_config: Any) -> Any:

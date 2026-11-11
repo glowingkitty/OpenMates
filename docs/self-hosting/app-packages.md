@@ -141,8 +141,10 @@ contributes:
 ```
 
 A skill accepts it only when its `app.yml` has `provider_required: true`, no
-built-in providers, no `provider_contract` and a `requests` array in its tool
-schema. Once installed, the skill becomes available, uses your `skill_hint`
+built-in providers, no `provider_contract` and a tool schema. For a skill with a
+`requests` array your executable is called once per request item; for a skill
+with a flat schema it is called once with the skill's whole validated input as
+`input`, and your results are returned in the skill's original response shape. Once installed, the skill becomes available, uses your `skill_hint`
 (without one, its "unavailable" hint is removed) and is served by your
 providers.
 
