@@ -31,7 +31,12 @@ interface MessageState {
 	/** Key of the plan stored in the page plan map. */
 	resolved: string | null;
 	chain: Promise<void>;
+	/** Consecutive failed requests; picks the delay before the next attempt. */
+	failures: number;
 }
+
+/** Delay before a failed plan request is tried again (last value repeats). */
+const RETRY_DELAYS_MS = [1_000, 3_000, 10_000, 30_000];
 
 const states = new Map<string, MessageState>();
 const readyListeners = new Set<(messageId: string) => void>();
@@ -76,11 +81,28 @@ function schedule(
 			if (startedIn !== generation) return;
 			plans.set(messageId, plan);
 			state.resolved = key;
+			state.failures = 0;
 			for (const listener of readyListeners) listener(messageId);
 		} catch (error) {
 			console.error('[rust-parse] assistant render plan failed', error);
+			retryAfterFailure(messageId, state, key, startedIn);
 		}
 	});
+}
+
+/**
+ * A failed request (the parse unit did not answer) must not leave the message
+ * without a plan for the rest of the page's life: forget the request after a
+ * growing delay and ask the page to remap, which requests the plan again.
+ */
+function retryAfterFailure(messageId: string, state: MessageState, key: string, startedIn: number): void {
+	const delay = RETRY_DELAYS_MS[Math.min(state.failures, RETRY_DELAYS_MS.length - 1)];
+	state.failures++;
+	setTimeout(() => {
+		if (startedIn !== generation || state.requested !== key || state.resolved === key) return;
+		state.requested = '';
+		for (const listener of readyListeners) listener(messageId);
+	}, delay);
 }
 
 /**
@@ -102,7 +124,7 @@ export function resolveAssistantRenderPlan(
 	const key = keyOf(markdown, options);
 	let state = states.get(messageId);
 	if (!state) {
-		state = { requested: '', resolved: null, chain: Promise.resolve() };
+		state = { requested: '', resolved: null, chain: Promise.resolve(), failures: 0 };
 		states.set(messageId, state);
 	}
 	if (state.resolved === key) return plans.get(messageId) ?? null;
