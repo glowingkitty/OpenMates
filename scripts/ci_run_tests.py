@@ -146,6 +146,9 @@ MARKER_CHAT_EPOCH_SPECS = frozenset(
         "rust-core-activechat-send.spec.ts",
         "rust-core-new-chat-send.spec.ts",
         "cli-rust-core-essential.spec.ts",
+        # Native CLI sends require recovery epoch one; Project-scoped turns
+        # skip the atomic first-Personal path and would read epoch zero.
+        "cli-native-project-application-files.spec.ts",
         "cli-rust-chat-sync-feed.spec.ts",
         "cli-rust-tui-unread.spec.ts",
         "chat-unread-read-position.spec.ts",
