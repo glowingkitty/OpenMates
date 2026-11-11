@@ -35,6 +35,7 @@ MAX_VECTOR_SOURCE_CHARS = 400_000
 
 ORIGIN_GENERATED = "generated_svg"
 ORIGIN_CODE = "svg_code"
+ORIGIN_UPLOADED = "uploaded_svg"
 
 
 class VectorSourceError(RuntimeError):
@@ -69,10 +70,15 @@ def classify_vector_content(content: Mapping[str, Any]) -> tuple[str, Any] | Non
     if isinstance(code, str) and "<svg" in code.lower():
         return ORIGIN_CODE, code
     files = content.get("files")
-    original = files.get("original") if isinstance(files, Mapping) else None
-    if (isinstance(original, Mapping) and str(original.get("format") or "").lower() == "svg"
-            and isinstance(original.get("s3_key"), str) and original["s3_key"]):
-        return ORIGIN_GENERATED, original
+    if not isinstance(files, Mapping):
+        return None
+    # ``original`` is the SVG of a generated graphic; ``vector`` is the SVG an
+    # uploaded file kept beside its raster variants.
+    for variant, origin in (("original", ORIGIN_GENERATED), ("vector", ORIGIN_UPLOADED)):
+        stored = files.get(variant)
+        if (isinstance(stored, Mapping) and str(stored.get("format") or "").lower() == "svg"
+                and isinstance(stored.get("s3_key"), str) and stored["s3_key"]):
+            return origin, stored
     return None
 
 

@@ -94,6 +94,9 @@ def test_request_defaults_bounds_and_normalisation() -> None:
     assert parse_modify_request(instructions="x", images=["a"], output_filetype="JPEG").output_filetype == "jpg"
     assert parse_modify_request(instructions="x", images=["a"], requirements=["keep it", " "]).requirements == (
         "keep it",)
+    # One text instead of a list counts as one requirement per line.
+    assert parse_modify_request(instructions="x", images=["a"], requirements="green background\n\nwhite frame"
+                                ).requirements == ("green background", "white frame")
     for bad in ({"instructions": "", "images": ["a"]}, {"instructions": "x" * 2001, "images": ["a"]},
                 {"instructions": "x", "images": []}, {"instructions": "x", "images": ["a"] * 7},
                 {"instructions": "x", "images": [""]}, {"instructions": "x", "images": "a.png"},

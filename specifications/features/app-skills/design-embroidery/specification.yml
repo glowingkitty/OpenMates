@@ -116,8 +116,8 @@ models:
 assertions:
   - id: design-embroidery.request.vector-source
     type: behavior
-    must: design.embroidery accepts the exact reference of a vector graphic visible in the conversation, either a generated or vectorized SVG image or an SVG code embed, and resolves it server-side. A pixel image, an uploaded file whose vector source is not kept, or an unknown reference fails explicitly and tells the assistant to create a vector graphic first; nothing is converted and nothing is charged.
-    depends_on: [models.EmbroideryRequest.source, examples.convert, examples.invalid_source]
+    must: design.embroidery accepts the exact reference of a vector graphic visible in the conversation, a generated or vectorized SVG image, an SVG code embed or an SVG file the user uploaded (its original vector is kept beside the picture shown in the chat and is sewn unchanged, never redrawn), and resolves it server-side. A pixel image, an upload without a kept vector source, or an unknown reference fails explicitly and tells the assistant to create a vector graphic first; nothing is converted and nothing is charged.
+    depends_on: [models.EmbroideryRequest.source, examples.convert, examples.uploaded_svg, examples.invalid_source]
   - id: design-embroidery.prepare.fixed-rules
     type: behavior
     must: Before stitches are generated the graphic is prepared by fixed rules, always in the same order and with the same result for the same input. It is scaled to the requested width keeping its proportions; a shape that only fills the whole canvas as background is left out; parts of a shape hidden under another shape are cut away so no area is sewn twice; shapes of the same thread colour are sewn together wherever the stacking of the design allows it, so the number of thread changes is as low as the design permits; lines 1 mm and wider become satin bands and thinner lines become running stitches; the fabric preset sets stitch density, underlay and pull compensation. Every change that alters what the user will see is named in the notes.

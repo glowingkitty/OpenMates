@@ -163,3 +163,18 @@ async def test_foreign_cached_record_is_rejected_before_any_lookup() -> None:
         await _resolve(world)
     world["directus"].get_items.assert_not_called()
     world["internal"].assert_not_called()
+
+
+# contract-test: supporting surface=rest_api assertions=design-embroidery.request.vector-source
+def test_an_uploaded_svg_keeps_a_vector_source_and_a_pixel_upload_does_not() -> None:
+    from backend.shared.python_utils.encrypted_embed_vectors import classify_vector_content
+
+    raster = {"s3_key": "u/original.bin", "format": "webp"}
+    vector = {"s3_key": "u/vector.bin", "format": "svg"}
+    uploaded_svg = {"type": "image", "skill_id": "upload", "files": {"original": raster, "vector": vector}}
+    uploaded_photo = {"type": "image", "skill_id": "upload", "files": {"original": raster}}
+
+    assert classify_vector_content(uploaded_svg) == ("uploaded_svg", vector)
+    assert classify_vector_content(uploaded_photo) is None
+    assert classify_vector_content({"files": {"vector": {"s3_key": "", "format": "svg"}}}) is None
+

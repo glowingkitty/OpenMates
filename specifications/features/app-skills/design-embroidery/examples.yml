@@ -21,6 +21,12 @@ convert:
       reference of that new graphic in the same reply.
     then: The graphic created a moment ago is accepted as source and one embroidery result 90 mm wide appears in that reply.
 
+uploaded_svg:
+  - id: own-svg-file-is-sewn-as-uploaded
+    given: The user attaches their own file fire-tail.svg and asks for a sew-on patch with a 3 mm black border, as large as the 200 × 300 hoop allows.
+    when: The assistant calls design.embroidery with that file as the source.
+    then: The uploaded drawing itself is converted, with its own shapes and colours. No new graphic is generated in between, and the result names the border and the hoop fit.
+
 invalid_source:
   - id: photo-is-not-a-vector
     given: The user uploaded a photo "dog.jpg".

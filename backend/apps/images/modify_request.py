@@ -61,6 +61,9 @@ def parse_modify_request(
 
     wanted: list[str] = []
     if requirements is not None:
+        if isinstance(requirements, str):
+            # Models sometimes send one text instead of a list: one requirement per line.
+            requirements = requirements.splitlines()
         if not isinstance(requirements, (list, tuple)):
             raise ModifyRequestError("requirements must be a list of short sentences")
         for value in requirements:

@@ -172,6 +172,14 @@ class AIDetectionMetadata(BaseModel):
     error: Optional[str] = Field(None, description="Non-sensitive failure reason when detection failed")
 
 
+def is_svg_upload(content_type: str, file_bytes: bytes) -> bool:
+    """True for an uploaded SVG document, whose vector source is stored beside its raster variants."""
+    head = file_bytes[:2048].lstrip().lower()
+    return content_type == "image/svg+xml" or head.startswith(b"<svg") or (
+        head.startswith(b"<?xml") and b"<svg" in head
+    )
+
+
 def _duplicate_preserves_camera_original(record: Dict[str, Any], file_bytes: bytes) -> bool:
     """Keep ordinary dedup, but require exact stored-byte proof for camera JPEGs.
 
@@ -1215,6 +1223,7 @@ async def upload_file(
 
     # --- 9. AES-256-GCM encryption ---
     # All three variants share the same AES key and nonce, matching generate_task.py.
+    keeps_vector = is_svg_upload(content_type, file_bytes)
     logger.info(f"{log_prefix} [9/13] Encrypting 3 variants with AES-256-GCM (random key per file)...")
     encrypt_start = time.monotonic()
     write_version = load_media_write_version()
@@ -1223,6 +1232,10 @@ async def upload_file(
             "original": preview_result.original_bytes,
             "full": preview_result.full_webp_bytes,
             "preview": preview_result.preview_webp_bytes,
+            # An uploaded SVG keeps its vector source next to the raster
+            # variants, so skills that need the drawing itself (embroidery)
+            # read the exact file the user uploaded.
+            **({"vector": file_bytes} if keeps_vector else {}),
         },
         write_version=write_version,
     )
@@ -1263,6 +1276,7 @@ async def upload_file(
     original_s3_key = f"{s3_prefix}/{timestamp}_original.bin"
     full_s3_key = f"{s3_prefix}/{timestamp}_full.bin"
     preview_s3_key = f"{s3_prefix}/{timestamp}_preview.bin"
+    vector_s3_key = f"{s3_prefix}/{timestamp}_vector.bin"
 
     logger.info(
         f"{log_prefix} [11/13] Uploading 3 encrypted variants to S3 "
@@ -1289,8 +1303,17 @@ async def upload_file(
             preferred_region=original_upload.region,
             allow_region_fallback=False,
         )
-        active_region = _single_upload_region(original_upload, full_upload, preview_upload)
-        storage_active_regions = _active_region_map(original_upload, full_upload, preview_upload)
+        uploads = [original_upload, full_upload, preview_upload]
+        if keeps_vector:
+            uploads.append(await s3_service.upload_file_with_region(
+                s3_key=vector_s3_key,
+                content=encrypted_variants.payloads["vector"],
+                target_env=target_env,
+                preferred_region=original_upload.region,
+                allow_region_fallback=False,
+            ))
+        active_region = _single_upload_region(*uploads)
+        storage_active_regions = _active_region_map(*uploads)
         s3_elapsed = (time.monotonic() - s3_start) * 1000
         logger.info(
             f"{log_prefix} [11/13] S3 upload: OK ({s3_elapsed:.0f} ms) — "
@@ -1335,6 +1358,16 @@ async def upload_file(
             active_region=active_region,
         ),
     }
+    if keeps_vector:
+        files_metadata["vector"] = FileVariantMetadata(
+            s3_key=vector_s3_key,
+            width=preview_result.original_width,
+            height=preview_result.original_height,
+            size_bytes=len(encrypted_variants.payloads["vector"]),
+            format="svg",
+            encryption=encrypted_variants.metadata["vector"].get("encryption"),
+            active_region=active_region,
+        )
 
     # --- 13. Store upload record via core API (never touches Directus directly) ---
     logger.info(f"{log_prefix} [13/13] Storing upload record in Directus (via core API)...")
