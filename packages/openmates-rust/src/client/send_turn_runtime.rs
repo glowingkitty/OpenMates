@@ -73,6 +73,40 @@ impl SavedTurnClientPhases for BorrowedTurnPhases<'_>{
         Ok(latest)
     })}
 }
+/// P11: after the turn's artifacts are persisted, adopt its application files,
+/// application and test results into the chat's focused Project (the phase is
+/// a no-op without a focus). Failures are report rows on the outcome; only
+/// cancellation and phase faults propagate.
+// Targets without the hosted writer (wasm, non-unix) compile an empty body.
+#[allow(unused_variables)]
+async fn adopt_turn_embeds<P: SavedTurnClientPhases>(
+    phases: &mut P,
+    ws: &mut Socket,
+    chat: &str,
+    rows: &BTreeMap<String, Value>,
+    observed: &mut SendObservations,
+) -> Result<()> {
+    #[cfg(all(feature = "workflow-yaml", unix))]
+    match crate::client::project_embed_adoption::turn_adoption_event(rows) {
+        Ok(Some(event)) => {
+            phases
+                .project_create(
+                    ws,
+                    crate::client::project_embed_adoption::TURN_ADOPTION_KIND,
+                    &event,
+                    chat,
+                    &mut observed.project_create,
+                )
+                .await?
+        }
+        Ok(None) => {}
+        Err(Error::Cancelled) => return Err(Error::Cancelled),
+        Err(_) => observed
+            .project_create
+            .push_adoption(json!({"status":"failed","code":"invalid_request"})),
+    }
+    Ok(())
+}
 /// Delay between claims while another device of the same owner holds the lease.
 const CLAIM_CONFLICT_RETRY: Duration = Duration::from_millis(500);
 #[allow(clippy::too_many_arguments)]
@@ -107,6 +141,7 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
                 tokio::select! {biased;_=cancel.cancelled()=>return Err(Error::Cancelled),r=crate::platform::time::timeout_at(deadline,receive(ws))=>r.map_err(|_|Error::Offline)??}
             };
             let (kind,p)=event;let p=Plain::new(p);
+            trace.observe_frame(&kind);
             trace.phase = SendPhase::FrameValidation;
             phases.check(turn_scope,id,generation).await?;
             if kind == "chat_turn_preflight_ack" && text(&p, "turn_id") == turn {
@@ -196,20 +231,25 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
                 && text(&p, "chat_id") == id
                 && (text(&p, "task_id").is_empty() || text(&p, "task_id") == task_id.as_str())
             {
+                trace.phase = SendPhase::FocusPersist;
                 phases.persist_focus_event(ws, &kind, &p, id, key, &mut focus_state)
                     .await?;
+                trace.phase = SendPhase::FrameValidation;
             }
             if kind == "project_focus_catalog_requested"
                 && text(&p, "chat_id") == id
                 && p.get("team_id").and_then(Value::as_str) == team.as_deref()
             {
+                trace.phase = SendPhase::ProjectCatalog;
                 let project = required(&p, "project_id")?;
                 if !projects.iter().any(|v| text(v, "project_id") == project) {
+                    trace.observe_frame("catalog_project_not_candidate");
                     return Err(Error::Forbidden);
                 }
-                let focuses=Plain::new(match phases.project_routing_catalog(project).await{Ok(focuses)=>Some(focuses),Err(error @ (Error::Cancelled|Error::Expired|Error::Authentication|Error::Forbidden))=>return Err(error),Err(_)=>None});
+                let focuses=Plain::new(match phases.project_routing_catalog(project).await{Ok(focuses)=>Some(focuses),Err(error @ (Error::Cancelled|Error::Expired|Error::Authentication|Error::Forbidden))=>{trace.observe_frame("catalog_lookup_refused");return Err(error)},Err(_)=>None});
                 phases.check(turn_scope,id,generation).await?;
                 transport::send_plaintext(ws,"project_focus_catalog_result",json!({"chat_id":id,"request_id":required(&p,"request_id")?,"project_id":project,"focuses":&*focuses})).await?;
+                trace.phase = SendPhase::FrameValidation;
             }
             if options.project_create_requests
                 && matches!(kind.as_str(), "project_create_requested" | "project_create_confirmed" | "project_create_error")
@@ -217,7 +257,9 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
             {
                 // The turn waits for our report; creation and its reply frames are
                 // handled here and the stream resumes afterwards in this same loop.
+                trace.phase = SendPhase::ProjectPhase;
                 phases.project_create(ws, &kind, &p, id, &mut observed.project_create).await?;
+                trace.phase = SendPhase::FrameValidation;
             }
             if options.project_file_jobs
                 && PROJECT_FILE_JOBS_AVAILABLE
@@ -226,7 +268,9 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
             {
                 // Hosted Project file tool calls run here; the turn resumes afterwards.
                 observed.project_create.file_jobs.approve_writes = options.approve_project_file_writes;
+                trace.phase = SendPhase::ProjectPhase;
                 phases.project_create(ws, &kind, &p, id, &mut observed.project_create).await?;
+                trace.phase = SendPhase::FrameValidation;
                 for notice in observed.project_create.file_jobs.take_notices() {
                     phases.deliver_update(&turn_scope,id,updates,cancel,StreamUpdate::Status(notice)).await?;
                 }
@@ -318,10 +362,23 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
                     && !has_continuation(&p)
                 {
                     trace.final_seen = true;
-                    if p["recovery_protocol_version"] != 1 || text(&p, "recovery_turn_id") != turn {
+                    // Name the failing final-frame check in the opt-in test
+                    // diagnostic (fixed labels only, never payload content).
+                    if p["recovery_protocol_version"] != 1 {
+                        trace.observe_frame("final_without_recovery_protocol");
                         return Err(Error::Protocol);
                     }
+                    if text(&p, "recovery_turn_id") != turn {
+                        trace.observe_frame("final_for_other_recovery_turn");
+                        return Err(Error::Protocol);
+                    }
+                    if text(&p, "recovery_job_id").is_empty() {
+                        trace.observe_frame("final_without_recovery_job");
+                    }
                     required(&p, "recovery_job_id")?;
+                    if text(&p, "message_id").is_empty() {
+                        trace.observe_frame("final_without_message_id");
+                    }
                     required(&p, "message_id")?;
                     final_frame.wipe();*final_frame=Some(p.clone());
                 }
@@ -367,6 +424,7 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
             };
             match event {
                 Some(Ok((kind, p))) => {
+                    trace.observe_frame(&kind);
                     let p=Plain::new(p);phases.check(turn_scope,id,generation).await?;
                     if owns_metadata(&p, id, message, turn, &task_id) {
                         observed.capture_owned(&kind, &p)?;
@@ -434,6 +492,15 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
                 &task_id,
                 &bind_turn_embeds(&streamed_embeds, message, &task_id),
                 &checkpoints,
+            )
+            .await?;
+            trace.phase = SendPhase::ProjectPhase;
+            adopt_turn_embeds(
+                phases,
+                ws,
+                id,
+                &bind_turn_embeds(&streamed_embeds, message, &task_id),
+                &mut observed,
             )
             .await?;
             trace.phase = SendPhase::Metadata;
@@ -508,6 +575,15 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
                 &checkpoints,
             )
             .await?;
+        trace.phase = SendPhase::ProjectPhase;
+        adopt_turn_embeds(
+            phases,
+            ws,
+            id,
+            &bind_turn_embeds(&streamed_embeds, message, &task_id),
+            &mut observed,
+        )
+        .await?;
         if new_chat && !text(&generated_header, "chat_title").is_empty() {
             trace.phase = SendPhase::Metadata;
             let title = text(&generated_header, "chat_title");

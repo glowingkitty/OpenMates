@@ -1,5 +1,6 @@
 /* Atomic publication for opaque client-encrypted Project file revisions. */
 import { createHash, randomUUID } from 'node:crypto';
+import { assertServerOwnedRefresh, linksAdmitServerOwnedRefresh, validateServerOwnedRefresh } from './project-items.js';
 
 const EMBEDS = 'embeds';
 const DIFFS = 'embed_diffs';
@@ -617,9 +618,13 @@ async function promoteAuthoredAssetReferences(trx, binding, embedId, actor) {
 /** Serialize a legacy client ciphertext write with Project revision publication. */
 export async function writeLegacyEmbed(database, raw) {
   const input = exactFields(raw, new Set(['embed_id', 'actor_user_hash', 'payload', 'bundle_context',
-    'canonical_metadata_enrichment', 'canonical_precondition', 'authored_asset_binding']), [
+    'canonical_metadata_enrichment', 'canonical_precondition', 'authored_asset_binding',
+    'server_owned_refresh']), [
     'embed_id', 'actor_user_hash', 'payload',
   ]);
+  // Internal marker for a server-issued thumbnail/run-status refresh of a linked
+  // application or test-result embed; file links never accept it.
+  const serverRefresh = validateServerOwnedRefresh(input.server_owned_refresh);
   const embedId = boundedString(input.embed_id, 'invalid_embed_id', 512);
   const actor = hexDigest(input.actor_user_hash, 'invalid_actor');
   const payload = exactFields(input.payload, LEGACY_EMBED_FIELDS, [
@@ -798,9 +803,10 @@ export async function writeLegacyEmbed(database, raw) {
         bundlePreflightState = preflight.state;
       }
     }
-    const linked = await trx(PROJECT_ITEMS).where({ target_id_hash: sha256(embedId) })
-      .whereIn('item_type', ['embed', 'upload']).first();
-    if (linked) fail(403, 'project_context_required');
+    const links = await trx(PROJECT_ITEMS).where({ target_id_hash: sha256(embedId) })
+      .whereIn('item_type', ['embed', 'upload']);
+    const refreshLinked = links.length > 0 && linksAdmitServerOwnedRefresh(links, serverRefresh);
+    if (links.length && !refreshLinked) fail(403, 'project_context_required');
     if (UUID_V5_RE.test(embedId)) {
       // CLI recovery carries no catalog context. Scope this row from the
       // verified current chat, never from a client-supplied Team claim.
@@ -809,6 +815,11 @@ export async function writeLegacyEmbed(database, raw) {
       if (!enrichment) storedPayload.hashed_team_id = teamHash;
     }
     const embed = await trx(EMBEDS).where({ embed_id: embedId }).forUpdate().first();
+    if (refreshLinked) {
+      assertServerOwnedRefresh(embed, payload, serverRefresh, {
+        bundle, enrichment, currentVersion: embed ? logicalEmbedVersion(embed.version_number) : 0,
+      });
+    }
     let preconditionMismatch = false;
     if (embed) {
       if (embed.hashed_user_id !== actor) fail(403, 'embed_access_denied');

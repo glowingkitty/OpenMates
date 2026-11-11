@@ -201,6 +201,11 @@ pub struct SendOutcome {
     /// "Created project" cards of assistant-initiated Project creation in this turn.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub project_creations: Vec<Value>,
+    /// Embed adoptions into the focused Project after this turn: one row per
+    /// adoption (`embed_id`, `kind`, `path`, `status` adopted/failed, `code`).
+    /// A failed adoption never fails the turn; it is reported here.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub project_embed_adoptions: Vec<Value>,
     /// Assistant Memory writes of this turn (`MemoryWriteRecord` objects).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub memory_writes: Vec<Value>,

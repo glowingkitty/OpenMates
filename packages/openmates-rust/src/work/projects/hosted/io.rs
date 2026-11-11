@@ -1,6 +1,7 @@
-//! IO adapter of the hosted Project file executor: the four effects
+//! IO adapter of the hosted Project file executor: the effects
 //! `executeHostedProjectFileJob` needs (list links, read a ciphertext head,
-//! look up an exact revision receipt, commit a revision), implemented over the
+//! look up an exact revision receipt, commit a revision) plus the P11 link
+//! moves (rename, delete), implemented over the
 //! authenticated session. Mirrors the npm CLI `registerCliProjectFileExecutor`
 //! adapter (`readEncryptedProjectFile`, `getProjectFileRevisionReceipt`,
 //! `commitHostedProjectFileRevision`). Cookie sessions only.
@@ -24,9 +25,40 @@ pub(super) trait HostedIo {
     ) -> HostedResult<Option<Value>>;
     /// Publish one revision transaction and return the server result.
     async fn commit(&mut self, payload: Value) -> HostedResult<Value>;
+    /// `POST /v1/projects/{id}/items/{item}/rename`; the embed is kept.
+    async fn rename_link(&mut self, item_id: &str, body: Value) -> HostedResult<Value>;
+    /// `DELETE /v1/projects/{id}/items/{item}`; the embed and revisions stay.
+    async fn delete_link(&mut self, item_id: &str, body: Value) -> HostedResult<Value>;
 }
 
 impl Projects<'_> {
+    /// One Project item-link request (adopt, rename, delete). A refusal whose
+    /// body names a stable link code (`path_conflict`, `embed_already_linked`,
+    /// …) becomes [`HostedFileError::Rejected`] with that code; other failures
+    /// keep the core error.
+    ///
+    /// # Errors
+    /// As described; cookie sessions only.
+    pub(super) async fn item_link_request(
+        &mut self,
+        method: Method,
+        route: &str,
+        body: Value,
+    ) -> HostedResult<Value> {
+        let client = self.hosted_client()?;
+        client.clear_project_item_error();
+        match client
+            .request_task_headers(method, route, Some(body), None, None, None)
+            .await
+        {
+            Ok(value) => Ok(value),
+            Err(error) => match client.take_project_item_error() {
+                Some(code) => Err(HostedFileError::Rejected(code.to_owned())),
+                None => Err(HostedFileError::Core(error)),
+            },
+        }
+    }
+
     /// The session client; hosted files are first-party session data only.
     pub(super) fn hosted_client(&mut self) -> Result<&mut Client> {
         match &mut self.backend {
@@ -101,13 +133,25 @@ pub(super) fn linked_files(items: &Value, key: &[u8; 32]) -> HostedResult<Vec<Ho
                     Value::Null
                 }
             });
-        if !path.is_string() {
+        // An adopted application (its folder) or test result is a Project link
+        // but never a file: listing it would shadow the folder's files and let
+        // a file write address the application embed.
+        let non_file_link = item["link_kind"]
+            .as_str()
+            .is_some_and(|kind| kind != "file")
+            || matches!(
+                metadata["source"].as_str(),
+                Some(super::adopt_plan::APPLICATION_SOURCE | super::adopt_plan::TEST_RESULT_SOURCE)
+            );
+        if !path.is_string() || non_file_link {
             continue;
         }
         match normalize_path(&path) {
             Ok(path) => files.push(HostedFile {
                 embed_id: target.to_string(),
                 path,
+                item_id: item["project_item_id"].as_str().map(str::to_owned),
+                metadata: metadata.clone(),
             }),
             Err(HostedFileError::Refused(_)) => {}
             Err(error) => return Err(error),
@@ -255,6 +299,36 @@ impl HostedIo for ProjectIo<'_, '_> {
             .projects
             .hosted_client()?
             .commit_embed_revision(payload)
+            .await?;
+        self.active()?;
+        Ok(result)
+    }
+
+    async fn rename_link(&mut self, item_id: &str, body: Value) -> HostedResult<Value> {
+        self.active()?;
+        uuid(item_id)?;
+        let route = self.projects.path(
+            &format!("/v1/projects/{}/items/{item_id}/rename", self.project_id),
+            &[],
+        );
+        let result = self
+            .projects
+            .item_link_request(Method::POST, &route, body)
+            .await?;
+        self.active()?;
+        Ok(result)
+    }
+
+    async fn delete_link(&mut self, item_id: &str, body: Value) -> HostedResult<Value> {
+        self.active()?;
+        uuid(item_id)?;
+        let route = self.projects.path(
+            &format!("/v1/projects/{}/items/{item_id}", self.project_id),
+            &[],
+        );
+        let result = self
+            .projects
+            .item_link_request(Method::DELETE, &route, body)
             .await?;
         self.active()?;
         Ok(result)

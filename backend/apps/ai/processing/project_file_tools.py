@@ -14,6 +14,8 @@ PROJECT_FILE_TOOL_TO_OPERATION = {
     "project_read_text": "read_text",
     "project_create_file": "create_file",
     "project_update_file": "update_file",
+    "project_rename_file": "rename_file",
+    "project_delete_file": "delete_file",
 }
 
 PROJECT_SOURCE_TYPES = {
@@ -282,6 +284,40 @@ def build_project_file_tools() -> list[dict[str, Any]]:
                 },
             },
         },
+        {
+            "type": "function",
+            "function": {
+                "name": "project_rename_file",
+                "description": (
+                    "Rename or move one file to a new Project-relative path. The file keeps its identity and "
+                    "revision history. Fails if the new path already exists."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "path": path_property,
+                        "new_path": {**path_property, "description": "New Project-relative path for the file."},
+                        "source_id": source_property,
+                    },
+                    "required": ["path", "new_path"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "project_delete_file",
+                "description": (
+                    "Remove one file from the Project folder. Its revision history is kept, so a Project commit "
+                    "restore can bring it back."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {"path": path_property, "source_id": source_property},
+                    "required": ["path"],
+                },
+            },
+        },
     ]
 
 
@@ -293,7 +329,9 @@ def build_project_focus_prompt(
     prompt = (
         "An authorized Project focus is active for this chat. Use the Project file tools when the "
         "request requires inspecting or changing Project files. Read a file before updating it and "
-        "use the exact expected_base returned by the read. Never invent, weaken, or change Project "
+        "use the exact expected_base returned by the read. Change, rename or delete Project files only with "
+        "the Project file tools; a raw diff block in the reply that targets a Project file is not applied. "
+        "Never invent, weaken, or change Project "
         "authority, write policy, approval, or source readiness. A pending client operation means "
         "wait for its continuation; do not poll or claim that a file changed until its result arrives.\n\n"
         "After a successful create or update, summarize the applied_diff and the actual changes. On a base "

@@ -836,7 +836,7 @@ specifications:
     version: 2
     status: draft
     path: features/projects
-    fingerprint: bfe34d21e476df7585e36352a24cde6d020d00963f5b09b7a5a19f483720533b
+    fingerprint: cf573b7164f252fd7aea15339622a1964b7779b01483c5da5bc003f62e3b5c99
     required_applies_to:
     - rest_api
     - cli
@@ -11145,7 +11145,43 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: invariant
-    fingerprint: 5233782c922bae1fdabc1f91fa1ac846557111652c447f08e864872ad09cca59
+    fingerprint: 221bc77cf62461ee61517d1e0ec3817cae1aa2f58ecb605b77ea7f6c47d7a342
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  projects.files.adopt-embed:
+    specification: feature.projects@2
+    specification_id: feature.projects
+    type: behavior
+    fingerprint: c1c8e45a2e752d8e6f0a200ee0e241be65e38ae341b30b12976ffd47d9dfa175
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  projects.files.rename-delete:
+    specification: feature.projects@2
+    specification_id: feature.projects
+    type: behavior
+    fingerprint: 775004796d4c14a1a1ef2ec9c472daca260a3079590eb080cf848f8d34d817e6
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  projects.files.server-owned-fields:
+    specification: feature.projects@2
+    specification_id: feature.projects
+    type: invariant
+    fingerprint: 725b91848334185e21054d3b3d7300e571dd71db8262aa2babb80adc5e1262df
     required_applies_to:
     - rest_api
     - cli

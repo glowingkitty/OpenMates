@@ -529,6 +529,7 @@ async fn run_protocol(context:Arc<OwnedSendContext>,sender:mpsc::Sender<Envelope
         else{context.transport_resources_tracked.load(std::sync::atomic::Ordering::Acquire)};
     context.socket_returned.store(socket_returned,std::sync::atomic::Ordering::Release);
     if matches!(&result,Err(Error::Protocol))&&context.socket.get().is_some(){trace.report_protocol_error();}
+    if matches!(&result,Err(Error::Forbidden)){trace.report_refusal();}
     result
 }
 impl Client {

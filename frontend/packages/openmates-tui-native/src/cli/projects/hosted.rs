@@ -1,10 +1,11 @@
-//! `projects hosted list|read|create|update`: OpenMates-stored Project files
-//! through the core hosted writer (`work::projects::hosted`). Parse, call the
-//! core, render; the policy, encryption and revision commit live in the core.
-//! Writes come from `--chat` (its active focus must be this Project); an
-//! always-ask Project needs `--yes` as the user's grant for this exact write.
+//! `projects hosted list|read|create|update|rename|delete|adopt`:
+//! OpenMates-stored Project files through the core hosted writer
+//! (`work::projects::hosted`). Parse, call the core, render; the policy,
+//! encryption, revision commit and embed adoption live in the core. Writes
+//! come from `--chat` (its active focus must be this Project); an always-ask
+//! Project needs `--yes` as the user's grant for this exact write.
 use super::*;
-use openmates_sdk::work::{HostedFileError, HostedFileMutation};
+use openmates_sdk::work::{HostedFileError, HostedFileMutation, ProjectEmbedAdoptError};
 
 const MAX_INPUT_BYTES: u64 = 200 * 1024;
 
@@ -69,6 +70,41 @@ fn body(i: &Invocation, what: &str) -> Result<String, CliError> {
             "Provide the {what} with exactly one of --text or --file."
         ))),
     }
+}
+
+/// Adoption refusals and server codes keep the core's stable code.
+fn adopt_error(error: ProjectEmbedAdoptError) -> CliError {
+    match error {
+        ProjectEmbedAdoptError::Core(error) => CliError::Client(error),
+        ProjectEmbedAdoptError::Refused(code) => CliError::Contract {
+            code,
+            message: match code {
+                "path_required" => "Provide --path for a file or application embed.".into(),
+                "unsupported_embed_kind" => {
+                    "Only code file, application and test result embeds can be adopted.".into()
+                }
+                _ => format!("Embed adoption refused: {code}."),
+            },
+        },
+        server => {
+            let code = match server {
+                ProjectEmbedAdoptError::ProjectNotFound => "project_not_found",
+                ProjectEmbedAdoptError::Forbidden => "forbidden",
+                ProjectEmbedAdoptError::EmbedNotFound => "embed_not_found",
+                ProjectEmbedAdoptError::EmbedAlreadyLinked => "embed_already_linked",
+                ProjectEmbedAdoptError::PathConflict => "path_conflict",
+                _ => "invalid_request",
+            };
+            CliError::Contract {
+                code,
+                message: format!("The server refused the adoption: {code}."),
+            }
+        }
+    }
+}
+
+fn new_path(i: &Invocation) -> Result<&str, CliError> {
+    input::positional(i, 2, "new Project file path")
 }
 
 fn approval(
@@ -142,6 +178,49 @@ pub(super) async fn execute(
                 value["path"].as_str().unwrap_or_default(),
                 value["revision"]
             );
+            output(i, value, text)
+        }
+        "projects hosted rename" => {
+            check(i, &["chat", "yes"])?;
+            let mut approve = approval(i);
+            let value = service
+                .rename_hosted_file(selector(i)?, chat(i)?, path(i)?, new_path(i)?, &mut approve)
+                .await
+                .map_err(hosted_error)?;
+            let text = format!(
+                "Renamed {} to {}.",
+                value["previous_path"].as_str().unwrap_or_default(),
+                value["path"].as_str().unwrap_or_default()
+            );
+            output(i, value, text)
+        }
+        "projects hosted delete" => {
+            check(i, &["chat", "yes"])?;
+            let mut approve = approval(i);
+            let value = service
+                .delete_hosted_file(selector(i)?, chat(i)?, path(i)?, &mut approve)
+                .await
+                .map_err(hosted_error)?;
+            let text = format!(
+                "Removed {} from the Project (its embed is kept).",
+                value["path"].as_str().unwrap_or_default()
+            );
+            output(i, value, text)
+        }
+        "projects hosted adopt" => {
+            check(i, &["chat", "embed", "path"])?;
+            let embed = input::text(i, "embed")?.ok_or_else(|| CliError::Contract {
+                code: "embed_required",
+                message: "Provide --embed <embed-id> to adopt.".into(),
+            })?;
+            let value = service
+                .adopt_embed(selector(i)?, chat(i)?, embed, input::text(i, "path")?)
+                .await
+                .map_err(adopt_error)?;
+            let text = match value["path"].as_str() {
+                Some(path) => format!("Adopted embed {embed} as {path}."),
+                None => format!("Adopted embed {embed} into the Project."),
+            };
             output(i, value, text)
         }
         _ => Err(CliError::Unsupported {

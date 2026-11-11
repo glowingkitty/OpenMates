@@ -815,6 +815,7 @@ impl Client {
         // semantics; an unrelated public 404 is not an auth failure.
         let cache_namespace_unavailable = self.url(path).and_then(|url|self.request_route_path(&url))
             .is_ok_and(|path|cache_namespace_unavailable(status.as_u16(),&path));
+        if status.as_u16() == 403 { super::send::refusal_trace::note_http(403, path); }
         if status.as_u16() == 403 || cache_namespace_unavailable || status.is_redirection() {
             self.chat_list_freshness.invalidate();
         }
@@ -848,6 +849,9 @@ impl Client {
         if self.generation != generation {
             return Err(Error::Cancelled);
         }
+        // Closed-set link code only (P11); no raw body escapes the transport.
+        self.project_item_error =
+            super::project_item_error::classify(path, status.as_u16(), &bytes);
         if status.as_u16()==403&&super::browser::expected_principal_mismatch(&bytes){
             // This closed server denial revokes the entire current owner, not
             // merely one object ACL. Drop/zeroize credentials, cancel pending

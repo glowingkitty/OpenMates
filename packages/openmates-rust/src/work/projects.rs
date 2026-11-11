@@ -78,12 +78,16 @@ pub use commits::*;
 mod focus;
 #[cfg(all(feature = "workflow-yaml", unix))]
 mod hosted;
+/// The adoption-relevant record of one turn embed (client turn hook, P11).
+#[cfg(all(feature = "workflow-yaml", unix))]
+pub(crate) use hosted::TurnEmbed;
 /// Hosted Project file writer (native only: it shares the `source_host` path matcher).
 #[cfg(all(feature = "workflow-yaml", unix))]
 pub use hosted::{
-    HostedApproval, HostedFile, HostedProposal, HostedFileError, HostedFileJob, HostedFileMutation,
-    HostedFileOperation, HostedIdentityKind, HostedResult, ProjectCommitRestoreResult,
-    apply_exact_patch, content_hash, hosted_file_identity, replacement_patch,
+    AdoptEmbedKind, HostedApproval, HostedFile, HostedFileError, HostedFileJob, HostedFileMutation,
+    HostedFileOperation, HostedIdentityKind, HostedProposal, HostedResult,
+    ProjectCommitRestoreResult, ProjectEmbedAdoptError, apply_exact_patch, content_hash,
+    hosted_file_identity, replacement_patch,
 };
 mod remote_command_stop;
 pub use remote_command_stop::REMOTE_COMMAND_FOCUS_INACTIVE;

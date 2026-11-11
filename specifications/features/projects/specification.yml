@@ -676,10 +676,39 @@ assertions:
   type: invariant
   must: Each file of an application created in a Project chat is stored as exactly one encrypted embed that is both a
     child of the chat's application embed and a Project file linked at its path under a dedicated subfolder such as web-app/.
-    A diff applied by the assistant in the chat and an edit made by a user in the Project view change that same embed and
-    extend the same revision history; no second copy exists to synchronize. The subfolder is an ordinary folder whose
-    files are visible, and the application card is shown at the top of that folder as the entry for starting and previewing
-    the application.
+    An assistant edit through the Project file tools and an edit made by a user in the Project view change that same embed
+    and extend the same revision history; no second copy exists to synchronize. A raw diff block in an assistant reply that
+    targets a Project-linked file never writes and is shown as not applied with code project_file_tool_required. The
+    subfolder is an ordinary folder whose files are visible, and the application card is shown at the top of that folder
+    as the entry for starting and previewing the application.
+  depends_on:
+  - models.ProjectItemLink
+  - examples.project_application_files
+- id: projects.files.adopt-embed
+  type: behavior
+  must: An existing chat embed the user may write is adopted into a Project they may write as one atomic, idempotent
+    operation of kind file, application or test result. The embed keeps its id and stays readable in its chat, gains a
+    Project-key wrapper so every Project member can read it, and gets exactly one Project link; a second link for the same
+    embed is refused with embed_already_linked and a link at an existing path with path_conflict. From then on legacy and
+    server writers of that embed are refused with project_context_required.
+  depends_on:
+  - models.ProjectItemLink
+  - examples.project_application_files
+- id: projects.files.rename-delete
+  type: behavior
+  must: The user and the assistant can rename a Project file, which changes only the path of its link and keeps the embed
+    id and its revision history, and delete a Project file, which removes only the link from the folder and keeps the
+    embed and its revisions so a commit restore can relink it. A rename onto an existing path is refused with path_conflict.
+    Each rename and delete is idempotent by operation id and recorded for the Project timeline without the server
+    learning the path.
+  depends_on:
+  - models.ProjectItemLink
+  - examples.project_application_files
+- id: projects.files.server-owned-fields
+  type: invariant
+  must: For Project links of kind application and test result the server may still publish its own narrow non-content
+    fields, the application thumbnail and the test run status, as the next version without a client revision. No other
+    field and no file content ever passes the Project write fence this way, and links of kind file admit no server write.
   depends_on:
   - models.ProjectItemLink
   - examples.project_application_files

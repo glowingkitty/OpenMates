@@ -5,14 +5,14 @@ use super::restore::replay_rows;
 use super::*;
 use std::collections::BTreeMap;
 
-const PROJECT: &str = "11111111-1111-4111-8111-111111111111";
-const CHAT: &str = "22222222-2222-4222-8222-222222222222";
+pub(super) const PROJECT: &str = "11111111-1111-4111-8111-111111111111";
+pub(super) const CHAT: &str = "22222222-2222-4222-8222-222222222222";
 
-fn project_key() -> [u8; 32] {
+pub(super) fn project_key() -> [u8; 32] {
     std::array::from_fn(|i| i as u8 + 1)
 }
 
-fn chat_key() -> [u8; 32] {
+pub(super) fn chat_key() -> [u8; 32] {
     [42; 32]
 }
 
@@ -60,6 +60,7 @@ fn proposal_digest_matches_typescript_vectors() {
         expected_base: None,
         content: Some("print(1)\n".into()),
         patch: None,
+        new_path: None,
     };
     assert_eq!(
         create.digest(&key, PROJECT, CHAT).unwrap(),
@@ -74,6 +75,7 @@ fn proposal_digest_matches_typescript_vectors() {
         patch: Some(
             "--- a/src/main.py\n+++ b/src/main.py\n@@ -1 +1 @@\n-print(1)\n+print(2)\n".into(),
         ),
+        new_path: None,
     };
     assert_eq!(
         update.digest(&key, PROJECT, CHAT).unwrap(),
@@ -139,12 +141,14 @@ fn server_rejection_codes_are_filtered_like_the_web_executor() {
 
 /// In-memory stand-in for the server: link rows, ciphertext heads, receipts.
 #[derive(Default)]
-struct FakeServer {
-    files: Vec<HostedFile>,
-    heads: BTreeMap<String, Value>,
-    receipts: BTreeMap<String, Value>,
-    commits: Vec<Value>,
-    conflict: bool,
+pub(super) struct FakeServer {
+    pub(super) files: Vec<HostedFile>,
+    pub(super) heads: BTreeMap<String, Value>,
+    pub(super) receipts: BTreeMap<String, Value>,
+    pub(super) commits: Vec<Value>,
+    pub(super) conflict: bool,
+    /// `(item id, body)` of every rename/delete request.
+    pub(super) moves: Vec<(String, Value)>,
 }
 
 impl HostedIo for FakeServer {
@@ -188,6 +192,8 @@ impl HostedIo for FakeServer {
             self.files.push(HostedFile {
                 embed_id: embed_id.clone(),
                 path,
+                item_id: create["project_item_id"].as_str().map(str::to_owned),
+                metadata: serde_json::from_str(&metadata).unwrap(),
             });
             create["key_wrappers"][0].clone()
         } else {
@@ -200,9 +206,35 @@ impl HostedIo for FakeServer {
         );
         Ok(json!({"status": "committed", "current_revision": revision, "embed_id": embed_id}))
     }
+    async fn rename_link(&mut self, item_id: &str, body: Value) -> HostedResult<Value> {
+        self.moves.push((item_id.to_owned(), body.clone()));
+        let metadata: Value = serde_json::from_str(
+            &crypto::server_fields::decrypt_text(
+                body["encrypted_metadata"].as_str().unwrap(),
+                &project_key(),
+                &[],
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        let file = self
+            .files
+            .iter_mut()
+            .find(|f| f.item_id.as_deref() == Some(item_id))
+            .ok_or(HostedFileError::Rejected("project_item_not_found".into()))?;
+        file.path = metadata["path"].as_str().unwrap().to_owned();
+        file.item_id = body["new_project_item_id"].as_str().map(str::to_owned);
+        file.metadata = metadata;
+        Ok(json!({"status": "renamed"}))
+    }
+    async fn delete_link(&mut self, item_id: &str, body: Value) -> HostedResult<Value> {
+        self.moves.push((item_id.to_owned(), body));
+        self.files.retain(|f| f.item_id.as_deref() != Some(item_id));
+        Ok(json!({"status": "deleted"}))
+    }
 }
 
-fn job_for(mutation: &HostedFileMutation) -> HostedFileJob {
+pub(super) fn job_for(mutation: &HostedFileMutation) -> HostedFileJob {
     HostedFileJob {
         operation_id: mutation.operation_id.clone(),
         chat_id: CHAT.into(),
@@ -211,7 +243,7 @@ fn job_for(mutation: &HostedFileMutation) -> HostedFileJob {
     }
 }
 
-fn create(path: &str, content: &str, op: &str) -> HostedFileMutation {
+pub(super) fn create(path: &str, content: &str, op: &str) -> HostedFileMutation {
     HostedFileMutation {
         operation: HostedFileOperation::CreateFile,
         operation_id: op.into(),
@@ -219,6 +251,7 @@ fn create(path: &str, content: &str, op: &str) -> HostedFileMutation {
         expected_base: None,
         content: Some(content.into()),
         patch: None,
+        new_path: None,
     }
 }
 
@@ -230,10 +263,11 @@ fn update(path: &str, old: &str, next: &str, op: &str) -> HostedFileMutation {
         expected_base: Some(content_hash(old)),
         content: None,
         patch: Some(replacement_patch(path, old, next)),
+        new_path: None,
     }
 }
 
-async fn run(
+pub(super) async fn run(
     server: &mut FakeServer,
     mutation: Option<&HostedFileMutation>,
     read: Option<&str>,

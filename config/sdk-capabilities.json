@@ -5060,7 +5060,28 @@
             "work.projects.sources.Projects.create_source",
             "work.projects.sources.Projects.delete_source",
             "work.projects.sources.Projects.update_source_capabilities",
-            "work.projects.task_sync.Projects.task_source"
+            "work.projects.task_sync.Projects.task_source",
+            "work.projects.hosted.HostedFileMutation.new_path",
+            "work.projects.hosted.adopt.AdoptEmbedKind",
+            "work.projects.hosted.adopt.AdoptEmbedKind.Application",
+            "work.projects.hosted.adopt.AdoptEmbedKind.File",
+            "work.projects.hosted.adopt.AdoptEmbedKind.TestResult",
+            "work.projects.hosted.adopt.AdoptEmbedKind.wire",
+            "work.projects.hosted.adopt.ProjectEmbedAdoptError",
+            "work.projects.hosted.adopt.ProjectEmbedAdoptError.Core",
+            "work.projects.hosted.adopt.ProjectEmbedAdoptError.EmbedAlreadyLinked",
+            "work.projects.hosted.adopt.ProjectEmbedAdoptError.EmbedNotFound",
+            "work.projects.hosted.adopt.ProjectEmbedAdoptError.Forbidden",
+            "work.projects.hosted.adopt.ProjectEmbedAdoptError.InvalidRequest",
+            "work.projects.hosted.adopt.ProjectEmbedAdoptError.PathConflict",
+            "work.projects.hosted.adopt.ProjectEmbedAdoptError.ProjectNotFound",
+            "work.projects.hosted.adopt.ProjectEmbedAdoptError.Refused",
+            "work.projects.hosted.adopt.ProjectEmbedAdoptError.code",
+            "work.projects.hosted.adopt.Projects.adopt_embed",
+            "work.projects.hosted.api.Projects.delete_hosted_file",
+            "work.projects.hosted.api.Projects.rename_hosted_file",
+            "work.projects.hosted.job.HostedFileOperation.DeleteFile",
+            "work.projects.hosted.job.HostedFileOperation.RenameFile"
           ],
           "conformance": false,
           "evidence": [
@@ -5070,7 +5091,8 @@
           "gaps": [
             "Live isolated-CI proof (frontend/apps/web_app/tests/sdk-live-work-crud.spec.ts, GitHub run 42467161114) covers only personal Project create/show/list/update/delete with name and description, decrypted and interoperable across Rust, npm and Python in all three writer, updater and deleter rotations; a deleted Project reads as not_found in every language.",
             "Create-input parity is incomplete: the Rust SDK refuses create without an explicit write_mode, while npm and Python always create with always_ask and ignore an explicit mode.",
-            "Typed Project CRUD/settings/ask and encrypted item listing/confirmed unlinking exist. Item scripting/projection/scope/permission/cancellation/receipt fixtures are focused local coverage; positive unlink with preserved target, live backend behavior and cross-language item parity remain unverified. API-key unlink refuses before network because the backend route is Cookie-only; interactive TTY confirmation remains a CLI gap. Complete public family parity, shared selectors/error/recovery coverage and filesystem/focus execution remain unverified."
+            "Typed Project CRUD/settings/ask and encrypted item listing/confirmed unlinking exist. Item scripting/projection/scope/permission/cancellation/receipt fixtures are focused local coverage; positive unlink with preserved target, live backend behavior and cross-language item parity remain unverified. API-key unlink refuses before network because the backend route is Cookie-only; interactive TTY confirmation remains a CLI gap. Complete public family parity, shared selectors/error/recovery coverage and filesystem/focus execution remain unverified.",
+            "Hosted Project file rename/delete and embed adoption into a Project (Projects.rename_hosted_file, delete_hosted_file, adopt_embed; automatic turn-end adoption reported as SendOutcome.project_embed_adoptions) are Rust-only with in-memory unit coverage; live backend routes and npm/Python exposure remain unverified."
           ],
           "status": "partial"
         }
@@ -8400,7 +8422,8 @@
             "ws_link.router.Router.on",
             "ws_link.router.Router.route",
             "ws_link.router.Router.route_id",
-            "ws_link.router.Router.type_name"
+            "ws_link.router.Router.type_name",
+            "client.send_options.SendOutcome.project_embed_adoptions"
           ],
           "conformance": false,
           "evidence": [

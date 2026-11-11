@@ -27,8 +27,10 @@ PROJECT_FILE_OPERATION_PAYLOAD_TTL_SECONDS = PROJECT_FILE_OPERATION_PAUSE_SECOND
 PROJECT_FILE_OPERATION_RESULT_MAX_BYTES = 512 * 1024
 PROJECT_FILE_OPERATION_ARGUMENT_MAX_BYTES = 512 * 1024
 PROJECT_FILE_CONFLICT_RECOVERY_LIMIT = 3
-PROJECT_FILE_OPERATIONS = {"list", "search", "read_text", "create_file", "update_file"}
-PROJECT_FILE_MUTATIONS = {"create_file", "update_file"}
+PROJECT_FILE_OPERATIONS = {
+    "list", "search", "read_text", "create_file", "update_file", "rename_file", "delete_file",
+}
+PROJECT_FILE_MUTATIONS = {"create_file", "update_file", "rename_file", "delete_file"}
 _RELEASE_LOCK_SCRIPT = """
 if redis.call('GET', KEYS[1]) == ARGV[1] then
   return redis.call('DEL', KEYS[1])
@@ -601,6 +603,16 @@ class ProjectFileOperationService:
                 or any(ch not in "0123456789abcdef" for ch in expected)
             ):
                 raise ProjectFileOperationError("invalid_update_file_arguments")
+        if operation == "rename_file":
+            new_path = arguments.get("new_path")
+            if set(arguments) != {"path", "new_path"} or not isinstance(path, str) or not isinstance(new_path, str):
+                raise ProjectFileOperationError("invalid_rename_file_arguments")
+            normalized_new = new_path.replace("\\", "/")
+            if (not new_path or len(new_path) > 2048 or normalized_new.startswith("/") or "\x00" in new_path
+                    or ".." in normalized_new.split("/") or normalized_new == path.replace("\\", "/")):
+                raise ProjectFileOperationError("invalid_rename_file_arguments")
+        if operation == "delete_file" and (set(arguments) != {"path"} or not isinstance(path, str)):
+            raise ProjectFileOperationError("invalid_delete_file_arguments")
 
     def public_summary(self, job: dict[str, Any]) -> dict[str, Any]:
         summary = {

@@ -1,6 +1,7 @@
 //! One hosted Project file operation (`executeHostedProjectFileJob`): list,
-//! search, read text with its base hash, create (refused when the path exists)
-//! and exact-patch update against `expected_base`, each write committed as one
+//! search, read text with its base hash, create (refused when the path exists),
+//! exact-patch update against `expected_base`, and rename/delete of the link
+//! (`moves`, contract `project-embed-adoption.md`), each write committed as one
 //! encrypted revision whose id derivation, key wrappers, history rows and item
 //! metadata match the web executor byte for byte (modulo fresh AES-GCM IVs).
 use super::io::HostedIo;
@@ -19,11 +20,20 @@ const SNIPPET_UNITS: usize = 500;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum HostedFileOperation {
+    /// `project_list_files`.
     List,
+    /// `project_search_files` / `project_search_text`.
     Search,
+    /// `project_read_file`.
     ReadText,
+    /// `project_create_file`.
     CreateFile,
+    /// `project_update_file`.
     UpdateFile,
+    /// `project_rename_file`: the link moves to `new_path`, the embed stays.
+    RenameFile,
+    /// `project_delete_file`: the link leaves the folder, the embed stays.
+    DeleteFile,
 }
 
 impl HostedFileOperation {
@@ -35,11 +45,17 @@ impl HostedFileOperation {
             Self::ReadText => "read_text",
             Self::CreateFile => "create_file",
             Self::UpdateFile => "update_file",
+            Self::RenameFile => "rename_file",
+            Self::DeleteFile => "delete_file",
         }
     }
-    /// Whether the operation writes a revision.
+    /// Whether the operation changes the Project (and so needs the chat focus,
+    /// the write policy and, for always-ask Projects, an approval).
     pub fn is_mutation(self) -> bool {
-        matches!(self, Self::CreateFile | Self::UpdateFile)
+        matches!(
+            self,
+            Self::CreateFile | Self::UpdateFile | Self::RenameFile | Self::DeleteFile
+        )
     }
 }
 
@@ -93,7 +109,7 @@ fn is_policy_control(path: &str) -> bool {
     path == PERMISSIONS_PATH || path == ".gitignore" || path.ends_with("/.gitignore")
 }
 
-fn assert_direct_path(
+pub(super) fn assert_direct_path(
     policy: &PathPolicy,
     ctx: &HostedContext<'_>,
     job: &HostedFileJob,
@@ -317,21 +333,32 @@ async fn direct<I: HostedIo>(
     if mutation.operation != job.operation || mutation.operation_id != job.operation_id {
         return refused("invalid_file_mutation");
     }
+    if matches!(
+        job.operation,
+        HostedFileOperation::RenameFile | HostedFileOperation::DeleteFile
+    ) {
+        let target = super::moves::Move {
+            path: &path,
+            found: found.first().copied(),
+        };
+        return super::moves::execute(io, ctx, job, mutation, target, files, policy).await;
+    }
     write(io, ctx, job, mutation, &path, found.first().copied()).await
 }
 
 /// Ordered `{...current, [field]: content, version_number, status, line_count}`.
+/// A new file's `language` comes from its path (`language_for_path`).
 fn content_object(
     current: Option<&HostedHead>,
     path: &str,
     content: &str,
     revision: u64,
-) -> Vec<(String, Value)> {
+) -> HostedResult<Vec<(String, Value)>> {
     let mut object: Vec<(String, Value)> = match current {
         Some(head) => head.content.clone(),
         None => vec![
             ("type".into(), json!("code")),
-            ("language".into(), json!("text")),
+            ("language".into(), json!(language_for_path(path)?)),
             ("filename".into(), json!(path)),
         ],
     };
@@ -356,10 +383,10 @@ fn content_object(
             None => object.push((key.to_owned(), value)),
         }
     }
-    object
+    Ok(object)
 }
 
-fn seal(text: &str, key: &[u8; 32]) -> HostedResult<String> {
+pub(super) fn seal(text: &str, key: &[u8; 32]) -> HostedResult<String> {
     Ok(crypto::server_fields::encrypt_text(text, key, &[])?)
 }
 
@@ -420,7 +447,7 @@ async fn write<I: HostedIo>(
         None => crypto::random_key(),
     };
     let revision = current.as_ref().map_or(0, |h| h.revision) + 1;
-    let object = content_object(current.as_ref(), path, &content, revision);
+    let object = content_object(current.as_ref(), path, &content, revision)?;
     let encoded = Zeroizing::new(encode_fields(
         &object
             .iter()

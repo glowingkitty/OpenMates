@@ -220,6 +220,12 @@ async def refresh_test_result_currency(
     encrypted_content, _ = await embed_service.encryption_service.encrypt_with_user_key(
         updated_toon, user_vault_key_id
     )
+    # Run status is a server-owned field of a Project test-result link (contract P11).
+    from backend.core.api.app.services.project_embed_server_fields import grant_server_owned_refresh
+    await grant_server_owned_refresh(
+        embed_service.cache_service, embed_id=embed_id, kind="test_result",
+        version_number=version_number, before=content, after=updated,
+    )
     published = await embed_service.send_embed_data_to_client(
         embed_id=embed_id,
         embed_type=TEST_RESULT_EMBED_TYPE,

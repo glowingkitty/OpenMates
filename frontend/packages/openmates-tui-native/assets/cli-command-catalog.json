@@ -49556,6 +49556,184 @@
     {
       "path": [
         "projects",
+        "hosted",
+        "rename"
+      ],
+      "summary": "projects hosted rename",
+      "usages": [
+        "projects hosted rename <project> <path> <new-path> --chat <chat-id> [--yes] [--personal|--team <team>] [--json]"
+      ],
+      "positionals": [
+        {
+          "name": "project",
+          "required": true,
+          "variadic": false,
+          "at": 3,
+          "synopsis": "<project>"
+        },
+        {
+          "name": "path",
+          "required": true,
+          "variadic": false,
+          "at": 4,
+          "synopsis": "<path>"
+        },
+        {
+          "name": "new-path",
+          "required": true,
+          "variadic": false,
+          "at": 5,
+          "synopsis": "<new-path>"
+        }
+      ],
+      "flags": [
+        "api-key",
+        "api-url",
+        "chat",
+        "help",
+        "json",
+        "personal",
+        "profile",
+        "team",
+        "yes"
+      ],
+      "source_locations": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/cli/projects/hosted.rs",
+          "line": 1,
+          "symbol": "projects::hosted"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "sdk.projects.rename_hosted_file",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/projects/hosted.rs"
+      },
+      "gaps": [
+        "Rust-first hosted Project file writer (the npm CLI only executes these operations as assistant jobs). Core operations in packages/openmates-rust/src/work/projects/hosted.rs; live backend integration and platform verification pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "projects",
+        "hosted",
+        "delete"
+      ],
+      "summary": "projects hosted delete",
+      "usages": [
+        "projects hosted delete <project> <path> --chat <chat-id> [--yes] [--personal|--team <team>] [--json]"
+      ],
+      "positionals": [
+        {
+          "name": "project",
+          "required": true,
+          "variadic": false,
+          "at": 3,
+          "synopsis": "<project>"
+        },
+        {
+          "name": "path",
+          "required": true,
+          "variadic": false,
+          "at": 4,
+          "synopsis": "<path>"
+        }
+      ],
+      "flags": [
+        "api-key",
+        "api-url",
+        "chat",
+        "help",
+        "json",
+        "personal",
+        "profile",
+        "team",
+        "yes"
+      ],
+      "source_locations": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/cli/projects/hosted.rs",
+          "line": 1,
+          "symbol": "projects::hosted"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "sdk.projects.delete_hosted_file",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/projects/hosted.rs"
+      },
+      "gaps": [
+        "Rust-first hosted Project file writer (the npm CLI only executes these operations as assistant jobs). Core operations in packages/openmates-rust/src/work/projects/hosted.rs; live backend integration and platform verification pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "projects",
+        "hosted",
+        "adopt"
+      ],
+      "summary": "projects hosted adopt",
+      "usages": [
+        "projects hosted adopt <project> --chat <chat-id> --embed <embed-id> [--path <project-path>] [--personal|--team <team>] [--json]"
+      ],
+      "positionals": [
+        {
+          "name": "project",
+          "required": true,
+          "variadic": false,
+          "at": 3,
+          "synopsis": "<project>"
+        }
+      ],
+      "flags": [
+        "api-key",
+        "api-url",
+        "chat",
+        "embed",
+        "help",
+        "json",
+        "path",
+        "personal",
+        "profile",
+        "team"
+      ],
+      "source_locations": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/cli/projects/hosted.rs",
+          "line": 1,
+          "symbol": "projects::hosted"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "sdk.projects.adopt_embed",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/projects/hosted.rs"
+      },
+      "gaps": [
+        "Explicit repair of the automatic turn-end embed adoption (contract docs/plans/cloud-project-development/contracts/project-embed-adoption.md). Core operation in packages/openmates-rust/src/work/projects/hosted/adopt.rs; live backend integration and platform verification pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "projects",
         "created"
       ],
       "summary": "projects created",
@@ -63793,9 +63971,9 @@
     "Remote command protection is Linux-specific; unsupported hosts must fail closed."
   ],
   "coverage": {
-    "command_patterns": 741,
+    "command_patterns": 744,
     "flags": 610,
-    "native_handlers_partial": 736,
+    "native_handlers_partial": 739,
     "unsupported": 5,
     "feature_complete": false
   },

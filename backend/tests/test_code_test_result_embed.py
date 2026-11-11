@@ -5,6 +5,8 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 from toon_format import decode, encode
 
@@ -90,9 +92,28 @@ class _Encryption:
         return f"enc:{key_id}:{len(text)}", None
 
 
+class _Redis:
+    def __init__(self):
+        self.values: dict[str, str] = {}
+
+    async def set(self, key, value, ex=None):
+        self.values[key] = value
+        return True
+
+
+class _Cache:
+    def __init__(self):
+        self.redis = _Redis()
+
+    @property
+    async def client(self):
+        return self.redis
+
+
 class _FakeEmbedService:
     def __init__(self):
         self.encryption_service = _Encryption()
+        self.cache_service = _Cache()
         self.sent: list[dict] = []
         self.cached: dict[str, str] = {}
         self.records: dict[str, dict] = {}
@@ -140,6 +161,8 @@ async def test_create_links_tested_embeds_and_marks_stale_on_new_revision() -> N
     assert await refresh_test_result_currency(service, current_revisions=changed, **kwargs) is True
     refreshed = decode(service.cached[created["embed_id"]])
     assert refreshed["is_current"] is False and refreshed["version_number"] == 2
+    grant = service.cache_service.redis.values[f"embed:{created['embed_id']}:server_owned_refresh"]
+    assert json.loads(grant) == {"link_kind": "test_result", "version_number": 2}
 
 
 # contract-test: supporting surface=rest_api assertions=code-run.tests.recorded-evidence

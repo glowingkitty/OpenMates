@@ -2453,9 +2453,7 @@ class EmbedService(SlidesEmbedMixin):
                 logger.warning(f"{log_prefix} Application embed {embed_id} not found in cache")
                 return False
 
-            cached_embed = json.loads(
-                cached_json.decode("utf-8") if isinstance(cached_json, bytes) else cached_json
-            )
+            cached_embed = json.loads(cached_json.decode("utf-8") if isinstance(cached_json, bytes) else cached_json)
             existing_toon = await self._get_cached_embed_toon(embed_id, user_vault_key_id, log_prefix)
             existing_content = decode(existing_toon) if existing_toon else None
             if not isinstance(existing_content, dict) or existing_content.get("type") != "application":
@@ -2505,12 +2503,14 @@ class EmbedService(SlidesEmbedMixin):
                 return False
 
             current_json = await client.get(f"embed:{embed_id}")
-            current_embed = json.loads(
-                current_json.decode("utf-8") if isinstance(current_json, bytes) else current_json
-            ) if current_json else {}
+            current_embed = json.loads(current_json.decode("utf-8") if isinstance(current_json, bytes) else current_json) if current_json else {}
             if int(current_embed.get("version_number") or 1) != previous_version_number:
                 logger.warning(f"{log_prefix} Application embed {embed_id} changed during thumbnail update")
                 return False
+            # Thumbnail is a server-owned field of a Project application link (contract P11).
+            from backend.core.api.app.services.project_embed_server_fields import grant_server_owned_refresh
+            await grant_server_owned_refresh(self.cache_service, embed_id=embed_id, kind="application",
+                                             version_number=version_number, before=existing_content, after=updated_content)
 
             updated_embed_data = {
                 **cached_embed,

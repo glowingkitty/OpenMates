@@ -606,6 +606,7 @@
         "cli-authored-results.spec.ts",
         "cli-rust-chat-sync-feed.spec.ts",
         "cli-rust-core-essential.spec.ts",
+        "cli-native-project-application-files.spec.ts",
         "ai-response-language.spec.ts",
         "apps-workspace.spec.ts",
         "audio-recording-deferred-send.spec.ts",
@@ -994,6 +995,7 @@
         "web-read-public-page.spec.ts",
         "cli-claude-session-tasks.spec.ts",
         "cli-native-project-hosted-files.spec.ts",
+        "cli-native-project-application-files.spec.ts",
         "cli-native-project-create-request.spec.ts",
         "cli-native-remote-access-host.spec.ts"
       ],

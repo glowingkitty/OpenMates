@@ -49,13 +49,18 @@ pub type HostedApproval<'f> = &'f mut (dyn FnMut(&HostedFileMutation) -> HostedR
 /// commitment digest (the `proposal_commitment` of the job result) and whether
 /// the Project's write policy asks the user first.
 pub struct HostedProposal {
+    /// The exact proposal the user approves.
     pub mutation: HostedFileMutation,
+    /// Its keyed commitment (`proposal_commitment`).
     pub digest: String,
+    /// Whether the always-ask policy needs the user's approval first.
     pub requires_approval: bool,
 }
 
-/// The mutation of a create/update job (`None` for list/search/read).
-fn job_mutation(job: &HostedFileJob) -> HostedResult<Option<HostedFileMutation>> {
+/// The mutation of a create/update/rename/delete job (`None` for reads). The
+/// server issues the tool arguments verbatim (`{path, new_path}` for a
+/// rename, `{path}` for a delete; contract "Job payloads").
+pub(super) fn job_mutation(job: &HostedFileJob) -> HostedResult<Option<HostedFileMutation>> {
     if !job.operation.is_mutation() {
         return Ok(None);
     }
@@ -101,7 +106,10 @@ impl Projects<'_> {
     }
 
     /// Cookie-only resolution of one Project plus its decoded settings.
-    async fn hosted_project(&mut self, selector: &str) -> HostedResult<(String, Key, Value)> {
+    pub(super) async fn hosted_project(
+        &mut self,
+        selector: &str,
+    ) -> HostedResult<(String, Key, Value)> {
         self.hosted_client()?;
         self.scope()?;
         let project = self.resolve(selector).await?;
@@ -278,6 +286,7 @@ impl Projects<'_> {
             expected_base: None,
             content: Some(content.to_owned()),
             patch: None,
+            new_path: None,
         };
         self.hosted_mutate(selector, chat_id, mutation, approve)
             .await
@@ -305,6 +314,61 @@ impl Projects<'_> {
             expected_base: Some(expected_base.to_owned()),
             content: None,
             patch: Some(patch.to_owned()),
+            new_path: None,
+        };
+        self.hosted_mutate(selector, chat_id, mutation, approve)
+            .await
+    }
+
+    /// Rename a hosted file from `chat_id` (whose active focus must be in this
+    /// Project): the link moves to `new_path` under a re-derived item id, the
+    /// embed and its revision history stay. Write policy and approval apply
+    /// exactly as for create/update.
+    ///
+    /// # Errors
+    /// As [`Projects::hosted_file_create`], plus `file_not_found` and
+    /// `path_conflict` (local listing or server).
+    pub async fn rename_hosted_file(
+        &mut self,
+        selector: &str,
+        chat_id: &str,
+        path: &str,
+        new_path: &str,
+        approve: HostedApproval<'_>,
+    ) -> HostedResult<Value> {
+        let mutation = HostedFileMutation {
+            operation: HostedFileOperation::RenameFile,
+            operation_id: uuid::Uuid::new_v4().to_string(),
+            path: path.to_owned(),
+            expected_base: None,
+            content: None,
+            patch: None,
+            new_path: Some(new_path.to_owned()),
+        };
+        self.hosted_mutate(selector, chat_id, mutation, approve)
+            .await
+    }
+
+    /// Remove a hosted file's link from the Project folder. The embed and its
+    /// revisions stay, so a commit restore can relink the file.
+    ///
+    /// # Errors
+    /// As [`Projects::hosted_file_create`], plus `file_not_found`.
+    pub async fn delete_hosted_file(
+        &mut self,
+        selector: &str,
+        chat_id: &str,
+        path: &str,
+        approve: HostedApproval<'_>,
+    ) -> HostedResult<Value> {
+        let mutation = HostedFileMutation {
+            operation: HostedFileOperation::DeleteFile,
+            operation_id: uuid::Uuid::new_v4().to_string(),
+            path: path.to_owned(),
+            expected_base: None,
+            content: None,
+            patch: None,
+            new_path: None,
         };
         self.hosted_mutate(selector, chat_id, mutation, approve)
             .await

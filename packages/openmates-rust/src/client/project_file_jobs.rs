@@ -1,7 +1,9 @@
 //! Assistant Project file jobs of a saved turn (`project_file_jobs` capability).
 //!
 //! The server leases transient jobs (`list`, `search`, `read_text`,
-//! `create_file`, `update_file`) to the client that advertised the capability.
+//! `create_file`, `update_file`, `rename_file`, `delete_file`) to the client
+//! that advertised the capability. Rename/delete arguments are `{path,
+//! new_path}` and `{path}` in the same envelope as create/update.
 //! This module owns the frame protocol exactly as the web and npm executors do:
 //! `project_file_operation_available` -> `project_file_operation_claim`,
 //! `project_file_operation_request` -> validate the lease -> execute with

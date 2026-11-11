@@ -594,6 +594,7 @@ async def test_project_child_move_failure_rolls_back_and_never_mutates_parent() 
             [],
             [],
             [],
+            [],
         ]
     )
     directus.create_item = AsyncMock(return_value=(True, {"id": "wrapper-row"}))
@@ -647,6 +648,7 @@ async def test_project_move_persists_wrapper_and_moves_parent_last() -> None:
         side_effect=[
             [{"id": "project-row", "project_id": "project-1", "hashed_user_id": hash_id("user-1"), "hashed_team_id": None, "updated_at": 1}],
             [{"id": "folder-row", "hashed_user_id": hash_id("user-1"), "hashed_team_id": None, "created_by_user_hash": hash_id("user-1")}],
+            [],
             [],
             [],
             [],
@@ -707,7 +709,7 @@ async def test_project_parent_move_failure_rolls_back_parent_children_and_wrappe
         "hashed_team_id": None,
         "created_by_user_hash": hash_id("user-1"),
     }
-    directus.get_items = AsyncMock(side_effect=[[project], [folder], [], [], [], []])
+    directus.get_items = AsyncMock(side_effect=[[project], [folder], [], [], [], [], []])
     directus.create_item = AsyncMock(return_value=(True, {"id": "wrapper-row"}))
     directus.update_item = AsyncMock(
         side_effect=[

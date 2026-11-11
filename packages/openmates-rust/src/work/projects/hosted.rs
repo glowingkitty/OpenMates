@@ -6,17 +6,24 @@
 //! `hostedProjectFileExecutor.ts` (+ `projectFileMutationProtocol.ts`,
 //! `projectFilePatch.ts`); wire formats are unchanged. Specs:
 //! `projects.files.hosted-ciphertext-commit`, `.expected-base`, `.exact-patch`,
-//! `.chat-focus-required`, `projects.history.native-commits`.
+//! `.chat-focus-required`, `projects.history.native-commits`. Embed adoption,
+//! rename and delete follow `docs/plans/cloud-project-development/contracts/
+//! project-embed-adoption.md` (P11).
 use super::*;
 use hmac::{Hmac, Mac};
 use sha2::{Digest, Sha256};
 use zeroize::Zeroizing;
 
+mod adopt;
+mod adopt_plan;
 mod api;
 mod io;
 mod job;
+mod moves;
 mod policy;
 mod restore;
+pub use adopt::{AdoptEmbedKind, ProjectEmbedAdoptError};
+pub(crate) use adopt_plan::TurnEmbed;
 pub use api::{HostedApproval, HostedProposal};
 pub use job::{HostedFileJob, HostedFileOperation};
 pub use restore::ProjectCommitRestoreResult;
@@ -81,7 +88,7 @@ impl HostedFileError {
     pub fn status(&self) -> &'static str {
         match self.code() {
             "stale_base" | "revision_conflict" | "file_exists" | "file_changed"
-            | "target_exists" | "operation_conflict" => "conflict",
+            | "target_exists" | "operation_conflict" | "path_conflict" => "conflict",
             "file_key_unavailable" | "protocol_timeout" => "waiting_for_executor",
             _ => "failed",
         }
@@ -157,8 +164,18 @@ pub(crate) fn normalize_path(path: &Value) -> HostedResult<String> {
 /// One hosted file link: the embed id and its normalized Project path.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HostedFile {
+    /// The linked embed (the file's revision chain).
     pub embed_id: String,
+    /// The normalized Project path of the link.
     pub path: String,
+    /// The server's `project_item_id` of the link row, when the listing named
+    /// it; rename and delete address the link by this id.
+    #[serde(skip)]
+    pub(crate) item_id: Option<String>,
+    /// The decrypted link metadata (`{path, source, …}`); a rename rewrites it
+    /// with the new path and keeps every other field.
+    #[serde(skip)]
+    pub(crate) metadata: Value,
 }
 
 /// The decrypted current head of a hosted file. The embed key is zeroized on
@@ -227,10 +244,20 @@ pub fn hosted_file_identity(
         HostedIdentityKind::Embed => "embed",
         HostedIdentityKind::Item => "item",
     };
-    let message = Zeroizing::new(
-        serde_json::to_string(&json!(["openmates-hosted-file-v1", kind, path]))
-            .map_err(Error::from)?,
-    );
+    keyed_uuid(
+        project_key,
+        &json!(["openmates-hosted-file-v1", kind, path]),
+    )
+}
+
+/// HMAC-SHA256(project key, `JSON.stringify(parts)`), first 16 bytes shaped as
+/// a UUIDv5 (version nibble 5, RFC 4122 variant). The shared shape of every
+/// client-derived Project id: the server learns the id, never the parts.
+///
+/// # Errors
+/// Only a JSON or MAC construction failure (cannot happen for string parts).
+pub(crate) fn keyed_uuid(project_key: &[u8; 32], parts: &Value) -> HostedResult<String> {
+    let message = Zeroizing::new(serde_json::to_string(parts).map_err(Error::from)?);
     let mut mac = <Hmac<Sha256> as Mac>::new_from_slice(project_key)
         .map_err(|_| HostedFileError::Core(Error::Crypto))?;
     mac.update(message.as_bytes());
@@ -249,24 +276,50 @@ pub fn hosted_file_identity(
     ))
 }
 
-/// A create or exact-patch update (`ProjectFileMutation`).
+/// Embed `language` of a hosted file, derived from its path with the shared
+/// `classifyRemotePreviewPath` table (`projectRemoteClassify`): `src/a.ts` is
+/// `typescript`, `README.md` is `markdown`, an unknown extension is `text`.
+///
+/// # Errors
+/// Only a protocol fault of the shared decision.
+pub(crate) fn language_for_path(path: &str) -> HostedResult<String> {
+    let value = decide("projectRemoteClassify", &json!({ "path": path }))?;
+    Ok(value["language"]
+        .as_str()
+        .filter(|language| !language.is_empty())
+        .unwrap_or("text")
+        .to_owned())
+}
+
+/// A create, exact-patch update, rename or delete (`ProjectFileMutation`).
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HostedFileMutation {
+    /// The file operation.
     pub operation: HostedFileOperation,
+    /// Idempotency key of the operation.
     pub operation_id: String,
+    /// The Project path the operation addresses.
     pub path: String,
+    /// SHA-256 of the text an update was made from (`None` otherwise).
+    #[serde(default)]
     pub expected_base: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    /// Full text of a create.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub content: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    /// Exact one-file unified diff of an update.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub patch: Option<String>,
+    /// Target path of a rename.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub new_path: Option<String>,
 }
 
 impl HostedFileMutation {
     /// `validateProjectFileMutation`: operation id `[A-Za-z0-9._:-]{1,128}`, a
     /// non-empty path of at most 4096 UTF-16 units without NUL, create carries
     /// content and a null base, update carries a 64-hex base and a non-empty
-    /// patch, and the body is at most 200 KB.
+    /// patch, a rename carries only a non-empty `new_path`, a delete carries
+    /// nothing beyond its path, and the body is at most 200 KB.
     ///
     /// # Errors
     /// `invalid_file_mutation` or `file_mutation_too_large`.
@@ -283,6 +336,27 @@ impl HostedFileMutation {
             || self.path.contains('\0')
         {
             return refused("invalid_file_mutation");
+        }
+        let moving = matches!(
+            self.operation,
+            HostedFileOperation::RenameFile | HostedFileOperation::DeleteFile
+        );
+        if self.new_path.is_some() != (self.operation == HostedFileOperation::RenameFile) {
+            return refused("invalid_file_mutation");
+        }
+        if moving {
+            let clean =
+                self.expected_base.is_none() && self.content.is_none() && self.patch.is_none();
+            let target_ok = self.new_path.as_deref().is_none_or(|target| {
+                !target.is_empty()
+                    && target.encode_utf16().count() <= 4096
+                    && !target.contains('\0')
+            });
+            return if clean && target_ok {
+                Ok(())
+            } else {
+                refused("invalid_file_mutation")
+            };
         }
         let body = match self.operation {
             HostedFileOperation::CreateFile => {
@@ -313,15 +387,21 @@ impl HostedFileMutation {
         Ok(())
     }
 
+    /// The committed proposal tuple. `new_path` appears only for a rename, so
+    /// create/update digests stay byte-identical to the web executor.
     fn wire(&self) -> Value {
-        json!({
+        let mut wire = json!({
             "operation": self.operation.wire(),
             "operation_id": self.operation_id,
             "path": self.path,
             "expected_base": self.expected_base,
             "content": self.content,
             "patch": self.patch,
-        })
+        });
+        if let Some(target) = &self.new_path {
+            wire["new_path"] = json!(target);
+        }
+        wire
     }
 
     /// `projectFileMutationDigest`: the keyed proposal commitment the server
@@ -382,5 +462,9 @@ pub fn replacement_patch(path: &str, old: &str, next: &str) -> String {
     super::workflow_files::replacement(path, old, next)
 }
 
+#[cfg(test)]
+mod adopt_tests;
+#[cfg(test)]
+mod moves_tests;
 #[cfg(test)]
 mod tests;

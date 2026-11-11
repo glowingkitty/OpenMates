@@ -47,6 +47,7 @@ impl JobRunner for Fake {
                 expected_base: None,
                 content: Some("<h1>Recipes</h1>".into()),
                 patch: None,
+                new_path: None,
             },
             digest: "d".repeat(64),
             requires_approval: self.requires_approval,
@@ -263,6 +264,10 @@ async fn refusals_map_to_conflict_failed_and_waiting() {
         .await;
         assert_eq!(sent[0].1["status"], status);
         assert_eq!(sent[0].1["result"][key], value);
+        if status == "conflict" {
+            // Contract "Job payloads": conflicts also name the code as `reason`.
+            assert_eq!(sent[0].1["result"]["reason"], value);
+        }
     }
 }
 

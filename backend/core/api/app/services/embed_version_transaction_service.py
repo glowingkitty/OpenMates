@@ -14,6 +14,9 @@ logger = logging.getLogger(__name__)
 HOSTED_PROJECT_EMBED_ID_RE = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
 )
+PROJECT_ITEM_ACTIONS = frozenset({"adopt", "rename", "delete"})
+# Not-applied code for a raw chat diff that targets a Project-linked embed.
+PROJECT_FILE_TOOL_REQUIRED = "project_file_tool_required"
 
 
 def logical_embed_version(value: object) -> int:
@@ -150,6 +153,7 @@ class EmbedVersionTransactionService:
         canonical_metadata_enrichment: Mapping[str, Any] | None = None,
         canonical_precondition: CanonicalEmbedPrecondition | None = None,
         authored_asset_binding: Mapping[str, Any] | None = None,
+        server_owned_refresh: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Persist one client-encrypted embed under the Project revision lock."""
         token = os.getenv("INTERNAL_API_SHARED_TOKEN")
@@ -170,6 +174,8 @@ class EmbedVersionTransactionService:
                    if canonical_precondition is not None else {}),
                 **({"authored_asset_binding": dict(authored_asset_binding)}
                    if authored_asset_binding is not None else {}),
+                **({"server_owned_refresh": dict(server_owned_refresh)}
+                   if server_owned_refresh is not None else {}),
             },
         )
         try:
@@ -249,4 +255,35 @@ class EmbedVersionTransactionService:
         result = payload.get("data") if isinstance(payload, dict) else None
         if not isinstance(result, dict):
             raise RuntimeError("Chat diagram revision extension returned malformed success data")
+        return result
+
+    async def project_item_operation(
+        self, action: str, data: Mapping[str, Any], *, user_id: str,
+    ) -> dict[str, Any]:
+        """Run one atomic Project link operation: adopt, rename or delete."""
+        if action not in PROJECT_ITEM_ACTIONS:
+            raise ValueError(f"Unsupported Project item operation: {action}")
+        token = os.getenv("INTERNAL_API_SHARED_TOKEN")
+        if not token:
+            raise RuntimeError("INTERNAL_API_SHARED_TOKEN is required for Project item operations")
+        body = {**dict(data), "actor_user_hash": hashlib.sha256(user_id.encode()).hexdigest()}
+        response = await self._directus._make_api_request(
+            "POST",
+            f"{self._directus.base_url.rstrip('/')}/embed-version-transaction/project-items/{action}",
+            headers={"X-Internal-Service-Token": token},
+            json=body,
+        )
+        try:
+            payload = response.json()
+        except (TypeError, ValueError) as exc:
+            raise RuntimeError("Project item operation returned malformed JSON") from exc
+        if response.status_code != 200:
+            error = payload.get("error") if isinstance(payload, dict) else None
+            code = error.get("code") if isinstance(error, dict) else None
+            safe_code = code if isinstance(code, str) and code else "project_item_transaction_failed"
+            logger.warning("Project item %s rejected: code=%s status=%s", action, safe_code, response.status_code)
+            raise EmbedVersionTransactionError(response.status_code, safe_code)
+        result = payload.get("data") if isinstance(payload, dict) else None
+        if not isinstance(result, dict) or result.get("operation_id") != data.get("operation_id"):
+            raise RuntimeError("Project item operation returned malformed success data")
         return result

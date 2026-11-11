@@ -41,6 +41,11 @@ project_items:
       type: string
       note: "Target kind: embed, chat, upload, or future workflow."
 
+    link_kind:
+      type: string
+      nullable: true
+      note: "[Nullable] Embed link kind: file, application or test_result. Null means a legacy file/item link. Only application and test_result links admit server-owned thumbnail/run-status refreshes."
+
     target_id_hash:
       type: string
       note: "[Indexed] SHA256(target id). Used for deletion pre-checks without exposing IDs."

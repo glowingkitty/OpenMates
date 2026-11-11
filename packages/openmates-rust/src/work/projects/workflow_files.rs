@@ -130,7 +130,7 @@ fn mutation(binding: &Value, path: &str, content: &str) -> Result<PrivateJson> {
 pub(super) fn commitment(key: &[u8; 32], project: &str, chat: &str, mutation: &Value) -> Result<String> {
     use hmac::{Hmac, Mac};
     use sha2::Sha256;
-    let tuple = PrivateJson(json!([
+    let mut tuple = PrivateJson(json!([
         "openmates-project-file-proposal-v1",
         project,
         chat,
@@ -141,6 +141,12 @@ pub(super) fn commitment(key: &[u8; 32], project: &str, chat: &str, mutation: &V
         mutation["content"],
         mutation["patch"]
     ]));
+    // A hosted rename (P11) also commits its target, so an approval of a -> b
+    // cannot authorize a -> c. Other operations carry no `new_path`, which
+    // keeps their nine-field tuple byte-identical to the web executor.
+    if let (Some(target), Some(fields)) = (mutation.get("new_path"), tuple.0.as_array_mut()) {
+        fields.push(target.clone());
+    }
     let mut mac = <Hmac<Sha256> as Mac>::new_from_slice(key).map_err(|_| Error::Crypto)?;
     let message = Zeroizing::new(serde_json::to_string(&tuple.0)?);
     mac.update(message.as_bytes());

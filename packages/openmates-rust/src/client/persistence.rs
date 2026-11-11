@@ -60,9 +60,9 @@ impl Client {
                 ))?;
             let row = Plain::new(pending.remove(&ready).ok_or(Error::Protocol)?);
             if text(&row, "message_id") != message
-                && (task.is_empty() || text(&row, "task_id") != task)
+                && !super::send::frame_task_matches(text(&row, "task_id"), task)
             {
-                return Err(Error::Forbidden);
+                { super::send::refusal_trace::note("persistence_65"); return Err(Error::Forbidden); }
             }
             let parent = text(&row, "parent_embed_id");
             let embed_key = if parent.is_empty() {
@@ -211,7 +211,7 @@ impl Client {
         }
         for checkpoint in checkpoints.iter() {
             if text(checkpoint, "chat_id") != chat {
-                return Err(Error::Forbidden);
+                { super::send::refusal_trace::note("persistence_214"); return Err(Error::Forbidden); }
             }
             let checkpoint_id = required(checkpoint, "checkpoint_id")?;
             let summary = checkpoint

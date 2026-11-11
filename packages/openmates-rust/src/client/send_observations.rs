@@ -178,6 +178,7 @@ impl SendObservations {
             token_usage: self.usage,
             prompt_budget: self.budget,
             project_creations: self.project_create.cards(),
+            project_embed_adoptions: self.project_create.adoptions(),
             memory_writes: self.project_create.memory_jobs.records(),
         }
     }

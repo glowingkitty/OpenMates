@@ -9447,7 +9447,7 @@ async def handle_main_processing(
                                     async_skill_continuation_key,
                                 )
                                 from backend.core.api.app.services.project_file_operation_service import (
-                                    PROJECT_FILE_OPERATION_PAYLOAD_TTL_SECONDS,
+                                    PROJECT_FILE_MUTATIONS, PROJECT_FILE_OPERATION_PAYLOAD_TTL_SECONDS,
                                     ProjectFileOperationService,
                                 )
                                 from backend.core.api.app.services.project_write_authorization_service import (
@@ -9489,7 +9489,7 @@ async def handle_main_processing(
                                     )
                                     required_source_capability = (
                                         "write_request"
-                                        if operation in {"create_file", "update_file"}
+                                        if operation in PROJECT_FILE_MUTATIONS
                                         else "search" if operation == "search" else "read"
                                     )
                                     if (

@@ -1,4 +1,5 @@
 //! Frame protocol of assistant Project file jobs: see `project_file_jobs`.
+//! Rename and delete jobs (P11) use the same envelope, policy and approval.
 use super::super::*;
 use super::FileJobState;
 use crate::work::{
@@ -10,7 +11,15 @@ use std::time::Duration;
 const MAX_FINISHED: usize = 256;
 /// Largest `lease_expires_at` skew we accept (the server lease is 90 seconds).
 const MAX_LEASE_SECONDS: u64 = 600;
-const OPERATIONS: [&str; 5] = ["list", "search", "read_text", "create_file", "update_file"];
+const OPERATIONS: [&str; 7] = [
+    "list",
+    "search",
+    "read_text",
+    "create_file",
+    "update_file",
+    "rename_file",
+    "delete_file",
+];
 
 /// The chat's active Project focus: the authority a job is resolved against.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -81,12 +90,14 @@ fn result_frame(job: &Value, status: &str, body: Value) -> (&'static str, Value)
 }
 
 /// `waiting_for_executor` takes a bounded reason; others carry the safe code.
+/// A `conflict` carries it as both `code` and `reason` (contract "Job
+/// payloads": a rename onto a linked path is `reason: "path_conflict"`).
 fn error_frame(job: &Value, error: &HostedFileError) -> (&'static str, Value) {
     let (status, code) = (error.status(), error.code());
-    let body = if status == "waiting_for_executor" {
-        json!({"reason": code})
-    } else {
-        json!({"code": code})
+    let body = match status {
+        "waiting_for_executor" => json!({"reason": code}),
+        "conflict" => json!({"code": code, "reason": code}),
+        _ => json!({"code": code}),
     };
     result_frame(job, status, body)
 }
@@ -110,11 +121,21 @@ fn job_of(event: &Value) -> Option<HostedFileJob> {
     })
 }
 
-fn applied_notice(path: &str, created: bool) -> String {
-    format!(
-        "Project file {}: {path}",
-        if created { "created" } else { "updated" }
-    )
+/// One-line notice of an applied write (`renamed` names both paths).
+fn applied_notice(mutation: &HostedFileMutation, created: bool) -> String {
+    let path = &mutation.path;
+    match (mutation.operation, &mutation.new_path) {
+        (crate::work::HostedFileOperation::RenameFile, Some(target)) => {
+            format!("Project file renamed: {path} -> {target}")
+        }
+        (crate::work::HostedFileOperation::DeleteFile, _) => {
+            format!("Project file deleted: {path}")
+        }
+        _ => format!(
+            "Project file {}: {path}",
+            if created { "created" } else { "updated" }
+        ),
+    }
 }
 
 /// The frames to send for one `project_file_operation_available` /
@@ -242,7 +263,7 @@ pub(super) async fn job_frames<R: JobRunner>(
             .unwrap_or(false);
         state
             .notices
-            .push(applied_notice(&proposal.mutation.path, created));
+            .push(applied_notice(&proposal.mutation, created));
     }
     Ok(vec![result_frame(job, "completed", Value::Object(body))])
 }

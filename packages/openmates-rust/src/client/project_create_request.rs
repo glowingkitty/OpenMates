@@ -54,6 +54,8 @@ pub(super) struct ProjectCreateState {
     entries: BTreeMap<String, Entry>,
     /// Assistant Project file jobs of this turn (`project_file_jobs`).
     pub(super) file_jobs: super::project_file_jobs::FileJobState,
+    /// Embed adoption reports of this turn (P11, `project_embed_adoption`).
+    adoptions: Vec<Value>,
     /// Assistant Memory write jobs of this turn (`memory_write_jobs`).
     pub(super) memory_jobs: super::memory_write_jobs::MemoryJobState,
 }
@@ -81,11 +83,25 @@ impl ProjectCreateState {
     }
 }
 
+impl ProjectCreateState {
+    /// Record one embed adoption report (adopted or failed, with its code).
+    #[cfg_attr(not(all(feature = "workflow-yaml", unix)), allow(dead_code))]
+    pub(super) fn push_adoption(&mut self, row: Value) {
+        self.adoptions.push(row);
+    }
+
+    /// The embed adoption reports of this turn, for the send outcome.
+    pub(super) fn adoptions(&self) -> Vec<Value> {
+        self.adoptions.clone()
+    }
+}
+
 impl Wipe for ProjectCreateState {
     fn wipe(&mut self) {
-        // Records hold the decrypted Project name.
+        // Records hold the decrypted Project name; reports hold Project paths.
         self.entries.clear();
         self.file_jobs.clear();
+        self.adoptions.clear();
         self.memory_jobs.clear();
     }
 }
@@ -133,6 +149,10 @@ impl Client {
         #[cfg(all(feature = "workflow-yaml", unix))]
         if kind.starts_with("project_file_operation_") {
             return self.project_file_job_event(ws, kind, event, chat, &mut state.file_jobs).await;
+        }
+        #[cfg(all(feature = "workflow-yaml", unix))]
+        if kind == super::project_embed_adoption::TURN_ADOPTION_KIND {
+            return self.adopt_turn_embeds(event, chat, state).await;
         }
         // Memory write jobs share this turn phase so the owned driver needs no new call.
         if super::memory_write_jobs::is_job_frame(kind) {

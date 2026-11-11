@@ -241,6 +241,8 @@ pub(super) async fn load<I: HostedIo>(
             Some(path) => files.push(HostedFile {
                 embed_id: file.embed_id,
                 path: path.to_owned(),
+                item_id: file.item_id,
+                metadata: file.metadata,
             }),
             None if results.get(index).is_some() => {
                 // A protected or malformed link taints the ciphertext target, so

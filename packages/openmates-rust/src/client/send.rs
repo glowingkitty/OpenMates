@@ -10,6 +10,8 @@ use crate::crypto::master::MasterCapability;
 pub(in crate::client) mod prepared_turn;
 #[path="send_prepared_transport.rs"]
 pub(in crate::client) mod prepared_transport;
+#[path="refusal_trace.rs"]
+pub(in crate::client) mod refusal_trace;
 #[path="send_turn_runtime.rs"]
 pub(in crate::client) mod turn_runtime;
 impl Wipe for crate::privacy::PreparedPrivacy {
@@ -24,8 +26,8 @@ impl Wipe for SendMemoryRequest{
 }
 impl Wipe for SendOutcome{
     fn wipe(&mut self){
-        let Self{chat,status:_,chat_id,message_id,user_message_id,queue_mode:_,queue_revision,assistant,category,model_name,mate_name,follow_up_suggestions,suggested_followup_message,task_proposals,task_update_proposals,task_events,pending_task_update_jobs,sub_chat_events,app_settings_memory_requests,recommendations,token_usage,prompt_budget,project_creations,memory_writes}=self;
-        chat.wipe();chat_id.wipe();message_id.wipe();user_message_id.wipe();*queue_revision=None;assistant.wipe();category.wipe();model_name.wipe();mate_name.wipe();follow_up_suggestions.wipe();suggested_followup_message.wipe();task_proposals.wipe();task_update_proposals.wipe();task_events.wipe();pending_task_update_jobs.wipe();sub_chat_events.wipe();app_settings_memory_requests.wipe();recommendations.wipe();token_usage.wipe();prompt_budget.wipe();project_creations.wipe();memory_writes.wipe();
+        let Self{chat,status:_,chat_id,message_id,user_message_id,queue_mode:_,queue_revision,assistant,category,model_name,mate_name,follow_up_suggestions,suggested_followup_message,task_proposals,task_update_proposals,task_events,pending_task_update_jobs,sub_chat_events,app_settings_memory_requests,recommendations,token_usage,prompt_budget,project_creations,memory_writes,project_embed_adoptions}=self;
+        chat.wipe();chat_id.wipe();message_id.wipe();user_message_id.wipe();*queue_revision=None;assistant.wipe();category.wipe();model_name.wipe();mate_name.wipe();follow_up_suggestions.wipe();suggested_followup_message.wipe();task_proposals.wipe();task_update_proposals.wipe();task_events.wipe();pending_task_update_jobs.wipe();sub_chat_events.wipe();app_settings_memory_requests.wipe();recommendations.wipe();token_usage.wipe();prompt_budget.wipe();project_creations.wipe();memory_writes.wipe();project_embed_adoptions.wipe();
     }
 }
 impl Wipe for SendObservations{
@@ -46,6 +48,14 @@ enum SendPhase {
     Persist,
     ReplayArtifacts,
     TaskFinalize,
+    /// Handling of a focus activation/phase frame (`persist_focus_event`).
+    FocusPersist,
+    /// Answering a `project_focus_catalog_requested` frame.
+    ProjectCatalog,
+    /// The Project create / file-job / embed-adoption phase.
+    ProjectPhase,
+    /// Releasing the finished outcome to the caller.
+    Release,
 }
 impl SendPhase {
     fn label(self) -> &'static str {
@@ -62,6 +72,10 @@ impl SendPhase {
             Self::Persist => "persist",
             Self::ReplayArtifacts => "replay_artifacts",
             Self::TaskFinalize => "task_finalize",
+            Self::FocusPersist => "focus_persist",
+            Self::ProjectCatalog => "project_catalog",
+            Self::ProjectPhase => "project_phase",
+            Self::Release => "release",
         }
     }
 }
@@ -88,6 +102,22 @@ pub(in crate::client) struct SendTrace {
     phase: SendPhase,
     discovery: DiscoveryStatus,
     final_seen: bool,
+    /// Type of the last server frame the turn handled; a closed lowercase
+    /// identifier only (never payload content), see [`frame_label`].
+    frame: Option<String>,
+}
+/// Longest server frame type the diagnostic repeats verbatim.
+const MAX_FRAME_LABEL: usize = 64;
+/// A printable label for a server frame type: the type itself when it is a
+/// plain `[a-z0-9_]` identifier (frame types are protocol constants, never
+/// user data), otherwise `unclassified`.
+fn frame_label(kind: &str) -> Option<String> {
+    (!kind.is_empty()
+        && kind.len() <= MAX_FRAME_LABEL
+        && kind
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_'))
+    .then(|| kind.to_owned())
 }
 impl SendTrace {
     pub(in crate::client) fn new() -> Self {
@@ -95,12 +125,34 @@ impl SendTrace {
             phase: SendPhase::Preparation,
             discovery: DiscoveryStatus::None,
             final_seen: false,
+            frame: None,
         }
+    }
+    /// Remember the type of the frame being handled for the opt-in diagnostic.
+    fn observe_frame(&mut self, kind: &str) {
+        self.frame = Some(frame_label(kind).unwrap_or_else(|| "unclassified".into()));
+    }
+    fn frame_text(&self) -> &str {
+        self.frame.as_deref().unwrap_or("none")
     }
     pub(in crate::client) fn report_protocol_error(&self) {
         let enabled = std::env::var_os("OPENMATES_TEST_SEND_PHASE_DIAGNOSTIC").as_deref()
             == Some(std::ffi::OsStr::new("1"));
         write_protocol_phase(Error::Protocol,self,enabled,&mut std::io::stderr().lock());
+    }
+    /// Opt-in test diagnostic for a refused (`Forbidden`) turn: phase and
+    /// frame label only, never ids or content.
+    pub(in crate::client) fn report_refusal(&self) {
+        if std::env::var_os("OPENMATES_TEST_SEND_PHASE_DIAGNOSTIC").as_deref()
+            == Some(std::ffi::OsStr::new("1"))
+        {
+            eprintln!(
+                "OpenMates-Test-Send-Refusal: {} frame={} site={}",
+                self.phase.label(),
+                self.frame_text(),
+                refusal_trace::take()
+            );
+        }
     }
     fn observe_discovery(&mut self, kind: &str, payload: &Value) {
         if kind == "recovery_outputs_discovery_complete" {
@@ -131,10 +183,11 @@ fn write_protocol_phase(
         // Diagnostic output cannot replace the original send error.
         let _ = writeln!(
             writer,
-            "OpenMates-Test-Send-Phase: {} discovery={} final_seen={}",
+            "OpenMates-Test-Send-Phase: {} discovery={} final_seen={} frame={}",
             trace.phase.label(),
             trace.discovery.label(),
-            trace.final_seen
+            trace.final_seen,
+            trace.frame_text()
         );
     }
 }
@@ -172,7 +225,7 @@ mod send_phase_tests {
                 if !bytes.is_empty() {
                     assert_eq!(
                         bytes,
-                        b"OpenMates-Test-Send-Phase: preparation discovery=none final_seen=false\n"
+                        b"OpenMates-Test-Send-Phase: preparation discovery=none final_seen=false frame=none\n"
                     );
                 }
             }
@@ -255,6 +308,10 @@ mod send_phase_tests {
             (SendPhase::Persist, "persist"),
             (SendPhase::ReplayArtifacts, "replay_artifacts"),
             (SendPhase::TaskFinalize, "task_finalize"),
+            (SendPhase::FocusPersist, "focus_persist"),
+            (SendPhase::ProjectCatalog, "project_catalog"),
+            (SendPhase::ProjectPhase, "project_phase"),
+            (SendPhase::Release, "release"),
         ] {
             for (discovery, status) in [
                 (DiscoveryStatus::None, "none"),
@@ -268,10 +325,11 @@ mod send_phase_tests {
                         phase,
                         discovery,
                         final_seen,
+                        frame: None,
                     };
                     let mut bytes = vec![];
                     write_protocol_phase(Error::Protocol, &trace, true, &mut bytes);
-                    assert_eq!(bytes, format!("OpenMates-Test-Send-Phase: {label} discovery={status} final_seen={final_seen}\n").as_bytes());
+                    assert_eq!(bytes, format!("OpenMates-Test-Send-Phase: {label} discovery={status} final_seen={final_seen} frame=none\n").as_bytes());
                 }
             }
         }
@@ -279,6 +337,24 @@ mod send_phase_tests {
     // contract-test: supporting surface=sdks.rust assertions=sdk.encryption.local-only,auth.session.isolation
 
     // contract-test: supporting surface=sdks.rust assertions=sdk.surface.semantic-parity,auth.session.isolation
+    #[test]
+    fn diagnostic_names_only_identifier_frame_types_never_payload_text() {
+        let mut trace = SendTrace::new();
+        trace.phase = SendPhase::ProjectPhase;
+        trace.observe_frame("project_file_operation_available");
+        let mut bytes = vec![];
+        write_protocol_phase(Error::Protocol, &trace, true, &mut bytes);
+        assert_eq!(
+            bytes,
+            b"OpenMates-Test-Send-Phase: project_phase discovery=none final_seen=false frame=project_file_operation_available\n"
+        );
+        for hostile in ["", "Private Text", "frame\nOpenMates", "a-b", &"x".repeat(65)] {
+            trace.observe_frame(hostile);
+            assert_eq!(trace.frame_text(), "unclassified");
+        }
+        trace.observe_frame(&"x".repeat(64));
+        assert_eq!(trace.frame_text().len(), 64);
+    }
     #[tokio::test]
     async fn independent_send_traces_keep_their_values_across_interleaved_awaits() {
         async fn observed(phase: SendPhase, final_seen: bool) -> Vec<u8> {
@@ -296,11 +372,11 @@ mod send_phase_tests {
         );
         assert_eq!(
             first,
-            b"OpenMates-Test-Send-Phase: claim discovery=none final_seen=true\n"
+            b"OpenMates-Test-Send-Phase: claim discovery=none final_seen=true frame=none\n"
         );
         assert_eq!(
             second,
-            b"OpenMates-Test-Send-Phase: decode discovery=none final_seen=false\n"
+            b"OpenMates-Test-Send-Phase: decode discovery=none final_seen=false frame=none\n"
         );
     }
 }
@@ -361,11 +437,16 @@ impl Client {
             )
             .await.map(Plain::new);
         let _ = ws.close(None).await;
-        let result=match result{Ok(outcome)=>self.release_send_outcome(&release_scope,&id,&cancel,outcome),Err(error)=>Err(error)};
+        // Keep the failing phase of the turn itself: only a turn that came
+        // back whole enters the release phase.
+        let result=match result{Ok(outcome)=>{trace.phase = SendPhase::Release;self.release_send_outcome(&release_scope,&id,&cancel,outcome)},Err(error)=>Err(error)};
         // Read the opt-in flag only for the original Protocol failure, after
         // the existing socket close; normal output and errors are unchanged.
         if matches!(&result, Err(Error::Protocol)) {
             trace.report_protocol_error();
+        }
+        if matches!(&result, Err(Error::Forbidden)) {
+            trace.report_refusal();
         }
         result
     }
@@ -887,6 +968,14 @@ fn bind_turn_embeds(
     Plain::new(bound)
 }
 
+/// Whether an embed frame's `task_id` names this turn's task. The first frame
+/// of an embed carries the plain task id; the server's later update frames for
+/// the same embed (content finished, thumbnail) carry its SHA-256 instead, so
+/// both forms are the same ownership proof.
+pub(in crate::client) fn frame_task_matches(frame_task: &str, task: &str) -> bool {
+    !task.is_empty() && (frame_task == task || frame_task == sha256(task))
+}
+
 fn capture_artifact(
     kind: &str,
     p: &Value,
@@ -899,7 +988,9 @@ fn capture_artifact(
     if kind == "send_embed_data"
         && row["already_encrypted"] != true
         && text(row, "chat_id") == chat
-        && (text(row, "task_id").is_empty() || task.is_empty() || text(row, "task_id") == task)
+        && (text(row, "task_id").is_empty()
+            || task.is_empty()
+            || frame_task_matches(text(row, "task_id"), task))
         && row.get("content").and_then(Value::as_str).is_some()
         && row.get("type").and_then(Value::as_str).is_some()
     {
@@ -969,6 +1060,25 @@ mod consent_fence_tests {
         assert_eq!(bound["tasked"]["task_id"], "old");
         let unknown = bind_turn_embeds(&embeds, "human", "");
         assert_eq!(unknown["own"]["task_id"], "");
+    }
+
+    // contract-test: supporting surface=sdks.rust assertions=sdk.surface.semantic-parity,auth.session.isolation
+    #[test]
+    fn embed_update_frames_with_the_hashed_task_id_belong_to_the_turn() {
+        assert!(frame_task_matches("task", "task"));
+        assert!(frame_task_matches(&sha256("task"), "task"));
+        assert!(!frame_task_matches(&sha256("other"), "task"));
+        assert!(!frame_task_matches("other", "task"));
+        assert!(!frame_task_matches("", "task"));
+        assert!(!frame_task_matches("", ""));
+        // An update frame that arrives after the task is known is captured.
+        let mut embeds = BTreeMap::new();
+        let frame = json!({"chat_id":"chat","embed_id":"e","task_id":sha256("task"),"content":"c","type":"code"});
+        capture_artifact("send_embed_data", &frame, "chat", "task", &mut embeds, &mut vec![]).unwrap();
+        assert!(embeds.contains_key("e"));
+        let foreign = json!({"chat_id":"chat","embed_id":"f","task_id":sha256("other"),"content":"c","type":"code"});
+        capture_artifact("send_embed_data", &foreign, "chat", "task", &mut embeds, &mut vec![]).unwrap();
+        assert!(!embeds.contains_key("f"));
     }
 }
 

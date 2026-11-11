@@ -81,7 +81,7 @@ impl Client {
                         .ok_or(Error::Protocol)?
                         .iter()
                         .find(|r| text(r, "id") == root)
-                        .ok_or(Error::Forbidden)?
+                        .ok_or_else(|| { super::send::refusal_trace::note("recovery_84"); Error::Forbidden })?
                         .clone();
                     remember_selected_chat_wrapper(self, &scope, &row)?;
                     check_replay_scope(self, &scope, output)?;
@@ -403,7 +403,7 @@ impl Client {
             .map(str::to_owned);
         if let Some(before) = &existing {
             if text(&before["embed"], "hashed_chat_id") != sha256(target) {
-                return Err(Error::Forbidden);
+                { super::send::refusal_trace::note("recovery_406"); return Err(Error::Forbidden); }
             }
             let canonical = text(&before["embed"], "parent_embed_id");
             if parent.as_deref().is_some_and(|p| p != canonical) {
@@ -432,7 +432,7 @@ impl Client {
             if text(&page["embed"], "hashed_chat_id") != sha256(target)
                 || !text(&page["embed"], "parent_embed_id").is_empty()
             {
-                return Err(Error::Forbidden);
+                { super::send::refusal_trace::note("recovery_435"); return Err(Error::Forbidden); }
             }
             Some(page)
         } else {
@@ -636,7 +636,7 @@ impl Client {
                 }
             } else {
                 if version > 1 && parent.is_none() {
-                    return Err(Error::Forbidden);
+                    { super::send::refusal_trace::note("recovery_639"); return Err(Error::Forbidden); }
                 }
                 digest = self
                     .store_sealed_head(ws, o, c, &key, None, owner, scope)
@@ -908,7 +908,7 @@ impl Client {
             .await?;
         let head = &data["embed"];
         if text(head, "hashed_chat_id") != sha256(target) {
-            return Err(Error::Forbidden);
+            { super::send::refusal_trace::note("recovery_911"); return Err(Error::Forbidden); }
         }
         let parent = text(head, "parent_embed_id");
         let embed_key = crypto::derive_embed_key(key, if parent.is_empty() { id } else { parent })?;

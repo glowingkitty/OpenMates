@@ -21,6 +21,11 @@ const GLOBALS: &[&str] = &[
     "encrypted-vault",
     "demo",
 ];
+/// Commands whose `--text` value may start with `-` (file bodies and diffs).
+const HYPHEN_TEXT_COMMANDS: &[&[&str]] = &[
+    &["projects", "hosted", "create"],
+    &["projects", "hosted", "update"],
+];
 fn switch(name: &str, family: &str) -> bool {
     catalog()
         .flags
@@ -168,8 +173,19 @@ fn build(node: &Node, family: &str, inherited: &BTreeSet<String>) -> Command {
             record.implementation.status
         ));
     }
+    // A hosted file body or unified diff (`--- a/x`) legitimately starts with a
+    // dash. These leaves own a local `text` that Clap prefers over the
+    // family-global one, so only these two commands accept dash-leading values.
+    let hyphen_text = node.records.iter().any(|i| {
+        HYPHEN_TEXT_COMMANDS
+            .iter()
+            .any(|path| catalog().commands[*i].path == *path)
+    });
+    if hyphen_text {
+        command = command.arg(flag("text", family, false).allow_hyphen_values(true));
+    }
     for name in &node.flags {
-        if !inherited.contains(name) {
+        if !inherited.contains(name) && !(hyphen_text && name == "text") {
             command = command.arg(flag(name, family, true));
             inherited.insert(name.clone());
         }
@@ -512,6 +528,9 @@ where
     })
 }
 
+#[cfg(test)]
+#[path = "parser_hyphen_text_tests.rs"]
+mod hyphen_text_tests;
 #[cfg(test)]
 mod tests {
     use super::*;

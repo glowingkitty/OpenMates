@@ -154,6 +154,9 @@ use memory_write_jobs::MEMORY_WRITE_JOBS_CAPABILITY;
 use project_file_jobs::{PROJECT_FILE_JOBS_AVAILABLE, PROJECT_FILE_JOBS_CAPABILITY};
 #[cfg(all(feature = "workflow-yaml", unix))]
 mod hosted_file_io;
+#[cfg(all(feature = "workflow-yaml", unix))]
+mod project_embed_adoption;
+pub(crate) mod project_item_error;
 mod task_job_payload;
 mod task_jobs;
 mod team;
@@ -544,6 +547,8 @@ pub struct Client {
     inventory_network: std::sync::Arc<std::sync::atomic::AtomicU64>,
     // Presentation evidence only: the last non-success HTTP exchange. Never changes SDK errors.
     last_http_failure: Option<HttpFailure>,
+    // Closed-set code of the last refused Project item-link response (P11).
+    project_item_error: Option<&'static str>,
     in_flight_method: Option<String>,
     credential_updates: Option<mpsc::UnboundedSender<CredentialEvent>>,
     // Installed only by one exclusive live read; no credentials/URLs/body.
@@ -685,6 +690,7 @@ impl Client {
             fresh_auth: Default::default(),
             inventory_network: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
             last_http_failure: None,
+            project_item_error: None,
             in_flight_method: None,
             credential_updates: None,
             monitor_read_audit: None,

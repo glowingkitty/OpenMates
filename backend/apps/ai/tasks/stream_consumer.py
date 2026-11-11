@@ -2189,6 +2189,7 @@ async def _apply_diff_block_to_existing_embed(
     from backend.core.api.app.services.embed_diff_service import (
         apply_patch, build_committed_version_patch, parse_unified_diff, resolve_diff_target_embed_id
     )
+    from backend.core.api.app.services.embed_version_transaction_service import PROJECT_FILE_TOOL_REQUIRED, requires_atomic_project_embed_write
     from toon_format import decode
 
     file_path_index = getattr(request_data, "embed_file_path_index", None) or {}
@@ -2207,6 +2208,10 @@ async def _apply_diff_block_to_existing_embed(
             f"{list(file_path_index.keys())[:10]}. Showing visual diff card."
         )
         return _render_diff_visual_card(resolved_ref, diff_content)
+    # One write path (P11): a Project-linked embed changes only through the Project file tools.
+    if await requires_atomic_project_embed_write(directus_service, target_embed_id):
+        logger.info(f"{log_prefix} [DIFF_BLOCK] Not applied to Project-linked embed {target_embed_id}: {PROJECT_FILE_TOOL_REQUIRED}")
+        return _render_diff_visual_card(resolved_ref, diff_content, f"not applied: {PROJECT_FILE_TOOL_REQUIRED}; use project_update_file")
 
     cached_embed = await cache_service.get_embed_from_cache(target_embed_id)
     if not cached_embed:
@@ -2267,12 +2272,7 @@ async def _apply_diff_block_to_existing_embed(
     version_history_rows = []
     now = int(time.time())
     if current_version == 1:
-        version_history_rows.append({
-            "embed_id": target_embed_id,
-            "version_number": 1,
-            "snapshot": current_content,
-            "created_at": now,
-        })
+        version_history_rows.append({"embed_id": target_embed_id, "version_number": 1, "snapshot": current_content, "created_at": now})
 
     new_version = current_version + 1
     new_content_hash = hashlib.sha256(patch_result.new_content.encode("utf-8")).hexdigest()
