@@ -4536,7 +4536,7 @@
                   "basic": false
                 },
                 "type": "array",
-                "description": "Optional list of reference image filenames (embed_refs) to use as visual\nreferences for this generation. Pass the exact embed_ref values (original\nfilenames, e.g. \"my_photo.jpg\") from the toon blocks in the conversation.\nThe server resolves all cryptographic and storage details automatically.\nSupports up to 4 reference images. When provided, automatically switches to\nthe FLUX.2 [klein] 4B edit model (image-to-image, 27 credits).\n",
+                "description": "Optional list of reference image filenames (embed_refs) to use as visual\nreferences for this generation. Pass the exact embed_ref values (original\nfilenames, e.g. \"my_photo.jpg\") from the toon blocks in the conversation.\nThe server resolves all cryptographic and storage details automatically.\nSupports up to 4 reference images. When provided, automatically switches to\nthe FLUX.2 [klein] 4B edit model (image-to-image) instead of the text-only Recraft V4.1 Flash model.\n",
                 "items": {
                   "type": "string",
                   "description": "Original filename (embed_ref) of an uploaded image"

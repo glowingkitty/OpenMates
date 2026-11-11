@@ -74,7 +74,7 @@ async def run() -> None:
                 "model_ref": "fal/minimax/h3-max-turbo/image-to-video", "model_id": "minimax/h3-max-turbo/image-to-video",
                 "duration_seconds": 1.0, "resolution": "480p"}),
             ("image", _charge_image_generation_credits, {
-                **common, "app_id": "images", "skill_id": "generate_draft", "model_ref": "bfl/flux-2-klein"}),
+                **common, "app_id": "images", "skill_id": "generate_draft", "model_ref": "recraft/recraftv4_1_flash"}),
             ("music", _charge_music_generation_credits, {
                 **common, "app_id": "music", "skill_id": "generate", "model_ref": "google/lyria-3-clip-preview"}),
             ("remotion", _charge_remotion_render_credits, {

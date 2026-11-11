@@ -32,6 +32,7 @@ RECRAFT_MODEL_MAX = "recraftv4_1_pro_vector"      # $0.30/image — max quality 
 # Model IDs for raster (PNG/JPG) generation
 RECRAFT_RASTER_MODEL_DEFAULT = "recraftv4_1"      # $0.04/image — default quality raster
 RECRAFT_RASTER_MODEL_MAX = "recraftv4_1_pro"      # $0.25/image — max quality raster
+RECRAFT_RASTER_MODEL_FLASH = "recraftv4_1_flash"  # $0.007/image — text-only drafts, no styles, no reference images
 
 
 async def generate_vector_recraft(

@@ -661,8 +661,9 @@ skills:
     class_path: |
       backend.apps.images.skills.generate_skill.GenerateSkill
     providers:
+      - Recraft
       - BFL
-    full_model_reference: bfl/flux-2-klein
+    full_model_reference: recraft/recraftv4_1_flash
     tool_schema:
       type: object
       properties:
@@ -693,7 +694,7 @@ skills:
                   filenames, e.g. "my_photo.jpg") from the toon blocks in the conversation.
                   The server resolves all cryptographic and storage details automatically.
                   Supports up to 4 reference images. When provided, automatically switches to
-                  the FLUX.2 [klein] 4B edit model (image-to-image, 27 credits).
+                  the FLUX.2 [klein] 4B edit model (image-to-image) instead of the text-only Recraft V4.1 Flash model.
                 items:
                   type: string
                   description: Original filename (embed_ref) of an uploaded image

@@ -385,3 +385,14 @@ async def test_sandbox_time_and_a_flat_provider_fee_are_added_to_the_token_credi
     assert credits == 103
     assert details["provider_calls"][-1] == {"step": "provider_flat_fee", "credits": 100}
     assert (script_run_credits(0), script_run_credits(0.1), script_run_credits(60), script_run_credits(60.1)) == (0, 5, 5, 10)
+
+
+# contract-test: direct surface=rest_api assertions=images-generate.draft.flash-text-only
+def test_text_only_draft_uses_flash_and_reference_drafts_use_klein_edit():
+    flash = "recraft/recraftv4_1_flash"
+    # Text-only draft keeps the Flash model whatever the quality setting says.
+    assert generate_task._resolve_image_billing_model_ref(flash, "png", "max", False) == flash
+    # Reference images switch the draft to the FLUX klein edit model.
+    assert generate_task._resolve_image_billing_model_ref(flash, "png", "default", True) == "bfl/flux-2-klein-edit"
+    # images.generate keeps choosing its raster tier by quality.
+    assert generate_task._resolve_image_billing_model_ref("recraft/recraftv4_1_pro", "png", "default", False) == "recraft/recraftv4_1"

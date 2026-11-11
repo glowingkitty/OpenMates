@@ -199,7 +199,7 @@ class AiModelDefaultsRequest(BaseModel):
                 "recommendations_enabled": True,
                 "default_app_skill_models": {
                     "images.generate": "recraft/recraftv4_1_pro",
-                    "images.generate_draft": "bfl/flux-2-klein"
+                    "images.generate_draft": "recraft/recraftv4_1_flash"
                 }
             }
         }

@@ -43,6 +43,7 @@ from backend.shared.providers.recraft.recraft import (
     RECRAFT_MODEL_DEFAULT,
     RECRAFT_MODEL_MAX,
     RECRAFT_RASTER_MODEL_DEFAULT,
+    RECRAFT_RASTER_MODEL_FLASH,
     RECRAFT_RASTER_MODEL_MAX,
 )
 from backend.core.api.app.services.s3.config import get_bucket_name
@@ -193,6 +194,17 @@ async def _vector_author_credits(
     return max(MINIMUM_CREDITS_CHARGED, token_credits + sandbox_credits + flat_credits), details
 
 
+DRAFT_FLASH_MODEL_REF = f"recraft/{RECRAFT_RASTER_MODEL_FLASH}"
+DRAFT_EDIT_MODEL_REF = "bfl/flux-2-klein"
+
+
+def _draft_model_ref_for_references(model_ref: Optional[str], has_reference_images: bool) -> Optional[str]:
+    """The text-only Flash draft model cannot take reference images; those drafts use FLUX klein edit."""
+    if model_ref == DRAFT_FLASH_MODEL_REF and has_reference_images:
+        return DRAFT_EDIT_MODEL_REF
+    return model_ref
+
+
 def _resolve_image_billing_model_ref(
     model_ref: Optional[str],
     output_filetype: str,
@@ -205,6 +217,9 @@ def _resolve_image_billing_model_ref(
     if output_filetype == "svg":
         recraft_model_id = RECRAFT_MODEL_MAX if quality == "max" else RECRAFT_MODEL_DEFAULT
         return f"recraft/{recraft_model_id}"
+    model_ref = _draft_model_ref_for_references(model_ref, has_reference_images)
+    if model_ref == DRAFT_FLASH_MODEL_REF:
+        return DRAFT_FLASH_MODEL_REF
     if model_ref and "recraft" in model_ref:
         recraft_model_id = RECRAFT_RASTER_MODEL_MAX if quality == "max" else RECRAFT_RASTER_MODEL_DEFAULT
         return f"recraft/{recraft_model_id}"
@@ -256,7 +271,7 @@ async def _charge_image_generation_credits(
     
     Fetches the provider pricing config via internal API and charges 1 unit
     (= 1 image). Pricing is defined in provider YAML files:
-    - generate_draft (bfl/flux-2-klein): 15 credits per image
+    - generate_draft (recraft/recraftv4_1_flash): 9 credits per image
     - generate (google/gemini-3-pro-image-preview): 200 credits per image
     
     Billing is non-blocking: failures are logged but don't break image delivery.
@@ -823,6 +838,7 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         reference_script_sources: List[str] = []
         # Reference images for image-to-image generation (resolved embed IDs from skill layer)
         reference_image_embed_ids: List[str] = arguments.get("reference_image_embed_ids") or []
+        model_ref = _draft_model_ref_for_references(model_ref, bool(reference_image_embed_ids))
         user_vault_key_id: Optional[str] = arguments.get("user_vault_key_id")
 
         if not prompt or not user_id:
@@ -1088,6 +1104,18 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
                     authored.usage, log_prefix, authored.sandbox_seconds,
                     flat_credits=await _flat_image_credits(model_ref, log_prefix),
                 )
+
+        elif model_ref == DRAFT_FLASH_MODEL_REF:
+            # --- Raster branch: Recraft V4.1 Flash text-only draft (no style, no references) ---
+            image_bytes = await generate_raster_recraft(
+                prompt=prompt,
+                secrets_manager=task._secrets_manager,
+                model_id=RECRAFT_RASTER_MODEL_FLASH,
+                size=aspect_ratio,
+                style_id=None,
+            )
+            actual_model = f"Recraft {RECRAFT_RASTER_MODEL_FLASH}"
+            display_model_id = RECRAFT_RASTER_MODEL_FLASH
 
         elif model_ref and "recraft" in model_ref:
             # --- Raster branch: Recraft V4.1 PNG/JPG ---

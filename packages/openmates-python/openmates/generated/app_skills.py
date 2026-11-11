@@ -4254,9 +4254,15 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                       '4B '
                                                                                                       'edit '
                                                                                                       'model '
-                                                                                                      '(image-to-image, '
-                                                                                                      '27 '
-                                                                                                      'credits).\n',
+                                                                                                      '(image-to-image) '
+                                                                                                      'instead '
+                                                                                                      'of '
+                                                                                                      'the '
+                                                                                                      'text-only '
+                                                                                                      'Recraft '
+                                                                                                      'V4.1 '
+                                                                                                      'Flash '
+                                                                                                      'model.\n',
                                                                                        'items': {'description': 'Original '
                                                                                                                 'filename '
                                                                                                                 '(embed_ref) '

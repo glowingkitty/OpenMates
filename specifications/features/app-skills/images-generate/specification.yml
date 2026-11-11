@@ -122,6 +122,10 @@ assertions:
     type: invariant
     must: A vector drawing is charged for everything it used and nothing else. Every author draft, correction and review call is priced from that call's reported input and output tokens at that model's price, and the exact sum is rounded down once to whole credits. Every sandbox run adds the Code Run price per started minute. A Recraft drawing costs its flat price, plus the review and follow-up calls when requirements were given. The platform minimum charge applies. A call without reported usage or without a price fails the request instead of being free or estimated.
     depends_on: [models.VectorAuthoring, examples.billing]
+  - id: images-generate.draft.flash-text-only
+    type: behavior
+    must: A draft picture requested with a text prompt only is generated with the Recraft V4.1 Flash model and charged that model's price, whatever quality setting the request carries. A draft that names reference images is generated and charged with the image-editing draft model instead, because the Flash model takes no image input. The image shows the name of the model that actually produced it.
+    depends_on: [examples.billing]
   - id: images-generate.safety.named-person-review
     type: behavior
     must: A picture request that names someone is not refused on the name alone. When the fixed safety rules find a name without an explicit request to imitate, the safeguard model decides who the name refers to. A private person the user plausibly knows, a fictional character, an animal or a thing that is not a person is generated when the picture is harmless. A real public figure, a harmful or deceptive depiction of any real person, an unclear answer, a missing or failed safeguard model all end in the same refusal as before. A request that explicitly asks to imitate, clone or deepfake a person is refused by the fixed rules without asking the model. The model call happens once, before the picture is queued, and only for requests that contain a name.
