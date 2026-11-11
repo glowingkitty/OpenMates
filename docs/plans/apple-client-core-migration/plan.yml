@@ -68,6 +68,22 @@ findings:
   - id: F-7
     text: SwiftData stores plaintext columns (title, content, renderDocumentJSON, piiMappingsJSON) next to ciphertext.
     consequence: A4 never migrates plaintext into the core cache; server content is re-synced, only local-only state (drafts, queued sends, checkpoints, last-opened chat) is migrated, and the SwiftData files are deleted after the check passes.
+  - id: F-8
+    text: >
+      The full core does not build for the 32-bit (ILP32) Watch slice
+      arm64_32-apple-watchos: ring (under rustls, used by reqwest rustls-tls,
+      tokio-tungstenite rustls-tls-webpki-roots and the recovery-socket
+      preconnect) does not support ILP32 arm64 (apple-core run 42938906020,
+      E0599 in_out_whole_block_bits and the _ASSUMED_POINTER_SIZE assertion).
+      iOS, simulator, macOS and 64-bit Watch slices build.
+    consequence: >
+      openmates-sdk builds without any TLS stack only under
+      cfg(all(target_os = "watchos", target_pointer_width = "32")); every other
+      target resolves exactly as before. On that slice HTTPS fails with
+      Error::Offline and WSS with tungstenite's TLS-not-enabled error, never a
+      plain-HTTP/WS fallback. The UniFFI surface is unchanged, so the pairing
+      functions the Watch uses today work. A7 must choose the Watch TLS path
+      before any Watch networking moves into the core.
 
 decisions:
   - id: D-1
@@ -222,6 +238,18 @@ progress:
     remaining_in_order:
       - sessions.py ci-source, then submit apple-core (all), apple-unit (OpenMatesCoreBridgeTests, PasswordV2KDFTests, WatchPairLoginRuntimeTests, NativeEncryptedSyncPerformanceTests) and rust-check; fix what fails; record framework and app size
       - deploy A0 and A1 together; update the parent Plan inventory note
-    unproven: [Watch arm64_32 build of the full core (fallback - minimal pairing crate for the Watch), macOS symbol localization next to Tokenizers, Swift 6 compile of the generated file and the new tests, linking]
+    watch_arm64_32: >
+      F-8 fix in place (target-conditional TLS dependencies in
+      packages/openmates-rust/Cargo.toml, cfg'd socket_preconnect.rs).
+      Linux cross check with nightly-2026-09-01 -Zbuild-std passes; cargo tree
+      shows no ring/rustls for arm64_32 and unchanged trees for all other
+      targets; Cargo.lock unchanged. The real Xcode/CI build is still unproven.
+    follow_up: >
+      A7 decides the Watch TLS path. Preferred - the Watch shell provides
+      HTTP and WebSocket through URLSession behind a core transport trait
+      (system TLS and trust; watchOS restricts raw sockets). Alternatives - a
+      ring-free rustls provider for that target only (pure-Rust providers are
+      not audited) or aws-lc-rs (C, arm64_32 unproven).
+    unproven: [Watch arm64_32 link and run of the full core in Xcode/CI (compile check passes on Linux), macOS symbol localization next to Tokenizers, Swift 6 compile of the generated file and the new tests, linking]
   A2_to_A7:
     state: not started

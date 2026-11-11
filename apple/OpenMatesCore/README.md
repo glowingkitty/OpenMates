@@ -14,6 +14,18 @@ the "Build OpenMatesCore" script phase
 (`packages/openmates-apple-bindings/build-xcframework.sh --xcode-phase`) into
 `$(DERIVED_FILE_DIR)/OpenMatesCore` and linked with `-lopenmates_apple_bindings`.
 
+## Watch arm64_32: no TLS in the core
+
+The 32-bit Apple Watch slice (`arm64_32-apple-watchos`, built with nightly and
+`-Zbuild-std`) links the same API, but the core is built there without any TLS
+stack: `ring`, under the core's rustls TLS, does not support ILP32 arm64. On
+that slice a core HTTPS request fails with the offline/transport error and a WSS
+connection with a TLS-not-enabled error; nothing falls back to plain HTTP/WS.
+The Watch uses only the pairing crypto from the core today and does its
+networking in Swift. All other slices (iOS, simulators, macOS, 64-bit Watch)
+keep full TLS. Plan `apple-client-core-migration` finding F-8; the Watch TLS path
+is decided in step A7.
+
 After changing the binding crate's exported API or docs, regenerate:
 
 ```bash

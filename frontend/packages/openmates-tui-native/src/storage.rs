@@ -13,18 +13,15 @@ use aes_gcm::{
 };
 use argon2::{Algorithm, Argon2, Block, Params, Version};
 use base64::{Engine, engine::general_purpose::STANDARD};
-use fs2::FileExt;
 use hmac::{Hmac, Mac};
 use rand::{RngCore, rngs::OsRng};
-use rustix::fs::{Mode, OFlags};
+use openmates_sdk::local_cache::{ByteStore, ByteStoreError, FileByteStore, FileIdentity, LockGuard};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-#[cfg(unix)]
-use std::os::unix::fs::MetadataExt;
 use std::{
     fs::File,
     io::{Read, Write},
-    path::{Component, Path, PathBuf},
+    path::{Path, PathBuf},
     sync::{Arc, Mutex},
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -126,7 +123,7 @@ struct CacheRecord {
 }
 /// Existing descriptor read ceiling; optional previews may never write a
 /// cache record that this same Store cannot read on restart.
-pub(crate) const MAX_LOCAL_RECORD_BYTES: usize = 32 * 1024 * 1024;
+pub(crate) use openmates_sdk::local_cache::MAX_LOCAL_RECORD_BYTES;
 /// Exact CacheRecord JSON framing with STANDARD base64 of nonce12 + plaintext
 /// + GCM tag16. The alphabet needs no JSON escapes; no encryption or KDF runs.
 pub(crate) fn cache_record_encoded_len(checkpoint_json_bytes: usize) -> Result<usize> {
@@ -280,26 +277,14 @@ struct DurableCache {
     epoch: String,
     binding: Zeroizing<[u8; 32]>,
     plaintext_digest: [u8; 32],
-    identity: CacheFileIdentity,
+    identity: FileIdentity,
     synced: bool,
-}
-#[derive(Clone, Copy, PartialEq, Eq)]
-struct CacheFileIdentity {
-    device: u64,
-    inode: u64,
-    mode: u32,
-    uid: u32,
-    gid: u32,
-    links: u64,
-    bytes: u64,
-    modified: (i64, i64),
-    changed: (i64, i64),
 }
 // A first intent is reusable only while the exact durable inode remains current.
 // Bytes alone cannot prove that a later replacement was durably published.
 struct DurableRevocationIntent {
     file: File,
-    identity: CacheFileIdentity,
+    identity: FileIdentity,
     bytes: Vec<u8>,
 }
 #[cfg(test)]
@@ -311,35 +296,6 @@ struct SessionIntentTestState {
     fail_after_revocation_rename_at: Option<usize>,
     fail_session: bool,
     before_final: Option<Box<dyn FnOnce(&Store) + Send>>,
-}
-fn cache_file_identity(file: &File) -> Result<Option<CacheFileIdentity>> {
-    #[cfg(unix)]
-    {
-        let metadata = file.metadata()?;
-        if !metadata.is_file()
-            || metadata.uid() != rustix::process::geteuid().as_raw()
-            || metadata.mode() & 0o777 != 0o600
-            || metadata.nlink() != 1
-        {
-            return Err(Error::Io);
-        }
-        Ok(Some(CacheFileIdentity {
-            device: metadata.dev(),
-            inode: metadata.ino(),
-            mode: metadata.mode(),
-            uid: metadata.uid(),
-            gid: metadata.gid(),
-            links: metadata.nlink(),
-            bytes: metadata.len(),
-            modified: (metadata.mtime(), metadata.mtime_nsec()),
-            changed: (metadata.ctime(), metadata.ctime_nsec()),
-        }))
-    }
-    #[cfg(not(unix))]
-    {
-        let _ = file;
-        Ok(None)
-    }
 }
 #[cfg(test)]
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -410,12 +366,12 @@ fn cache_publication_mac(key: &[u8; 32], epoch: &str, aad: &[u8]) -> Result<Hmac
 
 /// A descriptor anchored at a private, owner-controlled directory.
 pub struct Store {
-    root: File,
+    bytes: FileByteStore,
     path: PathBuf,
     account: String,
     backend: Arc<dyn CredentialBackend>,
     force_vault: bool,
-    runtime_guard: Mutex<Option<FileLock>>,
+    runtime_guard: Mutex<Option<LockGuard>>,
     /// Set by long-running hosts: the runtime lock is then taken per operation.
     per_operation_lock: std::sync::atomic::AtomicBool,
     vault_cache: Mutex<Option<UnlockedVault>>,
@@ -450,16 +406,14 @@ impl Store {
             .ok_or(Error::Io)
     }
     pub fn new(path: PathBuf) -> Result<Self> {
-        let mut store = Self::with_backend(path, Arc::new(NativeKeyring))?;
-        let file = store.open("runtime.lock", OFlags::RDWR | OFlags::CREATE)?;
-        file.try_lock_exclusive().map_err(|error| {
-            if error.kind() == std::io::ErrorKind::WouldBlock {
+        let store = Self::with_backend(path, Arc::new(NativeKeyring))?;
+        let guard = store.bytes.try_lock("runtime.lock").map_err(|error| match error {
+            ByteStoreError::WouldBlock => {
                 Error::Invalid("This state directory is already in use by another native client.")
-            } else {
-                Error::Io
             }
+            _ => Error::Io,
         })?;
-        *store.runtime_guard.lock().map_err(|_| Error::Io)? = Some(FileLock(file));
+        *store.runtime_guard.lock().map_err(|_| Error::Io)? = Some(guard);
         Ok(store)
     }
     /// Long-running hosts (`remote-access`) must not exclude every other
@@ -481,23 +435,9 @@ impl Store {
         if !self.per_operation_lock.load(std::sync::atomic::Ordering::SeqCst) {
             return operation();
         }
-        let file = self.open("runtime.lock", OFlags::RDWR | OFlags::CREATE)?;
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
-        loop {
-            match file.try_lock_exclusive() {
-                Ok(()) => break,
-                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
-                    if std::time::Instant::now() >= deadline {
-                        return Err(Error::Invalid(
-                            "This state directory is busy with another native client.",
-                        ));
-                    }
-                    std::thread::sleep(std::time::Duration::from_millis(50));
-                }
-                Err(_) => return Err(Error::Io),
-            }
-        }
-        let _guard = FileLock(file);
+        let _guard = self
+            .bytes
+            .lock_timeout("runtime.lock", std::time::Duration::from_secs(60))?;
         operation()
     }
     /// Injectable backend for isolated storage tests; production constructors
@@ -505,10 +445,10 @@ impl Store {
     pub fn with_backend(path: PathBuf, backend: Arc<dyn CredentialBackend>) -> Result<Self> {
         // Equivalent spellings must address the same keyring namespace.
         let path: PathBuf = path.components().collect();
-        let root = private_directory(&path)?;
+        let bytes = FileByteStore::open(&path)?;
         let account = digest(path.as_os_str().as_encoded_bytes());
         Ok(Self {
-            root,
+            bytes,
             path,
             account,
             backend,
@@ -712,9 +652,9 @@ impl Store {
         self.require_epoch(&remembered.epoch)?;
         if !remembered.synced {
             for name in ["session.json", "revocation.json"] {
-                self.open(name, OFlags::RDONLY | OFlags::NONBLOCK)?.sync_all()?;
+                self.bytes.sync(name)?;
             }
-            self.root.sync_all()?;
+            self.bytes.barrier()?;
             self.remember_durable_session(DurableSession { synced: true, ..remembered });
         }
         Ok(true)
@@ -782,7 +722,7 @@ impl Store {
             let file = self.atomic_write_file("revocation.json", &bytes)?;
             // Optional evidence: unsupported/failed identity capture takes the
             // original second-write path, never grants authority or fails save.
-            cache_file_identity(&file).ok().flatten().map(|identity| {
+            FileByteStore::identity(&file).ok().map(|identity| {
                 DurableRevocationIntent { file, identity, bytes }
             })
         };
@@ -871,7 +811,7 @@ impl Store {
         }
         if result.is_err() && existing.is_none() && mode == StorageMode::RestrictedLocalFile {
             self.remove("credential-key")?;
-            self.root.sync_all()?;
+            self.bytes.barrier()?;
         }
         if result.is_ok() {
             // Even a newly created cache entry follows a verified AEAD record.
@@ -1119,7 +1059,7 @@ impl Store {
             }
         };
         self.remove("session.json")?;
-        self.root.sync_all()?;
+        self.bytes.barrier()?;
         self.clear_owned_cache(&pending.owner)?;
         if pending.mode == StorageMode::OsKeyring {
             self.backend
@@ -1130,7 +1070,7 @@ impl Store {
             self.remove("credential-key")?;
         }
         self.remove("pending-cleanup.json")?;
-        self.root.sync_all()?;
+        self.bytes.barrier()?;
         let _fence = self.lock("revocation.lock")?;
         let mut fence = self.fence()?;
         if !fence.revoked {
@@ -1312,23 +1252,12 @@ impl Store {
             // Read through the anchored descriptor and retain the exact file
             // across the checkpoint. Missing/changed/tampered records cannot
             // reuse a previous write. The ordinary full write is the fallback.
-            let fd = match rustix::fs::openat(
-                &self.root,
-                &name,
-                OFlags::RDWR | OFlags::CLOEXEC | OFlags::NOFOLLOW | OFlags::NONBLOCK,
-                Mode::empty(),
-            ) {
-                Ok(fd) => Some(fd),
-                Err(rustix::io::Errno::NOENT) => None,
-                Err(_) => return Err(Error::Io),
-            };
-            if let Some(fd) = fd {
-                check_private(&self.root, true)?;
-                let mut file = File::from(fd);
-                check_private(&file, false)?;
-                if let Some(identity) = cache_file_identity(&file)? {
+            let held = self.bytes.open_existing(&name, true)?;
+            if let Some(mut file) = held {
+                {
+                    let identity = FileByteStore::identity(&file)?;
                     if proof.record_len <= MAX_LOCAL_RECORD_BYTES
-                        && identity.bytes == proof.record_len as u64
+                        && identity.len() == proof.record_len as u64
                     {
                         self.require_current_cache_file(&name, &file, &identity)?;
                         let mut bytes = Vec::new();
@@ -1343,7 +1272,7 @@ impl Store {
                             let _fence = self.lock("revocation.lock")?;
                             self.require_epoch(&epoch)?;
                             file.sync_all()?;
-                            self.root.sync_all()?;
+                            self.bytes.barrier()?;
                             #[cfg(test)]
                             self.run_cache_hit_action(CacheHitPoint::DurableSync, &name);
                             self.require_current_cache_file(&name, &file, &identity)?;
@@ -1405,12 +1334,12 @@ impl Store {
         &self,
         name: &str,
         held: &File,
-        expected: &CacheFileIdentity,
+        expected: &FileIdentity,
     ) -> Result<()> {
-        check_private(&self.root, true)?;
-        let current = self.open(name, OFlags::RDONLY | OFlags::NONBLOCK)?;
-        if cache_file_identity(held)?.as_ref() != Some(expected)
-            || cache_file_identity(&current)?.as_ref() != Some(expected)
+        self.bytes.check_directory()?;
+        let current = self.bytes.open_current(name)?;
+        if FileByteStore::identity(held)? != *expected
+            || FileByteStore::identity(&current)? != *expected
         {
             return Err(Error::Cancelled);
         }
@@ -1645,56 +1574,20 @@ impl Store {
             key,
         ))
     }
-    fn open(&self, name: &str, flags: OFlags) -> Result<File> {
-        check_private(&self.root, true)?;
-        if name.contains('/') || name == "." || name == ".." {
-            return Err(Error::Io);
-        }
-        let fd = rustix::fs::openat(
-            &self.root,
-            name,
-            flags | OFlags::CLOEXEC | OFlags::NOFOLLOW,
-            Mode::RUSR | Mode::WUSR,
-        )
-        .map_err(|_| Error::Io)?;
-        let file = File::from(fd);
-        check_private(&file, false)?;
-        Ok(file)
-    }
     fn read(&self, name: &str) -> Result<Option<Vec<u8>>> {
         Ok(self.read_with_identity(name)?.map(|(bytes, _)| bytes))
     }
     /// Bytes plus the identity of the exact descriptor they were read from.
-    fn read_with_identity(&self, name: &str) -> Result<Option<(Vec<u8>, Option<CacheFileIdentity>)>> {
-        check_private(&self.root, true)?;
-        let fd = match rustix::fs::openat(
-            &self.root,
-            name,
-            OFlags::RDONLY | OFlags::CLOEXEC | OFlags::NOFOLLOW | OFlags::NONBLOCK,
-            Mode::empty(),
-        ) {
-            Ok(fd) => fd,
-            Err(rustix::io::Errno::NOENT) => return Ok(None),
-            Err(_) => return Err(Error::Io),
-        };
-        let mut file = File::from(fd);
-        check_private(&file, false)?;
-        if file.metadata()?.len() > MAX_LOCAL_RECORD_BYTES as u64 {
-            return Err(Error::Invalid("The local record is too large."));
-        }
-        let mut bytes = Vec::new();
-        file.read_to_end(&mut bytes)?;
+    fn read_with_identity(&self, name: &str) -> Result<Option<(Vec<u8>, Option<FileIdentity>)>> {
+        let read = self.bytes.get_with_identity(name)?;
         #[cfg(test)]
-        if name.starts_with("cache-") {
+        if read.is_some() && name.starts_with("cache-") {
             self.io_counts.cache_reads.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         }
-        let identity = cache_file_identity(&file).ok().flatten();
-        Ok(Some((bytes, identity)))
+        Ok(read)
     }
-    fn lock(&self, name: &str) -> Result<FileLock> {
-        let file = self.open(name, OFlags::RDWR | OFlags::CREATE)?;
-        file.lock_exclusive()?;
-        Ok(FileLock(file))
+    fn lock(&self, name: &str) -> Result<LockGuard> {
+        Ok(self.bytes.lock(name)?)
     }
     // Caller holds revocation.lock across this check and the session publish.
     // Retain the first fsynced inode, check both descriptor identities and the
@@ -1709,13 +1602,13 @@ impl Store {
             return Ok(false);
         }
         self.require_current_cache_file("revocation.json", &intent.file, &intent.identity)?;
-        let mut current = self.open("revocation.json", OFlags::RDONLY | OFlags::NONBLOCK)?;
-        if cache_file_identity(&current)?.as_ref() != Some(&intent.identity) {
+        let mut current = self.bytes.open_current("revocation.json")?;
+        if FileByteStore::identity(&current)? != intent.identity {
             return Ok(false);
         }
         let mut actual = Vec::new();
         (&mut current).take(bytes.len() as u64 + 1).read_to_end(&mut actual)?;
-        if actual != bytes || cache_file_identity(&current)?.as_ref() != Some(&intent.identity) {
+        if actual != bytes || FileByteStore::identity(&current)? != intent.identity {
             return Ok(false);
         }
         self.require_current_cache_file("revocation.json", &intent.file, &intent.identity)?;
@@ -1752,134 +1645,33 @@ impl Store {
                 if state.fail_session { return Err(Error::Io); }
             }
         }
-        // Validate existing targets as well as replacement files; reject symlinks.
-        self.read(name)?;
-        let temporary = format!(".tmp-{}", uuid::Uuid::new_v4());
-        let result = (|| {
-            let mut file = self.open(&temporary, OFlags::WRONLY | OFlags::CREATE | OFlags::EXCL)?;
-            file.write_all(bytes)?;
-            file.sync_all()?;
-            rustix::fs::renameat(&self.root, &temporary, &self.root, name)
-                .map_err(|_| Error::Io)?;
+        Ok(self.bytes.put_file_hooked(name, bytes, sync_directory, || {
             #[cfg(test)]
             {
                 let state = self.session_intent_test.lock().unwrap();
                 if name == "revocation.json"
                     && state.fail_after_revocation_rename_at == Some(state.revocation_writes)
                 {
-                    return Err(Error::Io);
+                    return Err(ByteStoreError::Io);
                 }
             }
-            if sync_directory {
-                self.root.sync_all()?;
-            }
-            Ok(file)
-        })();
-        if result.is_err() {
-            let _ = rustix::fs::unlinkat(&self.root, &temporary, rustix::fs::AtFlags::empty());
-        }
-        result
+            Ok(())
+        })?)
     }
     fn remove(&self, name: &str) -> Result<()> {
-        check_private(&self.root, true)?;
-        let fd = match rustix::fs::openat(
-            &self.root,
-            name,
-            OFlags::RDONLY | OFlags::CLOEXEC | OFlags::NOFOLLOW,
-            Mode::empty(),
-        ) {
-            Ok(fd) => fd,
-            Err(rustix::io::Errno::NOENT) => return Ok(()),
-            Err(_) => return Err(Error::Io),
-        };
-        // Cleanup must work even for damaged or oversized ciphertext records.
-        check_private(&File::from(fd), false)?;
-        rustix::fs::unlinkat(&self.root, name, rustix::fs::AtFlags::empty())
-            .map_err(|_| Error::Io)?;
-        Ok(())
+        Ok(self.bytes.delete(name)?)
     }
     fn clear_owned_cache(&self, owner: &str) -> Result<()> {
-        // Enumerate through the same anchored descriptor used for reads/writes.
-        let prefix = format!("cache-{owner}-");
-        let journal_prefix = format!("private-{owner}-");
-        let entries = rustix::fs::Dir::read_from(&self.root).map_err(|_| Error::Io)?;
-        for entry in entries {
-            let entry = entry.map_err(|_| Error::Io)?;
-            let name = entry.file_name().to_str().map_err(|_| Error::Io)?;
-            if (name.starts_with(&prefix) || name.starts_with(&journal_prefix))
-                && (name.ends_with(".json") || name.ends_with(".json.lock"))
-            {
-                self.remove(name)?;
+        for prefix in [format!("cache-{owner}-"), format!("private-{owner}-")] {
+            for name in self.bytes.list(&prefix)? {
+                if name.ends_with(".json") || name.ends_with(".json.lock") {
+                    self.remove(&name)?;
+                }
             }
         }
-        self.root.sync_all()?;
+        self.bytes.barrier()?;
         Ok(())
     }
-}
-struct FileLock(File);
-impl Drop for FileLock {
-    fn drop(&mut self) {
-        let _ = FileExt::unlock(&self.0);
-    }
-}
-fn private_directory(path: &Path) -> Result<File> {
-    if !path.is_absolute() {
-        return Err(Error::Invalid(
-            "The state directory must be an absolute path.",
-        ));
-    }
-    // Walk from an open root descriptor so intermediate symlinks cannot redirect
-    // credential writes. Existing parent directories need not be private.
-    let mut directory = File::from(
-        rustix::fs::open(
-            "/",
-            OFlags::RDONLY | OFlags::DIRECTORY | OFlags::CLOEXEC,
-            Mode::empty(),
-        )
-        .map_err(|_| Error::Io)?,
-    );
-    let components: Vec<_> = path.components().collect();
-    for (index, component) in components.iter().enumerate() {
-        let Component::Normal(name) = component else {
-            if matches!(component, Component::RootDir) {
-                continue;
-            }
-            return Err(Error::Invalid(
-                "The state directory must use a normalized absolute path.",
-            ));
-        };
-        let flags = OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC;
-        let fd = match rustix::fs::openat(&directory, *name, flags, Mode::empty()) {
-            Ok(fd) => fd,
-            Err(rustix::io::Errno::NOENT) => {
-                rustix::fs::mkdirat(&directory, *name, Mode::RUSR | Mode::WUSR | Mode::XUSR)
-                    .map_err(|_| Error::Io)?;
-                rustix::fs::openat(&directory, *name, flags, Mode::empty())
-                    .map_err(|_| Error::Io)?
-            }
-            Err(_) => return Err(Error::Io),
-        };
-        directory = File::from(fd);
-        if index + 1 == components.len() {
-            check_private(&directory, true)?;
-        }
-    }
-    check_private(&directory, true)?;
-    Ok(directory)
-}
-fn check_private(file: &File, directory: bool) -> Result<()> {
-    let metadata = file.metadata()?;
-    if directory != metadata.is_dir() || (!directory && !metadata.is_file()) {
-        return Err(Error::Io);
-    }
-    #[cfg(unix)]
-    if metadata.uid() != rustix::process::geteuid().as_raw()
-        || metadata.mode() & 0o777 != if directory { 0o700 } else { 0o600 }
-        || (!directory && metadata.nlink() != 1)
-    {
-        return Err(Error::Io);
-    }
-    Ok(())
 }
 fn digest(bytes: &[u8]) -> String {
     Sha256::digest(bytes)
@@ -2882,6 +2674,7 @@ mod cache_publication_path_guard_tests {
 #[cfg(all(test, unix))]
 mod cache_publication_interleaving_tests {
     use super::*;
+    use std::os::unix::fs::MetadataExt;
     use std::os::unix::fs::PermissionsExt;
     use std::sync::atomic::Ordering;
 

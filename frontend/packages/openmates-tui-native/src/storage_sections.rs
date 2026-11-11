@@ -319,7 +319,7 @@ impl Store {
         };
         if changed {
             // Every renamed record must be durable before the index names it.
-            self.root.sync_all()?;
+            self.bytes.barrier()?;
         }
         let index_name = cache_name(owner, &index_key(cache_key));
         let plaintext = index_record(&next, &prepared.index)?;
@@ -340,7 +340,7 @@ impl Store {
         removed |= self.remove_present(&legacy)?;
         removed |= self.remove_present(&cache_name(owner, &freshness_marker_key(cache_key)))?;
         if removed {
-            self.root.sync_all()?;
+            self.bytes.barrier()?;
         }
         let _fence = self.lock("revocation.lock")?;
         self.require_epoch(&epoch)?;
@@ -350,7 +350,7 @@ impl Store {
     /// After a legacy single-file publication: make it authoritative again.
     pub(super) fn retire_sections_locked(&self, owner: &str, cache_key: &str) -> Result<()> {
         if self.remove_present(&cache_name(owner, &index_key(cache_key)))? {
-            self.root.sync_all()?;
+            self.bytes.barrier()?;
         }
         if let Ok(mut manifests) = self.section_manifests.lock() {
             manifests.remove(&cache_name(owner, cache_key));
@@ -533,23 +533,15 @@ impl Store {
         {
             return Ok(false);
         }
-        let file = match rustix::fs::openat(
-            &self.root,
-            name,
-            OFlags::RDONLY | OFlags::CLOEXEC | OFlags::NOFOLLOW | OFlags::NONBLOCK,
-            Mode::empty(),
-        ) {
-            Ok(fd) => File::from(fd),
-            Err(rustix::io::Errno::NOENT) => return Ok(false),
-            Err(_) => return Err(Error::Io),
+        let Some(file) = self.bytes.open_existing(name, false)? else {
+            return Ok(false);
         };
-        check_private(&file, false)?;
-        if cache_file_identity(&file)? != Some(evidence.identity) {
+        if FileByteStore::identity(&file)? != evidence.identity {
             return Ok(false);
         }
         if !evidence.synced {
             file.sync_all()?;
-            self.root.sync_all()?;
+            self.bytes.barrier()?;
             evidence.synced = true;
         }
         Ok(true)
@@ -577,7 +569,7 @@ impl Store {
             self.require_epoch(epoch)?;
             self.atomic_write_file_with(name, &encoded, sync_directory)?
         };
-        if let Some(identity) = cache_file_identity(&file).ok().flatten() {
+        if let Some(identity) = FileByteStore::identity(&file).ok() {
             self.remember_durable_cache(name, DurableCache {
                 epoch: epoch.to_owned(),
                 binding: Zeroizing::new(cache_publication_mac(key, epoch, aad)?.finalize().into_bytes().into()),
@@ -612,18 +604,10 @@ impl Store {
         self.loaded_manifest(owner, cache_key, epoch).ok_or(Error::Cancelled)
     }
     fn remove_present(&self, name: &str) -> Result<bool> {
-        match rustix::fs::openat(
-            &self.root,
-            name,
-            OFlags::RDONLY | OFlags::CLOEXEC | OFlags::NOFOLLOW | OFlags::NONBLOCK,
-            Mode::empty(),
-        ) {
-            Ok(_) => {
-                self.remove(name)?;
-                Ok(true)
-            }
-            Err(rustix::io::Errno::NOENT) => Ok(false),
-            Err(_) => Err(Error::Io),
+        if self.bytes.open_existing(name, false)?.is_none() {
+            return Ok(false);
         }
+        self.remove(name)?;
+        Ok(true)
     }
 }
