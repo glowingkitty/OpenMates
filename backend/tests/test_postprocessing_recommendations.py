@@ -282,3 +282,18 @@ def test_context_lists_written_entries_and_allows_empty_list_only_for_that_kind(
     assert properties["workflow_recommendations"]["minItems"] == 1
     mod.relax_min_items_for_written(properties, None)
     assert properties["workflow_recommendations"]["minItems"] == 1
+
+
+# contract-test: supporting surface=rest_api assertions=app-memories.suggestions.post-processor
+def test_personal_catalog_of_a_restored_request_accepts_plain_dicts():
+    """A continuation restore assigns dicts to memory_catalog; post-processing must not crash on them."""
+    from backend.apps.ai.processing.rule_context import request_personal_catalog
+
+    restored = SimpleNamespace(memory_catalog=[
+        {"id": "m1", "title": "Diet", "when_to_use": "food", "load_mode": "auto_include", "source": "personal"},
+        {"id": "m2", "title": "Repo rules", "when_to_use": "", "load_mode": "auto_include", "source": "project"},
+    ])
+    entries = request_personal_catalog(restored)
+    assert [entry.id for entry in entries] == ["m1"]
+    assert all(isinstance(entry, MemoryCatalogEntry) for entry in entries)
+    assert request_personal_catalog(SimpleNamespace(memory_catalog=None)) == []

@@ -92,6 +92,15 @@ def personal_catalog(memory_catalog: Iterable[MemoryCatalogEntry]) -> list[Memor
     """Personal catalog rows (Auto include and Ask first): metadata only, no body exists here."""
     return [entry for entry in memory_catalog if entry.source == "personal"]
 
+def request_personal_catalog(request: Any) -> list[MemoryCatalogEntry]:
+    """Personal catalog rows of a request, revalidated first.
+
+    A request restored from a stored continuation holds plain dicts in
+    ``memory_catalog`` (assignment skips validation), so no reader may use the
+    attribute directly.
+    """
+    return personal_catalog(request_memory_catalog(request))
+
 def memory_catalog_snapshot(entries: Iterable[MemoryCatalogEntry]) -> list[dict[str, str]]:
     """Body-free metadata snapshot stored (vault-encrypted) in the pending request."""
     return [entry.model_dump() for entry in entries]

@@ -86,6 +86,7 @@ from backend.apps.ai.processing.artifact_ledger import (
 )
 from backend.apps.ai.processing.postprocessing_workflow_context import fetch_user_workflow_metadata
 from backend.apps.ai.processing.postprocessing_recommendations import exclude_written_recommendations, recommendations_skip_reason
+from backend.apps.ai.processing.rule_context import request_personal_catalog
 from backend.apps.ai.processing.postprocessor import (
     handle_postprocessing,
     PostProcessingResult,
@@ -5094,7 +5095,7 @@ async def _async_process_ai_skill_ask_task(
                         ),
                         decision_model_id=getattr(skill_config.default_llms, "decision_model", None),
                         voice_mode=request_data.voice_mode,
-                        memory_catalog=[e for e in request_data.memory_catalog if e.source == "personal"],
+                        memory_catalog=request_personal_catalog(request_data),
                         existing_workflows=existing_workflows_for_postproc,
                         written_entries=list(request_data.turn_written_entries),
                     )
