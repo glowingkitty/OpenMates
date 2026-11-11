@@ -103,8 +103,11 @@ async function readAllMessagePictures(page: any, expected: number): Promise<Mess
 	const deadline = Date.now() + 60_000;
 	let pictures: MessagePicture[] = [];
 	while (Date.now() < deadline) {
-		for (const card of await page.locator('[data-message-id] [data-testid="embed-preview"][data-app-id="images"]').all()) {
-			await card.scrollIntoViewIfNeeded();
+		// Answers render their body, and cards their picture, once scrolled into view.
+		for (const message of await page.locator('[data-testid="message-assistant"][data-message-id]').all()) {
+			await message.scrollIntoViewIfNeeded().catch(() => undefined);
+			const card = message.locator('[data-testid="embed-preview"][data-app-id="images"]').first();
+			await card.scrollIntoViewIfNeeded({ timeout: 3_000 }).catch(() => undefined);
 		}
 		pictures = await messagePictures(page);
 		if (pictures.length >= expected && pictures.every((picture) => picture.src)) break;
@@ -277,7 +280,9 @@ test('embroidery vector graphic is made by the images skill, shows progress, and
 		`[data-message-id="${reloaded[2].messageId}"] [data-testid="image-generate-preview-image"][data-embed-version="3"]`
 	).first();
 	await lastImage.scrollIntoViewIfNeeded();
-	await lastImage.click();
+	// Result cards open from their Details button; the picture itself is not a click target.
+	await page.locator(`[data-message-id="${reloaded[2].messageId}"] [data-testid="embed-preview"][data-app-id="images"]`).first()
+		.getByTestId('result-preview-expand').click();
 	const timeline = page.getByTestId('embed-version-timeline');
 	await expect(timeline).toBeVisible({ timeout: 30_000 });
 	for (const version of [1, 2, 3]) await expect(timeline.getByTestId(`version-dot-${version}`)).toBeVisible();

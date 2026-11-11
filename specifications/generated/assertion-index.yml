@@ -42989,7 +42989,7 @@ assertions:
       surface: rest_api
     - &id5393
       path: frontend/apps/web_app/tests/vector-graphic-chat.spec.ts
-      line: 182
+      line: 185
       name: embroidery vector graphic is made by the images skill, shows progress,
         and follow-ups modify it
       surface: gui.web
@@ -43252,7 +43252,7 @@ assertions:
       surface: rest_api
     - &id5422
       path: frontend/apps/web_app/tests/vector-graphic-chat.spec.ts
-      line: 182
+      line: 185
       name: embroidery vector graphic is made by the images skill, shows progress,
         and follow-ups modify it
       surface: gui.web
