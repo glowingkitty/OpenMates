@@ -119565,7 +119565,7 @@ assertions:
       surface: rest_api
     - &id15295
       path: backend/core/directus/extensions/embed-version-transaction/test/user-revisions.test.js
-      line: 311
+      line: 319
       name: a missing base version needs its snapshot in the same commit
       surface: rest_api
     - &id15296
@@ -119611,34 +119611,34 @@ assertions:
       surface: rest_api
     - &id15300
       path: backend/core/directus/extensions/embed-version-transaction/test/user-revisions.test.js
-      line: 253
+      line: 261
       name: an Enhance result is committed only from a ready job of this user, embed
         and version
       surface: rest_api
     - &id15301
       path: backend/core/directus/extensions/embed-version-transaction/test/user-revisions.test.js
-      line: 289
+      line: 297
       name: types outside the allowlist are refused
       surface: rest_api
     - &id15302
       path: backend/core/directus/extensions/embed-version-transaction/test/user-revisions.test.js
-      line: 297
+      line: 305
       name: a stale version or head hash is a conflict that writes nothing
       surface: rest_api
     - &id15303
       path: backend/core/directus/extensions/embed-version-transaction/test/user-revisions.test.js
-      line: 311
+      line: 319
       name: a missing base version needs its snapshot in the same commit
       surface: rest_api
     - &id15304
       path: backend/core/directus/extensions/embed-version-transaction/test/user-revisions.test.js
-      line: 324
+      line: 332
       name: a replay by operation_id returns the first result; a changed payload is
         refused
       surface: rest_api
     - &id15305
       path: backend/core/directus/extensions/embed-version-transaction/test/user-revisions.test.js
-      line: 347
+      line: 355
       name: malformed requests are refused before any read
       surface: rest_api
     - &id15306
@@ -119736,7 +119736,7 @@ assertions:
       surface: rest_api
     - &id15314
       path: backend/core/directus/extensions/embed-version-transaction/test/user-revisions.test.js
-      line: 337
+      line: 345
       name: a pending notice is written only when the embed has a chat
       surface: rest_api
     - &id15315
@@ -120107,12 +120107,12 @@ assertions:
     direct_tests:
     - &id15354
       path: backend/core/directus/extensions/embed-version-transaction/test/user-revisions.test.js
-      line: 240
+      line: 248
       name: file keys outside the embed and client-made upload sources are refused
       surface: rest_api
     - &id15355
       path: backend/core/directus/extensions/embed-version-transaction/test/user-revisions.test.js
-      line: 253
+      line: 261
       name: an Enhance result is committed only from a ready job of this user, embed
         and version
       surface: rest_api

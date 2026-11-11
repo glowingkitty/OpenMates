@@ -230,6 +230,14 @@ test('a generated image child (UUIDv5) restores version 1 as version 3 and keeps
   const notice = db.rows.pending_embed_notices[0];
   assert.deepEqual([notice.action, notice.surface, notice.restored_from], ['restore', 'chat', 1]);
   assert.equal(Object.values(notice).some((value) => typeof value === 'string' && value.includes('img-snapshot')), false);
+  // A child stored before its chat row existed has no catalog stamp; the generation
+  // task's file index record marks it as a generated image.
+  const unstamped = imageSeed();
+  Object.assign(unstamped.embeds[0], { app_id: null, skill_id: null, root_embed_id: null });
+  await rejectsWith(commitUserEmbedRevision(fakeDatabase(unstamped), imageBody()), 403, 'project_context_required');
+  unstamped.upload_files = [{ id: 'file-1', embed_id: IMAGE_CHILD_ID, content_type: 'image/webp',
+    ai_detection: JSON.stringify({ source: 'openmates_image_generate' }) }];
+  assert.equal((await commitUserEmbedRevision(fakeDatabase(unstamped), imageBody())).current_revision, 3);
   // Any other UUIDv5 id stays reserved for Project files in chat scope.
   const other = fakeDatabase(imageSeed());
   other.rows.embeds[0].parent_embed_id = null;

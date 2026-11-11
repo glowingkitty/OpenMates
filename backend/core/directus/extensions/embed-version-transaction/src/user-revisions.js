@@ -35,6 +35,8 @@ const PROJECT_ITEMS = 'project_items';
 const CHATS = 'chats';
 const MEMBERSHIPS = 'team_memberships';
 const TEAMS = 'teams';
+const UPLOAD_FILES = 'upload_files';
+const GENERATED_IMAGE_SOURCE = 'openmates_image_generate';
 const WRITE_ROLES = ['owner', 'admin', 'member'];
 const MAX_CIPHERTEXT_BYTES = 4 * 1024 * 1024;
 const MAX_FILE_REFS = 64;
@@ -217,6 +219,27 @@ async function requireTeamWriter(trx, teamHash, actor, code) {
 const isProjectNativeFile = (embed) => UUID_V5_RE.test(embed.embed_id)
   && embed.app_id == null && embed.skill_id == null && embed.parent_embed_id == null;
 
+/* A generated image child. The catalog stamp (app_id/skill_id) is written from
+ * the first client store and is absent when that store ran before the chat row
+ * existed; the generation task's own file index record is the durable marker
+ * (the same one the assistant image-revision path uses). */
+async function isImageChild(trx, embed) {
+  if (isGeneratedImageChild(embed.embed_id, embed)) return true;
+  if (!UUID_V5_RE.test(embed.embed_id) || embed.parent_embed_id == null
+    || embed.app_id != null || embed.skill_id != null) return false;
+  const record = await trx(UPLOAD_FILES).where({ embed_id: embed.embed_id }).first();
+  if (!record) return false;
+  let detection = record.ai_detection;
+  if (typeof detection === 'string') {
+    try {
+      detection = JSON.parse(detection);
+    } catch {
+      return false;
+    }
+  }
+  return detection?.source === GENERATED_IMAGE_SOURCE;
+}
+
 async function authorizeChat(trx, body) {
   const { chat_id: chatId } = body.scope;
   const teamHash = body.scope.team_id ? sha256(body.scope.team_id) : null;
@@ -235,12 +258,12 @@ async function authorizeChat(trx, body) {
   if (embed.hashed_chat_id !== sha256(chatId) || (embed.hashed_team_id ?? null) !== teamHash
     || (!teamHash && embed.hashed_user_id !== actor)
     || ![null, undefined, 'chat'].includes(embed.workspace_origin)) fail(403, 'embed_access_denied');
-  const generatedChild = isGeneratedImageChild(body.embed_id, embed);
+  const generatedChild = await isImageChild(trx, embed);
   // UUIDv5 is reserved for Project files and registered producer children.
   if (UUID_V5_RE.test(body.embed_id) && !generatedChild) fail(403, 'project_context_required');
   if (embed.root_embed_id != null && embed.root_embed_id !== body.embed_id
     && !(generatedChild && embed.root_embed_id === embed.parent_embed_id)) fail(403, 'embed_access_denied');
-  return { embed, teamHash, scopeHash: sha256(chatId), projectNative: false };
+  return { embed, teamHash, scopeHash: sha256(chatId), projectNative: false, imageChild: generatedChild };
 }
 
 async function authorizeProject(trx, body) {
@@ -270,10 +293,9 @@ async function authorizeProject(trx, body) {
     || (teamHash && embed.hashed_team_id != null && embed.hashed_team_id !== teamHash)
     || embed.workspace_origin === 'web_apps') fail(403, 'embed_access_denied');
   const projectNative = isProjectNativeFile(embed);
-  if (UUID_V5_RE.test(body.embed_id) && !projectNative && !isGeneratedImageChild(body.embed_id, embed)) {
-    fail(403, 'embed_access_denied');
-  }
-  return { embed, teamHash, scopeHash: projectHash, projectNative };
+  const imageChild = await isImageChild(trx, embed);
+  if (UUID_V5_RE.test(body.embed_id) && !projectNative && !imageChild) fail(403, 'embed_access_denied');
+  return { embed, teamHash, scopeHash: projectHash, projectNative, imageChild };
 }
 
 /**
@@ -357,11 +379,14 @@ export async function commitUserEmbedRevision(database, raw) {
   const digest = sha256(stableJson(body));
   const identity = sha256(`${body.embed_id}\0${body.operation_id}`);
   return database.transaction(async (trx) => {
-    const { embed, teamHash, scopeHash, projectNative } = body.scope.kind === 'chat'
+    const { embed, teamHash, scopeHash, projectNative, imageChild } = body.scope.kind === 'chat'
       ? await authorizeChat(trx, body) : await authorizeProject(trx, body);
     if (embed.encryption_mode !== 'client') fail(403, 'embed_access_denied');
-    if (!typeAllowed(embed, body.scope.kind, projectNative)) fail(403, 'embed_type_not_editable');
-    const isImage = IMAGE_TYPES.has(`${embed.app_id}/${embed.skill_id}`);
+    // An unstamped generated image child is typed by its file index record (isImageChild).
+    const typed = imageChild && embed.app_id == null
+      ? { ...embed, app_id: 'images', skill_id: 'generated_image' } : embed;
+    if (!typeAllowed(typed, body.scope.kind, projectNative)) fail(403, 'embed_type_not_editable');
+    const isImage = IMAGE_TYPES.has(`${typed.app_id}/${typed.skill_id}`);
     if (body.files && !isImage) fail(400, 'invalid_file_source');
     if (body.action === 'enhance' && !isImage) fail(400, 'invalid_action');
 
