@@ -2168,6 +2168,13 @@ export class ChatSynchronizationService extends EventTarget {
     // Import and register remaining app settings/memories handlers.
     // These events are not time-critical (they don't arrive immediately after a user message)
     // so registering them inside a dynamic import .then() is safe here.
+    import("./appSettingsMemoriesEntryDeleted").then((module) => {
+      webSocketService.on("app_settings_memories_entry_deleted", async (payload) => {
+        await module.handleAppSettingsMemoriesEntryDeleted(
+          payload as Parameters<typeof module.handleAppSettingsMemoriesEntryDeleted>[0],
+        );
+      });
+    });
     import("./chatSyncServiceHandlersAppSettings").then((module) => {
       webSocketService.on("app_settings_memories_sync_ready", (payload) =>
         module.handleAppSettingsMemoriesSyncReadyImpl(
