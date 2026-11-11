@@ -666,7 +666,9 @@ assertions:
   must: When a chat without an active Project asks the assistant to build a multi-file application such as a web app or
     a native app, preprocessing decides that a new Project is needed and the Project is created without a confirmation
     step. The chat shows a created-Project card with an undo control, the Project uses the Apply and show write policy,
-    and its default Work on (project) focus becomes active in that chat at once. A request for a single script or snippet
+    and its default Work on (project) focus becomes active in that chat at once. The assistant reply starts with that focus
+    shown as already active (no countdown, no accept or reject) and marked as following the Project creation, and every
+    client keeps it as the chat's active focus, also after a reload. A request for a single script or snippet
     creates no Project. Undo removes the Project and its focus but leaves the chat and its embeds intact. Creation uses
     the same client-side encryption and key wrapping as a Project created by the user; the server never receives the
     Project key or plaintext name.

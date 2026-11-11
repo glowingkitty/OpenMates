@@ -146,7 +146,26 @@ Replies to the sending socket:
   After an error the turn is not resumed; the client may fix the cause (for example
   activate the focus) and resend while the request is unexpired, or report `failed`.
 
+For `created`, before the turn resumes, the server also publishes the existing
+`focus_mode_activated` event `{chat_id, focus_id}` to all of the user's devices.
+`focus_id` is the verified binding's default focus id (bare UUID, the value
+`GET /v1/projects/focus/current` returns), so each client encrypts it with the chat
+key and stores it with `update_encrypted_active_focus_id` exactly as for an
+accepted focus. In the Rust core this frame is the only writer of that field for
+this flow (`ProjectCreateState::mark_focus_persisted`; card field `focusPersisted`).
+
 ## 6. Same-turn continuation
+
+For `created` the resumed assistant message starts with one persisted
+`focus_mode_activation` embed, before any answer text or application embed. It
+is already active (`status: activated`, no countdown, no accept/reject) and only
+appears while the chat's focus binding is still this Project and focus (an Undo
+before the turn resumes shows none). Fields: `focus_id: "project-<project_id>"`,
+`app_id: "projects"`, `focus_mode_name: "Work on <name>"`, plus
+`project_created: true`, `project_id`, `project_focus_id` (the bare default focus
+id persisted as the active focus) and `project_name` (the proposed name, the
+same plaintext the request already carried). Clients render it as the
+"Created project <name>" card with Undo.
 
 After `project_create_confirmed` the original turn resumes as an async continuation
 (`skill_id` `project_create_request`). For `created` the new Project focus is active,

@@ -215,17 +215,25 @@ def _handler(monkeypatch, async_skill_continuation):
 
 
 async def _report(monkeypatch, async_skill_continuation, payload, *, focus_project=PROJECT, write_mode="apply_and_show",
-                  claim=True, created_at=None):
+                  claim=True, created_at=None, publish=None, on_dispatch=None):
     from backend.core.api.app.services.project_create_request_service import ProjectCreateRequestService
     handler = _handler(monkeypatch, async_skill_continuation)
     now = int(time.time())
     pending = {"request_id": REQUEST, "user_id": "owner", "chat_id": "chat", "message_id": "turn",
-               "team_id": None, "kind": "web_app", "subfolder": "web-app",
+               "team_id": None, "kind": "web_app", "subfolder": "web-app", "name": "Recipe Manager",
                "created_at": now, "expires_at": now + 600}
     key = ProjectCreateRequestService.key("owner", "chat")
-    cache = _Cache({key: pending, key + ":" + REQUEST: pending,
-                    async_skill_continuation.async_skill_latest_user_turn_key("owner", "chat"): "turn"})
-    cache.client = AsyncMock(return_value=SimpleNamespace(set=AsyncMock(return_value=claim)))()
+    redis = SimpleNamespace(set=AsyncMock(return_value=claim), publish=publish or AsyncMock())
+
+    async def client():
+        return redis
+
+    class _RedisCache(_Cache):
+        # Awaited once per use, like CacheService.client.
+        client = property(lambda _self: client())
+
+    cache = _RedisCache({key: pending, key + ":" + REQUEST: pending,
+                         async_skill_continuation.async_skill_latest_user_turn_key("owner", "chat"): "turn"})
     from backend.core.api.app.services.project_write_authorization_service import focus_id_hash
     auth = SimpleNamespace(
         _require_chat_access=AsyncMock(),
@@ -236,7 +244,7 @@ async def _report(monkeypatch, async_skill_continuation, payload, *, focus_proje
                                                  "focus_id_hash": focus_id_hash(FOCUS)}),
     )
     monkeypatch.setattr(handler, "ProjectWriteAuthorizationService", lambda *_: auth)
-    dispatch = AsyncMock()
+    dispatch = AsyncMock(side_effect=(lambda **_: on_dispatch()) if on_dispatch else None)
     monkeypatch.setattr(handler, "dispatch_async_skill_continuation", dispatch)
     websocket = SimpleNamespace(send_json=AsyncMock())
     await handler.handle_project_create_result(

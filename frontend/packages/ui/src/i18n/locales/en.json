@@ -16806,6 +16806,24 @@
     },
     "workspace_error_source_timeout": {
       "text": "The remote machine did not respond. Retry the Project read."
+    },
+    "created_project_label": {
+      "text": "Created project"
+    },
+    "created_project_undo": {
+      "text": "Undo"
+    },
+    "created_project_undone": {
+      "text": "Project creation undone"
+    },
+    "created_project_undo_failed": {
+      "text": "Could not undo. Please try again."
+    },
+    "work_on_label": {
+      "text": "Work on"
+    },
+    "focus_not_active": {
+      "text": "Not active"
     }
   },
   "recommendations": {

@@ -769,6 +769,8 @@ project_assistant_creation:
   when: The message is processed.
   then: A Project named Recipe Manager exists, the chat shows a "Created project Recipe Manager" card with Undo, Work on
     Recipe Manager is active in the chat, and the assistant starts writing the app's files without asking for permission.
+    The reply begins with the active Work on Recipe Manager focus card, and after a reload the card and the active focus are
+    still shown.
 - id: single-script-creates-no-project
   assertion_ids:
   - projects.creation.assistant-inferred

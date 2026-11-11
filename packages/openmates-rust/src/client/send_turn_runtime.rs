@@ -234,6 +234,9 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
                 trace.phase = SendPhase::FocusPersist;
                 phases.persist_focus_event(ws, &kind, &p, id, key, &mut focus_state)
                     .await?;
+                if kind == "focus_mode_activated" {
+                    observed.project_create.mark_focus_persisted(text(&p, "focus_id"));
+                }
                 trace.phase = SendPhase::FrameValidation;
             }
             if kind == "project_focus_catalog_requested"

@@ -401,6 +401,7 @@
         "feature-availability.spec.ts",
         "finance-check-accounts.spec.ts",
         "components/focus-mode-activation.spec.ts",
+        "components/focus-activation-project-created.spec.ts",
         "components/project-focus-policy.spec.ts",
         "components/focus-phases.spec.ts",
         "focus-mode-example-chats.spec.ts",

@@ -104,3 +104,37 @@ async fn undo_after_confirmation_sends_no_message() {
     assert!(c.project_create_undo_report(CHAT, REQUEST, &mut state).await.unwrap().is_none());
     assert!(stored.lock().unwrap().is_none());
 }
+
+// contract-test: supporting surface=sdks.rust assertions=projects.creation.assistant-inferred
+#[tokio::test]
+async fn the_activation_frame_persists_the_created_focus_and_marks_the_card() {
+    let (api, _, _) = rest_fixture(rest_handler(true)).await;
+    let (mut c, mut state) = (client(&api), ProjectCreateState::default());
+    let sent = report(&mut c, "project_create_requested", &request_event(NOW), &mut state).await.unwrap();
+    let focus = sent["focus_id"].as_str().unwrap().to_owned();
+    assert_eq!(state.cards()[0]["focusPersisted"], false, "creation itself never writes the active focus");
+    // The server's `focus_mode_activated` frame names the bound default focus id.
+    let key = [11; 32];
+    let mut previous = json!({});
+    let frame = json!({"chat_id": CHAT, "focus_id": focus});
+    let mut plan = super::super::focus::FocusPersistencePlan::prepare("focus_mode_activated", &frame, CHAT, &key, &mut previous).unwrap();
+    let (kind, payload, ack) = plan.next_effect(&key, || Ok(None)).unwrap().unwrap().into_wire();
+    assert_eq!(kind, "update_encrypted_active_focus_id");
+    assert!(ack.is_none());
+    assert_eq!(crypto::decrypt_combined(payload["encrypted_active_focus_id"].as_str().unwrap(), &key).unwrap(), focus);
+    assert!(plan.next_effect(&key, || Ok(None)).unwrap().is_none());
+    state.mark_focus_persisted("33333333-3333-4333-8333-333333333333");
+    assert_eq!(state.cards()[0]["focusPersisted"], false, "another focus never marks the card");
+    state.mark_focus_persisted(&focus);
+    assert_eq!(state.cards()[0]["focusPersisted"], true);
+}
+
+// contract-test: supporting surface=sdks.rust assertions=projects.creation.assistant-inferred
+#[tokio::test]
+async fn a_failed_creation_is_never_marked_focus_persisted() {
+    let (api, _, _) = rest_fixture(rest_handler(false)).await;
+    let (mut c, mut state) = (client(&api), ProjectCreateState::default());
+    report(&mut c, "project_create_requested", &request_event(NOW), &mut state).await.unwrap();
+    state.mark_focus_persisted("");
+    assert_eq!(state.cards()[0]["focusPersisted"], false);
+}

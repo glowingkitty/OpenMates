@@ -46,6 +46,8 @@ struct Entry {
     // A `failed` report follows a server error at most once, so a rejected
     // failure report can never start a loop.
     failure_reported: bool,
+    /// The chat's encrypted active focus now names this Project's default focus.
+    focus_persisted: bool,
 }
 
 /// Requests handled during one send, keyed by request id (idempotency).
@@ -77,9 +79,27 @@ impl ProjectCreateState {
                     card["errorCode"] = json!(code);
                 }
                 card["undoAvailable"] = json!(entry.status == Status::Created);
+                card["focusPersisted"] = json!(entry.focus_persisted);
                 card
             })
             .collect()
+    }
+
+    /// Mark the created card whose default focus the chat now persists.
+    ///
+    /// Call only after `persist_focus_event` sent `update_encrypted_active_focus_id`
+    /// for a `focus_mode_activated` frame. That frame, which the server publishes
+    /// after verifying a `created` report, is the single writer of the chat's
+    /// active focus for an assistant-created Project; creation itself never
+    /// writes it, so there is no second write to race with.
+    pub(super) fn mark_focus_persisted(&mut self, focus_id: &str) {
+        for entry in self.entries.values_mut() {
+            if entry.status == Status::Created
+                && entry.record.as_ref().is_some_and(|record| record.focus_id == focus_id)
+            {
+                entry.focus_persisted = true;
+            }
+        }
     }
 }
 
@@ -233,6 +253,7 @@ impl Client {
                 error_code: None,
                 confirmed: false,
                 failure_reported: false,
+                focus_persisted: false,
             },
             Err(Error::Cancelled) => return Err(Error::Cancelled),
             Err(error) => Entry {
@@ -241,6 +262,7 @@ impl Client {
                 error_code: Some(failure_code(error).to_owned()),
                 confirmed: false,
                 failure_reported: true,
+                focus_persisted: false,
             },
         };
         let payload = match (&entry.record, &entry.error_code) {
@@ -276,6 +298,7 @@ impl Client {
                 error_code: Some(refusal.code().to_owned()),
                 confirmed: false,
                 failure_reported: true,
+                focus_persisted: false,
             },
         );
         Ok(Some(report(chat, id, Status::Failed, Some(refusal.code()))))

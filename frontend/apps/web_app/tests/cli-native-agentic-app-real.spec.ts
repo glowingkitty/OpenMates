@@ -158,12 +158,13 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
       await page.goto(`${APP}/#project-id=${created[0]}`);
       await expect.soft(page.getByTestId('project-tabs')).toBeVisible({ timeout: 60_000 });
       await page.getByTestId('project-tab-folders').click();
-      const folder = page.getByTestId('project-folder-card').filter({ hasText: 'web-app' }).first();
+      const folder = page.getByTestId('project-virtual-folder-card').filter({ hasText: 'web-app' }).first();
       await expect.soft(folder).toBeVisible({ timeout: 60_000 });
       await page.screenshot({ path: info.outputPath('project-with-files.png'), fullPage: true });
       if (await folder.isVisible()) {
         await folder.click();
         await expect.soft(page.getByTestId('project-item-card').first()).toBeVisible({ timeout: 60_000 });
+        await expect.soft(page.getByText('Code snippet')).toHaveCount(0);
         await page.screenshot({ path: info.outputPath('project-web-app-folder.png'), fullPage: true });
       }
     }

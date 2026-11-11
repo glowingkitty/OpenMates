@@ -9,11 +9,15 @@ docs/plans/cloud-project-development/contracts/project-create-request.md.
 On ``created`` the client has already created the encrypted Project (Apply and
 show) and activated its default focus via ``POST /v1/projects/{id}/focus/activate``.
 This handler verifies that authority server-side and resumes the original turn
-with the Project focus active, so the Project file tools are available.
+with the Project focus active, so the Project file tools are available. For
+``created`` it also publishes ``focus_mode_activated`` with the bound default
+focus id, so every client persists the chat's encrypted active focus, and hands
+the resumed turn a one-shot record for its activation card.
 """
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any
 
@@ -21,6 +25,7 @@ from backend.apps.ai.tasks.async_skill_continuation import dispatch_async_skill_
 from backend.core.api.app.services.project_create_request_service import (
     PROJECT_CREATE_CONFIRMED_EVENT,
     PROJECT_CREATE_ERROR_EVENT,
+    PROJECT_CREATE_FOCUS_ACTIVATED_EVENT,
     PROJECT_CREATE_WRITE_MODE,
     ProjectCreateRequestService,
     continuation_result,
@@ -56,6 +61,28 @@ async def _require_created_project(*, authorization: ProjectWriteAuthorizationSe
         raise ProjectWriteAuthorizationError("PROJECT_FOCUS_REQUIRED", status_code=409)
 
 
+async def _announce_created_focus(*, cache_service: Any, service: ProjectCreateRequestService, user_id: str,
+                                   pending: dict[str, Any], report: dict[str, Any]) -> None:
+    """Before the turn resumes: card record for the resumed turn, then the activation event.
+
+    The event names the verified binding's default focus id (a bare UUID), which
+    is what clients encrypt as ``encrypted_active_focus_id`` and what
+    ``GET /v1/projects/focus/current`` returns, so the focus pill resolves it.
+    """
+    if not await service.record_created(user_id=user_id, pending=pending, report=report):
+        logger.warning("Project create activation card unavailable chat=%s request=%s",
+                       report["chat_id"], report["request_id"])
+    redis_client = await cache_service.client
+    if not redis_client:
+        logger.warning("Project create focus event not published chat=%s request=%s",
+                       report["chat_id"], report["request_id"])
+        return
+    await redis_client.publish(f"user_cache_events:{user_id}", json.dumps({
+        "event_type": PROJECT_CREATE_FOCUS_ACTIVATED_EVENT,
+        "payload": {"chat_id": report["chat_id"], "focus_id": report["focus_id"]},
+    }))
+
+
 async def handle_project_create_result(
     *, websocket: Any, manager: Any, cache_service: Any, directus_service: Any,
     user_id: str, device_fingerprint_hash: str, payload: dict[str, Any],
@@ -76,6 +103,9 @@ async def handle_project_create_result(
             )
         await service.claim(user_id=user_id, request_id=report["request_id"])
         await service.finish(user_id=user_id, chat_id=report["chat_id"], request_id=report["request_id"])
+        if report["status"] == "created":
+            await _announce_created_focus(cache_service=cache_service, service=service, user_id=user_id,
+                                          pending=pending, report=report)
         logger.info("Project create result chat=%s request=%s status=%s",
                     report["chat_id"], report["request_id"], report["status"])
         await dispatch_async_skill_continuation(

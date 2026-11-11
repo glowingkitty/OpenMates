@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import json
+import logging
 import uuid
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 async def request_project_focus_catalog(*, task_id: str, directus_service: Any, request_data: Any, preprocessing_results: Any,
@@ -142,4 +145,62 @@ async def request_project_focus(*, task_id: str, request_data: Any,
     await redis_client.publish(f"user_cache_events:{request_data.user_id}", json.dumps({
         "event_type": "focus_mode_pending", "payload": service.pending_event(pending),
     }))
+    return embed["embed_reference"]
+
+
+async def created_project_activation_reference(*, task_id: str, request_data: Any,
+                                               active_project_focus: dict[str, Any] | None,
+                                               cache_service: Any, directus_service: Any,
+                                               encryption_service: Any, user_vault_key_id: str | None,
+                                               log_prefix: str) -> str | None:
+    """The resumed turn's "Created project" activation card, or None.
+
+    Contract: docs/plans/cloud-project-development/contracts/project-create-request.md
+    section 6. Runs only on the continuation of a verified ``created`` report and
+    only while the chat's live focus binding is still that Project and focus
+    (an Undo before this point shows no card). The card is already activated:
+    no countdown and no accept/reject. ``focus_id`` keeps the embed's Project
+    form ``project-<project_id>``; ``project_focus_id`` is the bound default
+    focus id that clients persist as the chat's active focus.
+    """
+    from backend.core.api.app.services.embed_service import EmbedService
+    from backend.core.api.app.services.project_create_request_service import (
+        PROJECT_CREATE_CAPABILITY, PROJECT_CREATE_REQUEST_PREFIX, ProjectCreateRequestService,
+    )
+    request_id = getattr(request_data, "async_skill_task_id", None)
+    capabilities = set(getattr(request_data, "client_capabilities", None) or [])
+    if (not getattr(request_data, "is_async_skill_continuation", False) or not isinstance(request_id, str)
+            or not request_id.startswith(PROJECT_CREATE_REQUEST_PREFIX)
+            or request_data.is_incognito or request_data.is_external or not cache_service
+            or not {PROJECT_CREATE_CAPABILITY, "project_file_jobs"} <= capabilities):
+        return None
+    record = await ProjectCreateRequestService(cache_service).take_created(
+        user_id=request_data.user_id, request_id=request_id,
+    )
+    if record is None:
+        return None
+    turn_id = getattr(request_data, "original_user_message_id", None) or request_data.message_id
+    # active_project_focus was revalidated against Directus ownership this turn.
+    if (record.get("user_id") != request_data.user_id or record.get("chat_id") != request_data.chat_id
+            or record.get("message_id") != turn_id or not active_project_focus
+            or active_project_focus.get("project_id") != record.get("project_id")
+            or active_project_focus.get("team_id") != record.get("team_id")
+            or active_project_focus.get("focus_id") != record.get("focus_id")):
+        logger.info("%s Created Project card skipped: focus binding changed", log_prefix)
+        return None
+    name = record["name"]
+    embed = await EmbedService(
+        cache_service=cache_service, directus_service=directus_service,
+        encryption_service=encryption_service,
+    ).create_focus_mode_activation_embed(
+        focus_id=f"project-{record['project_id']}", app_id="projects", focus_mode_name=f"Work on {name}",
+        chat_id=request_data.chat_id, message_id=request_data.message_id,
+        user_id=request_data.user_id, user_id_hash=request_data.user_id_hash,
+        user_vault_key_id=user_vault_key_id, task_id=task_id, log_prefix=log_prefix,
+        extra_fields={"project_created": True, "project_id": record["project_id"],
+                      "project_focus_id": record["focus_id"], "project_name": name},
+    )
+    if not embed:
+        logger.warning("%s Created Project activation card could not be created", log_prefix)
+        return None
     return embed["embed_reference"]

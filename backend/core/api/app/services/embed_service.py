@@ -948,11 +948,17 @@ class EmbedService(SlidesEmbedMixin):
         user_id_hash: str,
         user_vault_key_id: str,
         task_id: Optional[str] = None,
-        log_prefix: str = ""
+        log_prefix: str = "",
+        extra_fields: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict[str, Any]]:
         """
         Create a focus mode activation embed that the frontend renders as a
         countdown indicator (4-3-2-1) with the option for the user to reject.
+
+        ``extra_fields`` adds flat, non-secret presentation fields to both the
+        embed content and its message reference (for example the
+        ``project_created`` card after an assistant Project creation). They can
+        never replace the core fields above.
 
         This is a lightweight embed that contains focus mode metadata.
         The frontend uses it to show the activation UI and manage the
@@ -987,6 +993,9 @@ class EmbedService(SlidesEmbedMixin):
                 "focus_mode_name": focus_mode_name,
                 "status": "activated"
             }
+            extra = {key: value for key, value in (extra_fields or {}).items()
+                     if key not in activation_content and key not in {"type", "embed_id"}}
+            activation_content.update(extra)
 
             # Encode to TOON
             activation_toon = encode(activation_content)
@@ -1043,7 +1052,8 @@ class EmbedService(SlidesEmbedMixin):
                 "embed_id": embed_id,
                 "focus_id": focus_id,
                 "app_id": app_id,
-                "focus_mode_name": focus_mode_name
+                "focus_mode_name": focus_mode_name,
+                **extra,
             }
             embed_reference = json.dumps(embed_reference_payload)
 

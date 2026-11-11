@@ -4786,6 +4786,15 @@ async def handle_main_processing(
         if active_project_focus
         else None
     )
+    # Assistant-created Project: the activation card leads the resumed answer.
+    from backend.apps.ai.processing.project_focus_orchestration import created_project_activation_reference
+    created_project_reference = await created_project_activation_reference(
+        task_id=task_id, request_data=request_data, active_project_focus=active_project_focus,
+        cache_service=cache_service, directus_service=directus_service,
+        encryption_service=encryption_service, user_vault_key_id=user_vault_key_id, log_prefix=log_prefix,
+    )
+    if created_project_reference:
+        yield f"```json\n{created_project_reference}\n```\n\n"
     reference_preview = getattr(request_data, "project_file_reference_preview", None)
     if reference_preview is not None:
         # A continuation may publish only the result of its freshly authorized

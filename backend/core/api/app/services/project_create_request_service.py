@@ -35,6 +35,9 @@ PROJECT_CREATE_EVENT = "project_create_requested"
 PROJECT_CREATE_RESULT_MESSAGE = "project_create_result"
 PROJECT_CREATE_CONFIRMED_EVENT = "project_create_confirmed"
 PROJECT_CREATE_ERROR_EVENT = "project_create_error"
+# Published after a verified ``created`` report so every client persists the
+# chat's active focus (same event and relay as an accepted focus mode).
+PROJECT_CREATE_FOCUS_ACTIVATED_EVENT = "focus_mode_activated"
 PROJECT_CREATE_WRITE_MODE = "apply_and_show"
 # Application kind -> dedicated Project subfolder for its files.
 PROJECT_CREATE_KINDS: dict[str, str] = {"web_app": "web-app", "native_app": "native-app"}
@@ -176,6 +179,9 @@ class ProjectCreateRequestService:
             "request_id": request_id, "user_id": user_id, "chat_id": chat_id,
             "message_id": action["message_id"], "team_id": action.get("team_id"),
             "kind": action.get("kind"), "subfolder": action.get("subfolder"),
+            # The plaintext proposal the client was asked to encrypt; kept only
+            # for the short-lived activation card on the resumed turn.
+            "name": action.get("name"),
             "created_at": action["created_at"], "expires_at": action["expires_at"],
         }
         key = self.key(user_id, chat_id)
@@ -213,6 +219,33 @@ class ProjectCreateRequestService:
         if not client or not await client.set(self.claim_key(user_id, request_id), "1",
                                               ex=PROJECT_CREATE_REQUEST_TTL, nx=True):
             raise ProjectWriteAuthorizationError("PROJECT_CREATE_REQUEST_STALE", status_code=409)
+
+    @staticmethod
+    def created_key(user_id: str, request_id: str) -> str:
+        return f"project_create_request:created:{_hash(user_id)}:{request_id}"
+
+    async def record_created(self, *, user_id: str, pending: dict[str, Any], report: dict[str, Any]) -> bool:
+        """Hand the verified creation to the resumed turn for its activation card.
+
+        One short-lived record per request; the resumed turn consumes it once
+        (``take_created``) and rechecks it against the live focus binding.
+        """
+        name = pending.get("name")
+        if not isinstance(name, str) or not name:
+            return False
+        return bool(await self.cache.set(self.created_key(user_id, report["request_id"]), {
+            "request_id": report["request_id"], "user_id": user_id, "chat_id": report["chat_id"],
+            "message_id": pending.get("message_id"), "team_id": pending.get("team_id"),
+            "project_id": report["project_id"], "focus_id": report["focus_id"], "name": name,
+        }, ttl=PROJECT_CREATE_REQUEST_TTL))
+
+    async def take_created(self, *, user_id: str, request_id: str) -> dict[str, Any] | None:
+        """Consume the created-Project record once; a replayed turn gets None."""
+        key = self.created_key(user_id, request_id)
+        record = await self.cache.get(key)
+        if not isinstance(record, dict) or not await self.cache.delete(key):
+            return None
+        return record
 
     async def finish(self, *, user_id: str, chat_id: str, request_id: str) -> None:
         key = self.key(user_id, chat_id)
