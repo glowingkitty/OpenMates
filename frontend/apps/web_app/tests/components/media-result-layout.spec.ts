@@ -73,6 +73,9 @@ for (const width of [390, 1100]) {
       if (component.startsWith('images/')) {
         const naturalWidth = await media.evaluate((element: HTMLImageElement) => element.naturalWidth);
         expect(bounds!.width).toBeGreaterThan(naturalWidth);
+        // The image uses all the width it has, or all the height budget when it is tall.
+        const maxHeight = await media.evaluate((element) => parseFloat(getComputedStyle(element).maxHeight));
+        expect(bounds!.width >= width - 40 || bounds!.height >= maxHeight - 2).toBe(true);
       }
       if (component.startsWith('videos/')) {
         const composer = await page.getByTestId('apps-request-composer').boundingBox();
@@ -93,6 +96,23 @@ for (const width of [390, 1100]) {
     });
   });
 }
+
+// contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
+test('tapping the generated image opens only the image in a new tab right away', async ({ page }) => {
+  const fixture = await page.request.get('/images/examples/group1.jpg');
+  const image = await fixture.body();
+  await page.route('**/api/v1/image?*', route => route.fulfill({ contentType: 'image/jpeg', body: image }));
+  await page.setViewportSize({ width: 390, height: 800 });
+  await page.goto('/dev/preview/embeds/images/ImageGenerateEmbedFullscreen?chrome=0&width=390');
+  await waitForComponentPreview(page);
+  const link = page.locator('.image-link');
+  await expect(link).toBeVisible();
+  const popupPromise = page.waitForEvent('popup');
+  await link.click();
+  const popup = await popupPromise;
+  expect(popup.url()).not.toBe('about:blank');
+  expect(popup.url()).not.toContain('/dev/preview');
+});
 
 // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
 test('generated video previews retain native controls and fullscreen PiP remains available after play', async ({ page }) => {

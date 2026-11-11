@@ -366,6 +366,15 @@
   }
   .static-map { width: 100%; height: 100%; object-fit: contain; }
   .result-embed-content.immersive { width: 100%; }
+  /* Images use the whole width and all height left after header, facts and composer.
+     Videos keep their own budget so playback controls stay clear of the composer. */
+  .result-embed-content.immersive[data-app-id="images"] {
+    padding-inline: var(--spacing-4);
+    --result-image-max-height: max(1rem, calc(var(--result-fullscreen-height, 100dvh) - 18rem - max(0px, var(--result-followup-height, 4rem) - 4rem)));
+  }
+  .immersive[data-app-id="images"] .result-media-panel :global(img.result-primary-media) {
+    max-height: var(--result-image-max-height);
+  }
   .immersive .result-media-panel { height: auto; background: transparent; overflow: hidden; }
   .immersive .result-media-panel :global(.result-primary-media) {
     display: block;

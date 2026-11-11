@@ -485,31 +485,6 @@
     panelState.openSettings();
   }
 
-  /**
-   * Build the same blob and filename as the download button (original file + embedded PNG metadata).
-   * Returns undefined if original file is not available.
-   */
-  async function getDownloadBlobAndFilename(): Promise<{ blob: Blob; filename: string } | undefined> {
-    if (!files?.original?.s3_key || !s3BaseUrl || !aesKey || !hasMediaEncryptionMetadata(files.original, aesNonce)) return undefined;
-    const blob = await fetchAndDecryptImage(s3BaseUrl, files.original.s3_key, aesKey, aesNonce ?? '', files.original);
-    const ext = files.original.format || 'png';
-    let resultBlob: Blob = blob;
-    if (ext === 'png') {
-      const arrayBuffer = await blob.arrayBuffer();
-      const metadataBytes = embedPngMetadata(arrayBuffer, {
-        prompt,
-        model,
-        software: 'OpenMates',
-        generatedAt
-      });
-      const ab = new ArrayBuffer(metadataBytes.byteLength);
-      new Uint8Array(ab).set(metadataBytes);
-      resultBlob = new Blob([ab], { type: 'image/png' });
-    }
-    const downloadFilename = filename || generateImageFilename(prompt, ext);
-    return { blob: resultBlob, filename: downloadFilename };
-  }
-
   let notifiedEnhanceError: string | undefined;
   $effect(() => {
     const failed = enhanceState === 'failed' ? (enhanceError ?? $text('embed_user_edits.enhance_failed')) : undefined;
@@ -518,19 +493,16 @@
   });
 
   /**
-   * Open the image by itself in a new tab (same file as download: original + metadata).
-   * The user can zoom in/out with the browser. Middle-click and Ctrl/Cmd+click use the native link.
+   * Open the shown image by itself in a new tab. The tab must open inside the tap
+   * itself: waiting for a download or decryption first makes mobile browsers block
+   * the popup, and re-decrypting the original per tap is heavy. The browser's own
+   * zoom then works on the image, so no in-app zoom is needed.
+   * Middle-click and Ctrl/Cmd+click use the native link.
    */
-  async function handleImageClick(e: MouseEvent) {
+  function handleImageClick(e: MouseEvent) {
     if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey) return;
     e.preventDefault();
-    const payload = await getDownloadBlobAndFilename();
-    if (payload) {
-      const imageBlobUrl = URL.createObjectURL(payload.blob);
-      window.open(imageBlobUrl, '_blank', 'noopener,noreferrer');
-    } else if (fullImageUrl) {
-      window.open(fullImageUrl, '_blank', 'noopener,noreferrer');
-    }
+    if (fullImageUrl) window.open(fullImageUrl, '_blank', 'noopener,noreferrer');
   }
 </script>
 
