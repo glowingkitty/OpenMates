@@ -46,6 +46,7 @@
   import { text, settingsDeepLink, panelState } from '@repo/ui'; // For translations
   import { getModelDisplayName, getModelByNameOrId } from '../utils/modelDisplayName';
   import { getMatesById } from '../data/matesMetadata';
+  import { knownMateCategory, mateDisplayName, OPENMATES_DISPLAY_NAME } from '../utils/mateDisplayName';
   import { reportIssueStore } from '../stores/reportIssueStore';
   import { startEdit } from '../stores/editMessageStore';
   import QueuedFollowupControls from './chats/QueuedFollowupControls.svelte';
@@ -1248,12 +1249,12 @@
   // Special handling for openmates_official category
   let displayName = $derived(role === 'user' ? '' : 
                     sender_name ? (sender_name.charAt(0).toUpperCase() + sender_name.slice(1)) : 
-                    category === 'openmates_official' ? 'OpenMates' :
-                    category ? $text(`mates.${category}`) :
-                    'OpenMates');
+                    category === 'openmates_official' ? OPENMATES_DISPLAY_NAME :
+                    mateDisplayName(category, $text));
   let importedProvider = $derived(role === 'assistant' ? getImportedAssistantProvider(category) : null);
   let assistantDisplayName = $derived(importedProvider?.displayName ?? displayName);
-  let isOpenMatesIdentity = $derived(role === 'assistant' && (!category || category === 'openmates_official'));
+  // A category that names no mate (missing, retired or unknown) is shown with the OpenMates identity.
+  let isOpenMatesIdentity = $derived(role === 'assistant' && !knownMateCategory(category));
   let remoteHumanName = $derived(sender_name?.trim() || $text('settings.teams_ui.team_member'));
   let isRemoteHuman = $derived(role === 'user' && !isOwnUserMessage);
   let hasRemoteHumanIdentity = $derived(isRemoteHuman && !!teamId && !!senderUserId);

@@ -114,8 +114,17 @@ const authoredTimedNoEndEvent = {
     sources: [{ url: 'https://example.org/talk' }] },
 };
 
+const authoredVenueEvent = {
+  ...authoredDateOnlyEvent, embed_id: 'authored-venue-event', title: 'Supplied conference with a known venue',
+  venue: { name: 'Supplied venue', city: 'Brussels', lat: 50.813, lon: 4.382 },
+};
+
 /** Named variants */
 export const variants = {
+  /** No image: the venue map takes the media area. */
+  venueMap: { ...defaultProps, id: authoredVenueEvent.embed_id, event: authoredVenueEvent },
+  /** The image fails to load: the venue map replaces it. */
+  brokenImageVenueMap: { ...defaultProps, id: 'authored-broken-image-event', event: { ...authoredVenueEvent, embed_id: 'authored-broken-image-event', image_url: '/dev/preview/missing-event-image.png' } },
   dateOnly: { ...defaultProps, id: authoredDateOnlyEvent.embed_id, event: authoredDateOnlyEvent },
   timedNoEnd: { ...defaultProps, id: authoredTimedNoEndEvent.embed_id, event: authoredTimedNoEndEvent },
   draft: { ...defaultProps, id: 'draft-event', event: { ...authoredDateOnlyEvent, authoring: { ...authoredDateOnlyEvent.authoring, origin: 'draft' as const } } },

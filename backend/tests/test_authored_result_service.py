@@ -89,6 +89,20 @@ class _Cache:
         return True
 
 
+@pytest.fixture(autouse=True)
+def _no_network_venue_lookup(monkeypatch):
+    """Unit tests never reach the public geocoder; a lookup simply finds nothing."""
+    from collections import OrderedDict
+
+    from backend.core.api.app.services import event_embed_enrichment
+
+    async def no_result(*_args, **_kwargs):
+        return None
+
+    monkeypatch.setattr(event_embed_enrichment, "geocode_address", no_result)
+    monkeypatch.setattr(event_embed_enrichment, "_cache", OrderedDict())
+
+
 @pytest.fixture
 def authored_service(monkeypatch):
     cache = _Cache()
@@ -830,3 +844,141 @@ async def test_media_without_any_durable_admission_fails_before_sidecar_or_publi
     with pytest.raises(RequiredRecoveryOutputError, match="durable output admission"):
         await h.update(carrier, [item], legacy=False)
     assert h.cache.values == before and h.cache.events == []
+
+
+async def _turn_one_card(h):
+    """Publish one event card in a first carrier and expose it through the chat index."""
+    first = await h.create()
+    assert await h.update(first, [valid_authored_item(local_id="conference")])
+    card = h.record(first)["embed_ids"][0]
+    reference = (await h.content(card))["embed_ref"]
+    h.service.authoring_reference_index = {reference: card}
+    h.cache.events.clear()
+    return first, card, reference
+
+
+def _followup_source(*items, view=None):
+    return json.dumps({"schemaVersion": 1, "items": list(items),
+                       **({"view": view} if view else {})})
+
+
+# contract-test: direct surface=rest_api assertions=authored-results.followups.reuse-or-version,authored-results.groups.same-response-and-reuse
+@pytest.mark.asyncio
+async def test_followup_reference_reuses_existing_card_as_member_without_new_child(authored_service):
+    h = authored_service
+    first, card, reference = await _turn_one_card(h)
+    original_row = copy.deepcopy(h.record(card))
+    second = await h.create()
+    raw = _followup_source({"id": "again", "existing": reference}, valid_authored_item("nutrition.recipe", "recipe"),
+                           view={"mode": "cards", "items": ["again", "recipe"]})
+    assert await h.update(second, raw=raw)
+    parent = await h.content(second)
+    recipe = authored_child_id(second, "recipe")
+    assert h.record(second)["embed_ids"] == parent["embed_ids"] == [recipe]
+    assert parent["member_ids"] == [card, recipe]
+    assert parent["view"] == {"mode": "cards", "embeds": [card, recipe]}
+    assert parent["status"] == "finished" and parent["validation"]["status"] == "valid"
+    assert [item["embed_id"] for item in parent["items"]] == [recipe]
+    # The reused card keeps its parent, key and content; it is not republished.
+    assert h.record(card) == original_row and h.record(card)["parent_embed_id"] == first
+    assert [event["payload"]["embed_id"] for _, event in h.cache.events] == [recipe, second]
+    assert f"embed:{authored_child_id(second, 'again')}" not in h.cache.values
+    expanded = await authored_children_for_context(h.service, second, user_vault_key_id=VAULT)
+    assert [embed for embed, _ in expanded] == [card, recipe]
+    # A block of references only still yields a finished carrier.
+    third = await h.create()
+    assert await h.update(third, raw=_followup_source({"id": "only", "existing": reference}))
+    assert h.record(third)["embed_ids"] == [] and (await h.content(third))["member_ids"] == [card]
+    assert h.record(third)["status"] == "finished"
+
+
+@pytest.mark.parametrize("invalid", ["unknown", "foreign_chat", "foreign_owner", "unfinished", "not_authored"])
+# contract-test: direct surface=rest_api assertions=authored-results.followups.reuse-or-version,authored-results.lifecycle.encrypted-and-stable
+@pytest.mark.asyncio
+async def test_followup_reference_to_unknown_foreign_or_unfinished_card_is_rejected_per_item(authored_service, invalid):
+    h = authored_service
+    _first, card, reference = await _turn_one_card(h)
+    row = h.record(card)
+    if invalid == "unknown":
+        reference = "never-shown-card"
+    elif invalid == "foreign_chat":
+        other = "44444444-4444-4444-8444-444444444444"
+        row.update(chat_id=other, hashed_chat_id=hashlib.sha256(other.encode()).hexdigest())
+    elif invalid == "foreign_owner":
+        row["hashed_user_id"] = "b" * 64
+    elif invalid == "unfinished":
+        row["status"] = "processing"
+    else:
+        await h.put_reference(card, {"type": "document", "title": "Indexed document"})
+        row = h.record(card)
+    h.cache.values[f"embed:{card}"] = json.dumps(row)
+    second = await h.create()
+    raw = _followup_source({"id": "again", "existing": reference}, valid_authored_item("nutrition.recipe", "recipe"))
+    assert await h.update(second, raw=raw)
+    parent = await h.content(second)
+    recipe = authored_child_id(second, "recipe")
+    assert parent["member_ids"] == parent["embed_ids"] == [recipe]
+    assert parent["view"]["embeds"] == [recipe]
+    assert parent["validation"]["status"] == "partial"
+    assert {"code": "unavailable_existing_card", "path": "items[0]"} in parent["validation"]["warnings"]
+    assert [embed for embed, _ in await authored_children_for_context(
+        h.service, second, user_vault_key_id=VAULT)] == [recipe]
+
+
+# contract-test: direct surface=rest_api assertions=authored-results.followups.reuse-or-version
+@pytest.mark.asyncio
+async def test_reference_with_changed_facts_is_rejected_until_card_versions_exist(authored_service):
+    h = authored_service
+    _first, card, reference = await _turn_one_card(h)
+    original = copy.deepcopy(h.record(card))
+    changed = {**valid_authored_item(local_id="again"), "existing": reference}
+    changed["details"]["date_start"] = "2027-03-01"
+    second = await h.create()
+    raw = _followup_source(changed, valid_authored_item("nutrition.recipe", "recipe"))
+    assert await h.update(second, raw=raw)
+    parent = await h.content(second)
+    assert parent["member_ids"] == parent["embed_ids"] == [authored_child_id(second, "recipe")]
+    assert {"code": "existing_card_revision_unsupported", "path": "items[0]"} in parent["validation"]["warnings"]
+    assert h.record(card) == original
+    assert authored_child_id(second, "again") not in json.dumps(h.cache.values)
+
+
+# contract-test: direct surface=rest_api assertions=authored-results.followups.reuse-or-version
+@pytest.mark.asyncio
+async def test_context_does_not_expand_tampered_member_from_another_chat(authored_service):
+    h = authored_service
+    _first, card, reference = await _turn_one_card(h)
+    second = await h.create()
+    assert await h.update(second, raw=_followup_source({"id": "again", "existing": reference}))
+    row = h.record(card)
+    row["chat_id"] = "another-chat"
+    h.cache.values[f"embed:{card}"] = json.dumps(row)
+    assert await authored_children_for_context(h.service, second, user_vault_key_id=VAULT) == []
+
+
+# contract-test: direct surface=rest_api assertions=authored-results.followups.reuse-or-version
+@pytest.mark.asyncio
+async def test_existing_cards_context_lists_only_this_chats_finished_authored_cards(authored_service):
+    from backend.core.api.app.services.authored_existing_cards import (
+        existing_cards_for_chat,
+        format_existing_cards_context,
+    )
+    h = authored_service
+    _first, card, reference = await _turn_one_card(h)
+    foreign_chat, foreign_owner, document = (str(uuid.uuid4()) for _ in range(3))
+    body = await h.content(card)
+    await h.put_reference(foreign_chat, body, chat_id="another-chat", parent="other-carrier")
+    await h.put_reference(foreign_owner, body, owner_hash="b" * 64, parent="other-carrier")
+    await h.put_reference(document, {"type": "document", "title": "Indexed document"})
+    index = {"foreign-chat-card": foreign_chat, reference: card, "foreign-owner-card": foreign_owner,
+             "notes.pdf": document}
+    cards = await existing_cards_for_chat(h.service, index, chat_id=CHAT, user_id_hash=OWNER_HASH,
+                                          user_vault_key_id=VAULT)
+    assert [(c.embed_id, c.embed_ref, c.kind, c.version) for c in cards] == [(card, reference, "events.event", 1)]
+    context = format_existing_cards_context(cards)
+    assert context is not None and '"existing": "<ref>"' in context
+    assert json.dumps({"ref": reference, "kind": "events.event", "title": body["title"], "version": 1},
+                      ensure_ascii=False, separators=(",", ":")) in context
+    for hidden in [card, foreign_chat, foreign_owner, document, "Indexed document"]:
+        assert hidden not in context
+    assert format_existing_cards_context([]) is None

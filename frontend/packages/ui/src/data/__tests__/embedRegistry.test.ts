@@ -105,9 +105,11 @@ describe("Embed Registry — component files exist on disk", () => {
 
   it("every embed type with a preview also has a fullscreen", () => {
     const mismatched: string[] = [];
+    // A results group has no view of its own: each card in it opens that card's fullscreen.
+    const groupsWithoutOwnFullscreen = new Set(["ai-authored-results"]);
 
     for (const key of Object.keys(EMBED_PREVIEW_COMPONENTS)) {
-      if (!EMBED_FULLSCREEN_COMPONENTS[key]) {
+      if (!EMBED_FULLSCREEN_COMPONENTS[key] && !groupsWithoutOwnFullscreen.has(key)) {
         mismatched.push(
           `[${key}] has preview but no fullscreen component registered`,
         );

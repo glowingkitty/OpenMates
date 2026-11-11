@@ -1,9 +1,10 @@
 <!-- Pure event result content used by the app and the public landing demo. -->
 <script lang="ts">
+  import type { Snippet } from 'svelte';
   import ResultEmbedCard from './ResultEmbedCard.svelte';
   import EmbedCalendarDate from './EmbedCalendarDate.svelte';
   import teamIcon from '../../assets/results/team.svg?url';
-  let { title, imageUrl, date, timezone, locale, attribution = '', rsvpCount, rsvpLabel = 'RSVPs', onImageError }: {
+  let { title, imageUrl, date, timezone, locale, attribution = '', rsvpCount, rsvpLabel = 'RSVPs', media, onImageError }: {
     title: string;
     imageUrl?: string;
     date?: string;
@@ -12,11 +13,13 @@
     attribution?: string;
     rsvpCount?: number;
     rsvpLabel?: string;
+    /** Shown in the media area in place of the image, for example a venue map when the event has no working image. */
+    media?: Snippet;
     onImageError?: (image: HTMLImageElement) => void;
   } = $props();
 </script>
 
-<ResultEmbedCard {title} {imageUrl} imageAlt={title} mediaFit="contain" {onImageError}>
+<ResultEmbedCard {title} {imageUrl} imageAlt={title} mediaFit="contain" {media} {onImageError}>
   {#snippet badge()}{#if date}<EmbedCalendarDate {date} {timezone} {locale} />{/if}{/snippet}
   {#snippet facts()}
     <div class="event-preview-facts">

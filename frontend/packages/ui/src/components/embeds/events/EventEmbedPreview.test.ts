@@ -83,6 +83,9 @@ it('does not show the source domain on a researched event card but keeps the dra
   expect(target.textContent).toContain(event.title);
   expect(target.textContent).not.toContain('fosdem.org');
   expect(target.querySelector('[data-testid="authored-result-provenance"]')).toBeNull();
+  await mountCard('user_provided');
+  expect(target.querySelector('[data-testid="authored-result-provenance"]')).toBeNull();
+  expect(target.textContent).not.toContain('User-provided');
   await mountCard('draft');
   expect(target.querySelector('[data-testid="authored-result-origin"]')?.textContent).toBe('Draft');
 });

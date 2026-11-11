@@ -14,7 +14,7 @@ import json
 import math
 import re
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime
 from functools import lru_cache
 from pathlib import Path
@@ -59,8 +59,25 @@ class AuthoredResultItem:
 
 
 @dataclass(frozen=True)
+class AuthoredResultReference:
+    """One accepted ``{id, existing}`` item: show an existing card again unchanged.
+
+    ``embed_ref`` is untrusted until the caller resolves it through the chat's
+    authorized embed_ref index; ``index`` is the item's position for warnings.
+    """
+
+    local_id: str
+    embed_ref: str
+    index: int
+
+
+@dataclass(frozen=True)
 class AuthoredResultsNormalizationResult:
-    """A bounded block outcome; independent valid items retain their order."""
+    """A bounded block outcome; independent valid items retain their order.
+
+    ``order`` lists the local labels of accepted new items and references in
+    their supplied order, so a group can mix new and existing cards.
+    """
 
     source_json: str
     title: str
@@ -69,6 +86,8 @@ class AuthoredResultsNormalizationResult:
     status: str
     warnings: list[dict[str, str]]
     parse_error: str | None = None
+    references: list[AuthoredResultReference] = field(default_factory=list)
+    order: list[str] = field(default_factory=list)
 
 
 @lru_cache(maxsize=1)
@@ -88,6 +107,11 @@ def get_authoring_definitions() -> dict[str, dict[str, Any]]:
     dictionaries are copies so prompt consumers cannot mutate global validation.
     """
     return copy.deepcopy(_catalog()["kinds"])
+
+
+def get_authored_results_limits() -> dict[str, int]:
+    """Return a copy of the catalog limits (items, source_bytes, item_bytes, ...)."""
+    return dict(_catalog()["limits"])
 
 
 def is_authored_results_fence(language: str | None) -> bool:
@@ -142,6 +166,9 @@ def get_authored_results_schema(kinds: Iterable[str] | None = None) -> dict[str,
         item["properties"]["kind"] = {"const": kind}
         item["properties"]["details"] = copy.deepcopy(definition["details_schema"])
         variants.append(item)
+    if variants:
+        # Reuse form: an existing card of this chat, resolved by the caller.
+        variants.append({"$ref": "#/$defs/existing_card_item"})
     schema = {
         "$schema": catalog["$schema"],
         "type": "object", "required": ["schemaVersion", "items"],
@@ -459,6 +486,26 @@ def _normalize_item(
     ), model
 
 
+EXISTING_CARD_FIELD = "existing"
+EXISTING_CARD_REVISION_UNSUPPORTED = "existing_card_revision_unsupported"
+
+
+def _normalize_reference(raw: dict[str, Any], index: int) -> AuthoredResultReference:
+    """Accept exactly ``{id, existing}``; changed facts are not a silent new card.
+
+    A reference that also carries kind/title/details would be a revision of the
+    existing card. Until card versions exist it is rejected per item with
+    ``existing_card_revision_unsupported`` instead of creating a duplicate or
+    dropping the supplied changes.
+    """
+    _check_tree(raw)
+    if set(raw) != {"id", EXISTING_CARD_FIELD}:
+        raise ValueError(EXISTING_CARD_REVISION_UNSUPPORTED)
+    if not _validate(raw, {"$defs": _catalog()["$defs"], "$ref": "#/$defs/existing_card_item"}):
+        raise ValueError("invalid_item")
+    return AuthoredResultReference(local_id=raw["id"], embed_ref=raw[EXISTING_CARD_FIELD], index=index)
+
+
 def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     """Reject ambiguous JSON fields rather than silently replacing supplied facts."""
     result: dict[str, Any] = {}
@@ -467,6 +514,54 @@ def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
             raise ValueError("duplicate_json_field")
         result[key] = value
     return result
+
+
+def parse_authored_results_json(text: str) -> Any:
+    """Parse block JSON exactly as the envelope does; duplicate fields raise ValueError."""
+    return json.loads(text, object_pairs_hook=_unique_object)
+
+
+@dataclass(frozen=True)
+class AuthoredResultEntry:
+    """One accepted entry of ``items``: a new card or a reference, plus its model."""
+
+    local_id: str
+    model: dict[str, Any]
+    item: AuthoredResultItem | None = None
+    reference: AuthoredResultReference | None = None
+
+
+def normalize_authored_result_entry(
+    entry: Any, index: int, warnings: list[dict[str, str]], *, duplicate_label: bool = False,
+) -> AuthoredResultEntry | None:
+    """Validate one ``items[index]`` entry; append its warnings, return None if rejected.
+
+    The envelope normalizer and the progressive stream parser share this so a
+    card published while streaming is exactly the card the closed block yields.
+    """
+    is_reference = isinstance(entry, dict) and EXISTING_CARD_FIELD in entry
+    try:
+        if duplicate_label:
+            raise ValueError("duplicate_label")
+        if is_reference:
+            reference = _normalize_reference(entry, index)
+            return AuthoredResultEntry(
+                reference.local_id, {"id": reference.local_id, EXISTING_CARD_FIELD: reference.embed_ref},
+                reference=reference,
+            )
+        item, model = _normalize_item(entry, index, warnings)
+        return AuthoredResultEntry(item.local_id, model, item=item)
+    except (ValueError, TypeError, OverflowError, RecursionError) as error:
+        # Specific codes are selected without interpolating exception
+        # text, which may originate in a parser containing private data.
+        if duplicate_label:
+            code = "duplicate_label"
+        elif is_reference and error.args == (EXISTING_CARD_REVISION_UNSUPPORTED,):
+            code = EXISTING_CARD_REVISION_UNSUPPORTED
+        else:
+            code = "invalid_item"
+        warnings.append({"code": code, "path": f"items[{index}]"})
+        return None
 
 
 def normalize_authored_results_source(source: str) -> AuthoredResultsNormalizationResult:
@@ -481,7 +576,7 @@ def normalize_authored_results_source(source: str) -> AuthoredResultsNormalizati
     try:
         if not isinstance(source, str) or len(source.encode("utf-8")) > _catalog()["limits"]["source_bytes"]:
             raise ValueError("source_size_limit")
-        raw = json.loads(source, object_pairs_hook=_unique_object)
+        raw = parse_authored_results_json(source)
         if (not isinstance(raw, dict) or type(raw.get("schemaVersion")) is not int
                 or raw["schemaVersion"] != 1 or set(raw) - {"schemaVersion", "title", "items", "view"}
                 or not isinstance(raw.get("items"), list) or not raw["items"]):
@@ -498,20 +593,23 @@ def normalize_authored_results_source(source: str) -> AuthoredResultsNormalizati
             if isinstance(item, dict) and isinstance(item.get("id"), str)
         )
         items: list[AuthoredResultItem] = []
+        references: list[AuthoredResultReference] = []
+        order: list[str] = []
         models: list[dict[str, Any]] = []
         for index, entry in enumerate(raw["items"][:limit]):
-            try:
-                if isinstance(entry, dict) and isinstance(entry.get("id"), str) and labels[entry["id"]] > 1:
-                    raise ValueError("duplicate_label")
-                item, model = _normalize_item(entry, index, warnings)
-                items.append(item)
-                models.append(model)
-            except (ValueError, TypeError, OverflowError, RecursionError):
-                # Specific codes are selected without interpolating exception
-                # text, which may originate in a parser containing private data.
-                code = "duplicate_label" if (isinstance(entry, dict) and isinstance(entry.get("id"), str)
-                                              and labels[entry["id"]] > 1) else "invalid_item"
-                warnings.append({"code": code, "path": f"items[{index}]"})
+            accepted_entry = normalize_authored_result_entry(
+                entry, index, warnings,
+                duplicate_label=(isinstance(entry, dict) and isinstance(entry.get("id"), str)
+                                 and labels[entry["id"]] > 1),
+            )
+            if accepted_entry is None:
+                continue
+            if accepted_entry.reference is not None:
+                references.append(accepted_entry.reference)
+            else:
+                items.append(accepted_entry.item)
+            order.append(accepted_entry.local_id)
+            models.append(accepted_entry.model)
         if len(raw["items"]) > limit:
             warnings.append({"code": "item_limit", "path": "items"})
         view = None
@@ -520,7 +618,7 @@ def normalize_authored_results_source(source: str) -> AuthoredResultsNormalizati
             if _validate(raw["view"], view_schema):
                 view = copy.deepcopy(raw["view"])
                 if "items" in view:
-                    accepted = {item.local_id for item in items}
+                    accepted = set(order)
                     resolved = [label for label in view["items"] if label in accepted]
                     if len(resolved) != len(view["items"]):
                         warnings.append({"code": "unresolved_view_label", "path": "view.items"})
@@ -530,7 +628,7 @@ def normalize_authored_results_source(source: str) -> AuthoredResultsNormalizati
                         view = None
             else:
                 warnings.append({"code": "invalid_view", "path": "view"})
-        if not items:
+        if not items and not references:
             return AuthoredResultsNormalizationResult(
                 "", empty_title, [], None, "invalid_source", warnings,
                 "No valid authored result items",
@@ -542,8 +640,8 @@ def normalize_authored_results_source(source: str) -> AuthoredResultsNormalizati
             model["view"] = view
         return AuthoredResultsNormalizationResult(
             json.dumps(model, ensure_ascii=False, separators=(",", ":")),
-            model.get("title", items[0].content["title"]), items, view,
-            "partial" if warnings else "valid", warnings,
+            model.get("title", items[0].content["title"] if items else ""), items, view,
+            "partial" if warnings else "valid", warnings, references=references, order=order,
         )
     except (ValueError, TypeError, OverflowError, RecursionError, UnicodeError):
         return AuthoredResultsNormalizationResult(

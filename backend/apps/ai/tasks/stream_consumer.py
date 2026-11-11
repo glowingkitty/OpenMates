@@ -104,6 +104,7 @@ from backend.apps.ai.utils.diagram_html_fences import (
     validate_diagram_html_source,
 )
 from backend.apps.ai.utils.json_content_fences import is_json_content_fence
+from backend.core.api.app.services.authored_result_progressive import drain_authored_result_background
 from backend.apps.ai.utils.embeds_map_view import (
     MAP_VIEW_CAPABLE_SKILLS,
     append_missing_embeds_map_view_block,
@@ -10944,6 +10945,9 @@ async def _consume_main_processing_stream(
         f"Total length: {len(aggregated_response)} chars"
     )
     
+    # Authored cards were published without coordinates; finish their venue lookups.
+    await drain_authored_result_background(request_data.message_id, log_prefix)
+
     # Wait for all URL validation tasks to complete (non-blocking during streaming, but wait now)
     if url_validation_tasks:
         logger.info(

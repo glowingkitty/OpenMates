@@ -64,6 +64,8 @@ export interface AuthoredResultsContent {
 	embed_ids: string[];
 	items: AuthoredResultItemReference[];
 	view: { mode: 'auto' | 'cards' | 'map'; embeds: string[] };
+	/** Members announced but not yet published; shown as placeholder cards. */
+	pending_count?: number;
 	validation?: {
 		status: 'valid' | 'partial' | 'invalid_source';
 		warnings: Array<{ code: string; path: string }>;

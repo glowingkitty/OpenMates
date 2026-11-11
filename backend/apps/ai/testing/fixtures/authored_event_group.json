@@ -1,0 +1,138 @@
+{
+  "fixture_id": "authored_event_group",
+  "recorded_at": "2026-10-26T10:00:00Z",
+  "speed_profile": "instant",
+  "user_message_snippet": "Show my two supplied conference days as cards.",
+  "preprocessing": {
+    "can_proceed": true,
+    "category": "general_knowledge",
+    "title": "Supplied conference days",
+    "icon_names": [
+      "cards"
+    ],
+    "selected_model_id": "automatic",
+    "selected_model_name": "Assistant",
+    "mate_id": "default",
+    "chat_summary": "Two supplied conference days shown as result cards.",
+    "chat_tags": [
+      "authored-results"
+    ],
+    "relevant_app_skills": [],
+    "llm_response_temp": 0.4,
+    "complexity": "simple",
+    "steps": []
+  },
+  "typing_started": {
+    "category": "general_knowledge",
+    "model_name": "Assistant",
+    "provider_name": "Fixture",
+    "server_region": "EU"
+  },
+  "response": "Here are the two conference days from your supplied records.\n\n```json\n{\"type\": \"authored_results\", \"embed_id\": \"5b1f6c2e-8a47-4d3b-9c1e-7f2a4e6d8b10\"}\n```\n\nBoth days take place at the same campus.",
+  "embeds": {
+    "5b1f6c2e-8a47-4d3b-9c1e-7f2a4e6d8b10": {
+      "type": "authored_results",
+      "document": {
+        "schemaVersion": 1,
+        "title": "Supplied conference days",
+        "items": [
+          {
+            "id": "record-01",
+            "kind": "events.event",
+            "title": "Open source conference: opening day",
+            "origin": "user_provided",
+            "details": {
+              "date_start": "2027-01-30",
+              "date_end": "2027-01-30",
+              "timezone": "Europe/Brussels",
+              "venue": {
+                "name": "ULB",
+                "city": "Brussels",
+                "lat": 50.813,
+                "lon": 4.382
+              },
+              "organizer": {
+                "name": "Community organizers"
+              },
+              "fee": {
+                "amount": 0,
+                "currency": "EUR"
+              },
+              "url": "https://example.org/conference"
+            },
+            "sources": [
+              {
+                "url": "https://example.org/reference",
+                "label": "Supplied test reference"
+              }
+            ],
+            "observed_at": "2026-10-26T10:00:00Z"
+          },
+          {
+            "id": "record-02",
+            "kind": "events.event",
+            "title": "Open source conference: workshops",
+            "origin": "user_provided",
+            "details": {
+              "date_start": "2027-01-31",
+              "date_end": "2027-01-31",
+              "timezone": "Europe/Brussels",
+              "venue": {
+                "name": "ULB Solbosch workshop rooms",
+                "city": "Brussels",
+                "lat": 50.8118,
+                "lon": 4.3805
+              },
+              "organizer": {
+                "name": "Community organizers"
+              },
+              "fee": {
+                "amount": 0,
+                "currency": "EUR"
+              },
+              "url": "https://example.org/conference"
+            },
+            "sources": [
+              {
+                "url": "https://example.org/reference",
+                "label": "Supplied test reference"
+              }
+            ],
+            "observed_at": "2026-10-26T10:00:00Z"
+          }
+        ],
+        "view": {
+          "mode": "auto",
+          "items": [
+            "record-01",
+            "record-02"
+          ]
+        }
+      }
+    }
+  },
+  "skill_executions": [],
+  "thinking_content": null,
+  "usage": {
+    "prompt_tokens": 120,
+    "completion_tokens": 65,
+    "total_credits": 5,
+    "model_name": "Assistant"
+  },
+  "postprocessing": {
+    "follow_up_request_suggestions": [],
+    "new_chat_request_suggestions": [],
+    "harmful_response": 0.0,
+    "top_recommended_apps_for_user": [],
+    "chat_summary": "Two supplied conference days were shown as result cards.",
+    "chat_tags": [
+      "authored-results"
+    ],
+    "share_cta_text": "Review supplied records and draft proposals.",
+    "updated_chat_title": null,
+    "daily_inspiration_topic_suggestions": [],
+    "recommendations": [],
+    "task_proposals": [],
+    "task_update_proposals": []
+  }
+}

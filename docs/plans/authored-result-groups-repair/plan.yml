@@ -1,0 +1,122 @@
+schema_version: 2
+profile: concise
+id: authored-result-groups-repair
+title: Assistant-authored result card groups use the normal results view, show whole images, reuse cards and appear sooner
+status: draft
+goal: >
+  Fix the defects a user test of a two-turn conference search showed in
+  assistant-authored result card groups (approved by the user on 2026-11-10,
+  "we don't want to cut off images"): a group renders as the normal results view
+  with Calendar and Map tabs instead of a custom layer; every card shows its whole
+  image (contain) and always shows its title; a follow-up reuses or updates the
+  existing card as a new version instead of creating a duplicate; and the intro
+  text and each card appear sooner, with map coordinates added afterwards.
+
+specifications:
+  - feature.assistant-authored-result-embeds@1
+related_plans:
+  - assistant-authored-result-embeds
+  - embeds-map-view
+  - image-edit-as-embed-version
+task: TASK-4300
+
+scope:
+  in:
+    - "L1 web: delete the custom authored-results layer (own title row, expand button, own fullscreen, cardsOnly); a group of two or more cards renders as the shared EmbedsMapView with Calendar/Map tabs derived from its members; fix ResultEmbedCard media pinning so the title always shows and the image is shown whole."
+    - "L2 backend: an item form that references an existing card of the same chat; corrected facts become the next version of that card; the model gets a compact list of the chat's existing cards each turn; the prompt says reuse or update, never recreate."
+    - "L3 backend/stream: intro prose before the block; each valid item is published as soon as it is complete; pending items show as placeholder cards; venue geocoding runs after the card is published; shorter event descriptions."
+    - "L4 proof: component-preview renders and focused component specs, a group-view E2E with Calendar and Map tabs, a backend follow-up reuse/version test, and a real two-turn conference chat on dev."
+    - "Smallest image-relevance improvement: prompt rule that a search image is used only when it clearly depicts the item (official logo, banner or venue photo of that item); otherwise image_url is omitted."
+  out:
+    - A group-level fullscreen or a new expand control on the results view (each member opens its own fullscreen).
+    - Server-side image relevance scoring or extra image fetches.
+    - Migration of historical carriers or historical duplicate cards.
+    - Apple UI (Apple has no authored-results renderer yet; it follows web per the parent Plan).
+    - Any change to discovery providers or paid enrichment.
+
+decisions:
+  - id: carrier-is-storage
+    decision: >
+      The persisted authored_results carrier stays as encrypted storage of membership and order.
+      Its in-chat renderer mounts EmbedsMapView directly (one item: that item's registered preview);
+      it draws no title row, no expand button and no status chrome of its own. The carrier's
+      fullscreen component is removed; a carrier fullscreen request (old link or history) opens the
+      first member's fullscreen. Keep the data-testid authored-results-preview on the host element so
+      existing specs keep their selectors.
+  - id: tabs-from-members
+    decision: >
+      Delete the cardsOnly prop. With includeAllResults, tabs use deriveVisualTabs like other results
+      views: Calendar when any member has a usable date, Map when any has usable coordinates or a route,
+      the switch only when both exist; members without either stay in the list. view.mode cards
+      suppresses both tabs; map and auto behave as described (map preselects the Map tab).
+  - id: card-media-pinned
+    decision: >
+      In ResultEmbedCard the media box is a positioned area and the img is position absolute, inset 0,
+      object-fit contain, letterboxed with --color-media-letterbox, per docs/design-guide/result-embeds.md.
+      The copy row keeps a fixed share of the 200px compact card so the title (max two lines) is always
+      inside the card; no mediaFit cover default for authored kinds.
+  - id: reuse-by-reference
+    decision: >
+      A new item form {id, existing: "<embed_ref>"} places an existing authorized card of the same chat
+      in the group unchanged (no new child). {id, existing, kind, title, origin, details, ...} with
+      changed facts produces the next version of that same embed. The reference resolves only through
+      the chat's embed_ref index (same owner and chat, finished, admitted authored kind); unknown or
+      foreign refs are a per-item validation warning, never a guessed id. A referenced or revised card
+      stays a child of its original carrier and keeps its own key; the new carrier lists it as a member
+      (view.embeds / member_ids), not as a child, and authored_children_for_context expands members by
+      the same owner/chat checks without requiring parent_embed_id equality.
+  - id: version-path
+    decision: >
+      Card versions reuse the generated-image revision path from image-edit-as-embed-version
+      (embed_revision_authority.verify_producer_revision, embed-version-transaction admission, Rust
+      client child revision write and pinned message versions) generalized from "generated image child"
+      to an explicit allowlist that adds admitted authored card kinds under an authored_results parent.
+      Each message pins the version it showed; the card details show the version timeline. Ship behind
+      its own server switch, off until the web client persists child versions; the reference form
+      (unchanged reuse) ships first and does not need the switch.
+  - id: progressive-publication
+    decision: >
+      A small streaming parser in a new module (not in stream_consumer.py, which is far above the
+      file-size limit) reads the openmates_embeds block item by item; each complete, valid item is
+      materialized and published immediately with a stable id (authored_child_id of carrier plus local
+      label, unchanged), and the carrier is updated with members so far plus a pending count; the
+      carrier finishes when the fence closes. Invalid or cancelled items never appear finished.
+  - id: geocode-after-publish
+    decision: >
+      Venue geocoding no longer blocks publication: a card is published without coordinates, then a
+      background step geocodes (still through the throttled 1 request/second lookup and its cache) and
+      publishes the same card again with coordinates. Parallel lookups alone would not help because the
+      shared lookup is throttled to one request per second.
+  - id: shorter-descriptions
+    decision: Event card descriptions are two or three sentences (about 30-60 words) instead of 4-6 sentences.
+
+client_core:
+  rule: .claude/rules/client-core.md
+  impact: >
+    L1 is presentation only (no protocol). L2 versioning is persistence/sync: child revision writes,
+    pinned versions and history reconciliation belong in packages/openmates-rust (generalize
+    client/embed_child_revision.rs and client/embed_pinned_version.rs); web only adapts the existing
+    rustCore/embeds glue. No new revision, key or sync logic in TypeScript. L3 needs no new client
+    protocol: per-card publication uses existing embed_update events; the web renderer only reads
+    carrier members and the pending count. Apple: no change.
+
+required_checks:
+  - id: card-component-preview
+    method: Component preview (chrome=0) of ResultEmbedCard and the authored group fixture at 390px, the narrow chat column width and 1100px, light and dark; focused spec under frontend/apps/web_app/tests/components/.
+    proves: Title visible inside the card for square, wide, tall and broken images; image never cropped; group shows Calendar and Map tabs and the switch; no custom title row or expand button.
+  - id: group-view-e2e
+    method: Isolated GitHub CI Playwright spec for a seeded two-event authored group in a chat.
+    proves: Calendar and Map tabs render, switching works, a card opens its own fullscreen, reload keeps order and identities.
+  - id: followup-reuse-backend
+    method: Backend pytest for authored_result_service and fences.
+    proves: A follow-up referencing an existing card adds no new child; corrected facts produce version 2 of the same embed id; a foreign or unknown ref is rejected per item; existing-card context lists only the chat's own cards.
+  - id: progressive-stream-backend
+    method: Backend pytest with a chunked openmates_embeds stream.
+    proves: The intro text is emitted before the block; each valid item is published before the fence closes; geocoding does not delay publication and later adds coordinates to the same card.
+  - id: real-two-turn-chat
+    method: Real-inference two-turn conference chat on dev with default routing after deploy (CLI plus web check).
+    proves: Turn 2 updates or references the turn-1 card with no duplicate; cards appear progressively; group shows the expected tabs; images are whole and titles visible.
+
+evidence:
+  - "Re-verification 2026-11-10 against HEAD 5ca9592e6d (no authored-results file changed on dev since): AuthoredResultsEmbedPreview.svelte:70-74 title row, expand button and EmbedsMapView cardsOnly; AuthoredResultsEmbedFullscreen.svelte:15-24 own fullscreen; EmbedsMapView.svelte:286 cardsOnly gives no tabs and includeAllResults never offers Calendar; ResultEmbedCard.svelte (public-site) :56 grid rows and :59 img height 100%, default mediaFit contain already; authored_result_instructions.py:116-120 'create an updated card' and :85 4-6 sentence descriptions, :87-90 any search image; authored_result_service.py:39-47 child id from carrier plus label, :245 nothing published while processing, :263 sequential geocoding per item; event_embed_enrichment.py:29 10 s timeout per event; geo_utils.py:26 and :199-205 global 1 request/second throttle."
+  - "authored-results-media.spec.ts failed in runs 42672171712 to 42693975521 (2026-11-09) at deleteSelectedUploadMessage: the page was still on the new-chat screen with the pairing settings panel open, so message-context-menu never appeared; unrelated to card rendering."

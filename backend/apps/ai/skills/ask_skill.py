@@ -1448,6 +1448,8 @@ class AskSkill(BaseSkill):
                     }}
                     carrier["embed_ids"] = [child_id for child_id in carrier.get("embed_ids", [])
                                             if child_id in accepted]
+                    if isinstance(carrier.get("member_ids"), list):
+                        carrier["member_ids"] = [m for m in carrier["member_ids"] if m in accepted]
                     carrier["items"] = [item for item in carrier.get("items", [])
                                         if isinstance(item, dict) and item.get("embed_id") in accepted]
                     if isinstance(carrier.get("view"), dict):

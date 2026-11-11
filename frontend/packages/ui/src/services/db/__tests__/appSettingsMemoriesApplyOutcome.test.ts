@@ -25,6 +25,7 @@ function database(existing?: AppSettingsMemoriesEntry, failure?: 'read' | 'abort
     put: vi.fn(), add: vi.fn(),
   };
   return { db: { transaction: () => transaction } as unknown as IDBDatabase,
+    getTransaction: async () => transaction as unknown as IDBTransaction,
     APP_SETTINGS_MEMORIES_STORE_NAME: 'memories', store };
 }
 

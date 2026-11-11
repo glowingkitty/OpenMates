@@ -1,8 +1,10 @@
 """Server-side coordinates for event embeds before they are encrypted and saved.
 
-Both event producers call this one function right before encoding a child
-event: app-skill results (``EmbedService.create_embeds_from_skill_results``)
-and assistant-authored cards (``authored_result_service``). Coordinates are
+Both event producers use this one function: app-skill results
+(``EmbedService.create_embeds_from_skill_results``) call it right before
+encoding a child event; assistant-authored cards (``authored_result_service``)
+are published first without coordinates and call it afterwards in the
+background, republishing the same card with coordinates. Coordinates are
 therefore deterministic server data, never a model guess.
 
 Geocoding reuses ``geo_utils.geocode_address`` (OpenStreetMap Nominatim search
@@ -91,6 +93,29 @@ async def _cached_geocode(address: str, name: str, city: str, country: str) -> t
     if len(_cache) > _CACHE_MAX_ENTRIES:
         _cache.popitem(last=False)
     return result
+
+def discard_untrusted_event_coordinates(
+    embed_type: str, content: dict[str, Any], *, keep_supplied: bool = False,
+) -> bool:
+    """Drop model-written venue coordinates; return whether a venue lookup is warranted.
+
+    Assistant-authored cards are published right away without coordinates; a
+    later ``enrich_event_coordinates(..., trust_supplied=False)`` adds them.
+    ``keep_supplied`` keeps a valid pair that comes from user-supplied facts, so
+    no lookup replaces it. Online events and events without a named place never
+    get a lookup.
+    """
+    if embed_type not in EVENT_EMBED_TYPES or not isinstance(content, dict):
+        return False
+    venue = _venue(content)
+    if venue is None or content.get("online") is True or venue.get("online") is True:
+        return False
+    if keep_supplied and valid_coordinates(venue.get("lat"), venue.get("lon")):
+        return False
+    venue.pop("lat", None)
+    venue.pop("lon", None)
+    return bool(_text(venue.get("address")) or _text(venue.get("name")) or _text(venue.get("city")))
+
 
 async def enrich_event_coordinates(
     embed_type: str, content: dict[str, Any], log_prefix: str = "", *, trust_supplied: bool = True,

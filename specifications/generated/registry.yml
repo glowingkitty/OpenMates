@@ -518,7 +518,7 @@ specifications:
     version: 1
     status: draft
     path: features/assistant-authored-result-embeds
-    fingerprint: 357f1fc43c04948d41da770abed8dd9d67ecb7a4048d726ab4b9f11954115fc8
+    fingerprint: 754168cd00ff6005210575c09cea58ae480c9c30e7f301ba835e0bcc4eaf9e2a
     required_applies_to:
     - rest_api
     - cli
@@ -6581,7 +6581,7 @@ assertions:
     specification: feature.assistant-authored-result-embeds@1
     specification_id: feature.assistant-authored-result-embeds
     type: security
-    fingerprint: 228fe98995f9f84c508fb9423eab5fa236ab6256bdaa4de9e2f590486d6c51b3
+    fingerprint: a3f6ea7a1f723cc37676b37ae48ab713f06bc6b3f6346f220d7da35c00ae7646
     required_applies_to:
     - rest_api
     - cli
@@ -6617,7 +6617,55 @@ assertions:
     specification: feature.assistant-authored-result-embeds@1
     specification_id: feature.assistant-authored-result-embeds
     type: invariant
-    fingerprint: 41f71fbd6497368f6acd1d3f8728fb1c40a486c7c5e0e8f4d1783df5ed0bbab9
+    fingerprint: 43e8e4082ffc2464f283ad08acca8e1da4f4d2b15d3c8b9a52de82335a8e25b8
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  authored-results.presentation.standard-results-view:
+    specification: feature.assistant-authored-result-embeds@1
+    specification_id: feature.assistant-authored-result-embeds
+    type: behavior
+    fingerprint: cf54520bf7729a2a314c354cfe6bab6d59eed5c50c902950b67f2d2c96957ef5
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  authored-results.presentation.whole-image-and-title:
+    specification: feature.assistant-authored-result-embeds@1
+    specification_id: feature.assistant-authored-result-embeds
+    type: behavior
+    fingerprint: fc22c7d9aee6849ac2e206b491e629a47e555699862d65ca92811344cdb938ea
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  authored-results.followups.reuse-or-version:
+    specification: feature.assistant-authored-result-embeds@1
+    specification_id: feature.assistant-authored-result-embeds
+    type: behavior
+    fingerprint: 77bd8770120a43b43942b3420bdce837ced37d298a790035e55f1f26ab5ca194
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  authored-results.streaming.progressive-cards:
+    specification: feature.assistant-authored-result-embeds@1
+    specification_id: feature.assistant-authored-result-embeds
+    type: behavior
+    fingerprint: 7250dad686e37e31da22fe66343ae8c7871bbdbd9a3608a61c224fb82f91bc50
     required_applies_to:
     - rest_api
     - cli

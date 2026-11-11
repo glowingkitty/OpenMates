@@ -1171,7 +1171,9 @@
         "components/authored-results-matrix.spec.ts",
         "components/authored-results-tv.spec.ts",
         "components/authored-results-map.spec.ts",
-        "components/authored-results-live-guards.spec.ts"
+        "components/authored-results-live-guards.spec.ts",
+        "components/authored-results-group-view.spec.ts",
+        "components/result-embed-card-media.spec.ts"
       ]
     },
     "authored_result_landing_component": {

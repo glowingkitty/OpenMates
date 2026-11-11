@@ -74,6 +74,10 @@ imports.
 - Event compact previews contain title and one line of start time/organizer
   attribution, using 1rem (16px at the standard root size). RSVP counts appear
   only in large previews. Omit description, provider/type/price/location repetitions.
+  The media area shows the event image alone, falling back to a venue map alone
+  when no working image is available and coordinates are known; never invent a
+  location. Authored previews carry no "User-provided" origin label (only drafts
+  are labelled); the origin stays in the details view.
 - Compact Home copy contains only title and monthly price. Large previews retain
   location and area. Both sizes show the first listing photo alone, falling back
   to a map alone when no working photo is available. Never pair photo and map in

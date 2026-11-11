@@ -26,7 +26,8 @@
   import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
   import { getContext } from 'svelte';
   import { AUTHORED_RESULT_PRESENTATION_CONTEXT, type AuthoredResultPresentationContext } from '../../../types/authoredResult';
-  import { eventCalendarBadge, formatEventResultTime, normalizeEventResult, type EventResult } from './eventResult';
+  import ResultEmbedMapPreview from '../ResultEmbedMapPreview.svelte';
+  import { eventCalendarBadge, formatEventResultTime, normalizeEventResult, validEventCoordinates, type EventResult } from './eventResult';
 
   const presentation = getContext<AuthoredResultPresentationContext | undefined>(AUTHORED_RESULT_PRESENTATION_CONTEXT);
 
@@ -75,9 +76,17 @@
     const rawImageUrl = sourceEvent.image_url || sourceEvent.cover_url;
     return rawImageUrl ? proxyImage(rawImageUrl, MAX_WIDTH_PREVIEW_THUMBNAIL) : '';
   });
-
-
-
+  // An event without a working image shows its venue on a map instead. Only known
+  // coordinates are used; an event without them keeps the text-only card.
+  let failedImageUrl = $state('');
+  const workingImageUrl = $derived(eventImageUrl && failedImageUrl !== eventImageUrl ? eventImageUrl : '');
+  const venueCoordinates = $derived(validEventCoordinates(sourceEvent.venue?.lat, sourceEvent.venue?.lon));
+  const venueMarkers = $derived(venueCoordinates ? [{ ...venueCoordinates, label: sourceEvent.venue?.name || sourceEvent.title || '' }] : []);
+  const showVenueMap = $derived(!workingImageUrl && !!venueCoordinates);
+  function handleEventImageError(image: HTMLImageElement) {
+    failedImageUrl = eventImageUrl;
+    handleImageError(image);
+  }
 
   // No-op stop handler — child event embeds are already finished
   async function handleStop() {
@@ -104,7 +113,16 @@
   onEmbedDataUpdated={handleEmbedDataUpdated}
   hasFullWidthImage={!!eventImageUrl && !sourceEvent.title}
 >
+  {#snippet venueMap()}
+    <div class="event-preview-map" data-testid="event-preview-map">
+      <ResultEmbedMapPreview center={venueCoordinates} markers={venueMarkers} zoom={13} showAttribution={false} />
+    </div>
+  {/snippet}
   {#snippet details()}
-    <EventResultCard title={sourceEvent.title || $text('embeds.event')} imageUrl={eventImageUrl || undefined} date={badge.date} timezone={badge.timezone} {attribution} rsvpCount={sourceEvent.rsvp_count} {rsvpLabel} onImageError={handleImageError} />
+    <EventResultCard title={sourceEvent.title || $text('embeds.event')} imageUrl={workingImageUrl || undefined} media={showVenueMap ? venueMap : undefined} date={badge.date} timezone={badge.timezone} {attribution} rsvpCount={sourceEvent.rsvp_count} {rsvpLabel} onImageError={handleEventImageError} />
   {/snippet}
 </UnifiedEmbedPreview>
+
+<style>
+  .event-preview-map { position: absolute; inset: 0; overflow: hidden; background: var(--color-grey-20); }
+</style>

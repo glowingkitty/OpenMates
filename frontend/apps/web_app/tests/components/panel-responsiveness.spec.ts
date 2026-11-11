@@ -70,6 +70,36 @@ test('result views hide invalid sources and render date-only calendar entries', 
 });
 
 // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
+test('failed fullscreen frame names what could not be loaded, never a raw placeholder', async ({ page }, testInfo) => {
+  const open = async (data: Record<string, unknown>) => {
+    const props = { data, failed: true };
+    await page.goto(`/dev/preview/embeds/EmbedFullscreenLoading?chrome=0&props=${encodeURIComponent(JSON.stringify(props))}`);
+    await expect(page.getByTestId('embed-fullscreen-loading')).toBeVisible();
+    return page.getByTestId('embed-fullscreen-load-error');
+  };
+  const titled = await open({ embedType: 'app-skill-use', decodedContent: { app_id: 'web', skill_id: 'search', query: 'A specific search' } });
+  await expect(titled).toHaveText('A specific search could not be loaded.');
+  await testInfo.attach('embed-load-error-titled', { body: await page.screenshot(), contentType: 'image/png' });
+  const untitled = await open({ embedType: 'app-skill-use' });
+  await expect(untitled).toHaveText('Details could not be loaded.');
+  await expect(page.getByTestId('embed-fullscreen-loading')).not.toContainText('{');
+  // Measure the text itself: the paragraph box includes its padding.
+  const errorBox = await untitled.evaluate((element: HTMLElement) => {
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    const rect = range.getBoundingClientRect();
+    return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+  });
+  expect(errorBox.width).toBeGreaterThan(0);
+  for (const control of ['embed-report-issue-button', 'embed-minimize']) {
+    const box = (await page.getByTestId(control).boundingBox())!;
+    const overlaps = box.x < errorBox.x + errorBox.width && errorBox.x < box.x + box.width && box.y < errorBox.y + errorBox.height && errorBox.y < box.y + box.height;
+    expect(overlaps, `${control} must not cover the error text`).toBe(false);
+  }
+  await testInfo.attach('embed-load-error-untitled', { body: await page.screenshot(), contentType: 'image/png' });
+});
+
+// contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
 test('unresolved fullscreen identity never renders a generic orb banner', async ({ page }) => {
   const props = { data: { embedType: 'app-skill-use' }, failed: false };
   await page.goto(`/dev/preview/embeds/EmbedFullscreenLoading?chrome=0&props=${encodeURIComponent(JSON.stringify(props))}`);

@@ -4942,6 +4942,13 @@ async def handle_main_processing(
         )
         if authored_result_guidance:
             prompt_parts.append(authored_result_guidance)
+            from backend.core.api.app.services.authored_existing_cards import existing_authored_cards_prompt
+            existing_cards_guidance = await existing_authored_cards_prompt(
+                request_data, cache_service=cache_service, directus_service=directus_service,
+                encryption_service=encryption_service, user_vault_key_id=user_vault_key_id, log_prefix=log_prefix,
+            )
+            if existing_cards_guidance:
+                prompt_parts.append(existing_cards_guidance)
         workflow_known_sources = {
             source for source in (request_data.user_preferences or {}).get("workflow_presentation_sources", [])
             if isinstance(source, str) and "-" in source

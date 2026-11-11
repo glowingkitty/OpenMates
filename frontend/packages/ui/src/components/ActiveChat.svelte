@@ -119,6 +119,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { pruneDecryptedMessageWindow, shouldPreserveExpandedMessageWindow } from '../utils/messageWindowPruning';
     import { modelsMetadata } from '../data/modelsMetadata'; // For reasoning model detection in typing indicator
     import { getMatesById } from '../data/matesMetadata';
+    import { mateDisplayName } from '../utils/mateDisplayName';
     import { matchesProcessingFeedbackTerminal } from './activeChatProcessingFeedback';
     import { parse_message } from '../message_parsing/parse_message'; // Import markdown parser
     import { loadSessionStorageDraft, getSessionStorageDraftMarkdown, migrateSessionStorageDraftsToIndexedDB, getAllDraftChatIdsWithDrafts } from '../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
@@ -2611,8 +2612,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         messageInputFieldRef?.focus();
     }
 
-    async function handleEmbedSuggestionClick(embedId: string, settingsPath?: string, embedChatId?: string): Promise<void> {
-        console.debug('[ActiveChat] Composer embed selected', JSON.stringify({ embedId, savedMemory: !!settingsPath }));
+    async function handleEmbedSuggestionClick(embedId: string, settingsPath?: string, embedChatId?: string, savedEmbed = false): Promise<void> {
+        console.debug('[ActiveChat] Composer embed selected', JSON.stringify({ embedId, savedMemory: !!settingsPath, savedEmbed }));
         const openingChatId = currentChat?.chat_id ?? null;
         const openingDraftChatId = get(draftEditorUIState).currentChatId ?? temporaryChatId;
         const openingLoadGeneration = loadChatGeneration;
@@ -2637,9 +2638,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         const exampleChatId = embedChatId && isExampleChat(embedChatId) ? embedChatId : null;
         const { resolveEmbedForOpen } = await import('../services/embedResolver');
         const { resolveEmbedFullscreenTarget } = await import('../services/embedFullscreenController');
-        // A saved memory without an owner must not borrow the currently open
+        // A saved memory or saved-flag embed without an owner must not borrow the currently open
         // public example's namespace just because the user is composing there.
-        let lookupChatId = embedChatId ?? (settingsPath ? null : openingChatId);
+        let lookupChatId = embedChatId ?? (settingsPath || savedEmbed ? null : openingChatId);
         const readEmbed = async (id: string) => {
             try {
                 return await resolveEmbedForOpen(id, { chatId: lookupChatId });
@@ -4632,7 +4633,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         resolvedServerRegion: string | undefined,
     ) {
         if (resolvedCategory) {
-            const mateName = $text('mates.' + resolvedCategory);
+            const mateName = mateDisplayName(resolvedCategory, $text);
             const displayModelName = resolvedModelName ? getModelDisplayName(resolvedModelName) : '';
             const displayProviderName = resolvedProviderName || '';
             const displayServerRegion = resolvedServerRegion || '';
@@ -4755,7 +4756,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             completedSteps.push({
                 step: 'mate_selected',
                 skipped: false,
-                data: { mate_name: $text('mates.' + category), mate_category: category },
+                data: { mate_name: mateDisplayName(category, $text), mate_category: category },
             });
         }
         if (modelName) {
@@ -6563,7 +6564,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             && currentTypingStatus.category
             && (!processingFeedbackTurn || typingStatusMatchesProcessingFeedback)
         ) {
-            const mateName = $text('mates.' + currentTypingStatus.category);
+            const mateName = mateDisplayName(currentTypingStatus.category, $text);
             const modelName = currentTypingStatus.modelName || ''; 
             const providerName = currentTypingStatus.providerName || '';
             const serverRegion = currentTypingStatus.serverRegion || '';
@@ -12941,7 +12942,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                         ),
                     };
                     selectedPreprocessingMateName = processingFeedbackTurn.explicitMateCategory
-                        ? $text('mates.' + processingFeedbackTurn.explicitMateCategory) : null;
+                        ? mateDisplayName(processingFeedbackTurn.explicitMateCategory, $text) : null;
                     startProcessingStepProgression(isNewChatProcessing);
                 }
 
@@ -13502,7 +13503,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     && (step.skip_reason === 'user_override' || step.skip_reason === 'predefined')
                     && step.data?.mate_category) {
                     selectedPreprocessingMateName = step.data.mate_name
-                        || $text('mates.' + step.data.mate_category);
+                        || mateDisplayName(step.data.mate_category, $text);
                     if (processingFeedbackTurn?.chatId === currentChat?.chat_id) {
                         processingFeedbackTurn = {
                             ...processingFeedbackTurn,
@@ -13540,7 +13541,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                         // falling back to category-based mate name from the step data or
                         // "Analyzing your message..." if no mate info is available yet.
                         const mateName = selectedPreprocessingMateName
-                            || (step.data?.mate_category ? $text('mates.' + step.data.mate_category) : null);
+                            || (step.data?.mate_category ? mateDisplayName(step.data.mate_category, $text) : null);
                         if (mateName) {
                             return $text('enter_message.is_typing').replace('{mate}', mateName);
                         }

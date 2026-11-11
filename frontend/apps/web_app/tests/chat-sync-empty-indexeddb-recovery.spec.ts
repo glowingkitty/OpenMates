@@ -658,13 +658,14 @@ test('current-version partial IndexedDB schema is recreated without dropping loc
 	await expect(page.locator('[data-authenticated="true"]')).toBeVisible({ timeout: 30000 });
 
 	await expect(async () => {
-		const hasMissingStoreError = consoleLogs.some(
+		// Comparing the lines themselves names the offending log in the failure output.
+		const missingStoreErrors = consoleLogs.filter(
 			(entry) =>
 				entry.includes('IndexedDB schema invalid') ||
 				entry.includes('One of the specified object stores was not found') ||
 				entry.includes('NotFoundError')
 		);
-		expect(hasMissingStoreError).toBe(false);
+		expect(missingStoreErrors.map((entry) => entry.slice(0, 400))).toEqual([]);
 
 		const dbState = await page.evaluate(
 			async ({ chatId, messageId }: { chatId: string; messageId: string }) => {

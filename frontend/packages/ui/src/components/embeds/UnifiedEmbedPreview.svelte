@@ -158,7 +158,9 @@
   }: Props = $props();
   const authoring = $derived(authoringProp ?? authoredPresentation?.authoring);
 // Researched results would show only the source domain; some cards (events) omit it.
-  const showProvenance = $derived(!!authoring && !(hideSourceDomain && authoring.origin === 'researched'));
+  // A preview labels drafts, and names the source domain of a researched card unless the card hides it.
+  // Cards built from what the user supplied carry no origin label; their details view lists the origin.
+  const showProvenance = $derived(!!authoring && (authoring.origin === 'draft' || (authoring.origin === 'researched' && !hideSourceDomain)));
   
   type EmbedStatus = 'processing' | 'finished' | 'error' | 'cancelled';
 

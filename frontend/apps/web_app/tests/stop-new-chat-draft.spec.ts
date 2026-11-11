@@ -241,7 +241,9 @@ test('stop during new chat creation restores the sent message as a draft', async
 		await expect(messageEditor).toBeVisible({ timeout: 15000 });
 		await insertComposerText(page, messageEditor, withMockMarker(visibleDraft, 'chat_flow_capital', 'slow'), visibleDraft);
 		await expectDraftComposer(page, visibleDraft);
-		await expect(page.getByTestId('new-chat-button')).toBeVisible();
+		// The composer keeps focus while typing, which collapses the beside-input New chat button.
+		await expect(page.getByTestId('message-field').last()).toHaveAttribute('data-focused', 'true');
+		await expect(page.getByTestId('new-chat-button')).toBeHidden();
 		const draftChatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? null;
 		expect(draftChatId).toBeTruthy();
 		await takeStepScreenshot(page, 'draft-typed');

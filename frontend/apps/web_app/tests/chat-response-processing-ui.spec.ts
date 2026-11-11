@@ -279,6 +279,7 @@ test.describe('Assistant response processing rendered contract', () => {
     }, { fixture: FIXTURE });
     const assistant = page.getByTestId('message-assistant');
     await expect(assistant).toContainText('Finished after late initiation.');
+    await expect(assistant).not.toContainText('[T:');
     await expect(assistant.getByTestId('mate-message-content')).not.toHaveClass(/assistant-response-active/);
     await emitStage(page, 'task-initiated');
     await expect(pending).toHaveCount(0);
@@ -501,6 +502,9 @@ test('finishes the response before optional metadata and accepts late chips with
     }, { fixture: FIXTURE, error: errorText });
     await expect(page.getByTestId('message-assistant')).toHaveCount(1);
     await expect(page.getByTestId('message-assistant')).toContainText(errorText);
+    // The fixture category names no mate: the sender is OpenMates, never a raw text key.
+    await expect(page.getByTestId('message-assistant').getByTestId('chat-mate-name')).toHaveText('OpenMates');
+    await expect(page.getByTestId('message-assistant')).not.toContainText('[T:');
     await expect(page.getByTestId('pending-assistant-response')).toHaveCount(0);
   });
 });

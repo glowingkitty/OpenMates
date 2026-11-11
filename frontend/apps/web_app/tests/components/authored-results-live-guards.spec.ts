@@ -44,7 +44,7 @@ test('same mounted TV fullscreen follows next and previous child identity, conte
 });
 
 // contract-test: supporting surface=gui.web assertions=authored-results.lifecycle.encrypted-and-stable,authored-results.content.typed-and-useful
-test('partial carrier keeps its valid child and readable warning inline and in fullscreen', async ({ page }, testInfo) => {
+test('partial carrier keeps its valid child and readable warning inline and its fullscreen request opens the first member', async ({ page }, testInfo) => {
   const eventId = authoredChild('events.event').embed_id;
   await openAuthoredComponent(page, 'AuthoredResultsPreviewFixture', { width: 390, theme: 'dark', variant: 'partial' });
   const inline = page.getByTestId('authored-results-preview');
@@ -53,16 +53,14 @@ test('partial carrier keeps its valid child and readable warning inline and in f
   await expect(inline.locator(`[data-testid="embed-preview"][data-embed-id="${eventId}"]`)).toContainText('Supplied: events.event');
   await expect(inline).not.toContainText(/source_json|schema_version|"items"/);
   await authoredCapture(page, testInfo, 'partial-valid-child-inline');
-  // A direct carrier route is also supported, even when its remaining valid
-  // inline child uses the normal single-result presentation.
+  // An old carrier link or history entry has no group layer: it opens the first member's fullscreen.
   await openAuthoredComponent(page, 'AuthoredResultsPreviewFixture', { width: 390, theme: 'dark', variant: 'partialFullscreen' });
   const fullscreen = page.getByTestId('authored-fixture-fullscreen');
-  await expect(fullscreen).toHaveAttribute('data-embed-id', '777d0000-0000-4000-8000-000000001000');
-  await expect(fullscreen.getByTestId('authored-results-partial')).toBeVisible();
-  await expect(fullscreen.getByTestId('embed-preview')).toHaveCount(1);
-  await expect(fullscreen.locator(`[data-testid="embed-preview"][data-embed-id="${eventId}"]`)).toContainText('Supplied: events.event');
+  await expect(fullscreen).toHaveAttribute('data-embed-id', eventId);
+  await expect(fullscreen.getByTestId('embed-header-title')).toHaveText('Supplied: events.event');
   await expect(fullscreen).not.toContainText(/source_json|schema_version|"items"/);
-  await authoredCapture(page, testInfo, 'partial-valid-child-fullscreen');
+  await expect(page.getByTestId('authored-fixture-error')).toHaveCount(0);
+  await authoredCapture(page, testInfo, 'partial-carrier-opens-first-member');
 });
 
 // contract-test: supporting surface=gui.web assertions=authored-results.lifecycle.encrypted-and-stable,authored-results.groups.same-response-and-reuse
@@ -77,7 +75,7 @@ test('processing carrier hydrates through the real store and embedUpdated path w
   const event = carrier.locator(`[data-testid="embed-preview"][data-embed-id="${authoredChild('events.event').embed_id}"]`);
   await expect(event).toHaveAttribute('data-status', 'finished');
   await expect(event).toContainText('Supplied: events.event');
-  await expect(event.getByTestId('authored-result-origin')).toHaveText('User-provided');
+  await expect(event.getByTestId('authored-result-origin')).toHaveCount(0);
   expect(await mounted!.evaluate(node => node === document.querySelector('[data-testid="authored-results-preview"]'))).toBe(true);
   await event.getByTestId('result-preview-expand').focus();
   await event.getByTestId('result-preview-expand').press('Enter');

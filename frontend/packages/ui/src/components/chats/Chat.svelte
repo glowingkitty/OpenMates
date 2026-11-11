@@ -35,6 +35,7 @@
   } from '../../utils/categoryUtils';
   import { modelsMetadata } from '../../data/modelsMetadata'; // For model name lookup in mentions
   import { matesMetadata } from '../../data/matesMetadata'; // For mate name lookup in mentions
+  import { mateDisplayName } from '../../utils/mateDisplayName';
   import { appSkillsStore } from '../../stores/appSkillsStore'; // For skill/focus/memory name lookup in mentions
   import { skillPreviewService } from '../../services/skillPreviewService'; // For tracking skill usage in background chats
   import { settingsDeepLink } from '../../stores/settingsDeepLinkStore'; // For opening settings to specific page (share)
@@ -441,7 +442,7 @@
   let typingIndicatorInTitleView = $derived((() => {
     if (RUST_CHAT_INDICATORS) return rustTitleIndicator ? localizeIndicatorLine(rustTitleIndicator, $text) : null;
     if (currentTypingMateInfo?.isTyping && currentTypingMateInfo.category) {
-      const mateName = $text(`mates.${currentTypingMateInfo.category}`);
+      const mateName = mateDisplayName(currentTypingMateInfo.category, $text);
       
       // Priority 1: Show active app skill usage (e.g., "Using Search...")
       if (activeSkillInfo) {

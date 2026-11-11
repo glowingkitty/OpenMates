@@ -215,3 +215,51 @@ async def test_no_recursive_expansion_and_existing_code_skill_and_direct_formats
     assert code["metadata"]["language"] == "python" and code["metadata"]["filename"] == "hello.py"
     assert skill["content"] == "One result" and skill["metadata"]["results"] == [{"text": "One result"}]
     assert direct_embed["content"] == "Existing document" and direct_embed["metadata"]["format"] == "markdown"
+
+
+def _with_followup(records, plaintext, *, members):
+    """Add a second carrier that reuses earlier cards as members, not children."""
+    body = {"type": "authored_results", "title": "Follow-up", "status": "finished",
+            "embed_ids": [], "member_ids": members, "items": [],
+            "view": {"mode": "cards", "embeds": members}}
+    cipher = "vault:v1:followup"
+    records["followup"] = {
+        "embed_id": "followup", "type": "authored_results", "status": "finished",
+        "hashed_user_id": OWNER, "hashed_chat_id": CHAT_HASH, "chat_id": CHAT,
+        "encrypted_content": cipher,
+    }
+    plaintext[cipher] = encode(body)
+
+
+@pytest.mark.asyncio
+async def test_followup_carrier_exposes_reused_member_without_reparenting(monkeypatch):
+    records, plaintext, _ = _records()
+    _with_followup(records, plaintext, members=["event"])
+    _storage(monkeypatch, records, plaintext)
+    result = await _resolve("followup")
+    assert [item["id"] for item in result] == ["followup", "event"]
+    assert result[0]["metadata"]["embed_ids"] == []
+    assert result[0]["metadata"]["member_ids"] == ["event"]
+    assert result[0]["metadata"]["view"]["embeds"] == ["event"]
+    assert records["event"]["parent_embed_id"] == "carrier"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("corruption", ["owner", "chat", "status", "standalone"])
+async def test_followup_member_from_foreign_scope_is_never_exposed(monkeypatch, corruption):
+    records, plaintext, _ = _records()
+    _with_followup(records, plaintext, members=["event", "stay"])
+    if corruption == "owner":
+        records["stay"]["hashed_user_id"] = "foreign-owner"
+    elif corruption == "chat":
+        records["stay"].update(chat_id="foreign-chat", hashed_chat_id="foreign-chat-hash")
+    elif corruption == "status":
+        records["stay"]["status"] = "processing"
+    else:
+        records["stay"].pop("parent_embed_id")
+    _storage(monkeypatch, records, plaintext)
+    result = await _resolve("followup")
+    assert [item["id"] for item in result] == ["followup", "event"]
+    assert result[0]["metadata"]["member_ids"] == ["event"]
+    assert result[0]["metadata"]["view"]["embeds"] == ["event"]
+    assert "Supplied hotel" not in json.dumps(result)

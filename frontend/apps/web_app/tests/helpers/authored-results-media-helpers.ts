@@ -84,12 +84,17 @@ export async function deleteSelectedUploadMessage(page: Page, apiUrl: string, ch
   expect((await page.request.get(`${apiUrl}/v1/embeds/chats/${chatId}/embeds/${uploadId}`)).status(),
     'source upload must exist canonically before deletion').toBe(200);
   const message = page.locator(`[data-message-id="${messageId}"]`).getByTestId('user-message-content');
-  await message.click({ button: 'right' });
+  // The upload preview inside the message has its own menu, so open the message
+  // menu from its text. The menu closes itself on any scroll or layout move while
+  // the upload preview settles, so reopen it until Delete can be used.
+  const text = message.locator('p').filter({ hasText: /\S/ }).first();
   const menu = page.getByTestId('message-context-menu');
-  await expect(menu).toBeVisible();
   const remove = menu.getByRole('button', { name: 'Delete', exact: true });
-  await expect(remove).toBeEnabled();
-  await remove.click();
+  await expect(async () => {
+    if (!(await menu.isVisible())) await text.click({ button: 'right' });
+    await expect(remove).toBeEnabled({ timeout: 2000 });
+    await remove.click({ timeout: 2000 });
+  }).toPass({ timeout: 45_000 });
   await menu.getByRole('button', { name: 'Confirm', exact: true }).click();
   await expect(message).toHaveCount(0);
   // The UI acknowledgement precedes Celery persistence. Wait for the canonical

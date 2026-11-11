@@ -35,7 +35,7 @@ for (const width of [390, 1100]) for (const theme of ['light', 'dark'] as const)
     await expect(page.getByTestId('tv-preview-facts')).toContainText('112');
     await expect(page.getByTestId('tv-preview-score')).toContainText('8.2 / 10');
     await expect(page.getByTestId('tv-preview-score')).toContainText('Supplied score');
-    await expect(page.getByTestId('authored-result-origin')).toHaveText('User-provided');
+    await expect(page.getByTestId('authored-result-origin')).toHaveCount(0);
     const poster = page.getByTestId('tv-poster');
     await expect(poster).toBeVisible();
     await expect(poster).toHaveCSS('object-fit', 'contain');

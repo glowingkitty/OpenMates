@@ -426,7 +426,6 @@ embed_types:
     backend_type: authored_results
     groupable: false
     preview_component: AuthoredResultsEmbedPreview.svelte
-    fullscreen_component: AuthoredResultsEmbedFullscreen.svelte
     icon: ai
     gradient_var: "--color-app-ai"
     i18n_namespace: embeds.authoring

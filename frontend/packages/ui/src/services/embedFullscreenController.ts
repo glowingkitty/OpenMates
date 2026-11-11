@@ -103,6 +103,17 @@ export async function resolveEmbedFullscreenTarget(
 ): Promise<FullscreenTargetResolution> {
   const normalizedEmbedId = normalizeEmbedId(embedId);
 
+  // The authored-results carrier has no fullscreen of its own: an old link or
+  // history entry opens its first member instead.
+  if (options.decodedContent?.type === "authored_results") {
+    const view = options.decodedContent.view as { embeds?: unknown } | undefined;
+    const members = Array.isArray(view?.embeds) && view.embeds.length > 0
+      ? view.embeds
+      : options.decodedContent.embed_ids;
+    const first = Array.isArray(members) ? members.find((value): value is string => typeof value === "string") : undefined;
+    if (first) return { targetEmbedId: normalizeEmbedId(first) };
+  }
+
   if (hasDirectFullscreen(options.embedType, options.decodedContent)) {
     return { targetEmbedId: normalizedEmbedId };
   }

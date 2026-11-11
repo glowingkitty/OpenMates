@@ -404,7 +404,7 @@ test('event description preserves provider HTML structure safely and dates use t
   await testInfo.attach('event-formatted-description', { body: await page.screenshot(), contentType: 'image/png' });
   await page.goto(preview('events/EventEmbedFullscreen', 390, 'overnightTimezone'));
   await waitForComponentPreview(page);
-  await expect(page.getByTestId('event-time-range')).toHaveText(/Mar 15 11:30 PM\s*–\s*Mar 16 1:00 AM/);
+  await expect(page.getByTestId('event-time-range')).toHaveText(/Sun, Mar 15, 2026 11:30 PM\s*–\s*Mon, Mar 16, 2026 1:00 AM/);
   await page.goto(preview('events/EventEmbedPreview', 390, 'timezoneBoundary'));
   await waitForComponentPreview(page);
   await expect(page.getByTestId('embed-calendar-date').locator('strong')).toHaveText('16');
@@ -412,6 +412,46 @@ test('event description preserves provider HTML structure safely and dates use t
   await expect(page.getByTestId('event-preview-attribution')).toContainText('12:30 AM, by Berlin Lingua Hub');
   await expect(page.getByTestId('event-preview-attribution')).toHaveCSS('text-overflow', 'ellipsis');
 });
+
+for (const width of [390, 1280]) {
+  // contract-test: supporting surface=gui.web assertions=events-search.surface-parity,authored-results.presentation.whole-image-and-title
+  test(`event card without a working image shows its venue map and no origin label at ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    for (const variant of ['venueMap', 'brokenImageVenueMap']) {
+      await page.goto(preview('events/EventEmbedPreview', width, variant));
+      await waitForComponentPreview(page);
+      const card = page.getByTestId('embed-preview');
+      const map = card.getByTestId('event-preview-map');
+      await expect(map).toBeVisible();
+      await expect(map.locator('.leaflet-container')).toBeVisible();
+      await expect(map.locator('.leaflet-marker-icon')).toHaveCount(1);
+      await expect(map.locator('.leaflet-tile-loaded').first()).toBeVisible({ timeout: 20000 });
+      await expect(card.getByTestId('result-card-media').locator('img:not(.leaflet-container img)')).toHaveCount(0);
+      await expect(card.getByTestId('result-card-title')).toHaveText('Supplied conference with a known venue');
+      await expect(card.getByTestId('embed-calendar-date').locator('strong')).toHaveText('30');
+      await expect(card.getByTestId('event-preview-attribution')).toContainText('Supplied organizer');
+      await expect(card.getByTestId('authored-result-origin')).toHaveCount(0);
+      await expect(card).not.toContainText('User-provided');
+      const cardBox = (await card.boundingBox())!;
+      const mapBox = (await map.boundingBox())!;
+      const titleBox = (await card.getByTestId('result-card-title').boundingBox())!;
+      expect(mapBox.height).toBeGreaterThanOrEqual(56);
+      expect(mapBox.x).toBeGreaterThanOrEqual(cardBox.x - 1);
+      expect(mapBox.x + mapBox.width).toBeLessThanOrEqual(cardBox.x + cardBox.width + 1);
+      expect(titleBox.y + titleBox.height).toBeLessThanOrEqual(cardBox.y + cardBox.height + 1);
+      await testInfo.attach(`event-${variant}-${width}`, { body: await page.screenshot(), contentType: 'image/png' });
+      await page.screenshot({ path: testInfo.outputPath(`event-${variant}-${width}.png`) });
+    }
+    // Unknown coordinates: no map is invented and the card keeps its text.
+    await page.goto(preview('events/EventEmbedPreview', width, 'dateOnly'));
+    await waitForComponentPreview(page);
+    const plain = page.getByTestId('embed-preview');
+    await expect(plain.getByTestId('event-preview-map')).toHaveCount(0);
+    await expect(plain.getByTestId('result-card-title')).toHaveText('Supplied two-day conference');
+    await expect(plain.getByTestId('authored-result-origin')).toHaveCount(0);
+    await page.screenshot({ path: testInfo.outputPath(`event-dateOnly-${width}.png`) });
+  });
+}
 
 // contract-test: supporting surface=gui.web assertions=travel-search.surface-parity
 test('undated travel previews do not invent calendar dates', async ({ page }) => {

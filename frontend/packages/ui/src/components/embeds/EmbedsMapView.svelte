@@ -74,7 +74,10 @@
     /** Parent fullscreen owns the scroll; render previews as a vertical grid. */
     fullscreen?: boolean;
     includeAllResults?: boolean;
-    cardsOnly?: boolean;
+    /** Carrier view mode: `cards` suppresses tabs, `map` preselects the Map tab. */
+    viewMode?: 'auto' | 'cards' | 'map';
+    /** Placeholder cards for members that are announced but not yet published. */
+    pendingCount?: number;
     initialVisualTab?: 'map' | 'calendar';
   }
 
@@ -169,7 +172,8 @@
     fullscreen = false,
     initialVisualTab = 'map',
     includeAllResults = false,
-    cardsOnly = false,
+    viewMode = 'auto',
+    pendingCount = 0,
   }: Props = $props();
 
   let entries = $state<MapViewEntry[]>([]);
@@ -283,7 +287,7 @@
       lon: (Math.min(...lons) + Math.max(...lons)) / 2,
     };
   });
-  const visualTabs = $derived<VisualTab[]>(cardsOnly ? [] : includeAllResults ? (mapCenter ? [{id: 'map', label: 'Map'}] : []) : deriveVisualTabs(Boolean(mapCenter), calendarEntries.length > 0));
+  const visualTabs = $derived<VisualTab[]>(includeAllResults && viewMode === 'cards' ? [] : deriveVisualTabs(Boolean(mapCenter), calendarEntries.length > 0));
   const selectedVisualTab = $derived.by(() => {
     if (visualTabs.some((tab) => tab.id === activeVisualTab)) return activeVisualTab;
     return visualTabs[0]?.id ?? 'map';
@@ -1221,7 +1225,8 @@
 
   $effect(() => {
     if (!initialVisualTabApplied && !isLoading && eligibleEntries.length > 0) {
-      if (visualTabs.some(tab => tab.id === initialVisualTab)) activeVisualTab = initialVisualTab;
+      const preferred = viewMode === 'map' ? 'map' : initialVisualTab;
+      if (visualTabs.some(tab => tab.id === preferred)) activeVisualTab = preferred;
       initialVisualTabApplied = true;
     }
     if (visualTabs.length > 0 && !visualTabs.some((tab) => tab.id === activeVisualTab)) {
@@ -1243,8 +1248,18 @@
   });
 </script>
 
+{#snippet pendingCards()}
+  {#each Array.from({ length: Math.max(0, pendingCount) }) as _, index}
+    <div class="map-view-card pending-card" data-testid="embeds-map-view-pending-card" data-pending-index={index} role="status" aria-busy="true" aria-label={$text('embeds.processing')}>
+      <div class="pending-media"></div>
+      <div class="pending-line"></div>
+      <div class="pending-line short"></div>
+    </div>
+  {/each}
+{/snippet}
+
 <span bind:this={resolutionMarker} hidden data-result-view-visible={eligibleEntries.length > 0 || (!isLoading && $userProfile.is_admin === true && !diagnosticHidden) ? "true" : "false"} data-testid="embeds-map-view-resolution" data-loading={isLoading ? 'true' : 'false'}></span>
-{#if eligibleEntries.length > 0}
+{#if eligibleEntries.length > 0 || pendingCount > 0}
 <section class="embeds-results-view embeds-map-view" class:fullscreen class:list-only={visualTabs.length === 0} data-testid="embeds-map-view" data-results-view-id={id} data-map-view-id={id} data-loading={isLoading ? 'true' : 'false'} aria-label={title}>
   <header class="map-view-toolbar">
     <span class="entry-count" data-testid="embeds-map-view-count">{visibleEntries.length} shown</span>
@@ -1378,15 +1393,13 @@
       <div class="map-view-carousel" data-testid="embeds-map-view-carousel" data-embed-result-context="results" aria-label="Result previews">
         {#each carouselEntries as entry}
           <div class="map-view-card" data-testid="embeds-map-view-card" data-entry-ref={entry.ref} data-entry-mapped={entry.lat != null && entry.lon != null || (entry.route?.length ?? 0) > 1 ? 'true' : 'false'} data-entry-status={entry.status} data-entry-category={entry.category} role="group" aria-label={entry.title}>
-            {#if includeAllResults && !cardsOnly && !(entry.lat != null && entry.lon != null) && (entry.route?.length ?? 0) < 2}
-                <p data-testid="results-view-unmapped">{$text('embeds.authoring.unmapped')}</p>
-              {/if}
-              {#if entry.preview}
+            {#if entry.preview}
               {@const Component = getRenderableComponent(entry.preview.component)}
               <Component {...entry.preview.props} />
             {/if}
           </div>
         {/each}
+        {@render pendingCards()}
       </div>
     </div>
   {:else}
@@ -1420,7 +1433,7 @@
               onfocusin={() => (hoveredRef = entry.ref)}
               onfocusout={() => handleEntryPointerLeave(entry.ref)}
             >
-              {#if includeAllResults && !cardsOnly && !(entry.lat != null && entry.lon != null) && (entry.route?.length ?? 0) < 2}
+              {#if includeAllResults && !(entry.lat != null && entry.lon != null) && (entry.route?.length ?? 0) < 2}
                 <p data-testid="results-view-unmapped">{$text('embeds.authoring.unmapped')}</p>
               {/if}
               {#if entry.preview}
@@ -1447,6 +1460,7 @@
             </div>
           {/each}
         {/if}
+        {@render pendingCards()}
       </div>
       {#if isCarouselScoped}
         <button type="button" class="show-all-results" data-testid="embeds-map-view-show-all-results" onclick={showAllResults}>
@@ -1522,6 +1536,11 @@
 {/if}
 
 <style>
+  .pending-card { display: flex; flex-direction: column; gap: var(--spacing-3); box-sizing: border-box; height: 200px; padding: 0 0 var(--spacing-4); overflow: hidden; border-radius: var(--radius-8); background: var(--color-grey-0); }
+  .pending-media { flex: 1 1 auto; min-height: 0; background: var(--color-grey-20); animation: pending-pulse 1.4s ease-in-out infinite; }
+  .pending-line { height: 14px; margin: 0 var(--spacing-6); border-radius: var(--radius-4); background: var(--color-grey-20); animation: pending-pulse 1.4s ease-in-out infinite; }
+  .pending-line.short { width: 50%; }
+  @keyframes pending-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
   .embeds-map-view.fullscreen { max-width: 1100px; margin: 0 auto; padding-top: 0; border: 0; box-shadow: none; }
   .fullscreen .map-view-body:not(.calendar-active) { display: flex; flex-direction: column; height: auto; overflow: visible; }
   .fullscreen .results-view-pane { order: -1; }
