@@ -29,6 +29,10 @@ const RUST_WS_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
 function rustWsPolicy() {
   return import("./rustCore/ws/rustWsPolicy");
 }
+// The policy decides what happens when the connection drops, so it is loaded now, while the
+// app is online: fetching it on the first lost connection would fail and leave the close
+// unhandled. A failed load here is not handled: each lifecycle event imports it again.
+if (RUST_WS_BUILD) void rustWsPolicy().catch(() => undefined);
 
 /**
  * Sanitize sensitive data from URLs for logging
