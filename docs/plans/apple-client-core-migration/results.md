@@ -40,3 +40,21 @@ persist_chats 827 ms against 1188 ms).
 Consequence: runner speed varies by about a factor of two between CI runs.
 Before/after comparisons are only valid inside one run, so from A3 on the test
 measures the old and the new path in the same process.
+
+## A3a: batched decrypt through the core (2026-11-11)
+
+Run 42947156839 (apple-unit, macos-26 simulator, candidate e85c9109). Old Swift
+sequence and core calls measured in the same test process, median ms.
+
+| Phase | n | Swift (old) | Core (new) | Change |
+|---|---|---|---|---|
+| chat key bulk load | 600 | 65 | 80 | 1.2x slower |
+| chat list metadata decrypt | 600 | 203 | 24 | 8.5x faster |
+| chat open, window decrypt | 50 | 86 | 49 | 1.8x faster |
+| chat open, full 1000 decrypt | 1000 | 1384 | 786 | 1.8x faster |
+
+Storage phases in this run (still Swift, unchanged): persist_chats 1226,
+persist_messages 865, cold_load_from_disk 36.
+
+Open: the core message and key phases cost about 130 microseconds per item,
+against about 8 per metadata field. Where that time goes is not explained yet.

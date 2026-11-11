@@ -1340,88 +1340,9 @@ final class ChatViewModel: ObservableObject {
         }
     }
 
+    /// Header metadata through the batched core decrypt (only a missing title is filled).
     private func decryptMetadata(for chat: Chat) async -> Chat {
-        var decrypted = chat
-        guard ChatKeyManager.shared.hasKey(for: decrypted.id) else {
-            if NativeSyncPerfLog.verboseCrypto {
-                print("[ChatViewModel][decrypt] chat=\(decrypted.id.prefix(8)) missing chat key; encTitle=\(decrypted.encryptedTitle != nil) encCategory=\(decrypted.encryptedCategory != nil) encIcon=\(decrypted.encryptedIcon != nil) encSummary=\(decrypted.encryptedChatSummary != nil)")
-            }
-            return decrypted
-        }
-        if decrypted.title == nil,
-           let encryptedTitle = decrypted.encryptedTitle,
-           let title = await ChatKeyManager.shared.decryptChatField(
-               chatId: decrypted.id,
-               encryptedValue: encryptedTitle,
-               fieldName: "encrypted_title"
-        ) {
-            decrypted.title = title
-            if NativeSyncPerfLog.verboseCrypto {
-                print("[ChatViewModel][decrypt] chat=\(decrypted.id.prefix(8)) title ok")
-            }
-        } else if decrypted.title == nil, decrypted.encryptedTitle != nil {
-            if NativeSyncPerfLog.verboseCrypto {
-                print("[ChatViewModel][decrypt] chat=\(decrypted.id.prefix(8)) title missing after decrypt attempt")
-            }
-        }
-        if decrypted.category == nil,
-           let encryptedCategory = decrypted.encryptedCategory,
-           let category = await ChatKeyManager.shared.decryptChatField(
-               chatId: decrypted.id,
-               encryptedValue: encryptedCategory,
-               fieldName: "encrypted_category"
-        ) {
-            decrypted.category = category
-            if NativeSyncPerfLog.verboseCrypto {
-                print("[ChatViewModel][decrypt] chat=\(decrypted.id.prefix(8)) category ok")
-            }
-        } else if decrypted.category == nil, decrypted.encryptedCategory != nil {
-            if NativeSyncPerfLog.verboseCrypto {
-                print("[ChatViewModel][decrypt] chat=\(decrypted.id.prefix(8)) category missing after decrypt attempt")
-            }
-        }
-        if decrypted.icon == nil,
-           let encryptedIcon = decrypted.encryptedIcon,
-           let icon = await ChatKeyManager.shared.decryptChatField(
-               chatId: decrypted.id,
-               encryptedValue: encryptedIcon,
-               fieldName: "encrypted_icon"
-        ) {
-            decrypted.icon = icon
-            if NativeSyncPerfLog.verboseCrypto {
-                print("[ChatViewModel][decrypt] chat=\(decrypted.id.prefix(8)) icon ok")
-            }
-        } else if decrypted.icon == nil, decrypted.encryptedIcon != nil {
-            if NativeSyncPerfLog.verboseCrypto {
-                print("[ChatViewModel][decrypt] chat=\(decrypted.id.prefix(8)) icon missing after decrypt attempt")
-            }
-        }
-        if decrypted.chatSummary == nil,
-           let encryptedSummary = decrypted.encryptedChatSummary,
-           let summary = await ChatKeyManager.shared.decryptChatField(
-               chatId: decrypted.id,
-               encryptedValue: encryptedSummary,
-               fieldName: "encrypted_chat_summary"
-        ) {
-            decrypted.chatSummary = summary
-            if NativeSyncPerfLog.verboseCrypto {
-                print("[ChatViewModel][decrypt] chat=\(decrypted.id.prefix(8)) summary ok")
-            }
-        } else if decrypted.chatSummary == nil, decrypted.encryptedChatSummary != nil {
-            if NativeSyncPerfLog.verboseCrypto {
-                print("[ChatViewModel][decrypt] chat=\(decrypted.id.prefix(8)) summary missing after decrypt attempt")
-            }
-        }
-        if decrypted.activeFocusId == nil,
-           let encryptedActiveFocusId = decrypted.encryptedActiveFocusId,
-           let activeFocusId = await ChatKeyManager.shared.decryptChatField(
-                chatId: decrypted.id,
-                encryptedValue: encryptedActiveFocusId,
-                fieldName: "encrypted_active_focus_id"
-        ) {
-            decrypted.activeFocusId = activeFocusId
-        }
-        return decrypted
+        await ChatKeyManager.shared.decryptMetadata(of: chat, replaceEmptyTitle: false)
     }
 
     // MARK: - Public bundled chats
@@ -1473,63 +1394,10 @@ final class ChatViewModel: ObservableObject {
         }
     }
 
-    /// Decrypt encrypted message content and identity using the per-chat key.
+    /// Decrypt encrypted message content and identity using the per-chat key,
+    /// one batched core call per window (`ChatKeyManager.decryptMessages`).
     static func decryptMessagesForDisplay(_ messages: [Message], chatId: String) async -> [Message] {
-        let encryptedCount = messages.filter { $0.encryptedContent != nil }.count
-        if encryptedCount > 0, !ChatKeyManager.shared.hasKey(for: chatId) {
-            print("[ChatViewModel][decrypt] messages skipped chat=\(chatId.prefix(8)) encrypted=\(encryptedCount) reason=missingChatKey")
-        }
-        var result: [Message] = []
-        for var msg in messages {
-            if msg.content == nil || msg.content?.isEmpty == true,
-               let enc = msg.encryptedContent {
-                if let decrypted = await ChatKeyManager.shared.decryptMessageContent(
-                    chatId: chatId, encryptedContent: enc
-                ) {
-                    msg.content = decrypted
-                }
-            }
-            if msg.piiMappings == nil,
-               let encryptedMappings = msg.encryptedPIIMappings,
-               let decryptedMappings = await ChatKeyManager.shared.decryptMessageContent(
-                    chatId: chatId,
-                    encryptedContent: encryptedMappings
-               ),
-               let mappingsData = decryptedMappings.data(using: .utf8),
-               let mappings = try? JSONDecoder().decode([PIIMapping].self, from: mappingsData) {
-                msg.piiMappings = mappings
-            }
-            if msg.thinkingContent == nil,
-               let encryptedThinkingContent = msg.encryptedThinkingContent {
-                msg.thinkingContent = await ChatKeyManager.shared.decryptMessageContent(
-                    chatId: chatId,
-                    encryptedContent: encryptedThinkingContent
-                )
-            }
-            if msg.senderName == nil,
-               let encryptedSenderName = msg.encryptedSenderName {
-                msg.senderName = await ChatKeyManager.shared.decryptMessageContent(
-                    chatId: chatId,
-                    encryptedContent: encryptedSenderName
-                )
-            }
-            if msg.category == nil,
-               let encryptedCategory = msg.encryptedCategory {
-                msg.category = await ChatKeyManager.shared.decryptMessageContent(
-                    chatId: chatId,
-                    encryptedContent: encryptedCategory
-                )
-            }
-            if msg.modelName == nil,
-               let encryptedModelName = msg.encryptedModelName {
-                msg.modelName = await ChatKeyManager.shared.decryptMessageContent(
-                    chatId: chatId,
-                    encryptedContent: encryptedModelName
-                )
-            }
-            result.append(msg)
-        }
-        return result
+        await ChatKeyManager.shared.decryptMessages(messages, chatId: chatId)
     }
 
     private func decryptMessages(_ messages: [Message], chatId: String) async -> [Message] {

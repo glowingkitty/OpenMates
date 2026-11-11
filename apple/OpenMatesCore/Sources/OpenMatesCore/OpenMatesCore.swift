@@ -1321,6 +1321,116 @@ public func FfiConverterTypeOpenMatesCore_lower(_ value: OpenMatesCore) -> UInt6
 
 
 /**
+ * Decrypted metadata of one chat. A field is `nil` exactly when its
+ * ciphertext was `nil` in the input.
+ */
+public struct ChatMetadataRecord: Equatable, Hashable {
+    /**
+     * Chat id from the input.
+     */
+    public var chatId: String
+    /**
+     * Title.
+     */
+    public var title: FieldDecryptOutcome?
+    /**
+     * Category.
+     */
+    public var category: FieldDecryptOutcome?
+    /**
+     * Icon name.
+     */
+    public var icon: FieldDecryptOutcome?
+    /**
+     * Chat summary.
+     */
+    public var chatSummary: FieldDecryptOutcome?
+    /**
+     * Active focus id.
+     */
+    public var activeFocusId: FieldDecryptOutcome?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Chat id from the input.
+         */chatId: String, 
+        /**
+         * Title.
+         */title: FieldDecryptOutcome?, 
+        /**
+         * Category.
+         */category: FieldDecryptOutcome?, 
+        /**
+         * Icon name.
+         */icon: FieldDecryptOutcome?, 
+        /**
+         * Chat summary.
+         */chatSummary: FieldDecryptOutcome?, 
+        /**
+         * Active focus id.
+         */activeFocusId: FieldDecryptOutcome?) {
+        self.chatId = chatId
+        self.title = title
+        self.category = category
+        self.icon = icon
+        self.chatSummary = chatSummary
+        self.activeFocusId = activeFocusId
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ChatMetadataRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeChatMetadataRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ChatMetadataRecord {
+        return
+            try ChatMetadataRecord(
+                chatId: FfiConverterString.read(from: &buf), 
+                title: FfiConverterOptionTypeFieldDecryptOutcome.read(from: &buf), 
+                category: FfiConverterOptionTypeFieldDecryptOutcome.read(from: &buf), 
+                icon: FfiConverterOptionTypeFieldDecryptOutcome.read(from: &buf), 
+                chatSummary: FfiConverterOptionTypeFieldDecryptOutcome.read(from: &buf), 
+                activeFocusId: FfiConverterOptionTypeFieldDecryptOutcome.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ChatMetadataRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.chatId, into: &buf)
+        FfiConverterOptionTypeFieldDecryptOutcome.write(value.title, into: &buf)
+        FfiConverterOptionTypeFieldDecryptOutcome.write(value.category, into: &buf)
+        FfiConverterOptionTypeFieldDecryptOutcome.write(value.icon, into: &buf)
+        FfiConverterOptionTypeFieldDecryptOutcome.write(value.chatSummary, into: &buf)
+        FfiConverterOptionTypeFieldDecryptOutcome.write(value.activeFocusId, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeChatMetadataRecord_lift(_ buf: RustBuffer) throws -> ChatMetadataRecord {
+    return try FfiConverterTypeChatMetadataRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeChatMetadataRecord_lower(_ value: ChatMetadataRecord) -> RustBuffer {
+    return FfiConverterTypeChatMetadataRecord.lower(value)
+}
+
+
+/**
  * Result of `finish_client_login` (bridge keys `finishLoginRequest`,
  * `sessionKey`). `session_key` is secret.
  */
@@ -1671,6 +1781,366 @@ public func FfiConverterTypeCredentialSnapshotRecord_lower(_ value: CredentialSn
 
 
 /**
+ * Encrypted chat-list metadata of one chat with its raw chat key. Leave a
+ * field `nil` to skip it (for example when a plaintext value is already known).
+ */
+public struct EncryptedChatMetadataRecord: Equatable, Hashable {
+    /**
+     * Chat id, echoed in the result.
+     */
+    public var chatId: String
+    /**
+     * Raw 32-byte chat key; secret, zeroized after use.
+     */
+    public var chatKey: Data
+    /**
+     * `encrypted_title`.
+     */
+    public var encryptedTitle: String?
+    /**
+     * `encrypted_category`.
+     */
+    public var encryptedCategory: String?
+    /**
+     * `encrypted_icon`.
+     */
+    public var encryptedIcon: String?
+    /**
+     * `encrypted_chat_summary`.
+     */
+    public var encryptedChatSummary: String?
+    /**
+     * `encrypted_active_focus_id`.
+     */
+    public var encryptedActiveFocusId: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Chat id, echoed in the result.
+         */chatId: String, 
+        /**
+         * Raw 32-byte chat key; secret, zeroized after use.
+         */chatKey: Data, 
+        /**
+         * `encrypted_title`.
+         */encryptedTitle: String?, 
+        /**
+         * `encrypted_category`.
+         */encryptedCategory: String?, 
+        /**
+         * `encrypted_icon`.
+         */encryptedIcon: String?, 
+        /**
+         * `encrypted_chat_summary`.
+         */encryptedChatSummary: String?, 
+        /**
+         * `encrypted_active_focus_id`.
+         */encryptedActiveFocusId: String?) {
+        self.chatId = chatId
+        self.chatKey = chatKey
+        self.encryptedTitle = encryptedTitle
+        self.encryptedCategory = encryptedCategory
+        self.encryptedIcon = encryptedIcon
+        self.encryptedChatSummary = encryptedChatSummary
+        self.encryptedActiveFocusId = encryptedActiveFocusId
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension EncryptedChatMetadataRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEncryptedChatMetadataRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EncryptedChatMetadataRecord {
+        return
+            try EncryptedChatMetadataRecord(
+                chatId: FfiConverterString.read(from: &buf), 
+                chatKey: FfiConverterData.read(from: &buf), 
+                encryptedTitle: FfiConverterOptionString.read(from: &buf), 
+                encryptedCategory: FfiConverterOptionString.read(from: &buf), 
+                encryptedIcon: FfiConverterOptionString.read(from: &buf), 
+                encryptedChatSummary: FfiConverterOptionString.read(from: &buf), 
+                encryptedActiveFocusId: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: EncryptedChatMetadataRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.chatId, into: &buf)
+        FfiConverterData.write(value.chatKey, into: &buf)
+        FfiConverterOptionString.write(value.encryptedTitle, into: &buf)
+        FfiConverterOptionString.write(value.encryptedCategory, into: &buf)
+        FfiConverterOptionString.write(value.encryptedIcon, into: &buf)
+        FfiConverterOptionString.write(value.encryptedChatSummary, into: &buf)
+        FfiConverterOptionString.write(value.encryptedActiveFocusId, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEncryptedChatMetadataRecord_lift(_ buf: RustBuffer) throws -> EncryptedChatMetadataRecord {
+    return try FfiConverterTypeEncryptedChatMetadataRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEncryptedChatMetadataRecord_lower(_ value: EncryptedChatMetadataRecord) -> RustBuffer {
+    return FfiConverterTypeEncryptedChatMetadataRecord.lower(value)
+}
+
+
+/**
+ * Encrypted fields of one message (all under the chat key). Leave a field
+ * `nil` to skip it.
+ */
+public struct EncryptedMessageRecord: Equatable, Hashable {
+    /**
+     * Message id, echoed in the result.
+     */
+    public var messageId: String
+    /**
+     * `encrypted_content`.
+     */
+    public var encryptedContent: String?
+    /**
+     * `encrypted_pii_mappings` (JSON text once decrypted).
+     */
+    public var encryptedPiiMappings: String?
+    /**
+     * `encrypted_thinking_content`.
+     */
+    public var encryptedThinkingContent: String?
+    /**
+     * `encrypted_sender_name`.
+     */
+    public var encryptedSenderName: String?
+    /**
+     * `encrypted_category`.
+     */
+    public var encryptedCategory: String?
+    /**
+     * `encrypted_model_name`.
+     */
+    public var encryptedModelName: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Message id, echoed in the result.
+         */messageId: String, 
+        /**
+         * `encrypted_content`.
+         */encryptedContent: String?, 
+        /**
+         * `encrypted_pii_mappings` (JSON text once decrypted).
+         */encryptedPiiMappings: String?, 
+        /**
+         * `encrypted_thinking_content`.
+         */encryptedThinkingContent: String?, 
+        /**
+         * `encrypted_sender_name`.
+         */encryptedSenderName: String?, 
+        /**
+         * `encrypted_category`.
+         */encryptedCategory: String?, 
+        /**
+         * `encrypted_model_name`.
+         */encryptedModelName: String?) {
+        self.messageId = messageId
+        self.encryptedContent = encryptedContent
+        self.encryptedPiiMappings = encryptedPiiMappings
+        self.encryptedThinkingContent = encryptedThinkingContent
+        self.encryptedSenderName = encryptedSenderName
+        self.encryptedCategory = encryptedCategory
+        self.encryptedModelName = encryptedModelName
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension EncryptedMessageRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEncryptedMessageRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EncryptedMessageRecord {
+        return
+            try EncryptedMessageRecord(
+                messageId: FfiConverterString.read(from: &buf), 
+                encryptedContent: FfiConverterOptionString.read(from: &buf), 
+                encryptedPiiMappings: FfiConverterOptionString.read(from: &buf), 
+                encryptedThinkingContent: FfiConverterOptionString.read(from: &buf), 
+                encryptedSenderName: FfiConverterOptionString.read(from: &buf), 
+                encryptedCategory: FfiConverterOptionString.read(from: &buf), 
+                encryptedModelName: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: EncryptedMessageRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.messageId, into: &buf)
+        FfiConverterOptionString.write(value.encryptedContent, into: &buf)
+        FfiConverterOptionString.write(value.encryptedPiiMappings, into: &buf)
+        FfiConverterOptionString.write(value.encryptedThinkingContent, into: &buf)
+        FfiConverterOptionString.write(value.encryptedSenderName, into: &buf)
+        FfiConverterOptionString.write(value.encryptedCategory, into: &buf)
+        FfiConverterOptionString.write(value.encryptedModelName, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEncryptedMessageRecord_lift(_ buf: RustBuffer) throws -> EncryptedMessageRecord {
+    return try FfiConverterTypeEncryptedMessageRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEncryptedMessageRecord_lower(_ value: EncryptedMessageRecord) -> RustBuffer {
+    return FfiConverterTypeEncryptedMessageRecord.lower(value)
+}
+
+
+/**
+ * Decrypted fields of one message. A field is `nil` exactly when its
+ * ciphertext was `nil` in the input.
+ */
+public struct MessageFieldsRecord: Equatable, Hashable {
+    /**
+     * Message id from the input.
+     */
+    public var messageId: String
+    /**
+     * Message content.
+     */
+    public var content: FieldDecryptOutcome?
+    /**
+     * PII mappings JSON text.
+     */
+    public var piiMappings: FieldDecryptOutcome?
+    /**
+     * Thinking content.
+     */
+    public var thinkingContent: FieldDecryptOutcome?
+    /**
+     * Sender name.
+     */
+    public var senderName: FieldDecryptOutcome?
+    /**
+     * Category.
+     */
+    public var category: FieldDecryptOutcome?
+    /**
+     * Model name.
+     */
+    public var modelName: FieldDecryptOutcome?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Message id from the input.
+         */messageId: String, 
+        /**
+         * Message content.
+         */content: FieldDecryptOutcome?, 
+        /**
+         * PII mappings JSON text.
+         */piiMappings: FieldDecryptOutcome?, 
+        /**
+         * Thinking content.
+         */thinkingContent: FieldDecryptOutcome?, 
+        /**
+         * Sender name.
+         */senderName: FieldDecryptOutcome?, 
+        /**
+         * Category.
+         */category: FieldDecryptOutcome?, 
+        /**
+         * Model name.
+         */modelName: FieldDecryptOutcome?) {
+        self.messageId = messageId
+        self.content = content
+        self.piiMappings = piiMappings
+        self.thinkingContent = thinkingContent
+        self.senderName = senderName
+        self.category = category
+        self.modelName = modelName
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension MessageFieldsRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMessageFieldsRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MessageFieldsRecord {
+        return
+            try MessageFieldsRecord(
+                messageId: FfiConverterString.read(from: &buf), 
+                content: FfiConverterOptionTypeFieldDecryptOutcome.read(from: &buf), 
+                piiMappings: FfiConverterOptionTypeFieldDecryptOutcome.read(from: &buf), 
+                thinkingContent: FfiConverterOptionTypeFieldDecryptOutcome.read(from: &buf), 
+                senderName: FfiConverterOptionTypeFieldDecryptOutcome.read(from: &buf), 
+                category: FfiConverterOptionTypeFieldDecryptOutcome.read(from: &buf), 
+                modelName: FfiConverterOptionTypeFieldDecryptOutcome.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: MessageFieldsRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.messageId, into: &buf)
+        FfiConverterOptionTypeFieldDecryptOutcome.write(value.content, into: &buf)
+        FfiConverterOptionTypeFieldDecryptOutcome.write(value.piiMappings, into: &buf)
+        FfiConverterOptionTypeFieldDecryptOutcome.write(value.thinkingContent, into: &buf)
+        FfiConverterOptionTypeFieldDecryptOutcome.write(value.senderName, into: &buf)
+        FfiConverterOptionTypeFieldDecryptOutcome.write(value.category, into: &buf)
+        FfiConverterOptionTypeFieldDecryptOutcome.write(value.modelName, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMessageFieldsRecord_lift(_ buf: RustBuffer) throws -> MessageFieldsRecord {
+    return try FfiConverterTypeMessageFieldsRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMessageFieldsRecord_lower(_ value: MessageFieldsRecord) -> RustBuffer {
+    return FfiConverterTypeMessageFieldsRecord.lower(value)
+}
+
+
+/**
  * Transcript identifiers; pairing uses `openmates-pair-v2/client/<context>` and
  * `openmates-pair-v2/server/<context>`. Both must be non-empty.
  */
@@ -1950,6 +2420,232 @@ public func FfiConverterTypeServerLoginStartRecord_lower(_ value: ServerLoginSta
 
 
 /**
+ * One entry of `batch_unwrap_chat_keys`, in input order.
+ */
+public struct UnwrappedChatKeyRecord: Equatable, Hashable {
+    /**
+     * Chat id from the input.
+     */
+    public var chatId: String
+    /**
+     * Key or typed failure.
+     */
+    public var outcome: ChatKeyUnwrapOutcome
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Chat id from the input.
+         */chatId: String, 
+        /**
+         * Key or typed failure.
+         */outcome: ChatKeyUnwrapOutcome) {
+        self.chatId = chatId
+        self.outcome = outcome
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension UnwrappedChatKeyRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeUnwrappedChatKeyRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UnwrappedChatKeyRecord {
+        return
+            try UnwrappedChatKeyRecord(
+                chatId: FfiConverterString.read(from: &buf), 
+                outcome: FfiConverterTypeChatKeyUnwrapOutcome.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: UnwrappedChatKeyRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.chatId, into: &buf)
+        FfiConverterTypeChatKeyUnwrapOutcome.write(value.outcome, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeUnwrappedChatKeyRecord_lift(_ buf: RustBuffer) throws -> UnwrappedChatKeyRecord {
+    return try FfiConverterTypeUnwrappedChatKeyRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeUnwrappedChatKeyRecord_lower(_ value: UnwrappedChatKeyRecord) -> RustBuffer {
+    return FfiConverterTypeUnwrappedChatKeyRecord.lower(value)
+}
+
+
+/**
+ * One chat-key wrapper to open with the master key (Format C: base64 of
+ * IV || ciphertext || tag; the "OM"-framed form is accepted too).
+ */
+public struct WrappedChatKeyRecord: Equatable, Hashable {
+    /**
+     * Chat id, echoed in the result.
+     */
+    public var chatId: String
+    /**
+     * `encrypted_chat_key` exactly as stored by the server.
+     */
+    public var encryptedChatKey: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Chat id, echoed in the result.
+         */chatId: String, 
+        /**
+         * `encrypted_chat_key` exactly as stored by the server.
+         */encryptedChatKey: String) {
+        self.chatId = chatId
+        self.encryptedChatKey = encryptedChatKey
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension WrappedChatKeyRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeWrappedChatKeyRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> WrappedChatKeyRecord {
+        return
+            try WrappedChatKeyRecord(
+                chatId: FfiConverterString.read(from: &buf), 
+                encryptedChatKey: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: WrappedChatKeyRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.chatId, into: &buf)
+        FfiConverterString.write(value.encryptedChatKey, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeWrappedChatKeyRecord_lift(_ buf: RustBuffer) throws -> WrappedChatKeyRecord {
+    return try FfiConverterTypeWrappedChatKeyRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeWrappedChatKeyRecord_lower(_ value: WrappedChatKeyRecord) -> RustBuffer {
+    return FfiConverterTypeWrappedChatKeyRecord.lower(value)
+}
+
+
+/**
+ * Result of unwrapping one chat key.
+ */
+
+public enum ChatKeyUnwrapOutcome: Equatable, Hashable {
+    
+    /**
+     * The raw 32-byte chat key; secret, keep it in memory only.
+     */
+    case unwrapped(
+        /**
+         * Raw AES-256 chat key.
+         */chatKey: Data
+    )
+    /**
+     * The wrapper could not be opened with the master key.
+     */
+    case failed(
+        /**
+         * Typed reason.
+         */reason: DecryptFailure
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension ChatKeyUnwrapOutcome: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeChatKeyUnwrapOutcome: FfiConverterRustBuffer {
+    typealias SwiftType = ChatKeyUnwrapOutcome
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ChatKeyUnwrapOutcome {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .unwrapped(chatKey: try FfiConverterData.read(from: &buf)
+        )
+        
+        case 2: return .failed(reason: try FfiConverterTypeDecryptFailure.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: ChatKeyUnwrapOutcome, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .unwrapped(chatKey):
+            writeInt(&buf, Int32(1))
+            FfiConverterData.write(chatKey, into: &buf)
+            
+        
+        case let .failed(reason):
+            writeInt(&buf, Int32(2))
+            FfiConverterTypeDecryptFailure.write(reason, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeChatKeyUnwrapOutcome_lift(_ buf: RustBuffer) throws -> ChatKeyUnwrapOutcome {
+    return try FfiConverterTypeChatKeyUnwrapOutcome.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeChatKeyUnwrapOutcome_lower(_ value: ChatKeyUnwrapOutcome) -> RustBuffer {
+    return FfiConverterTypeChatKeyUnwrapOutcome.lower(value)
+}
+
+
+
+/**
  * Error returned by every fallible Apple binding call. Swift sees an `enum
  * CoreError: Error` with these cases. `Cancelled` covers both a call stopped
  * through its `CoreCancellation` (Swift task cancelled) and a core refusal such
@@ -2182,6 +2878,181 @@ public func FfiConverterTypeCoreError_lower(_ value: CoreError) -> RustBuffer {
     return FfiConverterTypeCoreError.lower(value)
 }
 
+
+/**
+ * Why one item of a batch could not be decrypted. The other items of the
+ * batch are unaffected.
+ */
+
+public enum DecryptFailure: Equatable, Hashable {
+    
+    /**
+     * The item's key is not 32 bytes, or an unwrapped chat key is not 32 bytes.
+     */
+    case invalidKey
+    /**
+     * Not decodable base64, too short, or the AES-GCM tag did not authenticate.
+     */
+    case undecryptable
+    /**
+     * The "OM" header names another key's fingerprint and no attempt
+     * authenticated (the web answers this with candidate-key recovery).
+     */
+    case keyMismatch
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension DecryptFailure: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDecryptFailure: FfiConverterRustBuffer {
+    typealias SwiftType = DecryptFailure
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DecryptFailure {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .invalidKey
+        
+        case 2: return .undecryptable
+        
+        case 3: return .keyMismatch
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: DecryptFailure, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .invalidKey:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .undecryptable:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .keyMismatch:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDecryptFailure_lift(_ buf: RustBuffer) throws -> DecryptFailure {
+    return try FfiConverterTypeDecryptFailure.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDecryptFailure_lower(_ value: DecryptFailure) -> RustBuffer {
+    return FfiConverterTypeDecryptFailure.lower(value)
+}
+
+
+
+/**
+ * Result for one encrypted field.
+ */
+
+public enum FieldDecryptOutcome: Equatable, Hashable {
+    
+    /**
+     * The plaintext. Invalid UTF-8 is replaced like the web `TextDecoder`
+     * (same reader as `crypto::decrypt_combined`).
+     */
+    case decrypted(
+        /**
+         * Decrypted text; secret user content, never log it.
+         */value: String
+    )
+    /**
+     * The field stays encrypted.
+     */
+    case failed(
+        /**
+         * Typed reason.
+         */reason: DecryptFailure
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension FieldDecryptOutcome: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFieldDecryptOutcome: FfiConverterRustBuffer {
+    typealias SwiftType = FieldDecryptOutcome
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FieldDecryptOutcome {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .decrypted(value: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 2: return .failed(reason: try FfiConverterTypeDecryptFailure.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: FieldDecryptOutcome, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .decrypted(value):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(value, into: &buf)
+            
+        
+        case let .failed(reason):
+            writeInt(&buf, Int32(2))
+            FfiConverterTypeDecryptFailure.write(reason, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFieldDecryptOutcome_lift(_ buf: RustBuffer) throws -> FieldDecryptOutcome {
+    return try FfiConverterTypeFieldDecryptOutcome.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFieldDecryptOutcome_lower(_ value: FieldDecryptOutcome) -> RustBuffer {
+    return FfiConverterTypeFieldDecryptOutcome.lower(value)
+}
+
+
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
@@ -2253,6 +3124,180 @@ fileprivate struct FfiConverterOptionTypeCredentialSnapshotRecord: FfiConverterR
         }
     }
 }
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeFieldDecryptOutcome: FfiConverterRustBuffer {
+    typealias SwiftType = FieldDecryptOutcome?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeFieldDecryptOutcome.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeFieldDecryptOutcome.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeChatMetadataRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [ChatMetadataRecord]
+
+    public static func write(_ value: [ChatMetadataRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeChatMetadataRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ChatMetadataRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ChatMetadataRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeChatMetadataRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeEncryptedChatMetadataRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [EncryptedChatMetadataRecord]
+
+    public static func write(_ value: [EncryptedChatMetadataRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeEncryptedChatMetadataRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [EncryptedChatMetadataRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [EncryptedChatMetadataRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeEncryptedChatMetadataRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeEncryptedMessageRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [EncryptedMessageRecord]
+
+    public static func write(_ value: [EncryptedMessageRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeEncryptedMessageRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [EncryptedMessageRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [EncryptedMessageRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeEncryptedMessageRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeMessageFieldsRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [MessageFieldsRecord]
+
+    public static func write(_ value: [MessageFieldsRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeMessageFieldsRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [MessageFieldsRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [MessageFieldsRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeMessageFieldsRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeUnwrappedChatKeyRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [UnwrappedChatKeyRecord]
+
+    public static func write(_ value: [UnwrappedChatKeyRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeUnwrappedChatKeyRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [UnwrappedChatKeyRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [UnwrappedChatKeyRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeUnwrappedChatKeyRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeWrappedChatKeyRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [WrappedChatKeyRecord]
+
+    public static func write(_ value: [WrappedChatKeyRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeWrappedChatKeyRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [WrappedChatKeyRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [WrappedChatKeyRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeWrappedChatKeyRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
 private let UNIFFI_RUST_FUTURE_POLL_READY: Int8 = 0
 private let UNIFFI_RUST_FUTURE_POLL_WAKE: Int8 = 1
 
@@ -2311,6 +3356,74 @@ public func coreVersion() -> String  {
     uniffi_openmates_apple_bindings_fn_func_core_version(uniffiCallStatus
     )
 })
+}
+/**
+ * Decrypt the chat-list metadata (title, category, icon, summary, active
+ * focus) of many chats in one call, each with its own chat key. One entry per
+ * input, in input order; a bad key or field fails only that item or field.
+ * Runs on the decryption pool; chat keys are zeroized after use.
+ *
+ * # Errors
+ * `Internal` only if the pool fails.
+ */
+public func batchDecryptChatMetadata(chats: [EncryptedChatMetadataRecord])async throws  -> [ChatMetadataRecord]  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_func_batch_decrypt_chat_metadata(FfiConverterSequenceTypeEncryptedChatMetadataRecord.lower(chats)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterSequenceTypeChatMetadataRecord.lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+/**
+ * Decrypt a window of messages of one chat in one call (chat open). One
+ * entry per input, in input order; a bad field fails only that field. Runs
+ * on the decryption pool; the chat key is zeroized after use.
+ *
+ * # Errors
+ * `Invalid` when `chat_key` is not 32 bytes; `Internal` if the pool fails.
+ */
+public func batchDecryptMessages(chatKey: Data, messages: [EncryptedMessageRecord])async throws  -> [MessageFieldsRecord]  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_func_batch_decrypt_messages(FfiConverterData.lower(chatKey),FfiConverterSequenceTypeEncryptedMessageRecord.lower(messages)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterSequenceTypeMessageFieldsRecord.lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+/**
+ * Unwrap many chat keys with the master key in one call (startup bulk load).
+ * Returns one entry per input, in input order; a bad wrapper fails only its
+ * own entry. Runs on the decryption pool. The master key and the caller's
+ * key copies are zeroized; the returned key bytes are owned by Swift.
+ *
+ * # Errors
+ * `Invalid` when `master_key` is not 32 bytes; `Internal` if the pool fails.
+ */
+public func batchUnwrapChatKeys(masterKey: Data, wrapped: [WrappedChatKeyRecord])async throws  -> [UnwrappedChatKeyRecord]  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_func_batch_unwrap_chat_keys(FfiConverterData.lower(masterKey),FfiConverterSequenceTypeWrappedChatKeyRecord.lower(wrapped)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterSequenceTypeUnwrappedChatKeyRecord.lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
 }
 /**
  * Synthetic, never-valid credentials payload for Swift and Rust tests of the
@@ -2494,6 +3607,15 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.contractVersionMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_func_core_version() != 11729) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_batch_decrypt_chat_metadata() != 24334) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_batch_decrypt_messages() != 56242) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_batch_unwrap_chat_keys() != 12065) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_func_test_support_synthetic_credentials_payload() != 10926) {

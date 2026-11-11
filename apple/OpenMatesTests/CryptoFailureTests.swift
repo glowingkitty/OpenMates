@@ -171,7 +171,8 @@ final class KeyRevocationTests: XCTestCase {
         XCTAssertNil(manager.encryptedKey(for: "pending"))
         XCTAssertFalse(manager.hasKey(for: "later"))
         XCTAssertNil(manager.encryptedKey(for: "later"))
-        XCTAssertEqual(requested, ["pending-wrapper", "retained-wrapper"])
+        // One batched core call carries every entry; fences decide installation.
+        XCTAssertEqual(requested, ["pending-wrapper", "later-wrapper", "retained-wrapper"])
         XCTAssertTrue(manager.hasKey(for: "retained"), "A different chat's revocation must not cancel authorized bulk entries")
         XCTAssertTrue(manager.isReady)
     }
@@ -246,6 +247,46 @@ final class KeyRevocationTests: XCTestCase {
             // A later authorized installation cannot make the earlier decrypt current.
             manager.setKey(fixtureKey, for: "revoked")
             await gate.resume(with: "synthetic secret")
+            let plaintext = await pending.value
+            XCTAssertNil(plaintext)
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=teams.membership.role-gated
+    func testSuspendedBatchMetadataAndMessageDecryptReturnInputAfterRevocation() async {
+        for metadata in [true, false] {
+            let started = expectation(description: "batch decrypt suspended")
+            let gate = RevocationCryptoGate<FieldDecryptOutcome>(started: started)
+            let manager = ChatKeyManager(
+                decryptMetadataBatch: { records in
+                    let title = await gate.suspend()
+                    return records.map {
+                        ChatMetadataRecord(chatId: $0.chatId, title: title, category: nil, icon: nil,
+                                           chatSummary: nil, activeFocusId: nil)
+                    }
+                },
+                decryptMessageBatch: { _, records in
+                    let content = await gate.suspend()
+                    return records.map {
+                        MessageFieldsRecord(messageId: $0.messageId, content: content, piiMappings: nil,
+                                            thinkingContent: nil, senderName: nil, category: nil, modelName: nil)
+                    }
+                })
+            manager.setKey(fixtureKey, for: "revoked")
+            let chat = Chat(id: "revoked", title: nil, lastMessageAt: nil, createdAt: "2026-01-01T00:00:00Z",
+                            updatedAt: nil, isArchived: false, isPinned: false, appId: nil,
+                            encryptedTitle: "ciphertext", encryptedChatKey: nil)
+            let message = Message(id: "message", chatId: "revoked", role: .assistant, content: nil,
+                                  encryptedContent: "ciphertext", createdAt: "2026-01-01T00:00:00Z", updatedAt: nil,
+                                  appId: nil, isStreaming: false, embedRefs: nil)
+            let pending = Task { () -> String? in
+                if metadata { return await manager.decryptMetadata(of: chat, replaceEmptyTitle: true).title }
+                return await manager.decryptMessages([message], chatId: "revoked").first?.content
+            }
+            await fulfillment(of: [started], timeout: 2)
+            manager.removeKey(for: "revoked")
+            manager.setKey(fixtureKey, for: "revoked")
+            await gate.resume(with: .decrypted(value: "synthetic secret"))
             let plaintext = await pending.value
             XCTAssertNil(plaintext)
         }
@@ -385,6 +426,22 @@ final class KeyRevocationTests: XCTestCase {
 
     private func digest(_ value: String) -> String {
         SHA256.hash(data: Data(value.utf8)).map { String(format: "%02x", $0) }.joined()
+    }
+}
+
+extension ChatKeyManager {
+    /// Test seam: adapts a per-wrapper fake to the batched core unwrap, one
+    /// wrapper after the other in input order.
+    convenience init(unwrapKey: @escaping @MainActor (String, SymmetricKey) async -> SymmetricKey) {
+        self.init(unwrapKeys: { records, masterKey in
+            var results: [UnwrappedChatKeyRecord] = []
+            for record in records {
+                let key = await unwrapKey(record.encryptedChatKey, SymmetricKey(data: masterKey))
+                results.append(UnwrappedChatKeyRecord(
+                    chatId: record.chatId, outcome: .unwrapped(chatKey: key.withUnsafeBytes { Data($0) })))
+            }
+            return results
+        })
     }
 }
 

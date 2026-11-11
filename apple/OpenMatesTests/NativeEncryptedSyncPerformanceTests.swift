@@ -1,25 +1,31 @@
-// Baseline timings for the CURRENT Swift sync/decrypt/persist path, measured with
-// a seeded, fully synthetic ENCRYPTED fixture (random master key, 600 chats with
-// wrapped chat keys and encrypted metadata, one chat with 1000 encrypted
-// messages). The same fixture shape later drives the Rust core path (Plan
-// apple-client-core-migration, step A0), so the numbers here are the product:
-// each phase prints `APPLE_PERF name=<phase> ms=<median> min_ms=<min> n=<count>`
+// Timings for the Apple sync/decrypt/persist path, measured with a seeded, fully
+// synthetic ENCRYPTED fixture (random master key, 600 chats with wrapped chat
+// keys and encrypted metadata, one chat with 1000 encrypted messages). Plan
+// apple-client-core-migration A0 recorded the Swift baseline; from A3 on the same
+// process measures the old per-field Swift sequence and the batched Rust core
+// path side by side, because CI runner speed varies by about a factor of two.
+// Each phase prints `APPLE_PERF name=<phase> ms=<median> min_ms=<min> n=<count>`
 // and attaches the same line to the xcresult. Assertions only check correctness
 // (decrypted values equal the fixture plaintext) plus a very generous ceiling.
 //
-// Production code is called directly wherever it is reachable:
-//   chat_key_bulk_load            ChatKeyManager.loadChatKeys (direct)
-//   chat_list_metadata_decrypt    REPLICATED call sequence of the private
-//                                 MainAppView.decryptChatMetadata onto
-//                                 ChatKeyManager.decryptChatField (Core type)
+// Old path (pre-A3 per-item/per-field call sequence, REPLAYED on the Swift
+// functions that still exist; the production callers now use the core):
+//   chat_key_bulk_load            CryptoManager.unwrapChatKey per key + setKey
+//   chat_list_metadata_decrypt    ChatKeyManager.decryptChatField per field
+//   chat_open_window_decrypt      OfflineStore.loadLatestMessageWindow +
+//                                 ChatKeyManager.decryptMessageContent per field
+//   chat_open_full_1000_decrypt   OfflineStore.loadMessages + the same per field
+// Core path (production code, one batched UniFFI call off the main actor):
+//   core_chat_key_bulk_load            ChatKeyManager.loadChatKeys
+//   core_chat_list_metadata_decrypt    ChatKeyManager.decryptMetadata
+//   core_chat_open_window_decrypt      OfflineStore.loadLatestMessageWindow +
+//                                      ChatViewModel.decryptMessagesForDisplay
+//   core_chat_open_full_1000_decrypt   OfflineStore.loadMessages + the same
+// Storage (unchanged):
 //   persist_chats                 OfflineStore.persistChats (direct)
 //   persist_messages              OfflineStore.persistMessagesBatch (direct)
 //   cold_load_from_disk           OfflineStore init + OfflineSyncBridge.loadFromDisk
 //                                 + ChatStore (direct)
-//   chat_open_window_decrypt      OfflineStore.loadLatestMessageWindow +
-//                                 ChatViewModel.decryptMessagesForDisplay (direct)
-//   chat_open_full_1000_decrypt   OfflineStore.loadMessages +
-//                                 ChatViewModel.decryptMessagesForDisplay (direct)
 // No real account, Keychain or network: the master key is passed explicitly and
 // every store lives in a temporary directory.
 
@@ -75,28 +81,37 @@ final class NativeEncryptedSyncPerformanceTests: XCTestCase {
     }
 
     // contract-test: tooling
-    func testSeededEncryptedSyncPerformanceBaseline() async throws {
+    func testSeededEncryptedSyncPerformanceOldAndCorePaths() async throws {
         let fixture = try await Self.makeFixture()
         let keyManager = ChatKeyManager.shared
         keyManager.clearAll()
         let master = fixture.masterKey
         let busyChatId = fixture.busyChatId
 
-        // 1. Unwrap 600 chat keys with the production bulk loader.
+        // 1. Unwrap 600 chat keys: old per-key Swift sequence, then the core batch.
         try await measure("chat_key_bulk_load",
+            prepare: { keyManager.clearAll() },
+            body: {
+                for entry in fixture.wrappedKeys {
+                    let key = try await CryptoManager.shared.unwrapChatKey(
+                        encryptedChatKeyBase64: entry.encryptedChatKey, masterKey: master)
+                    keyManager.setKey(key, for: entry.chatId)
+                }
+                keyManager.markInitialSyncReady()
+                return fixture.wrappedKeys.count
+            },
+            verify: { self.assertKeysLoaded(fixture, keyManager) })
+        try await measure("core_chat_key_bulk_load",
             prepare: { keyManager.clearAll() },
             body: {
                 await keyManager.loadChatKeys(from: fixture.wrappedKeys, masterKey: master)
                 return fixture.wrappedKeys.count
             },
-            verify: {
-                for entry in fixture.wrappedKeys { XCTAssertTrue(keyManager.hasKey(for: entry.chatId)) }
-                XCTAssertTrue(keyManager.isReady)
-            })
+            verify: { self.assertKeysLoaded(fixture, keyManager) })
 
-        // 2. Per chat, per field metadata decrypt. MainAppView.decryptChatMetadata is
-        // private; this replays its call sequence (title, category, icon, summary)
-        // onto the same Core type, ChatKeyManager.decryptChatField.
+        // 2. Chat-list metadata: old per chat, per field sequence of the deleted
+        // MainAppView.decryptChatMetadata (title, category, icon, summary), then
+        // the production batched ChatKeyManager.decryptMetadata.
         var decryptedChats: [Chat] = []
         try await measure("chat_list_metadata_decrypt",
             prepare: {
@@ -139,16 +154,19 @@ final class NativeEncryptedSyncPerformanceTests: XCTestCase {
                 decryptedChats = result
                 return result.count
             },
-            verify: {
-                XCTAssertEqual(decryptedChats.count, fixture.chats.count)
-                for chat in decryptedChats {
-                    let expected = fixture.expectedChats[chat.id]
-                    XCTAssertEqual(chat.title, expected?.title)
-                    XCTAssertEqual(chat.category, expected?.category)
-                    XCTAssertEqual(chat.icon, expected?.icon)
-                    XCTAssertEqual(chat.chatSummary, expected?.summary)
+            verify: { self.assertChats(decryptedChats, fixture) })
+        try await measure("core_chat_list_metadata_decrypt",
+            prepare: {
+                decryptedChats = []
+                if !keyManager.hasKey(for: busyChatId) {
+                    await keyManager.loadChatKeys(from: fixture.wrappedKeys, masterKey: master)
                 }
-            })
+            },
+            body: {
+                decryptedChats = await keyManager.decryptMetadata(fixture.chats, replaceEmptyTitle: true)
+                return decryptedChats.count
+            },
+            verify: { self.assertChats(decryptedChats, fixture) })
 
         // 3. Persist 600 chats into a fresh on-disk SwiftData store per run.
         var store: OfflineStore?
@@ -203,12 +221,23 @@ final class NativeEncryptedSyncPerformanceTests: XCTestCase {
                 XCTAssertEqual(chatStore.messages(for: busyChatId).count, ChatStore.boundedWindowSize)
             })
 
-        // 6 and 7. Chat open: load from the reopened store and decrypt for display
-        // with the production ChatViewModel.decryptMessagesForDisplay.
+        // 6 and 7. Chat open: load from the reopened store and decrypt for display,
+        // old per-message per-field sequence first, then the production batch.
         let readStore = try OfflineStore(directory: coldDirectory, userId: coldAccount, apiBaseURL: coldServer)
         openedStores.append(readStore)
         var displayed: [Message] = []
         try await measure("chat_open_window_decrypt",
+            prepare: { displayed = [] },
+            body: {
+                let window = readStore.loadLatestMessageWindow(chatId: busyChatId)
+                displayed = await Self.perFieldDecrypt(window, chatId: busyChatId, keyManager: keyManager)
+                return displayed.count
+            },
+            verify: {
+                XCTAssertEqual(displayed.count, ChatStore.boundedWindowSize)
+                self.assertDisplayed(displayed, expected: fixture.expectedMessages)
+            })
+        try await measure("core_chat_open_window_decrypt",
             prepare: { displayed = [] },
             body: {
                 let window = readStore.loadLatestMessageWindow(chatId: busyChatId)
@@ -220,6 +249,17 @@ final class NativeEncryptedSyncPerformanceTests: XCTestCase {
                 self.assertDisplayed(displayed, expected: fixture.expectedMessages)
             })
         try await measure("chat_open_full_1000_decrypt",
+            prepare: { displayed = [] },
+            body: {
+                let all = readStore.loadMessages(chatId: busyChatId)
+                displayed = await Self.perFieldDecrypt(all, chatId: busyChatId, keyManager: keyManager)
+                return displayed.count
+            },
+            verify: {
+                XCTAssertEqual(displayed.count, Self.messageCount)
+                self.assertDisplayed(displayed, expected: fixture.expectedMessages)
+            })
+        try await measure("core_chat_open_full_1000_decrypt",
             prepare: { displayed = [] },
             body: {
                 let all = readStore.loadMessages(chatId: busyChatId)
@@ -273,6 +313,56 @@ final class NativeEncryptedSyncPerformanceTests: XCTestCase {
     private static func milliseconds(_ duration: Duration) -> Int {
         let parts = duration.components
         return Int(parts.seconds) * 1000 + Int(parts.attoseconds / 1_000_000_000_000_000)
+    }
+
+    private func assertKeysLoaded(_ fixture: Fixture, _ keyManager: ChatKeyManager) {
+        for entry in fixture.wrappedKeys { XCTAssertTrue(keyManager.hasKey(for: entry.chatId)) }
+        XCTAssertTrue(keyManager.isReady)
+    }
+
+    private func assertChats(_ decryptedChats: [Chat], _ fixture: Fixture) {
+        XCTAssertEqual(decryptedChats.count, fixture.chats.count)
+        for chat in decryptedChats {
+            let expected = fixture.expectedChats[chat.id]
+            XCTAssertEqual(chat.title, expected?.title)
+            XCTAssertEqual(chat.category, expected?.category)
+            XCTAssertEqual(chat.icon, expected?.icon)
+            XCTAssertEqual(chat.chatSummary, expected?.summary)
+        }
+    }
+
+    /// Replay of the pre-A3 `ChatViewModel.decryptMessagesForDisplay` body: one
+    /// main-actor `decryptMessageContent` call per message field.
+    private static func perFieldDecrypt(_ messages: [Message], chatId: String,
+                                        keyManager: ChatKeyManager) async -> [Message] {
+        var result: [Message] = []
+        result.reserveCapacity(messages.count)
+        for var message in messages {
+            if message.content?.isEmpty != false, let encrypted = message.encryptedContent,
+               let value = await keyManager.decryptMessageContent(chatId: chatId, encryptedContent: encrypted) {
+                message.content = value
+            }
+            if message.piiMappings == nil, let encrypted = message.encryptedPIIMappings,
+               let json = await keyManager.decryptMessageContent(chatId: chatId, encryptedContent: encrypted),
+               let data = json.data(using: .utf8),
+               let mappings = try? JSONDecoder().decode([PIIMapping].self, from: data) {
+                message.piiMappings = mappings
+            }
+            if message.thinkingContent == nil, let encrypted = message.encryptedThinkingContent {
+                message.thinkingContent = await keyManager.decryptMessageContent(chatId: chatId, encryptedContent: encrypted)
+            }
+            if message.senderName == nil, let encrypted = message.encryptedSenderName {
+                message.senderName = await keyManager.decryptMessageContent(chatId: chatId, encryptedContent: encrypted)
+            }
+            if message.category == nil, let encrypted = message.encryptedCategory {
+                message.category = await keyManager.decryptMessageContent(chatId: chatId, encryptedContent: encrypted)
+            }
+            if message.modelName == nil, let encrypted = message.encryptedModelName {
+                message.modelName = await keyManager.decryptMessageContent(chatId: chatId, encryptedContent: encrypted)
+            }
+            result.append(message)
+        }
+        return result
     }
 
     private func assertDisplayed(_ displayed: [Message], expected: [String: ExpectedMessage]) {

@@ -1,7 +1,10 @@
 // Bridge tests for the UniFFI OpenMatesCore bindings (plan apple-client-core-migration A1):
 // async delivery and main-actor resumption, task cancellation reaching the Rust
-// runtime, the credential snapshot round trip, OPAQUE pair login and the
-// password-v2 vector, all through the generated Swift API. No network.
+// runtime, the credential snapshot round trip, OPAQUE pair login, the
+// password-v2 vector and the batched chat decryption calls (A3a: chat-key
+// unwrap, chat-list metadata, message window) against the cross-client
+// fixtures, all through the generated Swift API. No network.
+import CryptoKit
 import Foundation
 import XCTest
 @testable import OpenMates
@@ -189,6 +192,108 @@ final class OpenMatesCoreBridgeTests: XCTestCase {
             guard case .Invalid = error as? CoreError else {
                 return XCTFail("expected CoreError.Invalid, got \(error)")
             }
+        }
+    }
+
+    // MARK: - Batched chat decryption (A3a)
+
+    /// `encryption_compatibility/legacy_layouts.json`: wrapping key, content key
+    /// and the Format C wrapper of the content key; Format A (OM framing) and
+    /// Format B (legacy IV prefix) content under the content key.
+    private static let wrappingKey = Data(base64Encoded: "ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8=")!
+    private static let contentKey = Data(base64Encoded: "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=")!
+    private static let formatCWrapper = "AAECAwQFBgcICQoLXFNfpE4w7eu08MPNKn5QMwNh+3d+BLAGPBTJoaec1YdLiW2dQ1ioc3cx0QtglUzb"
+    private static let formatA = "T00JE61lAAECAwQFBgcICQoLK2exeqac733iM/rqxcQZSY7t99Zeqi9ulRSoFUi09w=="
+    private static let formatB = "AAECAwQFBgcICQoLK2exeqac733iM/rqxcQaX5E5OyfJaCVgpdr+Oa3Raw=="
+    /// `ts_web_policy.json` `chat_content` vectors written by the web
+    /// `MessageEncryptor` under key k1.
+    private static let webKey = Data(base64Encoded: "IS47SFVib3yJlqOwvcrX5PH+CxglMj9MWWZzgI2ap7Q=")!
+    private static let webMatching = "T00G2P2lFnECkEckLwOZMHNP4tpODUK3hdLt1JbM/oZ72nXbuemPNQG5TrmGvrbPcA=="
+    private static let webOtherKey = "T0378jglg42GBdqnzRoqEsEEJPj2ezSzDVFR12VNPPM8b5mVceVYbLVAbW57deZ03w=="
+    private static let webTampered = "T00G2P2lFnECkEckLwOZMHNP4tpODUK3hdLt1JbM/oZ72nXbuemPNQG5TrmGvrbPcQ=="
+
+    // contract-test: supporting surface=gui.apple assertions=client-core.apple.strangler-order
+    @MainActor
+    func testBatchUnwrapChatKeysOpensCrossClientWrapperWithPerItemFailures() async throws {
+        let results = try await batchUnwrapChatKeys(masterKey: Self.wrappingKey, wrapped: [
+            WrappedChatKeyRecord(chatId: "good", encryptedChatKey: Self.formatCWrapper),
+            WrappedChatKeyRecord(chatId: "garbage", encryptedChatKey: "not base64 !"),
+        ])
+        MainActor.assertIsolated()
+        XCTAssertEqual(results.map(\.chatId), ["good", "garbage"])
+        XCTAssertEqual(results[0].outcome, .unwrapped(chatKey: Self.contentKey))
+        XCTAssertEqual(results[1].outcome, .failed(reason: .undecryptable))
+
+        // A wrong master key fails each row; a short one rejects the batch.
+        let wrong = try await batchUnwrapChatKeys(masterKey: Data(repeating: 9, count: 32), wrapped: [
+            WrappedChatKeyRecord(chatId: "good", encryptedChatKey: Self.formatCWrapper),
+        ])
+        XCTAssertEqual(wrong[0].outcome, .failed(reason: .undecryptable))
+        do {
+            _ = try await batchUnwrapChatKeys(masterKey: Data(count: 31), wrapped: [])
+            XCTFail("short master key was accepted")
+        } catch let error as CoreError {
+            guard case .Invalid = error else { return XCTFail("expected CoreError.Invalid, got \(error)") }
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=client-core.apple.strangler-order
+    @MainActor
+    func testBatchChatMetadataDecryptsWebVectorsAndTypesFieldFailures() async throws {
+        let results = try await batchDecryptChatMetadata(chats: [
+            EncryptedChatMetadataRecord(
+                chatId: "a", chatKey: Self.webKey, encryptedTitle: Self.webMatching,
+                encryptedCategory: nil, encryptedIcon: Self.webOtherKey,
+                encryptedChatSummary: Self.webTampered, encryptedActiveFocusId: nil),
+            EncryptedChatMetadataRecord(
+                chatId: "bad-key", chatKey: Data(count: 5), encryptedTitle: Self.webMatching,
+                encryptedCategory: nil, encryptedIcon: nil,
+                encryptedChatSummary: nil, encryptedActiveFocusId: nil),
+        ])
+        XCTAssertEqual(results, [
+            ChatMetadataRecord(
+                chatId: "a", title: .decrypted(value: "policy ✓ text"), category: nil,
+                icon: .failed(reason: .keyMismatch), chatSummary: .failed(reason: .undecryptable),
+                activeFocusId: nil),
+            ChatMetadataRecord(
+                chatId: "bad-key", title: .failed(reason: .invalidKey), category: nil,
+                icon: nil, chatSummary: nil, activeFocusId: nil),
+        ])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=client-core.apple.strangler-order
+    @MainActor
+    func testBatchMessageWindowReadsLegacyLayoutsAndSwiftWriterOutputInOrder() async throws {
+        // The Swift writer still exists for sends; its output must open in the core.
+        let key = SymmetricKey(data: Self.contentKey)
+        var records = [
+            EncryptedMessageRecord(
+                messageId: "legacy", encryptedContent: Self.formatA, encryptedPiiMappings: Self.formatB,
+                encryptedThinkingContent: nil, encryptedSenderName: nil, encryptedCategory: nil,
+                encryptedModelName: "AAAA"),
+        ]
+        for index in 0..<50 {
+            let ciphertext = try await CryptoManager.shared.encryptContent("message \(index)", key: key)
+            records.append(EncryptedMessageRecord(
+                messageId: "m\(index)", encryptedContent: ciphertext, encryptedPiiMappings: nil,
+                encryptedThinkingContent: nil, encryptedSenderName: nil, encryptedCategory: nil,
+                encryptedModelName: nil))
+        }
+        let results = try await batchDecryptMessages(chatKey: Self.contentKey, messages: records)
+        MainActor.assertIsolated()
+        XCTAssertEqual(results.map(\.messageId), records.map(\.messageId))
+        XCTAssertEqual(results[0].content, .decrypted(value: "legacy-format-a"))
+        XCTAssertEqual(results[0].piiMappings, .decrypted(value: "legacy-format-b"))
+        XCTAssertNil(results[0].thinkingContent)
+        XCTAssertEqual(results[0].modelName, .failed(reason: .undecryptable))
+        for index in 0..<50 {
+            XCTAssertEqual(results[index + 1].content, .decrypted(value: "message \(index)"))
+        }
+        do {
+            _ = try await batchDecryptMessages(chatKey: Data(count: 16), messages: records)
+            XCTFail("short chat key was accepted")
+        } catch let error as CoreError {
+            guard case .Invalid = error else { return XCTFail("expected CoreError.Invalid, got \(error)") }
         }
     }
 }

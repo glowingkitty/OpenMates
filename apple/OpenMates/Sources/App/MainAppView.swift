@@ -7134,13 +7134,9 @@ struct MainAppView: View {
                 visibleIDs.contains($0.id) && ChatKeyManager.shared.hasKey(for: $0.id)
                     && WelcomeScreenState.needsMetadataDecryption($0)
             }
-            var hydrated: [Chat] = []
-            for chat in pending {
-                let value = await decryptChatMetadata(chat)
-                guard !Task.isCancelled, accountID == authManager.currentUser?.id,
-                      scope == OfflineStore.shared.scopeGeneration else { return }
-                hydrated.append(value)
-            }
+            let hydrated = await ChatKeyManager.shared.decryptMetadata(pending, replaceEmptyTitle: true)
+            guard !Task.isCancelled, accountID == authManager.currentUser?.id,
+                  scope == OfflineStore.shared.scopeGeneration else { return }
             // Keys are already available: avoid requesting or reinstalling them
             // here, which would produce another key-arrival notification.
             if !hydrated.isEmpty {
@@ -7192,18 +7188,21 @@ struct MainAppView: View {
         if let userId = authManager.currentUser?.id {
             await loadChatKeys(chats: chats, userId: userId)
         }
-        var decryptedChats: [Chat] = []
-        decryptedChats.reserveCapacity(chats.count)
-        for (index, chat) in chats.enumerated() {
+        // Keys first (the bulk load above, then per-chat fallbacks for wrappers
+        // it could not cover), then one batched core decrypt for every chat.
+        var readable: [Chat] = []
+        readable.reserveCapacity(chats.count)
+        for chat in chats {
             guard isCurrent() else { return }
             guard canRead(chat) else { continue }
-            let decrypted = await decryptChatMetadataEnsuringKey(chat)
-            guard isCurrent(), canRead(chat) else { return }
-            decryptedChats.append(decrypted)
-            if (index + 1).isMultiple(of: 10) {
-                await Task.yield()
+            if let encryptedChatKey = chat.encryptedChatKey,
+               ChatKeyManager.shared.shouldLoadServerKey(chatId: chat.id, encryptedChatKey: encryptedChatKey) {
+                await loadChatKeyIfNeeded(chatId: chat.id, encryptedChatKey: encryptedChatKey, teamID: chat.teamId)
+                guard isCurrent() else { return }
             }
+            readable.append(chat)
         }
+        let decryptedChats = await ChatKeyManager.shared.decryptMetadata(readable, replaceEmptyTitle: true)
         guard isCurrent() else { return }
         chatStore.upsertChats(decryptedChats.filter { canRead($0) && chatStore.chat(for: $0.id) != nil })
         NativeSyncPerfLog.info(
@@ -7229,88 +7228,9 @@ struct MainAppView: View {
         return isCurrent() ? decrypted : chat
     }
 
+    /// One chat through the batched core decrypt (title also replaces an empty value).
     private func decryptChatMetadata(_ chat: Chat) async -> Chat {
-        var decrypted = chat
-        guard ChatKeyManager.shared.hasKey(for: decrypted.id) else {
-            if NativeSyncPerfLog.verboseCrypto {
-                print("[MainApp][decrypt] chat=\(decrypted.id.prefix(8)) missing chat key; encryptedTitle=\(decrypted.encryptedTitle != nil) encryptedCategory=\(decrypted.encryptedCategory != nil) encryptedIcon=\(decrypted.encryptedIcon != nil) encryptedSummary=\(decrypted.encryptedChatSummary != nil)")
-            }
-            return decrypted
-        }
-        if decrypted.title?.isEmpty != false,
-           let encryptedTitle = decrypted.encryptedTitle,
-           let title = await ChatKeyManager.shared.decryptChatField(
-               chatId: decrypted.id,
-               encryptedValue: encryptedTitle,
-               fieldName: "encrypted_title"
-        ) {
-            decrypted.title = title
-            if NativeSyncPerfLog.verboseCrypto {
-                print("[MainApp][decrypt] chat=\(decrypted.id.prefix(8)) title ok")
-            }
-        } else if decrypted.title == nil, decrypted.encryptedTitle != nil {
-            if NativeSyncPerfLog.verboseCrypto {
-                print("[MainApp][decrypt] chat=\(decrypted.id.prefix(8)) title missing after decrypt attempt")
-            }
-        }
-        if decrypted.category == nil,
-           let encryptedCategory = decrypted.encryptedCategory,
-           let category = await ChatKeyManager.shared.decryptChatField(
-               chatId: decrypted.id,
-               encryptedValue: encryptedCategory,
-               fieldName: "encrypted_category"
-        ) {
-            decrypted.category = category
-            if NativeSyncPerfLog.verboseCrypto {
-                print("[MainApp][decrypt] chat=\(decrypted.id.prefix(8)) category ok")
-            }
-        } else if decrypted.category == nil, decrypted.encryptedCategory != nil {
-            if NativeSyncPerfLog.verboseCrypto {
-                print("[MainApp][decrypt] chat=\(decrypted.id.prefix(8)) category missing after decrypt attempt")
-            }
-        }
-        if decrypted.icon == nil,
-           let encryptedIcon = decrypted.encryptedIcon,
-           let icon = await ChatKeyManager.shared.decryptChatField(
-               chatId: decrypted.id,
-               encryptedValue: encryptedIcon,
-               fieldName: "encrypted_icon"
-        ) {
-            decrypted.icon = icon
-            if NativeSyncPerfLog.verboseCrypto {
-                print("[MainApp][decrypt] chat=\(decrypted.id.prefix(8)) icon ok")
-            }
-        } else if decrypted.icon == nil, decrypted.encryptedIcon != nil {
-            if NativeSyncPerfLog.verboseCrypto {
-                print("[MainApp][decrypt] chat=\(decrypted.id.prefix(8)) icon missing after decrypt attempt")
-            }
-        }
-        if decrypted.chatSummary == nil,
-           let encryptedSummary = decrypted.encryptedChatSummary,
-           let summary = await ChatKeyManager.shared.decryptChatField(
-               chatId: decrypted.id,
-               encryptedValue: encryptedSummary,
-               fieldName: "encrypted_chat_summary"
-        ) {
-            decrypted.chatSummary = summary
-            if NativeSyncPerfLog.verboseCrypto {
-                print("[MainApp][decrypt] chat=\(decrypted.id.prefix(8)) summary ok")
-            }
-        } else if decrypted.chatSummary == nil, decrypted.encryptedChatSummary != nil {
-            if NativeSyncPerfLog.verboseCrypto {
-                print("[MainApp][decrypt] chat=\(decrypted.id.prefix(8)) summary missing after decrypt attempt")
-            }
-        }
-        if decrypted.activeFocusId == nil,
-           let encryptedActiveFocusId = decrypted.encryptedActiveFocusId,
-           let activeFocusId = await ChatKeyManager.shared.decryptChatField(
-                chatId: decrypted.id,
-                encryptedValue: encryptedActiveFocusId,
-                fieldName: "encrypted_active_focus_id"
-        ) {
-            decrypted.activeFocusId = activeFocusId
-        }
-        return decrypted
+        await ChatKeyManager.shared.decryptMetadata(of: chat, replaceEmptyTitle: true)
     }
 
     private func updateSyncedSuggestions(_ suggestions: [SyncedNewChatSuggestion]) async {
