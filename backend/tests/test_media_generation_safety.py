@@ -330,3 +330,73 @@ def test_ordinary_prompts_with_places_styles_and_prepositions_are_allowed(media_
 def test_prompts_tied_to_a_person_stay_blocked_for_every_media_type(media_type, prompt):
     decision = validate_media_generation_request(media_type=media_type, prompt=prompt)
     assert not decision.allowed and decision.category == "G3_public_figure_voice_or_persona"
+
+
+class _FakeSafeguard:
+    """Stands in for the safeguard model: answers with a fixed verdict or fails."""
+
+    is_enabled = True
+
+    def __init__(self, approved: bool = False, category: str = "unclear", fail: bool = False) -> None:
+        self.approved, self.category, self.fail, self.prompts = approved, category, fail, []
+
+    async def initialize(self, secrets_manager) -> None:
+        return None
+
+    async def classify_named_person_image(self, *, prompt: str):
+        from backend.shared.providers.groq.safeguard import NamedPersonSafeguardResult
+
+        self.prompts.append(prompt)
+        if self.fail:
+            return NamedPersonSafeguardResult(error="provider unavailable")
+        return NamedPersonSafeguardResult(approved=self.approved, category=self.category)
+
+
+async def _reviewed(monkeypatch, prompt: str, safeguard: _FakeSafeguard):
+    from backend.shared.python_utils.media_generation_safety import named_person_review
+
+    monkeypatch.setattr(named_person_review, "get_safeguard_client", lambda: safeguard)
+    return await named_person_review.check_image_generation_request(prompt=prompt, secrets_manager=object())
+
+
+# contract-test: supporting surface=rest_api assertions=images-generate.safety.named-person-review
+@pytest.mark.asyncio
+async def test_a_named_private_person_or_character_is_allowed_after_review(monkeypatch) -> None:
+    prompt = "Birthday card with a portrait of Lena Hoffmann holding balloons"
+    assert validate_media_generation_request(media_type="image", prompt=prompt).needs_review
+
+    safeguard = _FakeSafeguard(approved=True, category="private_person")
+    decision = await _reviewed(monkeypatch, prompt, safeguard)
+
+    assert decision.allowed and decision.reason == "named_person_reviewed"
+    assert safeguard.prompts == [prompt]
+    # The worker accepts exactly this reviewed prompt and nothing more.
+    assert validate_media_generation_request(media_type="image", prompt=prompt, named_person_reviewed=True).allowed
+
+
+# contract-test: supporting surface=rest_api assertions=images-generate.safety.named-person-review
+@pytest.mark.asyncio
+async def test_a_public_figure_or_a_failed_review_stays_refused(monkeypatch) -> None:
+    prompt = "Portrait of Jane Doe on stage"
+    for safeguard in (_FakeSafeguard(approved=False, category="public_figure"), _FakeSafeguard(fail=True)):
+        decision = await _reviewed(monkeypatch, prompt, safeguard)
+        assert not decision.allowed and decision.category == "G3_public_figure_voice_or_persona"
+
+
+# contract-test: supporting surface=rest_api assertions=images-generate.safety.named-person-review
+@pytest.mark.asyncio
+async def test_explicit_imitation_and_ordinary_prompts_never_reach_the_model(monkeypatch) -> None:
+    safeguard = _FakeSafeguard(approved=True, category="private_person")
+
+    imitation = await _reviewed(monkeypatch, "A deepfake photo of Jane Doe, imitate her likeness", safeguard)
+    ordinary = await _reviewed(monkeypatch, "A cat face in pink", safeguard)
+
+    assert not imitation.allowed and ordinary.allowed and safeguard.prompts == []
+    # A review flag cannot open an explicit imitation request, and other media stay refused.
+    assert not validate_media_generation_request(
+        media_type="image", prompt="A deepfake photo of Jane Doe, imitate her likeness", named_person_reviewed=True,
+    ).allowed
+    assert not validate_media_generation_request(
+        media_type="video", prompt="Video of Jane Doe walking", named_person_reviewed=True,
+    ).allowed
+

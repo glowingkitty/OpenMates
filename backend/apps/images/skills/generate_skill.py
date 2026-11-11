@@ -29,6 +29,7 @@ from backend.shared.python_utils.app_skill_helpers import execute_skill_via_cele
 from backend.shared.python_utils.media_generation_safety import (
     validate_media_generation_request,
 )
+from backend.shared.python_utils.media_generation_safety.named_person_review import check_image_generation_request
 
 logger = logging.getLogger(__name__)
 
@@ -217,11 +218,11 @@ class GenerateSkill(BaseSkill):
                 )
                 continue
 
-            prompt_decision = validate_media_generation_request(
-                media_type="image",
-                prompt=str(prompt),
-                request_count=1,
-                style=req.get("style"),
+            # A prompt that names someone without asking to imitate them is decided by the
+            # safeguard model; every other refusal of the fixed rules stands.
+            prompt_decision = await check_image_generation_request(
+                prompt=str(prompt), style=req.get("style"),
+                secrets_manager=kwargs.get("secrets_manager") or getattr(self.app, "secrets_manager", None),
             )
             if not prompt_decision.allowed:
                 logger.warning(
@@ -284,6 +285,7 @@ class GenerateSkill(BaseSkill):
                 # Natural-language requirements an SVG result is checked against (optional).
                 "requirements": req.get("requirements") or [],
                 "style": req.get("style"),
+                **({"named_person_reviewed": True} if prompt_decision.reason == "named_person_reviewed" else {}),
                 "user_id": user_id,
                 "chat_id": self._current_chat_id,
                 "message_id": self._current_message_id,

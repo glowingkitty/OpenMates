@@ -135,6 +135,10 @@ class MediaGenerationDecision:
     severity: str = "none"
     user_facing_message: Optional[str] = None
     reason: Optional[str] = None
+    # A picture prompt that names someone without asking to imitate them: the rules
+    # cannot tell a public figure from a relative or a fictional character, so the
+    # safeguard model may decide (named_person_review.py). Still a refusal until it does.
+    needs_review: bool = False
 
     def to_rejection_payload(self) -> dict[str, object]:
         return {
@@ -186,8 +190,13 @@ def validate_media_generation_request(
     lyrics: Optional[str] = None,
     negative_prompt: Optional[str] = None,
     trusted_narration: bool = False,
+    named_person_reviewed: bool = False,
 ) -> MediaGenerationDecision:
-    """Return a deterministic allow/block decision for generated-media prompts."""
+    """Return a deterministic allow/block decision for generated-media prompts.
+
+    ``named_person_reviewed`` is set only by a caller for which the safeguard model
+    already allowed this exact picture prompt; explicit imitation is refused regardless.
+    """
     normalized_media_type = media_type.lower().strip()
     max_requests = _request_limit_for_media(normalized_media_type)
     if request_count > max_requests:
@@ -270,8 +279,10 @@ def validate_media_generation_request(
     # Assistant-response narration uses a fixed OpenMates voice to read already
     # generated prose. Reporting about a person is not a request to imitate them.
     # User-authored audio.speak requests retain the broader identity heuristic.
-    if broad_identity_match and not trusted_speech:
+    reviewable = is_image and not has_imitation_context
+    if broad_identity_match and not trusted_speech and not (reviewable and named_person_reviewed):
         return MediaGenerationDecision(
+            needs_review=reviewable,
             allowed=False,
             category="G3_public_figure_voice_or_persona",
             severity="severe",

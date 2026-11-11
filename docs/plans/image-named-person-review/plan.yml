@@ -1,0 +1,22 @@
+schema_version: 2
+profile: concise
+title: Safeguard Model Review For Picture Prompts That Name Someone
+status: implementing
+id: image-named-person-review
+goal: >
+  Picture prompts that name someone are no longer refused on the name alone. The
+  fixed safety rules keep refusing explicit imitation; a name without such a
+  request is decided once by the existing safeguard model, which fails closed.
+decisions:
+  - Only images.generate changes; video, music and speech keep the fixed rules.
+  - The existing Groq safeguard model is reused, so no new provider and no new data flow is added.
+  - Only the categories private person, fictional character and not a person are generated; every other answer, an error or a missing key is a refusal.
+  - The model is asked once in the skill; the worker accepts the reviewed prompt through an internal flag that cannot open an explicit imitation request.
+checks:
+  required:
+    - Unit checks for the review decision, the fail-closed paths and the rules that never reach the model.
+    - Real dev chat runs on the personal dev test account for a private-person prompt and a public-figure prompt.
+    - Scoped dev deployment and worker restart.
+approval_provenance:
+  source: Explicit user instruction in this Claude chat on 2026-11-11 after the written recommendation.
+  note: The owning Specification feature.app-skill.images-generate@1 gains the assertion images-generate.safety.named-person-review; its approval follows the deployment.
