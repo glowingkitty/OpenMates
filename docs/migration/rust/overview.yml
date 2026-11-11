@@ -18,7 +18,7 @@ overall:
     sdk: 0.15
   weights_decided: '2026-11-08'
   inputs:
-    web_app: 7.8
+    web_app: 7.9
     shared_client: 28.6
     cli: 65.5
     sdk: 11.3
@@ -28,11 +28,11 @@ areas:
   priority_rank: 1
   file: web-app.yml
   unit: TS code lines (portable)
-  total: 107554
-  done: 8336
+  total: 107571
+  done: 8453
   partial: 0
-  missing: 99218
-  percent: 7.8
+  missing: 99118
+  percent: 7.9
   done_definition: code line of a portable TS function (services/, utils/, stores/) that routes to the shared Rust
     core under VITE_OPENMATES_RUST_CORE and is listed in web-port-ledger.yml; functions over 80 code lines count
     only their flag decision sites
@@ -118,7 +118,7 @@ perf_attention:
     in performance-history.yml.
 performance:
   source: performance-history.yml
-  reference_date: '2026-11-10'
+  reference_date: '2026-11-11'
   stale_rule: 'age_hours = (reference_date - entry date) * 24, reference_date = newest slice date in web-port-ledger.yml
     (the newest web Rust change); stale when age_hours > 24. Day granularity: history entries carry dates, not times.'
   latest_count: 23
@@ -140,7 +140,7 @@ performance:
     verdict: rust_not_worse
     date: '2026-11-06'
     source_commit: null
-    age_hours: 96
+    age_hours: 120
     stale: true
   - flow: chatRendered
     metric: chatListRenderedMs
@@ -152,7 +152,7 @@ performance:
     verdict: rust_not_worse
     date: '2026-11-07'
     source_commit: 13c341c23b
-    age_hours: 72
+    age_hours: 96
     stale: true
   - flow: chatRendered
     metric: chatRenderedMs
@@ -164,7 +164,7 @@ performance:
     verdict: inconclusive
     date: '2026-11-08'
     source_commit: c25f900c81f9
-    age_hours: 48
+    age_hours: 72
     stale: true
   - flow: chatRendered
     metric: openChatMs
@@ -176,7 +176,7 @@ performance:
     verdict: rust_not_worse
     date: '2026-11-07'
     source_commit: bce302fe1fc5b20cbcc32984baae065f50f80f92
-    age_hours: 72
+    age_hours: 96
     stale: true
   - flow: chatRendered
     metric: openChatWallMs
@@ -188,7 +188,7 @@ performance:
     verdict: unverified
     date: '2026-11-05'
     source_commit: 8ab883e
-    age_hours: 120
+    age_hours: 144
     stale: true
   - flow: cpu
     metric: browserCpuMs
@@ -200,7 +200,7 @@ performance:
     verdict: rust_not_worse
     date: '2026-11-08'
     source_commit: c25f900c81f9
-    age_hours: 48
+    age_hours: 72
     stale: true
   - flow: cpu
     metric: cpuMs
@@ -212,7 +212,7 @@ performance:
     verdict: inconclusive
     date: '2026-11-06'
     source_commit: null
-    age_hours: 96
+    age_hours: 120
     stale: true
   - flow: cpu
     metric: searchCpuMs
@@ -224,7 +224,7 @@ performance:
     verdict: rust_not_worse
     date: '2026-11-07'
     source_commit: 44cf35f
-    age_hours: 72
+    age_hours: 96
     stale: true
   - flow: embedReady
     metric: embedReadyMs
@@ -236,7 +236,7 @@ performance:
     verdict: inconclusive
     date: '2026-11-08'
     source_commit: c25f900c81f9
-    age_hours: 48
+    age_hours: 72
     stale: true
   - flow: embedReady
     metric: embedsBenchCpu
@@ -248,7 +248,7 @@ performance:
     verdict: unverified
     date: '2026-11-06'
     source_commit: 30472ca
-    age_hours: 96
+    age_hours: 120
     stale: true
   - flow: reloadMemory
     metric: retainedBytes
@@ -260,7 +260,7 @@ performance:
     verdict: rust_not_worse
     date: '2026-11-08'
     source_commit: c25f900c81f9
-    age_hours: 48
+    age_hours: 72
     stale: true
   - flow: reloadMemory
     metric: retainedBytes slope
@@ -272,7 +272,7 @@ performance:
     verdict: inconclusive
     date: '2026-11-06'
     source_commit: c0a439f
-    age_hours: 96
+    age_hours: 120
     stale: true
   - flow: rss
     metric: browserRssBytes
@@ -284,7 +284,7 @@ performance:
     verdict: inconclusive
     date: '2026-11-08'
     source_commit: c25f900c81f9
-    age_hours: 48
+    age_hours: 72
     stale: true
   - flow: rss
     metric: embedsBenchRss
@@ -296,7 +296,7 @@ performance:
     verdict: inconclusive
     date: '2026-11-06'
     source_commit: 30472ca
-    age_hours: 96
+    age_hours: 120
     stale: true
   - flow: rss
     metric: totalRssBytes
@@ -308,7 +308,7 @@ performance:
     verdict: rust_not_worse
     date: '2026-11-06'
     source_commit: 14bc6157939781cd5029c0fd176905df754a8992
-    age_hours: 96
+    age_hours: 120
     stale: true
   - flow: search
     metric: searchRenderedMs
@@ -320,7 +320,7 @@ performance:
     verdict: rust_not_worse
     date: '2026-11-08'
     source_commit: c25f900c81f9
-    age_hours: 48
+    age_hours: 72
     stale: true
   - flow: send
     metric: draftSaveP95Ms
@@ -332,7 +332,7 @@ performance:
     verdict: rust_worse
     date: '2026-11-08'
     source_commit: c25f900c81f9
-    age_hours: 48
+    age_hours: 72
     stale: true
   - flow: send
     metric: sendBrowserCpuMs
@@ -344,7 +344,7 @@ performance:
     verdict: rust_not_worse
     date: '2026-11-08'
     source_commit: c25f900c81f9
-    age_hours: 48
+    age_hours: 72
     stale: true
   - flow: send
     metric: sendTotalMs
@@ -356,7 +356,7 @@ performance:
     verdict: inconclusive
     date: '2026-11-06'
     source_commit: a777600
-    age_hours: 96
+    age_hours: 120
     stale: true
   - flow: sendToAdmit
     metric: sendToAdmitMs
@@ -368,7 +368,7 @@ performance:
     verdict: rust_not_worse
     date: '2026-11-08'
     source_commit: c25f900c81f9
-    age_hours: 48
+    age_hours: 72
     stale: true
   - flow: uiInteractive
     metric: uiInteractiveMs
@@ -380,7 +380,7 @@ performance:
     verdict: rust_not_worse
     date: '2026-11-08'
     source_commit: c25f900c81f9
-    age_hours: 48
+    age_hours: 72
     stale: true
   - flow: wasmInstances
     metric: wasmInstances
@@ -392,7 +392,7 @@ performance:
     verdict: rust_not_worse
     date: '2026-11-07'
     source_commit: 44cf35f
-    age_hours: 72
+    age_hours: 96
     stale: true
   - flow: wasmInstances
     metric: wasmInstantiations
@@ -404,5 +404,5 @@ performance:
     verdict: rust_not_worse
     date: '2026-11-08'
     source_commit: c25f900c81f9
-    age_hours: 48
+    age_hours: 72
     stale: true

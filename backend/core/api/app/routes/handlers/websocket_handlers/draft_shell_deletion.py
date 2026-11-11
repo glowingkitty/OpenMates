@@ -11,6 +11,7 @@ import logging
 
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus.directus import DirectusService
+from backend.core.api.app.services.draft_deletion_record import record_draft_deletion
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +37,8 @@ async def delete_draft_shell_drafts(
     fails, so the caller can fail closed instead of reporting a deletion that
     left encrypted content behind.
     """
-    if await cache_service.increment_and_tombstone_user_draft(user_id, chat_id) is None:
+    deleted_draft_v = await cache_service.increment_and_tombstone_user_draft(user_id, chat_id)
+    if deleted_draft_v is None:
         raise DraftShellDeletionError("draft_cache_tombstone_failed")
 
     rows = await directus_service.get_items(
@@ -58,5 +60,8 @@ async def delete_draft_shell_drafts(
         raise DraftShellDeletionError("draft_row_without_id")
     if draft_ids and not await directus_service.bulk_delete_items(collection="drafts", item_ids=draft_ids):
         raise DraftShellDeletionError("draft_rows_delete_failed")
+    # Positive delete evidence for the reconnect stale-draft probe; written only
+    # after the Directus rows are gone so it never outlives a failed delete.
+    await record_draft_deletion(cache_service, user_id, chat_id, deleted_draft_v)
     logger.info("Deleted %d persisted draft row(s) of draft-only chat %s.", len(draft_ids), chat_id)
     return len(draft_ids)

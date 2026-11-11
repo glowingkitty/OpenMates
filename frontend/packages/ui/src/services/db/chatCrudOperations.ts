@@ -69,12 +69,18 @@ export async function deleteChatIfNoPendingTurn(
   return deleteChatConditionally(dbInstance, chatId, false);
 }
 
-/** A stale empty-editor cleanup must never delete a newly committed first turn. */
+/**
+ * A stale empty-editor cleanup must never delete a newly committed first turn.
+ * `expectedDraftVersion` (reconnect stale-draft reconciliation) additionally
+ * keeps the shell unless its stored draft_v is still exactly that version, so a
+ * draft edited after the server was asked survives.
+ */
 export async function deleteDraftOnlyChat(
   dbInstance: ChatDatabaseInstance,
   chatId: string,
+  expectedDraftVersion?: number,
 ): Promise<{ deleted: boolean; deletedEmbedIds: string[] }> {
-  return deleteChatConditionally(dbInstance, chatId, true);
+  return deleteChatConditionally(dbInstance, chatId, true, undefined, expectedDraftVersion);
 }
 
 export interface EmptyCallLocalDeletionGuard {
@@ -129,6 +135,7 @@ async function deleteChatConditionally(
   chatId: string,
   requireDraftOnly: boolean,
   emptyCall?: EmptyCallLocalDeletionGuard & { ciphertexts: Map<string, string>; expectedChat: Chat },
+  expectedDraftVersion?: number,
 ): Promise<{ deleted: boolean; deletedEmbedIds: string[] }> {
   await dbInstance.init();
   const hashedChatId = await computeSHA256(chatId);
@@ -209,7 +216,8 @@ async function deleteChatConditionally(
               (chat.title_v ?? 0) > 0 || chat.encrypted_category || chat.category || chat.encrypted_icon || chat.icon ||
               chat.message_window_has_more_before || chat.embed_window_has_more_before ||
               (chat.draft_v ?? 0) !== 0 || chat.encrypted_draft_md || chat.encrypted_draft_preview) return;
-        } else if (!isDraftOnlyChatSurface(chat, true)) return;
+        } else if (!isDraftOnlyChatSurface(chat, true) ||
+            (expectedDraftVersion !== undefined && (chat.draft_v ?? 0) !== expectedDraftVersion)) return;
         // Header and first-message writes are separate transactions. Either
         // one establishes that an empty-editor cleanup no longer owns the row.
         const messageRequest = messages.index("chat_id").openCursor(IDBKeyRange.only(chatId));

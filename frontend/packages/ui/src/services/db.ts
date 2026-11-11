@@ -2118,8 +2118,8 @@ class ChatDatabase {
     return chatCrudOps.deleteEmptyVoiceCallChat(this, chatId, guard);
   }
 
-  async deleteDraftOnlyChat(chatId: string): Promise<{ deleted: boolean; deletedEmbedIds: string[] }> {
-    const result = await chatCrudOps.deleteDraftOnlyChat(this, chatId);
+  async deleteDraftOnlyChat(chatId: string, expectedDraftVersion?: number): Promise<{ deleted: boolean; deletedEmbedIds: string[] }> {
+    const result = await chatCrudOps.deleteDraftOnlyChat(this, chatId, expectedDraftVersion);
     if (result.deleted && result.deletedEmbedIds.length > 0) {
       const { embedStore } = await import("./embedStore");
       for (const embedId of result.deletedEmbedIds) embedStore.removeFromMemoryCache(`embed:${embedId}`);

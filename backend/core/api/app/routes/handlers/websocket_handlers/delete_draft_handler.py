@@ -10,6 +10,7 @@ from fastapi import WebSocket
 
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus.directus import DirectusService
+from backend.core.api.app.services.draft_deletion_record import record_draft_deletion
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.routes.handlers.websocket_handlers.draft_scope import draft_change_allowed
 
@@ -78,6 +79,10 @@ async def handle_delete_draft(
             )
         if cache_delete_success:
             logger.info(f"User {user_id}, Device {device_fingerprint_hash}: Successfully tombstoned draft in cache for chat_id: {chat_id}.")
+            # Positive delete evidence for devices that reconnect after the
+            # short tombstone expired (Phase 2 stale-draft probe).
+            if not team_id:  # Team drafts are never probed (own pending-sync protocol).
+                await record_draft_deletion(cache_service, user_id, chat_id, deleted_draft_v)
             await manager.send_personal_message(
                 message={
                     "type": "draft_delete_receipt",

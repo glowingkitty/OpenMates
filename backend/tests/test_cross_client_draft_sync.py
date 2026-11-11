@@ -633,6 +633,7 @@ async def test_delete_draft_accepts_canonical_chat_id_and_tombstones_draft_only_
     manager = _Manager()
     removed = []
     tombstones = []
+    records = []
 
     class Cache:
         async def increment_user_draft_version(self, user_id, chat_id):
@@ -645,6 +646,14 @@ async def test_delete_draft_accepts_canonical_chat_id_and_tombstones_draft_only_
         async def remove_chat_from_ids_versions(self, user_id, chat_id):
             removed.append(chat_id)
             return True
+
+        @property
+        async def client(self):
+            class _Client:
+                async def eval(self, _script, _keys, key, version, _deleted_at, ttl):
+                    records.append((key, version, ttl))
+
+            return _Client()
 
     class Chat:
         async def check_chat_ownership(self, chat_id, user_id):
@@ -671,6 +680,8 @@ async def test_delete_draft_accepts_canonical_chat_id_and_tombstones_draft_only_
 
     assert removed == ["11111111-1111-4111-8111-111111111111"]
     assert tombstones == [("user-1", "11111111-1111-4111-8111-111111111111", 3)]
+    # Durable delete evidence for the reconnect stale-draft probe (180 days).
+    assert records == [("user:user-1:chat:11111111-1111-4111-8111-111111111111:draft_deleted", 3, 180 * 24 * 3600)]
     assert manager.sent[-1] == {
         "type": "draft_delete_receipt",
         "payload": {

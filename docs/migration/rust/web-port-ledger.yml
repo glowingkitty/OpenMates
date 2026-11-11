@@ -811,3 +811,18 @@ slices:
   ts:
   - file: frontend/packages/ui/src/services/embedStore.ts
     functions: [keptNewerChildHeads]
+- id: stale-local-draft-reconnect-probe
+  commit: null
+  date: '2026-11-11'
+  title: 'fix(drafts): a device that comes back after drafts were deleted elsewhere drops the stale local drafts'
+  rust: [packages/openmates-rust/src/web_sync/stale_drafts.rs, packages/openmates-rust/src/web_sync/stale_drafts_tests.rs]
+  vectors: [frontend/packages/ui/src/services/rustCore/__tests__/rustStaleDraftReconcile.test.ts]
+  e2e: [frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts]
+  notes: Which local drafts are probed on reconnect (idle, Personal, no queued change) and what the server's
+    stale_draft_probe_result may change live in Rust (sync unit ops staleDraftProbe, staleDraftPlan); the TS
+    functions only gather IndexedDB rows, send the probe and run the version-guarded IndexedDB writes.
+  ts:
+  - file: frontend/packages/ui/src/services/chatSyncService.ts
+    functions: [startPhasedSync]
+  - file: frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    functions: [handlePhase2RecentChatsImpl]

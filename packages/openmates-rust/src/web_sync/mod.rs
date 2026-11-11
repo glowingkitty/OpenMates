@@ -16,6 +16,7 @@ pub mod merge;
 pub mod message_keys;
 pub mod message_prep;
 pub mod phased;
+pub mod stale_drafts;
 pub mod updates;
 pub mod versions;
 

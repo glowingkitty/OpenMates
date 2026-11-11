@@ -22,6 +22,10 @@ export type SyncRetryStep =
 export type SyncMetadataChatOutcome = { kind: 'skip' } | { kind: 'chat'; chat: JsonRecord };
 export type SyncThinkingFields = { ok: true; keys: string[] } | { ok: false; code: 'content' | 'flag' | 'count' };
 export interface SyncDeletionStep { chatId: string; explicit: boolean }
+/** One probed local draft (`stale_drafts::probe_json`). */
+export interface SyncStaleDraftProbeEntry { chatId: string; draftV: number; draftOnly: boolean }
+export interface SyncStaleDraftProbe { wire: Array<{ chat_id: string; draft_v: number }>; probe: SyncStaleDraftProbeEntry[] }
+export interface SyncStaleDraftStep { chatId: string; action: 'delete_draft_only' | 'clear_draft'; draftV: number }
 export interface SyncMessageKeyGroup { chatId?: string; indices: number[]; needsKey: boolean; sample: string | null }
 
 export interface SyncMergeInput {
@@ -41,6 +45,8 @@ export interface SyncUnitProtocol extends UnitProtocol, InboundProtocol, Recover
 	admission: { request: { chatId: string; server: JsonRecord; local: JsonRecord | null }; response: { skip: boolean } };
 	metadataChat: { request: { chatId: string; server: JsonRecord; local: JsonRecord | null; now: number }; response: SyncMetadataChatOutcome };
 	deletionPlan: { request: { deleted?: unknown; explicit?: unknown }; response: SyncDeletionStep[] };
+	staleDraftProbe: { request: { now: number; rows: JsonRecord[]; pendingChatIds: string[] }; response: SyncStaleDraftProbe };
+	staleDraftPlan: { request: { probe: SyncStaleDraftProbeEntry[]; result: unknown }; response: SyncStaleDraftStep[] };
 	messageKeyPlan: { request: { messages: JsonRecord[] }; response: SyncMessageKeyGroup[] };
 	messagePreview: { request: { content?: string | null }; response: { units: number[] } };
 	thinkingFields: { request: { payload: JsonRecord }; response: SyncThinkingFields };
@@ -54,6 +60,8 @@ export interface SyncBinding extends RecoveryBinding {
 	sync_chat_admission(input: string): string;
 	sync_metadata_chat(input: string): string;
 	sync_deletion_plan(input: string): string;
+	sync_stale_draft_probe(input: string): string;
+	sync_stale_draft_plan(input: string): string;
 	sync_message_key_plan(input: string): string;
 	sync_message_preview(input: string): string;
 	sync_thinking_fields(input: string): string;
@@ -74,6 +82,8 @@ export const SYNC_OPS: Readonly<Record<keyof SyncUnitProtocol & string, keyof Sy
 	admission: 'sync_chat_admission',
 	metadataChat: 'sync_metadata_chat',
 	deletionPlan: 'sync_deletion_plan',
+	staleDraftProbe: 'sync_stale_draft_probe',
+	staleDraftPlan: 'sync_stale_draft_plan',
 	messageKeyPlan: 'sync_message_key_plan',
 	messagePreview: 'sync_message_preview',
 	thinkingFields: 'sync_thinking_fields',

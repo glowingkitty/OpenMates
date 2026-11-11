@@ -9,11 +9,11 @@ flag:
   default: 'off'
   flag_off_behavior: original TypeScript path, byte-identical build output (guarded in CI)
 summary:
-  total: 107554
-  done: 8336
+  total: 107571
+  done: 8453
   partial: 0
-  missing: 99218
-  percent: 7.8
+  missing: 99118
+  percent: 7.9
 worker_namespaces_installed_not_progress:
   installed: 18
   total: 18
@@ -21,22 +21,22 @@ worker_namespaces_installed_not_progress:
 port_ledger:
   unit: TS code lines
   portable_files: 453
-  portable_code_lines: 107554
-  ported_code_lines: 8336
-  percent: 7.8
+  portable_code_lines: 107571
+  ported_code_lines: 8453
+  percent: 7.9
   ported_by_proof:
-    e2e-flag-on: 4136
+    e2e-flag-on: 4253
     vectors: 3963
     none: 237
-  files_with_ported_code: 93
-  routing_functions: 366
-  functions_counted_at_decision_sites_only: 44
+  files_with_ported_code: 94
+  routing_functions: 368
+  functions_counted_at_decision_sites_only: 45
   non_portable:
     files: 55
     code_lines: 9550
   bridge_excluded:
-    files: 215
-    code_lines: 19404
+    files: 216
+    code_lines: 19518
   slices:
   - id: rust-web-auth-session-lane-behind-vite-openmates-cd767f7
     commit: cd767f7058
@@ -380,6 +380,12 @@ port_ledger:
     proof: e2e-flag-on
     functions: 1
     ts_code_lines: 24
+  - id: stale-local-draft-reconnect-probe
+    commit: null
+    date: '2026-11-11'
+    proof: e2e-flag-on
+    functions: 2
+    ts_code_lines: 117
 e2e_specs_in_repo: [web-rust-core-apps.spec.ts, web-rust-core-auth.spec.ts, web-rust-core-bench.spec.ts, web-rust-core-chat-recommendations-flow.spec.ts,
   web-rust-core-chat.spec.ts, web-rust-core-chatstate-fork-conversation.spec.ts, web-rust-core-chatstate-hidden-chats-flow.spec.ts,
   web-rust-core-chatstate-message-highlights.spec.ts, web-rust-core-chatstate.spec.ts, web-rust-core-composer.spec.ts,

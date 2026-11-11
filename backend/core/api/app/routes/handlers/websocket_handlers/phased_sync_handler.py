@@ -42,6 +42,9 @@ from backend.core.api.app.routes.handlers.websocket_handlers.sync_visibility_fen
     _live_visible_sync_chat_metadata,
 )
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_sync_cold_start import begin_cold_start
+from backend.core.api.app.routes.handlers.websocket_handlers.phase2_stale_draft_probe import (
+    parse_stale_draft_probe, stale_draft_probe_fields,
+)
 from backend.core.api.app.services.chat_message_archive_service import ChatMessageArchiveService
 
 logger = logging.getLogger(__name__)
@@ -769,6 +772,7 @@ async def handle_phased_sync_request(
                 for chat_id in payload.get("refresh_chat_ids", [])
                 if isinstance(chat_id, str) and chat_id
             ][:50]
+            stale_draft_probe_ids = parse_stale_draft_probe(payload.get("stale_draft_probe"))
             client_suggestions_count = payload.get("client_suggestions_count", 0)
             # Client sends the embed IDs it already has stored in IndexedDB so the server
             # can skip re-sending those embeds (cross-session deduplication).
@@ -834,6 +838,7 @@ async def handle_phased_sync_request(
                         client_chat_versions, client_chat_ids, sent_embed_ids, client_embed_ids, team_id,
                         refresh_chat_ids,
                         context_epoch,
+                        stale_draft_probe_ids=stale_draft_probe_ids,
                     )
                 )
                 await asyncio.gather(*startup_phase_tasks)
@@ -857,6 +862,7 @@ async def handle_phased_sync_request(
                         client_chat_versions, client_chat_ids, sent_embed_ids, client_embed_ids, team_id,
                         refresh_chat_ids,
                         context_epoch,
+                        stale_draft_probe_ids=stale_draft_probe_ids,
                     )
 
             # Phase 3: explicit/offline prefetch only. Do not run it during the
@@ -1670,6 +1676,7 @@ async def _handle_phase2_sync(
     team_id: Optional[str] = None,
     refresh_chat_ids: Optional[List[str]] = None,
     context_epoch: Optional[int] = None,
+    stale_draft_probe_ids: Optional[Dict[str, int]] = None,
 ):
     """
     Phase 2: Metadata-only for 100 chats (no messages, no embeds).
@@ -1827,6 +1834,11 @@ async def _handle_phase2_sync(
                 len(explicit_client_tombstones),
             )
 
+        # Bounded answer for idle local drafts outside the inferred-deletion window.
+        probe_fields = await stale_draft_probe_fields(
+            cache_service, directus_service, user_id, stale_draft_probe_ids or {}, team_id,
+        )
+
         if not all_recent_chats:
             logger.info(f"Phase 2: No chats found for user {user_id}")
             reconciliation = _authoritative_chat_reconciliation(
@@ -1840,6 +1852,7 @@ async def _handle_phase2_sync(
                     *all_tombstoned_chat_ids,
                 ]))
             reconciliation["explicit_deleted_chat_ids"] = sorted(all_tombstoned_chat_ids)
+            reconciliation.update(probe_fields)
             await manager.send_personal_message(
                 {
                     "type": "phase_2_last_20_chats_ready",
@@ -1874,6 +1887,7 @@ async def _handle_phase2_sync(
                 *all_tombstoned_chat_ids,
             ]))
         reconciliation["explicit_deleted_chat_ids"] = sorted(all_tombstoned_chat_ids)
+        reconciliation.update(probe_fields)
 
         # Draft ciphertext is part of chat metadata but remains opaque to the server.
         await _apply_phase2_authoritative_drafts(

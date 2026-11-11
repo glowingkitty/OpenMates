@@ -1347,6 +1347,8 @@ export interface PhasedSyncRequestPayload {
   // The server uses this to skip re-sending embeds the client already has,
   // preventing the "703 embeds on every reconnect" problem for active users.
   client_embed_ids?: string[];
+  /** Idle local Personal drafts the server should confirm (Rust core builds only; max 200). */
+  stale_draft_probe?: Array<{ chat_id: string; draft_v: number }>;
 }
 
 export interface PhasedSyncCompletePayload {
@@ -1385,6 +1387,10 @@ export interface Phase2RecentChatsPayload {
   deleted_chat_ids?: string[];
   /** Tombstones with explicit deletion authority, distinct from inferred absence. */
   explicit_deleted_chat_ids?: string[];
+  /** Answer to `stale_draft_probe`: ids whose draft deletion the server recorded at or above the probed
+   * version (`absent_chat_ids`: no chat row; `draft_absent_chat_ids`: own chat row). Omitted when none
+   * was sent or a server read failed. */
+  stale_draft_probe_result?: { absent_chat_ids: string[]; draft_absent_chat_ids: string[] };
 }
 
 /**

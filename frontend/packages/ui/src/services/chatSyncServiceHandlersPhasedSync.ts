@@ -342,6 +342,9 @@ export async function handlePhase2RecentChatsImpl(
     }
     const { chats, chat_count, total_chat_count, deleted_chat_ids, explicit_deleted_chat_ids } = payload;
     await applyAuthoritativeDeletedChats(serviceInstance, deleted_chat_ids, explicit_deleted_chat_ids);
+    if (RUST_SYNC_BUILD && payload.phase === "phase2") {
+      await (await import("./rustCore/sync/rustStaleDraftReconcile")).applyStaleDraftProbeResult(serviceInstance, payload);
+    }
 
     // Cache warming notification (no actual chats) — ignore
     if (!chats || !Array.isArray(chats)) {

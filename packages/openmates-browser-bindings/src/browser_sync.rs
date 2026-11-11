@@ -3,7 +3,7 @@
 //! input throws the fixed `protocol` code. Served by the `sync` shared-Worker unit.
 use wasm_bindgen::prelude::*;
 
-use openmates_sdk::web_sync::{merge, message_keys, phased, updates};
+use openmates_sdk::web_sync::{merge, message_keys, phased, stale_drafts, updates};
 
 fn js(result: Result<String, String>) -> Result<String, JsValue> {
     result.map_err(|e| JsValue::from_str(&e))
@@ -43,6 +43,18 @@ pub fn sync_metadata_chat(input_json: &str) -> Result<String, JsValue> {
 #[wasm_bindgen]
 pub fn sync_deletion_plan(input_json: &str) -> Result<String, JsValue> {
     js(phased::deletion_plan_json(input_json))
+}
+
+/// Stale local draft probe sent with Phase 2 (`stale_draft_probe`).
+#[wasm_bindgen]
+pub fn sync_stale_draft_probe(input_json: &str) -> Result<String, JsValue> {
+    js(stale_drafts::probe_json(input_json))
+}
+
+/// Local actions for the server's `stale_draft_probe_result`.
+#[wasm_bindgen]
+pub fn sync_stale_draft_plan(input_json: &str) -> Result<String, JsValue> {
+    js(stale_drafts::plan_json(input_json))
 }
 
 /// Synced-message key plan.

@@ -68,6 +68,8 @@ const binding: SyncBinding = {
 	sync_chat_admission: (input) => JSON.stringify({ skip: !JSON.parse(input).server.encrypted_chat_key }),
 	sync_metadata_chat: () => { throw new Error('protocol'); },
 	sync_deletion_plan: () => '[]',
+	sync_stale_draft_probe: () => JSON.stringify({ wire: [], probe: [] }),
+	sync_stale_draft_plan: () => '[]',
 	sync_message_preview: (input) => {
 		const request = JSON.parse(input);
 		const c = updateVectors.preview.find((v: { input: unknown }) => key(v.input) === key(request.content === null ? {} : request));
