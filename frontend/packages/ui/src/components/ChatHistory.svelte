@@ -885,14 +885,34 @@ import { storageArchiveFetch } from "../config/api";
     const shared = isSharedChat;
     const signal = timelineController.signal;
     timelineCatalogueLoading = true;
+    // Rust core: every merge sends the whole catalogue to the core, so pages are merged in
+    // batches that double in size. A long history then costs a handful of merges, not one per page.
+    let unmergedPages: TimelineEntry[][] = [];
+    let mergeAfterPages = 1;
+    const mergeUnmergedPages = async (): Promise<boolean> => {
+      if (!unmergedPages.length) return true;
+      const pages = unmergedPages;
+      unmergedPages = [];
+      mergeAfterPages *= 2;
+      const merged = await rustTransitions().then(rust => rust.rustMergeTimelineEntries(...pages, timelineCatalogue));
+      if (generation !== timelineGeneration || signal.aborted) return false;
+      timelineCatalogue = merged;
+      return true;
+    };
     try {
       do {
-        const page = await fetchTimelinePage(chatId, shared, timelineCursor, signal);
+        let page;
+        try {
+          page = await fetchTimelinePage(chatId, shared, timelineCursor, signal);
+        } catch (error) {
+          // Pages already read stay in the catalogue; the cursor has moved past them.
+          if (generation === timelineGeneration && !signal.aborted) await mergeUnmergedPages();
+          throw error;
+        }
         if (generation !== timelineGeneration || signal.aborted) return;
         if (RUST_CHAT_TRANSITIONS) {
-          const merged = await rustTransitions().then(rust => rust.rustMergeTimelineEntries(page.entries, timelineCatalogue));
-          if (generation !== timelineGeneration || signal.aborted) return;
-          timelineCatalogue = merged;
+          unmergedPages.push(page.entries);
+          if ((!page.has_more || unmergedPages.length >= mergeAfterPages) && !(await mergeUnmergedPages())) return;
         } else {
           timelineCatalogue = mergeTimelineEntries(page.entries, timelineCatalogue);
         }

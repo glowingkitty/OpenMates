@@ -29,3 +29,31 @@ export const SHARED_UNIT_INSTALLERS: UnitInstallers = Object.freeze({
 	composer: (context) => import('@openmates/ui/src/services/rustCore/composer/composerUnit').then((unit) => unit.installComposerUnit(context)),
 	deckDocument: (context) => import('@openmates/ui/src/services/rustCore/deckDocument/deckDocumentUnit').then((unit) => unit.installDeckDocumentUnit(context)),
 });
+
+/**
+ * Loads every lazily imported unit module while the app is online, without installing
+ * anything. A unit first opened offline (a draft saved after the connection dropped) then
+ * finds its module already loaded instead of failing to fetch it. A module that cannot be
+ * loaded now is fetched again, and its error reported, when the unit is opened.
+ */
+export function preloadSharedUnitModules(): void {
+	const modules: Promise<unknown>[] = [
+		import('@openmates/ui/src/services/rustCore/auth/authUnit'),
+		import('@openmates/ui/src/services/rustCore/apps/appsUnit'),
+		import('@openmates/ui/src/services/rustCore/embeds/embedDataUnit'),
+		import('@openmates/ui/src/services/rustCore/embeds/embedWriteUnit'),
+		import('@openmates/ui/src/services/rustCore/search/searchUnit'),
+		import('@openmates/ui/src/services/rustCore/transfer/transferUnit'),
+		import('@openmates/ui/src/services/rustCore/sync/syncUnit'),
+		import('@openmates/ui/src/services/rustCore/ws/wsUnit'),
+		import('@openmates/ui/src/services/rustCore/drafts/draftsUnit'),
+		import('@openmates/ui/src/services/rustCore/parse/parseUnit'),
+		import('@openmates/ui/src/services/rustCore/chatState/chatListUnit'),
+		import('@openmates/ui/src/services/rustCore/persist/persistUnit'),
+		import('@openmates/ui/src/services/rustCore/send/sendPrepUnit'),
+		import('@openmates/ui/src/services/rustCore/settings/settingsUnit'),
+		import('@openmates/ui/src/services/rustCore/composer/composerUnit'),
+		import('@openmates/ui/src/services/rustCore/deckDocument/deckDocumentUnit'),
+	];
+	for (const module of modules) module.catch(() => undefined);
+}

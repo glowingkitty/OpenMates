@@ -30,6 +30,13 @@ import { draftEmbedLabel, formatDraftPreview } from "../../utils/draftPreview";
 const DEFERRED_EMPTY_DRAFT_FLUSH_DELAY_MS = 550;
 const DEFERRED_EMPTY_DRAFT_FLUSH_ATTEMPTS = 2;
 
+// Rust-core builds: load the draft route with this module, while the app is online.
+// Loading it on the first save would fail for a draft first edited offline. A failed
+// warm-up is not handled here: the save imports the route again and reports the error.
+if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1") {
+  void import("../rustCore/drafts/rustDraftRoute").catch(() => undefined);
+}
+
 let deferredEmptyDraftFlushTimer: ReturnType<typeof setTimeout> | null = null;
 
 // A debounced empty save can have been queued before the microphone opened.

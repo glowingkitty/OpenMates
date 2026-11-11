@@ -7,7 +7,7 @@
  */
 import { loadBinding } from 'virtual:openmates-rust-core-package';
 import { createSharedWorkerRouter } from '@openmates/ui/src/services/rustCore/host/sharedWorkerProtocol';
-import { SHARED_UNIT_INSTALLERS } from './sharedWorkerUnits';
+import { preloadSharedUnitModules, SHARED_UNIT_INSTALLERS } from './sharedWorkerUnits';
 
 const scope = self as unknown as DedicatedWorkerGlobalScope;
 
@@ -21,3 +21,6 @@ scope.addEventListener('message', (event: MessageEvent<unknown>) => {
 	if (!scope.isSecureContext) { scope.close(); return; }
 	void router.handle(event.data, event.ports);
 });
+
+// After startup work has had its turn: unit modules are loaded ahead of their first use.
+setTimeout(preloadSharedUnitModules, 3000);

@@ -9,7 +9,8 @@ const { createSignupLogger, getE2EDebugUrl } = require('./signup-flow-helpers');
 // contract-test: supporting surface=gui.web assertions=assistant-speech.on-demand.generate-missing-only,assistant-speech.failure.nonblocking-visible-resumable
 test('private Speak follows provider availability and surfaces rejected work', async ({ page }: { page: any }) => {
   test.setTimeout(180_000);
-  const chatId = 'd9b1d479-a92d-427d-bc56-b218d9e40f38';
+  // A local-only fixture chat: the id is not a saved-chat UUID, so no client reads it from the server.
+  const chatId = 'e2e-speech-availability-chat';
   let available = true;
   let speechRequests = 0;
   await page.setViewportSize({ width: 1280, height: 900 });
