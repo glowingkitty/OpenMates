@@ -244,7 +244,18 @@ export async function clearLegacyTypedMemoryExport(): Promise<void> {
   });
 }
 
-async function defaultDeps(): Promise<MigrationDeps> {
+/**
+ * Description of a legacy item type from the app translations; '' when the key is
+ * missing (the translator returns the key or a `[T:key]` placeholder then).
+ */
+export function describeLegacyType(translate: (key: string) => string, appId: string, itemType: string): string {
+  const key = `${appId}.${itemType}.description`;
+  const resolved = translate(key);
+  return resolved && resolved !== key && !resolved.startsWith('[T:') ? resolved : '';
+}
+
+/** Browser-backed migration boundaries (IndexedDB, master key, i18n, sync). */
+export async function createDefaultMigrationDeps(): Promise<MigrationDeps> {
   const [{ chatDB }, { decryptWithMasterKey }, { text }, saved, { chatSyncService }] = await Promise.all([
     import('./db'), import('./cryptoService'), import('../i18n/translations'),
     import('./savedEmbedService'), import('./chatSyncService'),
@@ -268,11 +279,8 @@ async function defaultDeps(): Promise<MigrationDeps> {
       }
       return entries;
     },
-    describeType: (appId, itemType) => {
-      const key = `${appId}.${itemType}.description`;
-      const resolved = text(key);
-      return resolved && resolved !== key ? resolved : '';
-    },
+    // `text` is a Svelte store of the translate function, not the function itself.
+    describeType: (appId, itemType) => describeLegacyType(get(text), appId, itemType),
     saveEmbed: async (embedId) => {
       try { await saved.setEmbedSaved(embedId, true, { scheduleReminders: false }); return true; }
       catch { return false; } // embed no longer resolves on this device: the legacy item is dropped
@@ -289,7 +297,7 @@ let started = false;
  * Starts the background migration for authenticated sessions only (never public/demo
  * sessions). Reruns when legacy entries arrive from sync or the tab returns to foreground.
  */
-export function startLegacyTypedMemoryMigration(depsFactory: () => Promise<MigrationDeps> = defaultDeps): void {
+export function startLegacyTypedMemoryMigration(depsFactory: () => Promise<MigrationDeps> = createDefaultMigrationDeps): void {
   if (started || typeof window === 'undefined') return;
   started = true;
   const run = async () => {

@@ -353,7 +353,8 @@ export async function queueOfflineChangeImpl(
 ): Promise<void> {
 	const queueContext = captureOfflineSyncContext();
 	if (change.type === "draft" || change.type === "delete_draft") {
-		const context = await resolveDraftChatContext(change.chat_id);
+		const context = await resolveDraftChatContext(change.chat_id,
+			{ allowMissingPersonalRow: change.type === "delete_draft" });
 		if ((change.team_id ?? null) !== context.teamId || !isDraftChatContextCurrent(context)) return;
 		if (context.teamId && !context.committed) return;
 	}
@@ -381,7 +382,8 @@ export async function sendOfflineChangesImpl(): Promise<void> {
 	const eligible: OfflineChange[] = [];
 	for (const change of changes) {
 		try {
-			const context = await resolveDraftChatContext(change.chat_id);
+			const context = await resolveDraftChatContext(change.chat_id,
+				{ allowMissingPersonalRow: change.type === "delete_draft" });
 			if (!isOfflineSyncContextCurrent(sendContext)) return;
 			if (!isDraftChatContextCurrent(context)) continue;
 			if ((change.team_id ?? null) !== context.teamId) continue;

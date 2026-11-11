@@ -16,7 +16,7 @@ export {};
  * Run: ci_coordinator.py submit --mode e2e --web-rust-core --spec slides-manual-edit.spec.ts
  */
 
-const { test, expect, attachConsoleListeners, attachNetworkListeners, allowConsoleErrorPatterns } = require('./console-monitor');
+const { test, expect, attachConsoleListeners, attachNetworkListeners } = require('./console-monitor');
 const { createSignupLogger, createStepScreenshotter, getTestAccount, installE2EServerContentOverrideGate } = require('./signup-flow-helpers');
 const { loginToTestAccount, startNewChat, sendMessage, waitForAssistantMessage, deleteActiveChat } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
@@ -160,9 +160,6 @@ test('a manual deck edit is saved as a new version and survives a reload', async
 	} finally {
 		// Playwright's own failure screenshot is taken after cleanup; keep the failing state.
 		if (!completed) await screenshot(page, 'failure-state');
-		// Known defect outside this flow (Task bf05661c): in the Rust-core build, deleting the chat during
-		// cleanup logs a draft error for the already deleted chat. Allowed for cleanup only until that is fixed.
-		allowConsoleErrorPatterns([/\[DraftService\] Error deleting draft or chat for .*Draft chat does not belong to the active workspace/]);
 		if (/chat-id=/.test(page.url())) await deleteActiveChat(page, log, screenshot, 'cleanup');
 	}
 });

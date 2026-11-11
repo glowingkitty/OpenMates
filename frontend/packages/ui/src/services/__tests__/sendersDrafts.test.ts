@@ -677,6 +677,45 @@ describe("sendDeleteDraftImpl", () => {
       encrypted_draft_md: null, encrypted_draft_preview: null, cleared_draft_v: 4 });
   });
 
+  // contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle,drafts.persistence.local-first-encrypted
+  it("deletes the draft of a Personal chat whose synced row stores an empty team_id", async () => {
+    mocks.chatDB.getRawChat.mockResolvedValue({ chat_id: "chat-1", team_id: "", messages_v: 0,
+      encrypted_draft_md: null, encrypted_draft_preview: null });
+    const deletion = sendDeleteDraftImpl({ dispatchEvent: vi.fn() } as never, "chat-1");
+    await vi.waitFor(() => expect(mocks.webSocketService.sendMessage).toHaveBeenCalledWith("delete_draft", { chatId: "chat-1" }));
+    mocks.emitDeleteReceipt({ chat_id: "chat-1", success: true, draft_v: 4 });
+    await expect(deletion).resolves.toBeUndefined();
+    expect(mocks.chatDB.clearCurrentUserChatDraft).toHaveBeenCalledWith("chat-1");
+  });
+
+  // contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle
+  it("retires the server draft of a Personal chat that has no local row", async () => {
+    mocks.chatDB.getRawChat.mockResolvedValue(null);
+    mocks.chatDB.getChat.mockResolvedValue(null);
+    mocks.chatDB.clearCurrentUserChatDraft.mockResolvedValue(null);
+    const deletion = sendDeleteDraftImpl({ dispatchEvent: vi.fn() } as never, "chat-1");
+    await vi.waitFor(() => expect(mocks.webSocketService.sendMessage).toHaveBeenCalledWith("delete_draft", { chatId: "chat-1" }));
+    mocks.emitDeleteReceipt({ chat_id: "chat-1", success: true, draft_v: 1 });
+    await expect(deletion).resolves.toBeUndefined();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=teams.collaboration.realtime-team-sync
+  it("still refuses a draft delete across workspaces", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    mocks.chatDB.getRawChat.mockResolvedValue({ chat_id: "chat-1", team_id: "team-1", messages_v: 1 });
+    await expect(sendDeleteDraftImpl({ dispatchEvent: vi.fn() } as never, "chat-1"))
+      .rejects.toThrow("Draft chat does not belong to the active workspace");
+    activeTeamContext.set({ team: null, teamId: "team-1", epoch: 1 });
+    mocks.chatDB.getRawChat.mockResolvedValue({ chat_id: "chat-1", team_id: null, messages_v: 1 });
+    await expect(sendDeleteDraftImpl({ dispatchEvent: vi.fn() } as never, "chat-1"))
+      .rejects.toThrow("Draft chat does not belong to the active workspace");
+    mocks.chatDB.getRawChat.mockResolvedValue(null);
+    await expect(sendDeleteDraftImpl({ dispatchEvent: vi.fn() } as never, "chat-1"))
+      .rejects.toThrow("Draft chat does not belong to the active workspace");
+    expect(mocks.webSocketService.sendMessage).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
   // contract-test: supporting surface=gui.web assertions=teams.collaboration.realtime-team-sync,drafts.sync.version-authoritative
   it("deletes a committed Team member draft with Team scope and receipt", async () => {
     activeTeamContext.set({ team: null, teamId: "team-1", epoch: 1 });

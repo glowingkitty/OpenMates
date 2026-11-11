@@ -114,14 +114,33 @@ export async function promoteDeferredTeamDraft(
   }
 }
 
+export interface DraftChatContextOptions {
+  /**
+   * Draft deletes only: a chat without a local row (already deleted, or never
+   * cached on this device) still may hold a server draft to retire. In the
+   * Personal workspace that delete is idempotent and the server authorizes the
+   * chat owner, so it is not refused; a Team workspace still needs the row.
+   */
+  allowMissingPersonalRow?: boolean;
+}
+
 /** Keep draft traffic in the chat's workspace across asynchronous work. */
-export async function resolveDraftChatContext(chatId: string): Promise<DraftChatContext> {
+export async function resolveDraftChatContext(
+  chatId: string, options: DraftChatContextOptions = {},
+): Promise<DraftChatContext> {
   const active = get(activeTeamContext);
   const chat = await chatDB.getRawChat(chatId);
   if (!isActiveTeamContext(active.teamId, active.epoch)) {
     throw new Error("Draft workspace changed");
   }
-  if (!chat || (chat.team_id ?? null) !== active.teamId) {
+  if (!chat) {
+    if (options.allowMissingPersonalRow && !active.teamId) {
+      return { teamId: null, epoch: active.epoch, committed: true };
+    }
+    throw new Error("Draft chat does not belong to the active workspace");
+  }
+  // Personal rows may carry team_id null, undefined or "" (synced rows); all mean Personal.
+  if ((chat.team_id || null) !== active.teamId) {
     throw new Error("Draft chat does not belong to the active workspace");
   }
   const committed = (chat.messages_v ?? 0) > 0 && !(active.teamId && chat.team_chat_pending_commit);

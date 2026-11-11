@@ -379,7 +379,7 @@ async function sendDeleteDraftUnlocked(
 	let intentCommitted = false;
 	let localClearCompleted = false;
 	try {
-		const context = await resolveDraftChatContext(chat_id);
+		const context = await resolveDraftChatContext(chat_id, { allowMissingPersonalRow: true });
 		const payload: DeleteDraftPayload = {
 			chatId: chat_id,
 			...(context.teamId ? { team_id: context.teamId } : {})

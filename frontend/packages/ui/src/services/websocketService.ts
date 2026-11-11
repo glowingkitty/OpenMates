@@ -250,6 +250,10 @@ class WebSocketService extends EventTarget {
     "pong", // Pong responses to ping - handler registered in constructor
     "draft_update_receipt", // Server acknowledgment that a draft update was processed successfully
     "draft_delete_receipt", // Server acknowledgment that draft deletion was processed successfully
+    // Status of the best-effort metadata warm-up hint (accepted/throttled/warm/unavailable);
+    // the Send path never waits for warm-up and stays authoritative, so the client needs nothing from it.
+    "chat_metadata_warmup_result",
+    "workflow_metadata_warmup_result",
     // Add more types here if needed
   ]);
 

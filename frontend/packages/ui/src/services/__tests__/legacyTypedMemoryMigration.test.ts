@@ -20,11 +20,22 @@ vi.mock('../ruleDocumentService', () => ({
     return true;
   },
 }));
+// Browser boundaries of the default deps; `text` keeps its real shape: a store of the translate function.
+vi.mock('../../i18n/translations', async () => ({
+  text: (await import('svelte/store')).readable((key: string) => (key === 'travel.preferred_airlines.description' ? 'Airlines the user prefers.' : `[T:${key}]`)),
+}));
+vi.mock('../db', () => ({ chatDB: {
+  getAllAppSettingsMemoriesEntries: async () => [{ id: 'entry-1', app_id: 'travel', item_type: 'preferred_airlines', item_key: 'preferred airlines', encrypted_item_json: 'enc' }],
+  deleteAppSettingsMemoriesEntry: async () => true,
+} }));
+vi.mock('../cryptoService', () => ({ decryptWithMasterKey: async () => JSON.stringify({ airline: 'Lufthansa' }) }));
+vi.mock('../savedEmbedService', () => ({ setEmbedSaved: async () => undefined }));
+vi.mock('../chatSyncService', () => ({ chatSyncService: { sendDeleteAppSettingsMemoriesEntry: async () => true } }));
 vi.mock('../../stores/authStore', async () => ({ authStore: (await import('svelte/store')).writable({ isAuthenticated: true }) }));
 vi.mock('../../stores/userProfile', async () => ({ userProfile: (await import('svelte/store')).writable({ user_id: 'u', encrypted_settings: 'x' }) }));
 
 import {
-  buildMemoryDocumentFromLegacy, classifyLegacyEntry, deriveMemoryDocumentId, migrateLegacyTypedMemories,
+  buildMemoryDocumentFromLegacy, classifyLegacyEntry, createDefaultMigrationDeps, describeLegacyType, deriveMemoryDocumentId, migrateLegacyTypedMemories,
   LEGACY_EXPORT_SETTINGS_KEY, type LegacyTypedEntry, type MigrationDeps,
 } from '../legacyTypedMemoryMigration';
 import { parseRuleDocument } from '../../utils/ruleDocuments';
@@ -115,5 +126,19 @@ describe('legacy typed memory migration', () => {
     expect(await migrateLegacyTypedMemories(d)).toMatchObject({ migrated: 0, deleted: 0 });
     expect(d.deleteEntry).not.toHaveBeenCalled();
     expect(state.documents).toHaveLength(0);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=app-memories.migration.client-auto
+  it('runs with the default browser deps, reading the description through the translate store', async () => {
+    const result = await migrateLegacyTypedMemories(await createDefaultMigrationDeps());
+    expect(result).toMatchObject({ migrated: 1, deleted: 1 });
+    expect(parseRuleDocument(state.documents[0].document).when_to_use).toBe('Airlines the user prefers.');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=app-memories.migration.client-auto
+  it('treats a missing type description as empty instead of a placeholder', () => {
+    const translate = (key: string) => `[T:${key}]`;
+    expect(describeLegacyType(translate, 'travel', 'unknown_type')).toBe('');
+    expect(describeLegacyType((key) => key, 'travel', 'unknown_type')).toBe('');
   });
 });
