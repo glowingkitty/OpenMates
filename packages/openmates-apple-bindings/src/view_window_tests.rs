@@ -1,4 +1,4 @@
-//! ViewModelCore chat window and fresh session over a temp cache directory and a loopback server that only answers session validation: cached window before any chat request, load older on a complete window, close, and logout followed by begin-session and start.
+//! ViewModelCore chat window and fresh session over a temp cache directory and a loopback server that only answers session validation: cached window before any chat request, load older on a complete window, close, and logout followed by begin-session and start. Its fixtures are shared with the send and login tests.
 use crate::view_core_tests::{Events, Keychain, NAME, SIGNED_OUT, cache_files, private_dir};
 use crate::*;
 use futures_util::future::BoxFuture;
@@ -21,7 +21,7 @@ use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use zeroize::Zeroizing;
 
-const CHAT: &str = "11111111-1111-4111-8111-111111111111";
+pub(crate) const CHAT: &str = "11111111-1111-4111-8111-111111111111";
 const BODY: &str = "Synthetic cached body";
 
 /// Loopback API: `POST /v1/auth/session` succeeds. Every other request is
@@ -33,7 +33,7 @@ struct Api {
     chat_requests: Arc<AtomicUsize>,
 }
 
-async fn read_request(stream: &mut tokio::net::TcpStream) -> String {
+pub(crate) async fn read_request(stream: &mut tokio::net::TcpStream) -> String {
     let mut data = Vec::new();
     let mut part = [0; 4096];
     loop {
@@ -56,7 +56,7 @@ async fn read_request(stream: &mut tokio::net::TcpStream) -> String {
     }
 }
 
-fn respond(body: &serde_json::Value) -> String {
+pub(crate) fn respond(body: &serde_json::Value) -> String {
     let body = body.to_string();
     format!(
         "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
@@ -102,7 +102,7 @@ async fn api(serve_chat: bool) -> Api {
     Api { url, chat_requests }
 }
 
-fn session(api: &str, id: &str) -> Session {
+pub(crate) fn session(api: &str, id: &str) -> Session {
     Session {
         api_url: api.into(),
         session_id: id.into(),
@@ -157,7 +157,7 @@ impl CredentialPersistence for Durable {
 }
 
 /// Write the encrypted cache an earlier app run of `session` left.
-async fn seed_cache(dir: &Path, session: &Session) {
+pub(crate) async fn seed_cache(dir: &Path, session: &Session) {
     let engine = Arc::new(CacheEngine::new(FileByteStore::open_in(dir, NAME).unwrap()));
     let cache = CacheStore::new(
         engine,
@@ -173,7 +173,7 @@ async fn seed_cache(dir: &Path, session: &Session) {
         .unwrap();
 }
 
-fn core(
+pub(crate) fn core(
     dir: &Path,
     api: &str,
     keychain: &Arc<Keychain>,
@@ -196,7 +196,7 @@ fn core(
     core
 }
 
-fn windows(events: &[ViewEventRecord]) -> Vec<(u64, ChatWindowViewRecord)> {
+pub(crate) fn windows(events: &[ViewEventRecord]) -> Vec<(u64, ChatWindowViewRecord)> {
     events
         .iter()
         .filter_map(|event| match event {

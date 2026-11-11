@@ -4,7 +4,8 @@
 //! `OrderedBlocking`), the session runtime (`ShellSession`) and the actor
 //! state (`ViewCore`) and serves `Start`, the boot sync, `RefreshChats`,
 //! `SwitchTeam`, `Logout`, the chat window commands (`OpenChat`, `LoadOlder`,
-//! `CloseChat`, `MarkRead`) and the fresh-session begin after a login.
+//! `CloseChat`, `MarkRead`) and the fresh-session begin after a login. Send
+//! lives in `view_send.rs`, the core-performed login in `view_login.rs`.
 //! Swift supplies the Keychain (`CredentialStore`) and receives events
 //! (`ViewListener`). Bindings only marshal; the hooks below are the minimal
 //! Apple `ViewHost`. Plan `apple-client-core-migration` lane L8
@@ -28,8 +29,8 @@ use openmates_sdk::{
         ShellSession, session_cache_context,
     },
     view_model::{
-        self, ListRecovery, RequestId, RevocationHandle, SessionEvent, ViewCommand, ViewCore,
-        ViewEvent, ViewHost, ViewSink,
+        self, ListRecovery, RequestId, RevocationHandle, SendCancelHandle, SessionEvent,
+        ViewCommand, ViewCore, ViewEvent, ViewHost, ViewSink,
     },
 };
 use std::future::Future;
@@ -41,7 +42,7 @@ use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 use zeroize::Zeroizing;
 
-type Bytes = FileByteStore;
+pub(crate) type Bytes = FileByteStore;
 
 /// Keychain-backed credential store implemented in Swift. Holds one opaque
 /// payload (the serialized core session, secret): Swift never parses, logs
@@ -122,21 +123,29 @@ impl CredentialVault for VaultBridge {
 }
 
 /// Delivers core events to the Swift listener, mapped 1:1.
-struct ListenerSink(Arc<dyn ViewListener>);
+pub(crate) struct ListenerSink(Arc<dyn ViewListener>);
 
 impl ViewSink for ListenerSink {
     fn emit(&self, event: ViewEvent) -> BoxFuture<'_, Result<()>> {
         self.0.on_event(event.into());
         Box::pin(async { Ok(()) })
     }
+
+    fn emit_detached(&self, events: Vec<ViewEvent>) {
+        // `on_event` never blocks, so the queued stream updates of a dropped
+        // send (among them the `Submitted` fence) are delivered right here.
+        for event in events {
+            self.0.on_event(event.into());
+        }
+    }
 }
 
 /// The Apple `ViewHost`: no profile settings, no trusted-account check,
 /// admission by fresh server validation plus persistence, no completion
 /// recovery yet (lane L5, so `recover_before_open` does nothing), no live
-/// monitor yet (so no known denial: `offline_cache_allowed` is true) and no
-/// bridged commands (send and cancel are not served until lane L9).
-struct AppleHost {
+/// monitor yet (so no known denial: `offline_cache_allowed` is true); send
+/// and cancel run in the core (`view_send.rs`).
+pub(crate) struct AppleHost {
     core: ViewCore<Bytes>,
     api_url: String,
     credentials: Arc<AcknowledgedCredentials<Bytes>>,
@@ -225,27 +234,32 @@ impl ViewHost<Bytes> for AppleHost {
     }
 }
 
-fn lock<T>(mutex: &StdMutex<T>) -> MutexGuard<'_, T> {
+pub(crate) fn lock<T>(mutex: &StdMutex<T>) -> MutexGuard<'_, T> {
     // A poisoned lock only means a panic elsewhere; the value stays valid.
     mutex.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
 /// Everything a command task needs; shared by all calls of one core.
-struct Shared {
-    api_url: String,
+pub(crate) struct Shared {
+    pub(crate) api_url: String,
     app_url: Option<String>,
     engine: Arc<CacheEngine<Bytes>>,
-    ops: OrderedBlocking,
-    credentials: Arc<AcknowledgedCredentials<Bytes>>,
-    sink: ListenerSink,
+    pub(crate) ops: OrderedBlocking,
+    pub(crate) credentials: Arc<AcknowledgedCredentials<Bytes>>,
+    pub(crate) sink: ListenerSink,
     /// The actor state of the signed-in session; `None` while signed out.
-    host: Mutex<Option<AppleHost>>,
+    pub(crate) host: Mutex<Option<AppleHost>>,
     /// Revocation without waiting for a busy actor (logout priority lane).
     revocation: StdMutex<Option<RevocationHandle<Bytes>>>,
+    /// Cancels the running send without waiting for the actor.
+    pub(crate) send_cancel: StdMutex<Option<SendCancelHandle>>,
+    /// The client of a running pair login (signed out only); see `view_login.rs`.
+    pub(crate) pairing: Mutex<Option<crate::view_login::PendingPair>>,
 }
 
 impl Shared {
-    fn options(&self) -> ClientOptions {
+    /// Client options of every client this core builds.
+    pub(crate) fn options(&self) -> ClientOptions {
         ClientOptions {
             identity: ClientIdentity::Apple,
             app_url: self.app_url.clone(),
@@ -258,7 +272,8 @@ impl Shared {
         self.start_locked(&mut host, cancel).await
     }
 
-    async fn start_locked(
+    /// `start` with the actor lock already held (login hand-over).
+    pub(crate) async fn start_locked(
         &self,
         host: &mut Option<AppleHost>,
         cancel: CancellationToken,
@@ -266,6 +281,7 @@ impl Shared {
         let Some(session) = self.credentials.load(self.ops.generation()).await? else {
             *host = None;
             *lock(&self.revocation) = None;
+            *lock(&self.send_cancel) = None;
             return self
                 .sink
                 .emit(ViewEvent::Session(SessionEvent::SignedOut))
@@ -283,6 +299,7 @@ impl Shared {
         // Chat content loads per chat on open (a2-design: index-only start).
         core.set_eager_cached_content(false);
         *lock(&self.revocation) = Some(core.revocation_handle());
+        *lock(&self.send_cancel) = Some(core.send_cancel_handle());
         let current = host.insert(AppleHost {
             core,
             api_url: self.api_url.clone(),
@@ -312,13 +329,17 @@ impl Shared {
         self.start_locked(&mut host, cancel).await
     }
 
-    async fn signed_in<F>(&self, cancel: CancellationToken, work: F) -> Result<()>
+    /// Run `work` on the signed-in actor state.
+    ///
+    /// # Errors
+    /// `Authentication` while signed out; otherwise what `work` returns.
+    pub(crate) async fn signed_in<T, F>(&self, cancel: CancellationToken, work: F) -> Result<T>
     where
         F: for<'a> FnOnce(
             &'a mut AppleHost,
             &'a ListenerSink,
             &'a CancellationToken,
-        ) -> BoxFuture<'a, Result<()>>,
+        ) -> BoxFuture<'a, Result<T>>,
     {
         let mut host = self.host.lock().await;
         let host = host.as_mut().ok_or(Error::Authentication)?;
@@ -326,7 +347,8 @@ impl Shared {
         work(host, &self.sink, &cancel).await
     }
 
-    async fn logout(&self) -> Result<()> {
+    /// Sign out (see `ViewModelCore::logout`).
+    pub(crate) async fn logout(&self) -> Result<()> {
         // Durable revocation first, without waiting for a running command.
         let revocation = lock(&self.revocation).clone();
         if let Some(revocation) = &revocation {
@@ -340,6 +362,7 @@ impl Shared {
                 view_model::handle(current, ViewCommand::Logout, &self.sink, &cancel).await;
             *host = None;
             *lock(&self.revocation) = None;
+            *lock(&self.send_cancel) = None;
             return result;
         }
         // Signed out already: still make revocation durable and wipe stored
@@ -364,7 +387,7 @@ impl Shared {
 pub struct ViewModelCore {
     runtime: Option<Runtime>,
     handle: Handle,
-    shared: Arc<Shared>,
+    pub(crate) shared: Arc<Shared>,
     foreground: StdMutex<CancellationToken>,
     shutdown: CancellationToken,
 }
@@ -420,6 +443,8 @@ impl ViewModelCore {
                 sink: ListenerSink(listener),
                 host: Mutex::new(None),
                 revocation: StdMutex::new(None),
+                send_cancel: StdMutex::new(None),
+                pairing: Mutex::new(None),
             }),
             foreground: StdMutex::new(shutdown.child_token()),
             shutdown,
@@ -429,7 +454,10 @@ impl ViewModelCore {
     /// A fresh foreground token: replaces the previous one, fires on core
     /// shutdown, and when `cancellation` is cancelled. The core flows check
     /// it cooperatively, so a started persist is never cut in half.
-    fn foreground(&self, cancellation: Option<Arc<CoreCancellation>>) -> CancellationToken {
+    pub(crate) fn foreground(
+        &self,
+        cancellation: Option<Arc<CoreCancellation>>,
+    ) -> CancellationToken {
         let token = self.shutdown.child_token();
         *lock(&self.foreground) = token.clone();
         if let Some(cancellation) = cancellation {
@@ -445,9 +473,10 @@ impl ViewModelCore {
     }
 
     /// Run `work` to completion on the core runtime.
-    async fn run<F>(&self, work: F) -> std::result::Result<(), CoreError>
+    pub(crate) async fn run<T, F>(&self, work: F) -> std::result::Result<T, CoreError>
     where
-        F: Future<Output = Result<()>> + Send + 'static,
+        T: Send + 'static,
+        F: Future<Output = Result<T>> + Send + 'static,
     {
         join_result(
             self.handle
@@ -703,9 +732,9 @@ impl ViewModelCore {
     /// profile (`AcknowledgedCredentials::begin_session`: new fence epoch,
     /// the signed-out session's cache and Keychain payload wiped, then the
     /// Keychain store with acknowledgement), then `start` from it. This is
-    /// the hand-over point for a login performed in the core; it is not
-    /// exported because the Apple login still runs in Swift, and importing
-    /// Swift-held secrets is a separate decision (plan
+    /// the hand-over point for a session produced in Rust. It is not
+    /// exported: Swift signs in through the core login (`view_login.rs`),
+    /// and importing Swift-held sessions is a separate decision (plan
     /// `apple-client-core-migration`, A2 notes).
     ///
     /// # Errors

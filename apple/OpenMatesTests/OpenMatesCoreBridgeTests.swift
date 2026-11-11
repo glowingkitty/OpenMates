@@ -212,6 +212,28 @@ final class OpenMatesCoreBridgeTests: XCTestCase {
         }
     }
 
+    // contract-test: supporting surface=gui.apple assertions=client-core.apple.strangler-order
+    @MainActor
+    func testViewModelCoreSendRequiresASessionAndCancelFindsNoSend() async throws {
+        let container = FileManager.default.temporaryDirectory.path
+        let name = "core-cache-\(UUID().uuidString)"
+        defer { try? FileManager.default.removeItem(atPath: (container as NSString).appendingPathComponent(name)) }
+        let core = try ViewModelCore(
+            config: CoreConfig(
+                apiUrl: Self.apiURL, appUrl: nil,
+                cacheContainer: container, cacheDirectoryName: name),
+            credentials: EmptyCredentialStore(), listener: CoreViewEventRelay { _ in })
+        try await core.start(cancellation: nil)
+        do {
+            _ = try await core.send(
+                request: 1, chatId: nil, text: "Synthetic question", cancellation: nil)
+            XCTFail("send without a session succeeded")
+        } catch let error as CoreError {
+            XCTAssertEqual(error, .Authentication)
+        }
+        XCTAssertFalse(core.cancelSend())
+    }
+
     // contract-test: supporting surface=gui.apple assertions=client-core.credentials.snapshot-boundary
     func testViewModelCoreRejectsACacheDirectoryNameWithASeparator() {
         XCTAssertThrowsError(try ViewModelCore(

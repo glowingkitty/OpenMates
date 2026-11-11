@@ -6,8 +6,8 @@
 //! `apple-client-core-migration` lane L8.
 use openmates_sdk::view_model::{
     AccessDenial, ChatListRow, ChatRowStatus, ChatWindowRecord, ChatWindowSource, EmbedRef,
-    ListCompleteness, MessageRecord, MessageRole, MessageStatus, PiiRestoration, SessionEvent,
-    StreamEvent, SyncPhase, ViewErrorKind, ViewEvent,
+    ListCompleteness, MessageRecord, MessageRole, MessageStatus, PiiRestoration, SendState,
+    SessionEvent, StreamEvent, SyncPhase, ViewErrorKind, ViewEvent,
 };
 
 /// How trustworthy a published chat list is (core `ListCompleteness`).
@@ -85,6 +85,30 @@ pub enum MessageStatusRecord {
     Streaming,
 }
 
+/// Delivery state of a message the user sent from this device (core
+/// `SendState`).
+#[derive(Clone, Debug, PartialEq, Eq, uniffi::Enum)]
+pub enum SendStateRecord {
+    /// Shown before the server saw it.
+    Sending,
+    /// Dispatch may have committed; never resend automatically.
+    Submitted,
+    /// The server acknowledged persistence of the message.
+    Delivered,
+    /// The send failed; the text stays visible for a deliberate retry.
+    Failed {
+        /// Failure class.
+        error: ViewErrorKindRecord,
+        /// Dispatch may have committed before the failure.
+        submitted: bool,
+    },
+    /// The user cancelled the send or its reply.
+    Cancelled {
+        /// Dispatch may have committed before the cancel.
+        submitted: bool,
+    },
+}
+
 /// Reference to a decrypted embed (core `EmbedRef`).
 #[derive(Clone, Debug, PartialEq, Eq, uniffi::Record)]
 pub struct EmbedRefRecord {
@@ -123,6 +147,9 @@ pub struct MessageViewRecord {
     pub thinking: String,
     /// Embeds attached to the message.
     pub embeds: Vec<EmbedRefRecord>,
+    /// Send progress of a message sent from this device; `None` for stored
+    /// messages and replies.
+    pub send_state: Option<SendStateRecord>,
 }
 
 /// Where a chat window's data came from (core `ChatWindowSource`).
@@ -477,6 +504,22 @@ impl From<MessageRecord> for MessageViewRecord {
             sender: message.sender,
             thinking: message.thinking,
             embeds: embeds(message.embeds),
+            send_state: message.send_state.map(Into::into),
+        }
+    }
+}
+
+impl From<SendState> for SendStateRecord {
+    fn from(value: SendState) -> Self {
+        match value {
+            SendState::Sending => Self::Sending,
+            SendState::Submitted => Self::Submitted,
+            SendState::Delivered => Self::Delivered,
+            SendState::Failed { error, submitted } => Self::Failed {
+                error: error.into(),
+                submitted,
+            },
+            SendState::Cancelled { submitted } => Self::Cancelled { submitted },
         }
     }
 }

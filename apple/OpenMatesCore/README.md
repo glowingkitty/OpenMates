@@ -27,8 +27,28 @@ sandboxed app cannot read.
 `openChat(request:chatId:)`, `loadOlder`, `closeChat` and `markRead` run the
 core chat window; `ViewListener` receives `ChatWindow` events tagged with the
 Swift-chosen request id (cached window first, then first page or the strict
-window). A fresh sign-in after logout begins in the core
-(`ViewModelCore::begin_session`, Rust only until the Apple login moves into the core).
+window). A fresh sign-in after logout begins in the core (see below).
+
+## Login and send from Swift on `ViewModelCore`
+
+- `loginPassword(email:password:tfaCode:stayLoggedIn:cancellation:)` runs the
+  password login in the core, stores the session through `CredentialStore`
+  (Swift acknowledges as usual) and then runs `start`. Outcomes are the core's
+  own `CoreError` cases: `TwoFactorRequired` (call again with `tfaCode`),
+  `Authentication`, `Locked` (Keychain store not acknowledged; the new server
+  session is logged out), `Invalid` while signed in. A fresh profile emits only
+  `Session(Admitted)`; call `bootSync` for the chat list.
+- Pair login of this device: `beginPairLogin()` (code and link to show),
+  `pollPairLogin()` until `"approved"`, `submitPairPin(pin:)`, then
+  `finishPairLogin(cancellation:)` until `true` (stored, relay acknowledged,
+  started); `cancelPairLogin()` abandons it.
+- `send(request:chatId:text:cancellation:)` sends a turn; the user message
+  carries `sendState` (`Sending` … `Delivered`, `Failed`, `Cancelled`).
+  `cancelSend()` cancels the running send without waiting for the actor.
+- Passwords, codes and PINs are only call arguments; the binding zeroizes them
+  after the core call and never stores or logs them. Passkey, recovery-key and
+  backup-code login, and importing a Swift-held session, are not in the core
+  API yet; the app still signs in through `AuthManager` until plan step A4.
 
 ## Watch arm64_32: no TLS in the core
 

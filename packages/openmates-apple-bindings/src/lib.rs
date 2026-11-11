@@ -4,7 +4,8 @@
 //! the OPAQUE pair-login steps and password-v2 derivation, batched chat
 //! decryption (`chat_crypto`), the view-model actor `ViewModelCore` (cache
 //! directory, Keychain `CredentialStore`, `ViewListener` events mirrored in
-//! `view_records`), and one typed `CoreError`. Swift module
+//! `view_records`, send in `view_send`, core-performed password and pair
+//! login in `view_login`), and one typed `CoreError`. Swift module
 //! `OpenMatesCore`, C module `OpenMatesCoreFFI`.
 //! Plan: `docs/plans/apple-client-core-migration` (A1, A3); spec: `specifications/architecture/client-core`.
 uniffi::setup_scaffolding!();
@@ -14,7 +15,9 @@ mod core;
 mod error;
 mod pairing;
 mod view_core;
+mod view_login;
 mod view_records;
+mod view_send;
 
 pub use crate::core::{
     CoreCancellation, CoreConfig, CoreListener, CredentialSnapshotRecord, OpenMatesCore,
@@ -35,11 +38,12 @@ pub use pairing::{
     start_client_registration, start_server_login,
 };
 pub use view_core::{CredentialStore, ViewListener, ViewModelCore};
+pub use view_login::PairChallengeRecord;
 pub use view_records::{
     AccessDenialRecord, ChatListRowRecord, ChatRowStatusRecord, ChatWindowSourceRecord,
     ChatWindowViewRecord, EmbedRefRecord, ListCompletenessRecord, MessageRoleRecord,
-    MessageStatusRecord, MessageViewRecord, PiiRestorationRecord, SessionEventRecord,
-    StreamEventRecord, SyncPhaseRecord, ViewErrorKindRecord, ViewEventRecord,
+    MessageStatusRecord, MessageViewRecord, PiiRestorationRecord, SendStateRecord,
+    SessionEventRecord, StreamEventRecord, SyncPhaseRecord, ViewErrorKindRecord, ViewEventRecord,
 };
 
 /// Version of this binding crate, so Swift can check that the framework and the
@@ -56,6 +60,12 @@ mod core_tests;
 #[cfg(test)]
 mod pairing_tests;
 #[cfg(test)]
+mod test_api;
+#[cfg(test)]
 mod view_core_tests;
+#[cfg(test)]
+mod view_login_tests;
+#[cfg(test)]
+mod view_send_tests;
 #[cfg(test)]
 mod view_window_tests;

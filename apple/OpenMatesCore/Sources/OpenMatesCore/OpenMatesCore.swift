@@ -1983,6 +1983,110 @@ public protocol ViewModelCoreProtocol: AnyObject, Sendable {
      */
     func switchTeam(teamId: String?, cancellation: CoreCancellation?) async throws 
     
+    /**
+     * Begin a pair login of this device: returns the code (and link) the
+     * authorizing device enters. Replaces a running pair login.
+     *
+     * # Errors
+     * `Invalid` while signed in; `Offline`, `Protocol`, `Expired` from the core.
+     */
+    func beginPairLogin() async throws  -> PairChallengeRecord
+    
+    /**
+     * Abandon the running pair login (nothing running: no-op). The core
+     * deletes the code remotely; when the paired session was already
+     * prepared (it may be in the Keychain), the profile is signed out
+     * locally as by `logout` (`Session(SignedOut)`).
+     *
+     * # Errors
+     * The local sign-out error, else the core's cancel error.
+     */
+    func cancelPairLogin() async throws 
+    
+    /**
+     * One finish step: `false` while the authorizer has not delivered the
+     * key bundle yet (call again); `true` once the paired session is stored
+     * through the Keychain, the relay acknowledged and `start` ran (same
+     * events as `loginPassword`). After a failed Keychain store or relay
+     * acknowledgement the pairing stays open, so calling again retries.
+     *
+     * # Errors
+     * `Invalid` while signed in or without a running pair login; `Expired`
+     * for a failed or lapsed pairing; `Authentication`/`Crypto` for a wrong
+     * PIN or a bundle of another account; `Locked` for an unacknowledged
+     * store; then as `start`.
+     */
+    func finishPairLogin(cancellation: CoreCancellation?) async throws  -> Bool
+    
+    /**
+     * Sign in with email and password in the core, then begin the session on
+     * this profile (Keychain store and `acknowledgeCredentials`) and `start`
+     * from it: `Session(Restored)`, `ChatList(Cached)`, `Session(Admitted)`.
+     * Run `bootSync` afterwards for the network chat list. `password` and
+     * `tfaCode` are zeroized after the core call; the binding never stores
+     * or logs them. `stayLoggedIn` is the server cookie lifetime only.
+     *
+     * # Errors
+     * The core's login outcome: `TwoFactorRequired` (call again with
+     * `tfaCode`), `Authentication` (wrong email, password or code),
+     * `Offline`, `Protocol`; `Invalid` while signed in; then as the
+     * hand-over (`Invalid` while another session is stored, `Locked` for an
+     * unacknowledged Keychain store; the new server session is then logged
+     * out) and as `start`. `Cancelled` when `cancellation` fired; a cancel
+     * after the Keychain store wipes the stored session, logs the new server
+     * session out and emits `Session(SignedOut)`.
+     */
+    func loginPassword(email: String, password: String, tfaCode: String?, stayLoggedIn: Bool, cancellation: CoreCancellation?) async throws 
+    
+    /**
+     * Poll the running pair login once; returns the relay status as the core
+     * reports it (`"approved"`: ask for the PIN and call `submitPairPin`;
+     * other values: keep polling).
+     *
+     * # Errors
+     * `Invalid` without a running pair login; `Expired` when the code
+     * failed, was cancelled or lapsed; `Offline`, `Protocol`.
+     */
+    func pollPairLogin() async throws  -> String
+    
+    /**
+     * Send the 6-character PIN shown on the authorizing device (zeroized
+     * after the call). Then call `finishPairLogin` until it returns `true`.
+     *
+     * # Errors
+     * `Invalid` without a running pair login; `Protocol` before approval;
+     * `Crypto` for a malformed PIN; `Authentication` when the relay refused.
+     */
+    func submitPairPin(pin: String) async throws 
+    
+    /**
+     * Cancel the running send without waiting for the actor; returns
+     * whether one was running. The send then persists what was admitted,
+     * publishes its `Cancelled` state and throws `CoreError.Cancelled`.
+     * Callable from any thread; never blocks on the network.
+     */
+    func cancelSend()  -> Bool
+    
+    /**
+     * Send `text` as the turn of Swift's `request` id into `chat_id`
+     * (`nil`: a new chat) and return the sent chat's window (`Canonical`).
+     * Events, all carrying `request`: the user message with send state
+     * `Sending` in the open window before any network request, then per
+     * stream update a `Stream` event plus the changed window (`Live`), then
+     * the sent window (`Canonical`) and the chat list. A turn into a chat
+     * that is not open emits `Stream` events and the list only. A failed
+     * send keeps the user message with `Failed`; a cancel (through
+     * `cancellation` or `cancelSend`) publishes `Cancelled` and ends with
+     * `CoreError.Cancelled`. Runs on the actor, so other commands wait for it;
+     * `logout` cancels it.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid` for empty text, an unknown
+     * `@mention` (nothing is sent) or a refused turn; network, send and
+     * persistence errors; `Cancelled` when cancelled.
+     */
+    func send(request: UInt64, chatId: String?, text: String, cancellation: CoreCancellation?) async throws  -> ChatWindowViewRecord
+    
 }
 /**
  * The core view-model actor for the Apple app. Create one per process
@@ -2308,6 +2412,215 @@ open func switchTeam(teamId: String?, cancellation: CoreCancellation?)async thro
             completeFunc: ffi_openmates_apple_bindings_rust_future_complete_void,
             freeFunc: ffi_openmates_apple_bindings_rust_future_free_void,
             liftFunc: { $0 },
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Begin a pair login of this device: returns the code (and link) the
+     * authorizing device enters. Replaces a running pair login.
+     *
+     * # Errors
+     * `Invalid` while signed in; `Offline`, `Protocol`, `Expired` from the core.
+     */
+open func beginPairLogin()async throws  -> PairChallengeRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_begin_pair_login(
+                        self.uniffiCloneHandle()
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypePairChallengeRecord_lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Abandon the running pair login (nothing running: no-op). The core
+     * deletes the code remotely; when the paired session was already
+     * prepared (it may be in the Keychain), the profile is signed out
+     * locally as by `logout` (`Session(SignedOut)`).
+     *
+     * # Errors
+     * The local sign-out error, else the core's cancel error.
+     */
+open func cancelPairLogin()async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_cancel_pair_login(
+                        self.uniffiCloneHandle()
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_void,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_void,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * One finish step: `false` while the authorizer has not delivered the
+     * key bundle yet (call again); `true` once the paired session is stored
+     * through the Keychain, the relay acknowledged and `start` ran (same
+     * events as `loginPassword`). After a failed Keychain store or relay
+     * acknowledgement the pairing stays open, so calling again retries.
+     *
+     * # Errors
+     * `Invalid` while signed in or without a running pair login; `Expired`
+     * for a failed or lapsed pairing; `Authentication`/`Crypto` for a wrong
+     * PIN or a bundle of another account; `Locked` for an unacknowledged
+     * store; then as `start`.
+     */
+open func finishPairLogin(cancellation: CoreCancellation?)async throws  -> Bool  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_finish_pair_login(
+                        self.uniffiCloneHandle(),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_i8,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_i8,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_i8,
+            liftFunc: FfiConverterBool.lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Sign in with email and password in the core, then begin the session on
+     * this profile (Keychain store and `acknowledgeCredentials`) and `start`
+     * from it: `Session(Restored)`, `ChatList(Cached)`, `Session(Admitted)`.
+     * Run `bootSync` afterwards for the network chat list. `password` and
+     * `tfaCode` are zeroized after the core call; the binding never stores
+     * or logs them. `stayLoggedIn` is the server cookie lifetime only.
+     *
+     * # Errors
+     * The core's login outcome: `TwoFactorRequired` (call again with
+     * `tfaCode`), `Authentication` (wrong email, password or code),
+     * `Offline`, `Protocol`; `Invalid` while signed in; then as the
+     * hand-over (`Invalid` while another session is stored, `Locked` for an
+     * unacknowledged Keychain store; the new server session is then logged
+     * out) and as `start`. `Cancelled` when `cancellation` fired; a cancel
+     * after the Keychain store wipes the stored session, logs the new server
+     * session out and emits `Session(SignedOut)`.
+     */
+open func loginPassword(email: String, password: String, tfaCode: String?, stayLoggedIn: Bool, cancellation: CoreCancellation?)async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_login_password(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(email),FfiConverterString.lower(password),FfiConverterOptionString.lower(tfaCode),FfiConverterBool.lower(stayLoggedIn),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_void,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_void,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Poll the running pair login once; returns the relay status as the core
+     * reports it (`"approved"`: ask for the PIN and call `submitPairPin`;
+     * other values: keep polling).
+     *
+     * # Errors
+     * `Invalid` without a running pair login; `Expired` when the code
+     * failed, was cancelled or lapsed; `Offline`, `Protocol`.
+     */
+open func pollPairLogin()async throws  -> String  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_poll_pair_login(
+                        self.uniffiCloneHandle()
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterString.lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Send the 6-character PIN shown on the authorizing device (zeroized
+     * after the call). Then call `finishPairLogin` until it returns `true`.
+     *
+     * # Errors
+     * `Invalid` without a running pair login; `Protocol` before approval;
+     * `Crypto` for a malformed PIN; `Authentication` when the relay refused.
+     */
+open func submitPairPin(pin: String)async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_submit_pair_pin(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(pin)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_void,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_void,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Cancel the running send without waiting for the actor; returns
+     * whether one was running. The send then persists what was admitted,
+     * publishes its `Cancelled` state and throws `CoreError.Cancelled`.
+     * Callable from any thread; never blocks on the network.
+     */
+open func cancelSend() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_method_viewmodelcore_cancel_send(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Send `text` as the turn of Swift's `request` id into `chat_id`
+     * (`nil`: a new chat) and return the sent chat's window (`Canonical`).
+     * Events, all carrying `request`: the user message with send state
+     * `Sending` in the open window before any network request, then per
+     * stream update a `Stream` event plus the changed window (`Live`), then
+     * the sent window (`Canonical`) and the chat list. A turn into a chat
+     * that is not open emits `Stream` events and the list only. A failed
+     * send keeps the user message with `Failed`; a cancel (through
+     * `cancellation` or `cancelSend`) publishes `Cancelled` and ends with
+     * `CoreError.Cancelled`. Runs on the actor, so other commands wait for it;
+     * `logout` cancels it.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid` for empty text, an unknown
+     * `@mention` (nothing is sent) or a refused turn; network, send and
+     * persistence errors; `Cancelled` when cancelled.
+     */
+open func send(request: UInt64, chatId: String?, text: String, cancellation: CoreCancellation?)async throws  -> ChatWindowViewRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_send(
+                        self.uniffiCloneHandle(),FfiConverterUInt64.lower(request),FfiConverterOptionString.lower(chatId),FfiConverterString.lower(text),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeChatWindowViewRecord_lift,
             errorHandler: FfiConverterTypeCoreError_lift
         )
 }
@@ -3701,6 +4014,11 @@ public struct MessageViewRecord: Equatable, Hashable {
      * Embeds attached to the message.
      */
     public var embeds: [EmbedRefRecord]
+    /**
+     * Send progress of a message sent from this device; `None` for stored
+     * messages and replies.
+     */
+    public var sendState: SendStateRecord?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -3725,7 +4043,11 @@ public struct MessageViewRecord: Equatable, Hashable {
          */thinking: String, 
         /**
          * Embeds attached to the message.
-         */embeds: [EmbedRefRecord]) {
+         */embeds: [EmbedRefRecord], 
+        /**
+         * Send progress of a message sent from this device; `None` for stored
+         * messages and replies.
+         */sendState: SendStateRecord?) {
         self.id = id
         self.role = role
         self.status = status
@@ -3733,6 +4055,7 @@ public struct MessageViewRecord: Equatable, Hashable {
         self.sender = sender
         self.thinking = thinking
         self.embeds = embeds
+        self.sendState = sendState
     }
 
     
@@ -3757,7 +4080,8 @@ public struct FfiConverterTypeMessageViewRecord: FfiConverterRustBuffer {
                 content: FfiConverterString.read(from: &buf), 
                 sender: FfiConverterString.read(from: &buf), 
                 thinking: FfiConverterString.read(from: &buf), 
-                embeds: FfiConverterSequenceTypeEmbedRefRecord.read(from: &buf)
+                embeds: FfiConverterSequenceTypeEmbedRefRecord.read(from: &buf), 
+                sendState: FfiConverterOptionTypeSendStateRecord.read(from: &buf)
         )
     }
 
@@ -3769,6 +4093,7 @@ public struct FfiConverterTypeMessageViewRecord: FfiConverterRustBuffer {
         FfiConverterString.write(value.sender, into: &buf)
         FfiConverterString.write(value.thinking, into: &buf)
         FfiConverterSequenceTypeEmbedRefRecord.write(value.embeds, into: &buf)
+        FfiConverterOptionTypeSendStateRecord.write(value.sendState, into: &buf)
     }
 }
 
@@ -3855,6 +4180,85 @@ public func FfiConverterTypeOpaqueIdentifiersRecord_lift(_ buf: RustBuffer) thro
 #endif
 public func FfiConverterTypeOpaqueIdentifiersRecord_lower(_ value: OpaqueIdentifiersRecord) -> RustBuffer {
     return FfiConverterTypeOpaqueIdentifiersRecord.lower(value)
+}
+
+
+/**
+ * The pair login code to show (core `PairChallenge`).
+ */
+public struct PairChallengeRecord: Equatable, Hashable {
+    /**
+     * Code the authorizing device enters (upper-case letters and digits).
+     */
+    public var token: String
+    /**
+     * Web app link that opens the authorization of `token` (QR code).
+     */
+    public var loginUrl: String
+    /**
+     * Expiry in unix seconds.
+     */
+    public var expiresAt: UInt64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Code the authorizing device enters (upper-case letters and digits).
+         */token: String, 
+        /**
+         * Web app link that opens the authorization of `token` (QR code).
+         */loginUrl: String, 
+        /**
+         * Expiry in unix seconds.
+         */expiresAt: UInt64) {
+        self.token = token
+        self.loginUrl = loginUrl
+        self.expiresAt = expiresAt
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension PairChallengeRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePairChallengeRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PairChallengeRecord {
+        return
+            try PairChallengeRecord(
+                token: FfiConverterString.read(from: &buf), 
+                loginUrl: FfiConverterString.read(from: &buf), 
+                expiresAt: FfiConverterUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PairChallengeRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.token, into: &buf)
+        FfiConverterString.write(value.loginUrl, into: &buf)
+        FfiConverterUInt64.write(value.expiresAt, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePairChallengeRecord_lift(_ buf: RustBuffer) throws -> PairChallengeRecord {
+    return try FfiConverterTypePairChallengeRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePairChallengeRecord_lower(_ value: PairChallengeRecord) -> RustBuffer {
+    return FfiConverterTypePairChallengeRecord.lower(value)
 }
 
 
@@ -5324,6 +5728,128 @@ public func FfiConverterTypePiiRestorationRecord_lower(_ value: PiiRestorationRe
 
 
 /**
+ * Delivery state of a message the user sent from this device (core
+ * `SendState`).
+ */
+
+public enum SendStateRecord: Equatable, Hashable {
+    
+    /**
+     * Shown before the server saw it.
+     */
+    case sending
+    /**
+     * Dispatch may have committed; never resend automatically.
+     */
+    case submitted
+    /**
+     * The server acknowledged persistence of the message.
+     */
+    case delivered
+    /**
+     * The send failed; the text stays visible for a deliberate retry.
+     */
+    case failed(
+        /**
+         * Failure class.
+         */error: ViewErrorKindRecord, 
+        /**
+         * Dispatch may have committed before the failure.
+         */submitted: Bool
+    )
+    /**
+     * The user cancelled the send or its reply.
+     */
+    case cancelled(
+        /**
+         * Dispatch may have committed before the cancel.
+         */submitted: Bool
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension SendStateRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSendStateRecord: FfiConverterRustBuffer {
+    typealias SwiftType = SendStateRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SendStateRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .sending
+        
+        case 2: return .submitted
+        
+        case 3: return .delivered
+        
+        case 4: return .failed(error: try FfiConverterTypeViewErrorKindRecord.read(from: &buf), submitted: try FfiConverterBool.read(from: &buf)
+        )
+        
+        case 5: return .cancelled(submitted: try FfiConverterBool.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: SendStateRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .sending:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .submitted:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .delivered:
+            writeInt(&buf, Int32(3))
+        
+        
+        case let .failed(error,submitted):
+            writeInt(&buf, Int32(4))
+            FfiConverterTypeViewErrorKindRecord.write(error, into: &buf)
+            FfiConverterBool.write(submitted, into: &buf)
+            
+        
+        case let .cancelled(submitted):
+            writeInt(&buf, Int32(5))
+            FfiConverterBool.write(submitted, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSendStateRecord_lift(_ buf: RustBuffer) throws -> SendStateRecord {
+    return try FfiConverterTypeSendStateRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSendStateRecord_lower(_ value: SendStateRecord) -> RustBuffer {
+    return FfiConverterTypeSendStateRecord.lower(value)
+}
+
+
+
+/**
  * Session lifecycle events (core `SessionEvent`).
  */
 
@@ -6395,6 +6921,30 @@ fileprivate struct FfiConverterOptionTypeFieldDecryptOutcome: FfiConverterRustBu
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeSendStateRecord: FfiConverterRustBuffer {
+    typealias SwiftType = SendStateRecord?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeSendStateRecord.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeSendStateRecord.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeChatListRowRecord: FfiConverterRustBuffer {
     typealias SwiftType = [ChatListRowRecord]
 
@@ -7039,6 +7589,30 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_switch_team() != 20358) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_begin_pair_login() != 30105) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_cancel_pair_login() != 29296) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_finish_pair_login() != 56707) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_login_password() != 24622) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_poll_pair_login() != 17469) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_submit_pair_pin() != 24978) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_cancel_send() != 12295) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_send() != 30391) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_constructor_corecancellation_new() != 2322) {

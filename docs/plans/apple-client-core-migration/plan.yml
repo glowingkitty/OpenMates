@@ -229,15 +229,38 @@ progress:
     done: [L1, L2, L3, L4, L6a, L6b, L7, L8 part 1]
     remaining_in_order:
       - "Apple login hand-over: the Apple login (password, passkey, recovery, pairing finish) still runs in Swift and keeps cookies and the master key there; the core begin path (shell_session::begin, ViewModelCore::begin_session, Rust only) waits for a core login or an approved import of the Swift-held session."
+      - "Pair login: a cancel arriving through finishPairLogin's own cancellation after the credential store must end signed out with nothing stored (password login already does)."
       - "L5: completion recovery pump into the core (client/completion_recovery_pump.rs), terminal adapter deleted"
       - "L9: send, stream and cancel into the view-model actor (the terminal app still serves Send through ViewHost::bridge)"
     notes:
       - "Apple cache location: Swift passes the container the system hands out plus one folder name (CoreConfig.cache_container, cache_directory_name); Rust creates and checks only that folder (FileByteStore::open_in). An app cannot open the folders above its container."
       - "The unsigned CI simulator build has no Keychain entitlement (status -34018). KeychainCredentialStore.swift is therefore not exercised in CI; bridge tests use an in-memory store. Prove it on a signed build."
-      - "Client::chat_owner_lease is new public core API (late ownership check of a window before it is painted); mention it in the client-core Specification."
       - "The terminal UI has no load-older or close-chat command; only the core supports them."
       - "The core emits Partial list events, never Complete; the core Message record has no timestamp."
-      - "L8 part 2 (uncommitted): ViewModelCore openChat/loadOlder/closeChat/markRead exported; fresh session after logout through shell_session::begin_session_epoch (moved from the terminal app's Store::begin_session_if, which now calls it) and AcknowledgedCredentials::begin_session."
+      - "L9 Apple binding (uncommitted): ViewModelCore send/cancelSend export the core send (SendState mirrored as SendStateRecord, emit_detached forwarded to the listener). Swift app screens are not rewired yet."
+      - "Core login for Swift (uncommitted): ViewModelCore loginPassword and the pair-login steps (begin, poll, PIN, finish, cancel) run in the core and hand over through the new AcknowledgedCredentials::begin_client_session / finish_pair_session (shell_session/login.rs), then start. A signed-in core refuses another login with Invalid. Passkey, recovery-key, backup-code, device 2FA verification and password-v1 migration are not in the core; AuthManager.swift is unchanged."
+      - "L8 part 2 (uncommitted):ViewModelCore openChat/loadOlder/closeChat/markRead exported; fresh session after logout through shell_session::begin_session_epoch (moved from the terminal app's Store::begin_session_if, which now calls it) and AcknowledgedCredentials::begin_session."
+  audit_against_parent_plan_2026_11_11:
+    note: Read-only audit of the parent plan, client-core rules and Specifications. Details and per-lane rules are in a4-design.md.
+    owner_decisions:
+      - "2026-11-11: no runtime switch and no twin phase in the Apple app; each lane replaces Swift code directly."
+      - "Open: carry over unsynced local state of existing installs at cache retirement, or record an exception (AC-5)."
+    open_items:
+      - "sdk-conformance has not run for any core deploy of this plan (submit needs --spec sdk-conformance without preparation)."
+      - "Parent plan capability inventory: Apple cells still read swift-only; update with commits (crypto-keys, pairing, session and view-model exposure)."
+      - "apple/PairOpaqueBridge/local-runtime-symbols.txt is still tracked although the bridge is deleted."
+      - "App size after linking is unmeasured; the notification service, share extensions and widget do not link the core."
+      - "Stale documents: .claude/rules/client-core.md (flag-on specs), client-core Specification wording about the apple-ui CI mode, docs/architecture/platforms/apple.md, docs/architecture/data/sync.md."
+      - "Older Apple plans that still describe Swift logic and should be frozen or superseded: apple-guest-offline-storage, apple-durable-chat-persistence-parity, apple-daily-use-recovery, apple-core-cross-client-parity, apple-watch-chat-loading, apple-auth-security-parity."
+      - "The 32-bit Watch slice has no TLS stack in the core (F-8); the parent plan's Watch risk does not mention it."
+  lessons_from_web_core_rollout:
+    note: Defects found while turning the Rust core on in the web app (dev commits b8b83bbba0, 6c67df588b, 18ffa6a947, 1164c58318). Check each one when rewiring the Apple app (A4, A5).
+    items:
+      - "Nothing the app needs offline or on a dropped connection may be loaded on first use. Apple links the core statically, so code loading is not an issue, but the same rule holds for state: create the core object, cache and listener at app start, not on the first chat open."
+      - "A dropped connection must settle every pending connect and send. Swift callers of core calls always pass a CoreCancellation and handle the error branch; no continuation may wait forever."
+      - "Do not merge a whole chat with the core once per page or per stream update (quadratic for long chats). The core emits a full ChatWindow record after each stream update; Swift applies Stream events to the open message and replaces the window only on Canonical, or the core gains a delta event before A5."
+      - "Decide on stored rows first, filter presentation-only rows afterwards (the first voice turn lost its history because a system row was filtered before the history decision). History and send decisions stay in the core; Swift filters only for display."
+      - "A failed request for derived content (formatting, render plan) is retried with backoff instead of leaving the message unrendered."
   A3:
     state: A3a done (batched decrypt); A3b not started
     remaining: about 20 Swift files still call CryptoManager, decryptChatField or decryptMessageContent; chat key bytes still cross into Swift; decide the core-held key store

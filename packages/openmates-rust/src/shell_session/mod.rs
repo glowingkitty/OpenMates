@@ -1,7 +1,8 @@
 //! Shell session runtime owned by the shared client core: restore (durable
 //! credentials plus the protected cache index), cache-first Chat open, fresh
 //! session admission, persistence with durable receipts, logout, and the
-//! fresh-session fence after a login (`begin`).
+//! fresh-session fence after a login (`begin`) and the hand-over of a core
+//! password or pair login to an acknowledging shell (`login`).
 //!
 //! Moved from the TUI `session_runtime.rs` (lane L4 of
 //! `docs/plans/apple-client-core-migration/a2-design.md`); shells keep only
@@ -14,6 +15,7 @@ mod begin;
 #[cfg(all(test, unix))]
 mod begin_tests;
 mod credentials;
+mod login;
 mod receipt;
 mod session;
 #[cfg(all(test, unix))]
