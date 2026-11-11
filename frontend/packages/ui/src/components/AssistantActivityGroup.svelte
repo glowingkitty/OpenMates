@@ -262,7 +262,9 @@
     summaryMeasure.style.width = `${summaryLabel.clientWidth}px`;
     for (const candidate of summaryCandidates) {
       summaryMeasure.textContent = candidate;
-      if (summaryMeasure.getBoundingClientRect().height <= lineHeight * lines + 0.5) {
+      // Layout height, not the painted box: a message that is still scaling in would
+      // otherwise measure taller than its lines and get the shortest label for good.
+      if (summaryMeasure.offsetHeight <= lineHeight * lines + 0.5) {
         selectedSummary = candidate;
         return;
       }
