@@ -226,7 +226,7 @@ specifications:
     version: 1
     status: draft
     path: features/app-skills/design-embroidery
-    fingerprint: 836a74adebc40214decf9c9c04e6e680217351e417642d8f3ab66c35282dbfdb
+    fingerprint: 70a1699d95898c655cbb539777e72ed32919b9a41acc862cc5fb9284e788ccda
     required_applies_to:
     - cli
     - sdks.npm
@@ -4242,7 +4242,7 @@ assertions:
     specification: feature.app-skill.design-embroidery@1
     specification_id: feature.app-skill.design-embroidery
     type: behavior
-    fingerprint: ce080686064fb62763b083d252db8914b1efb9849982a450beead21d5cbee356
+    fingerprint: 127d543aa047b44e1a8717a72b7ac5eb2e1ebad45b5638358fcb4c138d7015b8
     required_applies_to:
     - cli
     - sdks.npm
@@ -4264,7 +4264,18 @@ assertions:
     specification: feature.app-skill.design-embroidery@1
     specification_id: feature.app-skill.design-embroidery
     type: behavior
-    fingerprint: 1f86f39369b0bbb8759b6edb955ac5744828aae6f6e7af9afdb5022dc4cef6ca
+    fingerprint: 9c6ddddd4c4ecd8e0a1acdb478083ab34e27677302e6b313e547e6eaaeb75e06
+    required_applies_to:
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  design-embroidery.prepare.drawn-lines-as-satin:
+    specification: feature.app-skill.design-embroidery@1
+    specification_id: feature.app-skill.design-embroidery
+    type: behavior
+    fingerprint: 8cc96fb0927bdc82d1dccd9926823e19d339a28cb2817289ef4200ad5426702a
     required_applies_to:
     - cli
     - sdks.npm
@@ -4275,7 +4286,7 @@ assertions:
     specification: feature.app-skill.design-embroidery@1
     specification_id: feature.app-skill.design-embroidery
     type: behavior
-    fingerprint: 76a762c75f78a9fa66ad58060d169561de9a0e9dea3373b8da815683a1330d9b
+    fingerprint: 76c357d9ca5c8a226e1a7c681c63841e5aafe0f3c47cd79a72b50c6c7b5f001f
     required_applies_to:
     - cli
     - sdks.npm

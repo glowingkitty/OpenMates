@@ -21,6 +21,7 @@ from shapely.ops import unary_union
 from shapely.strtree import STRtree
 from svgelements import SVG, Close, Color, Line, Move, Shape, Text
 
+from .bands import find_bands
 from .limits import MIN_DETAIL_MM, PipelineError
 from .ordering import OrderItem, colour_changes, plan_order
 from .presets import SATIN_MIN_WIDTH_MM
@@ -54,6 +55,8 @@ class Shape2D:
     flattened_paint: bool = False
     angle: float = 0.0
     trim_after: bool = False
+    # A band sewn as a satin column of varying width: its two long sides, tip to tip.
+    rails: tuple[LineString, LineString] | None = None
 
     def centre(self) -> tuple[float, float]:
         point = self.geom.representative_point() if self.kind == "fill" else self.geom.centroid
@@ -449,6 +452,25 @@ def _split_parts(shapes: list[Shape2D]) -> list[Shape2D]:
     return split
 
 
+def _bands_to_satin(shapes: list[Shape2D]) -> list[Shape2D]:
+    """Sew narrow filled bands (lines given as outlines) as satin columns across the band."""
+    result: list[Shape2D] = []
+    for shape in shapes:
+        parts = _polygons(shape.geom) if shape.kind == "fill" else []
+        found = find_bands(parts[0]) if len(parts) == 1 else None
+        if found is None:
+            result.append(shape)
+            continue
+        bands, rest = found
+        rest = clean_area(rest)
+        for part in _polygons(rest):
+            result.append(Shape2D(shape.index, shape.colour, "fill", part, flattened_paint=shape.flattened_paint))
+        for band in bands:
+            result.append(Shape2D(shape.index, shape.colour, "satin", band.centre, width=band.width,
+                                  linecap="round", flattened_paint=shape.flattened_paint, rails=band.rails))
+    return result
+
+
 def finish_order(ordered: list[Shape2D]) -> None:
     """Fill angles and trims for shapes in their final sewing order."""
     _assign_angles(ordered)
@@ -483,12 +505,13 @@ def prepare(svg_text: str, scan: SourceScan, width_mm: float, start_colour: str 
     deps = _dependencies(shapes)
     items = [OrderItem(k, shape.colour, shape.kind, shape.centre()) for k, shape in enumerate(shapes)]
     ordered = [shapes[k] for k in plan_order(items, deps, start_colour=start_colour)]
-    ordered = _split_parts(_merge_blocks(ordered))
+    ordered = _bands_to_satin(_split_parts(_merge_blocks(ordered)))
     finish_order(ordered)
     grouped_changes = colour_changes([shape.colour for shape in ordered])
     technical["thread_changes_naive"] = naive_changes
     technical["thread_changes_grouped"] = grouped_changes
     technical["satin_shapes"] = sum(1 for shape in ordered if shape.kind == "satin")
+    technical["bands_as_satin"] = sum(1 for shape in ordered if shape.rails is not None)
     running = [shape for shape in ordered if shape.kind == "running"]
     if running:
         notes.append({"code": "lines_running", "text": "Lines thinner than 1 mm sewn as running stitch"})

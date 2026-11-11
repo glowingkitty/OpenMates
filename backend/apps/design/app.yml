@@ -328,7 +328,7 @@ skills:
           type: string
           enum: [light, normal, stretchy]
           default: normal
-          description: Fabric type; sets stitch density, underlay and pull compensation.
+          description: Fabric the design is sewn on; sets stitch density, underlay and pull compensation. Choose it from what the user says they sew on - stretchy for knits (T-shirt, sweatshirt, hoodie, jersey, beanie), light for thin woven fabric (blouse, thin cotton, silk), normal for firm woven fabric (denim, canvas, twill, patches) or when nothing is said.
         border_mm:
           x-ui:
             basic: false

@@ -64,11 +64,23 @@ separate_shapes:
   - id: whiskers-are-not-joined-by-a-stitch
     given: A black cat face 90 mm wide whose three whiskers on each side are separate filled bands about 2 mm wide and 1 to 2 mm apart, drawn as one element.
     when: It is converted.
-    then: Each whisker is sewn on its own with a trim after it, so no thread runs from one whisker to the next. Each whisker is sewn across its length and has smooth edges.
+    then: Each whisker is sewn on its own with a trim after it, so no thread runs from one whisker to the next.
   - id: touching-shapes-need-no-trim
     given: A nose and a mouth of the same colour that touch each other.
     when: They are converted.
     then: They are sewn as one area without a trim between them.
+
+drawn_lines:
+  - id: cat-face-lines-are-sewn-across
+    given: A pink cat face 90 mm wide made of filled outlines - two arched closed eyes and six straight whiskers, each about 4 mm wide, and a triangular nose with two mouth curves hanging on it.
+    when: It is converted.
+    then: >-
+      The eyes, the whiskers and the two mouth curves are sewn as satin bands: every stitch lies straight across the line and
+      turns with the arch. The nose triangle stays a filled area. The design needs about 1,900 stitches instead of about 2,400.
+  - id: ring-and-wedge-stay-filled
+    given: A dark ring 2 mm wide around a pink spot, and a flame tip that narrows from 5 mm to a point.
+    when: They are converted.
+    then: Both are sewn as filled areas exactly as before; nothing shifts and no fabric shows beside the spot.
 
 border:
   - id: flame-patch-with-black-border

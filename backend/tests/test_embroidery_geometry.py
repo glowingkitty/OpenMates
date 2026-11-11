@@ -235,16 +235,82 @@ WHISKERS = (
 # contract-test: supporting surface=rest_api assertions=design-embroidery.prepare.separate-shapes-not-joined
 def test_separate_parts_are_trimmed_apart_and_narrow_bands_are_sewn_across() -> None:
     prepared = prepare(WHISKERS, scan_source(WHISKERS), 100.0)
+    bands = [shape for shape in prepared.shapes if shape.rails is not None]
     fills = [shape for shape in prepared.shapes if shape.kind == "fill"]
     # Each band is an element of its own, so the thread can be cut between them.
-    assert len(fills) == 4
-    assert all(len(getattr(shape.geom, "geoms", [shape.geom])) == 1 for shape in fills)
-    assert all(shape.trim_after for shape in fills[:-1])
-    bands = [shape for shape in fills if shape.geom.area < 200]
-    block = next(shape for shape in fills if shape.geom.area >= 200)
-    # The bands run left to right and are sewn across (rows at 90 degrees); the block follows its long axis.
-    assert all(abs(abs(shape.angle) - 90.0) < 1.0 for shape in bands)
-    assert abs(abs(block.angle) - 90.0) < 1.0
+    assert len(bands) == 3 and len(fills) == 1
+    assert all(shape.kind == "satin" and shape.width == pytest.approx(2.0 * 100.0 / 85.0, abs=0.1) for shape in bands)
+    assert all(shape.trim_after for shape in prepared.shapes[:-1])
+    for shape in bands:
+        left, right = (list(rail.coords) for rail in shape.rails)
+        assert len(left) == len(right)
+        # The bands run left to right, so every stitch lies straight up and down across them.
+        assert all(abs(one[0] - other[0]) < 0.05 for one, other in zip(left, right))
+    assert prepared.technical["bands_as_satin"] == 3
     svg = write_prepared_svg(prepared, "normal")
     assert svg.count('inkstitch:trim_after="true"') == 3
+    assert svg.count('inkstitch:satin_column="true"') == 3
+
+
+def _arc(cx: float, cy: float, inner: float, outer: float) -> str:
+    """Half ring open at the bottom, drawn as a filled outline (a closed eye)."""
+    return (f"M{cx - outer} {cy}A{outer} {outer} 0 0 1 {cx + outer} {cy}L{cx + inner} {cy}"
+            f"A{inner} {inner} 0 0 0 {cx - inner} {cy}Z")
+
+
+LINE_FACE = (
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80">'
+    f'<path fill="#d81b60" d="{_arc(25, 20, 6, 10)}"/>'
+    # A nose with a stem (stays an area) and two lines hanging on it.
+    '<path fill="#d81b60" d="M40 30H60L52 42V50H70V54H30V50H48V42Z"/>'
+    # A ring around a spot and a wedge are not lines.
+    '<path fill="#d81b60" fill-rule="evenodd" d="M80 10H100V30H80Z M84 14V26H96V14Z"/>'
+    '<path fill="#d81b60" d="M0 60L35 62L0 64Z"/>'
+    "</svg>"
+)
+
+
+# contract-test: supporting surface=rest_api assertions=design-embroidery.prepare.drawn-lines-as-satin
+def test_drawn_lines_become_satin_columns_and_areas_rings_and_wedges_stay_fills() -> None:
+    from shapely.geometry import Polygon
+
+    prepared = prepare(LINE_FACE, scan_source(LINE_FACE), 100.0)
+    bands = [shape for shape in prepared.shapes if shape.rails is not None]
+    fills = [shape for shape in prepared.shapes if shape.kind == "fill"]
+    # The eye arc and the two lines beside the nose stem.
+    assert len(bands) == 3
+    arc = min(bands, key=lambda shape: shape.geom.bounds[1])
+    assert arc.width == pytest.approx(4.0, abs=0.2)
+    left, right = (list(rail.coords) for rail in arc.rails)
+    assert len(left) == len(right) > 20
+    for k in range(5, len(left) - 5):
+        # Away from its two ends every stitch lies square to the line, all the way round the arc.
+        along = (left[k + 1][0] - left[k - 1][0], left[k + 1][1] - left[k - 1][1])
+        across = (right[k][0] - left[k][0], right[k][1] - left[k][1])
+        cosine = (along[0] * across[0] + along[1] * across[1]) / (
+            (along[0] ** 2 + along[1] ** 2) ** 0.5 * (across[0] ** 2 + across[1] ** 2) ** 0.5)
+        assert abs(cosine) < 0.15
+    # Nose with stem, ring and wedge are still areas, and nothing of the drawing is lost.
+    assert len(fills) >= 3
+    assert any(shape.geom.interiors for shape in fills)
+    # Arc, nose with stem and bar, ring, wedge; the fill under the columns' ends counts twice.
+    drawn = 3.14159 * (10 ** 2 - 6 ** 2) / 2 + 312.0 + (400.0 - 144.0) + 70.0
+    sewn = sum(shape.geom.area for shape in fills) + sum(
+        Polygon(list(shape.rails[0].coords) + list(shape.rails[1].coords)[::-1]).area for shape in bands)
+    assert sewn == pytest.approx(drawn, rel=0.08)
+
+
+# contract-test: supporting surface=rest_api assertions=design-embroidery.prepare.sew-on-border
+def test_border_moves_satin_columns_together_with_the_design() -> None:
+    from backend.apps.design.embroidery_sandbox.border import apply_border
+
+    plain = prepare(WHISKERS, scan_source(WHISKERS), 100.0)
+    bordered = apply_border(plain, 3.0, "#000000")
+    before = next(shape for shape in plain.shapes if shape.rails is not None)
+    after = next(shape for shape in bordered.shapes if shape.rails is not None)
+    shift = (after.geom.coords[0][0] - before.geom.coords[0][0], after.geom.coords[0][1] - before.geom.coords[0][1])
+    assert abs(shift[0]) + abs(shift[1]) > 1.0
+    moved = (after.rails[0].coords[0][0] - before.rails[0].coords[0][0],
+             after.rails[0].coords[0][1] - before.rails[0].coords[0][1])
+    assert moved == pytest.approx(shift, abs=1e-6)
 

@@ -7,7 +7,7 @@ process: the worker never parses the untrusted SVG geometry itself.
 
 Modules that only need the standard library (``limits``, ``svg_source``,
 ``ordering``, ``presets``, ``stitch_report``) are unit-tested in the backend test
-suite. ``geometry``, ``border``, ``prepared_svg`` and ``preview`` need the template's pinned
+suite. ``geometry``, ``bands``, ``border``, ``prepared_svg`` and ``preview`` need the template's pinned
 packages (shapely, svgelements, Pillow) and are proven by real sandbox runs.
 """
 
@@ -17,6 +17,7 @@ UPLOADED_MODULES = (
     "svg_source.py",
     "ordering.py",
     "presets.py",
+    "bands.py",
     "geometry.py",
     "border.py",
     "prepared_svg.py",

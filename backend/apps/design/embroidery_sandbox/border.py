@@ -82,7 +82,14 @@ def apply_border(prepared: Prepared, border_mm: float, colour: str) -> Prepared:
         raise PipelineError("sandbox_failed", "The sew-on border could not be built for this design.")
     x0, y0, x1, y1 = outline.bounds
     dx, dy = MARGIN_MM - x0, MARGIN_MM - y0
-    moved = [replace(shape, geom=affinity.translate(shape.geom, dx, dy)) for shape in prepared.shapes]
+    moved = [
+        replace(
+            shape,
+            geom=affinity.translate(shape.geom, dx, dy),
+            rails=None if shape.rails is None else tuple(affinity.translate(rail, dx, dy) for rail in shape.rails),
+        )
+        for shape in prepared.shapes
+    ]
     shapes = [Shape2D(BORDER_INDEX, colour, "fill", affinity.translate(border, dx, dy)), *moved]
     finish_order(shapes)
     technical = {**prepared.technical, "border_area_mm2": int(border.area),

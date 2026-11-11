@@ -57,6 +57,11 @@ def _element(number: int, shape: Shape2D, fabric: str) -> str:
         path = _ring_path(multipolygon_rings(shape.geom))
         style = f"fill:{shape.colour};fill-rule:evenodd;stroke:none"
         params = fill_params(fabric, shape.angle)
+    elif shape.rails is not None:
+        # Two rails with equally many points: Ink/Stitch pairs them point by point.
+        path = "".join(_line_path(list(rail.coords)) for rail in shape.rails)
+        style = f"fill:none;stroke:{shape.colour};stroke-width:0.3;stroke-linejoin:round;stroke-linecap:butt"
+        params = satin_params(fabric, shape.width)
     else:
         path = _line_path(list(shape.geom.coords))
         style = (f"fill:none;stroke:{shape.colour};stroke-width:{_num(max(shape.width, 0.1))};"
