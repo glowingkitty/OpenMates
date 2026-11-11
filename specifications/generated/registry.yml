@@ -226,7 +226,7 @@ specifications:
     version: 1
     status: draft
     path: features/app-skills/design-embroidery
-    fingerprint: 168f63d606663a82dca3cd68397a79e1a6074dd378f0492331f56db8d012476d
+    fingerprint: 530844a83e2c6b4d162a8ff89b17d3b1940e9f73c6bc0b5723d8997a008ec2cc
     required_applies_to:
     - cli
     - sdks.npm
@@ -4254,6 +4254,17 @@ assertions:
     specification_id: feature.app-skill.design-embroidery
     type: behavior
     fingerprint: 033c9852750d67f733e13f0cb18da429e499bb84fb906e134a05507c4e5d9fcb
+    required_applies_to:
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  design-embroidery.prepare.separate-shapes-not-joined:
+    specification: feature.app-skill.design-embroidery@1
+    specification_id: feature.app-skill.design-embroidery
+    type: behavior
+    fingerprint: 1f86f39369b0bbb8759b6edb955ac5744828aae6f6e7af9afdb5022dc4cef6ca
     required_applies_to:
     - cli
     - sdks.npm

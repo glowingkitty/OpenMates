@@ -34,8 +34,11 @@ MIN_LINE_LENGTH_MM = 1.0
 CURVE_STEP_MM = 0.25
 SIMPLIFY_MM = 0.03
 MARGIN_MM = 1.0
-# A jump to the next shape of the same thread longer than this gets a trim first.
-TRIM_DISTANCE_MM = 5.0
+# A jump to the next shape of the same thread longer than this gets a trim first,
+# so no connecting stitch is left lying across the fabric between separate shapes.
+TRIM_DISTANCE_MM = 1.0
+# A fill whose mean width (2 x area / outline length) is below this is sewn across its length.
+NARROW_BAND_MM = 3.0
 
 
 @dataclass
@@ -382,10 +385,16 @@ def _long_axis_angle(geom: BaseGeometry) -> float:
 
 
 def _assign_angles(shapes: list[Shape2D]) -> None:
-    """Fill rows follow the long axis; touching fills of other colours differ by >= 30 degrees."""
+    """Fill rows follow the long axis; touching fills of other colours differ by >= 30 degrees.
+
+    A narrow band (a drawn line given as an outline) is sewn across instead, like a satin
+    column: rows along a thin band leave a ragged edge.
+    """
     fills = [shape for shape in shapes if shape.kind == "fill"]
     for k, shape in enumerate(fills):
         angle = _long_axis_angle(shape.geom)
+        if 2.0 * shape.geom.area / max(shape.geom.length, 1e-9) < NARROW_BAND_MM:
+            angle += 90.0
         neighbours = [other.angle for other in fills[:k]
                       if other.colour != shape.colour and other.geom.distance(shape.geom) < 0.5]
         # Closest to the long axis first: +0, +45, -45, +90 degrees.
@@ -418,6 +427,26 @@ def _merge_blocks(shapes: list[Shape2D]) -> list[Shape2D]:
                                  clean_area(candidate.geom.union(shape.geom)),
                                  flattened_paint=candidate.flattened_paint or shape.flattened_paint)
     return merged
+
+
+def _split_parts(shapes: list[Shape2D]) -> list[Shape2D]:
+    """Sew the separate parts of one fill as elements of their own, nearest part first.
+
+    Parts of one element are joined by a sewn connecting stitch; separate elements can be trimmed.
+    """
+    split: list[Shape2D] = []
+    for shape in shapes:
+        parts = _polygons(shape.geom) if shape.kind == "fill" else []
+        if len(parts) < 2:
+            split.append(shape)
+            continue
+        last = split[-1].geom if split else None
+        while parts:
+            part = min(parts, key=lambda candidate: last.distance(candidate) if last is not None else 0.0)
+            parts.remove(part)
+            split.append(Shape2D(shape.index, shape.colour, "fill", part, flattened_paint=shape.flattened_paint))
+            last = part
+    return split
 
 
 def finish_order(ordered: list[Shape2D]) -> None:
@@ -454,7 +483,7 @@ def prepare(svg_text: str, scan: SourceScan, width_mm: float, start_colour: str 
     deps = _dependencies(shapes)
     items = [OrderItem(k, shape.colour, shape.kind, shape.centre()) for k, shape in enumerate(shapes)]
     ordered = [shapes[k] for k in plan_order(items, deps, start_colour=start_colour)]
-    ordered = _merge_blocks(ordered)
+    ordered = _split_parts(_merge_blocks(ordered))
     finish_order(ordered)
     grouped_changes = colour_changes([shape.colour for shape in ordered])
     technical["thread_changes_naive"] = naive_changes

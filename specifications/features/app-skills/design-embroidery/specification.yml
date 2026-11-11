@@ -126,6 +126,10 @@ assertions:
     type: behavior
     must: The requested width is the width of the sewn design, not only of the drawing. Lines sewn as satin bands lose their rounded ends and thin shapes pull in, so the stitches can come out narrower or wider than drawn. When the sewn width differs from the requested one by more than half a millimetre and the first conversion took at most 45 seconds, the graphic is prepared once more at a corrected size and converted again, and only that second result is delivered. A longer conversion keeps its first result; the result always states the real sewn width.
     depends_on: [models.EmbroideryRequest, examples.sewn_width]
+  - id: design-embroidery.prepare.separate-shapes-not-joined
+    type: behavior
+    must: Shapes of the same thread colour that lie more than 1 mm apart are not joined by a sewn connecting stitch. Each separate part is sewn on its own, also when the graphic holds several parts in one element, and the thread is trimmed before the machine moves to the next part. A narrow filled band (a drawn line given as an outline, on average under 3 mm wide) is sewn across its length like a satin band, so its edges stay smooth.
+    depends_on: [models.Preparation.fixed_rules, examples.separate_shapes]
   - id: design-embroidery.prepare.sew-on-border
     type: behavior
     must: When the request carries border_mm, the design gets a border for sewing it onto a garment. The border is the outline of the whole design grown outward by exactly that many millimetres at the sewn size, in border_colour (black when none is given), sewn before everything else as one filled area that the design slightly overlaps, so no fabric shows between border and design. Openings and gaps of the design narrower than twice the border width are filled by the border; wider ones stay open. The requested width_mm is the width of the design without the border, so the sewn size, the hoop check and every number of the result include the border. The notes name the border and its width. Without border_mm nothing is added.

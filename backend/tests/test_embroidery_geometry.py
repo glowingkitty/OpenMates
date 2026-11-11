@@ -222,3 +222,29 @@ def test_fit_hoop_option_needs_a_hoop_and_sizes_the_prepared_design(tmp_path: Pa
     with pytest.raises(PipelineError):
         pipeline.run_convert(tmp_path, options, pipeline.time.monotonic())
     assert seen and sizes[0][0] == pytest.approx(298.0, abs=0.1) and sizes[0][1] < 198.0
+
+
+WHISKERS = (
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 60">'
+    # One element with three separate bands (drawn lines given as outlines), about 3 mm apart.
+    '<path fill="#000000" d="M5 5H45V7H5Z M5 10H45V12H5Z M5 15H45V17H5Z"/>'
+    '<rect fill="#000000" x="60" y="5" width="30" height="40"/></svg>'
+)
+
+
+# contract-test: supporting surface=rest_api assertions=design-embroidery.prepare.separate-shapes-not-joined
+def test_separate_parts_are_trimmed_apart_and_narrow_bands_are_sewn_across() -> None:
+    prepared = prepare(WHISKERS, scan_source(WHISKERS), 100.0)
+    fills = [shape for shape in prepared.shapes if shape.kind == "fill"]
+    # Each band is an element of its own, so the thread can be cut between them.
+    assert len(fills) == 4
+    assert all(len(getattr(shape.geom, "geoms", [shape.geom])) == 1 for shape in fills)
+    assert all(shape.trim_after for shape in fills[:-1])
+    bands = [shape for shape in fills if shape.geom.area < 200]
+    block = next(shape for shape in fills if shape.geom.area >= 200)
+    # The bands run left to right and are sewn across (rows at 90 degrees); the block follows its long axis.
+    assert all(abs(abs(shape.angle) - 90.0) < 1.0 for shape in bands)
+    assert abs(abs(block.angle) - 90.0) < 1.0
+    svg = write_prepared_svg(prepared, "normal")
+    assert svg.count('inkstitch:trim_after="true"') == 3
+

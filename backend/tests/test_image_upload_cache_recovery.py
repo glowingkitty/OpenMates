@@ -88,7 +88,7 @@ class UploadCacheOutcomeTests(unittest.IsolatedAsyncioTestCase):
     async def test_internal_cache_rejects_unacknowledged_write_and_redis_absence(self):
         ns = {'logger': logging.getLogger(__name__), 'HTTPException': HTTPError}
         function = load_functions('backend/core/api/app/routes/internal_api.py', ['cache_upload_embed'], ns)['cache_upload_embed']
-        payload = SimpleNamespace(embed_id='image', user_id='owner', vault_wrapped_aes_key='wrapped', aes_nonce='', s3_base_url='https://storage.test', files={'original': {'s3_key': 'key'}}, content_type='image/png', original_filename='Original Image.PNG', ai_detection=None)
+        payload = SimpleNamespace(embed_id='image', user_id='owner', vault_wrapped_aes_key='wrapped', aes_nonce='', s3_base_url='https://storage.test', files={'original': {'s3_key': 'key'}}, content_type='image/png', original_filename='Original Image.PNG', ai_detection=None, pdf_billing=None)
         missing = await function(payload, cache_service=Cache(None))
         self.assertEqual(missing, {'status': 'skipped', 'reason': 'redis_unavailable'})
         redis = SimpleNamespace(get=AsyncMock(return_value=None), set=AsyncMock(return_value=False))

@@ -60,6 +60,16 @@ sewn_width:
     when: The conversion runs.
     then: It is converted once; the result says 90.4 mm wide.
 
+separate_shapes:
+  - id: whiskers-are-not-joined-by-a-stitch
+    given: A black cat face 90 mm wide whose three whiskers on each side are separate filled bands about 2 mm wide and 1 to 2 mm apart, drawn as one element.
+    when: It is converted.
+    then: Each whisker is sewn on its own with a trim after it, so no thread runs from one whisker to the next. Each whisker is sewn across its length and has smooth edges.
+  - id: touching-shapes-need-no-trim
+    given: A nose and a mouth of the same colour that touch each other.
+    when: They are converted.
+    then: They are sewn as one area without a trim between them.
+
 border:
   - id: flame-patch-with-black-border
     given: >
