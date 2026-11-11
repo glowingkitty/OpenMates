@@ -106,6 +106,14 @@ function retryAfterFailure(messageId: string, state: MessageState, key: string, 
 }
 
 /**
+ * True after a plan request for this message failed and no plan has resolved
+ * since. The page then shows the plain text instead of an empty message.
+ */
+export function renderPlanRequestFailed(messageId: string): boolean {
+	return (states.get(messageId)?.failures ?? 0) > 0;
+}
+
+/**
  * Returns the plan for this exact source, or null when it is still resolving
  * (flag on only). `plans` holds the newest resolved plan per message (the
  * `previous` for the next diff and the stale document shown while resolving).

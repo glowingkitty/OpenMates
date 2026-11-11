@@ -36,7 +36,7 @@ port_ledger:
     code_lines: 9550
   bridge_excluded:
     files: 215
-    code_lines: 19401
+    code_lines: 19404
   slices:
   - id: rust-web-auth-session-lane-behind-vite-openmates-cd767f7
     commit: cd767f7058

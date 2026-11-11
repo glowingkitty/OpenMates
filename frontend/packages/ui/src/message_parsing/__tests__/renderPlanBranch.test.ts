@@ -15,6 +15,7 @@ import {
 	type AssistantRenderPlan,
 } from '../streamingMessageBlocks';
 import {
+	renderPlanRequestFailed,
 	renderPlansAreAsync,
 	resolveAssistantRenderPlan,
 } from '../../services/rustCore/parse/renderPlanBranch';
@@ -31,5 +32,7 @@ describe('renderPlanBranch (flag off)', () => {
 			expect(branched).toEqual(reference);
 			expect(plans.get('m1')).toBe(branched);
 		}
+		// No request can fail when plans are synchronous: the plain-text fallback stays unused.
+		expect(renderPlanRequestFailed('m1')).toBe(false);
 	});
 });

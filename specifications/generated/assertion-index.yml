@@ -198225,7 +198225,7 @@ assertions:
       surface: gui.web
     - &id25188
       path: frontend/packages/ui/src/message_parsing/__tests__/renderPlanBranch.test.ts
-      line: 24
+      line: 25
       name: is synchronous and equals createAssistantRenderPlan, chaining previous
         plans
       surface: gui.web

@@ -41,6 +41,7 @@ import { storageArchiveFetch } from "../config/api";
     onRenderPlanReady,
     renderPlansAreAsync,
     resetRenderPlanState,
+    renderPlanRequestFailed,
     resolveAssistantRenderPlan,
   } from '../services/rustCore/parse/renderPlanBranch';
   import { StreamingRenderScheduler } from '../message_parsing/streamingRenderScheduler';
@@ -323,14 +324,17 @@ import { storageArchiveFetch } from "../config/api";
   }
 
   const assistantRenderPlans = new Map<string, AssistantRenderPlan>();
-  // Placeholder shown for one frame on the flag-on build before the first Rust plan resolves:
-  // the raw message text as one text node per line, no block decisions.
+  // Flag-on build only. Before the first Rust plan of a message resolves the message is
+  // empty: showing its source here made embed reference JSON and markdown flash before the
+  // rendered result. The plain text is shown only after a plan request failed, so a parse
+  // unit that does not answer never leaves a message blank.
   function plainTextDoc(text: string): unknown {
     const paragraphs = text.split('\n\n').map(chunk => chunk.length > 0
       ? { type: 'paragraph', content: [{ type: 'text', text: chunk }] }
       : { type: 'paragraph' });
     return { type: 'doc', content: paragraphs };
   }
+  const EMPTY_DOC = { type: 'doc', content: [{ type: 'paragraph' }] };
   let renderPlanVersion = $state(0);
 
   // Helper function to map incoming message structure to InternalMessage
@@ -362,7 +366,8 @@ import { storageArchiveFetch } from "../config/api";
         // show the last resolved document (or none) until onRenderPlanReady remaps.
         processedContent = plan
           ? plan.document
-          : (assistantRenderPlans.get(incomingMessage.message_id)?.document ?? plainTextDoc(contentToProcess));
+          : (assistantRenderPlans.get(incomingMessage.message_id)?.document
+            ?? (renderPlanRequestFailed(incomingMessage.message_id) ? plainTextDoc(contentToProcess) : EMPTY_DOC));
       } else {
         const tiptapJson = parse_message(contentToProcess, 'read', {
           unifiedParsingEnabled: true,
