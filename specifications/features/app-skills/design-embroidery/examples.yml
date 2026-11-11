@@ -44,6 +44,16 @@ prepare:
     when: It is converted.
     then: The wave is sewn as a satin band about 2.5 mm wide and the frame as a single running-stitch line.
 
+sewn_width:
+  - id: line-drawing-sews-at-the-width-asked-for
+    given: A cat face drawn only with 2 mm wide lines that have rounded ends, requested 90 mm wide. Sewn as satin bands it first comes out 88.0 mm wide.
+    when: The conversion runs; the first pass takes about four seconds.
+    then: The graphic is prepared again slightly larger and converted a second time. The delivered files and the result say 90.0 mm wide.
+  - id: filled-design-is-not-converted-twice
+    given: A filled cat face requested 90 mm wide that sews 90.4 mm wide.
+    when: The conversion runs.
+    then: It is converted once; the result says 90.4 mm wide.
+
 border:
   - id: flame-patch-with-black-border
     given: >

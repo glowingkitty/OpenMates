@@ -23,11 +23,14 @@ from pathlib import Path
 
 from .border import BORDER_INDEX, apply_border
 from .geometry import Prepared, check, prepare
-from .limits import MAX_STITCHES, RUN_LIMIT_SECONDS, Options, PipelineError, hoop_fit, hoop_fit_width
+from .limits import (
+    MAX_STITCHES, RESIZE_MAX_FIRST_RUN_SECONDS, RUN_LIMIT_SECONDS, Options, PipelineError,
+    hoop_fit, hoop_fit_width, resized_width,
+)
 from .prepared_svg import write_prepared_svg
 from .presets import fill_params
 from .preview import render_dpi, to_transparent_png, to_webp
-from .stitch_report import build_report, stitches_json
+from .stitch_report import build_report, sewn_width_mm, stitches_json
 from .svg_source import SourceScan, findings_from_scan, scan_source
 
 INKSTITCH = "/opt/inkstitch/bin/inkstitch"
@@ -160,34 +163,44 @@ def run_convert(workdir: Path, options: Options, started: float) -> dict[str, ob
     findings = findings_from_scan(scan)
     timings["check"] = round(time.monotonic() - mark, 3)
 
-    mark = time.monotonic()
     bordered = options.border_mm is not None
     start_colour = options.border_colour if bordered else None
-    prepared = prepare(svg_text, scan, options.width_mm, start_colour)
-    if options.fit_hoop:
-        fitted = hoop_fit_width(prepared.width_mm, prepared.height_mm,
-                                2 * float(options.border_mm) if bordered else 0.0, options.hoop)
-        prepared = prepare(svg_text, scan, fitted, start_colour)
-        prepared.notes.append({"code": "sized_to_hoop", "text": "Sized to fill the hoop"})
-    if bordered:
-        prepared = apply_border(prepared, float(options.border_mm), options.border_colour)
-    findings += prepared.findings
-    estimate = _estimate_stitches(prepared, options.fabric)
-    if estimate > MAX_STITCHES:
-        raise PipelineError("too_many_stitches")
-    seconds_left = deadline - time.monotonic() - FIXED_CONVERT_SECONDS
-    if estimate / MIN_STITCHES_PER_SECOND > seconds_left:
-        raise PipelineError("too_many_stitches", TOO_SLOW_MESSAGE)
-    prepared_text = write_prepared_svg(prepared, options.fabric)
     out = workdir / "out"
     out.mkdir(exist_ok=True)
     svg_path = out / OUTPUT_NAMES["prepared_svg"]
-    svg_path.write_text(prepared_text, encoding="utf-8")
-    timings["prepare"] = round(time.monotonic() - mark, 3)
+    sized_to_hoop = False
+    width_mm = options.width_mm
+    timings["prepare"] = timings["inkstitch"] = 0.0
+    for attempt in range(2):
+        mark = time.monotonic()
+        prepared = prepare(svg_text, scan, width_mm, start_colour)
+        if options.fit_hoop and not sized_to_hoop:
+            width_mm = hoop_fit_width(prepared.width_mm, prepared.height_mm,
+                                      2 * float(options.border_mm) if bordered else 0.0, options.hoop)
+            prepared = prepare(svg_text, scan, width_mm, start_colour)
+            sized_to_hoop = True
+        if options.fit_hoop:
+            prepared.notes.append({"code": "sized_to_hoop", "text": "Sized to fill the hoop"})
+        if bordered:
+            prepared = apply_border(prepared, float(options.border_mm), options.border_colour)
+        estimate = _estimate_stitches(prepared, options.fabric)
+        if estimate > MAX_STITCHES:
+            raise PipelineError("too_many_stitches")
+        seconds_left = deadline - time.monotonic() - FIXED_CONVERT_SECONDS
+        if estimate / MIN_STITCHES_PER_SECOND > seconds_left:
+            raise PipelineError("too_many_stitches", TOO_SLOW_MESSAGE)
+        svg_path.write_text(write_prepared_svg(prepared, options.fabric), encoding="utf-8")
+        timings["prepare"] = round(timings["prepare"] + time.monotonic() - mark, 3)
 
-    dpi = render_dpi(prepared.width_mm + 2, prepared.height_mm + 2)
-    files, timings["inkstitch"] = _run_inkstitch(svg_path, dpi, deadline)
-    timings["inkstitch"] = round(timings["inkstitch"], 3)
+        dpi = render_dpi(prepared.width_mm + 2, prepared.height_mm + 2)
+        files, elapsed = _run_inkstitch(svg_path, dpi, deadline)
+        timings["inkstitch"] = round(timings["inkstitch"] + elapsed, 3)
+        sewn_mm = sewn_width_mm(files["dst"])
+        resized = resized_width(width_mm, prepared.width_mm, sewn_mm)
+        if attempt or resized is None or elapsed > RESIZE_MAX_FIRST_RUN_SECONDS:
+            break
+        width_mm = resized
+    findings += prepared.findings
 
     mark = time.monotonic()
     try:

@@ -137,6 +137,12 @@ def extent(blocks: list[Block]) -> tuple[int, int, int, int]:
     return min(xs), min(ys), max(xs), max(ys)
 
 
+def sewn_width_mm(dst: bytes) -> float:
+    """Width of the stitched design in millimetres, read from the DST file."""
+    x0, _, x1, _ = extent(decode_dst(dst))
+    return (x1 - x0) / 10.0
+
+
 def build_report(dst: bytes, threadlist: str) -> tuple[dict[str, object], dict[str, object]]:
     """Return (partial summary, stitches document) from the delivered DST and thread list."""
     blocks = decode_dst(dst)

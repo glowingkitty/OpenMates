@@ -369,3 +369,19 @@ def _png(image) -> bytes:
     buffer = io.BytesIO()
     image.save(buffer, format="PNG")
     return buffer.getvalue()
+
+
+# contract-test: supporting surface=rest_api assertions=design-embroidery.prepare.sewn-width-as-requested
+def test_a_design_sewn_narrower_than_asked_is_prepared_again_wider() -> None:
+    from backend.apps.design.embroidery_sandbox.limits import resized_width
+
+    # 90 mm asked, satin lines sewed 88 mm wide: prepare again at about 92 mm.
+    assert resized_width(90.0, 90.0, 88.0) == pytest.approx(92.05, abs=0.01)
+    # Within half a millimetre nothing is redone.
+    assert resized_width(90.0, 90.0, 89.6) is None
+    assert resized_width(90.0, 90.0, 90.4) is None
+    # Sewn wider than drawn: prepare again narrower.
+    assert resized_width(90.0, 90.0, 92.0) == pytest.approx(88.04, abs=0.01)
+    # A correction outside the allowed widths is not attempted.
+    assert resized_width(400.0, 400.0, 380.0) is None
+    assert resized_width(90.0, 90.0, 0.0) is None

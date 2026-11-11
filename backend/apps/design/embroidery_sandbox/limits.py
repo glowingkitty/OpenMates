@@ -127,3 +127,21 @@ def hoop_fit_width(width_mm: float, height_mm: float, extra_mm: float, hoop: str
     upright = min((hoop_w - reserve) / width_mm, (hoop_h - reserve) / height_mm)
     turned = min((hoop_h - reserve) / width_mm, (hoop_w - reserve) / height_mm)
     return min(max(width_mm * max(upright, turned), MIN_WIDTH_MM), MAX_WIDTH_MM)
+
+
+RESIZE_TOLERANCE_MM = 0.5
+# Only quick conversions are run a second time; a long one keeps its first result.
+RESIZE_MAX_FIRST_RUN_SECONDS = 45.0
+
+
+def resized_width(asked_mm: float, drawn_mm: float, sewn_mm: float) -> float | None:
+    """Width to prepare again with so the sewn design is as wide as the drawn one.
+
+    Satin lines sew without their rounded ends and thin shapes pull in, so the
+    stitches can end up narrower than the size asked for. Returns None when the
+    sewn width is already within RESIZE_TOLERANCE_MM or cannot be corrected.
+    """
+    if sewn_mm <= 0 or abs(drawn_mm - sewn_mm) <= RESIZE_TOLERANCE_MM:
+        return None
+    resized = asked_mm * drawn_mm / sewn_mm
+    return resized if MIN_WIDTH_MM <= resized <= MAX_WIDTH_MM else None
