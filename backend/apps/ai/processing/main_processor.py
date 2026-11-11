@@ -5637,6 +5637,9 @@ async def handle_main_processing(
         _desc_lines = [
             "Activate a focus mode to specialize the assistant's behavior for a specific task. "
             "Focus modes provide specialized instructions that help with particular types of requests.",
+            "The focus modes below were pre-selected as candidates for this request. When one fits what the "
+            "user asks for, call this tool first, before writing the answer or creating a document, also "
+            "when the user already gave all the details.",
             "",
             f"Valid focus_id values (use EXACTLY one of these): {_valid_ids_list}",
         ]

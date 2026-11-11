@@ -16233,6 +16233,24 @@
     },
     "entry_missing": {
       "text": "Existiert nicht mehr"
+    },
+    "memory_created_by_assistant": {
+      "text": "Der Assistent hat eine Erinnerung gespeichert: {title}"
+    },
+    "memory_updated_by_assistant": {
+      "text": "Der Assistent hat eine Erinnerung aktualisiert: {title}"
+    },
+    "undo_memory_write": {
+      "text": "Rückgängig"
+    },
+    "memory_write_undone": {
+      "text": "Rückgängig gemacht"
+    },
+    "memory_write_undo_changed": {
+      "text": "Diese Erinnerung wurde inzwischen bearbeitet; Rückgängig ist nicht mehr möglich"
+    },
+    "memory_write_undo_failed": {
+      "text": "Rückgängig machen fehlgeschlagen. Bitte versuche es erneut."
     }
   },
   "reminder": {

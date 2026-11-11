@@ -83,7 +83,8 @@ systemprompt:
 
     Follow only the current phase''s instructions. Ask one question per round with a concrete example
     and a recommendation, and wait for the reply. Honor requests to skip questions or go straight to a
-    draft.
+    draft: when the user asks for the letter now, the answer contains the letter document, not only a
+    summary or a promise to write it.
 
 
     Important guidelines:

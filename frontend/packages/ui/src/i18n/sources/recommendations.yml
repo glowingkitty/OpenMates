@@ -93,3 +93,33 @@ entry_missing:
   en: No longer exists
   de: Existiert nicht mehr
   verified_by_human: []
+memory_created_by_assistant:
+  context: Chat history event after the assistant saved a new memory by itself during the chat (no review step), followed by the memory title
+  en: 'The assistant saved a memory: {title}'
+  de: 'Der Assistent hat eine Erinnerung gespeichert: {title}'
+  verified_by_human: []
+memory_updated_by_assistant:
+  context: Chat history event after the assistant updated an existing memory by itself during the chat (no review step), followed by the memory title
+  en: 'The assistant updated a memory: {title}'
+  de: 'Der Assistent hat eine Erinnerung aktualisiert: {title}'
+  verified_by_human: []
+undo_memory_write:
+  context: Button in the chat history event that reverts the memory the assistant just saved or updated
+  en: Undo
+  de: Rückgängig
+  verified_by_human: []
+memory_write_undone:
+  context: Shown in the chat history event after the user undid the memory the assistant saved or updated
+  en: Undone
+  de: Rückgängig gemacht
+  verified_by_human: []
+memory_write_undo_changed:
+  context: Shown in the chat history event when undo is refused because the memory was edited after the assistant saved it
+  en: This memory was edited since; undo is not available
+  de: Diese Erinnerung wurde inzwischen bearbeitet; Rückgängig ist nicht mehr möglich
+  verified_by_human: []
+memory_write_undo_failed:
+  context: Shown in the chat history event when undoing the assistant's memory change failed for another reason (for example offline); the user can try again
+  en: Undo failed. Please try again.
+  de: Rückgängig machen fehlgeschlagen. Bitte versuche es erneut.
+  verified_by_human: []

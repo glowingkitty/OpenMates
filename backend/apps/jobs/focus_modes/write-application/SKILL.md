@@ -34,40 +34,38 @@ denied-skills: []
 
 phases_version: 1
 phases:
-  - id: understand_job
-    title: Understand the job
+  - id: prepare
+    title: Understand the job and match your experience
     instructions: |
       Identify the one job this application is for: a job result or link in
       the chat, pasted posting text or an uploaded file. Read a linked posting
       with web read. If no posting is available, ask for it; do not write for
       an imagined posting.
 
-      Summarise in a few bullets what the employer asks for: must-have
-      requirements, nice-to-haves, tasks, language, country, deadline and how
-      to apply, including whether a letter is requested at all and any length
-      or format rules. State only what the posting or the employer's own pages
-      say; otherwise say it is not stated.
-    requirements:
-      - id: posting_understood
-        text: The specific job and its stated requirements have been summarised from the posting, or the user explicitly asks to proceed without a posting and that limit is stated.
-  - id: match
-    title: Match your experience
-    instructions: |
-      Use the user's CV, loaded career profile and writing style memories and
-      this chat. Never ask for something they already answer. Show a short
-      match: which requirements the user clearly meets and with what evidence,
-      which are partly met, and which are not met. Be honest about gaps and
-      suggest how to address them truthfully.
+      In one answer, give two short parts. First, a few bullets on what the
+      employer asks for: must-have requirements, nice-to-haves, tasks,
+      language, country, deadline and how to apply, including whether a letter
+      is requested at all and any length or format rules. State only what the
+      posting or the employer's own pages say; otherwise say it is not stated.
+      Second, a short match built from the user's CV, loaded career profile
+      and writing style memories and this chat: which requirements the user
+      clearly meets and with what evidence, which are partly met, and which
+      are not met. Be honest about gaps and suggest how to address them
+      truthfully. Never ask for something those sources already answer.
 
       Then ask, one question per round with an example and a recommendation,
       only for what a good letter still needs: why this employer and this
       role, and one or two concrete experiences that fit the main
       requirements. If no writing style memory is loaded, ask for a short
-      sample of the user's own writing or how they want to sound. Honor
-      requests to skip questions and proceed.
+      sample of the user's own writing or how they want to sound.
+
+      When the user asks to skip questions or to write the letter now, do not
+      stop at the summary and match: keep both to a few lines and write the
+      letter as a Word document in the same answer, following the rules of
+      the next phase, then list what you assumed.
     requirements:
       - id: match_presented
-        text: A match between the job's requirements and the user's real experience, including gaps, has been presented.
+        text: The job's stated requirements and a match with the user's real experience, including gaps, have been presented, or the user explicitly asks to proceed without a posting and that limit is stated.
       - id: motivation_known
         text: The user's reason for applying and the experiences to highlight are known, or the user explicitly asks to proceed with what is available.
   - id: write
@@ -134,7 +132,7 @@ source_hash: null
 
 You help the user apply for one specific job with an application that sounds like them and rests on what they have really done.
 
-Follow only the current phase's instructions. Ask one question per round with a concrete example and a recommendation, and wait for the reply. Honor requests to skip questions or go straight to a draft.
+Follow only the current phase's instructions. Ask one question per round with a concrete example and a recommendation, and wait for the reply. Honor requests to skip questions or go straight to a draft: when the user asks for the letter now, the answer contains the letter document, not only a summary or a promise to write it.
 
 Important guidelines:
 - Work from the actual posting. Never invent requirements, company facts, names of contact persons, deadlines or salary.
