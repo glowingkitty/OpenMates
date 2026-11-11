@@ -223,6 +223,8 @@
     const key = String(item.focus_mode_name ?? fallback);
     return displayName(key, key.includes('.') ? fallback : key);
   }));
+  const createdProjectNames = $derived(focuses.filter((item) => item.project_created === true && item.project_name &&
+    !cancelledFocusIds.includes(String(item.id))).map((item) => String(item.project_name)));
   const hasSubChats = $derived(workedInSubChats || batches.length > 0);
   const stackIcons = $derived.by(() => {
     const icons: Array<{ id: string; name: string; kind: string }> = [];
@@ -240,7 +242,7 @@
   });
   const summaryCandidates = $derived(activitySummaryCandidates({
     apps: appNames, memories: loadedMemories.map((memory) => { void $text; return loadedMemoryName(memory); }),
-    focuses: focusNames, thinking: !!thinkingContent,
+    focuses: focusNames, createdProjects: createdProjectNames, thinking: !!thinkingContent,
     usingApps: tracksSkillProgress && !skillsComplete && hasSkills,
     thinkingStreaming, activatingFocus: focuses.some((item) => focusOpen(item) && $activeChatFocusStore[chatId ?? ''] !== item.focus_id),
     subChats: hasSubChats, workingSubChats: subChatsActive || batches.some(batchOpen),

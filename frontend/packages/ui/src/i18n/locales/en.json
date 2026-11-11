@@ -3723,6 +3723,12 @@
       "focus_activated": {
         "text": "Activated ''{focus}''"
       },
+      "project_created_focus": {
+        "text": "Created project ''{project}'' & activated ''{focus}''"
+      },
+      "project_created": {
+        "text": "Created project ''{project}''"
+      },
       "focus_sub_chats": {
         "text": "Activated ''{focus}'' & worked in sub chats."
       },

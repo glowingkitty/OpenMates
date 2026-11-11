@@ -540,6 +540,9 @@ export const Embed = Node.create<EmbedOptions>({
           return { "data-focus-mode-name": attributes.focus_mode_name };
         },
       },
+      // Assistant-created Project activation (kept in memory; not serialized to HTML)
+      project_created: { default: null, rendered: false },
+      project_name: { default: null, rendered: false },
       // Website group attributes
       groupedItems: {
         default: null,

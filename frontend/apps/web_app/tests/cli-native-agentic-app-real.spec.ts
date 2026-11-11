@@ -135,6 +135,10 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
     }
     Object.assign(evidence, { status: turn.status, models, creations: creations.length, projectIds: created.length,
       adoptions: adoptions.map(({ kind, path, status, code }) => ({ kind, path, status, code })), listed });
+    const focusPersisted = collect(creations, []).length === 0
+      ? (creations as Array<Record<string, unknown>>).map((card) => card.focusPersisted ?? card.focus_persisted) : [];
+    Object.assign(evidence, { focusPersisted });
+    expect.soft(focusPersisted.every((value) => value === true), 'Project focus stored as the chat active focus').toBe(true);
     expect.soft(turn.status).toBe('completed');
     expect.soft(models.length, 'a persisted assistant model name').toBeGreaterThan(0);
     for (const model of models) expect.soft(model).toMatch(/gemini.*3\.?8.*flash/i);
@@ -152,7 +156,13 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
     await page.goto(`${APP}/#chat-id=${chatId}`);
     const embed = page.locator('[data-testid="embed-preview"][data-app-id="code"]').first();
     await expect.soft(embed).toBeVisible({ timeout: 90_000 });
+    // Collapsed activity row names the creation; the focus pill shows the active Project focus.
+    const toggle = page.getByTestId('assistant-activity-toggle').first();
+    await expect.soft(toggle).toHaveAttribute('title', /Created project/, { timeout: 30_000 });
     await page.screenshot({ path: info.outputPath('chat-with-application-embed.png'), fullPage: true });
+    await toggle.click();
+    await expect.soft(page.getByTestId('project-created-card').first()).toBeVisible({ timeout: 30_000 });
+    await page.screenshot({ path: info.outputPath('chat-activity-expanded.png'), fullPage: true });
 
     if (created.length) {
       await page.goto(`${APP}/#project-id=${created[0]}`);

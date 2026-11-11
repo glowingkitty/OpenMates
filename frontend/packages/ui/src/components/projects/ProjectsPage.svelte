@@ -3743,7 +3743,7 @@
   }
 
   .folder-child-icon { width: 0.9rem; height: 0.9rem; color: var(--color-font-secondary); }
-  .folder-child-icon:not(.child-folder) { -webkit-mask: var(--icon-url-code, var(--icon-url-files)) center / contain no-repeat; mask: var(--icon-url-code, var(--icon-url-files)) center / contain no-repeat; }
+  .folder-child-icon:not(.child-folder) { -webkit-mask: var(--icon-url-docs, var(--icon-url-files)) center / contain no-repeat; mask: var(--icon-url-docs, var(--icon-url-files)) center / contain no-repeat; }
 
   .folder-card-contents {
     display: grid;

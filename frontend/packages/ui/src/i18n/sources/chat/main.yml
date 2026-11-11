@@ -3653,6 +3653,16 @@ response_activity.focus_activated:
   en: "Activated ''{focus}''"
   de: "„{focus}“ aktiviert"
   verified_by_human: []
+response_activity.project_created_focus:
+  context: The assistant created a Project and its focus is active; shown in the collapsed activity row.
+  en: "Created project ''{project}'' & activated ''{focus}''"
+  de: "Projekt „{project}“ erstellt und „{focus}“ aktiviert"
+  verified_by_human: []
+response_activity.project_created:
+  context: Short form of the created-Project activity row when space is tight.
+  en: "Created project ''{project}''"
+  de: "Projekt „{project}“ erstellt"
+  verified_by_human: []
 response_activity.focus_sub_chats:
   context: Completed focus-mode activation and sub-chat work in the same source group.
   en: "Activated ''{focus}'' & worked in sub chats."
