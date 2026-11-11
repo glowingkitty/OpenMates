@@ -15,9 +15,10 @@ A chat is closed only when every rule holds:
     command is still running,
   * it is not the chat that runs this script.
 
-Closing sends SIGTERM and never SIGKILL. The transcript stays on disk; the chat
-shows as disconnected in claude.ai and does not wake up by itself when it
-receives a message.
+Closing sends SIGTERM and never SIGKILL. The transcript stays on disk and the
+chat shows as disconnected in claude.ai. A message sent to a closed chat is
+kept; the Remote Control server starts a new worker for it and answers, which
+took a few minutes when measured on the dev server.
 
 Commands:
   list   Show every live chat with its idle time and the decision.
