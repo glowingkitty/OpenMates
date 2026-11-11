@@ -73,7 +73,14 @@ async fn open_window<S: ByteStore + 'static, H: ViewHost<S>>(
     let event = core
         .publish_window(request, record)
         .ok_or(Error::Cancelled)?;
-    sink.emit(event).await
+    sink.emit(event).await?;
+    // embed-user-edits.event.project-edit-reaches-chat: after the window is
+    // shown, write the chat events of edits made elsewhere (deferred offline).
+    host.core_mut()
+        .client_mut()
+        .reconcile_embed_update_notices_on_open(chat_id)
+        .await
+        .map(drop)
 }
 
 /// Merge the next older page into the open window of `chat_id` and emit it

@@ -408,11 +408,13 @@ async def publish_revision(
 async def refund_refused_revision(
     *, user_id: str, user_id_hash: str, credits: int, app_id: str, skill_id: str,
     event_id: str, team_id: Optional[str], log_prefix: str,
+    reason: str = "Image change was refused before its new version was published",
 ) -> None:
     """Give back the charge of a change whose version the server refused to seal.
 
-    Called only for ``RevisionRefused``, which is raised before any output is
-    sealed, so the user received nothing. Personal charges are refunded through
+    Called for ``RevisionRefused``, which is raised before any output is sealed,
+    so the user received nothing, and for an image Enhance result that never
+    became a version (``enhance_jobs.refund``). Personal charges are refunded through
     ``/internal/billing/refund`` under ``app-skill:{event_id}:refund`` (idempotent
     per change). Team billing has no refund route: the charge stays and is
     logged as an error for manual correction.
@@ -435,7 +437,7 @@ async def refund_refused_revision(
             "user_id": user_id, "user_id_hash": user_id_hash, "credits": credits,
             "app_id": app_id, "skill_id": skill_id,
             "idempotency_key": f"{charge['idempotency_key']}:refund",
-            "reason": "Image change was refused before its new version was published",
+            "reason": reason,
         }, headers={"Content-Type": "application/json", "X-Internal-Service-Token": token})
     response.raise_for_status()
     logger.info("%s Refunded %s credits of a refused image revision", log_prefix, credits)

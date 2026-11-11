@@ -58,6 +58,14 @@
     onClose: () => void;
     /** Optional primary edit action beside Close for editable embeds. */
     onEdit?: () => void;
+    /** Image Enhance round button; omitted when not supplied. */
+    onEnhance?: () => void;
+    /** idle: usable; running: progress, not pressable; failed: usable again; unavailable: disabled with a reason. */
+    enhanceState?: 'idle' | 'running' | 'failed' | 'unavailable';
+    /** Message shown as tooltip/accessible name while failed. */
+    enhanceError?: string;
+    /** Reason shown as tooltip/accessible name while unavailable. */
+    enhanceUnavailableReason?: string;
     editActive?: boolean;
     /** 'close' (default) keeps Edit beside Close; 'share' shows it before Share. */
     editPlacement?: 'close' | 'share';
@@ -105,6 +113,10 @@
     showPIIIncludeOriginal = false,
     onClose,
     onEdit,
+    onEnhance,
+    enhanceState = 'idle',
+    enhanceError,
+    enhanceUnavailableReason,
     editActive = false,
     editPlacement = 'close',
     editTestId = 'embed-edit-button',
@@ -163,8 +175,28 @@
   </div>
 {/snippet}
 
+{#snippet enhanceButton()}
+  {@const running = enhanceState === 'running'}
+  {@const label = running ? $text('embed_user_edits.enhance_running')
+    : enhanceState === 'failed' && enhanceError ? enhanceError
+    : enhanceState === 'unavailable' && enhanceUnavailableReason ? enhanceUnavailableReason
+    : $text('embed_user_edits.enhance')}
+  <div class="button-wrapper" class:enhance-running={running}>
+    <button class="header-action" type="button" use:tooltip data-testid="embed-enhance-button"
+      data-enhance-state={enhanceState} onclick={() => { if (enhanceState === 'idle' || enhanceState === 'failed') onEnhance?.(); }}
+      disabled={running || enhanceState === 'unavailable'} aria-busy={running} aria-label={label}>
+      {#if running}
+        <span class="enhance-spinner top-button" data-testid="embed-enhance-progress" aria-hidden="true"></span>
+      {:else}
+        <span class="clickable-icon icon_enhance top-button" aria-hidden="true"></span>
+      {/if}
+      <span class="action-label">{running ? $text('embed_user_edits.enhance_running') : $text('embed_user_edits.enhance')}</span>
+    </button>
+  </div>
+{/snippet}
+
 <div class="embed-top-bar" use:headerOverlayControls>
-  <HeaderActionMenu reportInMenu={reportInMore} leadingAction={onEdit && editPlacement === 'share' ? editButton : undefined} hasShare={showShare} hasPriorityAction={Boolean((showPIIToggle && onTogglePII) || headerPrimaryAction)} actionCount={secondaryActionCount} forceOverflow={!!onImport}>
+  <HeaderActionMenu reportInMenu={reportInMore} leadingAction={onEdit && editPlacement === 'share' ? editButton : undefined} hasShare={showShare} responsiveAction={onEnhance ? enhanceButton : undefined} hasPriorityAction={Boolean((showPIIToggle && onTogglePII) || headerPrimaryAction)} actionCount={secondaryActionCount} forceOverflow={!!onImport}>
     {#snippet report()}
       <!-- Report Issue (always shown) -->
       <div class="button-wrapper">
@@ -441,6 +473,16 @@
     background-color: rgb(255 255 255 / 45%) !important;
     box-shadow: inset 0 0 0 2px #fff, var(--shadow-md);
   }
+  .enhance-spinner {
+    display: block; width: 25px; height: 25px; box-sizing: border-box; border-radius: 50%;
+    /* White on the dark header pill; the More menu rows have a light background. */
+    color: #fff; border: 3px solid color-mix(in srgb, currentColor 30%, transparent);
+    border-top-color: currentColor; animation: enhance-spin 0.9s linear infinite;
+  }
+  :global(.direct-action) .enhance-spinner, :global(.more-page) .enhance-spinner { color: var(--color-grey-60, #666); }
+  @keyframes enhance-spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .enhance-spinner { animation-duration: 3s; } }
+  .button-wrapper:has(button:disabled) { cursor: default; }
   .close-action-row { display: flex; align-items: center; gap: var(--spacing-4); }
   .import-icon { -webkit-mask-image: var(--icon-url-upload); mask-image: var(--icon-url-upload); }
   /* Top bar overlays the gradient header — position absolute so the header

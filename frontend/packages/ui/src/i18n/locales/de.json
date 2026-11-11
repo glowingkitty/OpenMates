@@ -7169,6 +7169,63 @@
       }
     }
   },
+  "embed_user_edits": {
+    "enhance": {
+      "text": "Verbessern"
+    },
+    "enhance_running": {
+      "text": "Wird verbessert…"
+    },
+    "enhance_failed": {
+      "text": "Verbessern fehlgeschlagen. Bitte versuche es erneut."
+    },
+    "enhance_unavailable": {
+      "text": "Du kannst dieses Bild nicht verbessern"
+    },
+    "kind": {
+      "image": {
+        "text": "Bild"
+      },
+      "diagram": {
+        "text": "Diagramm"
+      },
+      "slides": {
+        "text": "Folien"
+      },
+      "sheet": {
+        "text": "Tabelle"
+      },
+      "document": {
+        "text": "Dokument"
+      }
+    },
+    "event": {
+      "edit": {
+        "text": "{kind} bearbeitet · Version {version}"
+      },
+      "enhance": {
+        "text": "{kind} verbessert · Version {version}"
+      },
+      "crop": {
+        "text": "{kind} zugeschnitten · Version {version}"
+      },
+      "restore": {
+        "text": "{kind} auf Version {from} zurückgesetzt · Version {version}"
+      },
+      "restore_plain": {
+        "text": "{kind} zurückgesetzt · Version {version}"
+      },
+      "edit_many": {
+        "text": "{kind} {count}-mal bearbeitet · Version {version}"
+      },
+      "updated_many": {
+        "text": "{kind} aktualisiert, {count} Änderungen · Version {version}"
+      },
+      "open": {
+        "text": "Öffnen"
+      }
+    }
+  },
   "embeds": {
     "hosting": {
       "search_domains": {

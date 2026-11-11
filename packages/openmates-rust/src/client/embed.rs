@@ -78,7 +78,8 @@ impl Client {
             fields: json!({"type":kind,"content":content}),
         })
     }
-    fn embed_key(
+    /// Embed key from the cached wrappers (master, owning chat, then parent).
+    pub(super) fn embed_key(
         &self,
         id: &str,
         wrapping: &[u8; 32],

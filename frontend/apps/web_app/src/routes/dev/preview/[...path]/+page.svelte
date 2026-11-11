@@ -269,6 +269,10 @@
 		'navigateDirection',
 		'showChatButton',
 		'onShowChat',
+		'onEnhance',
+		'canEnhance',
+		'enhanceState',
+		'enhanceError',
 		'data'
 	]);
 

@@ -59,6 +59,17 @@ export const variants = {
 		error: 'Image generation failed: content policy violation'
 	},
 
+	/** Enhance round button states (embed-user-edits.enhance.button) */
+	enhanceIdle: { ...defaultProps, onEnhance: () => {} },
+	enhanceRunning: { ...defaultProps, onEnhance: () => {}, enhanceState: 'running' },
+	enhanceFailed: {
+		...defaultProps,
+		onEnhance: () => {},
+		enhanceState: 'failed',
+		enhanceError: 'Enhance failed. Please try again.'
+	},
+	enhanceNotAllowed: { ...defaultProps, onEnhance: () => {}, canEnhance: false },
+
 	/** Processing state */
 	processing: {
 		...defaultProps,

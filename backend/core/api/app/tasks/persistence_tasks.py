@@ -14,6 +14,7 @@ from typing import Optional
 from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.pending_embed_notices import clear_pending_embed_notice
 from backend.core.api.app.schemas.chat import CachedChatListItemData, CachedChatVersions
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.utils.encryption import EncryptionService
@@ -862,6 +863,9 @@ async def _async_persist_new_chat_message_task(
             # IMPORTANT: We still need to update chat metadata (messages_v, timestamps)
             # But we skip creating the duplicate message
             # The chat metadata update happens later in this function, so we continue there
+            if role == "system":
+                # A second device wrote the same embed-updated event: its notice is answered.
+                await clear_pending_embed_notice(directus_service, chat_id=chat_id, message_id=message_id)
             return  # Exit early - message already persisted
         
         # The 'created_at' parameter is the client's original timestamp.
@@ -896,6 +900,10 @@ async def _async_persist_new_chat_message_task(
                 f"Directus operation returned: {created_message_item}"
             )
             return  # Stop if message creation fails
+
+        if role == "system":
+            # A stored embed-updated event answers its pending notice (feature.embed-user-edits).
+            await clear_pending_embed_notice(directus_service, chat_id=chat_id, message_id=message_id)
 
         if role == "user" and hashed_team_id:
             # Legacy path only. The current durable preflight has its own commit

@@ -167,6 +167,7 @@ from backend.apps.ai.processing.project_file_tools import (
     uniquely_named_project_focus_id,
     without_unscoped_project_search,
 )
+from backend.apps.ai.processing.embed_update_history import apply_embed_update_history
 from backend.apps.ai.processing.task_queue_continuation import (
     TASK_QUEUE_GUARD_MAX_RETRIES,
     build_task_queue_continuation_event,
@@ -6034,7 +6035,9 @@ async def handle_main_processing(
         tool_resolver_map[task_tool_name] = (TASK_TOOL_RESOLVER_APP_ID, task_tool_skill_id(task_tool_name))
         tool_resolver_map[task_tool_name.replace("-", "_")] = (TASK_TOOL_RESOLVER_APP_ID, task_tool_skill_id(task_tool_name))
 
-    current_message_history: List[Dict[str, Any]] = [_llm_history_message(msg) for msg in request_data.message_history]
+    current_message_history: List[Dict[str, Any]] = apply_embed_update_history(
+        [_llm_history_message(msg) for msg in request_data.message_history]
+    )
     
     # Size the initial history for the selected answer model. Jev's independent
     # bounded projection never participates in this calculation.
@@ -6110,8 +6113,9 @@ async def handle_main_processing(
     DEBUG_MSG_HISTORY_TAIL = 3  # Last 3 messages (most recent context)
     # Debug receipts use the request's privacy projection; the answer model
     # continues to use current_message_history with restored file results.
-    safe_debug_history = [_llm_history_message(message)
-                          for message in request_data.model_dump(mode="json")["message_history"]]
+    safe_debug_history = apply_embed_update_history(
+        [_llm_history_message(message) for message in request_data.model_dump(mode="json")["message_history"]]
+    )
     safe_debug_history = truncate_message_history_to_token_budget(
         safe_debug_history, max_tokens=selected_history_budget,
     )

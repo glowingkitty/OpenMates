@@ -1,0 +1,50 @@
+schema_version: 2
+id: embed-user-edit-versions
+title: User edits of embeds become versions with an "embed updated" chat event; image Enhance
+status: draft
+profile: concise
+goal: >
+  Every edit a user makes to an embed (image, diagram, slide deck, sheet,
+  document) is saved as the next version of the same embed, in one version
+  history that is the same in the chat and in the Projects workspace, and the
+  chat the embed belongs to shows a small "<Type> updated" event, also when the
+  edit was made from the Projects workspace. The image fullscreen gets a round
+  Enhance button that stores a server-made higher-quality picture as the next
+  version; earlier versions stay viewable and restorable.
+specifications:
+  - feature.app-skill.images-generate@1
+  - feature.embed-user-edits@1
+  - feature.projects@2
+scope:
+  in:
+    - "Server foundation: one user revision commit for chat scope and Project scope (new Directus operation commitUserEmbedRevision in a new file of embed-version-transaction, new first-party REST route POST /v1/embeds/{embed_id}/user-revisions, receipts idempotent by operation id, expected version and content hash checked, generated image children allowed, file keys limited to keys already owned by the embed or to a server-verified new file source)."
+    - "embed_diffs gains the non-content columns revision_origin (assistant|user) and revision_action (edit|enhance|restore|crop); the versions list returns them."
+    - "Chat event: the Rust client core writes one chat-key encrypted system message of type embed_updated per user version with the deterministic id embed-updated-<embed_id>-v<version>; a content-free pending notice row lets any device of the chat owner write the event when the edit was made from the Projects workspace; embeds without a chat get no chat event."
+    - "Consecutive events for the same embed are folded into one line at render time by a pure core function (\"Image updated, 3 changes\"); shells only render."
+    - "Assistant context: the next turn in that chat receives a short note that the user changed the embed and which version is current (new module backend/apps/ai/processing/embed_update_history.py)."
+    - "Display rule in the core: a message shows its pinned version and follows later user-made versions until the next assistant-made version."
+    - "Image Enhance: first-party route POST /v1/images/enhance and a new Celery task (backend/apps/images/tasks/enhance_task.py) call Google gemini-nano-banana-2.1 at 2K with a fixed faithful prompt and no search tool (new provider file, generate_image_google unchanged); charged once per version after the provider succeeded, no charge on failure, refund when a charged result never reached the client and is never committed (a delivered but unsaved result stays charged and saveable until it expires); the client core commits the result through the user revision commit."
+    - "Restore of an earlier image version through the same commit (new version that is a snapshot of version K)."
+    - "Rust core modules embed_user_revision.rs, embed_updated_event.rs, image_enhance.rs plus browser and Apple bindings; CLI embeds enhance and image restore."
+    - "Web: Enhance round button with a new icon through the existing headerPrimaryAction slot of the image fullscreen (moves into More when the bar is full), image timeline restore, EmbedUpdatedEventNotice; diagram, slides and sheet saves move to the core commit and the TypeScript commit helpers are deleted."
+    - "Apple: Enhance, restore and the event row, in parallel with web once the bindings exist."
+  out:
+    - Image editor with crop and other client-made changes (separate Task; the commit accepts a client-uploaded file source without further server changes).
+    - The manual document editor itself (owned by doc-editor-project-documents, which consumes this commit).
+    - Changes to assistant-made image revisions (owned by image-edit-as-embed-version).
+decisions:
+  - "The version, not the event, is the source of truth; the event is written by the client core because only it holds the chat key."
+  - "The server makes the enhanced file, the client core commits the version: no second server writer on Project files, and Enhance, restore and crop share one commit."
+  - "Enhance uses Google gemini-nano-banana-2.1 at 2K with the faithful prompt (evaluation on 10 drafts: best detail gain per price; Recraft Enhance costs four times more, the premium Google model showed no visible gain)."
+  - "An edit from the Projects workspace also writes the event into the embed's own chat (user decision 2026-11-11)."
+  - "Supersedes embed-user-revision-commit (its TypeScript helper violates the client-core rule); embed-diff-editing-parity and doc-editor-project-documents move their restore and save onto this commit."
+verification:
+  required:
+    - Extension node tests for the user revision commit (chat, Team, adopted Project file, Project-only file, generated image child, stale hash, foreign file key refused, idempotent replay).
+    - Pytest for the commit route, the Enhance route and task (validation, billing once, no charge on failure, refund) and the assistant-context note.
+    - Direct REST proof against the dev API for both new routes including unauthorized, forbidden and rate-limited cases.
+    - Rust crate tests, rust-check and sdk-conformance for the new core modules; CLI E2E for Enhance and restore against the real stack.
+    - Component preview specs with screenshots for the Enhance button states, the image timeline restore and the event notice.
+    - Isolated GitHub E2E with the Rust core on for the Enhance flow, the event row after diagram, slides and sheet edits, and an edit of an adopted embed in the Projects workspace reaching its chat.
+    - Apple core, unit and UI checks for Enhance, restore and the event row.
+    - Specification validation for the new embed-user-edits Specification and the amended images-generate and projects assertions.

@@ -2,6 +2,7 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { readScopedEmbedPage } from './scoped-reads.js';
 import { adoptProjectEmbed, deleteProjectItem, renameProjectItem } from './project-items.js';
+import { commitUserEmbedRevision } from './user-revisions.js';
 import { activateEmbedArchiveReader, commitChatDiagramRevision, commitEmbedRevision, finalizeEmbedArchiveCopy,
   prepareEmbedArchiveCopy, retireEmbedArchiveCopy,
   pruneEmbedArchivePayload, publishEmbedSnapshot, writeLegacyEmbed, writeLegacyEmbedKey, writeLegacyEmbedDiff, ProtocolError } from './operations.js';
@@ -68,6 +69,23 @@ export default {
         }
         logger.error({ code: 'transaction_failed' }, 'Chat diagram revision transaction failed');
         return res.status(500).json({ error: { code: 'transaction_failed' } });
+      }
+    });
+    // Internal service token only; called by the first-party session route
+    // POST /v1/embeds/{embed_id}/user-revisions with opaque client ciphertext.
+    router.post('/user-revision', async (req, res) => {
+      if (!isAuthorized(req.headers, env.INTERNAL_API_SHARED_TOKEN)) {
+        return res.status(401).json({ error: { code: 'internal_auth_failed' } });
+      }
+      try {
+        return res.status(200).json({ data: await commitUserEmbedRevision(database, req.body) });
+      } catch (error) {
+        if (error instanceof ProtocolError) {
+          logger.warn({ code: error.code }, 'User embed revision rejected');
+          return res.status(error.status).json({ error: { code: error.code } });
+        }
+        logger.error({ code: 'user_revision_failed' }, 'User embed revision transaction failed');
+        return res.status(500).json({ error: { code: 'user_revision_failed' } });
       }
     });
     router.post('/snapshots', async (req, res) => {

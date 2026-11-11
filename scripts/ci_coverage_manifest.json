@@ -29,6 +29,14 @@
         "components/design-embroidery-embed.spec.ts"
       ]
     },
+    "embed_user_edits_components": {
+      "execution": "e2e",
+      "enabling_work": "Account-free Vite-only bare previews of the image fullscreen Enhance round button (inline, under More, running, failed, not allowed) and the chat-history embed-updated notice (every action, collapsed run, light and dark). Pure presentation fixtures; no backend, account credentials, provider or AI inference.",
+      "specs": [
+        "components/embed-enhance-button.spec.ts",
+        "components/embed-updated-event-notice.spec.ts"
+      ]
+    },
     "images_modify_embed_preview": {
       "execution": "e2e",
       "enabling_work": "Account-free Vite-only bare image card and opened view in the images.modify states (steps, draft picture, finished, unmet requirements, failed). Fixtures carry a tiny inline synthetic JPEG. No backend, E2B sandbox, account credentials or AI inference. The real edit is verified separately against the sandbox template and in chat.",

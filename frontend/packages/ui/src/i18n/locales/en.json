@@ -7198,6 +7198,63 @@
       }
     }
   },
+  "embed_user_edits": {
+    "enhance": {
+      "text": "Enhance"
+    },
+    "enhance_running": {
+      "text": "Enhancing…"
+    },
+    "enhance_failed": {
+      "text": "Enhance failed. Please try again."
+    },
+    "enhance_unavailable": {
+      "text": "You can't enhance this image"
+    },
+    "kind": {
+      "image": {
+        "text": "Image"
+      },
+      "diagram": {
+        "text": "Diagram"
+      },
+      "slides": {
+        "text": "Slides"
+      },
+      "sheet": {
+        "text": "Sheet"
+      },
+      "document": {
+        "text": "Document"
+      }
+    },
+    "event": {
+      "edit": {
+        "text": "{kind} edited · version {version}"
+      },
+      "enhance": {
+        "text": "{kind} enhanced · version {version}"
+      },
+      "crop": {
+        "text": "{kind} cropped · version {version}"
+      },
+      "restore": {
+        "text": "{kind} restored to version {from} · version {version}"
+      },
+      "restore_plain": {
+        "text": "{kind} restored · version {version}"
+      },
+      "edit_many": {
+        "text": "{kind} edited {count} times · version {version}"
+      },
+      "updated_many": {
+        "text": "{kind} updated, {count} changes · version {version}"
+      },
+      "open": {
+        "text": "Open"
+      }
+    }
+  },
   "embeds": {
     "hosting": {
       "search_domains": {

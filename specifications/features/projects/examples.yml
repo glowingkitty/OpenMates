@@ -778,6 +778,14 @@ project_assistant_creation:
   when: She asks "write me a Python script that renames my photos by date".
   then: The assistant answers with one code embed in the chat. No Project is created and no Project focus starts.
 project_application_files:
+- id: member-edits-file-directly
+  assertion_ids:
+  - projects.files.user-edit-direct
+  - projects.files.adopt-embed
+  given: Ben has write access to the Project "Kitchen renovation", whose file plan.md was adopted from a chat. No chat is open.
+  when: Ben edits plan.md in the Project view and saves.
+  then: The edit is the next version of the same file, and the timeline shows that Ben made it. Server and legacy writers
+    are still refused for the adopted file, but this edit by Ben is allowed.
 - id: chat-diff-shows-in-project
   assertion_ids:
   - projects.files.application-single-source

@@ -705,6 +705,34 @@ models:
         price: 0.0011
         currency: USD
 
+  - id: "gemini-nano-banana-2.1" # Official Gemini API model id
+    name: "Nano Banana 2.1"
+    description: "Google image model used by the image Enhance action: a faithful higher-quality re-render of one picture at 2K."
+    country_origin: "US"
+    for_app_skill: "images.enhance" # Enhance action of the image fullscreen (not a chat-callable skill)
+    allow_auto_select: false
+    input_types:
+      - text
+      - image
+    output_types:
+      - image
+    default_server: "google_ai_studio"
+    servers:
+      - id: "google_ai_studio"
+        name: "Google AI Studio"
+        model_id: "gemini-nano-banana-2.1"
+        region: "US"
+        country: "US"
+    pricing:
+      per_unit:
+        credits: 63
+        unit_name: "image"
+    costs:
+      # Gemini API price per 2K output image: $0.0504; 63 credits = provider price + 25%.
+      output_per_image:
+        price: 0.0504
+        currency: USD
+
   - id: "lyria-3-pro-preview"
     name: "Lyria 3 Pro"
     description: "Google's latest Lyria music generation model for longer, high-quality stereo tracks with vocal and lyric support in preview. OpenMates uses Vertex AI by default for Cloud data-governance controls."

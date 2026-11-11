@@ -257,6 +257,41 @@ class EmbedVersionTransactionService:
             raise RuntimeError("Chat diagram revision extension returned malformed success data")
         return result
 
+    async def commit_user_revision(self, data: Mapping[str, Any], *, user_id: str) -> dict[str, Any]:
+        """Publish one user-made embed version (``commitUserEmbedRevision``).
+
+        Returns the extension's ``committed`` or ``conflict`` result; every
+        refusal raises ``EmbedVersionTransactionError`` with its stable code.
+        """
+        if not isinstance(data, Mapping):
+            raise TypeError("User revision transaction data must be a mapping")
+        token = os.getenv("INTERNAL_API_SHARED_TOKEN")
+        if not token:
+            raise RuntimeError("INTERNAL_API_SHARED_TOKEN is required for embed revision transactions")
+        body = {**dict(data), "actor_user_hash": hashlib.sha256(user_id.encode()).hexdigest()}
+        response = await self._directus._make_api_request(
+            "POST",
+            f"{self._directus.base_url.rstrip('/')}/embed-version-transaction/user-revision",
+            headers={"X-Internal-Service-Token": token},
+            json=body,
+        )
+        try:
+            payload = response.json()
+        except (TypeError, ValueError) as exc:
+            raise RuntimeError("User revision extension returned malformed JSON") from exc
+        if response.status_code != 200:
+            error = payload.get("error") if isinstance(payload, dict) else None
+            code = error.get("code") if isinstance(error, dict) else None
+            safe_code = code if isinstance(code, str) and code else "user_revision_failed"
+            logger.warning("User embed revision rejected: code=%s status=%s", safe_code, response.status_code)
+            raise EmbedVersionTransactionError(response.status_code, safe_code)
+        result = payload.get("data") if isinstance(payload, dict) else None
+        if (not isinstance(result, dict) or result.get("status") not in {"committed", "conflict"}
+                or result.get("embed_id") != data.get("embed_id")
+                or result.get("operation_id") != data.get("operation_id")):
+            raise RuntimeError("User revision extension returned malformed success data")
+        return result
+
     async def project_item_operation(
         self, action: str, data: Mapping[str, Any], *, user_id: str,
     ) -> dict[str, Any]:

@@ -72,6 +72,7 @@ from backend.core.api.app.routes import projects  # noqa: E402 # Import projects
 from backend.core.api.app.routes import project_authoring  # noqa: E402 # Owner-scoped background Project authoring
 from backend.core.api.app.routes import project_commits  # noqa: E402 # Native Project commits (first-party, client-encrypted)
 from backend.core.api.app.routes import project_item_links  # noqa: E402 # Project embed adopt/rename/delete (first-party, client-encrypted)
+from backend.core.api.app.routes import embed_user_revisions  # noqa: E402 # User-made embed versions and pending chat notices (first-party, client-encrypted)
 from backend.core.api.app.routes import daily_inspirations_api  # noqa: E402 # Import user daily inspirations persistence endpoints
 from backend.core.api.app.routes import analytics_beacon  # noqa: E402 # Import analytics beacon router (privacy-preserving first-party analytics)
 from backend.core.api.app.routes import status_routes  # noqa: E402 # Import status page API v3 (grouped health + tests)
@@ -91,6 +92,7 @@ from backend.core.api.app.routes import workflows  # noqa: E402 # Server-side Wo
 from backend.core.api.app.routes import user_plans  # noqa: E402 # User-facing Plans V1 endpoints
 from backend.core.api.app.routes import user_specifications  # noqa: E402
 from backend.core.api.app.routes import memory_suggestions  # noqa: E402 # Transient memory/workflow suggestion preview
+from backend.core.api.app.routes import images_enhance  # noqa: E402 # Image Enhance (first-party, carries file keys)
 from backend.core.api.app.routes import user_tasks  # noqa: E402 # User-facing Tasks V1 endpoints
 from backend.core.api.app.routes import developer_metadata_api  # noqa: E402 # Safe developer metadata for encrypted product objects
 from backend.core.api.app.routes import workspace_history  # noqa: E402 # Workspace history and undo endpoints
@@ -1459,6 +1461,7 @@ def create_app() -> FastAPI:
     app.include_router(projects.router, include_in_schema=False)  # Projects workspace endpoints - web app only
     app.include_router(project_authoring.router, include_in_schema=False)
     app.include_router(project_commits.router, include_in_schema=False)  # Native Project commits - first-party clients only (client-encrypted)
+    app.include_router(embed_user_revisions.router, include_in_schema=False)  # User embed versions + pending notices - first-party session auth only (client-encrypted)
     app.include_router(project_item_links.router, include_in_schema=False)  # Project embed adopt/rename/delete - first-party clients only (client-encrypted)
     app.include_router(daily_inspirations_api.router, include_in_schema=False)  # User daily inspirations persistence - save/load/mark-opened for authenticated users
     app.include_router(analytics_beacon.router, include_in_schema=False)  # Analytics beacon - privacy-preserving first-party aggregate analytics (no PII)
@@ -1473,6 +1476,7 @@ def create_app() -> FastAPI:
     app.include_router(user_plans.router, include_in_schema=False)  # Plans carry client-side encrypted content; expose only safe metadata via developer_metadata_api
     app.include_router(user_specifications.router, include_in_schema=False)  # Encrypted first-party Project documents
     app.include_router(memory_suggestions.router, include_in_schema=False)  # First-party only; cleartext for one explicit action, never logged
+    app.include_router(images_enhance.router, include_in_schema=False)  # Image Enhance - first-party clients only (source/result AES keys)
     app.include_router(user_tasks.router, include_in_schema=False)  # Tasks carry client-side encrypted content; expose only safe metadata via developer_metadata_api
     app.include_router(workspace_history.router, include_in_schema=False)  # Workspace history can reference encrypted objects; official clients only until classified
     app.include_router(ideabucket.router, include_in_schema=False)  # IdeaBucket stores encrypted bucket data; official clients only

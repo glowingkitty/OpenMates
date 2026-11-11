@@ -2072,3 +2072,17 @@ async def test_chat_embed_key_window_limit_admits_larger_embed_id_pages_only_whe
     with pytest.raises(Exception) as admitted:
         await get_chat_embed_key_window(limit=100, **base)
     assert not (isinstance(admitted.value, HTTPException) and admitted.value.detail == "Invalid embed key cursor")
+
+
+# contract-test: direct surface=rest_api assertions=embed-user-edits.history.one-per-embed,embed-user-edits.edit.next-version
+@pytest.mark.asyncio
+async def test_version_list_names_who_made_each_version():
+    directus = FakeDirectusService()
+    directus.rows[1].update(revision_origin="user", revision_action="enhance")
+    page = await list_embed_versions(
+        embed_id="embed-1", request=SimpleNamespace(), current_user=SimpleNamespace(id=OWNER_ID),
+        directus_service=directus, cursor=0, limit=100,
+    )
+    assert [(row["revision_origin"], row["revision_action"]) for row in page["versions"]] == [
+        ("assistant", None), ("user", "enhance"),
+    ]

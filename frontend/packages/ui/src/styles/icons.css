@@ -585,6 +585,13 @@ div.clickable-icon {
   -webkit-mask-size: contain;
 }
 
+.clickable-icon.icon_enhance {
+  -webkit-mask-image: url("@openmates/ui/static/icons/sparkles.svg");
+  mask-image: url("@openmates/ui/static/icons/sparkles.svg");
+  mask-size: contain;
+  -webkit-mask-size: contain;
+}
+
 .clickable-icon.icon_reminder {
   -webkit-mask-image: url("@openmates/ui/static/icons/reminder.svg");
   mask-image: url("@openmates/ui/static/icons/reminder.svg");

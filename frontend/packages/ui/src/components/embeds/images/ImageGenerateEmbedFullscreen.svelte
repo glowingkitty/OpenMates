@@ -19,6 +19,7 @@
   import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
   import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
   import { text, settingsDeepLink, panelState } from '@repo/ui';
+  import { notificationStore } from '../../../stores/notificationStore';
   import { fetchAndDecryptImage, getCachedImageUrl, createImageUrlOwner } from './imageEmbedCrypto';
   const { retain: retainCachedImage, release: releaseCachedImage, destroy: releaseOwnedImages } = createImageUrlOwner();
 
@@ -86,6 +87,13 @@
     /** Preview only: the version shown and the number of versions, without the core. */
     version?: number;
     versionCount?: number;
+    /** Enhance button (presentation only; the caller runs the Enhance). Omit onEnhance to hide it. */
+    onEnhance?: () => void;
+    /** False shows the button disabled with a reason (viewer without edit rights). Default true. */
+    canEnhance?: boolean;
+    enhanceState?: 'idle' | 'running' | 'failed';
+    /** Message of a failed Enhance; shown as a notification and as the button tooltip. */
+    enhanceError?: string;
   }
 
   let {
@@ -102,6 +110,10 @@
     initialVersion,
     version: previewVersion,
     versionCount,
+    onEnhance,
+    canEnhance = true,
+    enhanceState = 'idle',
+    enhanceError,
   }: Props = $props();
 
   // ── Extract fields from data.decodedContent and data.embedData ──────────────
@@ -498,6 +510,13 @@
     return { blob: resultBlob, filename: downloadFilename };
   }
 
+  let notifiedEnhanceError: string | undefined;
+  $effect(() => {
+    const failed = enhanceState === 'failed' ? (enhanceError ?? $text('embed_user_edits.enhance_failed')) : undefined;
+    if (failed && failed !== notifiedEnhanceError) notificationStore.error(failed);
+    notifiedEnhanceError = failed;
+  });
+
   /**
    * Open the image by itself in a new tab (same file as download: original + metadata).
    * The user can zoom in/out with the browser. Middle-click and Ctrl/Cmd+click use the native link.
@@ -526,6 +545,10 @@
   showSkillIcon={true}
   {onClose}
   onDownload={files?.original ? handleDownload : undefined}
+  {onEnhance}
+  enhanceState={canEnhance ? enhanceState : 'unavailable'}
+  enhanceError={enhanceError ?? $text('embed_user_edits.enhance_failed')}
+  enhanceUnavailableReason={$text('embed_user_edits.enhance_unavailable')}
   currentEmbedId={embedId}
   {hasPreviousEmbed}
   {hasNextEmbed}

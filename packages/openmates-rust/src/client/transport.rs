@@ -852,6 +852,10 @@ impl Client {
         // Closed-set link code only (P11); no raw body escapes the transport.
         self.project_item_error =
             super::project_item_error::classify(path, status.as_u16(), &bytes);
+        self.embed_user_revision_refusal =
+            super::embed_user_revision::refusal::classify(path, status.as_u16(), &bytes);
+        self.image_enhance_refusal =
+            super::image_enhance::refusal::classify(path, status.as_u16(), &bytes);
         if status.as_u16()==403&&super::browser::expected_principal_mismatch(&bytes){
             // This closed server denial revokes the entire current owner, not
             // merely one object ACL. Drop/zeroize credentials, cancel pending

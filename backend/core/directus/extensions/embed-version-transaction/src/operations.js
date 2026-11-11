@@ -235,13 +235,13 @@ async function lockIdentity(trx, value) {
 const GENERATED_IMAGE_APP_ID = 'images';
 const GENERATED_IMAGE_SKILL_ID = 'generated_image';
 
-function isGeneratedImageChild(embedId, head) {
+export function isGeneratedImageChild(embedId, head) {
   return Boolean(head) && UUID_V5_RE.test(embedId) && head.parent_embed_id != null
     && head.app_id === GENERATED_IMAGE_APP_ID && head.skill_id === GENERATED_IMAGE_SKILL_ID;
 }
 
 /** Union of two stored `s3_file_keys` lists (JSON text or arrays), first-seen order. */
-function unionFileKeys(existing, incoming) {
+export function unionFileKeys(existing, incoming) {
   const parse = (value) => {
     if (value == null) return [];
     let list = value;

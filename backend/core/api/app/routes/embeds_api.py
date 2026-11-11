@@ -939,7 +939,8 @@ async def _read_version_rows(
         "filter": filters,
         "fields": ("version_number,created_at,has_snapshot,has_patch,archive_state,"
                    "encrypted_snapshot,encrypted_patch,archive_object_key,archive_checksum"
-                   if include_payload else "version_number,created_at,has_snapshot,has_patch,archive_state"),
+                   if include_payload else "version_number,created_at,has_snapshot,has_patch,archive_state,"
+                   "revision_origin,revision_action"),
         "sort": ["-version_number" if descending else "version_number"],
         "limit": limit,
     }
@@ -958,6 +959,9 @@ def _version_meta(row: dict) -> dict:
         "has_snapshot": bool(row.get("has_snapshot")) or version == 1 or row.get("encrypted_snapshot") is not None,
         "has_patch": bool(row.get("has_patch")) or version > 1 or row.get("encrypted_patch") is not None,
         "archive_state": row.get("archive_state") or "hot",
+        # Plaintext non-content provenance (feature.embed-user-edits): null origin is assistant.
+        "revision_origin": row.get("revision_origin") or "assistant",
+        "revision_action": row.get("revision_action"),
     }
 
 

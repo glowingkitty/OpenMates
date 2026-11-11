@@ -60,6 +60,12 @@ pub mod chat_files;
 pub mod assistant_speech;
 pub mod embed_version;
 pub mod embed_write;
+/// User-made embed versions (`POST /v1/embeds/{id}/user-revisions`).
+pub mod embed_user_revision;
+/// The `embed_updated` chat system event: codec, writer, reconcile, grouping.
+pub mod embed_updated_event;
+/// Image Enhance: start, wait and save the result as the next embed version.
+pub mod image_enhance;
 pub mod saved_embed;
 #[doc(hidden)]
 pub mod shared_items;
@@ -554,6 +560,10 @@ pub struct Client {
     last_http_failure: Option<HttpFailure>,
     // Closed-set code of the last refused Project item-link response (P11).
     project_item_error: Option<&'static str>,
+    // Closed-set refusal of the last user-revision response (embed-user-edits).
+    embed_user_revision_refusal: Option<embed_user_revision::refusal::UserRevisionRefusal>,
+    // Closed-set refusal of the last Image Enhance response (embed-user-edits).
+    image_enhance_refusal: Option<image_enhance::refusal::ImageEnhanceRefusal>,
     in_flight_method: Option<String>,
     credential_updates: Option<mpsc::UnboundedSender<CredentialEvent>>,
     // Installed only by one exclusive live read; no credentials/URLs/body.
@@ -696,6 +706,8 @@ impl Client {
             inventory_network: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
             last_http_failure: None,
             project_item_error: None,
+            embed_user_revision_refusal: None,
+            image_enhance_refusal: None,
             in_flight_method: None,
             credential_updates: None,
             monitor_read_audit: None,

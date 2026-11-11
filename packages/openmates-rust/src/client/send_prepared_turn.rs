@@ -160,7 +160,7 @@ impl Client {
                 let content=Plain::new(decrypt_optional(row,"encrypted_content",key)?);
                 // Presentation-only history events never reach the AI (web:
                 // withoutPresentationOnlyEvents); they may carry sealed Undo data.
-                if row["role"]=="system" && crate::client::recommendations::parse_context_entry_event(&content).is_some(){continue;}
+                if row["role"]=="system" && crate::client::embed_updated_event::is_presentation_only_event(&content){continue;}
                 history.push(json!({"message_id":row.get("client_message_id").or_else(||row.get("message_id")).or_else(||row.get("id")),"chat_id":id,"role":row["role"],"sender_name":sender.as_str(),"content":content.as_str(),"created_at":row["created_at"]}));
             }
             if !history.is_empty(){inference["message_history"]=json!(history.as_slice());}

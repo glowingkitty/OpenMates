@@ -692,7 +692,15 @@ assertions:
     operation of kind file, application or test result. The embed keeps its id and stays readable in its chat, gains a
     Project-key wrapper so every Project member can read it, and gets exactly one Project link; a second link for the same
     embed is refused with embed_already_linked and a link at an existing path with path_conflict. From then on legacy and
-    server writers of that embed are refused with project_context_required.
+    server writers of that embed are refused with project_context_required. This refusal does not cover a user edit of
+    the embed, which projects.files.user-edit-direct allows.
+  depends_on:
+  - models.ProjectItemLink
+  - examples.project_application_files
+- id: projects.files.user-edit-direct
+  type: behavior
+  must: A member with write access can edit a Project file directly in the Project view without an open chat. The edit is
+    the next version of that same embed, and the Project timeline shows who made it.
   depends_on:
   - models.ProjectItemLink
   - examples.project_application_files

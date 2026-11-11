@@ -1486,6 +1486,13 @@ app.conf.beat_schedule = {
         'schedule': timedelta(minutes=1),
         'options': {'queue': 'persistence', 'expires': 50},
     },
+    # Image Enhance: refund and delete charged results never saved as a version
+    # within 24 hours; reconcile charges whose outcome was unknown.
+    'sweep-image-enhance-jobs': {
+        'task': 'apps.images.tasks.enhance_sweep',
+        'schedule': timedelta(minutes=10),
+        'options': {'queue': 'app_images', 'expires': 540},
+    },
     'sweep-assistant-speech-billing': {
         'task': 'apps.audio.tasks.assistant_speech_billing_sweep',
         'schedule': timedelta(minutes=10),

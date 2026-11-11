@@ -26,6 +26,20 @@ const HEX_64_RE = /^[0-9a-f]{64}$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const UUID_V5_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
+/**
+ * `project_items.item_type` values whose target is an embed (an adopted chat
+ * embed or a Project upload). One rule for which links make an embed a Project
+ * file; mirrored by PROJECT_FILE_ITEM_TYPES in backend/apps/images/enhance_jobs.py.
+ */
+export const PROJECT_FILE_ITEM_TYPES = Object.freeze(['embed', 'upload']);
+/**
+ * Narrow a project_items query to live file links: a link whose target was
+ * deleted (`deleted_target_state` set) neither grants Project-scope writes nor
+ * makes the embed a Project file.
+ */
+export const liveProjectFileLinks = (query) => query
+  .whereIn('item_type', PROJECT_FILE_ITEM_TYPES).whereNull('deleted_target_state');
+
 /** Link kinds; `file` is the only kind whose content is a Project file. */
 export const LINK_KINDS = new Set(['file', 'application', 'test_result']);
 /** Catalog skill that owns each non-file kind; server-owned refreshes require it. */
@@ -113,7 +127,7 @@ async function requireLinkedItem(trx, auth, scope, projectItemId) {
   const where = { hashed_project_id: auth.projectHash, project_item_id: projectItemId };
   if (auth.teamHash) where.hashed_team_id = auth.teamHash;
   else where.hashed_user_id = scope.actor_user_hash;
-  const item = await trx(PROJECT_ITEMS).where(where).whereIn('item_type', ['embed', 'upload'])
+  const item = await trx(PROJECT_ITEMS).where(where).whereIn('item_type', PROJECT_FILE_ITEM_TYPES)
     .forUpdate().first();
   if (!item) fail(404, 'project_item_not_found');
   return item;
@@ -179,7 +193,7 @@ export async function adoptProjectEmbed(database, raw) {
     await requireChatEmbedOwner(trx, embed, body.chat_id, body.actor_user_hash);
     requireCatalogKind(embed, body.kind);
     const links = await trx(PROJECT_ITEMS).where({ target_id_hash: embedHash })
-      .whereIn('item_type', ['embed', 'upload']);
+      .whereIn('item_type', PROJECT_FILE_ITEM_TYPES);
     if (links.some((link) => link.project_item_id !== body.project_item_id
       || link.hashed_project_id !== auth.projectHash)) fail(409, 'embed_already_linked');
     const now = Math.floor(Date.now() / 1000);

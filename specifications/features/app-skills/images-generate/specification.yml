@@ -112,7 +112,7 @@ assertions:
     depends_on: [models.VectorRequest.reference_images, examples.modify]
   - id: images-generate.revision.message-shows-its-version
     type: behavior
-    must: Every message shows the version of the image that was valid at that message; the message that created the image keeps showing version 1 and each changing message shows the version it produced, also after a reload and on another device. The image fullscreen offers the version history with each version's picture.
+    must: Every message shows the version of the image that was valid at that message; the display rule of embed-user-edits.display.latest-follows-user-versions applies, so a message follows later user-made versions until the next assistant-made version and keeps its picture when tied to an earlier assistant-made version, also after a reload and on another device. The image fullscreen offers the version history with each version's picture.
     depends_on: [examples.modify]
   - id: images-generate.revision.each-version-billed-once
     type: invariant

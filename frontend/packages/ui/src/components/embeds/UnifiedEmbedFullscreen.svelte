@@ -103,6 +103,11 @@
     onClose: () => void;
     /** Optional primary edit action in the top-right chrome. */
     onEdit?: () => void;
+    /** Image Enhance round button (see EmbedTopBar). */
+    onEnhance?: () => void;
+    enhanceState?: 'idle' | 'running' | 'failed' | 'unavailable';
+    enhanceError?: string;
+    enhanceUnavailableReason?: string;
     editActive?: boolean;
     /** Opt-in Edit placement/labels and Report-in-More layout (see EmbedTopBar). */
     editPlacement?: 'close' | 'share';
@@ -386,6 +391,10 @@
     skillId,
     onClose,
     onEdit,
+    onEnhance,
+    enhanceState,
+    enhanceError,
+    enhanceUnavailableReason,
     editActive = false,
     editPlacement = 'close',
     editTestId = 'embed-edit-button',
@@ -1532,6 +1541,10 @@
       {showPIIIncludeOriginal}
       onClose={handleClose}
       {onEdit}
+      {onEnhance}
+      {enhanceState}
+      {enhanceError}
+      {enhanceUnavailableReason}
       {editActive}
       {editPlacement}
       {editTestId}

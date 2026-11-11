@@ -3,9 +3,12 @@
 //! shows from the `pinned_embeds` of the chat's `app_skill_use` parents, and
 //! opens that version's content (head or `embed_diffs` snapshot). Contract:
 //! `docs/plans/image-edit-as-embed-version/wire-contract.md` ("How a client
-//! reads version K of an image"). Shells only render the result.
+//! reads version K of an image"). Messages also follow later user-made
+//! versions (`embed-user-edits.display.latest-follows-user-versions`). Shells
+//! only render the result.
 use super::payload::decode_object;
 use super::revision::stored_version;
+use crate::client::embed_updated_event::EmbedUpdateAction;
 use crate::error::{Error, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
@@ -108,9 +111,74 @@ pub struct MessageImageVersion {
     pub pinned_here: bool,
 }
 
+/// Who made a version (`revision_origin` of the versions list; a missing or
+/// null origin is an assistant version, as every version before user edits).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RevisionOrigin {
+    /// Made by the assistant (generation or revision).
+    Assistant,
+    /// Made by the user (edit, Enhance, restore, crop).
+    User,
+}
+
+/// Provenance of one stored version, from `GET /v1/embeds/{id}/versions`.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct VersionProvenance {
+    /// Version number.
+    pub version: i64,
+    /// Who made it.
+    pub origin: RevisionOrigin,
+    /// What the user did (`None` for assistant versions).
+    pub action: Option<EmbedUpdateAction>,
+}
+
+/// Read the `versions` of a versions-list page (`{versions: [{version_number,
+/// revision_origin, revision_action, ...}]}`). Other fields are ignored.
+///
+/// # Errors
+/// `Error::Protocol` for a page without `versions`, a version below 1 or
+/// listed twice, or an unknown origin or action (fail closed: an unknown
+/// origin would silently move what a message shows).
+pub fn parse_version_provenance(page: &Value) -> Result<Vec<VersionProvenance>> {
+    let rows = page
+        .get("versions")
+        .and_then(Value::as_array)
+        .ok_or(Error::Protocol)?;
+    let mut seen = std::collections::HashSet::new();
+    rows.iter()
+        .map(|row| {
+            let version = row
+                .get("version_number")
+                .and_then(safe_int)
+                .filter(|v| *v >= 1 && seen.insert(*v))
+                .ok_or(Error::Protocol)?;
+            let origin = match row.get("revision_origin") {
+                None | Some(Value::Null) => RevisionOrigin::Assistant,
+                Some(Value::String(text)) if text == "assistant" => RevisionOrigin::Assistant,
+                Some(Value::String(text)) if text == "user" => RevisionOrigin::User,
+                Some(_) => return Err(Error::Protocol),
+            };
+            let action = match row.get("revision_action") {
+                None | Some(Value::Null) => None,
+                Some(Value::String(text)) => {
+                    Some(EmbedUpdateAction::parse(text).ok_or(Error::Protocol)?)
+                }
+                Some(_) => return Err(Error::Protocol),
+            };
+            Ok(VersionProvenance {
+                version,
+                origin,
+                action,
+            })
+        })
+        .collect()
+}
+
 /// Walk `messages` (chat order) and give each the version of `embed_id` it
 /// shows: the `version` of the latest pin in any message up to and including
-/// it, or 1 when there is none (the creating message shows v1).
+/// it, or 1 when there is none (the creating message shows v1). Assistant
+/// versions only; [`versions_by_message_with_provenance`] adds user versions.
 ///
 /// # Errors
 /// `Error::Protocol` from [`pinned_embeds`] for any malformed parent.
@@ -118,6 +186,36 @@ pub fn versions_by_message(
     messages: &[MessageParents],
     embed_id: &str,
 ) -> Result<Vec<MessageImageVersion>> {
+    versions_by_message_with_provenance(messages, embed_id, &[])
+}
+
+/// [`versions_by_message`] plus user versions
+/// (`embed-user-edits.display.latest-follows-user-versions`): a message shows
+/// its pinned version P and follows the user-made versions P+1, P+2, ... up
+/// to the version before the next assistant-made one. A message tied to an
+/// earlier assistant version keeps its picture, and a version missing from
+/// `provenance` (not listed yet) ends the run, so nothing jumps to a version
+/// whose origin is unknown. A restore is a user version and is followed too.
+///
+/// # Errors
+/// `Error::Protocol` from [`pinned_embeds`] for any malformed parent.
+pub fn versions_by_message_with_provenance(
+    messages: &[MessageParents],
+    embed_id: &str,
+    provenance: &[VersionProvenance],
+) -> Result<Vec<MessageImageVersion>> {
+    let user_made: std::collections::HashSet<i64> = provenance
+        .iter()
+        .filter(|row| row.origin == RevisionOrigin::User)
+        .map(|row| row.version)
+        .collect();
+    let follow = |pinned: i64| {
+        let mut shown = pinned;
+        while user_made.contains(&(shown + 1)) {
+            shown += 1;
+        }
+        shown
+    };
     let mut current = 1;
     let mut out = Vec::with_capacity(messages.len());
     for message in messages {
@@ -133,7 +231,7 @@ pub fn versions_by_message(
         }
         out.push(MessageImageVersion {
             message_id: message.message_id.clone(),
-            version: current,
+            version: follow(current),
             pinned_here,
         });
     }
@@ -328,3 +426,7 @@ pub fn cache_version_page(
     cached.sort_by_key(|row| row.version_number);
     Ok(cached)
 }
+
+#[cfg(test)]
+#[path = "embed_pinned_version_tests.rs"]
+mod tests;

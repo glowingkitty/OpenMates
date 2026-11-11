@@ -701,3 +701,7 @@ pub use initial_sync::{BrowserInitialSyncHandle,BrowserInitialSyncControl,Browse
 
 #[cfg(feature="browser-metadata-prototype")]
 pub use initial_sync::{BrowserInitialSyncStoreBootstrap,BrowserInitialSyncStoreDriver,BrowserInitialSyncNativeTerminal,BrowserInitialSyncStored,capture_initial_sync_store};
+
+#[path="browser_embed_user_edit.rs"]
+mod embed_user_edit;
+pub use embed_user_edit::BrowserImageEnhanceWaker;

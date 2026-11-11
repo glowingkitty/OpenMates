@@ -33,6 +33,10 @@ modify:
     given: Carol uploads sketch.jpg and asks for a clean vector version.
     when: The chat model passes sketch.jpg in reference_images with output_filetype svg.
     then: The author receives the picture as an image and draws it as vector shapes.
+  - id: message-keeps-assistant-version
+    given: Alice's logo is version 1 at message 1, and the assistant makes the leaf orange as version 2 at message 3.
+    when: Alice reloads the chat on another device.
+    then: Message 1 still shows version 1 and message 3 shows version 2; user-made versions after them follow the rule of the embed user edits Specification.
 
 correction:
   - id: embroidery-requirements-corrected

@@ -177,3 +177,31 @@ pub fn embed_versions_by_message(messages_json: &str, embed_id: &str) -> Result<
     serde_json::to_string(&pinned::versions_by_message(&messages, embed_id).map_err(code)?)
         .map_err(proto)
 }
+/// [`embed_versions_by_message`] that also follows user-made versions:
+/// `versions_page_json` is the `GET /v1/embeds/{id}/versions` page
+/// (`{versions: [{version_number, revision_origin, revision_action}]}`), so a
+/// message shows its pinned version and the user versions made after it.
+/// Same output JSON.
+#[wasm_bindgen]
+pub fn embed_versions_by_message_with_provenance(
+    messages_json: &str,
+    embed_id: &str,
+    versions_page_json: &str,
+) -> Result<String, JsValue> {
+    let messages: Vec<MessageParents> =
+        serde_json::from_str(messages_json).map_err(|_| JsValue::from_str("invalid"))?;
+    let provenance = pinned::parse_version_provenance(&parse(versions_page_json)?).map_err(code)?;
+    let versions = pinned::versions_by_message_with_provenance(&messages, embed_id, &provenance)
+        .map_err(code)?;
+    serde_json::to_string(&versions).map_err(proto)
+}
+/// Fold `embed_updated` system events of a decrypted chat history
+/// (`[{message_id, role, content}]`, chat order) into chat items:
+/// `[{kind: "message", index} | {kind: "embed_updated", embed_id, embed_ref,
+/// embed_kind, latest_version, change_count, latest_action,
+/// latest_created_at, restored_from?, surface, message_ids}]`.
+#[wasm_bindgen]
+pub fn embed_group_updated_events(rows_json: &str) -> Result<String, JsValue> {
+    openmates_sdk::client::embed_updated_event::group_embed_updated_events_json(rows_json)
+        .map_err(code)
+}
