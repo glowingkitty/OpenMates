@@ -43609,7 +43609,7 @@ assertions:
     current_direct_proof: false
   images-generate.safety.named-person-review:
     specification: feature.app-skill.images-generate@1
-    fingerprint: 3efdbbbc61eb45b1ae7ef46b822ee5e5199cfdc2af7b5d9748454f305bca6730
+    fingerprint: 59977c5bf1ae0222b4169cb48cd53553729b030924b7b736922a27c9ef9175dd
     direct_tests: []
     supporting_tests:
     - &id5464

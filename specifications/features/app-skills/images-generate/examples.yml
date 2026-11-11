@@ -85,6 +85,8 @@ named_person:
     given: The user asks for a portrait of a world-famous singer, by name, on stage.
     when: The assistant calls images.generate with that prompt.
     then: The safeguard model answers that the name is a public figure. Nothing is drawn or charged, and the assistant says it cannot create pictures of real public figures and offers an original character instead.
+
+named_person_limits:
   - id: safeguard-model-unavailable
     given: The same birthday card request while the safeguard model does not answer.
     when: The assistant calls images.generate.

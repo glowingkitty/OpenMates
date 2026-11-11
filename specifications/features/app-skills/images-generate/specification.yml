@@ -149,4 +149,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [create, script, modify, correction, billing, named_person]
+  required_groups: [create, script, modify, correction, billing, named_person, named_person_limits]

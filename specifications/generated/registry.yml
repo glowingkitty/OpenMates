@@ -284,7 +284,7 @@ specifications:
     version: 1
     status: draft
     path: features/app-skills/images-generate
-    fingerprint: fd266bbcbbbd6430a45932bb5b4c28655f7756cbd88945cbf79c41342ad478dc
+    fingerprint: bc3e6906e5c9b3243ea3ae5c4c54b0a2673deb5d3f332beb7e16eb8266c8ca0c
     required_applies_to:
     - rest_api
     - cli
@@ -4836,7 +4836,7 @@ assertions:
     specification: feature.app-skill.images-generate@1
     specification_id: feature.app-skill.images-generate
     type: behavior
-    fingerprint: 3efdbbbc61eb45b1ae7ef46b822ee5e5199cfdc2af7b5d9748454f305bca6730
+    fingerprint: 59977c5bf1ae0222b4169cb48cd53553729b030924b7b736922a27c9ef9175dd
     required_applies_to:
     - rest_api
     - cli
