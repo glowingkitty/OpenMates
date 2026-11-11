@@ -2541,10 +2541,12 @@ dependencies = [
 name = "openmates-apple-bindings"
 version = "0.1.0"
 dependencies = [
+ "aes-gcm",
  "base64 0.22.1",
  "futures-util",
  "openmates-sdk",
  "serde_json",
+ "sha2",
  "tempfile",
  "thiserror",
  "tokio",

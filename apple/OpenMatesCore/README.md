@@ -50,6 +50,28 @@ window). A fresh sign-in after logout begins in the core (see below).
   backup-code login, and importing a Swift-held session, are not in the core
   API yet; the app still signs in through `AuthManager` until plan step A4.
 
+## Session ownership and un-migrated Swift code
+
+- The core alone owns the session (cookies, `ws_token`, master key). A login
+  that finishes in Swift (passkey, recovery key, backup code, device
+  verification) is handed over once with `adoptSession(session:cancellation:)`
+  (validated, stored and acknowledged, then `start`); Swift then deletes its
+  copies. `Invalid` while signed in or for a malformed field.
+- Swift REST calls go through `httpRequest(request:cancellation:)`: a `/v1/`
+  path with no query string inside it, query pairs, allow-listed headers and
+  an optional body. The core adds the cookie, stores rotated cookies and
+  returns status, allow-listed headers and body. Core-owned auth routes,
+  absolute URLs and other headers are `Forbidden` or `Invalid`. Uploads to the
+  upload host and streaming are not covered.
+- `sessionInfo()` gives the user id, email hash, team, pair deadline and
+  whether the session was admitted (`nil` while signed out). A rejected session
+  (401) wipes the profile and emits `Session(Expired)`; drop all state then.
+- Frozen remainders, refused while signed out: `legacySocketGrant()` (session
+  id and `ws_token` for `WebSocketManager`; plan step A4a removes it; valid only
+  while the core opens no socket, the server keeps one socket per device) and
+  `legacyMasterKey()` (memory only, for the remaining `CryptoManager` callers;
+  step A3b removes it). Nothing new may use them.
+
 ## Watch arm64_32: no TLS in the core
 
 The 32-bit Apple Watch slice (`arm64_32-apple-watchos`, built with nightly and

@@ -13,7 +13,7 @@
 use super::{
     ChatWindowRecord, ChatWindowSource, ListCompleteness, MessageRecord, PiiRestoration, RequestId,
     ViewEvent, ViewSink, actor::ViewCore, chat_window_from_cached, chat_window_from_chat,
-    first_page::FirstPageEmitter, message_record_from_message,
+    enrich::enrich_window, first_page::FirstPageEmitter, message_record_from_message,
 };
 use crate::{
     client::{
@@ -175,7 +175,9 @@ impl<S: ByteStore + 'static> ViewCore<S> {
         };
         let record = chat_window_from_cached(&window, ChatWindowSource::Cached);
         window.zeroize();
-        record.map(Some).map_err(|_| Error::Protocol)
+        let mut record = record.map_err(|_| Error::Protocol)?;
+        enrich_window(&self.client, &mut record)?;
+        Ok(Some(record))
     }
 
     /// The strict read of `chat_id` (cache-preferred, cold first page through
@@ -218,14 +220,15 @@ impl<S: ByteStore + 'static> ViewCore<S> {
         let read = read?;
         current(&generation)?;
         let (client, session, credentials) = (&mut self.client, &self.session, &*self.credentials);
-        match read {
+        let mut record = match read {
             ChatViewRead::Canonical(candidate) => {
                 client.validate_chat_view(&candidate)?;
                 let receipt = session.persist_for(client, credentials, &candidate).await?;
                 current(&generation)?;
                 let chat = client.commit_chat_view(candidate, receipt)?.into_chat()?;
-                // A strict read carries the complete history.
-                chat_window_from_chat(
+                // A strict read carries the complete history, so nothing
+                // older or newer exists.
+                let mut record = chat_window_from_chat(
                     &chat,
                     ChatWindowSource::Canonical,
                     Some(false),
@@ -233,7 +236,9 @@ impl<S: ByteStore + 'static> ViewCore<S> {
                     false,
                     PiiRestoration::AllCachedUserRows,
                 )
-                .map_err(|_| Error::Protocol)
+                .map_err(|_| Error::Protocol)?;
+                record.has_more_after = Some(false);
+                record
             }
             ChatViewRead::CacheSettled(candidate) => {
                 client.validate_cache_settlement(&candidate)?;
@@ -244,7 +249,7 @@ impl<S: ByteStore + 'static> ViewCore<S> {
                     .into_window()?;
                 let record = chat_window_from_cached(&window, ChatWindowSource::CacheSettled);
                 window.zeroize();
-                record.map_err(|_| Error::Protocol)
+                record.map_err(|_| Error::Protocol)?
             }
             ChatViewRead::CachedOffline(publication) => {
                 if !offline_allowed {
@@ -255,9 +260,11 @@ impl<S: ByteStore + 'static> ViewCore<S> {
                 let mut window = publication.into_window()?;
                 let record = chat_window_from_cached(&window, ChatWindowSource::CachedOffline);
                 window.zeroize();
-                record.map_err(|_| Error::Protocol)
+                record.map_err(|_| Error::Protocol)?
             }
-        }
+        };
+        enrich_window(client, &mut record)?;
+        Ok(record)
     }
 
     /// The open window of `chat_id` with the next older server page merged in
@@ -295,6 +302,7 @@ impl<S: ByteStore + 'static> ViewCore<S> {
                 .await?;
             merge_latest(&mut record.messages, records(&latest.chat)?);
             record.has_more_before = Some(latest.has_more_before);
+            record.has_more_after = Some(latest.has_more_after);
             cursor = latest.start_cursor;
         }
         if record.has_more_before == Some(true) {
@@ -316,6 +324,7 @@ impl<S: ByteStore + 'static> ViewCore<S> {
         }
         // Server pages restore personal data from their own mappings only.
         record.pii_restoration = PiiRestoration::PageLocal;
+        enrich_window(&self.client, &mut record)?;
         self.persist().await?;
         let window = self
             .window
@@ -396,18 +405,20 @@ impl<S: ByteStore + 'static> ViewCore<S> {
             }
             ChatSelectionUpdate::Unchanged => return Ok(()),
         };
-        let Some(window) = self
+        if self.open_chat_id() != Some(chat.id.as_str()) {
+            return Ok(());
+        }
+        // A live read keeps cached older rows plus the latest page: whether
+        // more history exists is unknown, and paging restarts from the latest.
+        let mut record =
+            chat_window_from_chat(&chat, source, None, false, false, PiiRestoration::PageLocal)
+                .map_err(|_| Error::Protocol)?;
+        enrich_window(&self.client, &mut record)?;
+        let window = self
             .window
             .as_mut()
             .filter(|window| window.chat_id == chat.id)
-        else {
-            return Ok(());
-        };
-        // A live read keeps cached older rows plus the latest page: whether
-        // more history exists is unknown, and paging restarts from the latest.
-        let record =
-            chat_window_from_chat(&chat, source, None, false, false, PiiRestoration::PageLocal)
-                .map_err(|_| Error::Protocol)?;
+            .ok_or(Error::Cancelled)?;
         window.record = Some(record.clone());
         window.older = None;
         let request = window.request;

@@ -21,10 +21,13 @@ mod actor_flows;
 mod actor_host;
 mod arrange;
 mod convert;
+#[cfg(not(target_arch = "wasm32"))]
+mod enrich;
 mod error;
 mod events;
 #[cfg(not(target_arch = "wasm32"))]
 mod first_page;
+mod metadata;
 mod records;
 #[cfg(not(target_arch = "wasm32"))]
 mod send_flows;
@@ -48,6 +51,7 @@ pub use convert::{
 };
 pub use error::{ViewErrorKind, ViewModelError};
 pub use events::{AccessDenial, RequestId, SessionEvent, SyncPhase, ViewCommand, ViewEvent};
+pub use metadata::{ChatRowMetadata, MessageMetadata, PiiMapping};
 pub use records::{
     ChatListRow, ChatRowStatus, ChatWindowRecord, ChatWindowSource, EmbedRef, ListCompleteness,
     MessageRecord, MessageRole, MessageStatus, PiiRestoration, SendState, StreamEvent,

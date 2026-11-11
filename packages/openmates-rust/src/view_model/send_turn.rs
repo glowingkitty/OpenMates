@@ -8,8 +8,8 @@
 //! opens at `Started`); the reply placeholder is replaced, never duplicated,
 //! by the completed reply; a turn whose chat is not open changes no window.
 use super::{
-    ChatWindowRecord, ChatWindowSource, MessageRecord, MessageRole, MessageStatus, PiiRestoration,
-    RequestId, SendState, ViewErrorKind, ViewEvent, window::OpenWindow,
+    ChatWindowRecord, ChatWindowSource, MessageMetadata, MessageRecord, MessageRole, MessageStatus,
+    PiiRestoration, RequestId, SendState, ViewErrorKind, ViewEvent, window::OpenWindow,
 };
 use crate::model::StreamUpdate;
 
@@ -31,6 +31,7 @@ fn empty_record(chat_id: &str) -> ChatWindowRecord {
         messages: Vec::new(),
         source: ChatWindowSource::Live,
         has_more_before: None,
+        has_more_after: None,
         history_complete: false,
         refreshing: false,
         pii_restoration: PiiRestoration::PageLocal,
@@ -98,6 +99,7 @@ impl SendTurn {
             thinking: String::new(),
             embeds: Vec::new(),
             send_state: Some(SendState::Sending),
+            metadata: MessageMetadata::default(),
         }
     }
 
@@ -151,7 +153,8 @@ impl SendTurn {
         }
     }
 
-    /// Apply one stream update; returns the changed window, if any. The
+    /// Apply one stream update; returns the changed window (or, for reply
+    /// text, the changed message as `MessageUpdated`), if any. The
     /// stream event itself is the caller's to emit (also for untracked turns).
     pub(super) fn apply(
         &mut self,
@@ -262,10 +265,12 @@ impl SendTurn {
                     thinking: String::new(),
                     embeds: Vec::new(),
                     send_state: None,
+                    metadata: MessageMetadata::default(),
                 });
                 record.messages.len() - 1
             }
         };
+        record.source = ChatWindowSource::Live;
         let reply = &mut record.messages[index];
         // Each update carries the reply text so far, not a suffix.
         reply.content = content.to_owned();
@@ -273,7 +278,13 @@ impl SendTurn {
         if !mate.is_empty() {
             reply.sender = mate.to_owned();
         }
-        Some(self.event(record))
+        // Only the reply changed: shells get that one message, not the whole
+        // window, per stream update (the stored window keeps it too).
+        Some(ViewEvent::MessageUpdated {
+            request: self.request,
+            chat_id: record.chat_id.clone(),
+            message: reply.clone(),
+        })
     }
 
     fn completed(
@@ -327,6 +338,7 @@ impl SendTurn {
                     thinking: String::new(),
                     embeds: Vec::new(),
                     send_state: None,
+                    metadata: MessageMetadata::default(),
                 }),
             }
         }

@@ -223,11 +223,12 @@ impl<S: ByteStore + 'static> ViewCore<S> {
         items: Vec<Item>,
         completeness: ListCompleteness,
     ) -> Result<ViewEvent> {
-        let rows = arrange_chat_list(&self.client, items)
+        let mut rows = arrange_chat_list(&self.client, items)
             .iter()
             .map(chat_list_row_from_item)
             .collect::<std::result::Result<Vec<_>, _>>()
             .map_err(|_| Error::Protocol)?;
+        super::enrich::enrich_rows(&self.client, &mut rows)?;
         Ok(ViewEvent::ChatList { rows, completeness })
     }
 }

@@ -25,6 +25,9 @@ required-features = ["bindgen"]
 
 [features]
 bindgen = ["uniffi/cli"]
+# Test fixtures exported to Swift (`test_support_seed_cached_account`). Off in
+# product builds; binding generation and the test build enable it together.
+test-support = []
 
 [dependencies]
 # Without workflow-yaml (plan F-6): the Apple framework needs no YAML serializer.
@@ -41,5 +44,9 @@ base64 = "0.22"
 
 [dev-dependencies]
 tempfile = "3"
+# The synthetic pair authorizer of the pair-cancel test seals the key bundle
+# (AES-256-GCM, HKDF salt SHA-256) as the web authorizer does.
+aes-gcm = "0.10"
+sha2 = "0.10"
 # Loopback session-validation server in the chat window tests.
 tokio = { version = "=1.54.1", features = ["net", "io-util"] }

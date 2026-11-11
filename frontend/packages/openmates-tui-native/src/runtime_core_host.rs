@@ -76,6 +76,8 @@ impl TerminalSink {
             // The terminal paints a send's turn from its stream updates.
             ViewEvent::ChatList { .. } | ViewEvent::ChatWindow { .. } if self.send.is_some() => None,
             ViewEvent::Stream { event, .. } => Some(View::Stream(update_from_stream(event)?)),
+            // Reply text reaches the terminal through the `Stream` content update.
+            ViewEvent::MessageUpdated { .. } => None,
             ViewEvent::ChatList { rows, .. } => {
                 let items = rows.iter().map(item_from_row).collect();
                 Some(if self.live { View::LiveItems(self.fence(items)) } else { View::Items(Workspace::Chats, items) })

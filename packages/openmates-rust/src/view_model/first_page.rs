@@ -72,7 +72,8 @@ impl<S: ByteStore + 'static, K: ViewSink> ChatFirstPageSink for FirstPageEmitter
                 .into_window()?;
             let record = chat_window_from_cached(&window, ChatWindowSource::FirstPage);
             window.zeroize();
-            let record = record.map_err(|_| Error::Protocol)?;
+            let mut record = record.map_err(|_| Error::Protocol)?;
+            super::enrich::enrich_window(client, &mut record)?;
             self.sink
                 .emit(ViewEvent::ChatWindow {
                     request: self.request,

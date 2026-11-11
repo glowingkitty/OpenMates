@@ -160,10 +160,15 @@ pub(crate) mod project_item_error;
 mod task_job_payload;
 mod task_jobs;
 mod team;
+// View-model row and message metadata projection (plan apple-client-core-migration a4).
+mod view_projection;
 mod toon;
 pub(crate) mod transport;
 #[cfg(not(target_arch = "wasm32"))] pub mod upload;
 #[cfg(not(target_arch = "wasm32"))] pub mod profile_upload;
+// Temporary shell passthrough for un-migrated Apple code (plan step A6 removes it).
+#[cfg(not(target_arch = "wasm32"))] mod shell_http;
+#[cfg(not(target_arch = "wasm32"))] pub use shell_http::{PreparedShellHttp, SentShellHttp, ShellHttpRequest, ShellHttpResponse, SHELL_HTTP_MAX_REQUEST_BODY, SHELL_HTTP_MAX_RESPONSE_BODY};
 #[cfg(not(target_arch = "wasm32"))] pub use transport::binary_stream::{BinaryResponse, SseMessage, SseOpen, SseParser, SseStream, parse_sse_message};
 mod transport_owned_start;
 mod workflow_delivery;

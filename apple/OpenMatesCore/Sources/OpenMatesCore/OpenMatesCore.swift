@@ -471,6 +471,22 @@ private let UNIFFI_CALLBACK_UNEXPECTED_ERROR: Int32 = 2
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterUInt16: FfiConverterPrimitive {
+    typealias FfiType = UInt16
+    typealias SwiftType = UInt16
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UInt16 {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterUInt64: FfiConverterPrimitive {
     typealias FfiType = UInt64
     typealias SwiftType = UInt64
@@ -1872,6 +1888,25 @@ public func FfiConverterTypeViewListener_lower(_ value: ViewListener) -> UInt64 
 public protocol ViewModelCoreProtocol: AnyObject, Sendable {
     
     /**
+     * TEMPORARY (removed with plan step A3, auth session). Hand a session that Swift
+     * signed in (passkey, recovery key, backup code, device verification)
+     * to the core: validated, stored through the Keychain with
+     * `acknowledgeCredentials`, then `start` (`Session(Admitted)` after the
+     * server admitted it). Afterwards Swift deletes its own copies of the
+     * cookies and master key and uses `httpRequest` and the legacy grants.
+     *
+     * # Errors
+     * `Invalid` while signed in or for a malformed field (nothing is sent or
+     * stored); `Expired` for a lapsed pair deadline; then as the core login
+     * hand-over (`Locked` for an unacknowledged store, the server session is
+     * then logged out) and as `start` (`Expired`/`Authentication` when the
+     * server rejects it, the profile is then wiped). `Cancelled` when
+     * `cancellation` fired; after the store this wipes it, logs the server
+     * session out and emits `Session(SignedOut)`.
+     */
+    func adoptSession(session: AdoptedSessionRecord, cancellation: CoreCancellation?) async throws 
+    
+    /**
      * Swift stored the payload of `revision` (see
      * `CredentialStore.credentialsChanged`). Callable from any thread.
      *
@@ -1984,6 +2019,50 @@ public protocol ViewModelCoreProtocol: AnyObject, Sendable {
     func switchTeam(teamId: String?, cancellation: CoreCancellation?) async throws 
     
     /**
+     * Perform `request` with the core's session and return the response.
+     * Several requests may run at once; each waits for a running command
+     * (for example a send) only to prepare and to finish. A rotated cookie
+     * is stored through the Keychain before this returns. A 401 signs the
+     * profile out (wipe, `Session(Expired)` event). Not covered: uploads to
+     * the upload host, multipart helpers and streaming responses.
+     *
+     * # Errors
+     * `Authentication` while signed out (also when signed out during the
+     * request); `Expired` when the server rejected the session;
+     * `Invalid` for a malformed method, path, query, header or body;
+     * `Forbidden` for a core-owned auth route (`/v1/auth/session`, `login`,
+     * `logout`) or a redirect; `Offline` without a response; `Protocol` for
+     * an oversized response; `Cancelled` when `cancellation` fired or the
+     * session changed meanwhile; `Locked` when a rotated cookie could not be
+     * stored.
+     */
+    func httpRequest(request: HttpRequestRecord, cancellation: CoreCancellation?) async throws  -> HttpResponseRecord
+    
+    /**
+     * FROZEN REMAINDER (removed with plan step A3b). The 32-byte master key
+     * for the remaining Swift `CryptoManager` callers. Swift keeps it in
+     * memory only (never in its own Keychain item) and drops it on
+     * `Session(SignedOut)` or `Session(Expired)`.
+     *
+     * # Errors
+     * `Authentication` while signed out; `Expired` for a lapsed pairing.
+     */
+    func legacyMasterKey() async throws  -> Data
+    
+    /**
+     * FROZEN REMAINDER (removed with plan step A4a). The session id and
+     * current `ws_token` for Swift's own WebSocket. The server keys sockets
+     * by account and device, so a second socket of this app replaces the
+     * first: valid only while the core opens no socket of its own (today
+     * the Apple host runs no core monitor). Ask again after every
+     * `Session(Admitted)`, the token rotates.
+     *
+     * # Errors
+     * `Authentication` while signed out; `Expired` for a lapsed pairing.
+     */
+    func legacySocketGrant() async throws  -> LegacySocketGrantRecord
+    
+    /**
      * Begin a pair login of this device: returns the code (and link) the
      * authorizing device enters. Replaces a running pair login.
      *
@@ -2014,7 +2093,10 @@ public protocol ViewModelCoreProtocol: AnyObject, Sendable {
      * `Invalid` while signed in or without a running pair login; `Expired`
      * for a failed or lapsed pairing; `Authentication`/`Crypto` for a wrong
      * PIN or a bundle of another account; `Locked` for an unacknowledged
-     * store; then as `start`.
+     * store; then as `start`. `Cancelled` when `cancellation` fired; a cancel
+     * after the Keychain store wipes the stored session, logs the paired
+     * server session out, ends the pairing and emits `Session(SignedOut)`
+     * (as `loginPassword`).
      */
     func finishPairLogin(cancellation: CoreCancellation?) async throws  -> Bool
     
@@ -2086,6 +2168,17 @@ public protocol ViewModelCoreProtocol: AnyObject, Sendable {
      * persistence errors; `Cancelled` when cancelled.
      */
     func send(request: UInt64, chatId: String?, text: String, cancellation: CoreCancellation?) async throws  -> ChatWindowViewRecord
+    
+    /**
+     * The signed-in session (`nil` while signed out). Waits for a running
+     * command (a send holds the actor). Auth loss is reported as the
+     * listener event `Session(Expired)` (the profile is then signed out and
+     * wiped), sign-out as `Session(SignedOut)`.
+     *
+     * # Errors
+     * `Internal` for a binding failure only.
+     */
+    func sessionInfo() async throws  -> SessionInfoRecord?
     
 }
 /**
@@ -2170,6 +2263,39 @@ public convenience init(config: CoreConfig, credentials: CredentialStore, listen
 
     
 
+    
+    /**
+     * TEMPORARY (removed with plan step A3, auth session). Hand a session that Swift
+     * signed in (passkey, recovery key, backup code, device verification)
+     * to the core: validated, stored through the Keychain with
+     * `acknowledgeCredentials`, then `start` (`Session(Admitted)` after the
+     * server admitted it). Afterwards Swift deletes its own copies of the
+     * cookies and master key and uses `httpRequest` and the legacy grants.
+     *
+     * # Errors
+     * `Invalid` while signed in or for a malformed field (nothing is sent or
+     * stored); `Expired` for a lapsed pair deadline; then as the core login
+     * hand-over (`Locked` for an unacknowledged store, the server session is
+     * then logged out) and as `start` (`Expired`/`Authentication` when the
+     * server rejects it, the profile is then wiped). `Cancelled` when
+     * `cancellation` fired; after the store this wipes it, logs the server
+     * session out and emits `Session(SignedOut)`.
+     */
+open func adoptSession(session: AdoptedSessionRecord, cancellation: CoreCancellation?)async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_adopt_session(
+                        self.uniffiCloneHandle(),FfiConverterTypeAdoptedSessionRecord_lower(session),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_void,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_void,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
     
     /**
      * Swift stored the payload of `revision` (see
@@ -2417,6 +2543,92 @@ open func switchTeam(teamId: String?, cancellation: CoreCancellation?)async thro
 }
     
     /**
+     * Perform `request` with the core's session and return the response.
+     * Several requests may run at once; each waits for a running command
+     * (for example a send) only to prepare and to finish. A rotated cookie
+     * is stored through the Keychain before this returns. A 401 signs the
+     * profile out (wipe, `Session(Expired)` event). Not covered: uploads to
+     * the upload host, multipart helpers and streaming responses.
+     *
+     * # Errors
+     * `Authentication` while signed out (also when signed out during the
+     * request); `Expired` when the server rejected the session;
+     * `Invalid` for a malformed method, path, query, header or body;
+     * `Forbidden` for a core-owned auth route (`/v1/auth/session`, `login`,
+     * `logout`) or a redirect; `Offline` without a response; `Protocol` for
+     * an oversized response; `Cancelled` when `cancellation` fired or the
+     * session changed meanwhile; `Locked` when a rotated cookie could not be
+     * stored.
+     */
+open func httpRequest(request: HttpRequestRecord, cancellation: CoreCancellation?)async throws  -> HttpResponseRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_http_request(
+                        self.uniffiCloneHandle(),FfiConverterTypeHttpRequestRecord_lower(request),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeHttpResponseRecord_lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * FROZEN REMAINDER (removed with plan step A3b). The 32-byte master key
+     * for the remaining Swift `CryptoManager` callers. Swift keeps it in
+     * memory only (never in its own Keychain item) and drops it on
+     * `Session(SignedOut)` or `Session(Expired)`.
+     *
+     * # Errors
+     * `Authentication` while signed out; `Expired` for a lapsed pairing.
+     */
+open func legacyMasterKey()async throws  -> Data  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_legacy_master_key(
+                        self.uniffiCloneHandle()
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterData.lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * FROZEN REMAINDER (removed with plan step A4a). The session id and
+     * current `ws_token` for Swift's own WebSocket. The server keys sockets
+     * by account and device, so a second socket of this app replaces the
+     * first: valid only while the core opens no socket of its own (today
+     * the Apple host runs no core monitor). Ask again after every
+     * `Session(Admitted)`, the token rotates.
+     *
+     * # Errors
+     * `Authentication` while signed out; `Expired` for a lapsed pairing.
+     */
+open func legacySocketGrant()async throws  -> LegacySocketGrantRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_legacy_socket_grant(
+                        self.uniffiCloneHandle()
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeLegacySocketGrantRecord_lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
      * Begin a pair login of this device: returns the code (and link) the
      * authorizing device enters. Replaces a running pair login.
      *
@@ -2475,7 +2687,10 @@ open func cancelPairLogin()async throws   {
      * `Invalid` while signed in or without a running pair login; `Expired`
      * for a failed or lapsed pairing; `Authentication`/`Crypto` for a wrong
      * PIN or a bundle of another account; `Locked` for an unacknowledged
-     * store; then as `start`.
+     * store; then as `start`. `Cancelled` when `cancellation` fired; a cancel
+     * after the Keychain store wipes the stored session, logs the paired
+     * server session out, ends the pairing and emits `Session(SignedOut)`
+     * (as `loginPassword`).
      */
 open func finishPairLogin(cancellation: CoreCancellation?)async throws  -> Bool  {
     return
@@ -2625,6 +2840,31 @@ open func send(request: UInt64, chatId: String?, text: String, cancellation: Cor
         )
 }
     
+    /**
+     * The signed-in session (`nil` while signed out). Waits for a running
+     * command (a send holds the actor). Auth loss is reported as the
+     * listener event `Session(Expired)` (the profile is then signed out and
+     * wiped), sign-out as `Session(SignedOut)`.
+     *
+     * # Errors
+     * `Internal` for a binding failure only.
+     */
+open func sessionInfo()async throws  -> SessionInfoRecord?  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_session_info(
+                        self.uniffiCloneHandle()
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterOptionTypeSessionInfoRecord.lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
 
     
 }
@@ -2671,6 +2911,140 @@ public func FfiConverterTypeViewModelCore_lower(_ value: ViewModelCore) -> UInt6
 }
 
 
+
+
+/**
+ * The fields a Swift-completed login holds. All of them are secret or
+ * account-identifying; the core zeroizes them after use.
+ */
+public struct AdoptedSessionRecord: Equatable, Hashable {
+    /**
+     * Session id the login was performed with (8 to 128 of letters,
+     * digits, `_`, `-`).
+     */
+    public var sessionId: String
+    /**
+     * The API host's session cookies; must contain `auth_refresh_token`.
+     * At most 8.
+     */
+    public var cookies: [SessionCookieRecord]
+    /**
+     * The login response's `ws_token`, if any.
+     */
+    public var wsToken: String?
+    /**
+     * The unwrapped 32-byte master key.
+     */
+    public var masterKey: Data
+    /**
+     * The account's email hash (base64, as the core computes it).
+     */
+    public var hashedEmail: String
+    /**
+     * The account's email salt (base64; empty when unknown).
+     */
+    public var userEmailSalt: String
+    /**
+     * The derived email encryption key (base64), if known.
+     */
+    public var emailEncryptionKey: String?
+    /**
+     * Pair session deadline in unix milliseconds, for paired sessions.
+     */
+    public var pairedSessionExpiresAt: UInt64?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Session id the login was performed with (8 to 128 of letters,
+         * digits, `_`, `-`).
+         */sessionId: String, 
+        /**
+         * The API host's session cookies; must contain `auth_refresh_token`.
+         * At most 8.
+         */cookies: [SessionCookieRecord], 
+        /**
+         * The login response's `ws_token`, if any.
+         */wsToken: String?, 
+        /**
+         * The unwrapped 32-byte master key.
+         */masterKey: Data, 
+        /**
+         * The account's email hash (base64, as the core computes it).
+         */hashedEmail: String, 
+        /**
+         * The account's email salt (base64; empty when unknown).
+         */userEmailSalt: String, 
+        /**
+         * The derived email encryption key (base64), if known.
+         */emailEncryptionKey: String?, 
+        /**
+         * Pair session deadline in unix milliseconds, for paired sessions.
+         */pairedSessionExpiresAt: UInt64?) {
+        self.sessionId = sessionId
+        self.cookies = cookies
+        self.wsToken = wsToken
+        self.masterKey = masterKey
+        self.hashedEmail = hashedEmail
+        self.userEmailSalt = userEmailSalt
+        self.emailEncryptionKey = emailEncryptionKey
+        self.pairedSessionExpiresAt = pairedSessionExpiresAt
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension AdoptedSessionRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAdoptedSessionRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AdoptedSessionRecord {
+        return
+            try AdoptedSessionRecord(
+                sessionId: FfiConverterString.read(from: &buf), 
+                cookies: FfiConverterSequenceTypeSessionCookieRecord.read(from: &buf), 
+                wsToken: FfiConverterOptionString.read(from: &buf), 
+                masterKey: FfiConverterData.read(from: &buf), 
+                hashedEmail: FfiConverterString.read(from: &buf), 
+                userEmailSalt: FfiConverterString.read(from: &buf), 
+                emailEncryptionKey: FfiConverterOptionString.read(from: &buf), 
+                pairedSessionExpiresAt: FfiConverterOptionUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: AdoptedSessionRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.sessionId, into: &buf)
+        FfiConverterSequenceTypeSessionCookieRecord.write(value.cookies, into: &buf)
+        FfiConverterOptionString.write(value.wsToken, into: &buf)
+        FfiConverterData.write(value.masterKey, into: &buf)
+        FfiConverterString.write(value.hashedEmail, into: &buf)
+        FfiConverterString.write(value.userEmailSalt, into: &buf)
+        FfiConverterOptionString.write(value.emailEncryptionKey, into: &buf)
+        FfiConverterOptionUInt64.write(value.pairedSessionExpiresAt, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAdoptedSessionRecord_lift(_ buf: RustBuffer) throws -> AdoptedSessionRecord {
+    return try FfiConverterTypeAdoptedSessionRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAdoptedSessionRecord_lower(_ value: AdoptedSessionRecord) -> RustBuffer {
+    return FfiConverterTypeAdoptedSessionRecord.lower(value)
+}
 
 
 /**
@@ -2733,6 +3107,10 @@ public struct ChatListRowRecord: Equatable, Hashable {
      * Home-card footer such as a reminder countdown.
      */
     public var footer: String?
+    /**
+     * Further facts of the held chat row (icon, sub-chat, budget, draft).
+     */
+    public var metadata: ChatRowMetadataRecord
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -2778,7 +3156,10 @@ public struct ChatListRowRecord: Equatable, Hashable {
          */hasDraft: Bool, 
         /**
          * Home-card footer such as a reminder countdown.
-         */footer: String?) {
+         */footer: String?, 
+        /**
+         * Further facts of the held chat row (icon, sub-chat, budget, draft).
+         */metadata: ChatRowMetadataRecord) {
         self.id = id
         self.title = title
         self.chatListTitle = chatListTitle
@@ -2793,6 +3174,7 @@ public struct ChatListRowRecord: Equatable, Hashable {
         self.archived = archived
         self.hasDraft = hasDraft
         self.footer = footer
+        self.metadata = metadata
     }
 
     
@@ -2824,7 +3206,8 @@ public struct FfiConverterTypeChatListRowRecord: FfiConverterRustBuffer {
                 pinned: FfiConverterBool.read(from: &buf), 
                 archived: FfiConverterBool.read(from: &buf), 
                 hasDraft: FfiConverterBool.read(from: &buf), 
-                footer: FfiConverterOptionString.read(from: &buf)
+                footer: FfiConverterOptionString.read(from: &buf), 
+                metadata: FfiConverterTypeChatRowMetadataRecord.read(from: &buf)
         )
     }
 
@@ -2843,6 +3226,7 @@ public struct FfiConverterTypeChatListRowRecord: FfiConverterRustBuffer {
         FfiConverterBool.write(value.archived, into: &buf)
         FfiConverterBool.write(value.hasDraft, into: &buf)
         FfiConverterOptionString.write(value.footer, into: &buf)
+        FfiConverterTypeChatRowMetadataRecord.write(value.metadata, into: &buf)
     }
 }
 
@@ -2973,6 +3357,196 @@ public func FfiConverterTypeChatMetadataRecord_lower(_ value: ChatMetadataRecord
 
 
 /**
+ * List facts of one chat beyond the display fields (core `ChatRowMetadata`).
+ * Every field is `None` when the held row does not carry it.
+ */
+public struct ChatRowMetadataRecord: Equatable, Hashable {
+    /**
+     * Decrypted icon name; `None` when unset or the chat is locked.
+     */
+    public var icon: String?
+    /**
+     * Decrypted id of the active focus mode.
+     */
+    public var activeFocusId: String?
+    /**
+     * Parent chat id of a sub-chat.
+     */
+    public var parentId: String?
+    /**
+     * The chat is a sub-chat.
+     */
+    public var isSubChat: Bool?
+    /**
+     * Team of the chat: the active team in team scope, `None` in personal scope.
+     */
+    public var teamId: String?
+    /**
+     * The owner shared the chat by link.
+     */
+    public var isShared: Bool?
+    /**
+     * The chat is private, never shareable.
+     */
+    public var isPrivate: Bool?
+    /**
+     * The chat is hidden behind the hidden-chats lock.
+     */
+    public var isHidden: Bool?
+    /**
+     * Server time of the last completed message (`last_message_timestamp`).
+     */
+    public var lastMessageAt: Int64?
+    /**
+     * Server time of the last edit of any kind (`last_edited_overall_timestamp`).
+     */
+    public var lastEditedAt: Int64?
+    /**
+     * Credit limit of a sub-chat subtree.
+     */
+    public var budgetLimit: UInt64?
+    /**
+     * Credits spent under a sub-chat subtree.
+     */
+    public var budgetSpent: UInt64?
+    /**
+     * Server draft version.
+     */
+    public var draftV: UInt64?
+    /**
+     * Decrypted draft preview text; personal scope with a draft only.
+     */
+    public var draftPreview: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Decrypted icon name; `None` when unset or the chat is locked.
+         */icon: String?, 
+        /**
+         * Decrypted id of the active focus mode.
+         */activeFocusId: String?, 
+        /**
+         * Parent chat id of a sub-chat.
+         */parentId: String?, 
+        /**
+         * The chat is a sub-chat.
+         */isSubChat: Bool?, 
+        /**
+         * Team of the chat: the active team in team scope, `None` in personal scope.
+         */teamId: String?, 
+        /**
+         * The owner shared the chat by link.
+         */isShared: Bool?, 
+        /**
+         * The chat is private, never shareable.
+         */isPrivate: Bool?, 
+        /**
+         * The chat is hidden behind the hidden-chats lock.
+         */isHidden: Bool?, 
+        /**
+         * Server time of the last completed message (`last_message_timestamp`).
+         */lastMessageAt: Int64?, 
+        /**
+         * Server time of the last edit of any kind (`last_edited_overall_timestamp`).
+         */lastEditedAt: Int64?, 
+        /**
+         * Credit limit of a sub-chat subtree.
+         */budgetLimit: UInt64?, 
+        /**
+         * Credits spent under a sub-chat subtree.
+         */budgetSpent: UInt64?, 
+        /**
+         * Server draft version.
+         */draftV: UInt64?, 
+        /**
+         * Decrypted draft preview text; personal scope with a draft only.
+         */draftPreview: String?) {
+        self.icon = icon
+        self.activeFocusId = activeFocusId
+        self.parentId = parentId
+        self.isSubChat = isSubChat
+        self.teamId = teamId
+        self.isShared = isShared
+        self.isPrivate = isPrivate
+        self.isHidden = isHidden
+        self.lastMessageAt = lastMessageAt
+        self.lastEditedAt = lastEditedAt
+        self.budgetLimit = budgetLimit
+        self.budgetSpent = budgetSpent
+        self.draftV = draftV
+        self.draftPreview = draftPreview
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ChatRowMetadataRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeChatRowMetadataRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ChatRowMetadataRecord {
+        return
+            try ChatRowMetadataRecord(
+                icon: FfiConverterOptionString.read(from: &buf), 
+                activeFocusId: FfiConverterOptionString.read(from: &buf), 
+                parentId: FfiConverterOptionString.read(from: &buf), 
+                isSubChat: FfiConverterOptionBool.read(from: &buf), 
+                teamId: FfiConverterOptionString.read(from: &buf), 
+                isShared: FfiConverterOptionBool.read(from: &buf), 
+                isPrivate: FfiConverterOptionBool.read(from: &buf), 
+                isHidden: FfiConverterOptionBool.read(from: &buf), 
+                lastMessageAt: FfiConverterOptionInt64.read(from: &buf), 
+                lastEditedAt: FfiConverterOptionInt64.read(from: &buf), 
+                budgetLimit: FfiConverterOptionUInt64.read(from: &buf), 
+                budgetSpent: FfiConverterOptionUInt64.read(from: &buf), 
+                draftV: FfiConverterOptionUInt64.read(from: &buf), 
+                draftPreview: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ChatRowMetadataRecord, into buf: inout [UInt8]) {
+        FfiConverterOptionString.write(value.icon, into: &buf)
+        FfiConverterOptionString.write(value.activeFocusId, into: &buf)
+        FfiConverterOptionString.write(value.parentId, into: &buf)
+        FfiConverterOptionBool.write(value.isSubChat, into: &buf)
+        FfiConverterOptionString.write(value.teamId, into: &buf)
+        FfiConverterOptionBool.write(value.isShared, into: &buf)
+        FfiConverterOptionBool.write(value.isPrivate, into: &buf)
+        FfiConverterOptionBool.write(value.isHidden, into: &buf)
+        FfiConverterOptionInt64.write(value.lastMessageAt, into: &buf)
+        FfiConverterOptionInt64.write(value.lastEditedAt, into: &buf)
+        FfiConverterOptionUInt64.write(value.budgetLimit, into: &buf)
+        FfiConverterOptionUInt64.write(value.budgetSpent, into: &buf)
+        FfiConverterOptionUInt64.write(value.draftV, into: &buf)
+        FfiConverterOptionString.write(value.draftPreview, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeChatRowMetadataRecord_lift(_ buf: RustBuffer) throws -> ChatRowMetadataRecord {
+    return try FfiConverterTypeChatRowMetadataRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeChatRowMetadataRecord_lower(_ value: ChatRowMetadataRecord) -> RustBuffer {
+    return FfiConverterTypeChatRowMetadataRecord.lower(value)
+}
+
+
+/**
  * The messages of one open chat (core `ChatWindowRecord`).
  */
 public struct ChatWindowViewRecord: Equatable, Hashable {
@@ -3000,6 +3574,10 @@ public struct ChatWindowViewRecord: Equatable, Hashable {
      * Whether older messages exist; `None` when unknown.
      */
     public var hasMoreBefore: Bool?
+    /**
+     * Whether newer messages exist; `None` when unknown.
+     */
+    public var hasMoreAfter: Bool?
     /**
      * Every message of the chat is in `messages`.
      */
@@ -3035,6 +3613,9 @@ public struct ChatWindowViewRecord: Equatable, Hashable {
          * Whether older messages exist; `None` when unknown.
          */hasMoreBefore: Bool?, 
         /**
+         * Whether newer messages exist; `None` when unknown.
+         */hasMoreAfter: Bool?, 
+        /**
          * Every message of the chat is in `messages`.
          */historyComplete: Bool, 
         /**
@@ -3049,6 +3630,7 @@ public struct ChatWindowViewRecord: Equatable, Hashable {
         self.messages = messages
         self.source = source
         self.hasMoreBefore = hasMoreBefore
+        self.hasMoreAfter = hasMoreAfter
         self.historyComplete = historyComplete
         self.refreshing = refreshing
         self.piiRestoration = piiRestoration
@@ -3076,6 +3658,7 @@ public struct FfiConverterTypeChatWindowViewRecord: FfiConverterRustBuffer {
                 messages: FfiConverterSequenceTypeMessageViewRecord.read(from: &buf), 
                 source: FfiConverterTypeChatWindowSourceRecord.read(from: &buf), 
                 hasMoreBefore: FfiConverterOptionBool.read(from: &buf), 
+                hasMoreAfter: FfiConverterOptionBool.read(from: &buf), 
                 historyComplete: FfiConverterBool.read(from: &buf), 
                 refreshing: FfiConverterBool.read(from: &buf), 
                 piiRestoration: FfiConverterTypePiiRestorationRecord.read(from: &buf)
@@ -3089,6 +3672,7 @@ public struct FfiConverterTypeChatWindowViewRecord: FfiConverterRustBuffer {
         FfiConverterSequenceTypeMessageViewRecord.write(value.messages, into: &buf)
         FfiConverterTypeChatWindowSourceRecord.write(value.source, into: &buf)
         FfiConverterOptionBool.write(value.hasMoreBefore, into: &buf)
+        FfiConverterOptionBool.write(value.hasMoreAfter, into: &buf)
         FfiConverterBool.write(value.historyComplete, into: &buf)
         FfiConverterBool.write(value.refreshing, into: &buf)
         FfiConverterTypePiiRestorationRecord.write(value.piiRestoration, into: &buf)
@@ -3863,6 +4447,333 @@ public func FfiConverterTypeEncryptedMessageRecord_lower(_ value: EncryptedMessa
 
 
 /**
+ * One name/value pair (query parameter or header).
+ */
+public struct HttpFieldRecord: Equatable, Hashable {
+    /**
+     * Name (headers: case-insensitive).
+     */
+    public var name: String
+    /**
+     * Value.
+     */
+    public var value: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Name (headers: case-insensitive).
+         */name: String, 
+        /**
+         * Value.
+         */value: String) {
+        self.name = name
+        self.value = value
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension HttpFieldRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHttpFieldRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HttpFieldRecord {
+        return
+            try HttpFieldRecord(
+                name: FfiConverterString.read(from: &buf), 
+                value: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HttpFieldRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterString.write(value.value, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHttpFieldRecord_lift(_ buf: RustBuffer) throws -> HttpFieldRecord {
+    return try FfiConverterTypeHttpFieldRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHttpFieldRecord_lower(_ value: HttpFieldRecord) -> RustBuffer {
+    return FfiConverterTypeHttpFieldRecord.lower(value)
+}
+
+
+/**
+ * A request relative to the configured API origin.
+ */
+public struct HttpRequestRecord: Equatable, Hashable {
+    /**
+     * `GET`, `POST`, `PUT`, `PATCH` or `DELETE`.
+     */
+    public var method: String
+    /**
+     * API path starting with `/v1/`, without query; absolute URLs and other
+     * hosts are refused.
+     */
+    public var path: String
+    /**
+     * Query parameters (encoded by the core), at most 64.
+     */
+    public var query: [HttpFieldRecord]
+    /**
+     * At most 16 of `Accept`, `Accept-Language`, `Cache-Control`,
+     * `Content-Type`, `Idempotency-Key`, `If-Match`, `If-None-Match`,
+     * `Pragma`. Cookies, origin and client headers are the core's.
+     */
+    public var headers: [HttpFieldRecord]
+    /**
+     * Body bytes (not for `GET`), at most 16 MiB; zeroized after sending.
+     */
+    public var body: Data?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * `GET`, `POST`, `PUT`, `PATCH` or `DELETE`.
+         */method: String, 
+        /**
+         * API path starting with `/v1/`, without query; absolute URLs and other
+         * hosts are refused.
+         */path: String, 
+        /**
+         * Query parameters (encoded by the core), at most 64.
+         */query: [HttpFieldRecord], 
+        /**
+         * At most 16 of `Accept`, `Accept-Language`, `Cache-Control`,
+         * `Content-Type`, `Idempotency-Key`, `If-Match`, `If-None-Match`,
+         * `Pragma`. Cookies, origin and client headers are the core's.
+         */headers: [HttpFieldRecord], 
+        /**
+         * Body bytes (not for `GET`), at most 16 MiB; zeroized after sending.
+         */body: Data?) {
+        self.method = method
+        self.path = path
+        self.query = query
+        self.headers = headers
+        self.body = body
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension HttpRequestRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHttpRequestRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HttpRequestRecord {
+        return
+            try HttpRequestRecord(
+                method: FfiConverterString.read(from: &buf), 
+                path: FfiConverterString.read(from: &buf), 
+                query: FfiConverterSequenceTypeHttpFieldRecord.read(from: &buf), 
+                headers: FfiConverterSequenceTypeHttpFieldRecord.read(from: &buf), 
+                body: FfiConverterOptionData.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HttpRequestRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.method, into: &buf)
+        FfiConverterString.write(value.path, into: &buf)
+        FfiConverterSequenceTypeHttpFieldRecord.write(value.query, into: &buf)
+        FfiConverterSequenceTypeHttpFieldRecord.write(value.headers, into: &buf)
+        FfiConverterOptionData.write(value.body, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHttpRequestRecord_lift(_ buf: RustBuffer) throws -> HttpRequestRecord {
+    return try FfiConverterTypeHttpRequestRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHttpRequestRecord_lower(_ value: HttpRequestRecord) -> RustBuffer {
+    return FfiConverterTypeHttpRequestRecord.lower(value)
+}
+
+
+/**
+ * The server's answer for any status the core does not own (it owns 401,
+ * redirects and an expected-principal 403).
+ */
+public struct HttpResponseRecord: Equatable, Hashable {
+    /**
+     * HTTP status code; non-2xx statuses are returned, not thrown.
+     */
+    public var status: UInt16
+    /**
+     * `Cache-Control`, `Content-Disposition`, `Content-Language`,
+     * `Content-Type`, `ETag`, `Last-Modified`, `Retry-After` (lower-case).
+     */
+    public var headers: [HttpFieldRecord]
+    /**
+     * Body bytes, at most 16 MiB.
+     */
+    public var body: Data
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * HTTP status code; non-2xx statuses are returned, not thrown.
+         */status: UInt16, 
+        /**
+         * `Cache-Control`, `Content-Disposition`, `Content-Language`,
+         * `Content-Type`, `ETag`, `Last-Modified`, `Retry-After` (lower-case).
+         */headers: [HttpFieldRecord], 
+        /**
+         * Body bytes, at most 16 MiB.
+         */body: Data) {
+        self.status = status
+        self.headers = headers
+        self.body = body
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension HttpResponseRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHttpResponseRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HttpResponseRecord {
+        return
+            try HttpResponseRecord(
+                status: FfiConverterUInt16.read(from: &buf), 
+                headers: FfiConverterSequenceTypeHttpFieldRecord.read(from: &buf), 
+                body: FfiConverterData.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HttpResponseRecord, into buf: inout [UInt8]) {
+        FfiConverterUInt16.write(value.status, into: &buf)
+        FfiConverterSequenceTypeHttpFieldRecord.write(value.headers, into: &buf)
+        FfiConverterData.write(value.body, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHttpResponseRecord_lift(_ buf: RustBuffer) throws -> HttpResponseRecord {
+    return try FfiConverterTypeHttpResponseRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHttpResponseRecord_lower(_ value: HttpResponseRecord) -> RustBuffer {
+    return FfiConverterTypeHttpResponseRecord.lower(value)
+}
+
+
+/**
+ * What `WebSocketManager` needs to open its socket for the core's session.
+ */
+public struct LegacySocketGrantRecord: Equatable, Hashable {
+    /**
+     * The session id (`session_id` query parameter of the socket URL).
+     */
+    public var sessionId: String
+    /**
+     * The current `ws_token` (secret; rotated by every admission), `nil`
+     * before the first admission handed one out.
+     */
+    public var wsToken: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The session id (`session_id` query parameter of the socket URL).
+         */sessionId: String, 
+        /**
+         * The current `ws_token` (secret; rotated by every admission), `nil`
+         * before the first admission handed one out.
+         */wsToken: String?) {
+        self.sessionId = sessionId
+        self.wsToken = wsToken
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LegacySocketGrantRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLegacySocketGrantRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LegacySocketGrantRecord {
+        return
+            try LegacySocketGrantRecord(
+                sessionId: FfiConverterString.read(from: &buf), 
+                wsToken: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LegacySocketGrantRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.sessionId, into: &buf)
+        FfiConverterOptionString.write(value.wsToken, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLegacySocketGrantRecord_lift(_ buf: RustBuffer) throws -> LegacySocketGrantRecord {
+    return try FfiConverterTypeLegacySocketGrantRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLegacySocketGrantRecord_lower(_ value: LegacySocketGrantRecord) -> RustBuffer {
+    return FfiConverterTypeLegacySocketGrantRecord.lower(value)
+}
+
+
+/**
  * Decrypted fields of one message. A field is `nil` exactly when its
  * ciphertext was `nil` in the input.
  */
@@ -3983,6 +4894,207 @@ public func FfiConverterTypeMessageFieldsRecord_lower(_ value: MessageFieldsReco
 
 
 /**
+ * Stored facts of one message beyond its display fields (core
+ * `MessageMetadata`). All `None` and no mappings for messages the core added
+ * during a send and for messages whose row the core does not hold.
+ */
+public struct MessageMetadataRecord: Equatable, Hashable {
+    /**
+     * Server creation time of the row (`created_at`).
+     */
+    public var createdAt: Int64?
+    /**
+     * Server message id (`message_id`).
+     */
+    public var serverMessageId: String?
+    /**
+     * Client message id assigned by the sending device.
+     */
+    public var clientMessageId: String?
+    /**
+     * For a reply: the id of the user message it answers.
+     */
+    public var userMessageId: String?
+    /**
+     * Raw stored status word such as `synced` or `queued`.
+     */
+    public var storedStatus: String?
+    /**
+     * Decrypted name of the model that wrote a reply.
+     */
+    public var modelName: String?
+    /**
+     * Decrypted category (mate) of a reply.
+     */
+    public var category: String?
+    /**
+     * The reply stored reasoning.
+     */
+    public var hasThinking: Bool?
+    /**
+     * Reasoning token count of a reply.
+     */
+    public var thinkingTokenCount: UInt64?
+    /**
+     * Revision of a queued message.
+     */
+    public var queueRevision: UInt64?
+    /**
+     * Queue mode of a queued message.
+     */
+    public var queueMode: String?
+    /**
+     * Dispatch status of a queued message.
+     */
+    public var queueDispatchStatus: String?
+    /**
+     * Dispatch mode of a queued message.
+     */
+    public var queueDispatchMode: String?
+    /**
+     * Dispatch task id of a queued message.
+     */
+    public var queueDispatchTaskId: String?
+    /**
+     * Personal-data mappings stored with this message.
+     */
+    public var piiMappings: [PiiMappingRecord]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Server creation time of the row (`created_at`).
+         */createdAt: Int64?, 
+        /**
+         * Server message id (`message_id`).
+         */serverMessageId: String?, 
+        /**
+         * Client message id assigned by the sending device.
+         */clientMessageId: String?, 
+        /**
+         * For a reply: the id of the user message it answers.
+         */userMessageId: String?, 
+        /**
+         * Raw stored status word such as `synced` or `queued`.
+         */storedStatus: String?, 
+        /**
+         * Decrypted name of the model that wrote a reply.
+         */modelName: String?, 
+        /**
+         * Decrypted category (mate) of a reply.
+         */category: String?, 
+        /**
+         * The reply stored reasoning.
+         */hasThinking: Bool?, 
+        /**
+         * Reasoning token count of a reply.
+         */thinkingTokenCount: UInt64?, 
+        /**
+         * Revision of a queued message.
+         */queueRevision: UInt64?, 
+        /**
+         * Queue mode of a queued message.
+         */queueMode: String?, 
+        /**
+         * Dispatch status of a queued message.
+         */queueDispatchStatus: String?, 
+        /**
+         * Dispatch mode of a queued message.
+         */queueDispatchMode: String?, 
+        /**
+         * Dispatch task id of a queued message.
+         */queueDispatchTaskId: String?, 
+        /**
+         * Personal-data mappings stored with this message.
+         */piiMappings: [PiiMappingRecord]) {
+        self.createdAt = createdAt
+        self.serverMessageId = serverMessageId
+        self.clientMessageId = clientMessageId
+        self.userMessageId = userMessageId
+        self.storedStatus = storedStatus
+        self.modelName = modelName
+        self.category = category
+        self.hasThinking = hasThinking
+        self.thinkingTokenCount = thinkingTokenCount
+        self.queueRevision = queueRevision
+        self.queueMode = queueMode
+        self.queueDispatchStatus = queueDispatchStatus
+        self.queueDispatchMode = queueDispatchMode
+        self.queueDispatchTaskId = queueDispatchTaskId
+        self.piiMappings = piiMappings
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension MessageMetadataRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMessageMetadataRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MessageMetadataRecord {
+        return
+            try MessageMetadataRecord(
+                createdAt: FfiConverterOptionInt64.read(from: &buf), 
+                serverMessageId: FfiConverterOptionString.read(from: &buf), 
+                clientMessageId: FfiConverterOptionString.read(from: &buf), 
+                userMessageId: FfiConverterOptionString.read(from: &buf), 
+                storedStatus: FfiConverterOptionString.read(from: &buf), 
+                modelName: FfiConverterOptionString.read(from: &buf), 
+                category: FfiConverterOptionString.read(from: &buf), 
+                hasThinking: FfiConverterOptionBool.read(from: &buf), 
+                thinkingTokenCount: FfiConverterOptionUInt64.read(from: &buf), 
+                queueRevision: FfiConverterOptionUInt64.read(from: &buf), 
+                queueMode: FfiConverterOptionString.read(from: &buf), 
+                queueDispatchStatus: FfiConverterOptionString.read(from: &buf), 
+                queueDispatchMode: FfiConverterOptionString.read(from: &buf), 
+                queueDispatchTaskId: FfiConverterOptionString.read(from: &buf), 
+                piiMappings: FfiConverterSequenceTypePiiMappingRecord.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: MessageMetadataRecord, into buf: inout [UInt8]) {
+        FfiConverterOptionInt64.write(value.createdAt, into: &buf)
+        FfiConverterOptionString.write(value.serverMessageId, into: &buf)
+        FfiConverterOptionString.write(value.clientMessageId, into: &buf)
+        FfiConverterOptionString.write(value.userMessageId, into: &buf)
+        FfiConverterOptionString.write(value.storedStatus, into: &buf)
+        FfiConverterOptionString.write(value.modelName, into: &buf)
+        FfiConverterOptionString.write(value.category, into: &buf)
+        FfiConverterOptionBool.write(value.hasThinking, into: &buf)
+        FfiConverterOptionUInt64.write(value.thinkingTokenCount, into: &buf)
+        FfiConverterOptionUInt64.write(value.queueRevision, into: &buf)
+        FfiConverterOptionString.write(value.queueMode, into: &buf)
+        FfiConverterOptionString.write(value.queueDispatchStatus, into: &buf)
+        FfiConverterOptionString.write(value.queueDispatchMode, into: &buf)
+        FfiConverterOptionString.write(value.queueDispatchTaskId, into: &buf)
+        FfiConverterSequenceTypePiiMappingRecord.write(value.piiMappings, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMessageMetadataRecord_lift(_ buf: RustBuffer) throws -> MessageMetadataRecord {
+    return try FfiConverterTypeMessageMetadataRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMessageMetadataRecord_lower(_ value: MessageMetadataRecord) -> RustBuffer {
+    return FfiConverterTypeMessageMetadataRecord.lower(value)
+}
+
+
+/**
  * A decrypted chat message (core `MessageRecord`). Plaintext: never log it.
  */
 public struct MessageViewRecord: Equatable, Hashable {
@@ -4019,6 +5131,10 @@ public struct MessageViewRecord: Equatable, Hashable {
      * messages and replies.
      */
     public var sendState: SendStateRecord?
+    /**
+     * Stored facts of the message row (timestamps, ids, model, queue, PII).
+     */
+    public var metadata: MessageMetadataRecord
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -4047,7 +5163,10 @@ public struct MessageViewRecord: Equatable, Hashable {
         /**
          * Send progress of a message sent from this device; `None` for stored
          * messages and replies.
-         */sendState: SendStateRecord?) {
+         */sendState: SendStateRecord?, 
+        /**
+         * Stored facts of the message row (timestamps, ids, model, queue, PII).
+         */metadata: MessageMetadataRecord) {
         self.id = id
         self.role = role
         self.status = status
@@ -4056,6 +5175,7 @@ public struct MessageViewRecord: Equatable, Hashable {
         self.thinking = thinking
         self.embeds = embeds
         self.sendState = sendState
+        self.metadata = metadata
     }
 
     
@@ -4081,7 +5201,8 @@ public struct FfiConverterTypeMessageViewRecord: FfiConverterRustBuffer {
                 sender: FfiConverterString.read(from: &buf), 
                 thinking: FfiConverterString.read(from: &buf), 
                 embeds: FfiConverterSequenceTypeEmbedRefRecord.read(from: &buf), 
-                sendState: FfiConverterOptionTypeSendStateRecord.read(from: &buf)
+                sendState: FfiConverterOptionTypeSendStateRecord.read(from: &buf), 
+                metadata: FfiConverterTypeMessageMetadataRecord.read(from: &buf)
         )
     }
 
@@ -4094,6 +5215,7 @@ public struct FfiConverterTypeMessageViewRecord: FfiConverterRustBuffer {
         FfiConverterString.write(value.thinking, into: &buf)
         FfiConverterSequenceTypeEmbedRefRecord.write(value.embeds, into: &buf)
         FfiConverterOptionTypeSendStateRecord.write(value.sendState, into: &buf)
+        FfiConverterTypeMessageMetadataRecord.write(value.metadata, into: &buf)
     }
 }
 
@@ -4333,6 +5455,85 @@ public func FfiConverterTypePasswordV2KeysRecord_lower(_ value: PasswordV2KeysRe
 
 
 /**
+ * One personal-data replacement of a message (core `PiiMapping`).
+ */
+public struct PiiMappingRecord: Equatable, Hashable {
+    /**
+     * Placeholder token as stored in the message.
+     */
+    public var placeholder: String
+    /**
+     * Original text (personal data; shown only on this device).
+     */
+    public var original: String
+    /**
+     * Kind of data such as `EMAIL`; empty when the mapping names none.
+     */
+    public var kind: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Placeholder token as stored in the message.
+         */placeholder: String, 
+        /**
+         * Original text (personal data; shown only on this device).
+         */original: String, 
+        /**
+         * Kind of data such as `EMAIL`; empty when the mapping names none.
+         */kind: String) {
+        self.placeholder = placeholder
+        self.original = original
+        self.kind = kind
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension PiiMappingRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePiiMappingRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PiiMappingRecord {
+        return
+            try PiiMappingRecord(
+                placeholder: FfiConverterString.read(from: &buf), 
+                original: FfiConverterString.read(from: &buf), 
+                kind: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PiiMappingRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.placeholder, into: &buf)
+        FfiConverterString.write(value.original, into: &buf)
+        FfiConverterString.write(value.kind, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePiiMappingRecord_lift(_ buf: RustBuffer) throws -> PiiMappingRecord {
+    return try FfiConverterTypePiiMappingRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePiiMappingRecord_lower(_ value: PiiMappingRecord) -> RustBuffer {
+    return FfiConverterTypePiiMappingRecord.lower(value)
+}
+
+
+/**
  * Result of `probe`: proves async delivery and where the work ran.
  */
 public struct ProbeRecord: Equatable, Hashable {
@@ -4468,6 +5669,174 @@ public func FfiConverterTypeServerLoginStartRecord_lift(_ buf: RustBuffer) throw
 #endif
 public func FfiConverterTypeServerLoginStartRecord_lower(_ value: ServerLoginStartRecord) -> RustBuffer {
     return FfiConverterTypeServerLoginStartRecord.lower(value)
+}
+
+
+/**
+ * One cookie of the Swift-held session (name and value, no attributes).
+ */
+public struct SessionCookieRecord: Equatable, Hashable {
+    /**
+     * Cookie name (letters, digits, `_`, `-`).
+     */
+    public var name: String
+    /**
+     * Cookie value (secret).
+     */
+    public var value: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Cookie name (letters, digits, `_`, `-`).
+         */name: String, 
+        /**
+         * Cookie value (secret).
+         */value: String) {
+        self.name = name
+        self.value = value
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SessionCookieRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSessionCookieRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SessionCookieRecord {
+        return
+            try SessionCookieRecord(
+                name: FfiConverterString.read(from: &buf), 
+                value: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SessionCookieRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterString.write(value.value, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSessionCookieRecord_lift(_ buf: RustBuffer) throws -> SessionCookieRecord {
+    return try FfiConverterTypeSessionCookieRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSessionCookieRecord_lower(_ value: SessionCookieRecord) -> RustBuffer {
+    return FfiConverterTypeSessionCookieRecord.lower(value)
+}
+
+
+/**
+ * The signed-in session as Swift may know it. Holds no secret.
+ */
+public struct SessionInfoRecord: Equatable, Hashable {
+    /**
+     * Account id once the server admitted the session (`nil` before).
+     */
+    public var userId: String?
+    /**
+     * The core's email hash of the account (stable account identity).
+     */
+    public var hashedEmail: String
+    /**
+     * Active team (`nil`: personal).
+     */
+    public var activeTeamId: String?
+    /**
+     * Absolute expiry in unix milliseconds for paired sessions, else `nil`.
+     */
+    public var expiresAt: UInt64?
+    /**
+     * Whether the server admitted the session in this run.
+     */
+    public var admitted: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Account id once the server admitted the session (`nil` before).
+         */userId: String?, 
+        /**
+         * The core's email hash of the account (stable account identity).
+         */hashedEmail: String, 
+        /**
+         * Active team (`nil`: personal).
+         */activeTeamId: String?, 
+        /**
+         * Absolute expiry in unix milliseconds for paired sessions, else `nil`.
+         */expiresAt: UInt64?, 
+        /**
+         * Whether the server admitted the session in this run.
+         */admitted: Bool) {
+        self.userId = userId
+        self.hashedEmail = hashedEmail
+        self.activeTeamId = activeTeamId
+        self.expiresAt = expiresAt
+        self.admitted = admitted
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SessionInfoRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSessionInfoRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SessionInfoRecord {
+        return
+            try SessionInfoRecord(
+                userId: FfiConverterOptionString.read(from: &buf), 
+                hashedEmail: FfiConverterString.read(from: &buf), 
+                activeTeamId: FfiConverterOptionString.read(from: &buf), 
+                expiresAt: FfiConverterOptionUInt64.read(from: &buf), 
+                admitted: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SessionInfoRecord, into buf: inout [UInt8]) {
+        FfiConverterOptionString.write(value.userId, into: &buf)
+        FfiConverterString.write(value.hashedEmail, into: &buf)
+        FfiConverterOptionString.write(value.activeTeamId, into: &buf)
+        FfiConverterOptionUInt64.write(value.expiresAt, into: &buf)
+        FfiConverterBool.write(value.admitted, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSessionInfoRecord_lift(_ buf: RustBuffer) throws -> SessionInfoRecord {
+    return try FfiConverterTypeSessionInfoRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSessionInfoRecord_lower(_ value: SessionInfoRecord) -> RustBuffer {
+    return FfiConverterTypeSessionInfoRecord.lower(value)
 }
 
 
@@ -6536,6 +7905,23 @@ public enum ViewEventRecord: Equatable, Hashable {
          */error: ViewErrorKindRecord
     )
     /**
+     * One message of the open window changed while its reply streams (the
+     * whole message as it is now; an id not shown yet is appended). Sent
+     * instead of a full `ChatWindow` per reply-text update, after the
+     * `Stream` event that caused it.
+     */
+    case messageUpdated(
+        /**
+         * Request of the window (the send's request).
+         */request: UInt64, 
+        /**
+         * Chat of the window.
+         */chatId: String, 
+        /**
+         * The changed message.
+         */message: MessageViewRecord
+    )
+    /**
      * Progress of a send.
      */
     case stream(
@@ -6608,16 +7994,19 @@ public struct FfiConverterTypeViewEventRecord: FfiConverterRustBuffer {
         case 6: return .chatOpenFailed(request: try FfiConverterUInt64.read(from: &buf), chatId: try FfiConverterString.read(from: &buf), error: try FfiConverterTypeViewErrorKindRecord.read(from: &buf)
         )
         
-        case 7: return .stream(request: try FfiConverterUInt64.read(from: &buf), chatId: try FfiConverterString.read(from: &buf), event: try FfiConverterTypeStreamEventRecord.read(from: &buf)
+        case 7: return .messageUpdated(request: try FfiConverterUInt64.read(from: &buf), chatId: try FfiConverterString.read(from: &buf), message: try FfiConverterTypeMessageViewRecord.read(from: &buf)
         )
         
-        case 8: return .status(message: try FfiConverterString.read(from: &buf)
+        case 8: return .stream(request: try FfiConverterUInt64.read(from: &buf), chatId: try FfiConverterString.read(from: &buf), event: try FfiConverterTypeStreamEventRecord.read(from: &buf)
         )
         
-        case 9: return .failed(error: try FfiConverterTypeViewErrorKindRecord.read(from: &buf)
+        case 9: return .status(message: try FfiConverterString.read(from: &buf)
         )
         
-        case 10: return .done
+        case 10: return .failed(error: try FfiConverterTypeViewErrorKindRecord.read(from: &buf)
+        )
+        
+        case 11: return .done
         
         default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -6662,25 +8051,32 @@ public struct FfiConverterTypeViewEventRecord: FfiConverterRustBuffer {
             FfiConverterTypeViewErrorKindRecord.write(error, into: &buf)
             
         
-        case let .stream(request,chatId,event):
+        case let .messageUpdated(request,chatId,message):
             writeInt(&buf, Int32(7))
+            FfiConverterUInt64.write(request, into: &buf)
+            FfiConverterString.write(chatId, into: &buf)
+            FfiConverterTypeMessageViewRecord.write(message, into: &buf)
+            
+        
+        case let .stream(request,chatId,event):
+            writeInt(&buf, Int32(8))
             FfiConverterUInt64.write(request, into: &buf)
             FfiConverterString.write(chatId, into: &buf)
             FfiConverterTypeStreamEventRecord.write(event, into: &buf)
             
         
         case let .status(message):
-            writeInt(&buf, Int32(8))
+            writeInt(&buf, Int32(9))
             FfiConverterString.write(message, into: &buf)
             
         
         case let .failed(error):
-            writeInt(&buf, Int32(9))
+            writeInt(&buf, Int32(10))
             FfiConverterTypeViewErrorKindRecord.write(error, into: &buf)
             
         
         case .done:
-            writeInt(&buf, Int32(10))
+            writeInt(&buf, Int32(11))
         
         }
     }
@@ -6897,6 +8293,30 @@ fileprivate struct FfiConverterOptionTypeCredentialSnapshotRecord: FfiConverterR
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeSessionInfoRecord: FfiConverterRustBuffer {
+    typealias SwiftType = SessionInfoRecord?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeSessionInfoRecord.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeSessionInfoRecord.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeFieldDecryptOutcome: FfiConverterRustBuffer {
     typealias SwiftType = FieldDecryptOutcome?
 
@@ -7070,6 +8490,31 @@ fileprivate struct FfiConverterSequenceTypeEncryptedMessageRecord: FfiConverterR
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeHttpFieldRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [HttpFieldRecord]
+
+    public static func write(_ value: [HttpFieldRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeHttpFieldRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [HttpFieldRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [HttpFieldRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeHttpFieldRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeMessageFieldsRecord: FfiConverterRustBuffer {
     typealias SwiftType = [MessageFieldsRecord]
 
@@ -7112,6 +8557,56 @@ fileprivate struct FfiConverterSequenceTypeMessageViewRecord: FfiConverterRustBu
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeMessageViewRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypePiiMappingRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [PiiMappingRecord]
+
+    public static func write(_ value: [PiiMappingRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypePiiMappingRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [PiiMappingRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [PiiMappingRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypePiiMappingRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeSessionCookieRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [SessionCookieRecord]
+
+    public static func write(_ value: [SessionCookieRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeSessionCookieRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [SessionCookieRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [SessionCookieRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeSessionCookieRecord.read(from: &buf))
         }
         return seq
     }
@@ -7561,6 +9056,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_openmates_apple_bindings_checksum_method_viewlistener_on_event() != 15894) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_adopt_session() != 31921) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_acknowledge_credentials() != 21570) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -7591,13 +9089,22 @@ private let initializationResult: InitializationResult = {
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_switch_team() != 20358) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_http_request() != 50748) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_legacy_master_key() != 42336) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_legacy_socket_grant() != 28049) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_begin_pair_login() != 30105) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_cancel_pair_login() != 29296) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_finish_pair_login() != 56707) {
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_finish_pair_login() != 21585) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_login_password() != 24622) {
@@ -7613,6 +9120,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_send() != 30391) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_session_info() != 51951) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_constructor_corecancellation_new() != 2322) {

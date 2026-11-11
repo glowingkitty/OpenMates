@@ -151,6 +151,34 @@ impl Shared {
         // The fresh pair client holds a session only once the core prepared
         // the paired session; a later store or relay step may have failed.
         pending.prepared |= pending.client.session().is_some();
+        // `begin_client_session` checks the cancel only before its epoch:
+        // `Cancelled` (and the `Invalid` refusal of another stored session)
+        // means nothing of this pairing was stored; any other outcome of a
+        // prepared pairing may have stored it.
+        let stored = pending.prepared
+            && !matches!(
+                finished,
+                Ok(false) | Err(Error::Cancelled | Error::Invalid(_))
+            );
+        if cancel.is_cancelled() && stored {
+            // Cancelled after the Keychain store: as password login, wipe
+            // the stored session, log the paired server session out and
+            // delete the code, so nothing of the abandoned pairing stays.
+            let mut abandoned = pairing.take().ok_or(NO_PAIRING)?;
+            drop(pairing);
+            self.ops.advance();
+            let wiped = self
+                .credentials
+                .abandon_client_session(&mut abandoned.client)
+                .await;
+            // Best effort: the local wipe is the guarantee.
+            let _remote = abandoned.client.cancel_pair().await;
+            self.sink
+                .emit(ViewEvent::Session(SessionEvent::SignedOut))
+                .await?;
+            wiped?;
+            return Err(Error::Cancelled);
+        }
         if !finished? {
             return Ok(false);
         }
@@ -258,7 +286,10 @@ impl ViewModelCore {
     /// `Invalid` while signed in or without a running pair login; `Expired`
     /// for a failed or lapsed pairing; `Authentication`/`Crypto` for a wrong
     /// PIN or a bundle of another account; `Locked` for an unacknowledged
-    /// store; then as `start`.
+    /// store; then as `start`. `Cancelled` when `cancellation` fired; a cancel
+    /// after the Keychain store wipes the stored session, logs the paired
+    /// server session out, ends the pairing and emits `Session(SignedOut)`
+    /// (as `loginPassword`).
     pub async fn finish_pair_login(
         &self,
         cancellation: Option<Arc<CoreCancellation>>,

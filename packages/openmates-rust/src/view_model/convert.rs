@@ -4,6 +4,7 @@
 //! false (`pinned`, `archived`, `has_draft`, `unread_count`) are the only
 //! documented defaults, and a present value of the wrong type is an error.
 use super::error::ViewModelError;
+use super::metadata::{ChatRowMetadata, MessageMetadata};
 use super::records::{
     ChatListRow, ChatRowStatus, ChatWindowRecord, ChatWindowSource, EmbedRef, MessageRecord,
     MessageRole, MessageStatus, PiiRestoration, StreamEvent,
@@ -99,6 +100,7 @@ pub fn chat_list_row_from_item(item: &Item) -> Result<ChatListRow, ViewModelErro
         archived: flag(fields, "archived")?,
         has_draft: flag(fields, "has_draft")?,
         footer: optional_text(fields, "footer")?,
+        metadata: ChatRowMetadata::default(),
     })
 }
 
@@ -179,6 +181,7 @@ pub fn message_record_from_message(message: &Message) -> Result<MessageRecord, V
             .map(embed_ref_from_item)
             .collect::<Result<_, _>>()?,
         send_state: None,
+        metadata: MessageMetadata::default(),
     })
 }
 
@@ -208,6 +211,7 @@ pub fn chat_window_from_chat(
             .collect::<Result<_, _>>()?,
         source,
         has_more_before,
+        has_more_after: None,
         history_complete,
         refreshing,
         pii_restoration,

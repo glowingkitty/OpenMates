@@ -5,7 +5,8 @@
 //! state (`ViewCore`) and serves `Start`, the boot sync, `RefreshChats`,
 //! `SwitchTeam`, `Logout`, the chat window commands (`OpenChat`, `LoadOlder`,
 //! `CloseChat`, `MarkRead`) and the fresh-session begin after a login. Send
-//! lives in `view_send.rs`, the core-performed login in `view_login.rs`.
+//! lives in `view_send.rs`, the core-performed login in `view_login.rs`,
+//! session state and auth loss in `view_session.rs`.
 //! Swift supplies the Keychain (`CredentialStore`) and receives events
 //! (`ViewListener`). Bindings only marshal; the hooks below are the minimal
 //! Apple `ViewHost`. Plan `apple-client-core-migration` lane L8
@@ -250,7 +251,7 @@ pub(crate) struct Shared {
     /// The actor state of the signed-in session; `None` while signed out.
     pub(crate) host: Mutex<Option<AppleHost>>,
     /// Revocation without waiting for a busy actor (logout priority lane).
-    revocation: StdMutex<Option<RevocationHandle<Bytes>>>,
+    pub(crate) revocation: StdMutex<Option<RevocationHandle<Bytes>>>,
     /// Cancels the running send without waiting for the actor.
     pub(crate) send_cancel: StdMutex<Option<SendCancelHandle>>,
     /// The client of a running pair login (signed out only); see `view_login.rs`.
@@ -309,7 +310,8 @@ impl Shared {
         let start = ViewCommand::Start {
             credentials: Box::new(session),
         };
-        view_model::handle(current, start, &self.sink, &cancel).await
+        let started = view_model::handle(current, start, &self.sink, &cancel).await;
+        self.settle_auth(host, started).await
     }
 
     /// Begin `session` (fresh from a core login) on this profile, then start
@@ -341,10 +343,12 @@ impl Shared {
             &'a CancellationToken,
         ) -> BoxFuture<'a, Result<T>>,
     {
-        let mut host = self.host.lock().await;
-        let host = host.as_mut().ok_or(Error::Authentication)?;
+        let mut guard = self.host.lock().await;
+        let host = guard.as_mut().ok_or(Error::Authentication)?;
         host.cancel = cancel.clone();
-        work(host, &self.sink, &cancel).await
+        let result = work(host, &self.sink, &cancel).await;
+        // A rejected session signs out here (`view_session.rs`).
+        self.settle_auth(&mut guard, result).await
     }
 
     /// Sign out (see `ViewModelCore::logout`).
@@ -460,6 +464,26 @@ impl ViewModelCore {
     ) -> CancellationToken {
         let token = self.shutdown.child_token();
         *lock(&self.foreground) = token.clone();
+        if let Some(cancellation) = cancellation {
+            let (caller, forward) = (cancellation.token.clone(), token.clone());
+            self.handle.spawn(async move {
+                tokio::select! {
+                    () = caller.cancelled() => forward.cancel(),
+                    () = forward.cancelled() => {}
+                }
+            });
+        }
+        token
+    }
+
+    /// A token that fires on core shutdown and when `cancellation` is
+    /// cancelled, without replacing the foreground token (concurrent calls
+    /// such as `httpRequest` must not make a running open uncancellable).
+    pub(crate) fn detached(
+        &self,
+        cancellation: Option<Arc<CoreCancellation>>,
+    ) -> CancellationToken {
+        let token = self.shutdown.child_token();
         if let Some(cancellation) = cancellation {
             let (caller, forward) = (cancellation.token.clone(), token.clone());
             self.handle.spawn(async move {

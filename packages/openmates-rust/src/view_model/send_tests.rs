@@ -204,41 +204,62 @@ async fn send_into_the_open_chat_streams_in_order_and_the_sent_chat_replaces_the
         windows[2].messages[0].send_state,
         Some(SendState::Submitted)
     );
-    // Deltas in order, each replacing the reply text so far.
-    let replies: Vec<(&str, MessageStatus)> = windows[3..6]
+    // Reply text goes out as one changed message per update, in order,
+    // each replacing the text so far; no full window per delta.
+    let updated: Vec<(&str, &str, MessageStatus, &str)> = events
         .iter()
-        .map(|window| {
-            (
-                window.messages[1].content.as_str(),
-                window.messages[1].status,
-            )
+        .filter_map(|event| match event {
+            ViewEvent::MessageUpdated {
+                request,
+                chat_id,
+                message,
+            } => {
+                assert_eq!((*request, chat_id.as_str()), (SEND, CHAT));
+                Some((
+                    message.id.as_str(),
+                    message.content.as_str(),
+                    message.status,
+                    message.sender.as_str(),
+                ))
+            }
+            _ => None,
         })
         .collect();
+    let placeholder = format!("pending-reply:{USER}");
     assert_eq!(
-        replies,
+        updated,
         [
-            ("Hel", MessageStatus::Streaming),
-            ("Hello", MessageStatus::Streaming),
-            ("Hello there", MessageStatus::Complete)
+            (
+                placeholder.as_str(),
+                "Hel",
+                MessageStatus::Streaming,
+                "Synthetic mate"
+            ),
+            (
+                placeholder.as_str(),
+                "Hello",
+                MessageStatus::Streaming,
+                "Synthetic mate"
+            ),
         ]
     );
+    // Completed publishes the whole window again, the reply renamed.
+    assert_eq!(windows[3].messages.len(), 2);
+    assert_eq!(windows[3].messages[1].id, REPLY);
+    assert_eq!(windows[3].messages[1].content, "Hello there");
+    assert_eq!(windows[3].messages[1].status, MessageStatus::Complete);
     assert!(
-        windows[3..6]
-            .iter()
-            .all(|window| window.messages.len() == 2)
-    );
-    assert!(
-        windows[..6]
+        windows[..4]
             .iter()
             .all(|window| window.source == ChatWindowSource::Live)
     );
-    // Each stream event precedes the window it changed.
+    // Each stream event precedes the update it caused.
     let position = |wanted: &dyn Fn(&ViewEvent) -> bool| events.iter().position(wanted).unwrap();
     let content = position(
         &|event| matches!(event, ViewEvent::Stream { event: StreamEvent::Content { content, .. }, .. } if content == "Hel"),
     );
     assert!(
-        matches!(&events[content + 1], ViewEvent::ChatWindow { window, .. } if window.messages[1].content == "Hel")
+        matches!(&events[content + 1], ViewEvent::MessageUpdated { message, .. } if message.content == "Hel")
     );
 
     // The sent chat replaces the stream, then the list follows.

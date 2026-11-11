@@ -198,7 +198,7 @@ impl<S: ByteStore + 'static> ViewCore<S> {
                 return Err(error);
             }
         };
-        let record = chat_window_from_chat(
+        let mut record = chat_window_from_chat(
             &chat,
             ChatWindowSource::Canonical,
             None,
@@ -207,6 +207,7 @@ impl<S: ByteStore + 'static> ViewCore<S> {
             PiiRestoration::PageLocal,
         )
         .map_err(|_| Error::Protocol)?;
+        super::enrich::enrich_window(&self.client, &mut record)?;
         if turn.tracked() {
             // The sent chat replaces the stream; paging restarts from it.
             self.window = Some(OpenWindow {

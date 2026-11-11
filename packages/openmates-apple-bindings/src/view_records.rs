@@ -3,7 +3,9 @@
 //! Each type maps its core counterpart 1:1 (same variants, same fields, no
 //! defaults, no logic); tuple variants get one named field because Swift
 //! enums need labels. Spec: `a2-design.md` (View model); plan
-//! `apple-client-core-migration` lane L8.
+//! `apple-client-core-migration` lane L8. Row and message metadata mirrors
+//! live in `view_record_details.rs`.
+use crate::view_record_details::{ChatRowMetadataRecord, MessageMetadataRecord};
 use openmates_sdk::view_model::{
     AccessDenial, ChatListRow, ChatRowStatus, ChatWindowRecord, ChatWindowSource, EmbedRef,
     ListCompleteness, MessageRecord, MessageRole, MessageStatus, PiiRestoration, SendState,
@@ -63,6 +65,8 @@ pub struct ChatListRowRecord {
     pub has_draft: bool,
     /// Home-card footer such as a reminder countdown.
     pub footer: Option<String>,
+    /// Further facts of the held chat row (icon, sub-chat, budget, draft).
+    pub metadata: ChatRowMetadataRecord,
 }
 
 /// Author role of a message (core `MessageRole`).
@@ -150,6 +154,8 @@ pub struct MessageViewRecord {
     /// Send progress of a message sent from this device; `None` for stored
     /// messages and replies.
     pub send_state: Option<SendStateRecord>,
+    /// Stored facts of the message row (timestamps, ids, model, queue, PII).
+    pub metadata: MessageMetadataRecord,
 }
 
 /// Where a chat window's data came from (core `ChatWindowSource`).
@@ -195,6 +201,8 @@ pub struct ChatWindowViewRecord {
     pub source: ChatWindowSourceRecord,
     /// Whether older messages exist; `None` when unknown.
     pub has_more_before: Option<bool>,
+    /// Whether newer messages exist; `None` when unknown.
+    pub has_more_after: Option<bool>,
     /// Every message of the chat is in `messages`.
     pub history_complete: bool,
     /// A network refresh is still running.
@@ -392,6 +400,18 @@ pub enum ViewEventRecord {
         /// Failure class.
         error: ViewErrorKindRecord,
     },
+    /// One message of the open window changed while its reply streams (the
+    /// whole message as it is now; an id not shown yet is appended). Sent
+    /// instead of a full `ChatWindow` per reply-text update, after the
+    /// `Stream` event that caused it.
+    MessageUpdated {
+        /// Request of the window (the send's request).
+        request: u64,
+        /// Chat of the window.
+        chat_id: String,
+        /// The changed message.
+        message: MessageViewRecord,
+    },
     /// Progress of a send.
     Stream {
         /// Request that started the send.
@@ -452,6 +472,7 @@ impl From<ChatListRow> for ChatListRowRecord {
             archived: row.archived,
             has_draft: row.has_draft,
             footer: row.footer,
+            metadata: row.metadata.into(),
         }
     }
 }
@@ -505,6 +526,7 @@ impl From<MessageRecord> for MessageViewRecord {
             thinking: message.thinking,
             embeds: embeds(message.embeds),
             send_state: message.send_state.map(Into::into),
+            metadata: message.metadata.into(),
         }
     }
 }
@@ -556,6 +578,7 @@ impl From<ChatWindowRecord> for ChatWindowViewRecord {
             messages: window.messages.into_iter().map(Into::into).collect(),
             source: window.source.into(),
             has_more_before: window.has_more_before,
+            has_more_after: window.has_more_after,
             history_complete: window.history_complete,
             refreshing: window.refreshing,
             pii_restoration: window.pii_restoration.into(),
@@ -704,6 +727,15 @@ impl From<ViewEvent> for ViewEventRecord {
                 request: request.0,
                 chat_id,
                 error: error.into(),
+            },
+            ViewEvent::MessageUpdated {
+                request,
+                chat_id,
+                message,
+            } => Self::MessageUpdated {
+                request: request.0,
+                chat_id,
+                message: message.into(),
             },
             ViewEvent::Stream {
                 request,

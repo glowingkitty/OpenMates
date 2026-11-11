@@ -3,6 +3,7 @@
 //! `serde_json::Value` bags the terminal UI reads today (`Item.fields`) and are
 //! shaped for later UniFFI export. Spec: `a2-design.md` (View model).
 use super::error::ViewErrorKind;
+use super::metadata::{ChatRowMetadata, MessageMetadata};
 
 /// How trustworthy a published chat list is.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -57,6 +58,8 @@ pub struct ChatListRow {
     pub has_draft: bool,
     /// Home-card footer such as a reminder countdown.
     pub footer: Option<String>,
+    /// Further facts of the held chat row (icon, sub-chat, budget, draft).
+    pub metadata: ChatRowMetadata,
 }
 
 /// Author role of a message.
@@ -125,6 +128,8 @@ pub struct MessageRecord {
     /// Send state of a user message of a running or ended send; `None` for
     /// stored messages.
     pub send_state: Option<SendState>,
+    /// Stored facts of the message row (timestamps, ids, model, queue, PII).
+    pub metadata: MessageMetadata,
 }
 
 /// Reference to a decrypted embed shown on a message or in a consent request.
@@ -193,6 +198,9 @@ pub struct ChatWindowRecord {
     pub source: ChatWindowSource,
     /// Whether older messages exist; `None` when unknown.
     pub has_more_before: Option<bool>,
+    /// Whether newer messages exist than the last one shown; `None` when
+    /// unknown (`Some(false)` for a complete canonical read).
+    pub has_more_after: Option<bool>,
     /// Every message of the chat is in `messages`.
     pub history_complete: bool,
     /// A network refresh is still running.

@@ -2,7 +2,7 @@
 //! Request ids are typed so a stale reply can be matched to the request that
 //! caused it. Spec: `a2-design.md` (View model); served by `actor_flows.rs`.
 use super::error::ViewErrorKind;
-use super::records::{ChatListRow, ChatWindowRecord, ListCompleteness, StreamEvent};
+use super::records::{ChatListRow, ChatWindowRecord, ListCompleteness, MessageRecord, StreamEvent};
 use crate::session::Session;
 
 /// Identifier of one shell request (open, page, send). Allocated by the shell;
@@ -154,6 +154,20 @@ pub enum ViewEvent {
         chat_id: String,
         /// Failure class.
         error: ViewErrorKind,
+    },
+    /// One message of the open window changed while its reply streams: the
+    /// whole message as it is now (text and reasoning so far, replacing the
+    /// previous value), sent instead of a full `ChatWindow` per stream
+    /// update. It follows the `Stream` event that caused it. A message id
+    /// the shown window does not have yet (the first reply text) is appended
+    /// at the end; the next `ChatWindow` of `request` already contains it.
+    MessageUpdated {
+        /// Request that started the send (the window's request).
+        request: RequestId,
+        /// Chat of the window.
+        chat_id: String,
+        /// The changed message; its id is stable until `Completed` renames it.
+        message: MessageRecord,
     },
     /// Progress of a send.
     Stream {

@@ -252,6 +252,10 @@ async fn start_emits_cached_list_from_the_index_before_admission_and_network() {
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].id, CHAT);
     assert_eq!(rows[0].title, "Synthetic cached title");
+    // Row facts come from the held row; ones it does not carry stay `None`.
+    assert_eq!(rows[0].metadata.last_edited_at, Some(1));
+    assert_eq!(rows[0].metadata.icon, None);
+    assert_eq!(rows[0].metadata.budget_limit, None);
     assert_eq!(names(&f.host.calls), ["prepare", "verify", "admit"]);
     assert_eq!(f.host.calls[2].1, 2, "both cached events precede admission");
     // Eager mode loaded every chat's content before admission.

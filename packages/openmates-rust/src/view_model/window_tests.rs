@@ -25,6 +25,7 @@ fn message(id: &str) -> MessageRecord {
         thinking: String::new(),
         embeds: Vec::new(),
         send_state: None,
+        metadata: MessageMetadata::default(),
     }
 }
 
@@ -125,6 +126,10 @@ async fn open_emits_the_cached_window_before_recovery_and_any_network() {
     assert_eq!(window.source, ChatWindowSource::Cached);
     assert_eq!(window.chat_id, CHAT);
     assert_eq!(window.messages[0].content, "synthetic body");
+    // Message facts come from the held row (`created_at`); absent ones stay `None`.
+    assert_eq!(window.messages[0].metadata.created_at, Some(1));
+    assert_eq!(window.messages[0].metadata.model_name, None);
+    assert_eq!(window.has_more_after, None);
     let recover = f
         .host
         .calls
@@ -266,6 +271,7 @@ async fn load_older_needs_an_open_chat_and_keeps_a_complete_window_offline() {
         messages: vec![message("a")],
         source: ChatWindowSource::Canonical,
         has_more_before: Some(false),
+        has_more_after: Some(false),
         history_complete: true,
         refreshing: false,
         pii_restoration: PiiRestoration::AllCachedUserRows,
@@ -301,6 +307,7 @@ async fn a_newer_open_supersedes_the_window_of_an_older_request() {
         messages: Vec::new(),
         source: ChatWindowSource::Cached,
         has_more_before: None,
+        has_more_after: None,
         history_complete: false,
         refreshing: true,
         pii_restoration: PiiRestoration::PageLocal,
