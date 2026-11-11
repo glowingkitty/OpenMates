@@ -18,7 +18,7 @@ overall:
     sdk: 0.15
   weights_decided: '2026-11-08'
   inputs:
-    web_app: 7.8
+    web_app: 7.9
     shared_client: 28.6
     cli: 65.5
     sdk: 11.3
@@ -28,11 +28,11 @@ areas:
   priority_rank: 1
   file: web-app.yml
   unit: TS code lines (portable)
-  total: 107720
+  total: 107695
   done: 8456
   partial: 0
-  missing: 99264
-  percent: 7.8
+  missing: 99239
+  percent: 7.9
   done_definition: code line of a portable TS function (services/, utils/, stores/) that routes to the shared Rust
     core under VITE_OPENMATES_RUST_CORE and is listed in web-port-ledger.yml; functions over 80 code lines count
     only their flag decision sites
