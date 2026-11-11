@@ -1,0 +1,13 @@
+{
+  "description": "Synthetic @serenity-kit/opaque 1.1.0 authorizer inputs (fictional PIN). The native server role must accept the JS setup, record and KE1; the native client role must resume the JS login state; both derive one session key.",
+  "pin": "W7P3KQ",
+  "user_identifier": "[\"openmates-pair\",2,\"ABCDEF\",\"test-session\",\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"test-user\",null]",
+  "identifiers": {
+    "client": "openmates-pair-v2/client/[\"openmates-pair\",2,\"ABCDEF\",\"test-session\",\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"test-user\",null]",
+    "server": "openmates-pair-v2/server/[\"openmates-pair\",2,\"ABCDEF\",\"test-session\",\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"test-user\",null]"
+  },
+  "server_setup": "NOeWLuwnK__Nwi7N3NcZzj5q5QmLcj1EC66WwtNN39AqGAun3Oqz_XD0anXwER8m_m4VEvT3ewTm35KiioZKP-3Zi4Njmy4R1mRR0p9bKho9xe95rs9X2I8w8wueOfMApng5g7R6KqjlUftJnsPKjAlAT-KRoiFVFEsAlG9ucXU",
+  "registration_record": "BBGXJNH--kXjKIegq8szbPEj90gGtdtTZ8iSLXQ-kiaHgIwoywkQUKK5SRQhXvyMAqKzXpxppWfueHuwExVMmy4Hbnnc0FEF6G4s_w03HBxo28UE0AkxlObVqpQXZUtecG38YfVt1wSireuFz70OQm9SCqya5uICJRBZWp0TNRI9SgvuaOxAc6KMsJ0ICk-iCr18oAMP5Ds_35brhPrEbstgM1TqXYe4nQWjWOkusee8BGtg0127JX4GQYvKOdgR",
+  "client_login_state": "om20jhP20Dl8yMYQ31OLD7gcUEQ3NPVpA3YvViKJzAgW0OVX2JQ2BSpT1VdKwiQUIrhNcpZpNchGVx_-d0bDf7I_JeriufZ3MjAnc73tAjpM7feOOMWcWEMwSp_afqHtWKPIsjGGlwbFYyBwDwpMMdsHVlrLnaR3x0symSi2yS4qXet_zUecQm6D9pAqeLdnBkGCIPZ3TF7JzkF1j5m3AbI_JeriufZ3MjAnc73tAjpM7feOOMWcWEMwSp_afqHt",
+  "start_login_request": "FtDlV9iUNgUqU9VXSsIkFCK4TXKWaTXIRlcf_ndGw3-yPyXq4rn2dzIwJ3O97QI6TO33jjjFnFhDMEqf2n6h7VijyLIxhpcGxWMgcA8KTDHbB1Zay52kd8dLMpkotsku"
+}

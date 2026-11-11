@@ -55,8 +55,12 @@ Non-UI logic does not belong in Swift. The shared Rust client core
 (`packages/openmates-rust`, crate `openmates-sdk`) owns transport and reconnect,
 sync, keys and crypto, the encrypted local cache, drafts, send, streaming,
 completion recovery, search and settings/project policies. The Apple app reaches
-it through the UniFFI framework (`packages/openmates-apple-bindings`, Swift package
-`apple/OpenMatesCore`, generalising `PairOpaqueBridge`). Swift keeps SwiftUI/UIKit
+it through UniFFI (`packages/openmates-apple-bindings`): the "Build OpenMatesCore"
+script phase builds one static library per build (`build-xcframework.sh
+--xcode-phase`), and the generated Swift, C header and modulemap are committed in
+`apple/OpenMatesCore` and compiled into the app targets (regenerate with
+`build-xcframework.sh --update-bindings`; CI `apple-core` fails when they are
+stale). Swift keeps SwiftUI/UIKit
 views and view state, platform APIs (APNs, widgets, Live Activities, Spotlight,
 StoreKit, media, haptics, pickers, passkeys, background tasks) and Keychain
 storage of the core's credential snapshots.

@@ -49,8 +49,7 @@ EXPOSURE_RANK = {"internet_facing": 3, "internal": 2, "client_only": 1, "build_o
 IGNORED_DIRS = {".git", ".openmates-agent-worktrees", ".pnpm-store", "node_modules", "test-results",
                 ".venv", "venv", "dist", "build", "target", ".build", "__pycache__", "docs"}
 CARGO_LOCKS = {
-    "Cargo.lock": (("dev", "ci"), "client_only"),
-    "apple/PairOpaqueBridge/Cargo.lock": (("apple_client",), "client_only"),
+    "Cargo.lock": (("dev", "ci", "apple_client"), "client_only"),
     "frontend/packages/openmates-tui-prototype/Cargo.lock": (("dev",), "build_only"),
 }
 FIXED_VENDORS = (

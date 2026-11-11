@@ -177,19 +177,29 @@ pub use send_options::{
 /// Fixed SDK identity used by authorization and device-access policy.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum ClientIdentity {
+    /// Rust SDK (`openmates::sdk`) and Rust-hosted bindings.
     #[default]
     Rust,
+    /// npm SDK.
     Npm,
+    /// Python SDK.
     Pip,
+    /// Native CLI/TUI; the only identity that may report human interactivity.
     Cli,
+    /// Native Apple apps (iOS, iPadOS, macOS, watchOS) through the UniFFI
+    /// binding. Its value `apple` is what the Swift app already sends as the
+    /// lifecycle `client_type` and what the backend maps to the `apple` surface.
+    Apple,
 }
 impl ClientIdentity {
+    /// Value sent as `X-OpenMates-SDK` and as the socket lifecycle `client_type`.
     pub(crate) fn header(self) -> &'static str {
         match self {
             Self::Rust => "rust",
             Self::Npm => "npm",
             Self::Pip => "pip",
             Self::Cli => "cli",
+            Self::Apple => "apple",
         }
     }
 }
@@ -1478,6 +1488,7 @@ mod lifecycle_tests {
             ClientIdentity::Npm,
             ClientIdentity::Pip,
             ClientIdentity::Cli,
+            ClientIdentity::Apple,
         ] {
             for interactive in [false, true] {
                 let client = Client::with_options(

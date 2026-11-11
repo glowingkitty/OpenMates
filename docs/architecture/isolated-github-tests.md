@@ -57,11 +57,14 @@ accounts or runtime seeds, and are not lightweight (macOS runners are scarce, ab
 `scripts/ci_apple.py` runs the steps and writes the usual `ci-results.json`;
 `ci_results.py` admits only `macos-26` GitHub-hosted runners for these modes.
 
-- `apple-core --spec all`: rustup 1.98.1, builds PairOpaqueBridge for the
-  iphonesimulator arm64 slice with its build-phase environment, runs the
-  PairOpaqueBridge and `openmates-sdk` (`packages/openmates-rust`) tests natively on macOS, and
-  runs `swift test` on `apple/OpenMatesCore` only when that package exists
-  (otherwise a visible skipped row). Cargo state is cached on `Cargo.lock`.
+- `apple-core --spec all`: rustup 1.98.1 with the iOS, simulator, macOS and stable watchOS
+  targets; runs the `openmates-sdk` (`packages/openmates-rust`) and
+  `openmates-apple-bindings` tests natively on macOS, checks the committed UniFFI bindings in
+  `apple/OpenMatesCore` are fresh (`build-xcframework.sh --check-bindings`), builds the
+  OpenMatesCoreFFI xcframework (iOS, simulator, macOS) and then, as its own step, the Watch slices
+  (`--watch`, arm64_32 through the pinned nightly build-std), and prints the sizes. Cargo state is
+  cached on `Cargo.lock`. apple-unit and apple-ui get the core through the Xcode "Build
+  OpenMatesCore" phase (cached under `.tmp/apple-core-{cargo,rustup}`).
 - `apple-unit --spec all` (or `OpenMatesTests/<Class>[/<test>]`): fetches the
   pinned Whistle link inputs (`WhistleBridge/prepare-build.py --fetch`, cached on
   `whistle-assets.lock.json`), then `xcodebuild test` of scheme `OpenMates_iOS`

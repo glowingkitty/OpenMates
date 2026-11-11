@@ -27,8 +27,9 @@ capability inventory and status: `docs/plans/client-core-one-core-three-shells/p
   (WebCrypto, CryptoKit); binding glue.
   - Web shell: Svelte + the shared Worker (`frontend/apps/web_app/src/lib/rustCore/shared/`,
     units in `sharedWorkerUnits.ts`, installers in `frontend/packages/ui/src/services/rustCore/`).
-  - Apple shell: SwiftUI + UniFFI framework (`packages/openmates-apple-bindings`,
-    Swift package `apple/OpenMatesCore`, generalising `apple/PairOpaqueBridge`).
+  - Apple shell: SwiftUI + UniFFI (`packages/openmates-apple-bindings`; generated
+    Swift/C bindings committed in `apple/OpenMatesCore`, static library built by
+    the Xcode phase `build-xcframework.sh --xcode-phase`).
   - TUI/CLI shell: `frontend/packages/openmates-tui-native` (done; reference shell).
 - Core first, shells bind: a fix or feature in reusable behavior lands in Rust and
   reaches every shell through its binding. If the core lacks it, add it to the core.
@@ -95,7 +96,7 @@ capability inventory and status: `docs/plans/client-core-one-core-three-shells/p
 - UniFFI (Apple): the core owns its async runtime; expose async functions and an
   update listener; Swift hops to `@MainActor` once at the view-model boundary;
   support cancellation; no blocking calls on the main thread. watchOS arm64_32
-  is tier-3: reuse the build-std recipe in `apple/PairOpaqueBridge/build-apple.sh`.
+  is tier-3: reuse the build-std recipe in `packages/openmates-apple-bindings/build-xcframework.sh`.
 - Node/Python (`packages/openmates-session-bindings`) follow `cli-sdk.md`.
 - Errors cross bindings as typed errors; no silent fallback.
 

@@ -3,10 +3,11 @@
 All modes run on a GitHub-hosted `macos-26` arm64 runner with Xcode 26.6 (the
 version the release Mac builds with), never on the shared dev host.
 
-  apple-core   target `all`: build PairOpaqueBridge for the iOS simulator slice
-               with the Xcode build-phase semantics, run the openmates-sdk (packages/openmates-rust) and
-               PairOpaqueBridge test suites natively on macOS, and test the
-               Swift package apple/OpenMatesCore when it exists.
+  apple-core   target `all`: run the openmates-sdk (packages/openmates-rust) and
+               openmates-apple-bindings tests natively on macOS, check the committed
+               UniFFI bindings in apple/OpenMatesCore are fresh, build the
+               OpenMatesCoreFFI xcframework (iOS, simulator, macOS) and then, as its own
+               step, the Watch slices; print the sizes.
   apple-unit   targets `all` or `OpenMatesTests[/<Class>[/<test>]]`: generate the design tokens and locales the project
                references, fetch the pinned Whistle link inputs, then `xcodebuild test` the
                OpenMates_iOS scheme limited to the OpenMatesTests unit target
@@ -74,31 +75,16 @@ def validate_specs(mode: str, specs: list[str]) -> list[str]:
 
 def core_plan(root: Path, results: Path) -> list[Step]:
     """Ordered (name, argv, extra env, skip reason) steps for apple-core."""
-    bridge_env = {
-        "PLATFORM_NAME": "iphonesimulator",
-        "ARCHS": "arm64",
-        "DERIVED_FILE_DIR": str(results / "derived"),
-    }
     # macOS temp roots sit behind the /var -> /private/var symlink; the SDK's
     # destination checks (correctly) refuse symlinked paths, so tests get the real path.
     toolchain = {
         "RUSTUP_TOOLCHAIN": RUST_TOOLCHAIN,
         "TMPDIR": os.path.realpath(os.environ.get("RUNNER_TEMP", "/tmp")),
     }
-    has_package = (root / "apple" / "OpenMatesCore" / "Package.swift").is_file()
+    script = "packages/openmates-apple-bindings/build-xcframework.sh"
+    framework_dir = results / "framework"
+    swift_dir = results / "swift"
     return [
-        (
-            "pair-opaque bridge (iphonesimulator arm64)",
-            ["bash", "apple/PairOpaqueBridge/build-apple.sh"],
-            bridge_env,
-            "",
-        ),
-        (
-            "pair-opaque bridge tests (macOS)",
-            ["cargo", "test", "--manifest-path", "apple/PairOpaqueBridge/Cargo.toml", "--locked"],
-            toolchain,
-            "",
-        ),
         (
             "openmates-sdk tests (macOS)",
             ["cargo", "test", "-p", "openmates-sdk", *RUST_TEST_FLAGS],
@@ -106,12 +92,38 @@ def core_plan(root: Path, results: Path) -> list[Step]:
             "",
         ),
         (
-            "OpenMatesCore swift tests",
-            ["swift", "test", "--package-path", "apple/OpenMatesCore"],
+            "openmates-apple-bindings tests (macOS)",
+            ["cargo", "test", "-p", "openmates-apple-bindings", "--locked"],
+            toolchain,
+            "",
+        ),
+        (
+            "apple bindings are fresh",
+            ["bash", script, "--check-bindings"],
             {},
-            ""
-            if has_package
-            else "apple/OpenMatesCore is absent in this source; Swift package tests skipped",
+            "",
+        ),
+        (
+            "OpenMatesCore xcframework (iOS, simulator, macOS)",
+            ["bash", script, "--framework-dir", str(framework_dir), str(swift_dir)],
+            {},
+            "",
+        ),
+        (
+            "OpenMatesCore xcframework WATCH slices",
+            ["bash", script, "--watch", "--framework-dir", str(framework_dir), str(swift_dir)],
+            {},
+            "",
+        ),
+        (
+            "OpenMatesCore sizes",
+            [
+                "bash", "-c",
+                f'du -sh "{framework_dir}"/*.xcframework && '
+                f'find "{framework_dir}"/*.xcframework -name "*.a" -exec du -h {{}} +',
+            ],
+            {},
+            "",
         ),
     ]
 
@@ -141,7 +153,7 @@ def xcode_plan(mode: str, results: Path, specs: list[str]) -> list[Step]:
         command += ["-parallel-testing-enabled", "NO"]
     for selector in only:
         command += ["-only-testing", selector]
-    # The script phases (PairOpaqueBridge, LocalModelBridge) run cargo and read repository
+    # The script phases (OpenMatesCore, LocalModelBridge) run cargo and read repository
     # files, which Xcode's script sandbox denies; the TestFlight build passes the same override.
     command += ["CODE_SIGNING_ALLOWED=NO", "CODE_SIGN_IDENTITY=", "ENABLE_USER_SCRIPT_SANDBOXING=NO"]
     return [

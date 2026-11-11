@@ -98,7 +98,6 @@ def write_repo(root: Path) -> Path:
         "backend/core/api/requirements.txt": "fastapi==0.135.1\nhttpx>=0.27.0  # floor only\n",
         "packages/openmates-python/pyproject.toml": '[project]\nname = "openmates"\ndependencies = ["requests>=2.31"]\n',
         "Cargo.lock": 'version = 3\n\n[[package]]\nname = "h2"\nversion = "0.4.1"\nsource = "registry+https://github.com/rust-lang/crates.io-index"\n',
-        "apple/PairOpaqueBridge/Cargo.lock": 'version = 3\n\n[[package]]\nname = "opaque-ke"\nversion = "3.0.0"\nsource = "registry+https://github.com/rust-lang/crates.io-index"\n',
         "frontend/packages/openmates-tui-prototype/Cargo.lock": 'version = 3\n\n[[package]]\nname = "local-crate"\nversion = "0.1.0"\n',
         "apple/OpenMates.xcodeproj/project.pbxproj": PBXPROJ,
         "backend/core/api/Dockerfile": "ARG BASE=python:3.13-slim\nFROM ${BASE} AS base\nRUN cat <<EOF > /tmp/x\nFROM not_an_image\nEOF\nFROM base\n",
@@ -174,7 +173,7 @@ def test_inventory_records_sources_environments_and_exposure(tmp_path):
     assert find(inv, "fastapi")[0].version == "0.135.1" and find(inv, "fastapi")[0].exposure == "internet_facing"
     assert find(inv, "httpx")[0].version is None  # floor-only requirement stays version-unknown
     assert find(inv, "h2")[0].ecosystem == "crates.io"
-    assert find(inv, "opaque-ke")[0].environments == ("apple_client",)
+    assert find(inv, "h2")[0].environments == ("apple_client", "ci", "dev")
     assert find(inv, "github.com/example/swift-sodium")[0].version == "0.9.1"
     images = {(asset.name, asset.version) for asset in inv.assets if asset.kind == "container_image"}
     assert images == {("python", "3.13-slim"), ("postgres", "16-alpine")}  # heredoc body and local builds ignored

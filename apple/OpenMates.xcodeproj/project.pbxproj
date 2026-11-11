@@ -7,6 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0C0EC0DE1A2B3C4D5E6F7003 /* OpenMatesCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C0EC0DE1A2B3C4D5E6F7001 /* OpenMatesCore.swift */; };
+		0C0EC0DE1A2B3C4D5E6F7004 /* OpenMatesCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C0EC0DE1A2B3C4D5E6F7001 /* OpenMatesCore.swift */; };
+		0C0EC0DE1A2B3C4D5E6F7005 /* OpenMatesCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C0EC0DE1A2B3C4D5E6F7001 /* OpenMatesCore.swift */; };
+		0C0EC0DE1A2B3C4D5E6F7007 /* OpenMatesCoreBridgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C0EC0DE1A2B3C4D5E6F7006 /* OpenMatesCoreBridgeTests.swift */; };
 		0007B5C7FCB6FC85F1DD7107 /* SettingsLogsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1590D8670281FDF56C8F2860 /* SettingsLogsView.swift */; };
 		002DBCA1C32BDC15F7AE800C /* MessageInputAudioRecordingUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E1AD741B9291E0196BD1C8C /* MessageInputAudioRecordingUITests.swift */; };
 		0066CDA1A715570A1AC18A8B /* TypographyTokens.generated.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA3E3EE0717AACBAC428E3A9 /* TypographyTokens.generated.swift */; };
@@ -587,6 +591,7 @@
 		519769E02CF18468B1085F8F /* Yams in Frameworks */ = {isa = PBXBuildFile; productRef = BBF89B51577DF3BD84AC0B0C /* Yams */; };
 		51A84A18E7DEA7F82DBF471C /* MapsShareView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4ADF9FFABA27844DB792CC0 /* MapsShareView.swift */; };
 		51AB3B75AD7556D96E500366 /* NativeComposerPerformanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26336CB50B3D7AB2E54B96AB /* NativeComposerPerformanceTests.swift */; };
+		7A1E5C0D4B2F4E6A9C3D8F11 /* NativeEncryptedSyncPerformanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1E5C0D4B2F4E6A9C3D8F10 /* NativeEncryptedSyncPerformanceTests.swift */; };
 		51D240B035F711EAE019F529 /* EmbedRenderingParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ED0610A1F4AB6B5EB28B20C /* EmbedRenderingParityUITests.swift */; };
 		51D6F43ECA336A723552FA76 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B11ABB7D716D034151DB7B3 /* NotificationService.swift */; };
 		51D987ADFA608E554C87AD76 /* WatchPhoneOpenPayloadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5317D124541F183D89A6CE83 /* WatchPhoneOpenPayloadTests.swift */; };
@@ -1854,6 +1859,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		0C0EC0DE1A2B3C4D5E6F7001 /* OpenMatesCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenMatesCore.swift; sourceTree = "<group>"; };
+		0C0EC0DE1A2B3C4D5E6F7006 /* OpenMatesCoreBridgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenMatesCoreBridgeTests.swift; sourceTree = "<group>"; };
 		00319B0D0D5363A907EA2D77 /* NativeComposerDraftEncryptionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerDraftEncryptionTests.swift; sourceTree = "<group>"; };
 		01028FE86E390F7DA7DA4063 /* BillingUsageModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BillingUsageModel.swift; sourceTree = "<group>"; };
 		01411E08A584F06C95DAF312 /* PendingAssistantResponseQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingAssistantResponseQueue.swift; sourceTree = "<group>"; };
@@ -1975,6 +1982,7 @@
 		25DC9D4D5783C6F7C3A72402 /* ComposerAudioPreviewContentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerAudioPreviewContentTests.swift; sourceTree = "<group>"; };
 		260131561D42B3B28D90EA7F /* WorkflowGraphReorderingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkflowGraphReorderingTests.swift; sourceTree = "<group>"; };
 		26336CB50B3D7AB2E54B96AB /* NativeComposerPerformanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerPerformanceTests.swift; sourceTree = "<group>"; };
+		7A1E5C0D4B2F4E6A9C3D8F10 /* NativeEncryptedSyncPerformanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeEncryptedSyncPerformanceTests.swift; sourceTree = "<group>"; };
 		26ACFA25575D0443B600F0A2 /* HealthSearchIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthSearchIntent.swift; sourceTree = "<group>"; };
 		26B34A7673A232C429BC3A40 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		26BD1EBC3067D147569546FB /* SettingsIPadLayoutParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsIPadLayoutParityUITests.swift; sourceTree = "<group>"; };
@@ -3377,6 +3385,8 @@
 				DD2AD4F1831AD8EE3515A52B /* NativeComposerMentionPIITests.swift */,
 				2BCDDB15A2FDAF172D333ADA /* NativeComposerPasteTests.swift */,
 				26336CB50B3D7AB2E54B96AB /* NativeComposerPerformanceTests.swift */,
+				7A1E5C0D4B2F4E6A9C3D8F10 /* NativeEncryptedSyncPerformanceTests.swift */,
+				0C0EC0DE1A2B3C4D5E6F7006 /* OpenMatesCoreBridgeTests.swift */,
 				32DE9BDBC4BF5722C68391E2 /* NativeComposerSessionTests.swift */,
 				5D2EB8DB4BAEF8EAE2C3937B /* NativeComposerSubmitTests.swift */,
 				7E72D68364BDFD7B1D47CD56 /* NativeComposerTextViewAdapterTests.swift */,
@@ -3917,6 +3927,7 @@
 				659C089C700458A048CE5F6F /* agent-6dc7 */,
 				57AF248FD9762AD8A3924279 /* LocalModelBridge */,
 				65C3B253848F893F8C17738F /* OpenMates */,
+				0C0EC0DE1A2B3C4D5E6F7002 /* OpenMatesCore */,
 				B304D79C2F549AE155263A51 /* OpenMatesMacUITests */,
 				7293C650E583994145E9D5BF /* OpenMatesNotificationContent */,
 				FAD56277F16556FCCEA84656 /* OpenMatesNotificationService */,
@@ -4594,6 +4605,15 @@
 			path = Sources;
 			sourceTree = "<group>";
 		};
+		0C0EC0DE1A2B3C4D5E6F7002 /* OpenMatesCore */ = {
+			isa = PBXGroup;
+			children = (
+				0C0EC0DE1A2B3C4D5E6F7001 /* OpenMatesCore.swift */,
+			);
+			name = OpenMatesCore;
+			path = OpenMatesCore/Sources/OpenMatesCore;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -4601,7 +4621,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 7C45214DD39498742E9FEF0E /* Build configuration list for PBXNativeTarget "OpenMates_iOS" */;
 			buildPhases = (
-				C62FE0A54F16EF223C471BBC /* Build PairOpaqueBridge */,
+				C62FE0A54F16EF223C471BBC /* Build OpenMatesCore */,
 				442848EA0C8E45B8CC4B4482 /* Prepare LocalModelBridge */,
 				2B3E16B1F7F9FCFBC87C2055 /* Isolate macOS ONNX Runtime */,
 				830E7D0E116B4B5F89080C48 /* Sources */,
@@ -4799,7 +4819,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = C8D6826FABAA4321C0AEF0B0 /* Build configuration list for PBXNativeTarget "OpenMates_macOS" */;
 			buildPhases = (
-				88D99DDC60BCCF9ACC2AC0D9 /* Build PairOpaqueBridge */,
+				88D99DDC60BCCF9ACC2AC0D9 /* Build OpenMatesCore */,
 				F97B249945B1DD6FB20C46A8 /* Prepare LocalModelBridge */,
 				3D9885CAC4B68EB27F849BC5 /* Isolate macOS ONNX Runtime */,
 				591446FAB19B231024F85B8C /* Sources */,
@@ -4833,7 +4853,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 71A4BA3AF47A668ABBC9037B /* Build configuration list for PBXNativeTarget "OpenMatesWatch" */;
 			buildPhases = (
-				4E0EE6B99ACA757614590DBF /* Build PairOpaqueBridge */,
+				4E0EE6B99ACA757614590DBF /* Build OpenMatesCore */,
 				81999E3BDD34B2ABE6146F53 /* Sources */,
 				E4AADAE2C1C09C942448A0E1 /* Resources */,
 				7D3144FBB7A92C8B179ED06B /* Frameworks */,
@@ -5222,7 +5242,7 @@
 			shellPath = /bin/sh;
 			shellScript = "python3 \"${PROJECT_DIR}/LocalModelBridge/prepare.py\"";
 		};
-		4E0EE6B99ACA757614590DBF /* Build PairOpaqueBridge */ = {
+		4E0EE6B99ACA757614590DBF /* Build OpenMatesCore */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
@@ -5232,16 +5252,16 @@
 			);
 			inputPaths = (
 			);
-			name = "Build PairOpaqueBridge";
+			name = "Build OpenMatesCore";
 			outputFileListPaths = (
 			);
 			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"${PROJECT_DIR}/PairOpaqueBridge/build-apple.sh\"";
+			shellScript = "\"${PROJECT_DIR}/../packages/openmates-apple-bindings/build-xcframework.sh\" --xcode-phase";
 		};
-		88D99DDC60BCCF9ACC2AC0D9 /* Build PairOpaqueBridge */ = {
+		88D99DDC60BCCF9ACC2AC0D9 /* Build OpenMatesCore */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
@@ -5251,14 +5271,14 @@
 			);
 			inputPaths = (
 			);
-			name = "Build PairOpaqueBridge";
+			name = "Build OpenMatesCore";
 			outputFileListPaths = (
 			);
 			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"${PROJECT_DIR}/PairOpaqueBridge/build-apple.sh\"";
+			shellScript = "\"${PROJECT_DIR}/../packages/openmates-apple-bindings/build-xcframework.sh\" --xcode-phase";
 		};
 		C615B387BD5C4966E8C6F9E3 /* Embed macOS ONNX Runtime */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -5281,7 +5301,7 @@
 			shellPath = /bin/sh;
 			shellScript = "python3 \"${PROJECT_DIR}/LocalModelBridge/embed_onnx_macos.py\"";
 		};
-		C62FE0A54F16EF223C471BBC /* Build PairOpaqueBridge */ = {
+		C62FE0A54F16EF223C471BBC /* Build OpenMatesCore */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
@@ -5291,14 +5311,14 @@
 			);
 			inputPaths = (
 			);
-			name = "Build PairOpaqueBridge";
+			name = "Build OpenMatesCore";
 			outputFileListPaths = (
 			);
 			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"${PROJECT_DIR}/PairOpaqueBridge/build-apple.sh\"";
+			shellScript = "\"${PROJECT_DIR}/../packages/openmates-apple-bindings/build-xcframework.sh\" --xcode-phase";
 		};
 		F97B249945B1DD6FB20C46A8 /* Prepare LocalModelBridge */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -5414,6 +5434,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0C0EC0DE1A2B3C4D5E6F7004 /* OpenMatesCore.swift in Sources */,
 				F21BC1FE5F7050B7957FA9C4 /* AITypingIndicator.swift in Sources */,
 				81C03DD57797F7494E8BC99E /* APIClient.swift in Sources */,
 				217FAE36C93971A51738758B /* AccessibilityModifiers.swift in Sources */,
@@ -6108,6 +6129,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0C0EC0DE1A2B3C4D5E6F7005 /* OpenMatesCore.swift in Sources */,
 				4B5CDB89F2B5C3898953B606 /* APIClient.swift in Sources */,
 				17C190FF72A064DC5909CDC3 /* AnonymousPublicChatTransport.swift in Sources */,
 				EC2F53C0EB043F094F878FEB /* AnyCodable.swift in Sources */,
@@ -6215,6 +6237,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0C0EC0DE1A2B3C4D5E6F7003 /* OpenMatesCore.swift in Sources */,
 				87BC11EACC54693695953576 /* AITypingIndicator.swift in Sources */,
 				555AD52BB0EB143F00E3B872 /* APIClient.swift in Sources */,
 				EA657AC6049612D2F983EC5D /* AccessibilityModifiers.swift in Sources */,
@@ -6864,6 +6887,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0C0EC0DE1A2B3C4D5E6F7007 /* OpenMatesCoreBridgeTests.swift in Sources */,
 				1FBA206674898C6948BC7824 /* APIClientUploadTransportTests.swift in Sources */,
 				00E477F1420217AE025FAC87 /* APIResponseDecodingDiagnosticsTests.swift in Sources */,
 				8447880A2B86AD829E81EE9C /* AccountDeletionCleanupTests.swift in Sources */,
@@ -6952,6 +6976,7 @@
 				90236F2068521FD249287250 /* NativeComposerMentionPIITests.swift in Sources */,
 				F504B3C573CDB991CA373831 /* NativeComposerPasteTests.swift in Sources */,
 				51AB3B75AD7556D96E500366 /* NativeComposerPerformanceTests.swift in Sources */,
+				7A1E5C0D4B2F4E6A9C3D8F11 /* NativeEncryptedSyncPerformanceTests.swift in Sources */,
 				A70B3D4D9860AF27CF0720F9 /* NativeComposerSessionTests.swift in Sources */,
 				C076EFE8E8D33B89B224CCAA /* NativeComposerSubmitTests.swift in Sources */,
 				49B05AB5834366877A6BEEE4 /* NativeComposerTextViewAdapterTests.swift in Sources */,
@@ -7148,7 +7173,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(inherited) $(DERIVED_FILE_DIR)/PairOpaque";
+				LIBRARY_SEARCH_PATHS = "$(inherited) $(DERIVED_FILE_DIR)/OpenMatesCore";
 				"LOCAL_MODEL_BRIDGE_SLICE[sdk=iphoneos*]" = "ios-arm64";
 				"LOCAL_MODEL_BRIDGE_SLICE[sdk=iphonesimulator*]" = "ios-arm64-simulator";
 				"LOCAL_MODEL_BRIDGE_SLICE[sdk=macosx*]" = "macos-arm64";
@@ -7156,7 +7181,7 @@
 				"LOCAL_MODEL_BRIDGE_SUFFIX[sdk=iphonesimulator*]" = simulator;
 				"LOCAL_MODEL_BRIDGE_SUFFIX[sdk=macosx*]" = macos;
 				OPENMATES_DEV_WEBCREDENTIALS = "webcredentials:app.dev.openmates.org";
-				OTHER_LDFLAGS = "$(inherited) -lopenmates_pair_opaque -lc++";
+				OTHER_LDFLAGS = "$(inherited) -lopenmates_apple_bindings -lc++";
 				"OTHER_LDFLAGS[sdk=iphoneos*][arch=arm64]" = "$(inherited) -Xlinker \"$(PROJECT_DIR)/../.runtime/whistle-inputs/iphoneos/link/libneedle.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/executorch.xcframework/ios-arm64/libexecutorch_ios.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/backend_xnnpack.xcframework/ios-arm64/libbackend_xnnpack_ios.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/kernels_optimized.xcframework/ios-arm64/libkernels_optimized_ios.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/kernels_quantized.xcframework/ios-arm64/libkernels_quantized_ios.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/kernels_torchao.xcframework/ios-arm64/libkernels_torchao_ios.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/threadpool.xcframework/ios-arm64/libthreadpool_ios.a\" -framework Accelerate -framework CoreGraphics -framework CoreImage -framework CoreVideo -framework Foundation -lc++";
 				"OTHER_LDFLAGS[sdk=iphonesimulator*][arch=arm64]" = "$(inherited) -Xlinker \"$(PROJECT_DIR)/../.runtime/whistle-inputs/iphonesimulator/link/libneedle.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/executorch.xcframework/ios-arm64-simulator/libexecutorch_simulator.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/backend_xnnpack.xcframework/ios-arm64-simulator/libbackend_xnnpack_simulator.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/kernels_optimized.xcframework/ios-arm64-simulator/libkernels_optimized_simulator.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/kernels_quantized.xcframework/ios-arm64-simulator/libkernels_quantized_simulator.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/kernels_torchao.xcframework/ios-arm64-simulator/libkernels_torchao_simulator.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/threadpool.xcframework/ios-arm64-simulator/libthreadpool_simulator.a\" -framework Accelerate -framework CoreGraphics -framework CoreImage -framework CoreVideo -framework Foundation -lc++";
 				"OTHER_LDFLAGS[sdk=macosx*][arch=arm64]" = "$(inherited) -Xlinker -no_compact_unwind -Xlinker -keep_dwarf_unwind -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/executorch.xcframework/macos-arm64/libexecutorch_macos.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/backend_xnnpack.xcframework/macos-arm64/libbackend_xnnpack_macos.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/kernels_optimized.xcframework/macos-arm64/libkernels_optimized_macos.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/kernels_quantized.xcframework/macos-arm64/libkernels_quantized_macos.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/kernels_torchao.xcframework/macos-arm64/libkernels_torchao_macos.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/threadpool.xcframework/macos-arm64/libthreadpool_macos.a\" -framework Accelerate -framework CoreGraphics -framework CoreImage -framework CoreVideo -framework Foundation -lc++";
@@ -7166,10 +7191,10 @@
 				SDKROOT = iphoneos;
 				"SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=iphoneos*][arch=arm64]" = "$(inherited) OM_WHISTLE_NATIVE";
 				"SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=iphonesimulator*][arch=arm64]" = "$(inherited) OM_WHISTLE_NATIVE";
-				SWIFT_INCLUDE_PATHS = "$(inherited) $(PROJECT_DIR)/WhistleBridge";
-				"SWIFT_INCLUDE_PATHS[sdk=iphoneos*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/Modules\" \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/executorch.xcframework/ios-arm64/Headers\" \"$(PROJECT_DIR)/WhistleBridge\"";
-				"SWIFT_INCLUDE_PATHS[sdk=iphonesimulator*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/Modules\" \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/executorch.xcframework/ios-arm64-simulator/Headers\" \"$(PROJECT_DIR)/WhistleBridge\"";
-				"SWIFT_INCLUDE_PATHS[sdk=macosx*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/Modules\" \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/executorch.xcframework/macos-arm64/Headers\" \"$(PROJECT_DIR)/WhistleBridge\"";
+				SWIFT_INCLUDE_PATHS = "$(inherited) $(PROJECT_DIR)/WhistleBridge $(PROJECT_DIR)/OpenMatesCore/include/OpenMatesCoreFFI";
+				"SWIFT_INCLUDE_PATHS[sdk=iphoneos*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/Modules\" \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/executorch.xcframework/ios-arm64/Headers\" \"$(PROJECT_DIR)/WhistleBridge\" \"$(PROJECT_DIR)/OpenMatesCore/include/OpenMatesCoreFFI\"";
+				"SWIFT_INCLUDE_PATHS[sdk=iphonesimulator*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/Modules\" \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/executorch.xcframework/ios-arm64-simulator/Headers\" \"$(PROJECT_DIR)/WhistleBridge\" \"$(PROJECT_DIR)/OpenMatesCore/include/OpenMatesCoreFFI\"";
+				"SWIFT_INCLUDE_PATHS[sdk=macosx*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/Modules\" \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/executorch.xcframework/macos-arm64/Headers\" \"$(PROJECT_DIR)/WhistleBridge\" \"$(PROJECT_DIR)/OpenMatesCore/include/OpenMatesCoreFFI\"";
 				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -7194,7 +7219,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(inherited) $(DERIVED_FILE_DIR)/PairOpaque";
+				LIBRARY_SEARCH_PATHS = "$(inherited) $(DERIVED_FILE_DIR)/OpenMatesCore";
 				"LOCAL_MODEL_BRIDGE_SLICE[sdk=iphoneos*]" = "ios-arm64";
 				"LOCAL_MODEL_BRIDGE_SLICE[sdk=iphonesimulator*]" = "ios-arm64-simulator";
 				"LOCAL_MODEL_BRIDGE_SLICE[sdk=macosx*]" = "macos-arm64";
@@ -7202,7 +7227,7 @@
 				"LOCAL_MODEL_BRIDGE_SUFFIX[sdk=iphonesimulator*]" = simulator;
 				"LOCAL_MODEL_BRIDGE_SUFFIX[sdk=macosx*]" = macos;
 				OPENMATES_DEV_WEBCREDENTIALS = "webcredentials:app.dev.openmates.org";
-				OTHER_LDFLAGS = "$(inherited) -lopenmates_pair_opaque -lc++";
+				OTHER_LDFLAGS = "$(inherited) -lopenmates_apple_bindings -lc++";
 				"OTHER_LDFLAGS[sdk=iphoneos*][arch=arm64]" = "$(inherited) -Xlinker \"$(PROJECT_DIR)/../.runtime/whistle-inputs/iphoneos/link/libneedle.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/executorch.xcframework/ios-arm64/libexecutorch_ios.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/backend_xnnpack.xcframework/ios-arm64/libbackend_xnnpack_ios.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/kernels_optimized.xcframework/ios-arm64/libkernels_optimized_ios.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/kernels_quantized.xcframework/ios-arm64/libkernels_quantized_ios.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/kernels_torchao.xcframework/ios-arm64/libkernels_torchao_ios.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/threadpool.xcframework/ios-arm64/libthreadpool_ios.a\" -framework Accelerate -framework CoreGraphics -framework CoreImage -framework CoreVideo -framework Foundation -lc++";
 				"OTHER_LDFLAGS[sdk=iphonesimulator*][arch=arm64]" = "$(inherited) -Xlinker \"$(PROJECT_DIR)/../.runtime/whistle-inputs/iphonesimulator/link/libneedle.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/executorch.xcframework/ios-arm64-simulator/libexecutorch_simulator.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/backend_xnnpack.xcframework/ios-arm64-simulator/libbackend_xnnpack_simulator.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/kernels_optimized.xcframework/ios-arm64-simulator/libkernels_optimized_simulator.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/kernels_quantized.xcframework/ios-arm64-simulator/libkernels_quantized_simulator.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/kernels_torchao.xcframework/ios-arm64-simulator/libkernels_torchao_simulator.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/threadpool.xcframework/ios-arm64-simulator/libthreadpool_simulator.a\" -framework Accelerate -framework CoreGraphics -framework CoreImage -framework CoreVideo -framework Foundation -lc++";
 				"OTHER_LDFLAGS[sdk=macosx*][arch=arm64]" = "$(inherited) -Xlinker -no_compact_unwind -Xlinker -keep_dwarf_unwind -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/executorch.xcframework/macos-arm64/libexecutorch_macos.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/backend_xnnpack.xcframework/macos-arm64/libbackend_xnnpack_macos.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/kernels_optimized.xcframework/macos-arm64/libkernels_optimized_macos.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/kernels_quantized.xcframework/macos-arm64/libkernels_quantized_macos.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/kernels_torchao.xcframework/macos-arm64/libkernels_torchao_macos.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/threadpool.xcframework/macos-arm64/libthreadpool_macos.a\" -framework Accelerate -framework CoreGraphics -framework CoreImage -framework CoreVideo -framework Foundation -lc++";
@@ -7214,10 +7239,10 @@
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				"SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=iphoneos*][arch=arm64]" = "$(inherited) OM_WHISTLE_NATIVE";
 				"SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=iphonesimulator*][arch=arm64]" = "$(inherited) OM_WHISTLE_NATIVE";
-				SWIFT_INCLUDE_PATHS = "$(inherited) $(PROJECT_DIR)/WhistleBridge";
-				"SWIFT_INCLUDE_PATHS[sdk=iphoneos*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/Modules\" \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/executorch.xcframework/ios-arm64/Headers\" \"$(PROJECT_DIR)/WhistleBridge\"";
-				"SWIFT_INCLUDE_PATHS[sdk=iphonesimulator*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/Modules\" \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/executorch.xcframework/ios-arm64-simulator/Headers\" \"$(PROJECT_DIR)/WhistleBridge\"";
-				"SWIFT_INCLUDE_PATHS[sdk=macosx*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/Modules\" \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/executorch.xcframework/macos-arm64/Headers\" \"$(PROJECT_DIR)/WhistleBridge\"";
+				SWIFT_INCLUDE_PATHS = "$(inherited) $(PROJECT_DIR)/WhistleBridge $(PROJECT_DIR)/OpenMatesCore/include/OpenMatesCoreFFI";
+				"SWIFT_INCLUDE_PATHS[sdk=iphoneos*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/Modules\" \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/executorch.xcframework/ios-arm64/Headers\" \"$(PROJECT_DIR)/WhistleBridge\" \"$(PROJECT_DIR)/OpenMatesCore/include/OpenMatesCoreFFI\"";
+				"SWIFT_INCLUDE_PATHS[sdk=iphonesimulator*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/Modules\" \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/executorch.xcframework/ios-arm64-simulator/Headers\" \"$(PROJECT_DIR)/WhistleBridge\" \"$(PROJECT_DIR)/OpenMatesCore/include/OpenMatesCoreFFI\"";
+				"SWIFT_INCLUDE_PATHS[sdk=macosx*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/Modules\" \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/executorch.xcframework/macos-arm64/Headers\" \"$(PROJECT_DIR)/WhistleBridge\" \"$(PROJECT_DIR)/OpenMatesCore/include/OpenMatesCoreFFI\"";
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
@@ -7299,8 +7324,8 @@
 				"GCC_PREPROCESSOR_DEFINITIONS[sdk=watchos*]" = "$(inherited) OM_WHISTLE_NATIVE=1";
 				GENERATE_PKGINFO_FILE = YES;
 				INFOPLIST_FILE = OpenMatesWatch/Info.plist;
-				LIBRARY_SEARCH_PATHS = "$(inherited) $(DERIVED_FILE_DIR)/PairOpaque";
-				OTHER_LDFLAGS = "$(inherited) -lopenmates_pair_opaque -lc++";
+				LIBRARY_SEARCH_PATHS = "$(inherited) $(DERIVED_FILE_DIR)/OpenMatesCore";
+				OTHER_LDFLAGS = "$(inherited) -lopenmates_apple_bindings -lc++";
 				"OTHER_LDFLAGS[sdk=watchos*]" = "$(inherited) -Xlinker \"$(PROJECT_DIR)/../.runtime/whistle-inputs/watchos/link/libneedle.a\"";
 				PRIVATE_HEADERS_FOLDER_PATH = "$(CONTENTS_FOLDER_PATH)/PrivateHeaders";
 				PRODUCT_BUNDLE_IDENTIFIER = org.openmates.app.watch;
@@ -7308,7 +7333,7 @@
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
 				"SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=watchos*]" = "$(inherited) OM_WHISTLE_NATIVE";
-				SWIFT_INCLUDE_PATHS = "$(inherited) $(PROJECT_DIR)/WhistleBridge";
+				SWIFT_INCLUDE_PATHS = "$(inherited) $(PROJECT_DIR)/WhistleBridge $(PROJECT_DIR)/OpenMatesCore/include/OpenMatesCoreFFI";
 				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = 4;
@@ -7379,8 +7404,8 @@
 				"GCC_PREPROCESSOR_DEFINITIONS[sdk=watchos*]" = "$(inherited) OM_WHISTLE_NATIVE=1";
 				GENERATE_PKGINFO_FILE = YES;
 				INFOPLIST_FILE = OpenMatesWatch/Info.plist;
-				LIBRARY_SEARCH_PATHS = "$(inherited) $(DERIVED_FILE_DIR)/PairOpaque";
-				OTHER_LDFLAGS = "$(inherited) -lopenmates_pair_opaque -lc++";
+				LIBRARY_SEARCH_PATHS = "$(inherited) $(DERIVED_FILE_DIR)/OpenMatesCore";
+				OTHER_LDFLAGS = "$(inherited) -lopenmates_apple_bindings -lc++";
 				"OTHER_LDFLAGS[sdk=watchos*]" = "$(inherited) -Xlinker \"$(PROJECT_DIR)/../.runtime/whistle-inputs/watchos/link/libneedle.a\"";
 				PRIVATE_HEADERS_FOLDER_PATH = "$(CONTENTS_FOLDER_PATH)/PrivateHeaders";
 				PRODUCT_BUNDLE_IDENTIFIER = org.openmates.app.watch;
@@ -7389,7 +7414,7 @@
 				SKIP_INSTALL = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				"SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=watchos*]" = "$(inherited) OM_WHISTLE_NATIVE";
-				SWIFT_INCLUDE_PATHS = "$(inherited) $(PROJECT_DIR)/WhistleBridge";
+				SWIFT_INCLUDE_PATHS = "$(inherited) $(PROJECT_DIR)/WhistleBridge $(PROJECT_DIR)/OpenMatesCore/include/OpenMatesCoreFFI";
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = 4;
 				WATCHOS_DEPLOYMENT_TARGET = 26.2;
@@ -7496,7 +7521,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(inherited) $(DERIVED_FILE_DIR)/PairOpaque";
+				LIBRARY_SEARCH_PATHS = "$(inherited) $(DERIVED_FILE_DIR)/OpenMatesCore";
 				"LOCAL_MODEL_BRIDGE_SLICE[sdk=iphoneos*]" = "ios-arm64";
 				"LOCAL_MODEL_BRIDGE_SLICE[sdk=iphonesimulator*]" = "ios-arm64-simulator";
 				"LOCAL_MODEL_BRIDGE_SLICE[sdk=macosx*]" = "macos-arm64";
@@ -7504,7 +7529,7 @@
 				"LOCAL_MODEL_BRIDGE_SUFFIX[sdk=iphonesimulator*]" = simulator;
 				"LOCAL_MODEL_BRIDGE_SUFFIX[sdk=macosx*]" = macos;
 				OPENMATES_DEV_WEBCREDENTIALS = "webcredentials:app.dev.openmates.org";
-				OTHER_LDFLAGS = "$(inherited) -lopenmates_pair_opaque -lc++";
+				OTHER_LDFLAGS = "$(inherited) -lopenmates_apple_bindings -lc++";
 				"OTHER_LDFLAGS[sdk=iphoneos*][arch=arm64]" = "$(inherited) -Xlinker \"$(PROJECT_DIR)/../.runtime/whistle-inputs/iphoneos/link/libneedle.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/executorch.xcframework/ios-arm64/libexecutorch_ios.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/backend_xnnpack.xcframework/ios-arm64/libbackend_xnnpack_ios.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/kernels_optimized.xcframework/ios-arm64/libkernels_optimized_ios.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/kernels_quantized.xcframework/ios-arm64/libkernels_quantized_ios.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/kernels_torchao.xcframework/ios-arm64/libkernels_torchao_ios.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/threadpool.xcframework/ios-arm64/libthreadpool_ios.a\" -framework Accelerate -framework CoreGraphics -framework CoreImage -framework CoreVideo -framework Foundation -lc++";
 				"OTHER_LDFLAGS[sdk=iphonesimulator*][arch=arm64]" = "$(inherited) -Xlinker \"$(PROJECT_DIR)/../.runtime/whistle-inputs/iphonesimulator/link/libneedle.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/executorch.xcframework/ios-arm64-simulator/libexecutorch_simulator.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/backend_xnnpack.xcframework/ios-arm64-simulator/libbackend_xnnpack_simulator.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/kernels_optimized.xcframework/ios-arm64-simulator/libkernels_optimized_simulator.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/kernels_quantized.xcframework/ios-arm64-simulator/libkernels_quantized_simulator.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/kernels_torchao.xcframework/ios-arm64-simulator/libkernels_torchao_simulator.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/threadpool.xcframework/ios-arm64-simulator/libthreadpool_simulator.a\" -framework Accelerate -framework CoreGraphics -framework CoreImage -framework CoreVideo -framework Foundation -lc++";
 				"OTHER_LDFLAGS[sdk=macosx*][arch=arm64]" = "$(inherited) -Xlinker -no_compact_unwind -Xlinker -keep_dwarf_unwind -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/executorch.xcframework/macos-arm64/libexecutorch_macos.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/backend_xnnpack.xcframework/macos-arm64/libbackend_xnnpack_macos.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/kernels_optimized.xcframework/macos-arm64/libkernels_optimized_macos.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/kernels_quantized.xcframework/macos-arm64/libkernels_quantized_macos.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/kernels_torchao.xcframework/macos-arm64/libkernels_torchao_macos.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/threadpool.xcframework/macos-arm64/libthreadpool_macos.a\" -framework Accelerate -framework CoreGraphics -framework CoreImage -framework CoreVideo -framework Foundation -lc++";
@@ -7514,10 +7539,10 @@
 				SDKROOT = macosx;
 				"SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=iphoneos*][arch=arm64]" = "$(inherited) OM_WHISTLE_NATIVE";
 				"SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=iphonesimulator*][arch=arm64]" = "$(inherited) OM_WHISTLE_NATIVE";
-				SWIFT_INCLUDE_PATHS = "$(inherited) $(PROJECT_DIR)/WhistleBridge";
-				"SWIFT_INCLUDE_PATHS[sdk=iphoneos*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/Modules\" \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/executorch.xcframework/ios-arm64/Headers\" \"$(PROJECT_DIR)/WhistleBridge\"";
-				"SWIFT_INCLUDE_PATHS[sdk=iphonesimulator*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/Modules\" \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/executorch.xcframework/ios-arm64-simulator/Headers\" \"$(PROJECT_DIR)/WhistleBridge\"";
-				"SWIFT_INCLUDE_PATHS[sdk=macosx*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/Modules\" \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/executorch.xcframework/macos-arm64/Headers\" \"$(PROJECT_DIR)/WhistleBridge\"";
+				SWIFT_INCLUDE_PATHS = "$(inherited) $(PROJECT_DIR)/WhistleBridge $(PROJECT_DIR)/OpenMatesCore/include/OpenMatesCoreFFI";
+				"SWIFT_INCLUDE_PATHS[sdk=iphoneos*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/Modules\" \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/executorch.xcframework/ios-arm64/Headers\" \"$(PROJECT_DIR)/WhistleBridge\" \"$(PROJECT_DIR)/OpenMatesCore/include/OpenMatesCoreFFI\"";
+				"SWIFT_INCLUDE_PATHS[sdk=iphonesimulator*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/Modules\" \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/executorch.xcframework/ios-arm64-simulator/Headers\" \"$(PROJECT_DIR)/WhistleBridge\" \"$(PROJECT_DIR)/OpenMatesCore/include/OpenMatesCoreFFI\"";
+				"SWIFT_INCLUDE_PATHS[sdk=macosx*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/Modules\" \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/executorch.xcframework/macos-arm64/Headers\" \"$(PROJECT_DIR)/WhistleBridge\" \"$(PROJECT_DIR)/OpenMatesCore/include/OpenMatesCoreFFI\"";
 				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
 			};
 			name = Release;
@@ -7569,7 +7594,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(inherited) $(DERIVED_FILE_DIR)/PairOpaque";
+				LIBRARY_SEARCH_PATHS = "$(inherited) $(DERIVED_FILE_DIR)/OpenMatesCore";
 				"LOCAL_MODEL_BRIDGE_SLICE[sdk=iphoneos*]" = "ios-arm64";
 				"LOCAL_MODEL_BRIDGE_SLICE[sdk=iphonesimulator*]" = "ios-arm64-simulator";
 				"LOCAL_MODEL_BRIDGE_SLICE[sdk=macosx*]" = "macos-arm64";
@@ -7577,7 +7602,7 @@
 				"LOCAL_MODEL_BRIDGE_SUFFIX[sdk=iphonesimulator*]" = simulator;
 				"LOCAL_MODEL_BRIDGE_SUFFIX[sdk=macosx*]" = macos;
 				OPENMATES_DEV_WEBCREDENTIALS = "webcredentials:app.dev.openmates.org";
-				OTHER_LDFLAGS = "$(inherited) -lopenmates_pair_opaque -lc++";
+				OTHER_LDFLAGS = "$(inherited) -lopenmates_apple_bindings -lc++";
 				"OTHER_LDFLAGS[sdk=iphoneos*][arch=arm64]" = "$(inherited) -Xlinker \"$(PROJECT_DIR)/../.runtime/whistle-inputs/iphoneos/link/libneedle.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/executorch.xcframework/ios-arm64/libexecutorch_ios.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/backend_xnnpack.xcframework/ios-arm64/libbackend_xnnpack_ios.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/kernels_optimized.xcframework/ios-arm64/libkernels_optimized_ios.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/kernels_quantized.xcframework/ios-arm64/libkernels_quantized_ios.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/kernels_torchao.xcframework/ios-arm64/libkernels_torchao_ios.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/threadpool.xcframework/ios-arm64/libthreadpool_ios.a\" -framework Accelerate -framework CoreGraphics -framework CoreImage -framework CoreVideo -framework Foundation -lc++";
 				"OTHER_LDFLAGS[sdk=iphonesimulator*][arch=arm64]" = "$(inherited) -Xlinker \"$(PROJECT_DIR)/../.runtime/whistle-inputs/iphonesimulator/link/libneedle.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/executorch.xcframework/ios-arm64-simulator/libexecutorch_simulator.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/backend_xnnpack.xcframework/ios-arm64-simulator/libbackend_xnnpack_simulator.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/kernels_optimized.xcframework/ios-arm64-simulator/libkernels_optimized_simulator.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/kernels_quantized.xcframework/ios-arm64-simulator/libkernels_quantized_simulator.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/kernels_torchao.xcframework/ios-arm64-simulator/libkernels_torchao_simulator.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/threadpool.xcframework/ios-arm64-simulator/libthreadpool_simulator.a\" -framework Accelerate -framework CoreGraphics -framework CoreImage -framework CoreVideo -framework Foundation -lc++";
 				"OTHER_LDFLAGS[sdk=macosx*][arch=arm64]" = "$(inherited) -Xlinker -no_compact_unwind -Xlinker -keep_dwarf_unwind -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/executorch.xcframework/macos-arm64/libexecutorch_macos.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/backend_xnnpack.xcframework/macos-arm64/libbackend_xnnpack_macos.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/kernels_optimized.xcframework/macos-arm64/libkernels_optimized_macos.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/kernels_quantized.xcframework/macos-arm64/libkernels_quantized_macos.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/kernels_torchao.xcframework/macos-arm64/libkernels_torchao_macos.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/threadpool.xcframework/macos-arm64/libthreadpool_macos.a\" -framework Accelerate -framework CoreGraphics -framework CoreImage -framework CoreVideo -framework Foundation -lc++";
@@ -7589,10 +7614,10 @@
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				"SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=iphoneos*][arch=arm64]" = "$(inherited) OM_WHISTLE_NATIVE";
 				"SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=iphonesimulator*][arch=arm64]" = "$(inherited) OM_WHISTLE_NATIVE";
-				SWIFT_INCLUDE_PATHS = "$(inherited) $(PROJECT_DIR)/WhistleBridge";
-				"SWIFT_INCLUDE_PATHS[sdk=iphoneos*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/Modules\" \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/executorch.xcframework/ios-arm64/Headers\" \"$(PROJECT_DIR)/WhistleBridge\"";
-				"SWIFT_INCLUDE_PATHS[sdk=iphonesimulator*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/Modules\" \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/executorch.xcframework/ios-arm64-simulator/Headers\" \"$(PROJECT_DIR)/WhistleBridge\"";
-				"SWIFT_INCLUDE_PATHS[sdk=macosx*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/Modules\" \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/executorch.xcframework/macos-arm64/Headers\" \"$(PROJECT_DIR)/WhistleBridge\"";
+				SWIFT_INCLUDE_PATHS = "$(inherited) $(PROJECT_DIR)/WhistleBridge $(PROJECT_DIR)/OpenMatesCore/include/OpenMatesCoreFFI";
+				"SWIFT_INCLUDE_PATHS[sdk=iphoneos*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/Modules\" \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/executorch.xcframework/ios-arm64/Headers\" \"$(PROJECT_DIR)/WhistleBridge\" \"$(PROJECT_DIR)/OpenMatesCore/include/OpenMatesCoreFFI\"";
+				"SWIFT_INCLUDE_PATHS[sdk=iphonesimulator*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/Modules\" \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/executorch.xcframework/ios-arm64-simulator/Headers\" \"$(PROJECT_DIR)/WhistleBridge\" \"$(PROJECT_DIR)/OpenMatesCore/include/OpenMatesCoreFFI\"";
+				"SWIFT_INCLUDE_PATHS[sdk=macosx*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/Modules\" \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/executorch.xcframework/macos-arm64/Headers\" \"$(PROJECT_DIR)/WhistleBridge\" \"$(PROJECT_DIR)/OpenMatesCore/include/OpenMatesCoreFFI\"";
 			};
 			name = Debug;
 		};
@@ -7735,9 +7760,9 @@
 				PRODUCT_BUNDLE_IDENTIFIER = org.openmates.app.tests;
 				PRODUCT_NAME = OpenMatesTests;
 				SDKROOT = iphoneos;
-				SWIFT_INCLUDE_PATHS = "$(inherited)";
-				"SWIFT_INCLUDE_PATHS[sdk=iphoneos*][arch=arm64]" = "$(inherited) \"$(CONFIGURATION_TEMP_DIR)/OpenMates_iOS.build/DerivedSources/LocalModelBridge/iphoneos/Modules\" \"$(CONFIGURATION_TEMP_DIR)/OpenMates_iOS.build/DerivedSources/LocalModelBridge/iphoneos/executorch.xcframework/ios-arm64/Headers\" \"$(PROJECT_DIR)/WhistleBridge\"";
-				"SWIFT_INCLUDE_PATHS[sdk=iphonesimulator*][arch=arm64]" = "$(inherited) \"$(CONFIGURATION_TEMP_DIR)/OpenMates_iOS.build/DerivedSources/LocalModelBridge/iphonesimulator/Modules\" \"$(CONFIGURATION_TEMP_DIR)/OpenMates_iOS.build/DerivedSources/LocalModelBridge/iphonesimulator/executorch.xcframework/ios-arm64-simulator/Headers\" \"$(PROJECT_DIR)/WhistleBridge\"";
+				SWIFT_INCLUDE_PATHS = "$(inherited) $(PROJECT_DIR)/OpenMatesCore/include/OpenMatesCoreFFI";
+				"SWIFT_INCLUDE_PATHS[sdk=iphoneos*][arch=arm64]" = "$(inherited) \"$(CONFIGURATION_TEMP_DIR)/OpenMates_iOS.build/DerivedSources/LocalModelBridge/iphoneos/Modules\" \"$(CONFIGURATION_TEMP_DIR)/OpenMates_iOS.build/DerivedSources/LocalModelBridge/iphoneos/executorch.xcframework/ios-arm64/Headers\" \"$(PROJECT_DIR)/WhistleBridge\" \"$(PROJECT_DIR)/OpenMatesCore/include/OpenMatesCoreFFI\"";
+				"SWIFT_INCLUDE_PATHS[sdk=iphonesimulator*][arch=arm64]" = "$(inherited) \"$(CONFIGURATION_TEMP_DIR)/OpenMates_iOS.build/DerivedSources/LocalModelBridge/iphonesimulator/Modules\" \"$(CONFIGURATION_TEMP_DIR)/OpenMates_iOS.build/DerivedSources/LocalModelBridge/iphonesimulator/executorch.xcframework/ios-arm64-simulator/Headers\" \"$(PROJECT_DIR)/WhistleBridge\" \"$(PROJECT_DIR)/OpenMatesCore/include/OpenMatesCoreFFI\"";
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/OpenMates.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/OpenMates";
@@ -7810,9 +7835,9 @@
 				PRODUCT_BUNDLE_IDENTIFIER = org.openmates.app.tests;
 				PRODUCT_NAME = OpenMatesTests;
 				SDKROOT = iphoneos;
-				SWIFT_INCLUDE_PATHS = "$(inherited)";
-				"SWIFT_INCLUDE_PATHS[sdk=iphoneos*][arch=arm64]" = "$(inherited) \"$(CONFIGURATION_TEMP_DIR)/OpenMates_iOS.build/DerivedSources/LocalModelBridge/iphoneos/Modules\" \"$(CONFIGURATION_TEMP_DIR)/OpenMates_iOS.build/DerivedSources/LocalModelBridge/iphoneos/executorch.xcframework/ios-arm64/Headers\" \"$(PROJECT_DIR)/WhistleBridge\"";
-				"SWIFT_INCLUDE_PATHS[sdk=iphonesimulator*][arch=arm64]" = "$(inherited) \"$(CONFIGURATION_TEMP_DIR)/OpenMates_iOS.build/DerivedSources/LocalModelBridge/iphonesimulator/Modules\" \"$(CONFIGURATION_TEMP_DIR)/OpenMates_iOS.build/DerivedSources/LocalModelBridge/iphonesimulator/executorch.xcframework/ios-arm64-simulator/Headers\" \"$(PROJECT_DIR)/WhistleBridge\"";
+				SWIFT_INCLUDE_PATHS = "$(inherited) $(PROJECT_DIR)/OpenMatesCore/include/OpenMatesCoreFFI";
+				"SWIFT_INCLUDE_PATHS[sdk=iphoneos*][arch=arm64]" = "$(inherited) \"$(CONFIGURATION_TEMP_DIR)/OpenMates_iOS.build/DerivedSources/LocalModelBridge/iphoneos/Modules\" \"$(CONFIGURATION_TEMP_DIR)/OpenMates_iOS.build/DerivedSources/LocalModelBridge/iphoneos/executorch.xcframework/ios-arm64/Headers\" \"$(PROJECT_DIR)/WhistleBridge\" \"$(PROJECT_DIR)/OpenMatesCore/include/OpenMatesCoreFFI\"";
+				"SWIFT_INCLUDE_PATHS[sdk=iphonesimulator*][arch=arm64]" = "$(inherited) \"$(CONFIGURATION_TEMP_DIR)/OpenMates_iOS.build/DerivedSources/LocalModelBridge/iphonesimulator/Modules\" \"$(CONFIGURATION_TEMP_DIR)/OpenMates_iOS.build/DerivedSources/LocalModelBridge/iphonesimulator/executorch.xcframework/ios-arm64-simulator/Headers\" \"$(PROJECT_DIR)/WhistleBridge\" \"$(PROJECT_DIR)/OpenMatesCore/include/OpenMatesCoreFFI\"";
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/OpenMates.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/OpenMates";

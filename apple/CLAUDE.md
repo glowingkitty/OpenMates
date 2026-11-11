@@ -55,7 +55,7 @@ Specification YAML.
 Swift implements UI, platform APIs and Keychain storage only. Transport, sync,
 crypto, the encrypted cache, drafts, send, streaming, recovery, search and
 policies live in the shared Rust core (`packages/openmates-rust`) and are reached
-through the UniFFI framework `apple/OpenMatesCore`. Never add such logic in Swift;
+through the UniFFI bindings in `apple/OpenMatesCore` (generated, committed). Never add such logic in Swift;
 add it to the core. Details, migration order and testing (GitHub `macos-26`
 XCTest/XCUITest; Mac only for TestFlight, device/APNs, real accounts):
 `apple/AGENTS.md` "Core logic lives in Rust" and `.claude/rules/client-core.md`.

@@ -366,3 +366,7 @@ apple/.openmates-cross-client-control.lock
 /GOALS.md
 # Operator-installed app packages (self-host; see docs/self-hosting/app-packages.md)
 .openmates/app-packages/
+
+# OpenMatesCore Xcode phase cargo/rustup homes
+/.tmp/apple-core-cargo/
+/.tmp/apple-core-rustup/

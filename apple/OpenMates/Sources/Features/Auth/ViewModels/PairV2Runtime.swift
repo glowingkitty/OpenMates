@@ -307,12 +307,12 @@ enum PairV2Runtime {
                 autoLogoutMinutes: approved.autoLogoutMinutes
             )
             stage = "opaque_start"
-            let start = try PairOpaque.call("startClientLogin", ["password": pin])
+            let start = try PairOpaque.clientLoginStart(pin: pin)
             try Task.checkCancellation()
             stage = "receiver_request"
             let _: Data = try await APIClient.shared.request(
                 .post, path: "\(prefix)/receiver/\(token)/message", serverProfile: serverProfile,
-                body: PairV2MessageRequest(stage: "request", message: try PairOpaque.field(start, "startLoginRequest")),
+                body: PairV2MessageRequest(stage: "request", message: start.startLoginRequest),
                 headers: headers(attempt)
             )
             stage = "authorizer_response"
@@ -321,17 +321,15 @@ enum PairV2Runtime {
             guard let rawMessage = response.message else { throw PairOpaqueError.invalidExchange }
             let message = try opaqueMessage(rawMessage)
             stage = "opaque_finish"
-            let finish = try PairOpaque.call("finishClientLogin", [
-                "clientLoginState": try PairOpaque.field(start, "clientLoginState"),
-                "loginResponse": message,
-                "password": pin,
-                "identifiers": context.identifiers
-            ])
+            let finish = try PairOpaque.clientLoginFinish(
+                pin: pin, state: start.clientLoginState,
+                loginResponse: message, identifiers: context.identifiers
+            )
             try Task.checkCancellation()
             stage = "receiver_finish"
             let _: Data = try await APIClient.shared.request(
                 .post, path: "\(prefix)/receiver/\(token)/message", serverProfile: serverProfile,
-                body: PairV2MessageRequest(stage: "finish", message: try PairOpaque.field(finish, "finishLoginRequest")),
+                body: PairV2MessageRequest(stage: "finish", message: finish.finishLoginRequest),
                 headers: headers(attempt)
             )
             stage = "authorizer_bundle"
@@ -341,7 +339,7 @@ enum PairV2Runtime {
             stage = "bundle_decrypt"
             let plaintext = try PairV2Crypto.open(
                 ciphertext: encrypted, iv: iv,
-                sessionKey: try PairOpaque.field(finish, "sessionKey"), context: context
+                sessionKey: finish.sessionKey, context: context
             )
             let decoder = JSONDecoder()
             decoder.keyDecodingStrategy = .convertFromSnakeCase
@@ -473,26 +471,22 @@ enum PairV2Runtime {
             autoLogoutMinutes: autoLogoutMinutes
         )
         let pin = try PairLoginRuntime.generatePairPIN()
-        let setup = try PairOpaque.call("createServerSetup")
-        let registration = try PairOpaque.call("startClientRegistration", ["password": pin])
-        let registrationResponse = try PairOpaque.call("createServerRegistrationResponse", [
-            "serverSetup": try PairOpaque.field(setup, "serverSetup"),
-            "userIdentifier": context.userIdentifier,
-            "registrationRequest": try PairOpaque.field(registration, "registrationRequest")
-        ])
-        let record = try PairOpaque.call("finishClientRegistration", [
-            "password": pin,
-            "clientRegistrationState": try PairOpaque.field(registration, "clientRegistrationState"),
-            "registrationResponse": try PairOpaque.field(registrationResponse, "registrationResponse"),
-            "identifiers": context.identifiers
-        ])
+        let setup = PairOpaque.serverSetup()
+        let registration = try PairOpaque.clientRegistrationStart(pin: pin)
+        let registrationResponse = try PairOpaque.serverRegistrationResponse(
+            serverSetup: setup, userIdentifier: context.userIdentifier,
+            registrationRequest: registration.registrationRequest
+        )
+        let record = try PairOpaque.clientRegistrationFinish(
+            pin: pin, state: registration.clientRegistrationState,
+            registrationResponse: registrationResponse, identifiers: context.identifiers
+        )
         try Task.checkCancellation()
         let relayTask = Task {
             do {
                 try await serveAuthorizer(
                     token: token, context: context,
-                    setup: try PairOpaque.field(setup, "serverSetup"),
-                    record: try PairOpaque.field(record, "registrationRecord"),
+                    setup: setup, record: record,
                     user: currentUser, serverProfile: serverProfile
                 )
             } catch {
@@ -512,25 +506,24 @@ enum PairV2Runtime {
         let request = try await waitForAuthorizer(token: token, status: "request", serverProfile: serverProfile)
         guard let rawClientMessage = request.receiverRequest else { throw PairOpaqueError.invalidExchange }
         let clientMessage = try opaqueMessage(rawClientMessage)
-        let start = try PairOpaque.call("startServerLogin", [
-            "serverSetup": setup, "registrationRecord": record,
-            "startLoginRequest": clientMessage,
-            "userIdentifier": context.userIdentifier,
-            "identifiers": context.identifiers
-        ])
+        let start = try PairOpaque.serverLoginStart(
+            serverSetup: setup, registrationRecord: record,
+            startLoginRequest: clientMessage,
+            userIdentifier: context.userIdentifier,
+            identifiers: context.identifiers
+        )
         try Task.checkCancellation()
         let _: Data = try await APIClient.shared.request(
             .post, path: "\(prefix)/authorizer/\(token)/message", serverProfile: serverProfile,
-            body: PairV2MessageRequest(stage: "response", message: try PairOpaque.field(start, "loginResponse"))
+            body: PairV2MessageRequest(stage: "response", message: start.loginResponse)
         )
         let finish = try await waitForAuthorizer(token: token, status: "finish", serverProfile: serverProfile)
         guard let rawFinalMessage = finish.receiverFinish else { throw PairOpaqueError.invalidExchange }
         let finalMessage = try opaqueMessage(rawFinalMessage)
-        let result = try PairOpaque.call("finishServerLogin", [
-            "serverLoginState": try PairOpaque.field(start, "serverLoginState"),
-            "finishLoginRequest": finalMessage,
-            "identifiers": context.identifiers
-        ])
+        let sessionKey = try PairOpaque.serverLoginFinish(
+            state: start.serverLoginState, finishLoginRequest: finalMessage,
+            identifiers: context.identifiers
+        )
         try Task.checkCancellation()
         guard let masterKey = try await CryptoManager.shared.loadMasterKey(for: user.id) else {
             throw AuthError.missingAuthData
@@ -579,7 +572,7 @@ enum PairV2Runtime {
             "account_context": ["encrypted_email_with_master_key": encryptedEmail]
         ])
         let encrypted = try PairV2Crypto.seal(
-            bundle, sessionKey: try PairOpaque.field(result, "sessionKey"), context: context
+            bundle, sessionKey: sessionKey, context: context
         )
         try Task.checkCancellation()
         let _: Data = try await APIClient.shared.request(

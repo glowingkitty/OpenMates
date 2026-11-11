@@ -49,3 +49,18 @@ def test_apple_unit_plan_selects_only_the_unit_target():
     assert "ENABLE_USER_SCRIPT_SANDBOXING=NO" in command
     assert command[command.index("-test-timeouts-enabled") + 1] == "YES"
     assert command[command.index("-maximum-test-execution-time-allowance") + 1] == "300"
+
+
+def test_apple_core_plan_builds_core_and_the_watch_as_its_own_late_step():
+    plan = ci_apple.core_plan(Path("/src"), Path("/out"))
+    names = [name for name, *_ in plan]
+    commands = {name: " ".join(cmd) for name, cmd, *_ in plan}
+    joined = " ".join(commands.values())
+    assert "PairOpaque" not in joined and "swift test" not in joined
+    assert commands["openmates-apple-bindings tests (macOS)"].endswith("-p openmates-apple-bindings --locked")
+    assert "--check-bindings" in commands["apple bindings are fresh"]
+    watch = [n for n in names if "WATCH" in n]
+    assert len(watch) == 1 and "--watch" in commands[watch[0]]
+    assert names.index(watch[0]) > names.index("OpenMatesCore xcframework (iOS, simulator, macOS)")
+    assert "--watch" not in commands["OpenMatesCore xcframework (iOS, simulator, macOS)"]
+    assert all(not skip for *_, skip in plan)

@@ -8,10 +8,9 @@ members = [
     "frontend/packages/openmates-tui-native",
     "packages/openmates-session-bindings",
     "packages/openmates-browser-bindings",
+    "packages/openmates-apple-bindings",
 ]
-# apple/PairOpaqueBridge is built by the Xcode script phase with its own lockfile and
-# toolchain pin; without the exclusion cargo refuses it as a stray workspace package.
-exclude = ["packages/third_party", "apple/PairOpaqueBridge"]
+exclude = ["packages/third_party"]
 
 # Debug/test builds: optimize only the password KDF crates. Production Argon2
 # parameters (64 MiB, 3 passes) stay unchanged; unoptimized they cost ~3.3 s per

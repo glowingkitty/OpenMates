@@ -27,3 +27,16 @@ those come from the sync pipeline around them (serial per-frame handling, double
 JSON decode, session validation before the socket connects, repeated REST loads
 and repaints), which this test does not exercise. A4 needs an end-to-end
 measurement in addition to these phases.
+
+## A1 bridge: first build with the core linked (not a comparison)
+
+apple-unit run https://github.com/glowingkitty/OpenMates/actions/runs/42930687752
+(source db09baad): the iOS app built and linked with the Rust core library;
+`OpenMatesCoreBridgeTests` 7/7, `PasswordV2KDFTests` 5/5, the baseline test
+passed again. The same Swift code as A0 measured about half the A0 times on
+this runner (for example chat_list_metadata_decrypt 109 ms against 190 ms,
+persist_chats 827 ms against 1188 ms).
+
+Consequence: runner speed varies by about a factor of two between CI runs.
+Before/after comparisons are only valid inside one run, so from A3 on the test
+measures the old and the new path in the same process.

@@ -216,11 +216,10 @@ progress:
       - apple/OpenMatesCore/ (README, generated Swift, header, modulemap); apple/OpenMatesTests/OpenMatesCoreBridgeTests.swift (7 tests)
       - build-xcframework.sh has --xcode-phase, --watch, --check-bindings, --update-bindings; bindings check passes
       - docs in apple/AGENTS.md, apple/CLAUDE.md, .claude/rules/client-core.md
+      - code_quality_guard.py exempts the generated OpenMatesCore.swift from the 800-line limit and the TODO check (test_code_quality_guard_generated.py)
+      - apple/PairOpaqueBridge deleted with its Cargo exclude; SOURCE_INPUTS, security inventory (root Cargo.lock now carries apple_client), LocalModelBridge nmedit test, isolated-github-tests.md and .gitignore updated
+      - ci_apple.py core_plan, the apple workflow job (targets, cache paths, timeouts 90 min step / 100 min job) and test_ci_apple.py
     remaining_in_order:
-      - scripts/code_quality_guard.py exemption (800-line limit and the TODO check) for apple/OpenMatesCore/Sources/OpenMatesCore/OpenMatesCore.swift, with its test
-      - delete apple/PairOpaqueBridge/ and the root Cargo.toml exclude; fix scripts/apple_testflight_release.py SOURCE_INPUTS, scripts/security_monitoring/inventory.py line 53, apple/LocalModelBridge/test_prepare.py, docs/architecture/isolated-github-tests.md and their tests; gitignore .tmp/apple-core-cargo and .tmp/apple-core-rustup; git grep for pairopaquebridge and openmates_pair_opaque returns nothing
-      - scripts/ci_apple.py, the apple job in .github/workflows/isolated-tests.yml and scripts/tests/test_ci_apple.py (apple-core - toolchain 1.98.1 with ios, ios-sim, darwin and watch targets, cargo test for openmates-sdk and openmates-apple-bindings, build-xcframework.sh --watch as its own step, --check-bindings; apple-unit and apple-ui - Rust available to the script phase, cache paths renamed)
-      - pytest for the touched scripts, YAML validity, plan_validate
       - sessions.py ci-source, then submit apple-core (all), apple-unit (OpenMatesCoreBridgeTests, PasswordV2KDFTests, WatchPairLoginRuntimeTests, NativeEncryptedSyncPerformanceTests) and rust-check; fix what fails; record framework and app size
       - deploy A0 and A1 together; update the parent Plan inventory note
     unproven: [Watch arm64_32 build of the full core (fallback - minimal pairing crate for the Watch), macOS symbol localization next to Tokenizers, Swift 6 compile of the generated file and the new tests, linking]

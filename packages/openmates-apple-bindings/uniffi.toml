@@ -1,0 +1,11 @@
+# Swift names for the generated bindings (build-xcframework.sh, plan D-3).
+[bindings.swift]
+module_name = "OpenMatesCore"
+ffi_module_name = "OpenMatesCoreFFI"
+ffi_module_filename = "OpenMatesCoreFFI"
+
+# Swift reserves the member names `Type` and `Protocol` (`Foo.Protocol` is the
+# metatype syntax), so the Rust variant `CoreError::Protocol` is exposed to Swift
+# as `CoreError.ProtocolError`. Only the Swift name changes; the FFI is the same.
+[bindings.swift.rename]
+"CoreError.Protocol" = "ProtocolError"

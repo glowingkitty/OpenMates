@@ -1,68 +1,117 @@
-// Ephemeral native OPAQUE binding for pair login. No setup, record, PIN, or
-// session key is persisted or sent to the relay.
+// Ephemeral native OPAQUE binding for pair login and password-v2 key
+// derivation. Both run in the shared Rust client core (UniFFI bindings in
+// apple/OpenMatesCore, crate packages/openmates-apple-bindings); Swift only
+// passes values through. No setup, record, PIN, or session key is persisted or
+// sent to the relay.
+// Specification: specifications/features/auth/specification.yml
+// Assertions: auth.pair-login.single-use-zk, auth.keys.client-wrapped
 
 import CryptoKit
 import Foundation
-
-@_silgen_name("pair_opaque_call")
-private func pairOpaqueCall(_ request: UnsafePointer<CChar>) -> UnsafeMutablePointer<CChar>?
-
-@_silgen_name("pair_opaque_free")
-private func pairOpaqueFree(_ response: UnsafeMutablePointer<CChar>)
 
 enum PairOpaqueError: Error {
     case invalidExchange
 }
 
+/// Typed pass-through to the core's OPAQUE steps. Every core failure
+/// (`CoreError`: malformed input, wrong PIN, wrong identifiers) surfaces as
+/// `PairOpaqueError.invalidExchange`, the one error the pair-login flows and
+/// their UI already handle; the core error is never shown or logged with values.
+/// All calls are synchronous and CPU-bound; call them off the main actor.
 enum PairOpaque {
-    static func call(_ operation: String, _ fields: [String: Any] = [:]) throws -> [String: String] {
-        var request = fields
-        request["operation"] = operation
-        let data = try JSONSerialization.data(withJSONObject: request)
-        guard let encoded = String(data: data, encoding: .utf8), encoded.utf8.count <= 16_384 else {
-            throw PairOpaqueError.invalidExchange
-        }
-        guard let pointer = encoded.withCString({ pairOpaqueCall($0) }) else {
-            throw PairOpaqueError.invalidExchange
-        }
-        defer { pairOpaqueFree(pointer) }
-        guard let response = String(validatingCString: pointer),
-              let responseData = response.data(using: .utf8),
-              let object = try JSONSerialization.jsonObject(with: responseData) as? [String: Any],
-              object["ok"] as? Bool == true,
-              let result = object["result"] as? [String: String] else {
-            throw PairOpaqueError.invalidExchange
-        }
-        return result
+    static func serverSetup() -> String {
+        createServerSetup()
     }
 
-    static func field(_ result: [String: String], _ name: String) throws -> String {
-        guard let value = result[name], !value.isEmpty else { throw PairOpaqueError.invalidExchange }
-        return value
+    static func clientRegistrationStart(pin: String) throws -> ClientRegistrationStartRecord {
+        try mapped { try startClientRegistration(password: pin) }
+    }
+
+    static func serverRegistrationResponse(
+        serverSetup: String, userIdentifier: String, registrationRequest: String
+    ) throws -> String {
+        try mapped {
+            try createServerRegistrationResponse(
+                serverSetup: serverSetup, userIdentifier: userIdentifier,
+                registrationRequest: registrationRequest)
+        }
+    }
+
+    static func clientRegistrationFinish(
+        pin: String, state: String, registrationResponse: String, identifiers: OpaqueIdentifiersRecord
+    ) throws -> String {
+        try mapped {
+            try finishClientRegistration(
+                password: pin, clientRegistrationState: state,
+                registrationResponse: registrationResponse, identifiers: identifiers)
+        }
+    }
+
+    static func clientLoginStart(pin: String) throws -> ClientLoginStartRecord {
+        try mapped { try startClientLogin(password: pin) }
+    }
+
+    static func serverLoginStart(
+        serverSetup: String, registrationRecord: String, startLoginRequest: String,
+        userIdentifier: String, identifiers: OpaqueIdentifiersRecord
+    ) throws -> ServerLoginStartRecord {
+        try mapped {
+            try startServerLogin(
+                serverSetup: serverSetup, registrationRecord: registrationRecord,
+                startLoginRequest: startLoginRequest, userIdentifier: userIdentifier,
+                identifiers: identifiers)
+        }
+    }
+
+    static func clientLoginFinish(
+        pin: String, state: String, loginResponse: String, identifiers: OpaqueIdentifiersRecord
+    ) throws -> ClientLoginFinishRecord {
+        try mapped {
+            try finishClientLogin(
+                password: pin, clientLoginState: state,
+                loginResponse: loginResponse, identifiers: identifiers)
+        }
+    }
+
+    /// Returns the 64-byte session key (base64url), equal to the client's.
+    static func serverLoginFinish(
+        state: String, finishLoginRequest: String, identifiers: OpaqueIdentifiersRecord
+    ) throws -> String {
+        try mapped {
+            try finishServerLogin(
+                serverLoginState: state, finishLoginRequest: finishLoginRequest,
+                identifiers: identifiers)
+        }
+    }
+
+    static func passwordV2Keys(password: String, salt: Data) throws -> PasswordV2KeysRecord {
+        try mapped { try derivePasswordV2(password: password, salt: salt) }
+    }
+
+    private static func mapped<T>(_ body: () throws -> T) throws -> T {
+        do {
+            return try body()
+        } catch is CoreError {
+            throw PairOpaqueError.invalidExchange
+        }
     }
 }
 
-/// Version 2 account-password keys. The pinned Rust bridge runs Argon2id and
-/// HKDF; Swift never substitutes a weaker or platform-specific KDF.
+/// Version 2 account-password keys. The Rust core runs Argon2id and HKDF; Swift
+/// never substitutes a weaker or platform-specific KDF.
 struct PasswordV2Keys {
     let authenticationKey: Data
     let wrappingKey: SymmetricKey
 
     init(password: String, emailSalt: Data) throws {
         guard emailSalt.count == 16 else { throw PairOpaqueError.invalidExchange }
-        let result = try PairOpaque.call("derivePasswordV2", [
-            "password": password,
-            "salt": emailSalt.base64URLEncodedString()
-        ])
-        guard let auth = Data(base64URLEncoded: try PairOpaque.field(result, "authKey")),
-              let wrap = Data(base64URLEncoded: try PairOpaque.field(result, "wrapKey")),
-              auth.count == 32, wrap.count == 32 else {
+        let keys = try PairOpaque.passwordV2Keys(password: password, salt: emailSalt)
+        guard keys.authKey.count == 32, keys.wrapKey.count == 32 else {
             throw PairOpaqueError.invalidExchange
         }
-        authenticationKey = auth
-        wrappingKey = SymmetricKey(data: wrap)
+        authenticationKey = keys.authKey
+        wrappingKey = SymmetricKey(data: keys.wrapKey)
     }
-
     func proof(purpose: String, nonce: Data) throws -> String {
         guard !purpose.isEmpty, purpose.utf8.count <= 64, nonce.count == 32,
               purpose.utf8.allSatisfy({ $0 >= 0x21 && $0 <= 0x7e }) else {
@@ -117,11 +166,11 @@ struct PairV2Context: Equatable {
         self.string = context
     }
 
-    var identifiers: [String: String] {
-        [
-            "client": "openmates-pair-v2/client/\(string)",
-            "server": "openmates-pair-v2/server/\(string)"
-        ]
+    var identifiers: OpaqueIdentifiersRecord {
+        OpaqueIdentifiersRecord(
+            client: "openmates-pair-v2/client/\(string)",
+            server: "openmates-pair-v2/server/\(string)"
+        )
     }
 
     var userIdentifier: String { string }
