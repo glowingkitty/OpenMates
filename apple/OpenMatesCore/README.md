@@ -22,6 +22,14 @@ used as is, symlinks allowed) and `cacheDirectoryName` (one plain name such as
 does all cache file IO there. It never walks the container's ancestors, which a
 sandboxed app cannot read.
 
+## Chat window and sign-in on `ViewModelCore`
+
+`openChat(request:chatId:)`, `loadOlder`, `closeChat` and `markRead` run the
+core chat window; `ViewListener` receives `ChatWindow` events tagged with the
+Swift-chosen request id (cached window first, then first page or the strict
+window). A fresh sign-in after logout begins in the core
+(`ViewModelCore::begin_session`, Rust only until the Apple login moves into the core).
+
 ## Watch arm64_32: no TLS in the core
 
 The 32-bit Apple Watch slice (`arm64_32-apple-watchos`, built with nightly and

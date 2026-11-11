@@ -2,6 +2,7 @@
 //! embed references, chat windows and stream events. They replace the
 //! `serde_json::Value` bags the terminal UI reads today (`Item.fields`) and are
 //! shaped for later UniFFI export. Spec: `a2-design.md` (View model).
+use super::error::ViewErrorKind;
 
 /// How trustworthy a published chat list is.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -78,6 +79,32 @@ pub enum MessageStatus {
     Streaming,
 }
 
+/// Delivery state of a user message the core added to the open window for
+/// a running or ended send (lane L9). Stored messages carry none. The
+/// `submitted` flags mirror the `Submitted` stream fence: once dispatch may
+/// have committed, a shell must not resend the text automatically.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum SendState {
+    /// Shown before the server saw it.
+    Sending,
+    /// Dispatch may have committed; never resend automatically.
+    Submitted,
+    /// The server acknowledged persistence of the message.
+    Delivered,
+    /// The send failed; the text stays visible for a deliberate retry.
+    Failed {
+        /// Failure class.
+        error: ViewErrorKind,
+        /// Dispatch may have committed before the failure.
+        submitted: bool,
+    },
+    /// The user cancelled the send or its reply.
+    Cancelled {
+        /// Dispatch may have committed before the cancel.
+        submitted: bool,
+    },
+}
+
 /// A decrypted chat message.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MessageRecord {
@@ -95,6 +122,9 @@ pub struct MessageRecord {
     pub thinking: String,
     /// Embeds attached to the message.
     pub embeds: Vec<EmbedRef>,
+    /// Send state of a user message of a running or ended send; `None` for
+    /// stored messages.
+    pub send_state: Option<SendState>,
 }
 
 /// Reference to a decrypted embed shown on a message or in a consent request.

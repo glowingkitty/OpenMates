@@ -1891,6 +1891,29 @@ public protocol ViewModelCoreProtocol: AnyObject, Sendable {
     func bootSync(cancellation: CoreCancellation?) async throws 
     
     /**
+     * Close the window of `chat_id`; later live data for it changes only the
+     * chat list. Closing a chat that is not open does nothing. Waits for a
+     * running command; cancel a running open's `CoreCancellation` first to
+     * close at once. Emits nothing.
+     *
+     * # Errors
+     * `Authentication` when signed out.
+     */
+    func closeChat(chatId: String) async throws 
+    
+    /**
+     * Merge the next older page into the open window of `chat_id` and emit
+     * it as `ChatWindow` for `request`. A complete window is emitted
+     * unchanged without any network request.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid` when `chat_id` is not the
+     * open chat or has no page yet; page read and persistence errors;
+     * `Cancelled` when `cancellation` fired.
+     */
+    func loadOlder(request: UInt64, chatId: String, cancellation: CoreCancellation?) async throws 
+    
+    /**
      * Sign out: cancels the running command, makes revocation durable in the
      * cache directory, wipes the cache records and the Keychain payload
      * (`CredentialStore.delete`) together with the remote logout, then emits
@@ -1901,6 +1924,32 @@ public protocol ViewModelCoreProtocol: AnyObject, Sendable {
      * server is unreachable; local sign-out still completed).
      */
     func logout() async throws 
+    
+    /**
+     * Mark `chat_id` read on every device, then persist the patched cached
+     * row (the next `ChatList` shows it read). Emits nothing itself.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid` for a malformed id;
+     * network and persistence errors; `Cancelled` when `cancellation` fired.
+     */
+    func markRead(chatId: String, cancellation: CoreCancellation?) async throws 
+    
+    /**
+     * Open chat `chat_id` as the window of Swift's `request` id, replacing
+     * any other open window. Events, all carrying `request`: the cached
+     * window (`ChatWindow` with source `Cached`) before any network request
+     * when the chat is cached and the session admitted; a cold chat's
+     * `FirstPage`; then the strict window (`Canonical`, `CacheSettled`, or
+     * read-only `CachedOffline` when the server is unreachable).
+     *
+     * # Errors
+     * `Authentication` when signed out or not admitted; `Invalid` for a
+     * malformed chat id; `Forbidden`, `Offline` and persistence errors from
+     * the strict read (a window already shown stays open); `Cancelled` when
+     * `cancellation` fired or a newer open superseded `request`.
+     */
+    func openChat(request: UInt64, chatId: String, cancellation: CoreCancellation?) async throws 
     
     /**
      * Re-read the chat list (feed catch-up when possible) and emit it.
@@ -2059,6 +2108,57 @@ open func bootSync(cancellation: CoreCancellation?)async throws   {
 }
     
     /**
+     * Close the window of `chat_id`; later live data for it changes only the
+     * chat list. Closing a chat that is not open does nothing. Waits for a
+     * running command; cancel a running open's `CoreCancellation` first to
+     * close at once. Emits nothing.
+     *
+     * # Errors
+     * `Authentication` when signed out.
+     */
+open func closeChat(chatId: String)async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_close_chat(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(chatId)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_void,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_void,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Merge the next older page into the open window of `chat_id` and emit
+     * it as `ChatWindow` for `request`. A complete window is emitted
+     * unchanged without any network request.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid` when `chat_id` is not the
+     * open chat or has no page yet; page read and persistence errors;
+     * `Cancelled` when `cancellation` fired.
+     */
+open func loadOlder(request: UInt64, chatId: String, cancellation: CoreCancellation?)async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_load_older(
+                        self.uniffiCloneHandle(),FfiConverterUInt64.lower(request),FfiConverterString.lower(chatId),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_void,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_void,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
      * Sign out: cancels the running command, makes revocation durable in the
      * cache directory, wipes the cache records and the Keychain payload
      * (`CredentialStore.delete`) together with the remote logout, then emits
@@ -2074,6 +2174,60 @@ open func logout()async throws   {
             rustFutureFunc: {
                 uniffi_openmates_apple_bindings_fn_method_viewmodelcore_logout(
                         self.uniffiCloneHandle()
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_void,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_void,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Mark `chat_id` read on every device, then persist the patched cached
+     * row (the next `ChatList` shows it read). Emits nothing itself.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid` for a malformed id;
+     * network and persistence errors; `Cancelled` when `cancellation` fired.
+     */
+open func markRead(chatId: String, cancellation: CoreCancellation?)async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_mark_read(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(chatId),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_void,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_void,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Open chat `chat_id` as the window of Swift's `request` id, replacing
+     * any other open window. Events, all carrying `request`: the cached
+     * window (`ChatWindow` with source `Cached`) before any network request
+     * when the chat is cached and the session admitted; a cold chat's
+     * `FirstPage`; then the strict window (`Canonical`, `CacheSettled`, or
+     * read-only `CachedOffline` when the server is unreachable).
+     *
+     * # Errors
+     * `Authentication` when signed out or not admitted; `Invalid` for a
+     * malformed chat id; `Forbidden`, `Offline` and persistence errors from
+     * the strict read (a window already shown stays open); `Cancelled` when
+     * `cancellation` fired or a newer open superseded `request`.
+     */
+open func openChat(request: UInt64, chatId: String, cancellation: CoreCancellation?)async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_open_chat(
+                        self.uniffiCloneHandle(),FfiConverterUInt64.lower(request),FfiConverterString.lower(chatId),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
                 )
             },
             pollFunc: ffi_openmates_apple_bindings_rust_future_poll_void,
@@ -6863,7 +7017,19 @@ private let initializationResult: InitializationResult = {
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_boot_sync() != 37791) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_close_chat() != 64195) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_load_older() != 43880) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_logout() != 46340) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_mark_read() != 28539) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_open_chat() != 62057) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_refresh_chats() != 39457) {

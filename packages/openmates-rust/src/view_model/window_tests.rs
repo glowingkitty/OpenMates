@@ -24,6 +24,7 @@ fn message(id: &str) -> MessageRecord {
         sender: String::new(),
         thinking: String::new(),
         embeds: Vec::new(),
+        send_state: None,
     }
 }
 

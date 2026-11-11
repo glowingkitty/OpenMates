@@ -184,6 +184,35 @@ final class OpenMatesCoreBridgeTests: XCTestCase {
     }
 
     // contract-test: supporting surface=gui.apple assertions=client-core.credentials.snapshot-boundary
+    @MainActor
+    func testViewModelCoreChatWindowCommandsRequireASession() async throws {
+        let container = FileManager.default.temporaryDirectory.path
+        let name = "core-cache-\(UUID().uuidString)"
+        defer { try? FileManager.default.removeItem(atPath: (container as NSString).appendingPathComponent(name)) }
+        let core = try ViewModelCore(
+            config: CoreConfig(
+                apiUrl: Self.apiURL, appUrl: nil,
+                cacheContainer: container, cacheDirectoryName: name),
+            credentials: EmptyCredentialStore(), listener: CoreViewEventRelay { _ in })
+        try await core.start(cancellation: nil)
+        let chatId = "11111111-1111-4111-8111-111111111111"
+        let commands: [() async throws -> Void] = [
+            { try await core.openChat(request: 1, chatId: chatId, cancellation: nil) },
+            { try await core.loadOlder(request: 2, chatId: chatId, cancellation: nil) },
+            { try await core.closeChat(chatId: chatId) },
+            { try await core.markRead(chatId: chatId, cancellation: nil) },
+        ]
+        for command in commands {
+            do {
+                try await command()
+                XCTFail("chat window command without a session succeeded")
+            } catch let error as CoreError {
+                XCTAssertEqual(error, .Authentication)
+            }
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=client-core.credentials.snapshot-boundary
     func testViewModelCoreRejectsACacheDirectoryNameWithASeparator() {
         XCTAssertThrowsError(try ViewModelCore(
             config: CoreConfig(

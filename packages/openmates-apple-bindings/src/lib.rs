@@ -57,3 +57,5 @@ mod core_tests;
 mod pairing_tests;
 #[cfg(test)]
 mod view_core_tests;
+#[cfg(test)]
+mod view_window_tests;

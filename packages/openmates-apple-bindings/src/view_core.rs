@@ -3,10 +3,12 @@
 //! (`FileByteStore`, `CacheEngine`, `FixedContext`, `NoScope`,
 //! `OrderedBlocking`), the session runtime (`ShellSession`) and the actor
 //! state (`ViewCore`) and serves `Start`, the boot sync, `RefreshChats`,
-//! `SwitchTeam` and `Logout`. Swift supplies the Keychain (`CredentialStore`)
-//! and receives events (`ViewListener`). Bindings only marshal; the hooks
-//! below are the minimal Apple `ViewHost`. Plan `apple-client-core-migration`
-//! lane L8 (`a2-design.md`); spec `client-core` and `client-core.cache`.
+//! `SwitchTeam`, `Logout`, the chat window commands (`OpenChat`, `LoadOlder`,
+//! `CloseChat`, `MarkRead`) and the fresh-session begin after a login.
+//! Swift supplies the Keychain (`CredentialStore`) and receives events
+//! (`ViewListener`). Bindings only marshal; the hooks below are the minimal
+//! Apple `ViewHost`. Plan `apple-client-core-migration` lane L8
+//! (`a2-design.md`); spec `client-core` and `client-core.cache`.
 use crate::core::{
     CoreCancellation, CoreConfig, CredentialSnapshotRecord, build_runtime, join_result,
 };
@@ -14,7 +16,7 @@ use crate::{CoreError, view_records::ViewEventRecord};
 use futures_util::future::BoxFuture;
 use openmates_sdk::{
     Client, ClientIdentity, ClientOptions,
-    client::FreshChatInventory,
+    client::{CredentialSnapshot, FreshChatInventory},
     error::{Error, Result},
     local_cache::{
         ByteStoreError, CacheEngine, CacheStore, FileByteStore, FixedContext, NoScope,
@@ -26,8 +28,8 @@ use openmates_sdk::{
         ShellSession, session_cache_context,
     },
     view_model::{
-        self, ListRecovery, RevocationHandle, SessionEvent, ViewCommand, ViewCore, ViewEvent,
-        ViewHost, ViewSink,
+        self, ListRecovery, RequestId, RevocationHandle, SessionEvent, ViewCommand, ViewCore,
+        ViewEvent, ViewHost, ViewSink,
     },
 };
 use std::future::Future;
@@ -131,8 +133,9 @@ impl ViewSink for ListenerSink {
 
 /// The Apple `ViewHost`: no profile settings, no trusted-account check,
 /// admission by fresh server validation plus persistence, no completion
-/// recovery yet (lane L5) and no bridged commands. Open, paging, mark read
-/// and send are not exposed to Swift yet.
+/// recovery yet (lane L5, so `recover_before_open` does nothing), no live
+/// monitor yet (so no known denial: `offline_cache_allowed` is true) and no
+/// bridged commands (send and cancel are not served until lane L9).
 struct AppleHost {
     core: ViewCore<Bytes>,
     api_url: String,
@@ -220,19 +223,6 @@ impl ViewHost<Bytes> for AppleHost {
         // No live monitor yet, so no known denial: offline cache may show.
         true
     }
-
-    fn bridge<'a>(
-        &'a mut self,
-        _command: ViewCommand,
-        _sink: &'a ListenerSink,
-        _cancel: &'a CancellationToken,
-    ) -> BoxFuture<'a, Result<()>> {
-        Box::pin(async {
-            Err(Error::Invalid(
-                "This command is not served by the Apple core yet.",
-            ))
-        })
-    }
 }
 
 fn lock<T>(mutex: &StdMutex<T>) -> MutexGuard<'_, T> {
@@ -265,6 +255,14 @@ impl Shared {
 
     async fn start(&self, cancel: CancellationToken) -> Result<()> {
         let mut host = self.host.lock().await;
+        self.start_locked(&mut host, cancel).await
+    }
+
+    async fn start_locked(
+        &self,
+        host: &mut Option<AppleHost>,
+        cancel: CancellationToken,
+    ) -> Result<()> {
         let Some(session) = self.credentials.load(self.ops.generation()).await? else {
             *host = None;
             *lock(&self.revocation) = None;
@@ -295,6 +293,23 @@ impl Shared {
             credentials: Box::new(session),
         };
         view_model::handle(current, start, &self.sink, &cancel).await
+    }
+
+    /// Begin `session` (fresh from a core login) on this profile, then start
+    /// from it. Holds the actor lock, so no other command interleaves.
+    async fn begin_session(&self, session: Session, cancel: CancellationToken) -> Result<()> {
+        let mut host = self.host.lock().await;
+        if host.is_some() {
+            return Err(Error::Invalid("Sign out before beginning another session."));
+        }
+        // The client's credential snapshot carries the revision the Keychain
+        // acknowledges; the client itself is discarded (start builds its own).
+        let client = Client::with_options(&self.api_url, Some(session), self.options())?;
+        let snapshot: CredentialSnapshot =
+            client.credential_snapshot().ok_or(Error::Authentication)?;
+        drop(client);
+        self.credentials.begin_session(snapshot, &cancel).await?;
+        self.start_locked(&mut host, cancel).await
     }
 
     async fn signed_in<F>(&self, cancel: CancellationToken, work: F) -> Result<()>
@@ -549,6 +564,115 @@ impl ViewModelCore {
         .await
     }
 
+    /// Open chat `chat_id` as the window of Swift's `request` id, replacing
+    /// any other open window. Events, all carrying `request`: the cached
+    /// window (`ChatWindow` with source `Cached`) before any network request
+    /// when the chat is cached and the session admitted; a cold chat's
+    /// `FirstPage`; then the strict window (`Canonical`, `CacheSettled`, or
+    /// read-only `CachedOffline` when the server is unreachable).
+    ///
+    /// # Errors
+    /// `Authentication` when signed out or not admitted; `Invalid` for a
+    /// malformed chat id; `Forbidden`, `Offline` and persistence errors from
+    /// the strict read (a window already shown stays open); `Cancelled` when
+    /// `cancellation` fired or a newer open superseded `request`.
+    pub async fn open_chat(
+        &self,
+        request: u64,
+        chat_id: String,
+        cancellation: Option<Arc<CoreCancellation>>,
+    ) -> std::result::Result<(), CoreError> {
+        let (shared, token) = (self.shared.clone(), self.foreground(cancellation));
+        self.run(async move {
+            shared
+                .signed_in(token, move |host, sink, cancel| {
+                    let request = RequestId(request);
+                    view_model::handle(
+                        host,
+                        ViewCommand::OpenChat { request, chat_id },
+                        sink,
+                        cancel,
+                    )
+                })
+                .await
+        })
+        .await
+    }
+
+    /// Merge the next older page into the open window of `chat_id` and emit
+    /// it as `ChatWindow` for `request`. A complete window is emitted
+    /// unchanged without any network request.
+    ///
+    /// # Errors
+    /// `Authentication` when signed out; `Invalid` when `chat_id` is not the
+    /// open chat or has no page yet; page read and persistence errors;
+    /// `Cancelled` when `cancellation` fired.
+    pub async fn load_older(
+        &self,
+        request: u64,
+        chat_id: String,
+        cancellation: Option<Arc<CoreCancellation>>,
+    ) -> std::result::Result<(), CoreError> {
+        let (shared, token) = (self.shared.clone(), self.foreground(cancellation));
+        self.run(async move {
+            shared
+                .signed_in(token, move |host, sink, cancel| {
+                    let request = RequestId(request);
+                    view_model::handle(
+                        host,
+                        ViewCommand::LoadOlder { request, chat_id },
+                        sink,
+                        cancel,
+                    )
+                })
+                .await
+        })
+        .await
+    }
+
+    /// Close the window of `chat_id`; later live data for it changes only the
+    /// chat list. Closing a chat that is not open does nothing. Waits for a
+    /// running command; cancel a running open's `CoreCancellation` first to
+    /// close at once. Emits nothing.
+    ///
+    /// # Errors
+    /// `Authentication` when signed out.
+    pub async fn close_chat(&self, chat_id: String) -> std::result::Result<(), CoreError> {
+        // Not a foreground command: it must not replace the token logout
+        // cancels, or a running open would stop being cancellable.
+        let (shared, token) = (self.shared.clone(), self.shutdown.child_token());
+        self.run(async move {
+            shared
+                .signed_in(token, move |host, sink, cancel| {
+                    view_model::handle(host, ViewCommand::CloseChat { chat_id }, sink, cancel)
+                })
+                .await
+        })
+        .await
+    }
+
+    /// Mark `chat_id` read on every device, then persist the patched cached
+    /// row (the next `ChatList` shows it read). Emits nothing itself.
+    ///
+    /// # Errors
+    /// `Authentication` when signed out; `Invalid` for a malformed id;
+    /// network and persistence errors; `Cancelled` when `cancellation` fired.
+    pub async fn mark_read(
+        &self,
+        chat_id: String,
+        cancellation: Option<Arc<CoreCancellation>>,
+    ) -> std::result::Result<(), CoreError> {
+        let (shared, token) = (self.shared.clone(), self.foreground(cancellation));
+        self.run(async move {
+            shared
+                .signed_in(token, move |host, sink, cancel| {
+                    view_model::handle(host, ViewCommand::MarkRead { chat_id }, sink, cancel)
+                })
+                .await
+        })
+        .await
+    }
+
     /// Sign out: cancels the running command, makes revocation durable in the
     /// cache directory, wipes the cache records and the Keychain payload
     /// (`CredentialStore.delete`) together with the remote logout, then emits
@@ -570,6 +694,32 @@ impl ViewModelCore {
     /// `Cancelled` when no save waits for `revision` (stale or timed out).
     pub fn acknowledge_credentials(&self, revision: u64) -> std::result::Result<(), CoreError> {
         Ok(self.shared.credentials.acknowledge(revision)?)
+    }
+}
+
+/// Rust-only entry points (not exported to Swift).
+impl ViewModelCore {
+    /// Begin `session`, freshly produced by a core login or pairing, on this
+    /// profile (`AcknowledgedCredentials::begin_session`: new fence epoch,
+    /// the signed-out session's cache and Keychain payload wiped, then the
+    /// Keychain store with acknowledgement), then `start` from it. This is
+    /// the hand-over point for a login performed in the core; it is not
+    /// exported because the Apple login still runs in Swift, and importing
+    /// Swift-held secrets is a separate decision (plan
+    /// `apple-client-core-migration`, A2 notes).
+    ///
+    /// # Errors
+    /// `Invalid` while signed in; `Authentication` for an expired, ownerless
+    /// or revoked session; `Locked` for an acknowledgement timeout;
+    /// otherwise as `start`.
+    pub async fn begin_session(
+        &self,
+        session: Session,
+        cancellation: Option<Arc<CoreCancellation>>,
+    ) -> std::result::Result<(), CoreError> {
+        let (shared, token) = (self.shared.clone(), self.foreground(cancellation));
+        self.run(async move { shared.begin_session(session, token).await })
+            .await
     }
 }
 

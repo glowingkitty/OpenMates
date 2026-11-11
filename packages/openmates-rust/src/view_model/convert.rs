@@ -178,6 +178,7 @@ pub fn message_record_from_message(message: &Message) -> Result<MessageRecord, V
             .iter()
             .map(embed_ref_from_item)
             .collect::<Result<_, _>>()?,
+        send_state: None,
     })
 }
 

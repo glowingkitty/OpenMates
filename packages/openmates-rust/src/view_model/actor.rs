@@ -4,7 +4,7 @@
 //! window. Shells drive it with `ViewCommand`s through [`super::handle`] and
 //! receive `ViewEvent`s through a [`super::ViewSink`].
 //!
-//! Lanes L6b and L7 of `docs/plans/apple-client-core-migration/a2-design.md`
+//! Lanes L6b, L7 and L9 of `docs/plans/apple-client-core-migration/a2-design.md`
 //! (moved from the TUI `runtime.rs` actor). Native only. Spec: `client-core`
 //! (one core, thin shells) and `client-core.cache`.
 use crate::{
@@ -20,7 +20,7 @@ use tokio_util::sync::CancellationToken;
 
 use super::{
     ChatWindowRecord, ListCompleteness, ViewEvent, arrange::arrange_chat_list,
-    chat_list_row_from_item, window::OpenWindow,
+    chat_list_row_from_item, send_flows::ForegroundSlot, window::OpenWindow,
 };
 
 /// The actor state a shell owns exactly once per profile. The `Client` is
@@ -36,6 +36,8 @@ pub struct ViewCore<S: ByteStore + 'static> {
     pub(super) monitor: Option<ChatMonitor>,
     /// The one open chat window (`OpenChat` until `CloseChat`).
     pub(super) window: Option<OpenWindow>,
+    /// Cancel token of the running send (`SendCancelHandle`).
+    pub(super) foreground: ForegroundSlot,
 }
 
 impl<S: ByteStore + 'static> ViewCore<S> {
@@ -54,6 +56,7 @@ impl<S: ByteStore + 'static> ViewCore<S> {
             eager_cached_content: true,
             monitor: None,
             window: None,
+            foreground: ForegroundSlot::default(),
         }
     }
 
@@ -113,8 +116,8 @@ impl<S: ByteStore + 'static> ViewCore<S> {
         &self.client
     }
 
-    /// The client, for shell-implemented commands bridged through
-    /// [`super::ViewHost::bridge`]. Every durable write must still go through
+    /// The client, for shell-implemented steps (host hooks, terminal-only
+    /// commands). Every durable write must still go through
     /// [`Self::persist`] or [`Self::persist_for`].
     pub fn client_mut(&mut self) -> &mut Client {
         &mut self.client

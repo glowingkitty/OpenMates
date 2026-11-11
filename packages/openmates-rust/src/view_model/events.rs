@@ -51,14 +51,16 @@ pub enum ViewCommand {
     },
     /// Send a message; `chat_id` is `None` for a new chat.
     Send {
-        /// Request the `Stream` events answer.
+        /// Request the `Stream` and send `ChatWindow` events answer.
         request: RequestId,
         /// Target chat, or `None` to create one.
         chat_id: Option<String>,
         /// Message text.
         text: String,
     },
-    /// Cancel the running foreground request.
+    /// Cancel a running send. Commands run one at a time, so a shell that
+    /// interrupts a running send uses `SendCancelHandle`; queued, this
+    /// cancels nothing when no send runs.
     Cancel,
     /// Sign out and wipe local credentials.
     Logout,

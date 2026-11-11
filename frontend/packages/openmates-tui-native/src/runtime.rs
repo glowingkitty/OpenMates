@@ -17,7 +17,7 @@ use openmates::{
     client::{
         CachedChatPublication, CachedChatViews, CachedChatWindow,
         ChatInvalidation, ChatMonitorAccessDenial, ChatSelectionUpdate,
-        ChatRefreshDurableReceipt, Client, FreshChatInventory,
+        Client, FreshChatInventory,
     },
     completion_recovery_adapter::{
         self, CanonicalRecoveryPersistence, CompletionRecoveryPumpOptions,
@@ -798,7 +798,8 @@ struct Actor {
     store: RuntimeStore,
     passphrase: SharedPassphrase,
     pair_phase: u8,
-    relay: Option<tokio::task::JoinHandle<()>>,
+    /// Delivery task of a dropped send's queued stream updates (core send).
+    relay: core_host::RelaySlot,
     explicit_api: Option<String>,
     explicit_app: Option<String>,
     installed_app: Option<(String, String)>,
@@ -889,7 +890,7 @@ async fn actor(
             store,
             passphrase,
             pair_phase: 0,
-            relay: None,
+            relay: Default::default(),
             explicit_api: profile.api_url_override,
             explicit_app,
             installed_app: installed_api.zip(installed_app),
@@ -964,10 +965,10 @@ async fn actor(
         }
         // Even if cancellation dropped a stalled protocol future, its queued
         // Submitted/Admitted fences must reach the UI before a failure restores text.
-        if let Some(relay) = state.relay.as_mut() {
+        let relay = state.relay.lock().unwrap_or_else(std::sync::PoisonError::into_inner).take();
+        if let Some(relay) = relay {
             let _ = relay.await;
         }
-        state.relay = None;
         if result.is_err()
             && result != Err(Error::Expired)
             && state.core.client_mut().session().is_some()
@@ -1118,13 +1119,6 @@ impl Actor {
     }
     async fn persist(&mut self) -> Result<()> {
         self.core.persist().await
-    }
-    /// Persist, then take the durable receipt the core mints for `candidate`.
-    async fn persist_for<C: openmates_sdk::shell_session::DurableCandidate + Sync>(
-        &mut self,
-        candidate: &C,
-    ) -> Result<ChatRefreshDurableReceipt> {
-        self.core.persist_for(candidate).await
     }
     async fn authorized(&mut self, replies: &mpsc::Sender<Reply>, epoch: Stamp) -> Result<()> {
         self.authorized_with_inventory(replies, epoch, false).await.map(|_| ())
@@ -1703,54 +1697,6 @@ impl Actor {
         cleanup?;
         cancelled
     }
-    /// Bridged `Send` (until lane L9 moves send and streaming into the core):
-    /// mention resolution, streamed send, persistence even when cancelled.
-    async fn send_message(&mut self, chat_id: Option<String>, text: String,
-        replies: &mpsc::Sender<Reply>, epoch: Stamp, cancel: &CancellationToken) -> Result<()> {
-        let cancel = cancel.clone();
-        // Same send-time mention resolution as `chats send`; an
-        // unknown mention fails before dispatch and restores the draft.
-        let resolved = self.core.client_mut().resolve_mentions(&text).await?;
-        if !resolved.unresolved.is_empty() {
-            return Err(Error::Invalid(
-                "Unknown @mention. Nothing was sent; check the mention name.",
-            ));
-        }
-        let text = resolved.processed_message;
-        let (stream, mut updates) = mpsc::channel(64);
-        let output = replies.clone();
-        self.relay = Some(tokio::spawn(async move {
-            while let Some(update) = updates.recv().await {
-                if output
-                    .send(Reply {
-                        epoch,
-                        view: View::Stream(update),
-                    })
-                    .await
-                    .is_err()
-                {
-                    break;
-                }
-            }
-        }));
-        let result = self.core.client_mut()
-            .send_message(chat_id.as_deref(), &text, stream, cancel.clone())
-            .await;
-        if let Some(relay) = self.relay.as_mut() {
-            let _ = relay.await;
-        }
-        self.relay = None;
-        // Preserve rotated cookies and any admitted encrypted state, including cancellation.
-        let persisted = self.persist().await;
-        if cancel.is_cancelled() {
-            return Err(Error::Cancelled);
-        }
-        persisted?;
-        let chat = result?;
-        // The sent chat becomes the open window, so live updates follow it.
-        self.core.track_sent_chat(RequestId(epoch.view), &chat)?;
-        Self::emit(replies, epoch, View::Sent(chat)).await
-    }
     async fn dispatch(&mut self, request: Request, replies: &mpsc::Sender<Reply>) -> Result<()> {
         if matches!(&request.work, Work::Command(
             UiCommand::Logout | UiCommand::SwitchTeam(_) | UiCommand::Login { .. }
@@ -2035,9 +1981,11 @@ impl Actor {
                     Self::emit(replies, epoch, View::Items(workspace, if workspace == Workspace::Chats { core_view::arrange_chat_list(self.core.client(), items) } else { items })).await
                 }),
                 UiCommand::Send { chat_id, text } => Box::pin(async move {
-                    let sink = core_host::TerminalSink::new(replies, epoch, self.store.generation_guard(), &cancel);
-                    let command = ViewCommand::Send { request: RequestId(epoch.view), chat_id, text };
-                    core_view::handle(self, command, &sink, &cancel).await
+                    // Core send: mentions, streamed turn, persistence even when cancelled.
+                    let sink = core_host::TerminalSink::new(replies, epoch, self.store.generation_guard(), &cancel)
+                        .sending(&self.relay);
+                    let sent = core_view::send(self, RequestId(epoch.view), chat_id, text, &sink, &cancel).await?;
+                    Self::emit(replies, epoch, View::Sent(core_host::chat_from_window(&sent)?)).await
                 }),
                 UiCommand::Share {
                     chat_id,
@@ -2127,7 +2075,7 @@ mod tests {
             store,
             passphrase,
             pair_phase: 0,
-            relay: None,
+            relay: Default::default(),
             explicit_api: None,
             explicit_app: None,
             installed_app: None,
@@ -2365,3 +2313,7 @@ mod live_tests;
 #[cfg(test)]
 #[path="runtime_late_cached_tests.rs"]
 mod late_cached_tests;
+
+#[cfg(test)]
+#[path = "runtime_send_tests.rs"]
+mod send_tests;

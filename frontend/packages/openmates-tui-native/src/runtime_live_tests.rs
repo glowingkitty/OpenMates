@@ -1,7 +1,7 @@
 //! PRIVATE DRAFT native durability/order regressions — not executed.
 // contract-test: supporting surface=cli assertions=chats.messages.client-encrypted
 use super::*;
-use openmates::client::ChatViewRead;
+use openmates::client::{ChatRefreshDurableReceipt, ChatViewRead};
 #[tokio::test]
 async fn idle_actor_has_no_monitor_and_cannot_schedule_live_profile_io() {
     let (_directory, actor) = super::tests::fixture().await;

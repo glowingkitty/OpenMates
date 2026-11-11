@@ -1,4 +1,4 @@
-//! ViewModelCore over a temp cache directory, an in-memory Keychain stand-in and a recording listener: cached list without network, credential acknowledgement, revocation fence on logout, cache directory checks.
+//! ViewModelCore over a temp cache directory, an in-memory Keychain stand-in and a recording listener: cached list without network, credential acknowledgement, revocation fence on logout, cache directory checks. The doubles are shared with `view_window_tests.rs`.
 use crate::view_core::VaultBridge;
 use crate::*;
 use futures_util::future::BoxFuture;
@@ -28,7 +28,7 @@ const API: &str = "https://never-contact.example.invalid";
 const CHAT: &str = "11111111-1111-4111-8111-111111111111";
 const TEAM: &str = "33333333-3333-4333-8333-333333333333";
 /// Cache directory name inside the temp container (Apple: `core-cache`).
-const NAME: &str = "core-cache";
+pub(crate) const NAME: &str = "core-cache";
 
 fn session() -> Session {
     Session {
@@ -56,7 +56,7 @@ fn snapshot() -> serde_json::Value {
         "embed_keys": [], "team_wrapped_key": null})
 }
 
-fn private_dir() -> tempfile::TempDir {
+pub(crate) fn private_dir() -> tempfile::TempDir {
     let mut builder = tempfile::Builder::new();
     builder.permissions(std::fs::Permissions::from_mode(0o700));
     builder.tempdir().unwrap()
@@ -80,7 +80,7 @@ impl CredentialPersistence for Durable {
 }
 
 /// The cache directory the core opens inside the container `dir`.
-fn cache_bytes(dir: &Path) -> FileByteStore {
+pub(crate) fn cache_bytes(dir: &Path) -> FileByteStore {
     FileByteStore::open_in(dir, NAME).unwrap()
 }
 
@@ -101,7 +101,7 @@ async fn seed_cache(dir: &Path) {
         .unwrap();
 }
 
-fn cache_files(dir: &Path) -> usize {
+pub(crate) fn cache_files(dir: &Path) -> usize {
     std::fs::read_dir(dir.join(NAME))
         .unwrap()
         .filter(|entry| {
@@ -114,16 +114,16 @@ fn cache_files(dir: &Path) -> usize {
 /// The Swift Keychain stand-in. With `acknowledge`, it stores and then
 /// acknowledges through the core as the Swift adapter does.
 #[derive(Default)]
-struct Keychain {
-    payload: Mutex<Option<Vec<u8>>>,
-    changed: Mutex<Vec<u64>>,
-    deletes: Mutex<usize>,
-    acknowledge: bool,
-    core: OnceLock<Weak<ViewModelCore>>,
+pub(crate) struct Keychain {
+    pub(crate) payload: Mutex<Option<Vec<u8>>>,
+    pub(crate) changed: Mutex<Vec<u64>>,
+    pub(crate) deletes: Mutex<usize>,
+    pub(crate) acknowledge: bool,
+    pub(crate) core: OnceLock<Weak<ViewModelCore>>,
 }
 
 impl Keychain {
-    fn holding(session: &Session, acknowledge: bool) -> Arc<Self> {
+    pub(crate) fn holding(session: &Session, acknowledge: bool) -> Arc<Self> {
         Arc::new(Self {
             payload: Mutex::new(Some(serde_json::to_vec(session).unwrap())),
             acknowledge,
@@ -159,14 +159,14 @@ impl CredentialStore for Keychain {
 }
 
 #[derive(Default)]
-struct Events(Mutex<Vec<ViewEventRecord>>);
+pub(crate) struct Events(Mutex<Vec<ViewEventRecord>>);
 impl ViewListener for Events {
     fn on_event(&self, event: ViewEventRecord) {
         self.0.lock().unwrap().push(event);
     }
 }
 impl Events {
-    fn all(&self) -> Vec<ViewEventRecord> {
+    pub(crate) fn all(&self) -> Vec<ViewEventRecord> {
         self.0.lock().unwrap().clone()
     }
 }
@@ -192,7 +192,7 @@ fn core(dir: &Path, keychain: &Arc<Keychain>, events: &Arc<Events>) -> Arc<ViewM
     core
 }
 
-const SIGNED_OUT: ViewEventRecord = ViewEventRecord::Session {
+pub(crate) const SIGNED_OUT: ViewEventRecord = ViewEventRecord::Session {
     event: SessionEventRecord::SignedOut,
 };
 

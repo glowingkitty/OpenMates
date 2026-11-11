@@ -1,13 +1,12 @@
 //! The two seams between the core view-model actor and a shell: the event
 //! sink the shell listens on, and the host hooks for the parts a shell still
 //! implements during the migration (profile origin, account checks, session
-//! admission that starts the live monitor, completion recovery, and the
-//! bridged send commands that lane L9 moves into the core).
+//! admission that starts the live monitor, completion recovery). Every
+//! command, including send and cancel (lane L9), runs in the core.
 //! Spec: `a2-design.md` (View model); native only.
-use super::{ViewCommand, ViewEvent, actor::ViewCore};
+use super::{ViewEvent, actor::ViewCore};
 use crate::{client::FreshChatInventory, error::Result, local_cache::ByteStore, session::Session};
 use futures_util::future::BoxFuture;
-use tokio_util::sync::CancellationToken;
 
 /// Where the actor delivers events. A bounded shell channel applies
 /// back-pressure by awaiting inside `emit`.
@@ -18,6 +17,17 @@ pub trait ViewSink: Send + Sync {
     /// `Cancelled` when the shell stopped listening; a shell may refuse an
     /// event kind it does not route with `Invalid`.
     fn emit(&self, event: ViewEvent) -> BoxFuture<'_, Result<()>>;
+
+    /// Deliver `events`, in order, after the operation that produced them was
+    /// dropped mid-way (a shell's cancel grace ran out during a send). They
+    /// are the `Stream` updates the client had already queued, among them the
+    /// `Submitted` fence that forbids an automatic resend, so a shell whose
+    /// operations can be dropped must deliver them without blocking (for
+    /// example from a spawned task). The default discards them: right for a
+    /// shell that never drops a running send.
+    fn emit_detached(&self, events: Vec<ViewEvent>) {
+        drop(events);
+    }
 }
 
 /// Which chat list read a recovery pass precedes.
@@ -99,15 +109,4 @@ pub trait ViewHost<S: ByteStore + 'static>: Send {
     /// is offline. A host returns `false` after a known authentication or
     /// access denial, so the open fails with `Forbidden` instead.
     fn offline_cache_allowed(&self) -> bool;
-
-    /// A command the core does not serve yet (`Send`, `Cancel`).
-    ///
-    /// # Errors
-    /// The shell's own command errors.
-    fn bridge<'a>(
-        &'a mut self,
-        command: ViewCommand,
-        sink: &'a Self::Sink,
-        cancel: &'a CancellationToken,
-    ) -> BoxFuture<'a, Result<()>>;
 }

@@ -1,6 +1,7 @@
 //! The core view-model actor over a real cache directory, an in-memory
 //! credential store, a recording host and a recording sink: cached chat list
-//! before admission and network, logout ordering, bridging and cancellation.
+//! before admission and network, logout ordering, command routing and
+//! cancellation.
 //! The fixtures are shared with `window_tests.rs`.
 use super::*;
 use crate::{
@@ -167,22 +168,6 @@ impl ViewHost<FileByteStore> for Host {
     }
     fn offline_cache_allowed(&self) -> bool {
         self.offline_allowed
-    }
-    fn bridge<'a>(
-        &'a mut self,
-        command: ViewCommand,
-        sink: &'a Sink,
-        _cancel: &'a CancellationToken,
-    ) -> BoxFuture<'a, Result<()>> {
-        Box::pin(async move {
-            let name = match command {
-                ViewCommand::Send { .. } => "send".into(),
-                ViewCommand::Cancel => "cancel".into(),
-                _ => "other".into(),
-            };
-            self.calls.push((name, sink.events().len()));
-            Ok(())
-        })
     }
 }
 
@@ -385,22 +370,15 @@ async fn revocation_handle_fences_the_queue_without_the_actor() {
 }
 
 #[tokio::test]
-async fn only_send_and_cancel_are_bridged_to_the_host() {
+async fn window_commands_and_a_queued_cancel_run_in_the_core_without_host_hooks() {
     let mut f = fixture();
     let sink = Sink::default();
     let cancel = CancellationToken::new();
-    for command in [
-        ViewCommand::Send {
-            request: RequestId(8),
-            chat_id: None,
-            text: "synthetic".into(),
-        },
-        ViewCommand::Cancel,
-    ] {
-        handle(&mut f.host, command, &sink, &cancel).await.unwrap();
-    }
-    // The core serves window commands itself: a malformed id never reaches
-    // the host, and closing a chat that is not open does nothing.
+    handle(&mut f.host, ViewCommand::Cancel, &sink, &cancel)
+        .await
+        .unwrap();
+    // A malformed id never reaches the host, and closing a chat that is not
+    // open does nothing.
     let open = ViewCommand::OpenChat {
         request: RequestId(7),
         chat_id: "not-a-chat-id".into(),
@@ -413,7 +391,7 @@ async fn only_send_and_cancel_are_bridged_to_the_host() {
         chat_id: CHAT.into(),
     };
     handle(&mut f.host, close, &sink, &cancel).await.unwrap();
-    assert_eq!(names(&f.host.calls), ["send", "cancel"]);
+    assert!(f.host.calls.is_empty());
     assert!(sink.events().is_empty());
 }
 

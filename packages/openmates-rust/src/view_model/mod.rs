@@ -27,6 +27,10 @@ mod events;
 mod first_page;
 mod records;
 #[cfg(not(target_arch = "wasm32"))]
+mod send_flows;
+#[cfg(not(target_arch = "wasm32"))]
+mod send_turn;
+#[cfg(not(target_arch = "wasm32"))]
 mod window;
 #[cfg(not(target_arch = "wasm32"))]
 mod window_flows;
@@ -46,8 +50,10 @@ pub use error::{ViewErrorKind, ViewModelError};
 pub use events::{AccessDenial, RequestId, SessionEvent, SyncPhase, ViewCommand, ViewEvent};
 pub use records::{
     ChatListRow, ChatRowStatus, ChatWindowRecord, ChatWindowSource, EmbedRef, ListCompleteness,
-    MessageRecord, MessageRole, MessageStatus, PiiRestoration, StreamEvent,
+    MessageRecord, MessageRole, MessageStatus, PiiRestoration, SendState, StreamEvent,
 };
+#[cfg(not(target_arch = "wasm32"))]
+pub use send_flows::{SendCancelHandle, cancel_send, send};
 #[cfg(not(target_arch = "wasm32"))]
 pub use window_flows::{close_chat, load_older, mark_read, open_chat};
 
@@ -59,5 +65,7 @@ mod arrange_tests;
 mod convert_tests;
 #[cfg(test)]
 mod events_tests;
+#[cfg(all(test, unix))]
+mod send_tests;
 #[cfg(all(test, unix))]
 mod window_tests;

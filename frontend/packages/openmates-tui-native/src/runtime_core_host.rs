@@ -2,24 +2,25 @@
 //! event sink that turns core `ViewEvent`s into terminal `View` replies, the
 //! record-to-model mapping the terminal renders, and the `ViewHost` hooks the
 //! terminal still implements (profile origin, trusted account, admission with
-//! the live monitor, completion recovery, and the bridged send path).
+//! the live monitor, completion recovery). Send runs in the core (lane L9);
+//! the terminal paints its turn from the core's `Stream` events.
 //! Spec: `a2-design.md` (View model).
 use super::{Actor, Reply, Stamp, View};
 use openmates::{
     client::FreshChatInventory,
     completion_recovery_adapter,
     error::{Error, Result},
-    model::{Chat, Item, Message, Workspace},
+    model::{Chat, Item, Message, StreamUpdate, Workspace},
     runtime_store::RuntimeStoreGeneration,
     storage::{CacheBytes, Session},
 };
 use openmates_sdk::view_model::{
     ChatListRow, ChatRowStatus, ChatWindowRecord, EmbedRef, ListRecovery, MessageRecord, MessageRole,
-    SessionEvent, ViewCommand, ViewCore, ViewEvent, ViewHost, ViewSink,
+    SessionEvent, StreamEvent, ViewCore, ViewEvent, ViewHost, ViewSink,
 };
 use openmates_sdk::client::ChatOwnerLease;
 use futures_util::future::BoxFuture;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, PoisonError};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
@@ -38,14 +39,25 @@ pub(super) struct TerminalSink {
     live: bool,
     /// Owner fence for queued chat plaintext; windows need one.
     owner: Option<Arc<ChatOwnerLease>>,
+    /// A send's sink: its turn is painted from `Stream` events and the final
+    /// `Sent` reply, so the core's send windows and list are not painted, and
+    /// updates of a dropped send are delivered through `emit_detached`.
+    send: Option<RelaySlot>,
 }
+
+/// The task that delivers the stream updates of a dropped send; the actor
+/// awaits it before it reports the send's failure, so the `Submitted` fence
+/// always precedes a restored draft.
+pub(super) type RelaySlot = Arc<Mutex<Option<tokio::task::JoinHandle<()>>>>;
 
 impl TerminalSink {
     pub(super) fn new(replies: &mpsc::Sender<Reply>, epoch: Stamp, generation: RuntimeStoreGeneration,
         request: &CancellationToken) -> Self {
-        Self { replies: replies.clone(), epoch, generation, request: request.clone(), live: false, owner: None }
+        Self { replies: replies.clone(), epoch, generation, request: request.clone(), live: false, owner: None, send: None }
     }
     pub(super) fn live(mut self) -> Self { self.live = true; self }
+    /// The sink of one send; `relay` receives the delivery task of a dropped send.
+    pub(super) fn sending(mut self, relay: &RelaySlot) -> Self { self.send = Some(relay.clone()); self }
     /// Fence this sink's chat data by the current owner (and `chat_id`). No
     /// lease (no authenticated owner yet) leaves windows unpaintable.
     pub(super) fn owned_by(mut self, core: &ViewCore<CacheBytes>, chat_id: Option<&str>) -> Self {
@@ -61,6 +73,9 @@ impl TerminalSink {
         Ok(match event {
             ViewEvent::Session(SessionEvent::SignedOut) => Some(View::SignedOut),
             ViewEvent::Session(SessionEvent::Restored { display_name }) => display_name.map(View::Greeting),
+            // The terminal paints a send's turn from its stream updates.
+            ViewEvent::ChatList { .. } | ViewEvent::ChatWindow { .. } if self.send.is_some() => None,
+            ViewEvent::Stream { event, .. } => Some(View::Stream(update_from_stream(event)?)),
             ViewEvent::ChatList { rows, .. } => {
                 let items = rows.iter().map(item_from_row).collect();
                 Some(if self.live { View::LiveItems(self.fence(items)) } else { View::Items(Workspace::Chats, items) })
@@ -84,6 +99,31 @@ impl ViewSink for TerminalSink {
             self.replies.send(Reply { epoch: self.epoch, view }).await.map_err(|_| Error::Cancelled)
         })
     }
+    fn emit_detached(&self, events: Vec<ViewEvent>) {
+        let Some(slot) = &self.send else { return };
+        let views: Vec<View> = events.into_iter().filter_map(|event| self.view_for_event(event).ok().flatten()).collect();
+        let (replies, epoch) = (self.replies.clone(), self.epoch);
+        let task = tokio::spawn(async move {
+            for view in views { if replies.send(Reply { epoch, view }).await.is_err() { break; } }
+        });
+        // A poisoned lock only means a panic elsewhere; the slot stays valid.
+        *slot.lock().unwrap_or_else(PoisonError::into_inner) = Some(task);
+    }
+}
+
+/// The terminal's stream update for a core stream event (the UI's turn,
+/// delivery fence and consent form read `StreamUpdate`).
+fn update_from_stream(event: StreamEvent) -> Result<StreamUpdate> {
+    Ok(match event {
+        StreamEvent::Consent { request_id, items } => StreamUpdate::Consent {
+            request_id, items: items.iter().map(item_from_embed).collect::<Result<_>>()? },
+        StreamEvent::Started { chat_id, message_id, expects_reply } => StreamUpdate::Started { chat_id, message_id, expects_reply },
+        StreamEvent::Submitted { chat_id, message_id } => StreamUpdate::Submitted { chat_id, message_id },
+        StreamEvent::Admitted { chat_id, message_id } => StreamUpdate::Admitted { chat_id, message_id },
+        StreamEvent::Content { content, thinking, mate } => StreamUpdate::Content { content, thinking, mate },
+        StreamEvent::Completed { chat_id, message_id, content } => StreamUpdate::Completed { chat_id, message_id, content },
+        StreamEvent::Status { message } => StreamUpdate::Status(message),
+    })
 }
 
 /// Chat plaintext queued for the UI; usable only while the store generation,
@@ -200,13 +240,6 @@ impl ViewHost<CacheBytes> for Actor {
         })
     }
     fn offline_cache_allowed(&self) -> bool { !self.cached_views_blocked }
-    fn bridge<'a>(&'a mut self, command: ViewCommand, sink: &'a TerminalSink, cancel: &'a CancellationToken)
-        -> BoxFuture<'a, Result<()>> {
-        match command {
-            ViewCommand::Send { chat_id, text, .. } => Box::pin(self.send_message(chat_id, text, &sink.replies, sink.epoch, cancel)),
-            _ => Box::pin(async { Err(Error::Invalid("This action is handled by the terminal.")) }),
-        }
-    }
 }
 
 #[cfg(test)]

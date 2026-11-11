@@ -27,6 +27,7 @@ pub(crate) use openmates_sdk::local_cache::{
 };
 pub use openmates_sdk::local_cache::StorageMode;
 use openmates_sdk::local_cache::PendingCleanup;
+use openmates_sdk::shell_session::{SessionBeginStore, StoredCredential, begin_session_epoch};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
@@ -785,58 +786,10 @@ impl Store {
         session: &Session,
         admitted: impl FnOnce() -> Result<()>,
     ) -> Result<()> {
-        if session.is_expired() || session.hashed_email.is_empty() || session.session_id.is_empty()
-        {
-            return Err(Error::Authentication);
-        }
+        // Fence policy lives in the core; this store supplies envelope and
+        // cleanup IO while `session.lock` is held.
         let _guard = self.lock("session.lock")?;
-        let before = self.fence()?;
-        let context = session_context(session)?;
-        if before.revoked && before.retired_contexts.contains(&context) {
-            return Err(Error::Authentication);
-        }
-        let existing = self.envelope()?;
-        if before.revoked
-            && existing
-                .as_ref()
-                .is_some_and(|record| record.context == context)
-        {
-            return Err(Error::Authentication);
-        }
-        if !before.revoked && before.admitted.as_ref() == Some(&context) {
-            if existing.as_ref().is_some_and(|record| {
-                record.context != context || record.owner != owner_id(&session.hashed_email)
-            }) {
-                return Err(Error::Authentication);
-            }
-            // Pairing can retry the same admission after a vault-unlock prompt.
-            // This path changes neither the epoch nor prior cleanup metadata.
-            let _fence = self.lock("revocation.lock")?;
-            self.require_epoch(&before.epoch)?;
-            admitted()?;
-            return Ok(());
-        }
-        if !before.revoked && (existing.is_some() || before.cleanup.is_some()) {
-            return Err(Error::Invalid(
-                "Sign out before admitting another stored session.",
-            ));
-        }
-        if before.revoked || self.pending_cleanup()?.is_some() {
-            self.clear_session_locked()?;
-        }
-        let _fence = self.lock("revocation.lock")?;
-        if self.fence()?.epoch != before.epoch {
-            return Err(Error::Cancelled);
-        }
-        admitted()?;
-        let fence = RevocationFence {
-            version: 1,
-            epoch: uuid::Uuid::new_v4().to_string(),
-            admitted: Some(context.clone()),
-            context: Some(context),
-            ..Default::default()
-        };
-        self.atomic_write("revocation.json", &serde_json::to_vec(&fence)?)
+        begin_session_epoch(self, session, admitted)
     }
     pub fn clear_session(&self) -> Result<()> {
         self.revoke_session()?;
@@ -1219,6 +1172,27 @@ impl Store {
         }
         self.bytes.barrier()?;
         Ok(())
+    }
+}
+/// The core's fresh-session fence (`begin_session_epoch`) over this
+/// directory: the session envelope, the pending-cleanup intent and the
+/// keyring/vault cleanup. Called with `session.lock` held.
+impl SessionBeginStore for Store {
+    type Bytes = FileByteStore;
+    fn fence_store(&self) -> &FileByteStore {
+        &self.bytes
+    }
+    fn stored_credential(&self) -> Result<Option<StoredCredential>> {
+        Ok(self.envelope()?.map(|record| StoredCredential { context: record.context, owner: record.owner }))
+    }
+    fn cleanup_pending(&self) -> Result<bool> {
+        Ok(self.pending_cleanup()?.is_some())
+    }
+    fn clear_stale(&self) -> Result<()> {
+        self.clear_session_locked()
+    }
+    fn write_fence(&self, encoded: &[u8]) -> Result<()> {
+        self.atomic_write("revocation.json", encoded)
     }
 }
 /// The session record decides who may use the cache: no pending logout

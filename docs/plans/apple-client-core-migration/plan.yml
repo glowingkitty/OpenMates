@@ -228,8 +228,7 @@ progress:
     state: in progress
     done: [L1, L2, L3, L4, L6a, L6b, L7, L8 part 1]
     remaining_in_order:
-      - "L8 part 2: expose open chat, load older, close and mark read plus the chat window events to Swift (core API: view_model::window_flows); regenerate bindings"
-      - "Fresh login after logout: the revocation marker stays set after logout, so the next start is refused. Add a begin-session path in shell_session (new epoch, marker cleared) and decide how the Apple login hands its session to the core (ViewCommand::Start carries a core Session)."
+      - "Apple login hand-over: the Apple login (password, passkey, recovery, pairing finish) still runs in Swift and keeps cookies and the master key there; the core begin path (shell_session::begin, ViewModelCore::begin_session, Rust only) waits for a core login or an approved import of the Swift-held session."
       - "L5: completion recovery pump into the core (client/completion_recovery_pump.rs), terminal adapter deleted"
       - "L9: send, stream and cancel into the view-model actor (the terminal app still serves Send through ViewHost::bridge)"
     notes:
@@ -238,6 +237,7 @@ progress:
       - "Client::chat_owner_lease is new public core API (late ownership check of a window before it is painted); mention it in the client-core Specification."
       - "The terminal UI has no load-older or close-chat command; only the core supports them."
       - "The core emits Partial list events, never Complete; the core Message record has no timestamp."
+      - "L8 part 2 (uncommitted): ViewModelCore openChat/loadOlder/closeChat/markRead exported; fresh session after logout through shell_session::begin_session_epoch (moved from the terminal app's Store::begin_session_if, which now calls it) and AcknowledgedCredentials::begin_session."
   A3:
     state: A3a done (batched decrypt); A3b not started
     remaining: about 20 Swift files still call CryptoManager, decryptChatField or decryptMessageContent; chat key bytes still cross into Swift; decide the core-held key store

@@ -118,31 +118,6 @@ impl<S: ByteStore + 'static> ViewCore<S> {
         })
     }
 
-    /// Make the chat a send created or continued the open window of
-    /// `request`, so live updates follow it (send stays shell-bridged until
-    /// lane L9). Older history is unknown; paging starts from the latest page.
-    ///
-    /// # Errors
-    /// `Protocol` for a malformed chat.
-    pub fn track_sent_chat(&mut self, request: RequestId, chat: &Chat) -> Result<()> {
-        let record = chat_window_from_chat(
-            chat,
-            ChatWindowSource::Canonical,
-            None,
-            false,
-            false,
-            PiiRestoration::PageLocal,
-        )
-        .map_err(|_| Error::Protocol)?;
-        self.window = Some(OpenWindow {
-            request,
-            chat_id: chat.id.clone(),
-            record: Some(record),
-            older: None,
-        });
-        Ok(())
-    }
-
     /// Close the window of `chat_id`; later live data for it changes nothing.
     /// Returns whether that chat was open. Shells call it for `CloseChat` and
     /// when access to the chat was denied.

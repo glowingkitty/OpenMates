@@ -3,11 +3,15 @@
 //! [`CredentialVault`]; the core writes the durable revocation fence
 //! (`revocation.json`) in the cache directory, deletes the cache records on
 //! clear, and awaits the shell's acknowledgement of each credential revision
-//! with a timeout. Native only. Plan: `docs/plans/apple-client-core-migration/a2-design.md`
+//! with a timeout. A fresh session after a login begins through
+//! [`AcknowledgedCredentials::begin_session`] (new fence epoch, then the
+//! acknowledged store). Native only. Plan: `docs/plans/apple-client-core-migration/a2-design.md`
 //! (lane L8); spec: `client-core` credential rules and `client-core.cache`.
 use super::{
     CREDENTIAL_ACKNOWLEDGEMENT_TIMEOUT, CredentialPersistence, CredentialSave,
-    await_credential_acknowledgement, session_digest,
+    await_credential_acknowledgement,
+    begin::{SessionBeginStore, StoredCredential, begin_session_epoch},
+    session_digest,
 };
 use crate::{
     client::CredentialSnapshot,
@@ -24,6 +28,7 @@ use std::{
     time::Duration,
 };
 use tokio::sync::oneshot;
+use tokio_util::sync::CancellationToken;
 use zeroize::Zeroizing;
 
 /// Prefix of every cache record file name (`cache-<owner>-<logical>.json`).
@@ -70,6 +75,70 @@ pub fn session_cache_context(session: &Session) -> Result<CacheContext> {
         context: sha256_hex(&identity),
         expires_at: session.paired_session_expires_at,
     })
+}
+
+/// Delete every cache record and its lock file in the profile directory,
+/// whichever owner wrote it, then order the deletions durably.
+fn wipe_cache_records<S: ByteStore>(bytes: &S) -> Result<()> {
+    for name in bytes.list(CACHE_RECORD_PREFIX)? {
+        if name.ends_with(".json") || name.ends_with(".json.lock") {
+            bytes.delete(&name)?;
+        }
+    }
+    bytes.barrier()?;
+    Ok(())
+}
+
+/// The vault and the fence store as the core's [`SessionBeginStore`].
+struct VaultBegin<S: ByteStore + 'static> {
+    vault: Arc<dyn CredentialVault>,
+    engine: Arc<CacheEngine<S>>,
+}
+
+impl<S: ByteStore + 'static> SessionBeginStore for VaultBegin<S> {
+    type Bytes = S;
+
+    fn fence_store(&self) -> &S {
+        self.engine.bytes()
+    }
+
+    fn stored_credential(&self) -> Result<Option<StoredCredential>> {
+        let Some(payload) = self.vault.load()? else {
+            return Ok(None);
+        };
+        // A payload that does not parse is still a stored credential: it
+        // blocks a begin while signed in and is wiped after a sign-out. Its
+        // hashes match no real session.
+        let Ok(session) = serde_json::from_slice::<Session>(&payload) else {
+            return Ok(Some(StoredCredential {
+                context: String::new(),
+                owner: String::new(),
+            }));
+        };
+        Ok(Some(StoredCredential {
+            context: session_cache_context(&session)?.context,
+            owner: owner_hash(&session.hashed_email),
+        }))
+    }
+
+    fn cleanup_pending(&self) -> Result<bool> {
+        // No separate cleanup intent: `clear` runs right after `revoke`, and
+        // a cleanup that failed leaves the fence revoked, which begin wipes.
+        Ok(false)
+    }
+
+    fn clear_stale(&self) -> Result<()> {
+        self.engine.forget_evidence();
+        wipe_cache_records(self.engine.bytes())?;
+        self.vault.delete()
+    }
+
+    fn write_fence(&self, encoded: &[u8]) -> Result<()> {
+        Ok(self
+            .engine
+            .bytes()
+            .put(REVOCATION_FILE, encoded, Durability::Now)?)
+    }
 }
 
 #[derive(Default)]
@@ -152,6 +221,49 @@ impl<S: ByteStore + 'static> AcknowledgedCredentials<S> {
     fn fence_revoked(&self) -> BoxFuture<'static, Result<bool>> {
         let engine = self.engine.clone();
         blocking(move || Ok(RevocationFence::load(engine.bytes())?.revoked))
+    }
+
+    /// Begin the freshly logged-in `snapshot.session` on this profile: the
+    /// core fence step (`begin_session_epoch`: revoked contexts refused,
+    /// the signed-out session's records and vault payload wiped, a new
+    /// epoch that is no longer revoked), then the vault store of `snapshot`,
+    /// reported `Ok` only after the shell acknowledged its revision. Writes
+    /// prepared for the old epoch are refused from then on.
+    ///
+    /// # Errors
+    /// As `begin_session_epoch` (`Authentication`, `Invalid` while another
+    /// session is stored and not signed out, `Cancelled` when `cancel` fired
+    /// or a revocation landed meanwhile); then as `store` (`Locked` on an
+    /// acknowledgement timeout or a revocation after the begin).
+    pub fn begin_session<'a>(
+        &'a self,
+        snapshot: CredentialSnapshot,
+        cancel: &CancellationToken,
+    ) -> BoxFuture<'a, Result<()>> {
+        let cancel = cancel.clone();
+        Box::pin(async move {
+            {
+                // Nothing durable is known for the new session yet.
+                let mut state = self.state();
+                state.waiting = None;
+                state.durable = None;
+            }
+            let begin = VaultBegin {
+                vault: self.vault.clone(),
+                engine: self.engine.clone(),
+            };
+            let session = snapshot.session.clone();
+            blocking(move || {
+                begin_session_epoch(&begin, &session, || {
+                    if cancel.is_cancelled() {
+                        return Err(Error::Cancelled);
+                    }
+                    Ok(())
+                })
+            })
+            .await?;
+            self.store(snapshot, 0).await.map(|_| ())
+        })
     }
 }
 
@@ -261,14 +373,8 @@ impl<S: ByteStore + 'static> CredentialPersistence for AcknowledgedCredentials<S
                 if !RevocationFence::load(bytes)?.revoked {
                     return Err(Error::Cancelled);
                 }
-                // The directory belongs to one app profile: every cache record
-                // and its lock file goes, whichever owner wrote it.
-                for name in bytes.list(CACHE_RECORD_PREFIX)? {
-                    if name.ends_with(".json") || name.ends_with(".json.lock") {
-                        bytes.delete(&name)?;
-                    }
-                }
-                bytes.barrier()?;
+                // The directory belongs to one app profile.
+                wipe_cache_records(bytes)?;
                 vault.delete()
             })
             .await

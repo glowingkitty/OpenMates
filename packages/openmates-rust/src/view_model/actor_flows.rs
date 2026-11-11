@@ -1,8 +1,8 @@
 //! The view-model actor's command handling: `Start` (credentials → cached
 //! index → cached chat list → admission), the background boot sync, chat
 //! list refresh, team switch and logout, plus routing of the chat window
-//! commands (`window_flows.rs`) and of the commands still bridged to the
-//! shell host (`Send`, `Cancel`). Moved from the TUI `runtime.rs` actor
+//! commands (`window_flows.rs`) and of `Send`/`Cancel` (`send_flows.rs`).
+//! Moved from the TUI `runtime.rs` actor
 //! (`boot`, `boot_sync`, `Refresh`, `SwitchTeam`, `Logout`); spec
 //! `a2-design.md` (View model) and `architecture.sync@2` (bounded start).
 //!
@@ -13,7 +13,7 @@
 use super::{
     ListCompleteness, SessionEvent, ViewCommand, ViewEvent,
     actor_host::{ListRecovery, ViewHost, ViewSink},
-    window_flows,
+    send_flows, window_flows,
 };
 use crate::{
     error::{Error, Result},
@@ -24,8 +24,9 @@ use crate::{
 use futures_util::future::BoxFuture;
 use tokio_util::sync::CancellationToken;
 
-/// Handle one command. Every command except `Send` and `Cancel` runs in the
-/// core; those two go to [`ViewHost::bridge`] unchanged.
+/// Handle one command; every command runs in the core. `Send` returns the
+/// sent chat only through its events here (use [`send_flows::send`] for the
+/// record); a queued `Cancel` cancels a running send, if any.
 /// The background boot sync is not a command: the shell schedules
 /// [`boot_sync`] after a successful `Start` when it is idle.
 ///
@@ -52,7 +53,19 @@ pub fn handle<'a, S: ByteStore + 'static, H: ViewHost<S>>(
             Box::pin(async move { window_flows::close_chat(host, &chat_id) })
         }
         ViewCommand::MarkRead { chat_id } => window_flows::mark_read(host, chat_id, cancel),
-        bridged => host.bridge(bridged, sink, cancel),
+        ViewCommand::Send {
+            request,
+            chat_id,
+            text,
+        } => Box::pin(async move {
+            send_flows::send(host, request, chat_id, text, sink, cancel)
+                .await
+                .map(drop)
+        }),
+        ViewCommand::Cancel => Box::pin(async move {
+            send_flows::cancel_send(host);
+            Ok(())
+        }),
     }
 }
 
