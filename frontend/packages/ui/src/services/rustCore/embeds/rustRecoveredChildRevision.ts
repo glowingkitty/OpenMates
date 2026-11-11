@@ -139,6 +139,8 @@ export async function verifyRecoveredRevisionRow(io: RecoveredRevisionIO, output
 
 /** Production IO: the Rust embed writer unit, the canonical HTTP reads and the live child revision write. */
 export async function recoveredRevisionIO(write: (content: Record<string, unknown>) => Promise<void>): Promise<RecoveredRevisionIO> {
+	// Compile-time gate: builds without the Rust core must not bundle its embed units.
+	if (!RUST_CORE_BUILD) throw new UnitPortError('embed_revision_requires_rust_core');
 	const { rustEmbedWriter } = await import('./embedWriteSession');
 	const { loadEmbedWriteKeys, readCanonicalVersion } = await import('./rustStreamedEmbedWrite');
 	const { chatDB } = await import('../../db');
@@ -171,6 +173,8 @@ export async function recoveredRevisionIO(write: (content: Record<string, unknow
  */
 export async function recoveredChildRevisionReceipt(service: ChatSynchronizationService, lease: CanonicalEmbedWriteLease,
 	output: RecoveredRevisionOutput, content: Record<string, unknown>): Promise<RecoveredRevisionReceipt | null> {
+	// Compile-time gate, so the Rust imports below are dropped from builds without the core.
+	if (!RUST_CORE_BUILD) return null;
 	const writer = async (): Promise<WriteUnit> => (await (await import('./embedWriteSession')).rustEmbedWriter()).unit;
 	if (!(await isRecoveredChildRevision(writer, output, content))) return null;
 	const io = await recoveredRevisionIO(async (sealed) => {
