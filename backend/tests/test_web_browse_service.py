@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 from contextlib import asynccontextmanager
 from copy import deepcopy
 from decimal import Decimal
@@ -34,6 +35,7 @@ class MemoryStore:
         self.results = {}
         self.cache = None
         self.locks = {}
+        self.elapsed = 0.0
         self.db = SimpleNamespace(get_items=AsyncMock(return_value=[]))
 
     @asynccontextmanager
@@ -67,10 +69,17 @@ class MemoryStore:
         return self.results[(result.run_id, record["user_id"])].model_copy(deep=True)
 
 
+FRAME = base64.b64encode(b"observed-jpeg").decode()
+
+
 class Browser:
+    """Fake preboot-v2 runtime: `start`, `step`, `observe`, `control` and `frame`."""
+
     def __init__(self):
         self.calls = []
         self.mode = "ai"
+        self.protocol = "preboot-v2"
+        self.outcome = "executed"
         self.observation = {
             "url": "https://example.com/",
             "title": "Example",
@@ -81,6 +90,7 @@ class Browser:
             "observation_id": "fresh",
             "screenshot": None,
         }
+        self.pages = []  # Observations returned by successive `step` calls.
         self.created = False
         self.fail_start = False
 
@@ -105,11 +115,32 @@ class Browser:
 
     async def rpc(self, provider, body):
         self.calls.append(deepcopy(body))
-        if body["operation"] == "observe":
+        operation = body["operation"]
+        if operation == "start":
+            self.mode = "ai"
+            return {
+                "control": "ai",
+                "runtime_protocol": self.protocol,
+                **({"pristine": True} if body.get("require_pristine") else {}),
+                "observation": deepcopy(self.observation),
+                "timings": {"ready": 0.01, "navigate": 0.2, "observe": 0.05},
+            }
+        if operation == "observe":
             return deepcopy(self.observation)
-        if body["operation"] == "control":
+        if operation == "step":
+            results = [
+                {"kind": a["kind"], "target": a.get("target"), "outcome": self.outcome}
+                for a in body["actions"]
+            ]
+            if self.pages:
+                self.observation = self.pages.pop(0)
+            return {"results": results, "observation": deepcopy(self.observation)}
+        if operation == "control":
             self.mode = body["mode"]
-        if body["operation"] == "metadata":
+            return {"control": body["mode"], "runtime_protocol": self.protocol}
+        if operation == "frame":
+            return {"image": FRAME}
+        if operation == "metadata":
             return {"origin": "https://example.com", "url": "https://example.com/"}
         return {"executed": True}
 
@@ -129,18 +160,47 @@ class Browser:
         self.calls.append("kill")
 
 
+def done_plan(*quotes):
+    return {
+        "notes": [{"fact": q, "quote": q} for q in quotes],
+        "actions": [],
+        "done": True,
+        "blocked": None,
+    }
+
+
+def action_plan(*actions, quotes=()):
+    return {
+        "notes": [{"fact": q, "quote": q} for q in quotes],
+        "actions": list(actions),
+        "done": False,
+        "blocked": None,
+    }
+
+
 class Models:
+    """Fake models: each planner call is admitted and metered like a real one."""
+
     started = None
     proceed = None
-    action = {"kind": "done"}
+    plans = [done_plan("Observed fact")]
+    gate_reason = None
+    extracted = {"data": {"fact": "Observed fact"}}
+    verified = True
+    planner_bound = Decimal("0.0001")
+    planner_calls = []  # Class-level: replays must not add entries.
 
     def __init__(self, secrets, *, before_attempt, after_attempt, **kwargs):
         self.before = before_attempt
         self.after = after_attempt
         self.attempts = []
+        self.gates = []
+        self.queue = deepcopy(self.plans)
+        self.verification = {"interaction_score": 0.99}
+        self.evidence = None
 
-    async def choose(self, *args):
-        call = await self.before("typesafe/jev-1.14", "typesafe", Decimal("0.0001"))
+    async def plan(self, **kwargs):
+        call = await self.before("typesafe/jev-1.14", "typesafe", self.planner_bound)
         if self.started:
             self.started.set()
             await self.proceed.wait()
@@ -151,16 +211,36 @@ class Models:
         }
         self.attempts.append(attempt)
         await self.after(call, attempt)
-        return deepcopy(self.action)
+        self.planner_calls.append(deepcopy(kwargs))
+        return deepcopy(self.queue.pop(0) if len(self.queue) > 1 else self.queue[0])
 
-    async def verify(self, *args):
-        return True
+    async def gate(self, task, observation, actions):
+        self.gates.append(deepcopy(actions))
+        return self.gate_reason
+
+    async def verify(self, task, observation, data, evidence=None):
+        self.evidence = deepcopy(evidence)
+        return self.verified
 
     async def generate(self, *args):
-        return {"data": {"fact": "Observed fact"}}
+        return deepcopy(self.extracted)
 
     async def sanitize_external(self, payload, cache):
         return payload
+
+
+class BlockedModels(Models):
+    """A run that ends with needs_user and keeps its idle window."""
+
+    plans = [{"notes": [], "actions": [], "done": False, "blocked": "age_confirmation"}]
+
+
+def operations(service, name):
+    return [
+        c
+        for c in service.driver.calls
+        if isinstance(c, dict) and c["operation"] == name
+    ]
 
 
 @pytest.fixture
@@ -214,17 +294,26 @@ async def test_observed_json_is_replayable_without_new_vm_calls_or_charges(servi
             "required": ["fact"],
         }
     )
+    Models.planner_calls.clear()
     result = await run(service, request)
     assert result.status == "completed"
-    assert result.data == {"fact": "Observed fact"}
+    assert result.data == {"fact": "Observed fact"} and result.missing == []
     assert result.sources == [{"url": "https://example.com/", "title": "Example"}]
+    assert len(Models.planner_calls) == 1
     calls = deepcopy(service.driver.calls)
+    charges = service.app.charge_user_credits.await_count
     replay = await run(service, request)
     assert replay == result
     assert service.driver.calls == calls
+    assert len(Models.planner_calls) == 1  # Replay makes no provider call.
+    assert service.app.charge_user_credits.await_count == charges
     assert "private-provider-id" not in result.model_dump_json()
-    assert service.store.records[result.session_id]["inference_cost_usd"] == "0.000042"
-    service.app.charge_user_credits.assert_not_awaited()  # Running grace is settled on confirmed pause.
+    record = service.store.records[result.session_id]
+    assert record["inference_cost_usd"] == "0.000042"
+    # A finished run pauses compute at once and settles its window.
+    assert record["status"] == "paused" and calls[-1] == "pause"
+    assert record["provider"]["running_since"] is None and record["reservation"] is None
+    assert charges == 1
 
 
 # contract-test: supporting surface=rest_api assertions=web-browse.private-storage-and-api,web-browse.session-and-run,web-browse.cost-accounting
@@ -233,7 +322,7 @@ async def test_observed_json_is_replayable_without_new_vm_calls_or_charges(servi
 async def test_pool_handoff_is_owner_bound_before_resuming_and_hidden_until_verified(
     service, monkeypatch, pristine
 ):
-    import backend.core.api.app.services.web_browse_service as module
+    import backend.core.api.app.services.web_browse_run as module
 
     monkeypatch.setattr(module, "pool_size", lambda: 3)
 
@@ -262,45 +351,43 @@ async def test_pool_handoff_is_owner_bound_before_resuming_and_hidden_until_veri
 
     async def rpc(provider, body):
         if body.get("require_pristine"):
-            service.driver.calls.append(deepcopy(body))
-            service.driver.mode = body["mode"]
             assert any(
                 r.get("provider", {}).get("sandbox_id") == "prepared-vm"
                 for r in service.store.records.values()
             )
-            return {"pristine": pristine}
+            return {**await original_rpc(provider, body), "pristine": pristine}
         return await original_rpc(provider, body)
 
     service.driver.rpc = rpc
+    before = deepcopy(Models.planner_calls)
     result = await run(service)
     record = service.store.records[result.session_id]
     assert "create" not in service.driver.calls and "resume" in service.driver.calls
     assert Decimal(result.metrics["runtime_cost_usd"]) < Decimal(
         "0.01"
     )  # Platform preparation is not charged.
+    # One start call carries the pristine check, navigation and first observation.
+    starts = operations(service, "start")
+    assert len(starts) == 1 and starts[0]["require_pristine"] is True
+    assert starts[0]["url"] == "https://example.com/"
+    assert not operations(service, "control") and not operations(service, "observe")
     if pristine:
         assert result.status == "completed" and record["provider"]["pool_verified"]
-        control_calls = [
-            call
-            for call in service.driver.calls
-            if isinstance(call, dict) and call.get("operation") == "control"
-        ]
-        assert len(control_calls) == 1
-        assert control_calls[0]["require_pristine"] is True
         assert (
             result.metrics["first_observation_seconds"]
-            >= result.metrics["startup_seconds"]
+            <= result.metrics["startup_seconds"]
         )
+        assert result.metrics["start_rpc_seconds"] >= 0
+        assert result.metrics["start_navigate_seconds"] == 0.2
         with pytest.raises(HTTPException) as exc:
             await service.frame(result.session_id, "other-owner")
         assert exc.value.status_code == 404
     else:
+        assert result.status == "cancelled"  # The unverified VM is destroyed.
         assert result.data is None and not result.observations
         assert "kill" in service.driver.calls and record["provider"] is None
-        assert not any(
-            isinstance(c, dict) and c["operation"] == "observe"
-            for c in service.driver.calls
-        )
+        assert "latest_observation" not in record and not result.screenshot_base64
+        assert Models.planner_calls == before  # No model saw the unverified VM.
 
 
 # contract-test: supporting surface=rest_api assertions=web-browse.private-storage-and-api,web-browse.budgets-and-stop,web-browse.cost-accounting
@@ -308,7 +395,7 @@ async def test_pool_handoff_is_owner_bound_before_resuming_and_hidden_until_veri
 async def test_empty_pool_does_not_cold_start_or_hold_customer_funds(
     service, monkeypatch
 ):
-    import backend.core.api.app.services.web_browse_service as module
+    import backend.core.api.app.services.web_browse_run as module
 
     monkeypatch.setattr(module, "pool_size", lambda: 3)
 
@@ -350,14 +437,12 @@ async def test_unverified_pool_handoff_exposes_neither_frames_nor_manual_input(s
 
 # contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.truthful-completion,web-browse.cost-accounting
 @pytest.mark.asyncio
-@pytest.mark.parametrize("repair_verified", [True, False])
-# contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.truthful-completion,web-browse.cost-accounting
-async def test_one_metered_extraction_repair_still_requires_independent_verification(
-    service, repair_verified
+async def test_single_metered_extraction_never_returns_an_unverified_unmatched_answer(
+    service,
 ):
     contexts = []
 
-    class RepairModels(Models):
+    class RejectedModels(Models):
         async def paid(self, cost):
             call = await self.before("test/model", "test", Decimal(cost))
             attempt = {"complete": True, "cost_usd": cost, "usage": {}}
@@ -367,18 +452,14 @@ async def test_one_metered_extraction_repair_still_requires_independent_verifica
         async def generate(self, context):
             contexts.append(deepcopy(context))
             await self.paid("0.0001")
-            return {
-                "data": {
-                    "fact": "Incomplete" if len(contexts) == 1 else "Observed fact"
-                }
-            }
+            return {"data": {"fact": "Invented value"}}
 
-        async def verify(self, task, observation, data):
+        async def verify(self, task, observation, data, evidence=None):
             await self.paid("0.00001")
-            self.verification = {"answer_coverage_score": 0.2}
-            return len(contexts) == 2 and repair_verified
+            self.verification = {"interaction_score": 0.99}
+            return False
 
-    service.models_factory = RepairModels
+    service.models_factory = RejectedModels
     request = arguments(
         output_schema={
             "type": "object",
@@ -387,18 +468,16 @@ async def test_one_metered_extraction_repair_still_requires_independent_verifica
         }
     )
     result = await run(service, request)
-    assert result.status == ("completed" if repair_verified else "needs_user")
-    assert result.data == ({"fact": "Observed fact"} if repair_verified else None)
-    assert len(contexts) == 2
-    assert contexts[1]["correction"]["previous_candidate"] == {"fact": "Incomplete"}
-    assert contexts[1]["correction"]["verification"] == {"answer_coverage_score": 0.2}
-    assert contexts[0]["observed_page"] == contexts[1]["observed_page"]
-    assert service.store.records[result.session_id]["inference_cost_usd"] == "0.000262"
-    assert not any(
-        isinstance(c, dict) and c["operation"] == "act" for c in service.driver.calls
-    )
+    assert result.status == "needs_user" and result.data is None
+    assert result.missing == []
+    assert len(contexts) == 1  # Extract once; no repair round seeks another verdict.
+    assert contexts[0]["evidence"]["pages"][0]["notes"] == [
+        {"fact": "Observed fact", "quote": "Observed fact"}
+    ]
+    assert service.store.records[result.session_id]["inference_cost_usd"] == "0.000152"
+    assert not operations(service, "step")
     assert await run(service, request) == result
-    assert len(contexts) == 2  # Replay cannot spend again or seek a different verdict.
+    assert len(contexts) == 1  # Replay cannot spend again or seek a different verdict.
 
 
 # contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.truthful-completion,web-browse.sign-in
@@ -423,7 +502,7 @@ async def test_missing_facts_or_explicit_human_input_do_not_trigger_extraction_r
 
 # contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.truthful-completion
 @pytest.mark.asyncio
-async def test_unchanged_repair_cannot_seek_a_different_verification_verdict(service):
+async def test_rejected_answer_is_not_reextracted_to_seek_a_different_verdict(service):
     generated = AsyncMock(return_value={"data": {"fact": "Incomplete"}})
     verified = AsyncMock(side_effect=[False, True])
 
@@ -434,7 +513,7 @@ async def test_unchanged_repair_cannot_seek_a_different_verification_verdict(ser
     service.models_factory = UnchangedModels
     result = await run(service, arguments(output_schema={"type": "object"}))
     assert result.status == "needs_user" and result.data is None
-    assert generated.await_count == 2
+    generated.assert_awaited_once()
     verified.assert_awaited_once()
 
 
@@ -484,7 +563,12 @@ async def test_takeover_during_inference_discards_pending_click(service):
     class DelayedModels(Models):
         started = asyncio.Event()
         proceed = asyncio.Event()
-        action = {"kind": "click", "target": "0"}
+        plans = [
+            action_plan(
+                {"kind": "type", "target": "1", "text": "kits", "submit": True},
+                {"kind": "click", "target": "0"},
+            )
+        ]
 
     service.models_factory = DelayedModels
     task = asyncio.create_task(run(service))
@@ -494,10 +578,11 @@ async def test_takeover_during_inference_discards_pending_click(service):
     DelayedModels.proceed.set()
     result = await asyncio.wait_for(task, 2)
     assert result.status == "needs_user"
+    assert result.reason == "You have control of this browser."
     assert service.driver.mode == "user"
-    assert not any(
-        isinstance(c, dict) and c["operation"] == "act" for c in service.driver.calls
-    )
+    assert not operations(service, "step")  # The whole planned batch is discarded.
+    assert not service.store.records[session_id].get("pending_action")
+    assert "pause" not in service.driver.calls  # The owner keeps the live browser.
     assert service.store.records[session_id]["inference_cost_usd"] == "0.000042"
     assert not service.store.records[session_id]["pending_calls"]
 
@@ -542,9 +627,15 @@ async def test_insufficient_cap_does_not_start_paid_compute(service):
 # contract-test: supporting surface=rest_api assertions=web-browse.lifecycle,web-browse.session-and-run,web-browse.cost-accounting
 @pytest.mark.asyncio
 async def test_followup_reconciles_native_idle_pause_before_resuming(service):
+    # A needs_user run keeps its idle window; the native timeout then pauses it.
+    service.models_factory = BlockedModels
     first = await run(service)
+    assert first.status == "needs_user"
     record = service.store.records[first.session_id]
+    assert record["provider"]["running_since"] is not None
+    first_reservation = record["reservation"]
     record["provider"]["provider_deadline"] = time.time() - 1
+    service.models_factory = Models
     request = arguments(session_id=first.session_id)
     job = await service.run(
         request,
@@ -566,9 +657,15 @@ async def test_followup_reconciles_native_idle_pause_before_resuming(service):
     assert result.status == "completed" and result.session_id == first.session_id
     assert service.driver.calls.count("create") == 1
     assert service.driver.calls.index("pause") < service.driver.calls.index("resume")
+    # The idle window was charged, never released as free.
     assert all(
-        call.args[1] != "/internal/billing/reservation/release"
+        call.kwargs["payload"]["idempotency_key"] != first_reservation
         for call in service.app._make_internal_api_request.await_args_list
+        if call.args[1] == "/internal/billing/reservation/release"
+    )
+    assert any(
+        call.kwargs["idempotency_key"] == first_reservation
+        for call in service.app.charge_user_credits.await_args_list
     )
 
 
@@ -577,6 +674,7 @@ async def test_followup_reconciles_native_idle_pause_before_resuming(service):
 async def test_pending_charge_keeps_same_intent_and_reservation_until_committed(
     service,
 ):
+    service.models_factory = BlockedModels
     result = await run(service)
     record = service.store.records[result.session_id]
     reservation = record["reservation"]
@@ -625,10 +723,10 @@ async def test_boot_failure_cleans_up_recoverable_paid_handle_and_reservation(se
 @pytest.mark.asyncio
 async def test_missing_native_usage_cannot_be_free_success_or_release_hold(service):
     class MissingUsage(Models):
-        async def choose(self, *args):
+        async def plan(self, **kwargs):
             call = await self.before("typesafe/jev-1.14", "typesafe", Decimal("0.0001"))
             await self.after(call, {"complete": False, "cost_usd": None, "usage": {}})
-            return {"kind": "done"}
+            return done_plan("Observed fact")
 
     service.models_factory = MissingUsage
     result = await run(service)
@@ -672,6 +770,7 @@ async def test_known_resume_is_persisted_before_ingress_failure_and_can_be_settl
 async def test_close_preserves_only_resource_billing_evidence_for_an_unknown_hold(
     service,
 ):
+    service.models_factory = BlockedModels
     result = await run(service)
     service.store.records[result.session_id]["accounting_pending"] = True
     service.store.records[result.session_id]["runtime_intent"] = {"kind": "resume"}
@@ -687,6 +786,7 @@ async def test_close_preserves_only_resource_billing_evidence_for_an_unknown_hol
         "latest_observation",
     }.intersection(receipt)
     assert "latest_observation" not in record
+    assert "evidence" not in record and "steps" not in record
     service.app.charge_user_credits.assert_not_awaited()
 
 
@@ -923,7 +1023,7 @@ async def test_close_during_inference_settles_usage_after_draining_call(service)
     class DelayedModels(Models):
         started = asyncio.Event()
         proceed = asyncio.Event()
-        action = {"kind": "click", "target": "0"}
+        plans = [action_plan({"kind": "click", "target": "0"})]
 
     service.models_factory = DelayedModels
     task = asyncio.create_task(run(service))
@@ -940,9 +1040,7 @@ async def test_close_during_inference_settles_usage_after_draining_call(service)
     assert record["inference_cost_usd"] == "0.000042"
     assert record["reservation"] is None
     assert service.app.charge_user_credits.await_count == 1
-    assert not any(
-        isinstance(c, dict) and c["operation"] == "act" for c in service.driver.calls
-    )
+    assert not operations(service, "step")
 
 
 # contract-test: supporting surface=rest_api assertions=web-browse.cost-accounting,web-browse.budgets-and-stop,web-browse.session-and-run
@@ -1020,7 +1118,7 @@ async def test_missing_schema_still_extracts_and_verifies_a_metered_answer(servi
             await self.after(call, attempt)
             return {"data": expected}
 
-        async def verify(self, task, observation, data):
+        async def verify(self, task, observation, data, evidence=None):
             assert data == expected
             assert "tables" not in data  # Snapshot metadata is not an authored answer.
             return True
@@ -1051,3 +1149,329 @@ async def test_default_answer_schema_rejects_a_scalar_even_after_positive_review
     service.models_factory = ScalarModels
     result = await run(service)
     assert result.status == "failed" and result.data is None
+
+
+SHOP_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "products": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "price": {"type": "number"},
+                    "url": {"type": "string"},
+                },
+                "required": ["name"],
+            },
+        }
+    },
+    "required": ["products"],
+}
+
+
+def shop_page(n, text, controls=()):
+    return {
+        "url": f"https://shop.example/page-{n}",
+        "title": f"Grow kits page {n}",
+        "text": text,
+        "document_text": text,
+        "controls": list(controls),
+        "tables": [],
+        "links": [],
+        "observation_id": f"observation-{n}",
+        "screenshot": FRAME,
+    }
+
+
+NEXT = {
+    "id": "0",
+    "kind": "click",
+    "role": "link",
+    "label": "Next page",
+    "href": "https://shop.example/page-2",
+}
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.truthful-completion,web-browse.control-loop
+@pytest.mark.asyncio
+async def test_facts_from_two_pages_survive_navigation_with_both_sources(service):
+    service.driver.observation = shop_page(
+        1, "Kit A costs 20,00 €. Ships in 2 days.", [NEXT]
+    )
+    service.driver.pages = [shop_page(2, "Kit B costs 35,50 €.")]
+
+    class ShopModels(Models):
+        plans = [
+            action_plan(
+                {"kind": "click", "target": "0"}, quotes=["Kit A costs 20,00 €"]
+            ),
+            done_plan("Kit B costs 35,50 €"),
+        ]
+        extracted = {
+            "data": {
+                "products": [
+                    {"name": "Kit A", "price": 20},
+                    {"name": "Kit B", "price": 35.5},
+                ]
+            }
+        }
+
+    models = []
+
+    def factory(*args, **kwargs):
+        models.append(ShopModels(*args, **kwargs))
+        return models[-1]
+
+    service.models_factory = factory
+    result = await run(
+        service,
+        BrowseRequest(
+            task="List the grow kits with prices",
+            start_url="https://shop.example/page-1",
+            output_schema=SHOP_SCHEMA,
+        ),
+    )
+    assert result.status == "completed" and result.missing == []
+    assert result.data == ShopModels.extracted["data"]
+    assert result.sources == [
+        {"url": "https://shop.example/page-1", "title": "Grow kits page 1"},
+        {"url": "https://shop.example/page-2", "title": "Grow kits page 2"},
+    ]
+    steps = operations(service, "step")
+    assert steps == [
+        {
+            "operation": "step",
+            "observation_id": "observation-1",
+            "actions": [{"kind": "click", "target": "0"}],
+            "screenshot": True,
+        }
+    ]
+    # The verifier saw the facts recorded before navigation.
+    assert [p["url"] for p in models[0].evidence] == [
+        "https://shop.example/page-1",
+        "https://shop.example/page-2",
+    ]
+    record = service.store.records[result.session_id]
+    assert len(record["evidence"]) == 2
+    assert record["steps"][0]["label"] == "Next page"
+    assert record["steps"][0]["url"] == "https://shop.example/page-1"
+    assert "text" not in record["steps"][0]
+    assert result.metrics["pages_visited"] == 2
+    assert result.metrics["steps"] == 1 and result.metrics["planner_steps"] == 2
+    for key in ("planner_seconds", "gate_seconds", "step_rpc_seconds", "store_seconds"):
+        assert result.metrics[key] >= 0
+    # The second planner call received the first page's ledger entry.
+    assert models[0].gates == [[{"kind": "click", "target": "0"}], []]
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.truthful-completion,web-browse.network-and-content
+@pytest.mark.asyncio
+async def test_note_whose_quote_is_not_on_the_page_is_rejected(service):
+    class InventedNote(Models):
+        plans = [done_plan("Observed fact", "A quote the page never showed")]
+
+    service.models_factory = InventedNote
+    result = await run(service)
+    record = service.store.records[result.session_id]
+    assert result.metrics["rejected_notes"] == 1
+    quotes = [n["quote"] for p in record["evidence"] for n in p["notes"]]
+    assert quotes == ["Observed fact"]
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.truthful-completion
+@pytest.mark.asyncio
+async def test_unconfirmed_fields_are_dropped_and_listed_as_missing(service):
+    service.driver.observation = shop_page(1, "Kit A costs 20,00 €.")
+
+    class PartialModels(Models):
+        plans = [done_plan("Kit A costs 20,00 €")]
+        verified = False
+        extracted = {
+            "data": {
+                "products": [
+                    {"name": "Kit A", "price": 20, "url": "https://invented.example/a"},
+                    {"name": "Kit Z", "price": 99},
+                ]
+            }
+        }
+
+    service.models_factory = PartialModels
+    result = await run(
+        service,
+        BrowseRequest(
+            task="List kits",
+            start_url="https://shop.example/page-1",
+            output_schema=SHOP_SCHEMA,
+        ),
+    )
+    assert result.status == "completed" and "Partial result" in result.reason
+    assert result.data == {"products": [{"name": "Kit A", "price": 20}]}
+    assert result.missing == ["/products/0/url", "/products/1"]
+    assert result.sources == [
+        {"url": "https://shop.example/page-1", "title": "Grow kits page 1"}
+    ]
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.truthful-completion
+@pytest.mark.asyncio
+@pytest.mark.parametrize("interaction", [0.99, 0.2])
+async def test_nothing_matched_or_unfinished_interaction_needs_the_user(
+    service, interaction
+):
+    class UnmatchedModels(Models):
+        verified = False
+        extracted = (
+            {"data": {"products": [{"name": "Invented kit", "price": 12}]}}
+            if interaction > 0.9
+            else {"data": {"products": [{"name": "Observed fact", "url": "x"}]}}
+        )
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.verification = {"interaction_score": interaction}
+
+    service.models_factory = UnmatchedModels
+    result = await run(service, arguments(output_schema=SHOP_SCHEMA))
+    assert result.status == "needs_user" and result.data is None
+    assert result.missing == [] and not result.observations
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.lifecycle,web-browse.sign-in
+@pytest.mark.asyncio
+@pytest.mark.parametrize("code", ["age_confirmation", "sign_in", "payment"])
+async def test_planner_block_needs_the_user_and_keeps_the_browser_running(
+    service, code
+):
+    class Blocked(Models):
+        plans = [{"notes": [], "actions": [], "done": False, "blocked": code}]
+
+    service.models_factory = Blocked
+    result = await run(service)
+    assert result.status == "needs_user" and result.data is None
+    if code == "age_confirmation":
+        assert "confirm your age" in result.reason
+    record = service.store.records[result.session_id]
+    assert record["status"] == "ai" and record["provider"]["running_since"]
+    assert "pause" not in service.driver.calls and not operations(service, "step")
+    state = await service.state(result.session_id, "owner")
+    assert state["phase"] == "idle"
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.exclusive-takeover
+@pytest.mark.asyncio
+async def test_unsafe_action_in_a_batch_sends_no_step(service):
+    class Unsafe(Models):
+        plans = [
+            action_plan(
+                {"kind": "scroll", "delta": 400}, {"kind": "click", "target": "4"}
+            )
+        ]
+        gate_reason = "The next action needs your review."
+
+    service.models_factory = Unsafe
+    result = await run(service)
+    assert result.status == "needs_user"
+    assert result.reason == "The next action needs your review."
+    assert not operations(service, "step")
+    assert not service.store.records[result.session_id].get("pending_action")
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.exclusive-takeover
+@pytest.mark.asyncio
+async def test_uncertain_step_outcome_needs_the_user_and_is_never_retried(service):
+    class Clicking(Models):
+        plans = [action_plan({"kind": "click", "target": "0"}), done_plan()]
+
+    service.models_factory = Clicking
+    service.driver.outcome = "uncertain"
+    result = await run(service)
+    assert result.status == "needs_user" and "uncertain" in result.reason
+    assert len(operations(service, "step")) == 1
+    record = service.store.records[result.session_id]
+    assert record["pending_action"]["kinds"] == ["click"]
+    assert "pause" not in service.driver.calls
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.budgets-and-stop,web-browse.cost-accounting
+@pytest.mark.asyncio
+async def test_budget_is_admitted_before_the_planner_call(service):
+    class Expensive(Models):
+        planner_bound = Decimal("5")
+
+    Models.planner_calls.clear()
+    service.models_factory = Expensive
+    result = await run(service)
+    assert result.status == "budget_exceeded"
+    assert Models.planner_calls == []  # The paid call never started.
+    record = service.store.records[result.session_id]
+    assert not record["pending_calls"] and record["inference_cost_usd"] == "0"
+    assert not operations(service, "step")
+    assert record["status"] == "paused" and "pause" in service.driver.calls
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.lifecycle,web-browse.private-storage-and-api
+@pytest.mark.asyncio
+async def test_live_view_during_an_ai_run_never_waits_on_the_lease_or_the_runtime(
+    service,
+):
+    class DelayedModels(Models):
+        started = asyncio.Event()
+        proceed = asyncio.Event()
+
+    service.driver.observation["screenshot"] = FRAME
+    service.models_factory = DelayedModels
+    task = asyncio.create_task(run(service))
+    await asyncio.wait_for(DelayedModels.started.wait(), 2)
+    session_id = next(iter(service.store.records))
+    calls = deepcopy(service.driver.calls)
+    async with service.store.lease(session_id):  # As if the run held it.
+        image = await asyncio.wait_for(service.frame(session_id, "owner"), 1)
+        state = await asyncio.wait_for(service.state(session_id, "owner"), 1)
+        for owner in ("stranger",):
+            with pytest.raises(HTTPException) as exc:
+                await asyncio.wait_for(service.frame(session_id, owner), 1)
+            assert exc.value.status_code == 404
+    assert image == b"observed-jpeg"
+    assert state["phase"] == "working" and state["status"] == "ai"
+    assert service.driver.calls == calls  # No `frame` RPC during an AI run.
+    DelayedModels.proceed.set()
+    result = await asyncio.wait_for(task, 2)
+    assert result.status == "completed"
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.exclusive-takeover,web-browse.private-storage-and-api
+@pytest.mark.asyncio
+async def test_manual_control_reads_live_frames_from_the_runtime(service):
+    service.models_factory = BlockedModels
+    result = await run(service)
+    await service.control(
+        result.session_id, "owner", BrowseControl(operation="take_control")
+    )
+    assert await service.frame(result.session_id, "owner") == b"observed-jpeg"
+    assert len(operations(service, "frame")) == 1
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.session-and-run,web-browse.lifecycle
+@pytest.mark.asyncio
+async def test_existing_session_resumes_with_observe_and_rejects_an_old_runtime(
+    service,
+):
+    first = await run(service)
+    followup = await run(
+        service,
+        BrowseRequest(task="Read again", session_id=first.session_id),
+        message_id="followup",
+    )
+    assert followup.status == "completed"
+    assert len(operations(service, "start")) == 1
+    assert operations(service, "observe")[0]["screenshot"] is True
+    service.driver.protocol = "preboot-v1"
+    old = await run(
+        service,
+        BrowseRequest(task="Read once more", session_id=first.session_id),
+        message_id="old-runtime",
+    )
+    assert old.status == "failed" and "outdated runtime" in old.reason
+    assert len(operations(service, "observe")) == 1  # Nothing observed on v1.

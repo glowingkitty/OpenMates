@@ -7596,6 +7596,48 @@
       },
       "no_frame": {
         "text": "Brak zapisanego zrzutu ekranu."
+      },
+      "phase_starting": {
+        "text": "Uruchamianie"
+      },
+      "phase_working": {
+        "text": "Pracuje"
+      },
+      "phase_finishing": {
+        "text": "Kończenie"
+      },
+      "starting_browser": {
+        "text": "Uruchamianie przeglądarki…"
+      },
+      "steps_title": {
+        "text": "Kroki"
+      },
+      "step_start": {
+        "text": "Uruchomiono przeglądarkę"
+      },
+      "step_goto": {
+        "text": "Otwarto stronę"
+      },
+      "step_click": {
+        "text": "Kliknięto"
+      },
+      "step_type": {
+        "text": "Wpisano w"
+      },
+      "step_select": {
+        "text": "Wybrano"
+      },
+      "step_scroll": {
+        "text": "Przewinięto"
+      },
+      "step_wait": {
+        "text": "Odczekano"
+      },
+      "step_back": {
+        "text": "Wrócono"
+      },
+      "partial": {
+        "text": "Częściowo zweryfikowano — nie można potwierdzić: {fields}"
       }
     },
     "authoring": {

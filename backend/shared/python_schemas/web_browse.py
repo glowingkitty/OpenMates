@@ -162,6 +162,9 @@ class BrowseResult(BaseModel):
     url: str = ""
     title: str = ""
     data: dict[str, Any] | list[Any] | None = None
+    # JSON Pointer paths dropped from a partial answer because code could not
+    # match them to the visited pages. Empty for complete answers.
+    missing: list[str] = Field(default_factory=list)
     sources: list[dict[str, Any]] = Field(default_factory=list)
     observations: dict[str, Any] = Field(default_factory=dict)
     screenshot_ref: dict[str, Any] | None = None

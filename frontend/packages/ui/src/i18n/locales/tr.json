@@ -7596,6 +7596,48 @@
       },
       "no_frame": {
         "text": "Kayıtlı ekran görüntüsü yok."
+      },
+      "phase_starting": {
+        "text": "Başlatılıyor"
+      },
+      "phase_working": {
+        "text": "Çalışıyor"
+      },
+      "phase_finishing": {
+        "text": "Tamamlanıyor"
+      },
+      "starting_browser": {
+        "text": "Tarayıcı başlatılıyor…"
+      },
+      "steps_title": {
+        "text": "Adımlar"
+      },
+      "step_start": {
+        "text": "Tarayıcı başlatıldı"
+      },
+      "step_goto": {
+        "text": "Sayfa açıldı"
+      },
+      "step_click": {
+        "text": "Tıklandı:"
+      },
+      "step_type": {
+        "text": "Şuraya yazıldı:"
+      },
+      "step_select": {
+        "text": "Seçildi:"
+      },
+      "step_scroll": {
+        "text": "Kaydırıldı"
+      },
+      "step_wait": {
+        "text": "Beklendi"
+      },
+      "step_back": {
+        "text": "Geri gidildi"
+      },
+      "partial": {
+        "text": "Kısmen doğrulandı — doğrulanamayanlar: {fields}"
       }
     },
     "authoring": {

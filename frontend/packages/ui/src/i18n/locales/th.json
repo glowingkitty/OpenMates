@@ -7596,6 +7596,48 @@
       },
       "no_frame": {
         "text": "ไม่มีภาพหน้าจอที่บันทึกไว้"
+      },
+      "phase_starting": {
+        "text": "กำลังเริ่ม"
+      },
+      "phase_working": {
+        "text": "กำลังทำงาน"
+      },
+      "phase_finishing": {
+        "text": "กำลังเสร็จสิ้น"
+      },
+      "starting_browser": {
+        "text": "กำลังเริ่มเบราว์เซอร์…"
+      },
+      "steps_title": {
+        "text": "ขั้นตอน"
+      },
+      "step_start": {
+        "text": "เริ่มเบราว์เซอร์แล้ว"
+      },
+      "step_goto": {
+        "text": "เปิดหน้าแล้ว"
+      },
+      "step_click": {
+        "text": "คลิก"
+      },
+      "step_type": {
+        "text": "พิมพ์ใน"
+      },
+      "step_select": {
+        "text": "เลือก"
+      },
+      "step_scroll": {
+        "text": "เลื่อนหน้า"
+      },
+      "step_wait": {
+        "text": "รอ"
+      },
+      "step_back": {
+        "text": "ย้อนกลับ"
+      },
+      "partial": {
+        "text": "ตรวจสอบบางส่วน — ยืนยันไม่ได้: {fields}"
       }
     },
     "authoring": {

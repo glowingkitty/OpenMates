@@ -7596,6 +7596,48 @@
       },
       "no_frame": {
         "text": "Сохранённый снимок недоступен."
+      },
+      "phase_starting": {
+        "text": "Запуск"
+      },
+      "phase_working": {
+        "text": "Работает"
+      },
+      "phase_finishing": {
+        "text": "Завершение"
+      },
+      "starting_browser": {
+        "text": "Запуск браузера…"
+      },
+      "steps_title": {
+        "text": "Шаги"
+      },
+      "step_start": {
+        "text": "Браузер запущен"
+      },
+      "step_goto": {
+        "text": "Страница открыта"
+      },
+      "step_click": {
+        "text": "Нажато"
+      },
+      "step_type": {
+        "text": "Введено в"
+      },
+      "step_select": {
+        "text": "Выбрано"
+      },
+      "step_scroll": {
+        "text": "Прокрутка"
+      },
+      "step_wait": {
+        "text": "Ожидание"
+      },
+      "step_back": {
+        "text": "Назад"
+      },
+      "partial": {
+        "text": "Проверено частично — не удалось подтвердить: {fields}"
       }
     },
     "authoring": {

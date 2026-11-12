@@ -30,8 +30,12 @@ sessions:
 control_loop:
   - id: observed-control
     given: The page exposes a Friday filter and a button currently covered by a popup.
-    when: Jev chooses a filter or click from the current observation.
-    then: Code validates the actual target; covered controls are rejected and successful actions are recorded before observing again.
+    when: The planner proposes selecting the filter and then clicking the button.
+    then: Code validates each actual target; the covered button is not clicked, the executed filter step is recorded, and the next observation decides what to do.
+  - id: facts-survive-navigation
+    given: The user asks for the price of a grow kit and the shop's shipping countries, which are on two different pages.
+    when: Browse reads the product page, notes the price with its quoted text, then opens the shipping page.
+    then: The price noted on the first page is still part of the answer after navigating, and a note whose quotation is not on its page is discarded.
   - id: absent-or-stale-visual-target
     given: A visual locator returns a box for a missing button, or the page changes after a decision.
     when: The worker validates that proposed click or receives a replayed delivery.
@@ -48,8 +52,12 @@ typing:
 outcomes:
   - id: verified-results
     given: The requested day and beginner filter are visibly applied and matching workshops are shown.
-    when: Jev proposes finishing.
-    then: The result identifies the observed matches and source page, and the assistant can present them with the browser embed.
+    when: The planner reports that the goal is covered.
+    then: The result identifies the observed matches and every source page, and the assistant can present them with the browser embed.
+  - id: partly-verified-answer
+    given: The user asks for name, price and stock status of three products; the pages show names and prices but never stock status.
+    when: Browse finishes and checks each value against what it recorded.
+    then: It returns the three names and prices with their source pages and lists stock status as missing, without inventing it and without discarding the verified values.
   - id: empty-or-blocked
     given: The requested filters yield no workshops, or a provider failure prevents further actions.
     when: Browse stops.
@@ -58,7 +66,7 @@ embeds:
   - id: watch-without-control
     given: AI is browsing and the owner opens the screenshot preview.
     when: Fullscreen displays the live session and the owner later closes it.
-    then: The user can observe progress without taking control, and closing the viewer does not change who controls the browser.
+    then: The user sees the current page and a list such as "Opened page", "Clicked 'Search'" without taking control, the view keeps updating while the AI works, and closing the viewer does not change who controls the browser.
   - id: reopen-after-expiry
     given: A completed run's remote browser has been deleted after its idle deadline.
     when: The user reopens the saved embed.
@@ -92,9 +100,13 @@ confirmations:
     then: Page instructions grant no authority; no consequential submission or automatic barrier bypass occurs.
 lifecycle:
   - id: free-paused-retention
-    given: The last meaningful interaction ended at noon and no task remains active.
+    given: The owner took control at noon, stopped interacting, and no task is active.
     when: Two minutes pass, and later twenty-four hours pass without owner activity.
     then: The sandbox is confirmed paused at 12:02 with no paused-runtime charge, and the paused session is deleted at noon the next day.
+  - id: pause-when-finished
+    given: A Browse task completes at 12:00:20 with its result.
+    when: The run ends without needing the user.
+    then: The browser is paused right away rather than running for two more minutes, and a follow-up task in the same chat resumes the same page.
   - id: activity-and-close
     given: A paused session receives viewer polling or an animated page had continued refreshing before pause.
     when: Polling continues, the owner resumes before expiry, or chooses Close session.
@@ -122,6 +134,10 @@ network:
     given: A public page redirects or loads a subresource pointing to loopback, cloud metadata or a private address.
     when: The browser attempts that request, including after a changed DNS answer.
     then: Enforced network policy denies the connection before private data or backend credentials can be reached.
+  - id: crawler-exclusions-for-pages
+    given: A shop's robots.txt disallows /checkout for all crawlers, and its product pages load images from a content network.
+    when: Browse opens a product page and is later asked to open /checkout.
+    then: The product page and its images load normally, and the /checkout navigation is refused as unavailable under the access policy.
   - id: external-instructions-and-source-rights
     given: Website content asks the agent to change its destination policy or access a retired provider through an undocumented endpoint.
     when: Browse considers that instruction or cannot complete required output-safety processing.

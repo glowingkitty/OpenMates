@@ -7623,6 +7623,48 @@
       },
       "no_frame": {
         "text": "Aucune capture enregistrée n’est disponible."
+      },
+      "phase_starting": {
+        "text": "Démarrage"
+      },
+      "phase_working": {
+        "text": "En cours"
+      },
+      "phase_finishing": {
+        "text": "Finalisation"
+      },
+      "starting_browser": {
+        "text": "Démarrage du navigateur…"
+      },
+      "steps_title": {
+        "text": "Étapes"
+      },
+      "step_start": {
+        "text": "Navigateur démarré"
+      },
+      "step_goto": {
+        "text": "Page ouverte"
+      },
+      "step_click": {
+        "text": "A cliqué sur"
+      },
+      "step_type": {
+        "text": "Saisi dans"
+      },
+      "step_select": {
+        "text": "Sélectionné"
+      },
+      "step_scroll": {
+        "text": "Défilement"
+      },
+      "step_wait": {
+        "text": "A attendu"
+      },
+      "step_back": {
+        "text": "Retour"
+      },
+      "partial": {
+        "text": "Vérifié en partie — impossible de confirmer : {fields}"
       }
     },
     "authoring": {

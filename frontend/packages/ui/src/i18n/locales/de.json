@@ -9242,6 +9242,48 @@
       },
       "no_frame": {
         "text": "Kein gespeicherter Screenshot verfügbar."
+      },
+      "phase_starting": {
+        "text": "Startet"
+      },
+      "phase_working": {
+        "text": "Arbeitet"
+      },
+      "phase_finishing": {
+        "text": "Schließt ab"
+      },
+      "starting_browser": {
+        "text": "Browser wird gestartet…"
+      },
+      "steps_title": {
+        "text": "Schritte"
+      },
+      "step_start": {
+        "text": "Browser gestartet"
+      },
+      "step_goto": {
+        "text": "Seite geöffnet"
+      },
+      "step_click": {
+        "text": "Geklickt auf"
+      },
+      "step_type": {
+        "text": "Eingegeben in"
+      },
+      "step_select": {
+        "text": "Ausgewählt:"
+      },
+      "step_scroll": {
+        "text": "Gescrollt"
+      },
+      "step_wait": {
+        "text": "Gewartet"
+      },
+      "step_back": {
+        "text": "Zurückgegangen"
+      },
+      "partial": {
+        "text": "Teilweise geprüft – nicht bestätigt: {fields}"
       }
     },
     "authoring": {

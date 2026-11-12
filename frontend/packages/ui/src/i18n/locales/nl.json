@@ -7596,6 +7596,48 @@
       },
       "no_frame": {
         "text": "Er is geen opgeslagen schermafbeelding beschikbaar."
+      },
+      "phase_starting": {
+        "text": "Starten"
+      },
+      "phase_working": {
+        "text": "Bezig"
+      },
+      "phase_finishing": {
+        "text": "Afronden"
+      },
+      "starting_browser": {
+        "text": "Browser starten…"
+      },
+      "steps_title": {
+        "text": "Stappen"
+      },
+      "step_start": {
+        "text": "Browser gestart"
+      },
+      "step_goto": {
+        "text": "Pagina geopend"
+      },
+      "step_click": {
+        "text": "Geklikt op"
+      },
+      "step_type": {
+        "text": "Getypt in"
+      },
+      "step_select": {
+        "text": "Geselecteerd"
+      },
+      "step_scroll": {
+        "text": "Gescrold"
+      },
+      "step_wait": {
+        "text": "Gewacht"
+      },
+      "step_back": {
+        "text": "Teruggegaan"
+      },
+      "partial": {
+        "text": "Gedeeltelijk geverifieerd — niet te bevestigen: {fields}"
       }
     },
     "authoring": {

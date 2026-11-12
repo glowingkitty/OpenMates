@@ -7596,6 +7596,48 @@
       },
       "no_frame": {
         "text": "没有可用的已保存截图。"
+      },
+      "phase_starting": {
+        "text": "启动中"
+      },
+      "phase_working": {
+        "text": "处理中"
+      },
+      "phase_finishing": {
+        "text": "即将完成"
+      },
+      "starting_browser": {
+        "text": "正在启动浏览器…"
+      },
+      "steps_title": {
+        "text": "步骤"
+      },
+      "step_start": {
+        "text": "已启动浏览器"
+      },
+      "step_goto": {
+        "text": "已打开页面"
+      },
+      "step_click": {
+        "text": "点击了"
+      },
+      "step_type": {
+        "text": "已输入到"
+      },
+      "step_select": {
+        "text": "已选择"
+      },
+      "step_scroll": {
+        "text": "已滚动"
+      },
+      "step_wait": {
+        "text": "已等待"
+      },
+      "step_back": {
+        "text": "已返回"
+      },
+      "partial": {
+        "text": "部分已验证——无法确认:{fields}"
       }
     },
     "authoring": {

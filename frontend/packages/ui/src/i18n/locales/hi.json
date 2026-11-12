@@ -7596,6 +7596,48 @@
       },
       "no_frame": {
         "text": "कोई सहेजा गया स्क्रीनशॉट उपलब्ध नहीं है।"
+      },
+      "phase_starting": {
+        "text": "शुरू हो रहा है"
+      },
+      "phase_working": {
+        "text": "काम जारी है"
+      },
+      "phase_finishing": {
+        "text": "पूरा हो रहा है"
+      },
+      "starting_browser": {
+        "text": "ब्राउज़र शुरू हो रहा है…"
+      },
+      "steps_title": {
+        "text": "चरण"
+      },
+      "step_start": {
+        "text": "ब्राउज़र शुरू हुआ"
+      },
+      "step_goto": {
+        "text": "पेज खोला गया"
+      },
+      "step_click": {
+        "text": "क्लिक किया:"
+      },
+      "step_type": {
+        "text": "इसमें लिखा:"
+      },
+      "step_select": {
+        "text": "चुना:"
+      },
+      "step_scroll": {
+        "text": "स्क्रॉल किया"
+      },
+      "step_wait": {
+        "text": "प्रतीक्षा की"
+      },
+      "step_back": {
+        "text": "वापस गया"
+      },
+      "partial": {
+        "text": "आंशिक रूप से सत्यापित — पुष्टि नहीं हो सकी: {fields}"
       }
     },
     "authoring": {

@@ -7596,6 +7596,48 @@
       },
       "no_frame": {
         "text": "Ingen sparad skärmbild finns."
+      },
+      "phase_starting": {
+        "text": "Startar"
+      },
+      "phase_working": {
+        "text": "Arbetar"
+      },
+      "phase_finishing": {
+        "text": "Avslutar"
+      },
+      "starting_browser": {
+        "text": "Startar webbläsaren…"
+      },
+      "steps_title": {
+        "text": "Steg"
+      },
+      "step_start": {
+        "text": "Webbläsaren startad"
+      },
+      "step_goto": {
+        "text": "Sidan öppnades"
+      },
+      "step_click": {
+        "text": "Klickade på"
+      },
+      "step_type": {
+        "text": "Skrev i"
+      },
+      "step_select": {
+        "text": "Valde"
+      },
+      "step_scroll": {
+        "text": "Scrollade"
+      },
+      "step_wait": {
+        "text": "Väntade"
+      },
+      "step_back": {
+        "text": "Gick tillbaka"
+      },
+      "partial": {
+        "text": "Delvis verifierat — kunde inte bekräfta: {fields}"
       }
     },
     "authoring": {

@@ -292,56 +292,264 @@ async def test_quote_review_has_a_small_native_output_bound(models, monkeypatch)
     models.after_attempt.assert_awaited_once()
 
 
-# contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.truthful-completion
-@pytest.mark.asyncio
-@pytest.mark.parametrize(
-    "ready,expected", [(0.97, "done"), (0.16, "click"), (0.54, "click")]
-)
-# contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.truthful-completion
-async def test_ready_information_avoids_unnecessary_navigation_but_required_actions_continue(
-    models, ready, expected
-):
-    models.decision = AsyncMock(
-        side_effect=[
-            SimpleNamespace(
-                answers={
-                    "information_ready": SimpleNamespace(noul=ready),
-                    "injection": SimpleNamespace(noul=0.01),
-                    "operation": SimpleNamespace(choice="click"),
-                }
-            ),
-            SimpleNamespace(answers={"safe": SimpleNamespace(noul=0.99)}),
-        ]
+def answers(**scores):
+    return SimpleNamespace(
+        answers={k: SimpleNamespace(noul=v) for k, v in scores.items()}
     )
-    result = await models.choose(
+
+
+PAGE = {
+    "url": "https://example.com/",
+    "title": "Example",
+    "text": "Grow kits. Kit A costs 20 EUR.",
+    "document_text": "Grow kits. Kit A costs 20 EUR.",
+    "controls": [
         {
-            "url": "https://example.com/",
-            "controls": [
-                {"id": "0", "kind": "click", "label": "Learn more", "role": "link"}
-            ],
+            "id": "0",
+            "kind": "click",
+            "role": "link",
+            "label": "Next",
+            "href": "https://example.com/2",
         },
-        "Read the page purpose",
-        [],
-    )
-    assert result["kind"] == expected
-    assert models.decision.await_count == (1 if expected == "done" else 2)
+        {"id": "1", "kind": "type", "role": "textbox", "label": "Search"},
+        {"id": "2", "kind": "click", "role": "button", "label": "Filter"},
+        {
+            "id": "3",
+            "kind": "select",
+            "role": "combobox",
+            "label": "Sort",
+            "options": [{"label": "Price", "value": "price"}],
+        },
+        {"id": "4", "kind": "click", "role": "button", "label": "Checkout now"},
+    ],
+    "observation_id": "o1",
+}
 
 
 # contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.network-and-content
 @pytest.mark.asyncio
-async def test_information_readiness_cannot_override_a_page_injection_block(models):
+async def test_gate_blocks_a_page_injection_even_for_plain_actions(models):
+    models.decision = AsyncMock(return_value=answers(injection=0.9))
+    reason = await models.gate(
+        "Read the page", PAGE, [{"kind": "scroll", "delta": 400}]
+    )
+    assert reason == "The page contains untrusted instructions requiring review."
+    models.decision.assert_awaited_once()
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.exclusive-takeover
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "filter_safe,expected", [(0.99, None), (0.5, "The next action needs your review.")]
+)
+async def test_gate_asks_one_safe_question_per_non_plain_action_in_one_call(
+    models, filter_safe, expected
+):
     models.decision = AsyncMock(
-        return_value=SimpleNamespace(
-            answers={
-                "information_ready": SimpleNamespace(noul=0.99),
-                "injection": SimpleNamespace(noul=0.9),
-                "operation": SimpleNamespace(choice="done"),
-            }
+        return_value=answers(injection=0.01, safe_2=0.99, safe_3=filter_safe)
+    )
+    batch = [
+        {"kind": "scroll", "delta": 300},
+        {"kind": "click", "target": "0"},
+        {"kind": "type", "target": "1", "text": "private search words", "submit": True},
+        {"kind": "click", "target": "2"},
+    ]
+    assert await models.gate("Find kits", PAGE, batch) == expected
+    models.decision.assert_awaited_once()
+    state, questions = models.decision.await_args.args
+    assert set(questions) == {"injection", "safe_2", "safe_3"}
+    assert [a["index"] for a in state["planned_actions"]] == [2, 3]
+    assert "private search words" not in json.dumps(state)  # Typed text stays out.
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.exclusive-takeover
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "action",
+    [
+        {"kind": "click", "target": "4"},
+        {"kind": "goto", "url": "https://example.com/checkout"},
+    ],
+)
+async def test_dangerous_target_blocks_the_batch_without_a_model_call(models, action):
+    models.decision = AsyncMock()
+    reason = await models.gate(
+        "Buy nothing", PAGE, [{"kind": "scroll", "delta": 100}, action]
+    )
+    assert reason == "This action requires your control or explicit confirmation."
+    models.decision.assert_not_awaited()
+
+
+VALID_PLAN = {
+    "notes": [{"fact": "Kit A is 20 EUR", "quote": "Kit A costs 20 EUR."}],
+    "actions": [
+        {"kind": "type", "target": "1", "text": "kits", "submit": True},
+        {"kind": "select", "target": "3", "value": "price"},
+        {"kind": "click", "target": 2},
+    ],
+    "done": False,
+    "blocked": None,
+}
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.text-helper
+@pytest.mark.asyncio
+async def test_plan_is_validated_against_the_observation(models):
+    models.text_call = AsyncMock(return_value=VALID_PLAN)
+    plan = await models.plan(
+        task="Find kits",
+        output_schema={"type": "object"},
+        observation=PAGE,
+        ledger=[],
+        history=[],
+    )
+    assert plan["actions"][2] == {"kind": "click", "target": "2"}
+    assert models.text_call.await_args.kwargs["output_tokens"] == 4096
+    assert models.text_call.await_args.kwargs["purpose"] == "plan"
+    finished = {**VALID_PLAN, "done": True}
+    models.text_call = AsyncMock(return_value=finished)
+    done = await models.plan(
+        task="Find kits",
+        output_schema={"type": "object"},
+        observation=PAGE,
+        ledger=[],
+        history=[],
+    )
+    assert done["done"] and done["actions"] == []  # A finished plan never acts.
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"actions": [{"kind": "click", "target": "99"}]},
+        {"actions": [{"kind": "click", "target": "1"}]},
+        {"actions": [{"kind": "click", "target": "0", "selector": "#x"}]},
+        {"actions": [{"kind": "select", "target": "3", "value": "unobserved"}]},
+        {"actions": [{"kind": "goto", "url": "http://example.com/"}]},
+        {
+            "actions": [
+                {"kind": "goto", "url": "https://example.com/"},
+                {"kind": "wait"},
+            ]
+        },
+        {"actions": [{"kind": "scroll", "delta": 5000}]},
+        {"actions": [{"kind": "run_script"}]},
+        {"actions": [{"kind": "wait"}] * 7},
+        {"actions": []},
+        {"blocked": "something_else"},
+        {"done": "yes"},
+        {"notes": [{"fact": "x"}]},
+        {"extra": True},
+    ],
+)
+# contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.text-helper
+async def test_invalid_plans_fail_with_a_content_free_code(models, change):
+    models.text_call = AsyncMock(return_value={**VALID_PLAN, **change})
+    with pytest.raises(BrowserModelError) as caught:
+        await models.plan(
+            task="Find kits",
+            output_schema={"type": "object"},
+            observation=PAGE,
+            ledger=[],
+            history=[],
+        )
+    assert caught.value.safe_details == {
+        "model_error_code": "invalid_plan",
+        "text_helper_purpose": "plan",
+    }
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.text-helper
+@pytest.mark.asyncio
+async def test_one_invalid_plan_gets_a_single_metered_repair_attempt(models):
+    models.text_call = AsyncMock(
+        side_effect=[{**VALID_PLAN, "extra": True}, VALID_PLAN]
+    )
+    plan = await models.plan(
+        task="Find kits",
+        output_schema={"type": "object"},
+        observation=PAGE,
+        ledger=[],
+        history=[],
+    )
+    assert plan["actions"]
+    assert models.text_call.await_count == 2
+    assert "previous_plan_rejected" in models.text_call.await_args.args[0]
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.text-helper,web-browse.private-storage-and-api,web-browse.cost-accounting
+@pytest.mark.asyncio
+async def test_private_account_planner_uses_the_permitted_route_with_admission(
+    models, monkeypatch
+):
+    monkeypatch.setenv("WEB_BROWSE_TOGETHER_ZDR_VERIFIED", "true")
+    models.private_account = True
+    fallback = google_fallback(monkeypatch)
+    fallback.return_value.direct_message_content = json.dumps(
+        {"notes": [], "actions": [{"kind": "wait"}], "done": False, "blocked": None}
+    )
+
+    def forbidden(request):
+        raise AssertionError("Private account context reached Together")
+
+    transport(monkeypatch, forbidden)
+    plan = await models.plan(
+        task="Read my orders",
+        output_schema={"type": "object"},
+        observation=PAGE,
+        ledger=[{"url": "https://example.com/", "title": "Example", "notes": []}],
+        history=[{"kind": "click", "target": "0", "outcome": "executed"}],
+    )
+    assert plan["actions"] == [{"kind": "wait"}]
+    assert fallback.await_args.kwargs["max_tokens"] == 4096
+    context = json.loads(fallback.await_args.kwargs["messages"][1]["content"])
+    assert context["page"]["controls"][0]["id"] == "0"
+    assert context["evidence"]["pages"][0]["url"] == "https://example.com/"
+    models.before_attempt.assert_awaited_once()
+    models.after_attempt.assert_awaited_once()
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.truthful-completion,web-browse.structured-data
+@pytest.mark.asyncio
+async def test_verification_sees_the_ledger_and_quote_proof_accepts_ledger_quotes(
+    models,
+):
+    models.decision = AsyncMock(
+        return_value=answers(
+            grounded=0.6, answer_complete=0.5, interaction_complete=0.99, empty=0.01
         )
     )
-    assert (await models.choose({"controls": []}, "Read the page", []))[
-        "kind"
-    ] == "blocked"
+    models.generate = AsyncMock(
+        return_value={"grounded": True, "answer_complete": True}
+    )
+    ledger = [
+        {
+            "url": "https://example.com/1",
+            "title": "One",
+            "notes": [{"fact": "Kit A", "quote": "Kit A costs 20 EUR."}],
+        }
+    ]
+    observed = {"url": "https://example.com/2", "title": "Two", "text": "Kit B"}
+    data = {"first": "Kit A costs 20 EUR.", "second": "Kit B"}
+    assert await models.verify("List kits", observed, data, evidence=ledger) is True
+    state = models.decision.await_args.args[0]
+    assert state["observed_evidence"]["pages"] == ledger
+    assert state["proposed_answer"]["sources"] == [
+        {"url": "https://example.com/1", "title": "One"},
+        {"url": "https://example.com/2", "title": "Two"},
+    ]
+    proofs = models.generate.await_args.args[0]["matched_quotations"]
+    assert [p["source"] for p in proofs] == ["evidence", "document"]
+    # Model-authored facts never count as literal evidence.
+    assert (
+        matched_quotations(
+            {"x": "Kit A"},
+            {"text": ""},
+            [{"url": "u", "notes": [{"fact": "Kit A", "quote": "other"}]}],
+        )
+        is None
+    )
 
 
 # contract-test: supporting surface=rest_api assertions=web-browse.cost-accounting,web-browse.text-helper
@@ -394,7 +602,7 @@ async def test_primary_together_model_receives_only_bounded_field_context(
 
     transport(monkeypatch, handle)
     result = await models.generate(
-        {"purpose": "type", "goal": "Search for Paris", "field": {"label": "Search"}}
+        {"purpose": "extract", "goal": "Search for Paris", "field": {"label": "Search"}}
     )
     assert result == {"text": "Paris"}
     assert requests[0]["model"] == "deepseek-ai/DeepSeek-V4.1-Flash-1017"
@@ -408,12 +616,16 @@ async def test_primary_together_model_receives_only_bounded_field_context(
 @pytest.mark.parametrize(
     "context,verified",
     [
-        ({"purpose": "type", "goal": "Search for Paris"}, False),
+        ({"purpose": "extract", "goal": "Search for Paris"}, False),
         (
-            {"purpose": "type", "goal": "Read this account", "private_account": True},
+            {
+                "purpose": "extract",
+                "goal": "Read this account",
+                "private_account": True,
+            },
             True,
         ),
-        ({"purpose": "type", "goal": "Search a medical diagnosis"}, True),
+        ({"purpose": "extract", "goal": "Search a medical diagnosis"}, True),
     ],
 )
 # contract-test: supporting surface=rest_api assertions=web-browse.text-helper,web-browse.private-storage-and-api
@@ -460,7 +672,7 @@ async def test_google_protocol_default_never_fabricates_usage_for_incomplete_or_
     else:
         response.success = False
     with pytest.raises(BrowserModelError, match="accounting reconciliation"):
-        await models.generate({"purpose": "type", "goal": "Search for Paris"})
+        await models.generate({"purpose": "extract", "goal": "Search for Paris"})
     assert models.attempts[0]["usage"]["cache_read_input_tokens"] is None
 
 
@@ -486,7 +698,7 @@ async def test_missing_google_key_stops_before_model_admission(models, monkeypat
     module = sys.modules["backend.apps.ai.llm_providers.google_client"]
     module._get_google_ai_studio_api_key.return_value = None
     with pytest.raises(BrowserModelError, match="unavailable"):
-        await models.generate({"purpose": "type", "goal": "Search for Paris"})
+        await models.generate({"purpose": "extract", "goal": "Search for Paris"})
     models.before_attempt.assert_not_awaited()
     fallback.assert_not_awaited()
     assert models.attempts == []
@@ -500,9 +712,9 @@ async def test_primary_admission_rejection_falls_back_once_with_its_own_native_u
     monkeypatch.setenv("WEB_BROWSE_TOGETHER_ZDR_VERIFIED", "true")
     fallback = google_fallback(monkeypatch)
     transport(monkeypatch, lambda request: httpx.Response(429, json={"error": "quota"}))
-    assert await models.generate({"purpose": "type", "goal": "Search for Paris"}) == {
-        "text": "Paris"
-    }
+    assert await models.generate(
+        {"purpose": "extract", "goal": "Search for Paris"}
+    ) == {"text": "Paris"}
     assert len(models.attempts) == 2
     assert models.attempts[0]["cost_usd"] == "0"
     assert models.attempts[1]["model"] == "google/gemini-3.8-flash"
@@ -523,7 +735,7 @@ async def test_missing_provider_usage_stops_without_free_success_or_blind_retry(
         ),
     )
     with pytest.raises(BrowserModelError, match="accounting reconciliation"):
-        await models.generate({"purpose": "type", "goal": "Search for Paris"})
+        await models.generate({"purpose": "extract", "goal": "Search for Paris"})
     assert len(models.attempts) == 1 and not models.attempts[0]["complete"]
     assert models.after_attempt.await_args.args[1]["complete"] is False
     fallback.assert_not_awaited()

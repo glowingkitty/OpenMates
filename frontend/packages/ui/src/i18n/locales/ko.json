@@ -7596,6 +7596,48 @@
       },
       "no_frame": {
         "text": "저장된 화면이 없습니다."
+      },
+      "phase_starting": {
+        "text": "시작 중"
+      },
+      "phase_working": {
+        "text": "작업 중"
+      },
+      "phase_finishing": {
+        "text": "마무리 중"
+      },
+      "starting_browser": {
+        "text": "브라우저를 시작하는 중…"
+      },
+      "steps_title": {
+        "text": "단계"
+      },
+      "step_start": {
+        "text": "브라우저 시작됨"
+      },
+      "step_goto": {
+        "text": "페이지 열림"
+      },
+      "step_click": {
+        "text": "클릭:"
+      },
+      "step_type": {
+        "text": "입력:"
+      },
+      "step_select": {
+        "text": "선택:"
+      },
+      "step_scroll": {
+        "text": "스크롤함"
+      },
+      "step_wait": {
+        "text": "대기함"
+      },
+      "step_back": {
+        "text": "뒤로 이동함"
+      },
+      "partial": {
+        "text": "일부만 확인됨 — 확인하지 못한 항목: {fields}"
       }
     },
     "authoring": {

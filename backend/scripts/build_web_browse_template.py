@@ -97,7 +97,7 @@ def main() -> None:
                 "memory_mb": 4096,
                 "contains_user_state": False,
                 "prebooted": True,
-                "runtime_protocol": "preboot-v1",
+                "runtime_protocol": "preboot-v2",
             }
         )
     )

@@ -7596,6 +7596,48 @@
       },
       "no_frame": {
         "text": "Uložený snímek není k dispozici."
+      },
+      "phase_starting": {
+        "text": "Spouštění"
+      },
+      "phase_working": {
+        "text": "Pracuje"
+      },
+      "phase_finishing": {
+        "text": "Dokončování"
+      },
+      "starting_browser": {
+        "text": "Spouštění prohlížeče…"
+      },
+      "steps_title": {
+        "text": "Kroky"
+      },
+      "step_start": {
+        "text": "Prohlížeč spuštěn"
+      },
+      "step_goto": {
+        "text": "Stránka otevřena"
+      },
+      "step_click": {
+        "text": "Kliknuto na"
+      },
+      "step_type": {
+        "text": "Zadáno do"
+      },
+      "step_select": {
+        "text": "Vybráno"
+      },
+      "step_scroll": {
+        "text": "Posunuto"
+      },
+      "step_wait": {
+        "text": "Čekáno"
+      },
+      "step_back": {
+        "text": "Zpět"
+      },
+      "partial": {
+        "text": "Částečně ověřeno — nelze potvrdit: {fields}"
       }
     },
     "authoring": {

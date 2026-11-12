@@ -7596,6 +7596,48 @@
       },
       "no_frame": {
         "text": "אין צילום מסך שמור."
+      },
+      "phase_starting": {
+        "text": "מתחיל"
+      },
+      "phase_working": {
+        "text": "עובד"
+      },
+      "phase_finishing": {
+        "text": "מסיים"
+      },
+      "starting_browser": {
+        "text": "מפעיל את הדפדפן…"
+      },
+      "steps_title": {
+        "text": "שלבים"
+      },
+      "step_start": {
+        "text": "הדפדפן הופעל"
+      },
+      "step_goto": {
+        "text": "הדף נפתח"
+      },
+      "step_click": {
+        "text": "לחיצה על"
+      },
+      "step_type": {
+        "text": "הוקלד ב"
+      },
+      "step_select": {
+        "text": "נבחר"
+      },
+      "step_scroll": {
+        "text": "גלילה"
+      },
+      "step_wait": {
+        "text": "המתין"
+      },
+      "step_back": {
+        "text": "חזר אחורה"
+      },
+      "partial": {
+        "text": "אומת חלקית — לא ניתן לאשר: {fields}"
       }
     },
     "authoring": {

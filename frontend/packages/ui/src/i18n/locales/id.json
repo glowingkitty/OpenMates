@@ -7596,6 +7596,48 @@
       },
       "no_frame": {
         "text": "Tidak ada tangkapan layar tersimpan."
+      },
+      "phase_starting": {
+        "text": "Memulai"
+      },
+      "phase_working": {
+        "text": "Bekerja"
+      },
+      "phase_finishing": {
+        "text": "Menyelesaikan"
+      },
+      "starting_browser": {
+        "text": "Memulai browser…"
+      },
+      "steps_title": {
+        "text": "Langkah"
+      },
+      "step_start": {
+        "text": "Browser dimulai"
+      },
+      "step_goto": {
+        "text": "Halaman dibuka"
+      },
+      "step_click": {
+        "text": "Mengeklik"
+      },
+      "step_type": {
+        "text": "Mengetik di"
+      },
+      "step_select": {
+        "text": "Memilih"
+      },
+      "step_scroll": {
+        "text": "Menggulir"
+      },
+      "step_wait": {
+        "text": "Menunggu"
+      },
+      "step_back": {
+        "text": "Kembali"
+      },
+      "partial": {
+        "text": "Terverifikasi sebagian — tidak dapat dikonfirmasi: {fields}"
       }
     },
     "authoring": {

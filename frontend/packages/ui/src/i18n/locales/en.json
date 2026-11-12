@@ -9271,6 +9271,48 @@
       },
       "no_frame": {
         "text": "No saved screenshot is available."
+      },
+      "phase_starting": {
+        "text": "Starting"
+      },
+      "phase_working": {
+        "text": "Working"
+      },
+      "phase_finishing": {
+        "text": "Finishing"
+      },
+      "starting_browser": {
+        "text": "Starting browser…"
+      },
+      "steps_title": {
+        "text": "Steps"
+      },
+      "step_start": {
+        "text": "Started browser"
+      },
+      "step_goto": {
+        "text": "Opened page"
+      },
+      "step_click": {
+        "text": "Clicked"
+      },
+      "step_type": {
+        "text": "Typed into"
+      },
+      "step_select": {
+        "text": "Selected"
+      },
+      "step_scroll": {
+        "text": "Scrolled"
+      },
+      "step_wait": {
+        "text": "Waited"
+      },
+      "step_back": {
+        "text": "Went back"
+      },
+      "partial": {
+        "text": "Partly verified — could not confirm: {fields}"
       }
     },
     "authoring": {

@@ -7596,6 +7596,48 @@
       },
       "no_frame": {
         "text": "Không có ảnh chụp màn hình đã lưu."
+      },
+      "phase_starting": {
+        "text": "Đang khởi động"
+      },
+      "phase_working": {
+        "text": "Đang làm việc"
+      },
+      "phase_finishing": {
+        "text": "Đang hoàn tất"
+      },
+      "starting_browser": {
+        "text": "Đang khởi động trình duyệt…"
+      },
+      "steps_title": {
+        "text": "Các bước"
+      },
+      "step_start": {
+        "text": "Đã khởi động trình duyệt"
+      },
+      "step_goto": {
+        "text": "Đã mở trang"
+      },
+      "step_click": {
+        "text": "Đã nhấp vào"
+      },
+      "step_type": {
+        "text": "Đã nhập vào"
+      },
+      "step_select": {
+        "text": "Đã chọn"
+      },
+      "step_scroll": {
+        "text": "Đã cuộn"
+      },
+      "step_wait": {
+        "text": "Đã chờ"
+      },
+      "step_back": {
+        "text": "Đã quay lại"
+      },
+      "partial": {
+        "text": "Xác minh một phần — không thể xác nhận: {fields}"
       }
     },
     "authoring": {

@@ -10,29 +10,37 @@ This document records the implementation and provider integration; it does not c
 
 The skill admits a wallet reservation and creates encrypted owner/chat state before dispatching onto the existing `app_code` E2B worker. The broker carries opaque session/run/embed identities. Its exact invocation uses the existing detached-producer admission and deduplication protocol. Each run has a stable job identity; completed replays read its original encrypted result.
 
-The worker owns observe → decide → validate → act. Jev chooses compatible operations and indexed DOM targets, with the current screenshot as image input. Code consumes each observation once and rechecks URL, target identity, geometry and occlusion. Generated text is a bounded JSON field value, never executable code, a selector or a shell command. Unsupported canvas, shadow-root, frame, upload and popup interactions require user intervention; Box-based targeting is not enabled without separate presence and geometry validation.
+The run loop lives in `web_browse_run.py`; `BrowseService.run` keeps admission, identity, replay and the final result and settlement. The browser runtime speaks protocol `preboot-v2`. A runtime that reports another protocol fails with a clear unavailable error.
 
-Model calls execute outside the session execution lock. Manual takeover invalidates the browser observation and pending decisions; code rechecks the controller before input. Viewing frames does not grant control. Manual sign-in consent is checked against the live origin. Pages requesting passwords, MFA or card secrets produce masked saved/AI previews and no text/control observations. Live frames during manual control go only to the authenticated owner and are not persisted.
+A run starts with one `start` call, which does the live and blank-state checks, the crawler-policy check, navigation, a bounded settle and the first observation. An existing session resumes and calls `observe` instead. Each step then has this order:
 
-The final result contains extracted and verified JSON `data`, source references, complete bounded extracted `observations`, a safe screenshot and timing/usage counters. `screenshot_ref` identifies the image inside the owner-authorized encrypted result; the binary `screenshot_base64` field is excluded from model input. Browser-job result bodies are encrypted separately from the Celery task backend. Transient results expire after 24 hours; saved encrypted chat embeds have independent retention.
+1. Blocked, private-input and no-progress checks on the current observation.
+2. One planner call (text helper, 4,096 output tokens). The input is the goal, the output schema, the page (URL, title, dialogs, up to 150 controls, visible text and a document excerpt of at most 24,000 characters around the viewport), the evidence ledger and the last 8 action results. The reply is strict JSON with `notes`, `actions`, `done` and `blocked`. An invalid plan gets one repair attempt with the rejection reason; a second invalid plan fails the run. `blocked` is one of the fixed codes `sign_in`, `captcha`, `payment`, `sending`, `deleting`, `personal_information`, `age_confirmation` and `access_denied`. Each code maps to a fixed user-facing reason, so page-influenced text never becomes a reason.
+3. One Jev gate call: the injection question on the page plus one `safe` question for each planned action that is not scroll, wait, back or a plain HTTPS link click. A label, href or URL matching the dangerous-action pattern ends the run as `needs_user` before the call. Any unsafe answer or injection above the threshold also ends it as `needs_user`.
+4. Notes that pass the code check enter the evidence ledger.
+5. One `step` call runs up to six planned actions, with one pending-action journal entry per batch.
 
-Every completed information task extracts a goal-specific answer, using a default
-object schema when the caller omits `output_schema`. Raw tables, links and full
-page text remain in the separately checked observations. Snapshot metadata does
-not stand in for the requested answer.
+The run finishes when the planner returns `done`, when it is blocked, or when a limit is reached. Code, not the model, decides which targets exist, which dropdown values are allowed and which URLs may be opened. Actions are `click`, `type` (optionally submitting with Enter), `select`, `scroll`, `wait`, `back` and `goto`; `goto` is only valid as the single action of a batch. Generated text is a bounded JSON field value, never executable code, a selector or a shell command. A `step` call rejects a stale observation id and checks each action against the snapshot of that observation for URL, target identity, geometry and occlusion. The batch stops without error before the first action that fails those checks and after any action that changes the URL; the rest are reported as skipped. An exception after input was sent is an uncertain outcome and ends the run as `needs_user` without a retry. Controls outside the viewport are valid targets; the runtime scrolls them into view. Unsupported canvas, upload and popup interactions require user intervention; Box-based targeting is not enabled without separate presence and geometry validation.
 
-Literal string-only answers have an additional verification path when the normal
-Jev answer check abstains. Code first matches every nonempty leaf to observed
-page text or URLs; unmatched values, paraphrases, numbers and empty containers
-cannot use this path. A separately metered, 256-output-token text-helper call
-then checks field meanings, relationships and complete requested coverage.
-Quotation presence alone cannot pass. Required website actions still need the
-existing Jev verification, and output schema/safety validation remains mandatory.
-The original Jev thresholds are unchanged. Native controls cover a complete
-quotation, omitted caveats, invented claims, an inverted claim and unfinished
-navigation. Use `backend/scripts/test_web_browse_text_helpers.py --execute` with a
-retained public observation to repeat those provider controls without revisiting
-the website; this does not substitute for real CLI/SDK proof.
+After each navigation or input the runtime settles: `domcontentloaded`, then no request in flight and no DOM mutation for 300 ms, capped at 2.5 seconds. Observations cover the whole document, including open shadow roots and same-origin frames, with up to 150 controls and the full document text (120,000 characters at most, marked when truncated). Screenshots are JPEG quality 60.
+
+Model calls execute outside the session execution lock. The lock is held only around browser input, and the run reloads the record to detect manual takeover before any input. Takeover invalidates the browser observation and pending decisions. Viewing frames does not grant control. Manual sign-in consent is checked against the live origin. Pages requesting passwords, MFA or card secrets produce masked saved/AI previews and no text/control observations. Live frames during manual control go only to the authenticated owner and are not persisted.
+
+The final result contains extracted and verified JSON `data`, `missing` JSON paths for values that could not be confirmed, source references, bounded checked `observations` of the last page, a safe screenshot and timing/usage counters. `screenshot_ref` identifies the image inside the owner-authorized encrypted result; the binary `screenshot_base64` field is excluded from model input. Browser-job result bodies are encrypted separately from the Celery task backend. Transient results expire after 24 hours; saved encrypted chat embeds have independent retention.
+
+## Evidence ledger and answer checks
+
+The ledger is the run's memory across pages: one entry per page with `{fact, quote}` notes. It is stored in the encrypted session record, so a takeover or continuation keeps it. Code accepts a note only when its quote, whitespace and case normalised and at least 3 characters long, occurs in the current page's document text or equals an observed link URL. Other notes are counted as rejected and never stored. Limits are 60 pages, 400 notes and 600 characters per quote. A page enters the ledger only when it has at least one accepted note.
+
+Every completed information task extracts a goal-specific answer once, from the goal, the schema, the ledger and the current page. It uses a default object schema when the caller omits `output_schema`. Raw tables, links and full page text remain in the separately checked observations. Snapshot metadata does not stand in for the requested answer.
+
+Code then matches every string and number leaf of the answer. A leaf is matched when it occurs in a ledger quote, the current page text or an observed URL; numbers compare digit sequences. The model-written `fact` text is never used for matching. Then one Jev verification judges the whole answer against the current page and the ledger quotes (grounded, answer complete, interaction complete, empty search), with unchanged thresholds. The outcome is:
+
+- Jev accepts: `completed` with the answer as extracted.
+- Jev rejects, but interaction is complete and code matched every leaf: a separately metered text-helper call (256 output tokens) checks field meanings, relationships and complete requested coverage. Quotation presence alone cannot pass.
+- Otherwise, when interaction is complete and something matched: unmatched leaves are removed (set to `null`, array items without a matched leaf dropped). If the pruned answer still validates against the schema, the result is `completed` with `missing` listing the dropped paths and a reason that says it is partial. Without a matched value, or with an incomplete interaction, the result is `needs_user`.
+
+`sources` list every page that contributed a matched value. Required website actions still need the Jev interaction check, and output schema and safety validation remain mandatory. Use `backend/scripts/test_web_browse_text_helpers.py --execute` with a retained public observation to repeat the provider controls without revisiting the website; this does not substitute for real CLI/SDK proof.
 
 ## First-party HTTP contract
 
@@ -76,7 +84,7 @@ check verifies the live page is `about:blank` with no cookies or stored origins
 before any page navigation or model access. There is no profile reuse or browser
 state clearing operation intended to make a used VM available to another user.
 
-The browser uses authenticated E2B ingress plus a separate RPC bearer. Neither credential enters chat embeds, model state or viewer URLs. E2B egress rules deny private networks; the browser independently checks public HTTPS destinations, DNS answers and robots exclusions for navigation and subresources. Popups and WebSockets are not alternate unguarded channels. The browser never receives OpenMates credentials.
+The browser uses authenticated E2B ingress plus a separate RPC bearer. Neither credential enters chat embeds, model state or viewer URLs. E2B egress rules deny private networks; the browser independently checks public HTTPS destinations, DNS answers for navigation and subresources. Robots exclusions are checked for document navigations (main frame and subframes); other subresources skip the robots lookup but still use the pinned transport. Block detection is structural: a 401, 403 or 429 navigation response, a CAPTCHA frame or widget, or a page with under 1,500 characters of text whose text or title matches the human-verification, access-denied or paywall patterns. A long article that mentions a CAPTCHA is not blocked. Popups and WebSockets are not alternate unguarded channels. The browser never receives OpenMates credentials.
 
 Chromium and the robots reader share a CONNECT-only loopback transport. It resolves IPv4, rejects any non-public DNS answer and connects to the validated literal IP without a second resolution. Origin TLS/SNI and certificate validation remain with the clients. QUIC, non-proxied WebRTC and Chromium's implicit loopback bypass are disabled; there is no direct transport fallback. IPv6-only destinations are currently unavailable. This transport also covers unspecified/reserved addresses that E2B's denial-list validator cannot express using an unspecified CIDR base. The reviewed provider implementation is [E2B's validation](https://github.com/e2b-dev/runtime/blob/main/packages/shared/pkg/sandbox-network/firewall.go) and [connection filtering](https://github.com/e2b-dev/runtime/blob/main/packages/orchestrator/pkg/tcpfirewall/handlers.go).
 
@@ -86,7 +94,7 @@ Google's successful GenerateContent usage reports use a [proto3 scalar cache cou
 
 Supplier compute is measured from actual allocation and confirmed lifecycle events using allocated CPU/memory. For a verified 2-CPU/4-GiB instance the reviewed rate is `$0.000046/second`; resource metadata is checked rather than assumed. All internal model attempts and inherited output-safety decisions add native usage at the actual provider's effective tariff. The strict output boundary stops if safety processing cannot complete; it cannot introduce an unmetered generative fallback.
 
-Customer credits are the existing floor/minimum policy applied once to cumulative supplier USD × 2 ÷ `$0.001`. There is no per-click minimum or additional public `ai.decide` markup. Running manual use and idle grace count; confirmed pause is free. Idle compute pauses after 120 seconds, and an independent worker deletes remote state after 86400 idle seconds. Polling does not extend either deadline or resume compute. Missing usage keeps the reservation for reconciliation instead of creating free successful work. Ordinary assistant inference has separate billing.
+Customer credits are the existing floor/minimum policy applied once to cumulative supplier USD × 2 ÷ `$0.001`. There is no per-click minimum or additional public `ai.decide` markup. Running manual use and idle grace count; confirmed pause is free. Compute pauses as soon as a run ends under AI control, except a `needs_user` run, which keeps its idle window so the owner can take over at once. Otherwise idle compute pauses after 120 seconds, and an independent worker deletes remote state after 86400 idle seconds. Polling does not extend either deadline or resume compute. Missing usage keeps the reservation for reconciliation instead of creating free successful work. Ordinary assistant inference has separate billing.
 
 Use `backend/scripts/test_web_browse_runtime.py --execute` for the provider smoke probe after deployment. This does not substitute for the required real CLI/library and web flows. Record startup, observation/action latency, model calls, native tokens, completion/failures and settled charges separately from estimates. The first prepared-template build took 57.76 seconds; this is one-time engineering preparation, not a measured user browsing latency.
 
@@ -106,7 +114,7 @@ General public reading honors crawler exclusions and stops at access denial, pay
 The user warning is contextual, once per site/session: this is a cloud browser; resumed AI can access account information and send relevant page content to providers. It offers Continue to sign in and Cancel. Login consent does not authorize consequential submissions.
 
 The web embed is implemented by `BrowseEmbedPreview`, `BrowseEmbedFullscreen`
-and `BrowseSessionViewer`. Authenticated frame requests use first-party cookies
+and `BrowseSessionViewer`. The viewer shows the step list (`steps`, target labels only, never typed text, last 80) and the `phase` from the state route, and the result views show `missing`. While an AI run is active, state and frame read the stored record without waiting on the session lock, and a frame is the latest stored observation screenshot; only manual control reads live pixels. Authenticated frame requests use first-party cookies
 and no-store transport; live object URLs are released on view/account changes.
 Public and read-only embeds use only their saved masked screenshot. A terminal
 result without one has an explicit missing-screenshot state. Watching does not

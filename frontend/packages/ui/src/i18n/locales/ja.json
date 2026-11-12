@@ -7596,6 +7596,48 @@
       },
       "no_frame": {
         "text": "保存された画像はありません。"
+      },
+      "phase_starting": {
+        "text": "起動中"
+      },
+      "phase_working": {
+        "text": "作業中"
+      },
+      "phase_finishing": {
+        "text": "仕上げ中"
+      },
+      "starting_browser": {
+        "text": "ブラウザーを起動しています…"
+      },
+      "steps_title": {
+        "text": "手順"
+      },
+      "step_start": {
+        "text": "ブラウザーを起動"
+      },
+      "step_goto": {
+        "text": "ページを開いた"
+      },
+      "step_click": {
+        "text": "クリック:"
+      },
+      "step_type": {
+        "text": "入力先:"
+      },
+      "step_select": {
+        "text": "選択:"
+      },
+      "step_scroll": {
+        "text": "スクロールした"
+      },
+      "step_wait": {
+        "text": "待機した"
+      },
+      "step_back": {
+        "text": "戻った"
+      },
+      "partial": {
+        "text": "一部のみ確認済み。確認できなかった項目: {fields}"
       }
     },
     "authoring": {

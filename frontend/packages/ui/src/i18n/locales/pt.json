@@ -7623,6 +7623,48 @@
       },
       "no_frame": {
         "text": "Não há nenhuma captura guardada disponível."
+      },
+      "phase_starting": {
+        "text": "A iniciar"
+      },
+      "phase_working": {
+        "text": "A trabalhar"
+      },
+      "phase_finishing": {
+        "text": "A concluir"
+      },
+      "starting_browser": {
+        "text": "A iniciar o navegador…"
+      },
+      "steps_title": {
+        "text": "Passos"
+      },
+      "step_start": {
+        "text": "Navegador iniciado"
+      },
+      "step_goto": {
+        "text": "Página aberta"
+      },
+      "step_click": {
+        "text": "Clicou em"
+      },
+      "step_type": {
+        "text": "Escreveu em"
+      },
+      "step_select": {
+        "text": "Selecionou"
+      },
+      "step_scroll": {
+        "text": "Deslocou"
+      },
+      "step_wait": {
+        "text": "Esperou"
+      },
+      "step_back": {
+        "text": "Voltou"
+      },
+      "partial": {
+        "text": "Verificado em parte — não foi possível confirmar: {fields}"
       }
     },
     "authoring": {

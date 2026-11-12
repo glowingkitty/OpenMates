@@ -151,3 +151,46 @@ for (const width of [1280, 390]) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
 }
+
+for (const width of [1280, 390]) {
+  // contract-test: supporting surface=gui.web assertions=web-browse.embed-and-observation,web-browse.truthful-completion
+  test(`Browse v2 starting, working steps and partial result states at ${width}px`, async ({ page }, info) => {
+    test.setTimeout(90_000);
+    await preview(page, 'BrowseSessionViewer', width, 'starting');
+    const viewer = page.getByTestId('browse-session-viewer');
+    await expect(page.getByTestId('browse-starting')).toHaveText('Starting browser…');
+    await expect(viewer).not.toContainText('Waiting for the browser');
+    await expect(page.getByTestId('browse-phase')).toHaveText('Starting');
+    await expect(page.getByTestId('browse-frame')).toHaveCount(0);
+    await info.attach(`browse-starting-${width}`, { body: await viewer.screenshot({ path: info.outputPath(`browse-starting-${width}.png`) }), contentType: 'image/png' });
+
+    await preview(page, 'BrowseSessionViewer', width, 'working');
+    await expect(page.getByTestId('browse-phase')).toHaveText('Working');
+    const steps = page.getByTestId('browse-steps');
+    await expect(steps.locator('li')).toHaveCount(8);
+    await expect(steps).toContainText('Opened page');
+    await expect(steps).toContainText('Clicked ‘Search’');
+    await expect(steps).toContainText('Typed into ‘City’');
+    await expect(steps).toContainText('Scrolled');
+    await expect(steps).toContainText('Went back');
+    await expect(page.getByTestId('browse-starting')).toHaveCount(0);
+    const atBottom = await steps.evaluate(element => element.scrollTop + element.clientHeight >= element.scrollHeight - 1);
+    expect(atBottom).toBe(true);
+    await expect(page.getByRole('button', { name: 'Take control', exact: true })).toBeEnabled();
+    await info.attach(`browse-working-steps-${width}`, { body: await viewer.screenshot({ path: info.outputPath(`browse-working-steps-${width}.png`) }), contentType: 'image/png' });
+
+    await preview(page, 'BrowseEmbedPreview', width, 'partial');
+    const card = page.getByTestId('embed-preview');
+    await expect(page.getByTestId('browse-partial')).toContainText('Partly verified — could not confirm: items[0].price, items[1].rating, purpose');
+    await info.attach(`browse-partial-preview-${width}`, { body: await card.screenshot({ path: info.outputPath(`browse-partial-preview-${width}.png`) }), contentType: 'image/png' });
+
+    await preview(page, 'BrowseEmbedFullscreen', width, 'partial');
+    const fullscreen = page.getByTestId('browse-fullscreen');
+    await expect(page.getByTestId('browse-partial')).toContainText('Partly verified — could not confirm: items[0].price, items[1].rating, purpose');
+    await info.attach(`browse-partial-fullscreen-${width}`, { body: await fullscreen.screenshot({ path: info.outputPath(`browse-partial-fullscreen-${width}.png`) }), contentType: 'image/png' });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+    await preview(page, 'BrowseEmbedFullscreen', width);
+    await expect(page.getByTestId('browse-partial')).toHaveCount(0);
+  });
+}

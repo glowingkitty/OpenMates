@@ -68,6 +68,24 @@ async def test_live_browser_runtime(*, idle_before_pause: bool = False) -> dict:
                 report["private_navigation_denied"] = True
             else:
                 raise AssertionError("Private navigation was admitted")
+            started_v2 = time.monotonic()
+            first = await browser.rpc(
+                provider, {"operation": "start", "url": "https://example.com/"}
+            )
+            report["start_seconds"] = round(time.monotonic() - started_v2, 3)
+            assert first["runtime_protocol"] == "preboot-v2"
+            assert first["observation"]["title"] == "Example Domain"
+            assert "in_viewport" in first["observation"]["controls"][0]
+            stepped = await browser.rpc(
+                provider,
+                {
+                    "operation": "step",
+                    "observation_id": first["observation"]["observation_id"],
+                    "actions": [{"kind": "scroll", "delta": 100}, {"kind": "wait"}],
+                },
+            )
+            assert [r["outcome"] for r in stepped["results"]] == ["executed"] * 2
+            report["step_timings"] = stepped["timings"]
             await browser.rpc(provider, {"operation": "control", "mode": "user"})
             try:
                 await browser.rpc(provider, {"operation": "observe"})

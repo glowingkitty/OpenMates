@@ -7596,6 +7596,48 @@
       },
       "no_frame": {
         "text": "لا توجد لقطة شاشة محفوظة."
+      },
+      "phase_starting": {
+        "text": "جارٍ البدء"
+      },
+      "phase_working": {
+        "text": "قيد العمل"
+      },
+      "phase_finishing": {
+        "text": "جارٍ الإنهاء"
+      },
+      "starting_browser": {
+        "text": "جارٍ تشغيل المتصفح…"
+      },
+      "steps_title": {
+        "text": "الخطوات"
+      },
+      "step_start": {
+        "text": "تم تشغيل المتصفح"
+      },
+      "step_goto": {
+        "text": "تم فتح الصفحة"
+      },
+      "step_click": {
+        "text": "تم النقر على"
+      },
+      "step_type": {
+        "text": "تمت الكتابة في"
+      },
+      "step_select": {
+        "text": "تم اختيار"
+      },
+      "step_scroll": {
+        "text": "تم التمرير"
+      },
+      "step_wait": {
+        "text": "تم الانتظار"
+      },
+      "step_back": {
+        "text": "تم الرجوع"
+      },
+      "partial": {
+        "text": "تم التحقق جزئيًا — تعذّر تأكيد: {fields}"
       }
     },
     "authoring": {

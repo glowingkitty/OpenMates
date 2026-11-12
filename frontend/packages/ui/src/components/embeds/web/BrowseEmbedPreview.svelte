@@ -42,6 +42,7 @@
     <div class="browse-preview" data-testid="browse-preview">
       {#if result.screenshot}<img src={result.screenshot} alt={$text('embeds.browse.saved_frame')} />{/if}
       <div class="title">{result.title || result.url || result.task || $text('embeds.browse.title')}</div>
+      {#if result.missing.length}<p class="partial" data-testid="browse-partial">{$text('embeds.browse.partial', { values: { fields: result.missing.join(', ') } })}</p>{/if}
       {#if stopError}<p role="alert">{$text('embeds.browse.connection_error')}</p>{/if}
       {#if shellStatus === 'processing'}
         <button type="button" onclick={(event) => { event.stopPropagation(); onFullscreen(); }}>{$text('embeds.browse.watch')}</button>
@@ -57,4 +58,5 @@
   button { align-self: flex-start; font: inherit; border: 0; background: var(--color-grey-20); color: var(--color-font-primary); border-radius: var(--radius-full); min-height: 36px; padding: var(--spacing-3) var(--spacing-6); cursor: pointer; }
   button:focus-visible { outline: 2px solid var(--color-button-primary); outline-offset: 2px; }
   p { margin: 0; font-size: .875rem; color: var(--color-error); }
+  p.partial { color: var(--color-font-secondary); font-size: .75rem; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
 </style>
