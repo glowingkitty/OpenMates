@@ -106,7 +106,8 @@ from backend.apps.ai.processing.memory_write_tool import (
     PROJECT_MEMORY_FILE_TOOL, SAVE_MEMORY_TOOL_INSTRUCTION, SAVE_MEMORY_TOOL_NAME,
     SAVE_PROJECT_MEMORY_TOOL_INSTRUCTION, MemoryWriteToolError, dispatch_save_memory, is_project_memory_call,
     is_save_memory_tool_name, project_memory_file_arguments,
-    record_workflow_writes, save_memory_enabled, save_memory_tool,
+    record_workflow_writes, save_memory_chat_allowed, save_memory_enabled, save_memory_tool,
+    with_default_project_target,
 )
 from backend.shared.python_utils.rule_loader import applied_rule_set_key
 from backend.apps.ai.processing.related_work import (
@@ -5149,7 +5150,8 @@ async def handle_main_processing(
     # Client-applied personal Memory writes (memory_write_tool.py); the server never stores them.
     save_memory_available = save_memory_enabled(request_data) and cache_service is not None
     # Project target only with the authorized Project file tools of this turn (see below).
-    save_memory_project_target = bool(save_memory_available and project_file_tools_enabled and active_project_focus)
+    save_memory_project_target = bool(
+        save_memory_chat_allowed(request_data) and project_file_tools_enabled and active_project_focus)
     if save_memory_available:
         prompt_parts.append(SAVE_MEMORY_TOOL_INSTRUCTION)
     if save_memory_project_target:
@@ -5439,8 +5441,9 @@ async def handle_main_processing(
     }
     if memory_runtime is not None:
         available_tools_for_llm.extend(memory_tools())
-    if save_memory_available:
-        available_tools_for_llm.append(save_memory_tool(project_target=save_memory_project_target))
+    if save_memory_available or save_memory_project_target:
+        available_tools_for_llm.append(save_memory_tool(project_target=save_memory_project_target,
+                                                        personal=save_memory_available))
     available_tools_for_llm = without_unscoped_project_search(available_tools_for_llm)
 
     if task_queue_blocks_plan_tools:
@@ -7592,6 +7595,8 @@ async def handle_main_processing(
                         memory_call_args = json.loads(chunk.function_arguments_raw or "{}")
                     except json.JSONDecodeError:
                         memory_call_args = None
+                    memory_call_args = with_default_project_target(
+                        memory_call_args, personal_available=save_memory_available)
                     if is_project_memory_call(memory_call_args):
                         try:
                             project_memory_args = project_memory_file_arguments(memory_call_args)
@@ -7608,6 +7613,15 @@ async def handle_main_processing(
                         chunk.function_arguments_raw = json.dumps(project_memory_args)
                         if hasattr(chunk, "function_arguments_parsed"):
                             chunk.function_arguments_parsed = project_memory_args
+                    elif not save_memory_available:
+                        hallucinated_tool_calls_this_turn.append((chunk, {
+                            "tool_call_id": chunk.tool_call_id, "role": "tool", "name": chunk.function_name,
+                            "content": json.dumps({"status": "rejected", "message": (
+                                "This app can save Memories only to the active Project (target project). "
+                                "Nothing was saved.")}),
+                        }))
+                        hallucinated_rejections_this_turn += 1
+                        continue
 
                 tool_calls_for_this_turn.append(chunk)
 

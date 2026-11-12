@@ -318,9 +318,34 @@ def test_main_processor_rewrites_project_saves_only_with_authorized_project_tool
     from pathlib import Path
 
     source = Path(__file__).resolve().parents[1].joinpath("apps/ai/processing/main_processor.py").read_text()
-    gate = "save_memory_project_target = bool(save_memory_available and project_file_tools_enabled and active_project_focus)"
+    gate = ("save_memory_project_target = bool(\n"
+            "        save_memory_chat_allowed(request_data) and project_file_tools_enabled and active_project_focus)")
     assert gate in source
+    assert "elif not save_memory_available:" in source
     rewrite = source.index("chunk.function_name = _canonicalize_tool_name(PROJECT_MEMORY_FILE_TOOL)")
     guard = source.rindex("save_memory_project_target", 0, rewrite)
     assert "_canonicalize_tool_name(PROJECT_MEMORY_FILE_TOOL) in iteration_allowed_tool_names" in source[guard:rewrite]
     assert rewrite < source.index("tool_calls_for_this_turn.append(chunk)", rewrite)
+
+
+def test_project_only_tool_for_clients_without_personal_memory_jobs():
+    project_only = tool.save_memory_tool(project_target=True, personal=False)["function"]
+    assert project_only["parameters"]["properties"]["target"]["enum"] == ["project"]
+    assert "target" in project_only["parameters"]["required"]
+    assert "personal" not in project_only["description"].lower()
+    with pytest.raises(ValueError):
+        tool.save_memory_tool(project_target=False, personal=False)
+
+
+def test_project_save_needs_no_personal_capability_but_a_normal_chat():
+    assert tool.save_memory_chat_allowed(_request(client_capabilities=["project_file_jobs"]))
+    assert not tool.save_memory_enabled(_request(client_capabilities=["project_file_jobs"]))
+    for blocked in ({"is_incognito": True}, {"is_sub_chat": True}, {"is_anonymous": True}, {"user_id": None}):
+        assert not tool.save_memory_chat_allowed(_request(**blocked))
+
+
+def test_missing_target_defaults_to_project_only_without_personal_jobs():
+    assert tool.with_default_project_target(GOOD, personal_available=False)["target"] == "project"
+    assert "target" not in tool.with_default_project_target(GOOD, personal_available=True)
+    explicit = {**GOOD, "target": "personal"}
+    assert tool.with_default_project_target(explicit, personal_available=False) == explicit

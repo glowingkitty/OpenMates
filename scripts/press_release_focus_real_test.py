@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -48,13 +49,16 @@ STYLE = (
     "Solar GmbH, based in Leipzig, makes plug-in balcony solar kits for renters. Founded in 2021, the company "
     "has equipped more than 3,000 apartments in Germany."
 )
-FORMAT_TOKENS = {
-    "word": ["docx", "docs"],
-    "pdf": ["docx", "docs"],
-    "html": ["html"],
-    "react": ["application_preview", "react"],
+# Embed types the assistant answer references for each requested format.
+FORMAT_EMBED_TYPES = {
+    "word": {"document"},
+    "pdf": {"document"},
+    "html": {"code", "website"},
+    "react": {"application"},
 }
-STRUCTURE_TOKENS = ["leipzig", "sunshare", "press@example.org", "about example solar"]
+# Checked in the generated release itself (embed content plus answer text).
+STRUCTURE_TOKENS = ["leipzig", "sunshare", "about example solar", "###"]
+EMBED_REF = re.compile(r'\{"type":\s*"([a-z_]+)",\s*"embed_id":\s*"([0-9a-f-]{36})"')
 CASES: dict[str, dict] = {
     "word": {"format": "word", "turns": [
         "Write a press release about our new app launch. " + NEWS,
@@ -107,19 +111,53 @@ def project_memory_files(cli: str, project_id: str) -> list[str]:
     return sorted(set(part.split('"')[0] for part in text.split(MEMORY_DIR + "/")[1:] if part.split('"')[0].endswith(".md")))
 
 
+def find_id(value: object) -> str | None:
+    """First project id in a CLI JSON reply, whatever wrapper the CLI uses."""
+    if isinstance(value, dict):
+        for key in ("project_id", "projectId", "id"):
+            if isinstance(value.get(key), str) and len(value[key]) >= 8:
+                return value[key]
+        for nested in value.values():
+            found = find_id(nested)
+            if found:
+                return found
+    if isinstance(value, list):
+        for item in value:
+            found = find_id(item)
+            if found:
+                return found
+    return None
+
+
+def delete_leftover_projects(cli: str) -> int:
+    """Remove this script's own synthetic Project from an earlier interrupted run."""
+    listed = command(cli, ["projects", "list"])
+    projects = listed.get("projects", []) if isinstance(listed, dict) else listed
+    removed = 0
+    for project in projects if isinstance(projects, list) else []:
+        if isinstance(project, dict) and project.get("name") == PROJECT_NAME:
+            project_id = find_id(project)
+            if project_id:
+                command(cli, ["projects", "delete", project_id, "--confirm", project_id])
+                removed += 1
+    return removed
+
+
 def run_project_case(cli: str, label: str, case: dict, out: Path, timeout: int) -> dict:
     """Save the press style to a Project, then reuse it in a second chat of that Project."""
     result: dict = {"label": label, "status": "failed"}
     project_id = None
     try:
+        result["leftover_projects_removed"] = delete_leftover_projects(cli)
         created = command(cli, ["projects", "create", PROJECT_NAME, "--write-policy", "apply_and_show"])
-        project_id = (created.get("project") or created).get("id") if isinstance(created, dict) else None
+        write_receipt(out / f"{label}-project-created.json", created)
+        project_id = find_id(created)
         if not isinstance(project_id, str):
             raise ProofError("project_id_missing")
         command(cli, ["projects", "settings", project_id, "--focus-activation", "immediate"])
         personal_before = memory_count(cli)
-        save = run_case(cli, f"{label}-save", {**case, "format": None, "expect_focus": True}, out, timeout,
-                        project_id=project_id)
+        save = run_case(cli, f"{label}-save", {**case, "format": None}, out, timeout,
+                        project_id=project_id, expect_focus_any=True)
         files = project_memory_files(cli, project_id)
         memory_text = ""
         for name in files:
@@ -131,7 +169,7 @@ def run_project_case(cli: str, label: str, case: dict, out: Path, timeout: int) 
         result["project_memory_has_style"] = "3,000 apartments" in memory_text or "3000 apartments" in memory_text
         result["personal_memories_unchanged"] = memory_count(cli) == personal_before
         reuse = run_case(cli, f"{label}-reuse", {"format": "word", "turns": case["reuse_turns"]}, out, timeout,
-                         project_id=project_id, extra_tokens=["3,000 apartments"])
+                         project_id=project_id, extra_tokens=["3,000 apartments"], expect_focus_any=True)
         result["reuse"] = reuse
         checks = [len(files) >= 1, result["project_memory_has_style"], result["personal_memories_unchanged"],
                   reuse["status"] == "passed"]
@@ -148,8 +186,27 @@ def run_project_case(cli: str, label: str, case: dict, out: Path, timeout: int) 
     return result
 
 
+def release_text(cli: str, chat_id: str, shown: dict, out: Path, label: str) -> tuple[set[str], str]:
+    """Embed types referenced by assistant answers and the lowercased release text."""
+    types: set[str] = set()
+    parts: list[str] = []
+    for message in shown.get("messages", []) if isinstance(shown, dict) else []:
+        if message.get("role") != "assistant" or not isinstance(message.get("content"), str):
+            continue
+        parts.append(message["content"])
+        for embed_type, embed_id in EMBED_REF.findall(message["content"]):
+            types.add(embed_type)
+            try:
+                embed = command(cli, ["embeds", "show", embed_id, "--chat", chat_id])
+            except ProofError:
+                continue
+            write_receipt(out / f"{label}-embed-{embed_id[:8]}.json", embed)
+            parts.append(json.dumps(embed, ensure_ascii=False))
+    return types, "\n".join(parts).lower()
+
+
 def run_case(cli: str, label: str, case: dict, out: Path, timeout: int, *, project_id: str | None = None,
-             extra_tokens: list[str] | None = None) -> dict:
+             extra_tokens: list[str] | None = None, expect_focus_any: bool = False) -> dict:
     result: dict = {"label": label, "status": "failed", "turns": []}
     chat_id = None
     try:
@@ -169,13 +226,16 @@ def run_case(cli: str, label: str, case: dict, out: Path, timeout: int, *, proje
             result["turns"].append({"status": reply.get("status"), "chars": len(json.dumps(reply))})
         shown = command(cli, ["chats", "show", chat_id, "--personal"])
         write_receipt(out / f"{label}-chat.json", shown)
-        text = json.dumps(shown).lower()
-        activated = f"business-{FOCUS}" in text or f"business.{FOCUS}" in text
-        result["focus_activated"] = activated
+        active_focus = (shown.get("chat") or {}).get("activeFocusId") if isinstance(shown, dict) else None
+        result["active_focus"] = active_focus
+        activated = active_focus == f"business-{FOCUS}"
         expect_focus = case.get("expect_focus", True)
-        checks = [activated is expect_focus]
+        # In a Project chat the Project's own focus may stay active; there only the result counts.
+        checks = [] if expect_focus_any else [activated is expect_focus]
         if case["format"]:
-            result["format_produced"] = any(token in text for token in FORMAT_TOKENS[case["format"]])
+            types, text = release_text(cli, chat_id, shown, out, label)
+            result["embed_types"] = sorted(types)
+            result["format_produced"] = bool(types & FORMAT_EMBED_TYPES[case["format"]])
             result["structure_tokens"] = {token: token in text for token in [*STRUCTURE_TOKENS, *(extra_tokens or [])]}
             checks += [result["format_produced"], all(result["structure_tokens"].values())]
         result["status"] = "passed" if all(checks) else "failed"

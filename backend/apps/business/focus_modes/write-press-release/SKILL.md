@@ -10,12 +10,14 @@ description: Write a press release journalists can use, in your company's own pr
 
 # ── Routing hint for the preprocessor LLM (English only) ────────────
 preprocessor-hint: >
-  Select when the user wants to write, draft, improve, shorten, review or
-  translate a press release, Pressemitteilung, media release or news
-  announcement for journalists, wants a pitch email that accompanies a press
-  release, or wants to set up or update the writing style for their press
-  releases. Do not select for social media posts alone, newsletters, blog
-  posts, ads, investor outreach, job applications, or reading the news.
+  Select for any request to write, draft, improve, review, shorten or
+  translate a press release, Pressemitteilung or media release, for example
+  Write a press release about our product launch, also when the user already
+  gives all the facts or names a format such as Word, PDF, HTML or React.
+  Also select for a pitch email that goes with a press release and for
+  setting up the writing style of press releases. Do not select for social
+  media posts alone, newsletters, blog posts, ads, investor outreach, job
+  applications, or reading the news.
 
 # ── Capability gating (parsed, not yet enforced — see architecture doc) ──
 allowed-models: []

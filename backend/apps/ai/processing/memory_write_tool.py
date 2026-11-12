@@ -94,12 +94,15 @@ class MemoryWriteToolError(ValueError):
     """A model-facing rejection. Messages never echo Memory text."""
 
 
-def save_memory_tool(*, project_target: bool = False) -> dict[str, Any]:
+def save_memory_tool(*, project_target: bool = False, personal: bool = True) -> dict[str, Any]:
     """Internal-only function definition; no REST route or skill-use card exists.
 
     ``project_target`` adds the ``target`` choice; offer it only when the chat has an
     authorized active Project Focus and the Project file tools in this turn.
+    ``personal=False`` (a client without personal memory jobs) offers only the Project.
     """
+    if not personal and not project_target:
+        raise ValueError("save_memory needs a personal or a project target")
     tool = {"type": "function", "function": {
         "name": SAVE_MEMORY_TOOL_NAME,
         "description": ("Create or update one personal Memory of the user, saved encrypted by the user's device. "
@@ -118,8 +121,14 @@ def save_memory_tool(*, project_target: bool = False) -> dict[str, Any]:
     }}
     if project_target:
         tool["function"]["parameters"]["properties"]["target"] = {
-            "type": "string", "enum": list(SAVE_MEMORY_TARGETS),
-            "description": "personal (default) or project: save to the active Project's Memories."}
+            "type": "string", "enum": list(SAVE_MEMORY_TARGETS) if personal else ["project"],
+            "description": ("personal (default) or project: save to the active Project's Memories." if personal
+                            else "project: save to the active Project's Memories.")}
+    if not personal:
+        tool["function"]["description"] = (
+            "Create one Memory in the active Project's Memories, saved encrypted by the user's device. "
+            "Only after the user agreed to save it there.")
+        tool["function"]["parameters"]["required"].append("target")
     return tool
 
 
@@ -130,9 +139,17 @@ def is_save_memory_tool_name(name: Any) -> bool:
 def save_memory_enabled(request: Any) -> bool:
     """Offered only to a signed-in user's capable client in a normal, saved, top-level chat."""
     capabilities = getattr(request, "client_capabilities", None) or []
+    return MEMORY_WRITE_CAPABILITY in capabilities and save_memory_chat_allowed(request)
+
+
+def save_memory_chat_allowed(request: Any) -> bool:
+    """A signed-in user's normal, saved, top-level chat; capability checks are separate.
+
+    Project saves need only this plus the authorized Project file tools of the turn,
+    because the Project file job (not the personal memory job) stores them.
+    """
     return bool(
-        MEMORY_WRITE_CAPABILITY in capabilities
-        and getattr(request, "user_id", None) and getattr(request, "chat_id", None)
+        getattr(request, "user_id", None) and getattr(request, "chat_id", None)
         and not getattr(request, "is_incognito", False)
         and not getattr(request, "is_anonymous", False)
         and not getattr(request, "is_external", False)
@@ -187,6 +204,13 @@ def prepare_memory_write(arguments: Any, *, loaded_ids: set[str], chat_id: str, 
 
 def is_project_memory_call(arguments: Any) -> bool:
     return isinstance(arguments, dict) and arguments.get("target") == "project"
+
+
+def with_default_project_target(arguments: Any, *, personal_available: bool) -> Any:
+    """Without personal memory jobs the only possible target is the Project."""
+    if not personal_available and isinstance(arguments, dict) and arguments.get("target") is None:
+        return {**arguments, "target": "project"}
+    return arguments
 
 
 def project_memory_file_arguments(arguments: Any) -> dict[str, Any]:
