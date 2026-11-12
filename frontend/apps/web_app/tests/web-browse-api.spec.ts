@@ -15,7 +15,8 @@ test.describe('Browse first-party HTTP contract', () => {
   test('advertises the fractional compute rate per minute without a flat fee', async ({ request }: { request: any }) => {
     const response = await request.get(`${workflowApiUrl()}/v1/apps/web/skills/browse/details`);
     expect(response.status()).toBe(200);
-    expect((await response.json()).pricing).toEqual({ per_minute: 5.52 });
+    // Customer prices are cost-plus and rounded to 5 credits (billing Specification).
+    expect((await response.json()).pricing).toEqual({ per_minute: 5 });
   });
 
   // contract-test: direct surface=rest_api assertions=web-browse.private-storage-and-api,web-browse.session-and-run,web-browse.budgets-and-stop

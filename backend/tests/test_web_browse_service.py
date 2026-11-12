@@ -40,7 +40,7 @@ class MemoryStore:
         self.db = SimpleNamespace(get_items=AsyncMock(return_value=[]))
 
     @asynccontextmanager
-    async def lease(self, key):
+    async def lease(self, key, **_kwargs):
         async with self.locks.setdefault(key, asyncio.Lock()):
             yield
 
@@ -81,6 +81,7 @@ class Browser:
         self.mode = "ai"
         self.protocol = "preboot-v2"
         self.outcome = "executed"
+        self.detail = None
         self.observation = {
             "url": "https://example.com/",
             "title": "Example",
@@ -130,7 +131,12 @@ class Browser:
             return deepcopy(self.observation)
         if operation == "step":
             results = [
-                {"kind": a["kind"], "target": a.get("target"), "outcome": self.outcome}
+                {
+                    "kind": a["kind"],
+                    "target": a.get("target"),
+                    "outcome": self.outcome,
+                    **({"detail": self.detail} if self.detail else {}),
+                }
                 for a in body["actions"]
             ]
             if self.pages:
@@ -1308,6 +1314,41 @@ async def test_facts_from_two_pages_survive_navigation_with_both_sources(service
     assert models[0].gates == [[{"kind": "click", "target": "0"}], []]
 
 
+# contract-test: supporting surface=rest_api assertions=web-browse.control-loop
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("detail", "shown"),
+    [("Target is stale, hidden or covered", True), ("Page-chosen words", False)],
+)
+async def test_the_planner_learns_a_click_was_refused_because_its_target_was_covered(
+    service, detail, shown
+):
+    service.driver.observation["controls"] = [
+        {"id": "0", "role": "a", "label": "Grow kits", "kind": "click"}
+    ]
+    service.driver.outcome, service.driver.detail = "rejected", detail
+
+    class CoveredModels(Models):
+        plans = [
+            action_plan({"kind": "click", "target": "0"}),
+            done_plan("Observed fact"),
+        ]
+
+    models = []
+
+    def factory(*args, **kwargs):
+        models.append(CoveredModels(*args, **kwargs))
+        return models[-1]
+
+    service.models_factory = factory
+    result = await run(service)
+    assert result.status == "completed"
+    # The planner call after the refused click sees why it was refused.
+    last = models[0].planner_calls[-1]["history"][-1]
+    assert last["outcome"] == "rejected"
+    assert last.get("detail") == (detail if shown else None)
+
+
 # contract-test: supporting surface=rest_api assertions=web-browse.truthful-completion,web-browse.network-and-content
 @pytest.mark.asyncio
 # contract-test: supporting surface=rest_api assertions=web-browse.truthful-completion,web-browse.network-and-content
@@ -1734,3 +1775,40 @@ def test_partial_answer_drops_rows_that_lost_as_many_values_as_they_kept():
         {"title": "Red Chair", "price": "40.00", "stock": "in stock"},
     ]
     assert "/1" in check.missing and "/2/maker" in check.missing
+
+
+async def three_idle_browsers(service, status):
+    """Three finished browsers of one owner, set back to running as if each had asked the user."""
+    ids = []
+    for chat in ("first chat", "second chat", "third chat"):
+        result = await run(service, chat_id=chat, message_id=chat)
+        record = service.store.records[result.session_id]
+        record["status"] = status
+        record["active_run"] = None
+        ids.append(result.session_id)
+    service.store.db.get_items = AsyncMock(return_value=[{"id": i} for i in ids])
+    return ids
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.session-and-run,web-browse.lifecycle
+@pytest.mark.asyncio
+async def test_a_fourth_browser_pauses_the_least_recently_used_idle_ai_browser(service):
+    ids = await three_idle_browsers(service, "ai")
+    result = await run(service, chat_id="fourth chat", message_id="fourth chat")
+    assert result.status == "completed"
+    assert service.store.records[ids[0]]["status"] == "paused"
+    assert [service.store.records[i]["status"] for i in ids[1:]] == ["ai", "ai"]
+    assert (
+        service.store.db.get_items.await_args.kwargs["params"]["sort"]
+        == "last_activity"
+    )
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.session-and-run,web-browse.exclusive-takeover
+@pytest.mark.asyncio
+async def test_browsers_under_the_users_control_are_never_paused_to_make_room(service):
+    ids = await three_idle_browsers(service, "user")
+    with pytest.raises(HTTPException) as exc:
+        await run(service, chat_id="fourth chat", message_id="fourth chat")
+    assert exc.value.status_code == 409
+    assert [service.store.records[i]["status"] for i in ids] == ["user", "user", "user"]

@@ -245,27 +245,60 @@ class BrowseService:
         return self.driver
 
     async def claim_slot(self, record: dict[str, Any]) -> None:
+        """Hold one of the owner's three running browsers.
+
+        When all three are taken, the least recently used browser that the AI
+        holds idle (no active run, not under the user's control) is paused to
+        make room; it resumes on its next use. Only when none is idle is the
+        new browser refused.
+        """
         async with self.store.lease("owner:" + owner_hash(record["user_id"])):
-            rows = await self.store.db.get_items(
-                COLLECTION,
-                params={
-                    "filter[owner_hash][_eq]": owner_hash(record["user_id"]),
-                    "filter[status][_in]": "ai,user",
-                    "filter[id][_neq]": record["session_id"],
-                    "fields": "id",
-                    "limit": 3,
-                },
-                no_cache=True,
-                admin_required=True,
-                raise_on_error=True,
-            )
+            rows = await self.active_rows(record)
             if len(rows) >= 3:
-                raise HTTPException(
-                    409, "Three browsers are already active; pause or close one first."
-                )
+                for row in rows:
+                    if await self.pause_idle(row["id"], record["user_id"]):
+                        break
+                else:
+                    raise HTTPException(
+                        409,
+                        "Three browsers are already active; pause or close one first.",
+                    )
             record["status"] = "ai"
             record["last_activity"] = time.time()
             await self.store.save(record)
+
+    async def active_rows(self, record: dict[str, Any]) -> list[dict[str, Any]]:
+        """The owner's other running browsers, least recently used first."""
+        return await self.store.db.get_items(
+            COLLECTION,
+            params={
+                "filter[owner_hash][_eq]": owner_hash(record["user_id"]),
+                "filter[status][_in]": "ai,user",
+                "filter[id][_neq]": record["session_id"],
+                "fields": "id",
+                "sort": "last_activity",
+                "limit": 3,
+            },
+            no_cache=True,
+            admin_required=True,
+            raise_on_error=True,
+        )
+
+    async def pause_idle(self, session_id: str, user_id: str) -> bool:
+        """Pause one idle AI-held browser of the same owner; False when it is not idle."""
+        try:
+            # A short wait: a browser busy with another operation is not idle, and
+            # two starts must never wait on each other's session lease.
+            async with self.store.lease(session_id, wait_seconds=2):
+                other = await self.store.load(session_id, user_id)
+                if other["status"] != "ai" or other.get("active_run"):
+                    return False
+                await self.pause(other)
+                return True
+        except HTTPException as exc:
+            if exc.status_code in (404, 409):
+                return False
+            raise
 
     async def reserve(self, record: dict[str, Any]) -> None:
         if record.get("settlement"):

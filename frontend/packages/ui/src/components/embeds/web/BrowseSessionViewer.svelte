@@ -23,6 +23,8 @@
   let live = true;
   let manual = $derived(session?.status === 'user' && !busy && !consentOrigin && !ending);
   let terminal = $derived(session?.status === 'closed' || session?.status === 'expired');
+  // An ending error that only repeats the status line is not shown twice.
+  let statusKey = $derived(browseStatusKey(session?.status || (ending ? (error === 'embeds.browse.expired' ? 'expired' : 'unavailable') : 'processing')));
   let steps = $derived(session?.steps ?? []);
   let phaseKey = $derived(terminal || ending ? '' : browsePhaseKey(session?.phase));
   let starting = $derived(session?.phase === 'starting' && !terminal && !ending);
@@ -117,11 +119,11 @@
 
 <section class="viewer" data-testid="browse-session-viewer" aria-label={$text('embeds.browse.title')}>
   <div class="status" role="status">
-    <strong>{$text(browseStatusKey(session?.status || (ending ? (error === 'embeds.browse.expired' ? 'expired' : 'unavailable') : 'processing')))}</strong>
+    <strong>{$text(statusKey)}</strong>
     {#if phaseKey}<span class="phase" data-testid="browse-phase">{$text(phaseKey)}</span>{/if}
     {#if session}<span>{$text('embeds.browse.credits', { values: { used: String(session.accrued_credits), limit: String(session.max_credits) } })}</span>{/if}
   </div>
-  {#if error}<p role="alert">{$text(error)}</p>{/if}
+  {#if error && error !== statusKey}<p role="alert">{$text(error)}</p>{/if}
   {#if session && !terminal && !ending}
     <div class="controls">
       {#if session.status !== 'user'}

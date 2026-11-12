@@ -60,6 +60,11 @@ if TYPE_CHECKING:
 
 RUNTIME_PROTOCOL = "preboot-v2"
 STEP_HISTORY = 80
+# Fixed rejection reasons of the browser runtime (`STEP_DENIED` and the robots
+# refusal); any other detail text is dropped before the planner sees it.
+REJECTION_DETAILS = frozenset(
+    {"Target is stale, hidden or covered", "Crawler access denied"}
+)
 START_TIMINGS = ("ready", "pristine", "navigate", "settle", "observe")
 PARTIAL_REASON = (
     "Partial result: the visited pages do not establish every requested value; "
@@ -475,6 +480,13 @@ class BrowseRun:
                     "kind": r.get("kind"),
                     "target": r.get("target"),
                     "outcome": r.get("outcome"),
+                    # Only fixed runtime reasons reach the planner, e.g. a click
+                    # refused because an overlay covers its target.
+                    **(
+                        {"detail": r["detail"]}
+                        if r.get("detail") in REJECTION_DETAILS
+                        else {}
+                    ),
                 }
                 for r in results
             )

@@ -1015,3 +1015,13 @@ def test_planner_and_safety_wording_let_simple_age_dialogs_through_but_not_proof
     assert "confirming a simple age or legal-notice dialog" in SAFE_QUESTION
     assert "purchases/payments" in SAFE_QUESTION
     assert "date of birth or proof of age" in BLOCK_REASONS["age_confirmation"]
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.control-loop
+def test_planner_closes_covering_overlays_and_recovers_from_not_found_pages():
+    from backend.shared.providers.browser_planner import PLANNER_INSTRUCTIONS
+
+    assert "first close or dismiss it" in PLANNER_INSTRUCTIONS
+    assert "region or language chooser" in PLANNER_INSTRUCTIONS
+    assert "not-found page" in PLANNER_INSTRUCTIONS
+    assert "instead of guessing further URLs" in PLANNER_INSTRUCTIONS

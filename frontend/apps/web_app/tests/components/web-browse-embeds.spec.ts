@@ -149,6 +149,12 @@ for (const width of [1280, 390]) {
     await expect(viewer).not.toContainText('You are watching');
     await expect(page.getByRole('button', { name: 'Take control', exact: true })).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    // A session the server already removed says "Session expired" once, not twice.
+    await preview(page, 'BrowseSessionViewer', width, 'gone');
+    await expect(viewer.getByRole('status')).toContainText('Session expired');
+    await expect(viewer.getByText('Session expired')).toHaveCount(1);
+    await expect(viewer.getByRole('alert')).toHaveCount(0);
+    await info.attach(`browse-gone-${width}`, { body: await viewer.screenshot({ path: info.outputPath(`browse-gone-${width}.png`) }), contentType: 'image/png' });
   });
 }
 

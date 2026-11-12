@@ -46,4 +46,6 @@ function fixture(status: BrowseSession['status'] = 'ai', needsConsent = false, e
 export default fixture();
 export const variants = { manual: fixture('user'), signIn: fixture('user', true), paused: fixture('paused'), mobile: fixture(), expired: fixture('expired'),
   starting: fixture('ai', false, { phase: 'starting', steps: [] }, true),
-  working: fixture('ai', false, { phase: 'working', steps }) };
+  working: fixture('ai', false, { phase: 'working', steps }),
+  // The server already removed the session: state answers 410 Gone.
+  gone: { ...fixture(), client: { ...fixture().client, async state(): Promise<BrowseSession> { throw new BrowseHttpError(410); } } } };
