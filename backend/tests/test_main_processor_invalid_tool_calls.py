@@ -244,7 +244,9 @@ _append_tool_call_turn_to_history = main_processor._append_tool_call_turn_to_his
 _get_skill_execution_args = main_processor._get_skill_execution_args
 _limit_request_batch_to_budget = main_processor._limit_request_batch_to_budget
 _has_diffable_embeds_for_prompt = main_processor._has_diffable_embeds_for_prompt
-_build_pending_app_settings_memories_context = main_processor._build_pending_app_settings_memories_context
+from backend.apps.ai.processing.memory_permission_request import (  # noqa: E402 - follows the guarded main_processor import
+    build_pending_app_settings_memories_context as _build_pending_app_settings_memories_context,
+)
 _apply_benchmark_usage_details = main_processor._apply_benchmark_usage_details
 _is_async_skill_blocked_in_orchestration = main_processor._is_async_skill_blocked_in_orchestration
 _get_result_declared_charge_items = main_processor._get_result_declared_charge_items

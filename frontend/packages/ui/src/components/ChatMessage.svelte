@@ -61,6 +61,7 @@
   import { chatSyncService } from '../services/chatSyncService';
   import { clearSubChatsForParentCache, loadSubChatPreviews } from '../services/subChatPreviewService';
   import type { AppSettingsMemoriesResponseContent, AppSettingsMemoriesResponseCategory } from '../services/chatSyncServiceHandlersAppSettings';
+  import { MEMORY_RESPONSE_APP_ID } from '../services/memoryDocumentRequest';
       import { savedEmbedIds, toggleEmbedSaved, loadEmbedSaved } from '../services/savedEmbedService';
   import { tipTapToCanonicalMarkdown, writeEmbedToClipboard, writeMessageWithEmbedsToClipboard } from '../message_parsing/serializers';
   import { copyImageEmbed, downloadImageEmbed } from './embeds/images/imageEmbedActions';
@@ -968,6 +969,8 @@
    * Returns a readable name formatted from the category's itemType (typed app memories no longer exist).
    */
   function getCategoryDisplayName(cat: AppSettingsMemoriesResponseCategory): string {
+    // A personal Memory is stored by id only (no title in the synced message).
+    if (cat.appId === MEMORY_RESPONSE_APP_ID) return $text('settings.settings_memories');
     // Fallback: format itemType as readable string (e.g., "preferred_technologies" -> "Preferred Technologies")
     return cat.itemType.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   }
@@ -3948,17 +3951,20 @@
                 data-testid="app-settings-memory-category-badge"
                 onclick={() => {
                   // Personal memories open the Memories hub; other categories open their app.
-                  const path = cat.appId === 'openmates' ? 'settings_memories' : `apps/${cat.appId}`;
+                  const path = cat.appId === 'openmates' || cat.appId === MEMORY_RESPONSE_APP_ID
+                    ? 'settings_memories' : `apps/${cat.appId}`;
                   settingsDeepLink.set(path);
                   panelState.openSettings();
                 }}
               >
+                {#if cat.appId !== MEMORY_RESPONSE_APP_ID}
                 <Icon 
                   name={cat.appId} 
                   type="app" 
                   size="18px"
                   noAnimation={true}
                 />
+                {/if}
                 <span class="badge-text">{getCategoryDisplayName(cat)} ({cat.entryCount})</span>
               </button>
             {/each}

@@ -2018,6 +2018,16 @@ export async function handleAITypingStartedImpl( // Changed to async
   );
 }
 
+function endsTurnAsFailed(payload: {
+  message_id: string;
+  task_id?: string;
+  terminal_failure_code?: string;
+}): boolean {
+  if (payload.terminal_failure_code === "focus_continuation_unavailable") return true;
+  return payload.terminal_failure_code === "client_context_unavailable" &&
+    payload.task_id === payload.message_id;
+}
+
 export function handleAITypingEndedImpl(
   serviceInstance: ChatSynchronizationService,
   payload: {
@@ -2029,15 +2039,20 @@ export function handleAITypingEndedImpl(
 ): void {
   console.debug("[ChatSyncService:AI] Received 'ai_typing_ended':", payload);
   aiTypingStore.clearTyping(payload.chat_id, payload.message_id);
-  if (payload.terminal_failure_code === "client_context_unavailable" &&
-      payload.task_id === payload.message_id) {
+  if (endsTurnAsFailed(payload)) {
     const taskInfo = serviceInstance.activeAITasks.get(payload.chat_id);
-    if (taskInfo?.taskId === payload.task_id) {
+    // A focus-mode continuation runs as its own task, so its id differs from
+    // the user message id and may differ from the tracked task id; match the
+    // tracked task by either id for that code.
+    const matchesTask = payload.terminal_failure_code === "focus_continuation_unavailable"
+      ? taskInfo?.taskId === payload.task_id || taskInfo?.userMessageId === payload.message_id
+      : taskInfo?.taskId === payload.task_id;
+    if (taskInfo && matchesTask) {
       serviceInstance.activeAITasks.delete(payload.chat_id);
       serviceInstance.dispatchEvent(new CustomEvent("aiTaskEnded", {
         detail: {
           chatId: payload.chat_id,
-          taskId: payload.task_id,
+          taskId: taskInfo.taskId,
           userMessageId: taskInfo.userMessageId,
           status: "failed",
         },

@@ -80,6 +80,26 @@ describe("context failure typing end", () => {
     expect(mockChatDB.saveMessage).not.toHaveBeenCalled();
   });
 
+  // contract-test: supporting surface=gui.web assertions=chat-processing-feedback.turn-lifecycle
+  it("ends the turn as failed for a refused focus continuation with its own task id", () => {
+    const activeAITasks = new Map([["chat-1", { taskId: "cont-task", userMessageId: "user-1" }]]);
+    const service = { activeAITasks, dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+
+    handleAITypingEndedImpl(service, {
+      chat_id: "chat-1", message_id: "user-1", task_id: "cont-task",
+      terminal_failure_code: "focus_continuation_unavailable",
+    });
+
+    expect(activeAITasks.has("chat-1")).toBe(false);
+    const ended = vi.mocked(service.dispatchEvent).mock.calls
+      .map(([event]) => event as CustomEvent)
+      .filter((event) => event.type === "aiTaskEnded");
+    expect(ended).toHaveLength(1);
+    expect(ended[0].detail).toEqual({
+      chatId: "chat-1", taskId: "cont-task", userMessageId: "user-1", status: "failed",
+    });
+  });
+
   // contract-test: direct surface=gui.web assertions=chat-processing-feedback.turn-lifecycle
   it("leaves a replacement task and legacy typing ends alone", () => {
     const activeAITasks = new Map([["chat-1", { taskId: "task-2", userMessageId: "user-2" }]]);
@@ -1604,6 +1624,7 @@ describe("handleSendEmbedDataImpl", () => {
         expect.objectContaining({ key_type: 'master', encrypted_embed_key: 'wrapped-master-key' }),
         expect.objectContaining({ key_type: 'chat', encrypted_embed_key: 'wrapped-chat-key' }),
       ]) }), expect.objectContaining({ embedId: 'failed-execution' }),
+      'stream-completion',
     );
     expect(service.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({
       type: 'embedUpdated', detail: expect.objectContaining({ embed_id: 'failed-execution', task_id: 'task-1', status: 'error', isProcessing: false }),
@@ -1867,6 +1888,7 @@ describe("handleSendEmbedDataImpl", () => {
       }),
       undefined,
       expect.objectContaining({ embedId: "child-1" }),
+      'stream-completion',
     );
   });
 
@@ -1953,6 +1975,7 @@ describe("handleSendEmbedDataImpl", () => {
         expect.objectContaining({ key_type: "chat" }),
       ]) }),
       expect.objectContaining({ embedId: "embed-1" }),
+      'stream-completion',
     );
     expect(service.dispatchEvent).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -2049,6 +2072,7 @@ describe("handleSendEmbedDataImpl", () => {
         expect.objectContaining({ key_type: "chat" }),
       ]) }),
       expect.objectContaining({ embedId: "embed-1" }),
+      'stream-completion',
     );
   });
 
@@ -2137,6 +2161,7 @@ describe("handleSendEmbedDataImpl", () => {
           expect.objectContaining({ key_type: "chat" }),
         ]) }),
         expect.objectContaining({ embedId: "embed-1" }),
+        'stream-completion',
       );
     } finally {
       vi.useRealTimers();
@@ -2227,6 +2252,7 @@ describe("handleSendEmbedDataImpl", () => {
           expect.objectContaining({ key_type: "chat" }),
         ]) }),
         expect.objectContaining({ embedId: "embed-1" }),
+        'stream-completion',
       );
     } finally {
       vi.useRealTimers();

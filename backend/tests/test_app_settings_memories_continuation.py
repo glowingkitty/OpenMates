@@ -39,6 +39,19 @@ class _FakeApplyAsyncTask:
 class _FakeCache:
     def __init__(self):
         self.deleted = []
+        self.active = None
+
+    async def try_claim_active_ai_task(self, chat_id, task_id, ttl=600):
+        if self.active is not None:
+            return False
+        self.active = task_id
+        return True
+
+    async def transfer_active_ai_task(self, chat_id, prior_task_id, next_task_id):
+        if self.active != prior_task_id:
+            return False
+        self.active = next_task_id
+        return True
 
     async def get_pending_app_settings_memories_request(self, chat_id):
         assert chat_id == "chat-1"
@@ -46,6 +59,7 @@ class _FakeCache:
             "task_id": "original-task-1",
             "recovery_inference_task_id": "original-task-1",
             "recovery_preflight_id": "preflight-1",
+            "root_legacy_cutover_task_id": "legacy-root-1",
             "recovery_turn_id": "turn-1",
             "recovery_public_key": "public-key-1",
             "chat_key_version": 1,
@@ -135,7 +149,10 @@ def test_app_settings_memories_continuation_preserves_request_context(monkeypatc
 
     assert request_payload["recovery_inference_task_id"] == "original-task-1"
     assert request_payload["recovery_preflight_id"] == "preflight-1"
+    assert request_payload["root_legacy_cutover_task_id"] == "legacy-root-1"
     assert request_payload["recovery_turn_id"] == "turn-1"
     assert request_payload["recovery_public_key"] == "public-key-1"
     assert request_payload["chat_key_version"] == 1
     assert not request_payload.get("recovery_task_id")
+    # The continuation owns the chat's active marker under its dispatched id.
+    assert cache.active == fake_task.calls[0]["task_id"]

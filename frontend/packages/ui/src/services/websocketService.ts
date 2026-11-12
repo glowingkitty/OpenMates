@@ -1523,6 +1523,15 @@ class WebSocketService extends EventTarget {
     return this.ws !== null && this.ws.readyState === WebSocket.OPEN;
   }
 
+  /**
+   * True while a socket is open or an attempt is under way. An attempt builds
+   * its URL (with the advertised client capabilities) before it resolves, so a
+   * capability enabled meanwhile needs a reconnect just like on an open socket.
+   */
+  public isConnectedOrConnecting(): boolean {
+    return this.isConnected() || this.connectionPromise !== null || this.preparationPromise !== null;
+  }
+
   public requestForegroundRecoveryDiscovery(requestId?: string): void {
     if (typeof document !== "undefined" && document.visibilityState === "visible" && document.hasFocus()) {
       this.sendClientLifecycle(true, "recovery_requires_foreground");
