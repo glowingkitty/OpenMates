@@ -37,16 +37,30 @@ when a skill or this file points to it.
 4. Production changes, destructive data changes and ownership transfers need
    explicit authorization. Shared dev services restart only via
    `sessions.py docker restart --session <id> --service <name>`.
-5. Low disk: deleting unused Docker images, build artifacts, caches and managed
-   worktrees inactive >7 days is pre-approved; preserve active/unfinished work.
+5. Low disk: deleting unused Docker images, build artifacts and caches is
+   pre-approved; preserve active/unfinished work. Worktrees of chats inactive
+   for 24 hours are archived and removed by the nightly expiry (archives kept
+   7 days; `sessions.py worktree restore-archive --session <id>`); never
+   delete a worktree by hand.
 6. Wait on processes (`ci_coordinator.py wait`, `sessions.py wait-deploy`), not
-   repeated sleep/poll turns. Report outcome, commit and verification.
+   repeated sleep/poll turns. Never end a turn while your own job, deploy or
+   script is still running unless a background waiter or a scheduled wake-up
+   will re-invoke you; a Stop hook refuses the turn end when CI jobs of this
+   chat have no waiter. Report outcome, commit and verification.
+7. Root operations on the dev server: `scripts/agent_root.sh <verb>` (fixed
+   allowlist: Caddy validate/reload/apply, start/status of named units,
+   AppArmor profile reload). Ask the user to run a command by hand only when
+   the helper refuses it; never ask them to run git commands.
 
 ## Discover, specify, prove
 - Discover first: source, tests, Specifications, `docs/architecture/`, prior
   decisions. Never ask what the repo can answer. When a material decision
   remains, ask one question per message with `Recommendation:` (evidence-based,
   else the safest reversible default) and `Examples:`. Clear requests: just do it.
+  A question that blocks all further work also goes out as a Discord push:
+  `python3 scripts/agent_question.py ask --question "..." --recommendation
+  "..."`; put it first in the reply, not at the end of a report. Not for
+  status updates or questions the work does not depend on.
 - Size the record to the risk: trivial → none; ordinary → inline goal + acceptance
   criteria; auth, encryption, billing, privacy, teams/sharing, permissions, sync,
   AI pipeline, provider integrations, migrations, new API routes, app skills,
@@ -176,3 +190,10 @@ when a skill or this file points to it.
   one a single bounded deliverable; split long lanes into fresh agents with a
   short handoff instead of one agent running for hundreds of turns. Ask for
   terse handbacks (outcome, commit, verification, blockers), no log dumps.
+  A hook warns a sub-agent at 50 tool calls and stops its tools at 70: size
+  each brief to fit, and start a fresh lane from the handback instead of
+  resuming a stopped one. Sub-agents cannot create sessions or worktrees.
+- Reading code: `python3 scripts/code_map.py dir <path>` gives a compact map of
+  a folder and `code_map.py outline <file>` the definitions with line numbers.
+  Reading a source file over 800 lines without `offset`/`limit` is refused
+  with that outline; read the range you need.

@@ -195,6 +195,11 @@ WORKTREE_INTEGRATED_IDLE_HOURS = 2 * 24
 # Managed worktrees (including ones created for other agents) are kept a full
 # week before hard expiry.
 WORKTREE_HARD_MAX_AGE_HOURS = 7 * 24
+# Minimum inactivity (session, worktree and chat transcript) before the nightly
+# expiry may reclaim a worktree; unique changes are archived first.
+WORKTREE_INACTIVE_EXPIRY_HOURS = 24
+# Expiry recovery archives are deleted automatically after this long.
+WORKTREE_EXPIRY_ARCHIVE_RETENTION_HOURS = 7 * 24
 WORKTREE_MAX_COUNT = int(os.environ.get("OPENMATES_WORKTREE_MAX_COUNT", "200"))
 WORKTREE_MIN_FREE_BYTES = int(float(os.environ.get("OPENMATES_WORKTREE_MIN_FREE_GIB", "30")) * 1024**3)
 WORKTREE_MAX_DISK_PERCENT = int(os.environ.get("OPENMATES_WORKTREE_MAX_DISK_PERCENT", "85"))
@@ -2526,8 +2531,17 @@ def _resolve_session_id(data: dict, *, session_id: str = "", **retired) -> str:
         from scripts.session_binding import resolve_session
     except ModuleNotFoundError:
         from session_binding import resolve_session
-    return resolve_session(data, session_id=session_id, thread_id=_agent_task_identity(),
-                           host=socket.gethostname(), cwd=PROJECT_ROOT, repo_id=DEFAULT_REPO_ID)
+    try:
+        return resolve_session(data, session_id=session_id, thread_id=_agent_task_identity(),
+                               host=socket.gethostname(), cwd=PROJECT_ROOT, repo_id=DEFAULT_REPO_ID)
+    except RuntimeError as exc:
+        policy = _expiry_policy()
+        manifest = policy.find_recovery_record(
+            data, session_id=session_id, agent_task_id="" if session_id else _agent_task_identity()
+        )
+        if manifest is None:
+            raise
+        raise RuntimeError(f"{exc}. {policy.recovery_hint(manifest, WORKTREE_EXPIRY_ARCHIVE_RETENTION_HOURS)}") from exc
 
 
 def _normalize_edit_lease_path(path_value: str | Path, session: dict | None = None) -> str | None:
@@ -4692,6 +4706,28 @@ def _managed_worktree_records() -> list[dict]:
     return records
 
 
+def _expiry_policy():
+    try:
+        from scripts import worktree_expiry_policy as policy
+    except ModuleNotFoundError:
+        import worktree_expiry_policy as policy
+    return policy
+
+
+def _expiry_record_is_live(record: dict, data: dict, *, now_timestamp: float, idle_hours: int) -> bool:
+    """Existing liveness protections plus recent activity in the owning chat."""
+    if _hard_expiry_record_is_live(record, data, now_timestamp=now_timestamp, idle_hours=idle_hours):
+        return True
+    session_id = str(record.get("session_id") or "")
+    current = data.get("sessions", {}).get(session_id)
+    session = current if isinstance(current, dict) else (
+        record.get("session") if isinstance(record.get("session"), dict) else {}
+    )
+    return _expiry_policy().chat_is_active(
+        str(session.get("agent_task_id") or ""), now_timestamp=now_timestamp, idle_hours=idle_hours
+    )
+
+
 def _managed_worktree_age_hours(record: dict, now_timestamp: float) -> float:
     timestamp = record.get("path_timestamp")
     if not isinstance(timestamp, (int, float)):
@@ -5014,19 +5050,22 @@ def _archive_expired_worktree(record: dict) -> str:
         raise RuntimeError("Recovery snapshot would cross the disk reserve; worktree retained")
     session = record.get("session") if isinstance(record.get("session"), dict) else {}
     target_ref = f"{_session_repo_remote(session)}/{_session_repo_branch(session)}"
+    head_bundle = b""
     if not _git_is_ancestor(head, target_ref):
-        raise RuntimeError(f"Expired worktree HEAD is not reachable from {target_ref}; bundle required")
+        # Commits not on the target branch are preserved as a git bundle inside the archive.
+        head_bundle = _expiry_policy().head_bundle(path, target_ref, WORKTREE_EXPIRY_MAX_ARCHIVE_BYTES - archive_peak)
     archive_id = hashlib.sha256(str(path).encode()).hexdigest()[:20]
     manifest = {
         "format": 1,
         "session_id": str(record.get("session_id") or ""),
         "worktree": str(path),
         "head": head,
-        "head_reachable_from": target_ref,
+        "head_reachable_from": "" if head_bundle else target_ref,
         "staged_patch_sha256": hashlib.sha256(staged_patch).hexdigest(),
         "working_patch_sha256": hashlib.sha256(working_patch).hexdigest(),
         "untracked": entries,
-        "restore": "Check out the exact head commit in a new workspace. Apply staged.patch with git apply --index, then working.patch with git apply. Inspect links before extracting untracked/.",
+        "head_bundle_sha256": hashlib.sha256(head_bundle).hexdigest() if head_bundle else "",
+        "restore": "Check out the exact head commit (fetch head.bundle first when present) in a new workspace. Apply staged.patch with git apply --index, then working.patch with git apply. Inspect links before extracting untracked/.",
     }
     WORKTREE_EXPIRY_ARCHIVE_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
     WORKTREE_EXPIRY_ARCHIVE_DIR.chmod(0o700)
@@ -5040,6 +5079,7 @@ def _archive_expired_worktree(record: dict) -> str:
                     ("manifest.json", json.dumps(manifest, sort_keys=True, indent=2).encode()),
                     ("staged.patch", staged_patch),
                     ("working.patch", working_patch),
+                    *((("head.bundle", head_bundle),) if head_bundle else ()),
                 ):
                     info = tarfile.TarInfo(name)
                     info.size = len(payload)
@@ -5068,6 +5108,8 @@ def _archive_expired_worktree(record: dict) -> str:
                 "staged.patch": manifest["staged_patch_sha256"],
                 "working.patch": manifest["working_patch_sha256"],
             }
+            if head_bundle:
+                expected["head.bundle"] = manifest["head_bundle_sha256"]
             expected.update({f"untracked/{entry['path']}": entry["sha256"] for entry in entries
                              if entry["kind"] != "omitted"})
             actual = {}
@@ -5188,15 +5230,19 @@ def expire_managed_worktrees(
     *,
     max_age_hours: int = WORKTREE_HARD_MAX_AGE_HOURS,
     now_timestamp: float | None = None,
+    dry_run: bool = False,
 ) -> dict:
-    """Delete aged, idle worktrees only when their changes are recoverable."""
-    if _queue_coordinated_worktree_cleanup():
+    """Delete inactive worktrees only when their changes are recoverable.
+
+    With ``dry_run`` nothing is archived, removed, pruned or queued.
+    """
+    if not dry_run and _queue_coordinated_worktree_cleanup():
         return {"max_age_hours": max_age_hours, "inspected": 0, "deleted": [],
                 "retained": [], "failures": [], "queued": True}
 
-    if max_age_hours < WORKTREE_HARD_MAX_AGE_HOURS:
+    if max_age_hours < WORKTREE_INACTIVE_EXPIRY_HOURS:
         raise ValueError(
-            f"max_age_hours below the configured hard lifetime ({WORKTREE_HARD_MAX_AGE_HOURS}) is not allowed"
+            f"max_age_hours below the minimum inactivity window ({WORKTREE_INACTIVE_EXPIRY_HOURS}) is not allowed"
         )
     current_timestamp = time.time() if now_timestamp is None else now_timestamp
     records = _managed_worktree_records()
@@ -5204,7 +5250,7 @@ def expire_managed_worktrees(
     live_session_ids = {
         str(record.get("session_id") or "")
         for record in records
-        if _hard_expiry_record_is_live(
+        if _expiry_record_is_live(
             record,
             current_data,
             now_timestamp=current_timestamp,
@@ -5234,6 +5280,27 @@ def expire_managed_worktrees(
         if _managed_worktree_age_hours(record, current_timestamp) < max_age_hours
         or str(record.get("session_id") or "") in live_session_ids
     )
+    policy = _expiry_policy()
+    if dry_run:
+        return {
+            "max_age_hours": max_age_hours,
+            "dry_run": True,
+            "inspected": len(records),
+            "would_delete": sorted(str(item["session_id"]) for item in expired),
+            "archive_required": sorted(str(item["session_id"]) for item in expired if item["requires_archive"]),
+            "deleted": [],
+            "retained": retained,
+            "protected_live": sorted(
+                str(record.get("session_id") or "") for record in records
+                if str(record.get("session_id") or "") in live_session_ids
+                and _managed_worktree_age_hours(record, current_timestamp) >= max_age_hours
+            ),
+            "protected_unresolved": protected_unresolved,
+            "would_prune_archives": policy.prune_expiry_archives(
+                WORKTREE_EXPIRY_ARCHIVE_DIR, WORKTREE_EXPIRY_ARCHIVE_RETENTION_HOURS, current_timestamp, dry_run=True
+            ),
+            "failures": [],
+        }
     deleted_records: list[dict] = []
     failures: list[dict] = []
     for record in expired:
@@ -5253,7 +5320,7 @@ def expire_managed_worktrees(
             })
             continue
         try:
-            if _hard_expiry_record_is_live(
+            if _expiry_record_is_live(
                 record, _load_sessions(), now_timestamp=time.time(), idle_hours=max_age_hours
             ):
                 continue
@@ -5272,7 +5339,7 @@ def expire_managed_worktrees(
                 disposable_now, reason_now = _hard_expiry_record_is_safely_disposable(record)
                 if not disposable_now:
                     raise RuntimeError(f"Expired worktree changed before removal: {reason_now}")
-            if _hard_expiry_record_is_live(
+            if _expiry_record_is_live(
                 record, _load_sessions(), now_timestamp=time.time(), idle_hours=max_age_hours
             ):
                 raise RuntimeError("Expired worktree became active before removal")
@@ -5287,8 +5354,15 @@ def expire_managed_worktrees(
         _delete_worktree_checkpoint_ref(session_id)
     deleted_paths = [Path(str(record["path"])).resolve(strict=False) for record in deleted_records]
 
+    pruned_archives = policy.prune_expiry_archives(
+        WORKTREE_EXPIRY_ARCHIVE_DIR, WORKTREE_EXPIRY_ARCHIVE_RETENTION_HOURS, current_timestamp
+    )
+
     def store(data: dict) -> None:
         _prune_deletion_manifests(data)
+        policy.mark_manifests_archive_pruned(
+            data.setdefault("worktree_deletion_manifests", []), pruned_archives, _now_iso()
+        )
         sessions = data.setdefault("sessions", {})
         manifests = data.setdefault("worktree_deletion_manifests", [])
         removed_session_ids: set[str] = set()
@@ -5318,6 +5392,7 @@ def expire_managed_worktrees(
             manifests.append(
                 {
                     "session_id": str(record["session_id"]),
+                    "agent_task_id": str(session.get("agent_task_id") or ""),
                     "worktree_name": Path(str(record["path"])).name,
                     "classification": "expired",
                     "reason": f"hard_max_age_{max_age_hours}h",
@@ -5331,11 +5406,13 @@ def expire_managed_worktrees(
                 }
             )
 
-    if deleted_records:
+    if deleted_records or pruned_archives:
         _mutate_sessions(store)
+    if deleted_records:
         _run_cmd(["git", "worktree", "prune"], cwd=str(CONTROL_PLANE_ROOT))
     return {
         "max_age_hours": max_age_hours,
+        "pruned_archives": pruned_archives,
         "inspected": len(records),
         "deleted": deleted_ids,
         "retained": retained,
@@ -13322,9 +13399,29 @@ def cmd_worktree(args: argparse.Namespace) -> None:
             sys.exit(2)
         print(json.dumps(result, sort_keys=True))
         return
+    if args.worktree_action == "restore-archive":
+        policy = _expiry_policy()
+        archive = args.archive or ""
+        if not archive:
+            manifest = policy.find_recovery_record(_load_sessions(), session_id=getattr(args, "session", "") or "")
+            archive = str((manifest or {}).get("recovery_archive") or "")
+        if not archive:
+            print("Error: no recovery archive recorded for this session (pass --session or --archive)", file=sys.stderr)
+            sys.exit(1)
+        date = policy.archive_deletion_date(Path(archive), WORKTREE_EXPIRY_ARCHIVE_RETENTION_HOURS)
+        if date is None:
+            print(f"Error: archive {archive} no longer exists (deleted after "
+                  f"{WORKTREE_EXPIRY_ARCHIVE_RETENTION_HOURS // 24} days)", file=sys.stderr)
+            sys.exit(1)
+        print(f"Recovery archive: {archive}\nDeleted automatically on: {date}\nRestore steps:")
+        for number, step in enumerate(policy.restore_steps(archive), 1):
+            print(f"  {number}. {step}")
+        return
     if args.worktree_action == "expire":
         try:
-            report = expire_managed_worktrees(max_age_hours=args.max_age_hours)
+            report = expire_managed_worktrees(
+                max_age_hours=args.max_age_hours, dry_run=getattr(args, "dry_run", False)
+            )
         except (OSError, RuntimeError, ValueError) as exc:
             print(f"Error: {exc}", file=sys.stderr)
             sys.exit(1)
@@ -13334,8 +13431,15 @@ def cmd_worktree(args: argparse.Namespace) -> None:
             print("== WORKTREE HARD EXPIRY ==")
             print(f"Maximum age: {report['max_age_hours']} hours")
             print(f"Inspected: {report['inspected']}")
+            if report.get("dry_run"):
+                print("DRY RUN: nothing was archived, deleted or pruned")
+                print(f"Would delete: {len(report['would_delete'])}")
+                print(f"Archive required: {len(report['archive_required'])}")
+                print(f"Would prune archives: {len(report['would_prune_archives'])}")
             print(f"Deleted: {len(report['deleted'])}")
             print(f"Retained: {len(report['retained'])}")
+            for name in report.get("pruned_archives", []):
+                print(f"  pruned archive: {name}")
             if report.get("queued"):
                 print("Cleanup queued for the elected disk coordinator.")
             for failure in report["failures"]:
@@ -15383,9 +15487,18 @@ def main() -> None:
         "--max-age-hours",
         type=int,
         default=WORKTREE_HARD_MAX_AGE_HOURS,
-        help=f"Hard maximum worktree age (minimum/default: {WORKTREE_HARD_MAX_AGE_HOURS})",
+        help=(
+            f"Inactivity window in hours for session, worktree and chat "
+            f"(minimum: {WORKTREE_INACTIVE_EXPIRY_HOURS}, default: {WORKTREE_HARD_MAX_AGE_HOURS})"
+        ),
     )
+    p_worktree_expire.add_argument("--dry-run", action="store_true", help="Report only; archive, delete and prune nothing")
     p_worktree_expire.add_argument("--format", choices=["text", "json"], default="text")
+    p_worktree_restore = p_worktree_sub.add_parser(
+        "restore-archive", help="Show the recovery archive of an expired worktree and how to restore it"
+    )
+    p_worktree_restore.add_argument("--session", "-s", help="Expired session ID")
+    p_worktree_restore.add_argument("--archive", help="Explicit archive path (default: from the deletion manifest)")
     p_worktree_cleanup = p_worktree_sub.add_parser("cleanup", help="Delete safely classified stale worktrees")
     p_worktree_cleanup.add_argument(
         "--idle-hours",

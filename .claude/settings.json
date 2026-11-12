@@ -43,6 +43,11 @@
             "type": "command",
             "command": "$(git rev-parse --show-toplevel)/.claude/hooks/apple-no-delete-guard.sh",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/subagent-budget.sh",
+            "timeout": 5
           }
         ]
       },
@@ -67,6 +72,11 @@
           {
             "type": "command",
             "command": "$(git rev-parse --show-toplevel)/.claude/hooks/bash-guard.sh",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/subagent-session-guard.sh",
             "timeout": 5
           }
         ]
@@ -142,6 +152,16 @@
           {
             "type": "command",
             "command": "$(git rev-parse --show-toplevel)/.claude/hooks/donation-language-guard.sh",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/read-outline-guard.sh",
             "timeout": 5
           }
         ]
@@ -251,6 +271,22 @@
             "type": "command",
             "command": "$(git rev-parse --show-toplevel)/.claude/hooks/check-uncommitted.sh",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/pending-work-stop-gate.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/subagent-budget.sh",
+            "timeout": 5
           }
         ]
       }

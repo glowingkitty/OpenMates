@@ -39,6 +39,8 @@ def load_sessions_module():
     import tempfile
     module._test_expiry_directory = tempfile.TemporaryDirectory(prefix="openmates-expiry-test-")
     module.WORKTREE_EXPIRY_LOCK_FILE = Path(module._test_expiry_directory.name) / "expiry.lock"
+    # Expiry prunes old archives: never let a unit test touch the host archive directory.
+    module.WORKTREE_EXPIRY_ARCHIVE_DIR = Path(module._test_expiry_directory.name) / "archives"
     # Expiry unit tests own a synthetic runtime; dedicated tests below exercise
     # the real probes without consulting host services during filesystem tests.
     module._expiry_worktree_has_runtime_references = lambda _path: False
@@ -430,8 +432,8 @@ def test_hard_expiry_rejects_age_below_seven_days(monkeypatch):
     sessions = load_sessions_module()
     monkeypatch.setattr(sessions, "_managed_worktree_records", lambda: pytest.fail("must reject before discovery"))
 
-    with pytest.raises(ValueError, match="below the configured hard lifetime"):
-        sessions.expire_managed_worktrees(max_age_hours=167)
+    with pytest.raises(ValueError, match="below the minimum inactivity window"):
+        sessions.expire_managed_worktrees(max_age_hours=23)
 
 
 def test_seven_day_expiry_ignores_stale_lifecycle_and_task_bindings(monkeypatch, tmp_path):
