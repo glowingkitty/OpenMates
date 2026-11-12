@@ -127,29 +127,35 @@ async function closeOverlay(page: any, overlay: any) {
 	}
 }
 
+/** SHA-256 of the opened video's bytes, read by the page itself. */
+async function shownVideoDigest(overlay: any): Promise<string> {
+	return overlay.getByTestId('video-generate-fullscreen-video').evaluate(async (element: HTMLVideoElement) => {
+		const bytes = await (await fetch(element.currentSrc || element.src)).arrayBuffer();
+		const digest = await crypto.subtle.digest('SHA-256', bytes);
+		return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
+	});
+}
+
 /**
- * Wait until the opened video has version 2 and show it. The overlay may update live; if it does
- * not, close and reopen it, then pick version 2 on the version timeline when it is not shown yet.
+ * Wait until the same video shows its changed version: reopen the newest card until the shown file is
+ * another one than `previousDigest`. Builds with the version history also show version 2 selected.
  */
-async function openVersionTwo(page: any, overlay: any, timeout: number) {
+async function openChangedVideo(page: any, overlay: any, previousDigest: string, timeout: number, log: any) {
 	let current = overlay;
 	await expect(async () => {
 		if (!(await current.isVisible().catch(() => false))) current = await openNewestVideo(page);
-		const dot = current.getByTestId('version-dot-2');
-		if (!(await dot.isVisible().catch(() => false))) {
+		if ((await shownVideoDigest(current)) === previousDigest) {
 			await closeOverlay(page, current);
 			current = await openNewestVideo(page);
 		}
-		await expect(dot).toBeVisible({ timeout: 5000 });
+		expect(await shownVideoDigest(current), 'the changed video replaced the first one').not.toBe(previousDigest);
 	}).toPass({ timeout, intervals: [5000, 10_000, 15_000] });
-	const shown = current.getByTestId('video-generate-fullscreen');
-	if ((await shown.getAttribute('data-embed-version')) !== '2') {
-		await current.getByTestId('version-dot-2').click();
+	const dot = current.getByTestId('version-dot-2');
+	const hasHistory = await dot.isVisible().catch(() => false);
+	log(`version history shown: ${hasHistory}`);
+	if (hasHistory) {
+		await expect(current.getByTestId('video-generate-fullscreen')).toHaveAttribute('data-embed-version', '2', { timeout: 60_000 });
 	}
-	await expect(shown).toHaveAttribute('data-embed-version', '2', { timeout: 60_000 });
-	await expect
-		.poll(() => current.getByTestId('video-generate-fullscreen-video').evaluate((element: HTMLVideoElement) => element.readyState), { timeout: 60_000 })
-		.toBeGreaterThanOrEqual(1);
 	return current;
 }
 
@@ -205,6 +211,7 @@ test.describe.serial('videos.generate chat', () => {
 				.toBeGreaterThan(0);
 			await screenshot(page, 'composed-second-part-selected', { fullPage: false });
 			await saveVideo(page, overlay, 'composed-v1.mp4', log);
+			const firstDigest = await shownVideoDigest(overlay);
 
 			await overlay.getByTestId('video-edit-button').click();
 			await expect(overlay.getByTestId('video-edit-hint')).toBeVisible();
@@ -233,7 +240,7 @@ test.describe.serial('videos.generate chat', () => {
 			log('edit follow-up message sent');
 			await closeOverlay(page, overlay);
 			await expectReplyFromGemini(page, log, CHANGE_TIMEOUT);
-			overlay = await openVersionTwo(page, overlay, CHANGE_TIMEOUT);
+			overlay = await openChangedVideo(page, overlay, firstDigest, CHANGE_TIMEOUT, log);
 			await screenshot(page, 'composed-version-two', { fullPage: false });
 			await saveVideo(page, overlay, 'composed-v2.mp4', log);
 		} finally {
@@ -271,6 +278,7 @@ test.describe.serial('videos.generate chat', () => {
 			await expect(overlay.getByTestId('video-timeline-extend-end')).toBeVisible();
 			await screenshot(page, 'generative-fullscreen-timeline', { fullPage: false });
 			await saveVideo(page, overlay, 'generative-v1.mp4', log);
+			const firstDigest = await shownVideoDigest(overlay);
 
 			await overlay.getByTestId('video-timeline-extend-end').click();
 			await overlay.getByTestId('video-extend-input').fill(EXTEND_TEXT);
@@ -282,7 +290,7 @@ test.describe.serial('videos.generate chat', () => {
 			log('extend follow-up message sent');
 			await closeOverlay(page, overlay);
 			await expectReplyFromGemini(page, log, CHANGE_TIMEOUT);
-			overlay = await openVersionTwo(page, overlay, CHANGE_TIMEOUT);
+			overlay = await openChangedVideo(page, overlay, firstDigest, CHANGE_TIMEOUT, log);
 			await expect(overlay.getByTestId('video-timeline').getByTestId('video-timeline-part')).toHaveCount(2, { timeout: 30_000 });
 			await screenshot(page, 'generative-version-two', { fullPage: false });
 			await saveVideo(page, overlay, 'generative-v2.mp4', log);

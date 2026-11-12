@@ -147,9 +147,18 @@
   let reloadTimer: ReturnType<typeof setTimeout> | undefined;
   async function reloadHead(attempt = 1) {
     const id = embedId;
-    if (!EMBED_VERSIONS_ENABLED || !id) return;
+    if (!id) return;
     try {
       await requestEmbedFromServerOnce(id, 'video embed updated', { chatId: sourceChatId });
+      if (!EMBED_VERSIONS_ENABLED) {
+        // Builds without the version history: show the stored video when it is another file than the shown one.
+        const latest = await resolveEmbed(id, { chatId: sourceChatId ?? undefined });
+        const content = typeof latest?.content === 'string' ? await decodeToonContent(latest.content) : null;
+        const latestKey = (content?.files as { original?: VideoFileVariant } | undefined)?.original?.s3_key;
+        if (latestKey && latestKey !== files?.original?.s3_key) await showVersion(shownVersion ?? 1, latest!.content as string);
+        else if (attempt < HEAD_RELOAD_ATTEMPTS) reloadTimer = setTimeout(() => void reloadHead(attempt + 1), HEAD_RELOAD_DELAY_MS);
+        return;
+      }
       noteEmbedHeadChanged(id);
       const head = await embedHead(id);
       const version = head?.version ?? 1;
