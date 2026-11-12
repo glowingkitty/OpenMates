@@ -625,6 +625,18 @@ def send_dispatch_alert(root: Path, report: dict) -> dict:
         return result
 
 
+SCHEDULED_WEEKDAYS = frozenset(range(5))  # Mon-Fri; matches test_schedule_setup.py cron.
+
+
+def is_unscheduled_quiet_day(day: date, report: dict) -> bool:
+    """True for a non-run day on which nothing was dispatched (no digest owed)."""
+    return (
+        day.weekday() not in SCHEDULED_WEEKDAYS
+        and not report["manifest_present"]
+        and report["job_count"] == 0
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=canonical_root())
@@ -636,6 +648,10 @@ def main() -> int:
     if args.send:
         reconcile_receipts(args.root, args.date)
     report = build_report(args.root, args.date)
+    if is_unscheduled_quiet_day(args.date, report):
+        # Weekend days have no nightly run; do not mail an empty "blocked" digest.
+        print(json.dumps({"date": report["date"], "status": "not_scheduled"}))
+        return 0
     if args.alert:
         result = send_dispatch_alert(args.root, report)
         print(json.dumps(result))

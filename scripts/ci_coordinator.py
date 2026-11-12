@@ -26,7 +26,11 @@ POLL_SECONDS = 30
 MAX_ACTIVE = 20  # Confirmed GitHub Free hosted-job entitlement.
 MAX_SELFHOSTED = 1
 DAILY_OWNER = "daily"
-DAILY_MAX_ACTIVE = 6  # Hosted slots the daily batch may hold at once.
+DAILY_MAX_ACTIVE = 6  # Hosted slots the daily batch may hold at once (daytime).
+# Overnight the batch may use more of the 20 slots so ~600 jobs finish before
+# the noon digest; at 6 slots the 03:00 batch ran into the next working day.
+DAILY_NIGHT_MAX_ACTIVE = 14
+DAILY_NIGHT_HOURS_UTC = range(3, 7)  # 03:00-06:59 UTC
 OCCUPANCY_CACHE_SECONDS = 120
 MAX_OCCUPANCY_REQUESTS = 80
 ACTIVE_RUN_LOOKBACK_DAYS = 70
@@ -429,6 +433,7 @@ class Queue:
         max_selfhosted=None,
         hosted_entitlement=None,
         daily_max_active=None,
+        daily_night_max_active=None,
     ):
         self.path = path
         self.daily_max_active = int(
@@ -436,7 +441,12 @@ class Queue:
             if daily_max_active is not None
             else os.environ.get("OPENMATES_CI_DAILY_MAX_ACTIVE", DAILY_MAX_ACTIVE)
         )
-        if self.daily_max_active < 0:
+        self.daily_night_max_active = int(
+            daily_night_max_active
+            if daily_night_max_active is not None
+            else os.environ.get("OPENMATES_CI_DAILY_NIGHT_MAX_ACTIVE", DAILY_NIGHT_MAX_ACTIVE)
+        )
+        if self.daily_max_active < 0 or self.daily_night_max_active < 0:
             raise ValueError("Daily CI slot cap must be nonnegative")
         self.hosted_entitlement = int(
             hosted_entitlement
@@ -1126,6 +1136,13 @@ class Queue:
                     db.commit()
                     raise
 
+    def daily_cap(self, now: float) -> int:
+        """Hosted slots the daily batch may hold at `now` (larger overnight)."""
+        hour = datetime.fromtimestamp(now, timezone.utc).hour
+        if hour in DAILY_NIGHT_HOURS_UTC:
+            return max(self.daily_max_active, self.daily_night_max_active)
+        return self.daily_max_active
+
     def tick(self, github, now=None):
         now = time.time() if now is None else now
         with self.path.with_suffix(".lock").open("a") as lock:
@@ -1372,7 +1389,7 @@ class Queue:
                             and not (
                                 job["owner"] == DAILY_OWNER
                                 and runner_class(job) == "hosted"
-                                and daily_hosted >= self.daily_max_active
+                                and daily_hosted >= self.daily_cap(now)
                             )
                         ]
                         if not eligible:

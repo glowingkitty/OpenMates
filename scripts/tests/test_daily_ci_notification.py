@@ -187,3 +187,15 @@ def test_finalizer_waits_for_apple_or_deadline_and_counts_native_failure(tmp_pat
     final = notice.build_report(tmp_path, day, datetime(2026, 9, 28, 4, tzinfo=timezone.utc))
     assert final["status"] == "failed_or_held" and final["ready"]
     assert final["apple_e2e"]["counts"]["executed"] == 2
+
+
+def test_weekend_without_a_run_sends_no_digest(tmp_path):
+    report = notice.build_report(tmp_path, date(2026, 11, 14), datetime(2026, 11, 14, 13, tzinfo=timezone.utc))
+    assert report["status"] == "blocked"
+    assert notice.is_unscheduled_quiet_day(date(2026, 11, 14), report)
+
+
+def test_weekday_without_a_run_still_reports_blocked(tmp_path):
+    report = notice.build_report(tmp_path, date(2026, 11, 13), datetime(2026, 11, 13, 13, tzinfo=timezone.utc))
+    assert report["status"] == "blocked" and report["ready"]
+    assert not notice.is_unscheduled_quiet_day(date(2026, 11, 13), report)

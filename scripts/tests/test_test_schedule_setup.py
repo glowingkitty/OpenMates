@@ -41,3 +41,8 @@ def test_replacement_can_target_the_canonical_checkout() -> None:
 
     assert f"{canonical}/scripts/run-tests-daily.sh" in rendered
     assert ".openmates-agent-worktrees" not in rendered
+
+def test_nightly_suite_runs_on_weekdays_only() -> None:
+    block = managed_block(Path("/srv/OpenMates"))
+    nightly = [line for line in block.splitlines() if "run-tests-daily.sh" in line]
+    assert nightly and nightly[0].startswith("0 3 * * 1-5 ")

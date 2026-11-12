@@ -863,6 +863,27 @@ def test_environment_overrides_daily_cap(tmp_path, monkeypatch):
     assert len(remote.sent) == 2
 
 
+def test_daily_cap_is_larger_overnight_and_shrinks_in_the_morning(tmp_path, monkeypatch):
+    from datetime import datetime, timezone
+
+    monkeypatch.delenv("OPENMATES_CI_DAILY_MAX_ACTIVE", raising=False)
+    monkeypatch.delenv("OPENMATES_CI_DAILY_NIGHT_MAX_ACTIVE", raising=False)
+    queue = _daily_queue(tmp_path, monkeypatch)
+    night = datetime(2026, 11, 13, 3, 5, tzinfo=timezone.utc).timestamp()
+    morning = datetime(2026, 11, 13, 7, 0, tzinfo=timezone.utc).timestamp()
+    assert queue.daily_cap(night) == 14
+    assert queue.daily_cap(morning) == 6
+    for n in range(30):
+        queue.enqueue("daily", "a" * 40, [f"daily-{n}.spec.ts"])
+    other = queue.enqueue("dev", "b" * 40, ["dev.spec.ts"])
+    remote = Remote()
+    queue.tick(remote, night)
+    sent = [job["owner"] for job in remote.sent]
+    assert sent.count("daily") == 14
+    assert "dev" in sent  # the night cap still leaves slots for chats
+    assert other["owner"] == "dev"
+
+
 def test_cancel_owner_only_cancels_undispatched_jobs_of_that_owner(tmp_path, monkeypatch):
     queue = _daily_queue(tmp_path, monkeypatch, daily_max_active=1)
     for n in range(3):

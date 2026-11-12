@@ -38,8 +38,8 @@ def managed_block(root: Path = PROJECT_ROOT) -> str:
     return "\n".join([
         BEGIN,
         "CRON_TZ=UTC",
-        "# Nightly full suite at 03:00 UTC.",
-        f"0 3 * * * /bin/bash {quoted_root}/scripts/run-tests-daily.sh --detach >> {log_root}/daily-tests.log 2>&1",
+        "# Nightly full suite at 03:00 UTC on weekdays (digest by noon UTC).",
+        f"0 3 * * 1-5 /bin/bash {quoted_root}/scripts/run-tests-daily.sh --detach >> {log_root}/daily-tests.log 2>&1",
         "# Reconcile terminal receipts and retry only undelivered notification channels.",
         f"15 * * * * /usr/bin/python3 {quoted_root}/scripts/daily_ci_notification.py --send >> {log_root}/daily-tests-notification.log 2>&1",
         "# Hourly dev core journeys during the existing 08:00-18:00 UTC window.",
