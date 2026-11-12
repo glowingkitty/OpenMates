@@ -203,6 +203,7 @@
         "file-attachment-code-flow.spec.ts",
         "file-attachment-flow.spec.ts",
         "focus-mode-video-real-request.spec.ts",
+        "image-enhance.spec.ts",
         "image-model-inference-real.spec.ts",
         "message-highlights.spec.ts",
         "message-sync.spec.ts",
@@ -1008,7 +1009,8 @@
         "cli-native-project-hosted-files.spec.ts",
         "cli-native-project-application-files.spec.ts",
         "cli-native-project-create-request.spec.ts",
-        "cli-native-remote-access-host.spec.ts"
+        "cli-native-remote-access-host.spec.ts",
+        "cli-native-embed-user-edits.spec.ts"
       ],
       "enabling_work": "Run against existing core stack and fresh real accounts; report missing fixture or product assertion failures without restoring shared accounts."
     },
@@ -1529,6 +1531,14 @@
       "committed_cache_files": {
         "math_calculate_web": 2
       }
+    },
+    "image-enhance.spec.ts": {
+      "dependency": "live_media_provider_and_storage",
+      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: image generation in chat, then Enhance in the image fullscreen stores the next version and the chat notice. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add isolated object storage for the generated and enhanced image files.",
+      "user_input_required": true,
+      "source_environment_names": [
+        "PLAYWRIGHT_TEST_BASE_URL"
+      ]
     },
     "image-model-inference-real.spec.ts": {
       "dependency": "original_live_inference",

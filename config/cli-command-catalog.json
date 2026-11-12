@@ -668,6 +668,8 @@
       "output",
       "password",
       "profile",
+      "project",
+      "resume",
       "runtime",
       "shared-context",
       "source-message-id",
@@ -15975,6 +15977,19 @@
       ]
     },
     {
+      "long": "resume",
+      "arity": "value",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/cli/embed_user_edit_cmd.rs",
+          "line": 1,
+          "symbol": "parse"
+        }
+      ]
+    },
+    {
       "long": "resume-from",
       "arity": "value",
       "repeatable": true,
@@ -23973,7 +23988,7 @@
                     "basic": true
                   },
                   "type": "string",
-                  "description": "Doctor speciality or type. Supports German and English names. Examples: \"augenarzt\", \"hautarzt\", \"allgemeinmedizin\", \"zahnarzt\", \"gynäkologie\", \"kardiologie\", \"orthopädie\", \"neurologie\", \"kinderarzt\", \"hno\", \"physiotherapie\", \"urologie\", \"ophthalmologist\", \"dermatologist\", \"general_practitioner\", \"dentist\", \"cardiologist\", \"neurologist\", \"pediatrician\".\n"
+                  "description": "Doctor speciality or type. Supports German and English names. Examples: \"augenarzt\", \"hautarzt\", \"allgemeinmedizin\", \"zahnarzt\", \"gyn\u00e4kologie\", \"kardiologie\", \"orthop\u00e4die\", \"neurologie\", \"kinderarzt\", \"hno\", \"physiotherapie\", \"urologie\", \"ophthalmologist\", \"dermatologist\", \"general_practitioner\", \"dentist\", \"cardiologist\", \"neurologist\", \"pediatrician\".\n"
                 },
                 "city": {
                   "x-ui": {
@@ -23982,7 +23997,7 @@
                     "location_mode": "city"
                   },
                   "type": "string",
-                  "description": "City where to search for appointments. Supports German and English city names. Examples: \"Berlin\", \"München\", \"Munich\", \"Hamburg\", \"Köln\", \"Frankfurt\", \"Stuttgart\", \"Düsseldorf\", \"Dresden\", \"Leipzig\", \"Hannover\", \"Nürnberg\", \"Bonn\", \"Heidelberg\".\n"
+                  "description": "City where to search for appointments. Supports German and English city names. Examples: \"Berlin\", \"M\u00fcnchen\", \"Munich\", \"Hamburg\", \"K\u00f6ln\", \"Frankfurt\", \"Stuttgart\", \"D\u00fcsseldorf\", \"Dresden\", \"Leipzig\", \"Hannover\", \"N\u00fcrnberg\", \"Bonn\", \"Heidelberg\".\n"
                 },
                 "provider_platform": {
                   "x-ui": {
@@ -24801,7 +24816,7 @@
                     "basic": true
                   },
                   "type": "string",
-                  "description": "Output file format. Use \"svg\" to generate a scalable vector graphic (SVG) via\nRecraft V4.1 — ideal for logos, icons, illustrations, and any graphic that needs\nto be scalable, editable in design tools, or used at any size without quality loss.\nUse \"png\" or \"jpg\" for photos, realistic scenes, and detailed raster images.\nWhen a Recraft model is selected, Recraft V4 is used for raster output as well.\n",
+                  "description": "Output file format. Use \"svg\" to generate a scalable vector graphic (SVG) via\nRecraft V4.1 \u2014 ideal for logos, icons, illustrations, and any graphic that needs\nto be scalable, editable in design tools, or used at any size without quality loss.\nUse \"png\" or \"jpg\" for photos, realistic scenes, and detailed raster images.\nWhen a Recraft model is selected, Recraft V4 is used for raster output as well.\n",
                   "enum": [
                     "png",
                     "jpg",
@@ -24814,7 +24829,7 @@
                     "basic": true
                   },
                   "type": "string",
-                  "description": "Generation quality. Controls which model tier is used when Recraft is the provider.\nFor SVG output (output_filetype=\"svg\"):\n  \"default\" uses Recraft V4.1 Vector (100 credits — good for web/UI use).\n  \"max\" uses Recraft V4.1 Pro Vector (300 credits — best for print, large-format,\n  or highly detailed vector illustrations).\nFor raster output (output_filetype=\"png\"/\"jpg\") with a Recraft model selected:\n  \"default\" uses Recraft V4.1 (50 credits — fast, cost-effective).\n  \"max\" uses Recraft V4.1 Pro (250 credits — high-resolution, print-ready).\nFor other raster models (Google Gemini, GPT Image 2, FLUX), quality may be handled by the provider.\n",
+                  "description": "Generation quality. Controls which model tier is used when Recraft is the provider.\nFor SVG output (output_filetype=\"svg\"):\n  \"default\" uses Recraft V4.1 Vector (100 credits \u2014 good for web/UI use).\n  \"max\" uses Recraft V4.1 Pro Vector (300 credits \u2014 best for print, large-format,\n  or highly detailed vector illustrations).\nFor raster output (output_filetype=\"png\"/\"jpg\") with a Recraft model selected:\n  \"default\" uses Recraft V4.1 (50 credits \u2014 fast, cost-effective).\n  \"max\" uses Recraft V4.1 Pro (250 credits \u2014 high-resolution, print-ready).\nFor other raster models (Google Gemini, GPT Image 2, FLUX), quality may be handled by the provider.\n",
                   "enum": [
                     "default",
                     "max"
@@ -25802,7 +25817,7 @@
         "math",
         "calculate"
       ],
-      "summary": "MANDATORY: Use this skill for ALL mathematical calculations without exception. This includes simple arithmetic such as addition, subtraction, multiplication (written as *, x, or ×), division, and parenthesised expressions like (4x22x7)/2 or (100+50)*3/2. Also use for algebra, trigonometry, calculus, unit conversions, symbolic simplification, equation solving, derivatives, and integrals. NEVER attempt to compute a numeric result yourself — always call this skill so results are guaranteed to be ex",
+      "summary": "MANDATORY: Use this skill for ALL mathematical calculations without exception. This includes simple arithmetic such as addition, subtraction, multiplication (written as *, x, or \u00d7), division, and parenthesised expressions like (4x22x7)/2 or (100+50)*3/2. Also use for algebra, trigonometry, calculus, unit conversions, symbolic simplification, equation solving, derivatives, and integrals. NEVER attempt to compute a numeric result yourself \u2014 always call this skill so results are guaranteed to be ex",
       "usages": [
         "apps math calculate [value]"
       ],
@@ -26809,7 +26824,7 @@
         "pdf",
         "read"
       ],
-      "summary": "Load and read the raw text content (markdown) of specific pages from an uploaded PDF document. Use when the user asks what a PDF says, wants you to summarise sections, or requests information that is likely textual (paragraphs, tables, headings). The embed TOON content includes a TOC and per-page token estimates — use them to select the most relevant pages. Limits output to 50 000 tokens; call again for remaining pages if needed. Pass the exact embed_ref (original filename) from the toon block —",
+      "summary": "Load and read the raw text content (markdown) of specific pages from an uploaded PDF document. Use when the user asks what a PDF says, wants you to summarise sections, or requests information that is likely textual (paragraphs, tables, headings). The embed TOON content includes a TOC and per-page token estimates \u2014 use them to select the most relevant pages. Limits output to 50 000 tokens; call again for remaining pages if needed. Pass the exact embed_ref (original filename) from the toon block \u2014",
       "usages": [
         "apps pdf read [value]"
       ],
@@ -26886,7 +26901,7 @@
         "pdf",
         "search"
       ],
-      "summary": "Search for specific text, keywords, or phrases across all pages of an uploaded PDF. Returns matching text blocks with surrounding context and page numbers. Use when the user asks to find where something is mentioned in the document, or when a targeted keyword search is faster than reading entire sections. No LLM call required — pure text search over the OCR data. Pass the exact embed_ref (original filename) from the toon block as file_path.",
+      "summary": "Search for specific text, keywords, or phrases across all pages of an uploaded PDF. Returns matching text blocks with surrounding context and page numbers. Use when the user asks to find where something is mentioned in the document, or when a targeted keyword search is faster than reading entire sections. No LLM call required \u2014 pure text search over the OCR data. Pass the exact embed_ref (original filename) from the toon block as file_path.",
       "usages": [
         "apps pdf search [value]"
       ],
@@ -26966,7 +26981,7 @@
         "pdf",
         "view"
       ],
-      "summary": "View one or more page screenshots from an uploaded PDF and return them as multimodal image blocks so the main inference model can see the pages directly. Use when the user asks about the visual layout, diagrams, charts, figures, or images on specific pages. Also useful when text OCR may have been imperfect (e.g. complex tables, mathematical notation, handwriting). Up to 5 pages can be viewed per call. Pass the exact embed_ref (original filename) from the toon block as file_path — the server reso",
+      "summary": "View one or more page screenshots from an uploaded PDF and return them as multimodal image blocks so the main inference model can see the pages directly. Use when the user asks about the visual layout, diagrams, charts, figures, or images on specific pages. Also useful when text OCR may have been imperfect (e.g. complex tables, mathematical notation, handwriting). Up to 5 pages can be viewed per call. Pass the exact embed_ref (original filename) from the toon block as file_path \u2014 the server reso",
       "usages": [
         "apps pdf view [value]"
       ],
@@ -28702,7 +28717,7 @@
             },
             "type": "string",
             "format": "date",
-            "description": "Departure date in YYYY-MM-DD format (e.g. '2026-03-05'). Must be a past/completed date — live tracking is not supported.\n"
+            "description": "Departure date in YYYY-MM-DD format (e.g. '2026-03-05'). Must be a past/completed date \u2014 live tracking is not supported.\n"
           },
           "origin_iata": {
             "x-ui": {
@@ -33662,6 +33677,107 @@
       "gaps": [
         "Personal Cookie context only; Team links and API-key credentials fail explicitly.",
         "Embed selectors use the saved-embed resolver; real link integration and platform verification remain open."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "embeds",
+        "enhance"
+      ],
+      "summary": "embeds enhance",
+      "usages": [
+        "embeds enhance <embed-id> [--chat <chat-id> | --project <project-id>] [--resume <operation-id>] [--json]"
+      ],
+      "positionals": [
+        {
+          "name": "embed-id",
+          "required": true,
+          "variadic": false,
+          "at": 2,
+          "synopsis": "<embed-id>"
+        }
+      ],
+      "flags": [
+        "api-key",
+        "api-url",
+        "chat",
+        "help",
+        "json",
+        "profile",
+        "project",
+        "resume"
+      ],
+      "source_locations": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/cli/embed_user_edit_cmd.rs",
+          "line": 1,
+          "symbol": "execute"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "client.enhance_image",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/embed_user_edit_cmd.rs"
+      },
+      "gaps": [
+        "Native-only command with no npm CLI source; Personal Cookie session only (API keys and Team Enhance fail explicitly). Thin shell over the shared core (feature.embed-user-edits).",
+        "Enhance needs a real image provider; isolated CI has none, so a real Enhance run is unproven there (classified like cli-images.spec.ts)."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "embeds",
+        "restore"
+      ],
+      "summary": "embeds restore",
+      "usages": [
+        "embeds restore <embed-id> --version <n> [--chat <chat-id> | --project <project-id>] [--json]"
+      ],
+      "positionals": [
+        {
+          "name": "embed-id",
+          "required": true,
+          "variadic": false,
+          "at": 2,
+          "synopsis": "<embed-id>"
+        }
+      ],
+      "flags": [
+        "api-key",
+        "api-url",
+        "chat",
+        "help",
+        "json",
+        "profile",
+        "project",
+        "version"
+      ],
+      "source_locations": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/cli/embed_user_edit_cmd.rs",
+          "line": 1,
+          "symbol": "execute"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "client.restore_embed_version",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/embed_user_edit_cmd.rs"
+      },
+      "gaps": [
+        "Native-only command with no npm CLI source; Personal Cookie session only (API keys and Team Enhance fail explicitly). Thin shell over the shared core (feature.embed-user-edits)."
       ],
       "platforms": {
         "linux": "not_verified",
@@ -63971,9 +64087,9 @@
     "Remote command protection is Linux-specific; unsupported hosts must fail closed."
   ],
   "coverage": {
-    "command_patterns": 744,
-    "flags": 610,
-    "native_handlers_partial": 739,
+    "command_patterns": 746,
+    "flags": 611,
+    "native_handlers_partial": 741,
     "unsupported": 5,
     "feature_complete": false
   },

@@ -43,7 +43,7 @@ fn first(i: &Invocation) -> Result<&str, CliError> {
 }
 // Existing versions uses parseInt(value, 10): preserve its decimal prefix,
 // including '+2' and '2suffix', rather than silently replacing its grammar.
-fn version(i: &Invocation) -> Result<i64, CliError> {
+pub(super) fn version(i: &Invocation) -> Result<i64, CliError> {
     let value = i.text("version").unwrap_or("").trim_start();
     let signed = value.strip_prefix('+').unwrap_or(value);
     let digits = signed.bytes().take_while(u8::is_ascii_digit).count();
@@ -100,6 +100,20 @@ fn preview_output(i: &Invocation, value: Value) -> Result<CliOutput, CliError> {
     }
     Ok(CliOutput::text(out))
 }
+/// "  by you · enhance" / "  by the assistant" from the versions list's
+/// `revision_origin` / `revision_action` (feature.embed-user-edits); empty for
+/// servers that do not send them.
+fn made_by(row: &Value) -> String {
+    let who = match row["revision_origin"].as_str() {
+        Some("user") => "you",
+        Some("assistant") => "the assistant",
+        _ => return String::new(),
+    };
+    match row["revision_action"].as_str().filter(|a| !a.is_empty()) {
+        Some(action) => format!("  by {who} · {}", super::terminal_text(action)),
+        None => format!("  by {who}"),
+    }
+}
 fn versions_output(i: &Invocation, value: Value) -> Result<CliOutput, CliError> {
     if i.boolean("json") {
         return CliOutput::json(&value);
@@ -131,7 +145,7 @@ fn versions_output(i: &Invocation, value: Value) -> Result<CliOutput, CliError> 
             date.second(),
             date.millisecond()
         );
-        out.push_str(&format!("  v{number}{marker}  {date}\n"));
+        out.push_str(&format!("  v{number}{marker}  {date}{}\n", made_by(row)));
     }
     if value["readonly"] == true {
         out.push_str("\x1b[2mRead-only shared history\x1b[0m\n");

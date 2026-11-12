@@ -3809,7 +3809,16 @@ impl Ui {
             let chat = self.chat.as_ref().unwrap();
             let mut rows: Vec<Row> = vec![];
             let mut latest = None;
-            for message in &chat.messages {
+            for item in crate::cli::embed_update_notice::transcript_items(&chat.messages) {
+                // embed-user-edits.event.collapse: a run of embed edits is one quiet line.
+                let message = match item {
+                    crate::cli::embed_update_notice::TranscriptItem::Notice(line) => {
+                        rows.push(markdown::styled(format!("· {line}"), Style::default().fg(MUTED).italic()));
+                        rows.push(vec![]);
+                        continue;
+                    }
+                    crate::cli::embed_update_notice::TranscriptItem::Message(message) => message,
+                };
                 let start = rows.len();
                 let user = message.role == "user";
                 let label = if user {

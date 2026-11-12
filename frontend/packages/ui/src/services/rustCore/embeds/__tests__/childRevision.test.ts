@@ -163,6 +163,13 @@ describe('child revision handlers', () => {
 		await expect(h.embedVersionsByMessage({ messages: [], embedId: EMBED })).rejects.toMatchObject({ code: 'embed_revision_binding_missing' });
 		const bound = handlers({}, { embed_versions_by_message: () => JSON.stringify([{ message_id: 'm1', version: 1, pinned_here: false }]) });
 		expect(await bound.embedVersionsByMessage({ messages: [], embedId: EMBED })).toEqual([{ message_id: 'm1', version: 1, pinned_here: false }]);
+		// With the version list the core's provenance rule answers (user versions followed).
+		const provenance = vi.fn(() => JSON.stringify([{ message_id: 'm1', version: 2, pinned_here: false }]));
+		const followed = handlers({}, { embed_versions_by_message_with_provenance: provenance });
+		const versionsPage = { versions: [{ version_number: 2, revision_origin: 'user', revision_action: 'enhance' }] };
+		expect(await followed.embedVersionsByMessage({ messages: [], embedId: EMBED, versionsPage }))
+			.toEqual([{ message_id: 'm1', version: 2, pinned_here: false }]);
+		expect(provenance).toHaveBeenCalledWith('[]', EMBED, JSON.stringify(versionsPage));
 	});
 
 	// contract-test: direct surface=gui.web assertions=images-generate.revision.message-shows-its-version

@@ -60,6 +60,35 @@ pub(crate) fn restore_request(
 }
 
 impl Client {
+    /// The current server head of `embed_id` for a user edit: read fresh with
+    /// its key wrappers (kept in the client cache, so the commit can open and
+    /// re-wrap the embed key), plus the id of the embed's chat when this
+    /// device has that chat cached. Used by the CLI, which keeps no embed
+    /// store, and by the web Worker before Enhance, its save and restore (a
+    /// freshly opened embed's key is not in the client cache yet). Pass the
+    /// head to [`Self::restore_embed_version`] or [`Client::enhance_image`].
+    ///
+    /// # Errors
+    /// The read's errors as `Transport`; `Validation { code: "invalid_head" }`
+    /// for a malformed head row.
+    pub async fn embed_user_edit_head(
+        &mut self,
+        embed_id: &str,
+    ) -> RevisionResult<(EmbedHead, Option<String>)> {
+        self.require_session()?;
+        self.embed_detail(embed_id).await?;
+        let row = self.embeds.get(embed_id).ok_or(Error::Protocol)?;
+        let now_seconds = i64::try_from(crate::client::now_ms() / 1000).unwrap_or(i64::MAX);
+        let head = EmbedHead::from_cached_row(embed_id, row, now_seconds)?;
+        let chat_id = head.hashed_chat_id.as_deref().and_then(|hash| {
+            self.chats
+                .keys()
+                .find(|id| crate::client::sha256(id) == hash)
+                .cloned()
+        });
+        Ok((head, chat_id))
+    }
+
     /// Restore version `from` of an embed as its next version: the new
     /// version equals version `from` (content and, for images, its files);
     /// every version stays in the history. `head` is the cached head row,

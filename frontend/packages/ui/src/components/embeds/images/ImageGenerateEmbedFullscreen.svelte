@@ -39,6 +39,12 @@
   import EmbedVersionTimeline from '../shared/EmbedVersionTimeline.svelte';
   import { EMBED_VERSIONS_ENABLED, embedContentAtVersion, embedHead } from '../../../services/rustCore/embeds/messageEmbedVersion';
   import { takeFullscreenVersion, versionBadgeLabel } from './imageVersionScope';
+  import { createImageEnhance, imageEditAvailability, imageEditErrorKey } from './imageEnhance.svelte';
+  import { EMBED_EDITS_ENABLED, enhanceImage, restoreEmbedVersion, runningEnhance } from '../../../services/rustCore/embeds/embedEditSession';
+  import { requestEmbedFromServerOnce } from '../../../services/embedResolver';
+  import { noteEmbedHeadChanged } from '../../../services/rustCore/embeds/messageEmbedVersion';
+  import { activeTeamId } from '../../../stores/teamStore';
+  import { get } from 'svelte/store';
 
   /**
    * Type for files metadata from embed content
@@ -94,6 +100,9 @@
     enhanceState?: 'idle' | 'running' | 'failed';
     /** Message of a failed Enhance; shown as a notification and as the button tooltip. */
     enhanceError?: string;
+    /** Opened from the Projects workspace: Enhance and restore save in this Project. */
+    projectId?: string;
+    teamId?: string | null;
   }
 
   let {
@@ -114,6 +123,8 @@
     canEnhance = true,
     enhanceState = 'idle',
     enhanceError,
+    projectId,
+    teamId,
   }: Props = $props();
 
   // ── Extract fields from data.decodedContent and data.embedData ──────────────
@@ -485,9 +496,62 @@
     panelState.openSettings();
   }
 
+  // Enhance and restore through the client core (embed-user-edits); the preview passes its own onEnhance.
+  let chatTeamId = $state<string | null | undefined>(undefined);
+  $effect(() => {
+    const chatId = sourceChatContext?.chatId;
+    if (!EMBED_EDITS_ENABLED || projectId || !chatId) { chatTeamId = null; return; }
+    void import('../../../services/db').then(({ chatDB }) => chatDB.getChat(chatId))
+      .then((chat) => { chatTeamId = chat?.team_id ?? get(activeTeamId) ?? null; })
+      .catch((err: unknown) => { console.error('[ImageGenerateEmbedFullscreen] Chat of the image unreadable:', err); chatTeamId = null; });
+  });
+  let editPlace = $derived(chatTeamId === undefined ? null : imageEditAvailability({
+    chatId: sourceChatContext?.chatId ?? null, chatTeamId, projectId, projectTeamId: teamId,
+    readOnly: sourceChatContext?.isReadOnly === true || !!sourceChatContext?.exampleChatId,
+  }));
+  let coreEditable = $derived(EMBED_EDITS_ENABLED && !!embedId && !onEnhance && status === 'finished' && !!files);
+  let editScope = $derived(editPlace?.kind === 'available' ? editPlace.scope : null);
+
+  /** After a save: load the new head from the server so this view and the chat card show it. */
+  async function reloadHead(version: number | null) {
+    if (!embedId) return;
+    await requestEmbedFromServerOnce(embedId, 'user embed version saved', { chatId: projectId ? null : sourceChatId });
+    noteEmbedHeadChanged(embedId);
+    const head = await embedHead(embedId);
+    headVersion = head?.version ?? version ?? headVersion;
+    const stored = await resolveEmbed(embedId, { chatId: projectId ? null : sourceChatId });
+    if (typeof stored?.content === 'string' && headVersion !== undefined) await showVersion(headVersion, stored.content);
+  }
+  const coreEnhance = createImageEnhance(() => embedId, () => editScope, {
+    enhance: enhanceImage, running: runningEnhance, translate: (key) => $text(key), reloadHead,
+  });
+  $effect(() => { if (coreEditable && editScope) void untrack(() => coreEnhance.resume()); });
+
+  async function restoreVersion(restoredContent: string, selected: number): Promise<{ version: number; content: string }> {
+    if (!embedId || !editScope) throw new Error($text('embed_user_edits.restore_failed'));
+    try {
+      const restored = await restoreEmbedVersion(embedId, editScope, selected);
+      await reloadHead(restored.version);
+      return { version: restored.version, content: restoredContent };
+    } catch (err) {
+      const code = (err as { code?: unknown } | null)?.code;
+      if (code === 'embed_version_conflict') await reloadHead(null);
+      throw new Error($text(imageEditErrorKey(typeof code === 'string' ? code : undefined, 'restore')));
+    }
+  }
+
+  let shownEnhance = $derived(coreEditable && editPlace ? {
+    onEnhance: coreEnhance.start,
+    state: editScope ? coreEnhance.state : 'unavailable' as const,
+    error: coreEnhance.error,
+    reason: $text(editPlace.kind === 'unavailable' && editPlace.reason === 'team'
+      ? 'embed_user_edits.enhance_unavailable_team' : 'embed_user_edits.enhance_unavailable'),
+  } : null);
+
   let notifiedEnhanceError: string | undefined;
   $effect(() => {
-    const failed = enhanceState === 'failed' ? (enhanceError ?? $text('embed_user_edits.enhance_failed')) : undefined;
+    const failed = (shownEnhance?.state ?? enhanceState) === 'failed'
+      ? (shownEnhance?.error ?? enhanceError ?? $text('embed_user_edits.enhance_failed')) : undefined;
     if (failed && failed !== notifiedEnhanceError) notificationStore.error(failed);
     notifiedEnhanceError = failed;
   });
@@ -517,10 +581,10 @@
   showSkillIcon={true}
   {onClose}
   onDownload={files?.original ? handleDownload : undefined}
-  {onEnhance}
-  enhanceState={canEnhance ? enhanceState : 'unavailable'}
-  enhanceError={enhanceError ?? $text('embed_user_edits.enhance_failed')}
-  enhanceUnavailableReason={$text('embed_user_edits.enhance_unavailable')}
+  onEnhance={shownEnhance?.onEnhance ?? onEnhance}
+  enhanceState={shownEnhance?.state ?? (canEnhance ? enhanceState : 'unavailable')}
+  enhanceError={shownEnhance?.error ?? enhanceError ?? $text('embed_user_edits.enhance_failed')}
+  enhanceUnavailableReason={shownEnhance?.reason ?? $text('embed_user_edits.enhance_unavailable')}
   currentEmbedId={embedId}
   {hasPreviousEmbed}
   {hasNextEmbed}
@@ -613,6 +677,7 @@
             loadVersionContent={(version) => embedContentAtVersion(versionChatId(), embedId, version)}
             onVersionSelect={(version, content) => { void showVersion(version, content); }}
             onVersionError={(version) => { versionError = `embed_version_unavailable:v${version}`; }}
+            onRestoreVersion={coreEditable && editScope ? restoreVersion : undefined}
           />
         {/if}
       {/if}

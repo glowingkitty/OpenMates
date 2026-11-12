@@ -115,6 +115,28 @@ units:
     - Streamed embed write ordering and key resolution (master/chat wrapper, legacy child inheritance) have no assertion.
     rust_paths:
     - packages/openmates-browser-bindings/src/browser_embed_write.rs
+  embedEdit:
+    specs: []
+    vectors: []
+    open_gaps:
+    - No flag-on web-rust-core spec yet; image-enhance.spec.ts (image fullscreen Enhance and restore) and cli-native-embed-user-edits.spec.ts cover the flow outside the web-rust-core set.
+    - Only the image fullscreen (Enhance, restore) and the chat history (notice reconcile, event grouping) call the unit; content edits (slides and the other editors) and EmbedVersionTimeline restore still use the TypeScript embedDiffStore path.
+    spec_assertions:
+    - embed-user-edits.edit.next-version
+    - embed-user-edits.restore.creates-version
+    - embed-user-edits.enhance.button
+    - embed-user-edits.event.chat-notice
+    - embed-user-edits.event.project-edit-reaches-chat
+    - embed-user-edits.event.collapse
+    spec_gaps:
+    - The Worker's Enhance run (one run per image in the Worker realm, frame wake-up, rejoin after a page reload) has no assertion.
+    rust_paths:
+    - packages/openmates-browser-bindings/src/browser_embed_user_edit.rs
+    - packages/openmates-rust/src/client/embed_user_revision.rs
+    - packages/openmates-rust/src/client/embed_user_restore.rs
+    - packages/openmates-rust/src/client/embed_user_edit_client.rs
+    - packages/openmates-rust/src/client/embed_updated_event.rs
+    - packages/openmates-rust/src/client/image_enhance*.rs
   search:
     specs: [web-rust-core-search.spec.ts]
     vectors:

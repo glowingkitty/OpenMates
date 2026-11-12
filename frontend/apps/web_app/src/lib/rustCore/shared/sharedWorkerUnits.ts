@@ -30,6 +30,7 @@ import { installSendPrepUnit } from '@openmates/ui/src/services/rustCore/send/se
 import { installSettingsUnit } from '@openmates/ui/src/services/rustCore/settings/settingsUnit';
 import { installComposerUnit } from '@openmates/ui/src/services/rustCore/composer/composerUnit';
 import { installDeckDocumentUnit } from '@openmates/ui/src/services/rustCore/deckDocument/deckDocumentUnit';
+import { installEmbedEditUnit } from '@openmates/ui/src/services/rustCore/embeds/embedEditUnit';
 
 export const SHARED_UNIT_INSTALLERS: UnitInstallers = Object.freeze({
 	core: installCoreUnit,
@@ -50,4 +51,5 @@ export const SHARED_UNIT_INSTALLERS: UnitInstallers = Object.freeze({
 	settings: installSettingsUnit,
 	composer: installComposerUnit,
 	deckDocument: installDeckDocumentUnit,
+	embedEdit: (context) => installEmbedEditUnit(context),
 });

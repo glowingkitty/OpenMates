@@ -22,6 +22,10 @@ import { storageArchiveFetch } from "../config/api";
   import FollowUpSuggestions from './FollowUpSuggestions.svelte';
   import ChatRecommendations from './ChatRecommendations.svelte';
   import ContextEntryEventNotice from './ContextEntryEventNotice.svelte';
+  import EmbedUpdatedEventNotice from './EmbedUpdatedEventNotice.svelte';
+  import { embedEventRows, embedUpdatedCandidateKey, isEmbedUpdatedCandidate, placeEmbedUpdatedGroups, type EmbedUpdatedPlacement } from './embedUpdatedHistory';
+  import { EMBED_EDITS_ENABLED, groupEmbedUpdatedEvents, reconcileEmbedNotices } from '../services/rustCore/embeds/embedEditSession';
+  import { dispatchEmbedFullscreen } from '../services/embedFullscreenController';
   import SystemMessageNotice from './SystemMessageNotice.svelte';
   import { RECOMMENDATIONS_IN_BUILD } from '../services/chatRecommendationsPersistence';
   import { parseContextEntryContent } from '../services/contextEntryEvents';
@@ -1214,6 +1218,8 @@ import { storageArchiveFetch } from "../config/api";
         }
         // context_entry events show only once validated, and never in shared/public views.
         if (isContextEntryCandidate(msg) && !contextEntryEvents[msg.id]) return false;
+        // embed_updated events: drawn once per folded run (core grouping), never as a bubble.
+        if (isEmbedUpdatedCandidate(historyRowOf(msg)) && !embedUpdated.shownAt[msg.id]) return false;
       }
       return true;
     });
@@ -1824,6 +1830,40 @@ import { storageArchiveFetch } from "../config/api";
   /** Cheap pre-check only; the Rust core validates the event. */
   function isContextEntryCandidate(msg: InternalMessage): boolean {
     return msg.role === 'system' && systemContentOf(msg).includes('"context_entry"');
+  }
+
+  // embed_updated chat events (feature.embed-user-edits): the Rust core folds them.
+  let embedUpdated = $state<EmbedUpdatedPlacement>({ shownAt: {}, hidden: new Set() });
+  let embedUpdatedKey = $derived(
+    EMBED_EDITS_ENABLED && $authStore.isAuthenticated ? embedUpdatedCandidateKey(candidateDisplayMessages.map(historyRowOf)) : '',
+  );
+  $effect(() => {
+    if (!embedUpdatedKey) { embedUpdated = { shownAt: {}, hidden: new Set() }; return; }
+    const rows = untrack(() => embedEventRows(candidateDisplayMessages.map(historyRowOf)));
+    let stale = false;
+    groupEmbedUpdatedEvents(rows)
+      .then((items) => { if (!stale) embedUpdated = placeEmbedUpdatedGroups(items); })
+      .catch((error) => console.error('[ChatHistory] Could not fold embed_updated events:', error?.code ?? error));
+    return () => { stale = true; };
+  });
+  // Chat open: the core writes this chat's pending "embed updated" events (edits made elsewhere).
+  const reconciledEmbedNoticeChats = new Set<string>();
+  $effect(() => {
+    const chatId = currentChatId;
+    if (!EMBED_EDITS_ENABLED || !chatId || !$authStore.isAuthenticated || isSharedChat || isExampleChat || isIncognito
+      || isPublicChat(chatId) || reconciledEmbedNoticeChats.has(chatId)) return;
+    reconciledEmbedNoticeChats.add(chatId);
+    reconcileEmbedNotices(chatId)
+      .then((report) => { if (report.deferred) console.warn('[ChatHistory] Embed update notices deferred:', report.deferred); })
+      .catch((error) => console.warn('[ChatHistory] Embed update notices not reconciled:', error?.code ?? error));
+  });
+
+  function historyRowOf(msg: InternalMessage): { id: string; role: string; content: string } {
+    return { id: msg.id, role: msg.role, content: msg.role === 'system' ? systemContentOf(msg) : '' };
+  }
+
+  function openUpdatedEmbed(embedId: string): void {
+    dispatchEmbedFullscreen({ embedId, sourceChatId: currentChatId ?? null, hasChatContext: true });
   }
 
   let lastSourceSyncChatKey = $state<string | undefined>(undefined);
@@ -3478,6 +3518,11 @@ import { storageArchiveFetch } from "../config/api";
                         <SystemMessageNotice testId="context-entry-notice">
                           <ContextEntryEventNotice event={contextEntryEvents[msg.id]} checkExists={contextEntryExists} onOpenMemory={openContextEntryMemory} />
                         </SystemMessageNotice>
+                      </div>
+                    {:else if msg.role === 'system' && embedUpdated.shownAt[msg.id]}
+                      {@const updatedGroup = embedUpdated.shownAt[msg.id]}
+                      <div class="context-entry-row">
+                        <EmbedUpdatedEventNotice group={updatedGroup} onOpen={() => openUpdatedEmbed(updatedGroup.embed_id)} />
                       </div>
                     {:else}
                     <ChatMessage

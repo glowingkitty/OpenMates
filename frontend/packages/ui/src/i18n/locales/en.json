@@ -7211,6 +7211,18 @@
     "enhance_unavailable": {
       "text": "You can't enhance this image"
     },
+    "enhance_unavailable_team": {
+      "text": "Enhance is not available in Teams yet"
+    },
+    "enhance_insufficient_credits": {
+      "text": "Not enough credits to enhance this image."
+    },
+    "version_conflict": {
+      "text": "This image was changed elsewhere. The newest version is shown now."
+    },
+    "restore_failed": {
+      "text": "The version could not be restored. Please try again."
+    },
     "kind": {
       "image": {
         "text": "Image"

@@ -18,6 +18,26 @@ enhance_unavailable:
   en: You can't enhance this image
   de: Du kannst dieses Bild nicht verbessern
   verified_by_human: []
+enhance_unavailable_team:
+  context: Tooltip of the disabled Enhance button in a Team chat or Team Project, where Enhance is not offered yet
+  en: Enhance is not available in Teams yet
+  de: Verbessern ist in Teams noch nicht verfügbar
+  verified_by_human: []
+enhance_insufficient_credits:
+  context: Error after pressing Enhance when the account has fewer credits than one Enhance costs; nothing was charged
+  en: Not enough credits to enhance this image.
+  de: Nicht genug Credits, um dieses Bild zu verbessern.
+  verified_by_human: []
+version_conflict:
+  context: Error when an image was changed on another device before this change was saved; the newest version is shown and nothing was overwritten
+  en: This image was changed elsewhere. The newest version is shown now.
+  de: Dieses Bild wurde woanders geändert. Jetzt wird die neueste Version angezeigt.
+  verified_by_human: []
+restore_failed:
+  context: Error when restoring an earlier version of an embed did not work; nothing changed
+  en: The version could not be restored. Please try again.
+  de: Die Version konnte nicht wiederhergestellt werden. Bitte versuche es erneut.
+  verified_by_human: []
 kind.image:
   context: Embed kind noun at the start of a chat history line about a user edit ("Image enhanced")
   en: Image

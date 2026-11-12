@@ -43,6 +43,13 @@ vi.mock('../../../embedStore', async () => {
 	availability.store = make(0);
 	return { embedAvailabilityVersion: availability.store };
 });
+const versionPages = vi.hoisted(() => ({ calls: [] as Array<{ embedId: string; options: Record<string, unknown> }> }));
+vi.mock('../../../embedDiffStore', () => ({
+	fetchEmbedVersions: async (embedId: string, options: Record<string, unknown>) => {
+		versionPages.calls.push({ embedId, options });
+		return { versions: [{ version_number: 1, revision_origin: 'assistant' }, { version_number: 2, revision_origin: 'user', revision_action: 'enhance' }], next_cursor: null };
+	}
+}));
 vi.mock('../../../chatSyncService', () => ({ chatSyncService: new EventTarget() }));
 vi.mock('../../../embedResolver', () => ({
 	extractEmbedReferences: (markdown: string) => markdown.includes('parent-3') ? [{ type: 'app_skill_use', embed_id: 'parent-3' }] : [],
@@ -68,10 +75,11 @@ async function publishedChat(): Promise<void> {
 beforeEach(async () => {
 	vi.resetModules();
 	vi.stubEnv('VITE_OPENMATES_RUST_CORE', '1');
-	availability.store = null;
+	// Kept across tests: vi.resetModules does not re-run the mock factory.
 	fake.head = 2;
 	fake.kept = [];
 	fake.requests.length = 0;
+	versionPages.calls.length = 0;
 	mod = await import('../messageEmbedVersion');
 });
 
@@ -101,6 +109,21 @@ describe('messageEmbedVersion', () => {
 		availability.store!.update((value) => value + 1);
 		await new Promise((resolve) => setTimeout(resolve, 350));
 		expect(get(mod.embedVersionGeneration)).toBe(settled);
+	});
+
+	// contract-test: direct surface=gui.web assertions=embed-user-edits.display.latest-follows-user-versions
+	it('hands the embed version list to the core so a message follows later user-made versions', async () => {
+		await publishedChat();
+		await mod.embedVersionForMessage('m1', 'image-1');
+		expect(versionPages.calls).toEqual([{ embedId: 'image-1', options: { chatId: 'chat-1', order: 'asc', limit: 100, cursor: undefined } }]);
+		const lookup = fake.requests.find((request) => request.op === 'embedVersionsByMessage');
+		expect((lookup?.payload as { versionsPage?: unknown }).versionsPage).toEqual({ versions: [
+			{ version_number: 1, revision_origin: 'assistant' }, { version_number: 2, revision_origin: 'user', revision_action: 'enhance' }] });
+		// A single-version embed has nothing to follow: no version list is read.
+		fake.head = 1;
+		versionPages.calls.length = 0;
+		await mod.embedVersionForMessage('m1', 'image-2');
+		expect(versionPages.calls).toEqual([]);
 	});
 
 	// contract-test: direct surface=gui.web assertions=images-generate.revision.message-shows-its-version

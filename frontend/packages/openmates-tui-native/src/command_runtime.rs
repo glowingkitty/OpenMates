@@ -79,6 +79,9 @@ async fn run_with_list_stages(
             .filter(|s| !s.trim().is_empty())
             .map(Zeroizing::new)
     });
+    if cli::embed_user_edit_supported(&invocation) && api_key.is_some() {
+        return Err(CliError::Unsupported{command:invocation.command_path(),reason:"Embed versions made by the user (Enhance, restore) need a signed-in Personal session; API keys cannot save them.".into()});
+    }
     if invocation.command_path()=="embeds share" && api_key.is_some() {
         return Err(CliError::Unsupported{command:invocation.command_path(),reason:"Personal Cookie embed sharing never substitutes an API key or opens a Cookie profile for it.".into()});
     }

@@ -34,6 +34,7 @@ fn supported(invocation: &Invocation) -> bool {
         return super::goal_chat::supported(invocation);
     }
     if invocation.command_path()=="embeds share" || super::embed_commands::supported(invocation)
+        || super::embed_user_edit_cmd::supported(invocation)
         || super::drafts::supported(invocation)
         || super::global_history::supported(invocation)
         || super::tasks::supported(invocation)
@@ -344,7 +345,14 @@ fn bounded_show_text(read:&openmates_sdk::client::saved_chat_read::SavedChatRead
 }
 fn chat_text(chat: &Chat) -> String {
     let mut out = format!("{}\nChat: {}\n", chat.title, chat.id);
-    for message in &chat.messages {
+    for item in super::embed_update_notice::transcript_items(&chat.messages) {
+        let message = match item {
+            super::embed_update_notice::TranscriptItem::Notice(line) => {
+                out.push_str(&format!("\n· {line}\n"));
+                continue;
+            }
+            super::embed_update_notice::TranscriptItem::Message(message) => message,
+        };
         out.push_str(&format!(
             "\n{}\n{}\n",
             if message.role == "user" {
@@ -961,6 +969,9 @@ async fn execute_inner(
     if invocation.command_path() == "embeds share" {
         return Box::pin(super::embed_share::execute(invocation,client,cancel)).await;
     }
+    if super::embed_user_edit_cmd::supported(invocation) {
+        return super::embed_user_edit_cmd::execute_boxed(invocation, client, cancel).await;
+    }
     if matches!(invocation.command_path().as_str(), "embeds versions show" | "embeds test-result") {
         return Box::pin(super::embed_commands::execute_cookie_version(invocation, client, cancel)).await;
     }
@@ -1191,7 +1202,14 @@ async fn execute_context_with_inventory(
                     content_mode:openmates_sdk::client::saved_chat_read::SavedChatContentMode::Stored,
                     ..Default::default()
                 }).await?;
-                return Ok(CliOutput::text(bounded_show_text(&read)));
+                // Render and drop the page before the next await, and box the
+                // reconcile: keeps this dispatch future within its stack bound.
+                let (text, chat_id) = (bounded_show_text(&read), read.window.chat.id.clone());
+                drop(read);
+                if let Some(read) = super::embed_update_notice::bounded_read_after_reconcile_boxed(client, id, &chat_id).await? {
+                    return Ok(CliOutput::text(bounded_show_text(&read)));
+                }
+                return Ok(CliOutput::text(text));
             }
             if super::full_chat_read::is_full_json(invocation) {
                 let (output, _admission) = super::full_chat_read::execute_admitted(
@@ -1207,6 +1225,9 @@ async fn execute_context_with_inventory(
                 }
                 None => client.open_chat(id).await?,
             };
+            // embed-user-edits.event.project-edit-reaches-chat: opening a chat
+            // writes pending embed events; show them in this same output.
+            let chat = super::embed_update_notice::chat_after_reconcile_boxed(client, chat).await?;
             let text = chat_text(&chat);
             output(
                 invocation,

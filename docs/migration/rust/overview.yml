@@ -20,7 +20,7 @@ overall:
   inputs:
     web_app: 7.9
     shared_client: 28.6
-    cli: 65.5
+    cli: 65.3
     sdk: 11.3
 areas:
 - id: web_app
@@ -36,12 +36,13 @@ areas:
   done_definition: code line of a portable TS function (services/, utils/, stores/) that routes to the shared Rust
     core under VITE_OPENMATES_RUST_CORE and is listed in web-port-ledger.yml; functions over 80 code lines count
     only their flag decision sites
-  blockers: ['perf gate not cleared: chatRendered is inconclusive (2026-11-08-chatRendered-01)', 'perf gate not
-      cleared: embedReady is inconclusive (2026-11-08-embedReady-01)', 'perf gate not cleared: rss is inconclusive
-      (2026-11-08-rss-01)', 'perf gate not cleared: send draftSaveP95Ms is rust_worse (2026-11-08-send-02)']
+  blockers: ['planned units without installer: embedEdit', 'perf gate not cleared: chatRendered is inconclusive
+      (2026-11-08-chatRendered-01)', 'perf gate not cleared: embedReady is inconclusive (2026-11-08-embedReady-01)',
+    'perf gate not cleared: rss is inconclusive (2026-11-08-rss-01)', 'perf gate not cleared: send draftSaveP95Ms
+      is rust_worse (2026-11-08-send-02)']
   worker_namespaces_installed_not_progress:
     installed: 18
-    total: 18
+    total: 19
 - id: shared_client
   title: Shared client-side code (Rust, non-operation SDK capabilities)
   priority_rank: 1
@@ -59,13 +60,13 @@ areas:
   priority_rank: 2
   file: cli.yml
   unit: CLI commands
-  total: 744
+  total: 746
   done: 487
-  partial: 252
+  partial: 254
   missing: 5
-  percent: 65.5
+  percent: 65.3
   done_definition: command is differential-verified against the npm CLI
-  blockers: [5 unsupported commands without native handler, 735 commands not verified on Linux]
+  blockers: [5 unsupported commands without native handler, 737 commands not verified on Linux]
 - id: sdk_rust
   title: Rust SDK (operation capabilities)
   priority_rank: 3

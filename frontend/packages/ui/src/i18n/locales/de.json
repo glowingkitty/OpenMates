@@ -7182,6 +7182,18 @@
     "enhance_unavailable": {
       "text": "Du kannst dieses Bild nicht verbessern"
     },
+    "enhance_unavailable_team": {
+      "text": "Verbessern ist in Teams noch nicht verfügbar"
+    },
+    "enhance_insufficient_credits": {
+      "text": "Nicht genug Credits, um dieses Bild zu verbessern."
+    },
+    "version_conflict": {
+      "text": "Dieses Bild wurde woanders geändert. Jetzt wird die neueste Version angezeigt."
+    },
+    "restore_failed": {
+      "text": "Die Version konnte nicht wiederhergestellt werden. Bitte versuche es erneut."
+    },
     "kind": {
       "image": {
         "text": "Bild"

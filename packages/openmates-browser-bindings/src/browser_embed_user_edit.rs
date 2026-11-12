@@ -98,6 +98,37 @@ impl BrowserCoreClient {
 
 #[wasm_bindgen]
 impl BrowserCoreClient {
+    /// Read the current server head of `embed_id` for a user edit and load its
+    /// key wrappers into the client cache (a freshly opened embed has none
+    /// there yet, so a commit would fail with `embed_key_unavailable`).
+    /// Resolves to `{head, chat_id}` JSON: `head` is the head as a cached
+    /// `embeds` row (`embed_id`, `version_number`, `encrypted_content`,
+    /// `created_at`, `hashed_chat_id`; ciphertext only) to pass back as
+    /// `head_json`, `chat_id` the embed's chat when this device has it cached.
+    pub async fn embed_user_edit_head(
+        &mut self,
+        handle: &str,
+        generation: f64,
+        embed_id: &str,
+    ) -> Result<String, JsValue> {
+        self.writable(handle, generation)?;
+        let (head, chat_id) = self
+            .client
+            .embed_user_edit_head(embed_id)
+            .await
+            .map_err(|error| JsValue::from_str(error.code()))?;
+        self.status(handle, generation)?;
+        let row = serde_json::json!({
+            "embed_id": head.embed_id,
+            "version_number": head.version,
+            "encrypted_content": head.encrypted_content,
+            "created_at": head.created_at,
+            "hashed_chat_id": head.hashed_chat_id,
+        });
+        serde_json::to_string(&serde_json::json!({ "head": row, "chat_id": chat_id }))
+            .map_err(proto)
+    }
+
     /// Commit a user edit of a diagram, slides, sheet or document embed as its
     /// next version. `head_json` is the cached `embeds` row the edit was made
     /// on, `scope_json` `{kind: "chat", chat_id, team_id?}` or `{kind:

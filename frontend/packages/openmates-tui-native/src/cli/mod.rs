@@ -15,9 +15,13 @@ mod drafts;
 mod embed_commands;
 mod test_result_cmd;
 mod embed_share;
+pub(crate) mod embed_update_notice;
+mod embed_user_edit_cmd;
 mod extra_ports;
 pub use extra_ports::{execute_provisioning as execute_e2e_provisioning, is_provisioning as is_e2e_provisioning};
 pub use embed_share::execute_admitted as execute_cookie_embed_share_admitted;
+/// True for `embeds enhance` / `embeds restore` (Personal Cookie session only).
+pub use embed_user_edit_cmd::supported as embed_user_edit_supported;
 pub use embed_commands::{execute_sdk_embeds, execute_sdk_embeds_with_gate, supported as sdk_embeds_supported};
 pub use drafts::execute_sdk_drafts;
 mod goal_chat;

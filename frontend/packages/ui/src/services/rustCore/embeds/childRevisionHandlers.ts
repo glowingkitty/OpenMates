@@ -277,11 +277,17 @@ export function createChildRevisionHandlers(deps: ChildRevisionDeps): UnitHandle
 			return rust(() => fn(JSON.stringify(row)));
 		},
 		async embedVersionsByMessage(payload) {
-			const request = payload as { messages?: unknown; embedId?: unknown } | null;
+			const request = payload as { messages?: unknown; embedId?: unknown; versionsPage?: unknown } | null;
 			const embedId = text(request?.embedId, 'embed_id');
 			if (!Array.isArray(request?.messages)) throw new UnitRefusal('embed_write_bad_messages');
+			const messages = JSON.stringify(request.messages);
+			if (request.versionsPage !== undefined) {
+				const withProvenance = free<string>('embed_versions_by_message_with_provenance');
+				const page = JSON.stringify(request.versionsPage);
+				return parseJson<MessageImageVersion[]>(await rust(() => withProvenance(messages, embedId, page)));
+			}
 			const fn = free<string>('embed_versions_by_message');
-			return parseJson<MessageImageVersion[]>(await rust(() => fn(JSON.stringify(request.messages), embedId)));
+			return parseJson<MessageImageVersion[]>(await rust(() => fn(messages, embedId)));
 		},
 		async embedPinnedEmbeds(payload) {
 			const parentContent = text((payload as { parentContent?: unknown } | null)?.parentContent, 'content');

@@ -34,7 +34,7 @@ impl Client {
             } else {
                 sha256(chat)
             };
-            let encrypted = json!({"embed_id":wanted,"encrypted_type":row["type"],"encrypted_content":row["content"],"encrypted_text_preview":row["encrypted_text_preview"],"hashed_chat_id":chat_hash,"parent_embed_id":row["parent_embed_id"],"status":row["status"]});
+            let encrypted = json!({"embed_id":wanted,"encrypted_type":row["type"],"encrypted_content":row["content"],"encrypted_text_preview":row["encrypted_text_preview"],"hashed_chat_id":chat_hash,"parent_embed_id":row["parent_embed_id"],"status":row["status"],"version_number":row["version_number"],"updated_at":row["updatedAt"]});
             self.embeds.insert(wanted.clone(), encrypted);
             for wrapper in row["embed_keys"].as_array().ok_or(Error::Protocol)? {
                 if text(wrapper, "hashed_embed_id") != sha256(&wanted) {

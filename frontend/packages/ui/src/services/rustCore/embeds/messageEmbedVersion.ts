@@ -5,7 +5,8 @@
  * only: in other builds every function answers "no version scope" and cards
  * render the stored head exactly as before.
  *
- * The rule itself (latest `pinned_embeds` entry up to the message, else 1;
+ * The rule itself (latest `pinned_embeds` entry up to the message, else 1,
+ * then the user-made versions after it until the next assistant-made one;
  * head vs `embed_diffs` snapshot; parent key) runs in the Rust core through the
  * Worker's `embedWrite` unit. This module is shell glue only:
  *   - ChatHistory publishes the chat's message order (`publishChatMessageOrder`);
@@ -173,6 +174,36 @@ export async function embedHead(embedId: string): Promise<{ version: number; par
 	return (await writer()).unit.request('embedHeadVersion', { embedId });
 }
 
+const VERSION_PAGE_LIMIT = 100;
+/** Version metadata pages by `chat:embed:head` (no ciphertext; refetched once the head moves). */
+const provenancePages = new Map<string, Promise<{ versions: unknown[] }>>();
+
+/**
+ * The embed's version list (`version_number`, `revision_origin`, `revision_action`)
+ * as one page for the core's display rule; the core validates it.
+ */
+function versionProvenance(chatId: string, embedId: string, headVersion: number): Promise<{ versions: unknown[] }> {
+	const cacheKey = `${chatId}:${embedId}:${headVersion}`;
+	let pending = provenancePages.get(cacheKey);
+	if (!pending) {
+		pending = (async () => {
+			const { fetchEmbedVersions } = await import('../../embedDiffStore');
+			const versions: unknown[] = [];
+			let cursor: number | undefined;
+			for (;;) {
+				const page = await fetchEmbedVersions(embedId, { chatId, order: 'asc', limit: VERSION_PAGE_LIMIT, cursor });
+				versions.push(...page.versions);
+				if (page.next_cursor == null || page.next_cursor <= (cursor ?? 0)) return { versions };
+				cursor = page.next_cursor;
+			}
+		})();
+		provenancePages.set(cacheKey, pending);
+		pending.catch(() => provenancePages.delete(cacheKey));
+		if (provenancePages.size > CONTENT_CACHE_LIMIT) provenancePages.delete(provenancePages.keys().next().value as string);
+	}
+	return pending;
+}
+
 /**
  * The version of `embedId` that message `messageId` shows, or null when the
  * message is not part of the published chat (no version scope: show the head).
@@ -184,11 +215,13 @@ export async function embedVersionForMessage(messageId: string, embedId: string)
 	const chatId = order.chatId;
 	const { unit } = await writer();
 	const messages = await messagesInput(chatId, at);
-	const versions = await unit.request('embedVersionsByMessage', { messages, embedId });
-	const own = versions.find((entry) => entry.message_id === messageId);
-	if (!own) throw new UnitPortError('embed_version_message_missing');
 	const head = await unit.request('embedHeadVersion', { embedId });
 	const headVersion = head?.version ?? 1;
+	// One version: nothing to follow. Otherwise the core also needs which versions the user made.
+	const versionsPage = headVersion > 1 ? await versionProvenance(chatId, embedId, headVersion) : undefined;
+	const versions = await unit.request('embedVersionsByMessage', { messages, embedId, versionsPage });
+	const own = versions.find((entry) => entry.message_id === messageId);
+	if (!own) throw new UnitPortError('embed_version_message_missing');
 	if (own.version > headVersion) {
 		waitingHeads.set(embedId, Math.max(own.version, waitingHeads.get(embedId) ?? 0));
 		console.debug('[messageEmbedVersion] Card waits for head', { embedId, messageId, pinned: own.version, head: head?.version ?? null });
@@ -278,6 +311,16 @@ export function embedContentAtVersion(chatId: string, embedId: string, version: 
 	return pending;
 }
 
+/**
+ * A user-made version of `embedId` was saved on this device (Enhance, restore):
+ * its head moved, so cards re-resolve which version their message shows.
+ */
+export function noteEmbedHeadChanged(embedId: string): void {
+	if (!EMBED_VERSIONS_ENABLED) return;
+	parentContents.delete(embedId);
+	bump();
+}
+
 /** Chat of the published message order (the card's lookup chat when it has none of its own). */
 export function publishedChatId(): string | null {
 	return order.chatId;
@@ -286,6 +329,7 @@ export function publishedChatId(): string | null {
 /** Forget every cached version and parent (logout, account switch). */
 export function clearEmbedVersionCaches(): void {
 	versionContents.clear();
+	provenancePages.clear();
 	parentContents.clear();
 	waitingHeads.clear();
 	order = { chatId: null, messages: [] };

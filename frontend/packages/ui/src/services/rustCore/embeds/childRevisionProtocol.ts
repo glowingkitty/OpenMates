@@ -7,7 +7,7 @@
  *
  * The Rust core (`BrowserEmbedWriter.prepare_child_revision`,
  * `adopt_child_revision_row`, `embed_version_content`, `cache_version_page`,
- * free functions `embed_versions_by_message`, `embed_pinned_embeds`,
+ * free functions `embed_versions_by_message(_with_provenance)`, `embed_pinned_embeds`,
  * `embed_head_version`, `embed_synced_head_regresses`, `embed_child_revision_row`;
  * recovery receipts `child_revision_recovery_receipt`, `child_revision_row_receipt`) decides every row, hash, key, version and durability
  * marker. These types only carry its results across the unit port; local rows,
@@ -28,6 +28,7 @@ export interface ChildRevisionWriterPort {
 /** Free Rust exports of browser_embed_revision.rs (optional until the wasm build carries them). */
 export interface ChildRevisionFunctions {
 	embed_versions_by_message?(messagesJson: string, embedId: string): string;
+	embed_versions_by_message_with_provenance?(messagesJson: string, embedId: string, versionsPageJson: string): string;
 	embed_pinned_embeds?(parentContent: string): string;
 	embed_head_version?(storedHeadJson: string): number;
 	embed_synced_head_regresses?(storedHeadJson: string, incomingJson: string): boolean;
@@ -118,6 +119,10 @@ export type ChildRevisionProtocol = {
 	childRevisionRowReceipt: { request: { row: Record<string, unknown>; head: unknown; page?: unknown }; response: RevisionRecoveryReceipt };
 	/** True when a sealed `(diff, N)` output content is a child revision row (core `is_child_revision_row`). */
 	isChildRevisionRow: { request: { row: Record<string, unknown> }; response: boolean };
-	embedVersionsByMessage: { request: { messages: MessageParentsInput[]; embedId: string }; response: MessageImageVersion[] };
+	/**
+	 * With `versionsPage` (the `GET /v1/embeds/{id}/versions` page) a message also follows the
+	 * user-made versions after its pin (core `versions_by_message_with_provenance`).
+	 */
+	embedVersionsByMessage: { request: { messages: MessageParentsInput[]; embedId: string; versionsPage?: unknown }; response: MessageImageVersion[] };
 	embedPinnedEmbeds: { request: { parentContent: string }; response: PinnedEmbed[] };
 };
