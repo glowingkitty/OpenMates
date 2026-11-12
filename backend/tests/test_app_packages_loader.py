@@ -62,6 +62,17 @@ def test_valid_package_loads_with_registry_identity(tmp_path):
     assert provider.contract == contracts.EVENTS_SEARCH_V1
 
 
+# contract-test: direct surface=rest_api assertions=instance-app-packages.instance-availability
+def test_one_provider_id_may_serve_several_skills_of_a_package(tmp_path):
+    jobs = provider_entry(app="jobs", contract=contracts.JOBS_SEARCH_V1, name="Example site jobs")
+    install_example(tmp_path, manifest(providers=[provider_entry(), jobs]))
+    packages = loader.load_installed_packages(tmp_path)
+    (events_provider,) = packages.for_skill("events", "search")
+    (jobs_provider,) = packages.for_skill("jobs", "search")
+    assert events_provider.provider_id == jobs_provider.provider_id == PROVIDER_ID
+    assert events_provider.secrets == jobs_provider.secrets == ("api_key",)
+
+
 def _builtin_provider_id() -> str:
     skill = next(s for s in _events_raw()["skills"] if s["id"] == "search")
     first = skill["providers"][0]

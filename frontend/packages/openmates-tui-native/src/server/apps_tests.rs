@@ -255,6 +255,12 @@ fn unsupported_contribution_kinds_and_bad_manifests_are_rejected() {
         let raw = manifest("1.0.0").replacen(from, to, 1);
         assert!(archive::parse_manifest(raw.as_bytes()).is_err(), "{to}");
     }
+    // The same id on two skills shares one set of secrets; twice on one skill is a duplicate.
+    let second = "    - app: jobs\n      skill: search\n      contract: jobs.search@1\n      id: my_events\n      name: My jobs\n      runtime: executable\n      entrypoint: bin/{target}/provider\n      secrets: [api_key]\n";
+    let shared = format!("{}{second}", manifest("1.0.0"));
+    assert_eq!(archive::parse_manifest(shared.as_bytes()).unwrap().providers.len(), 2);
+    let repeated = format!("{shared}{second}");
+    assert!(archive::parse_manifest(repeated.as_bytes()).is_err());
     let missing_target = zip(&[
         ("manifest.yml", manifest("1.0.0").as_bytes()),
         ("bin/other/provider", PROVIDER),

@@ -314,7 +314,9 @@ It also rejects selector values the target skill interprets itself, declared per
 contract in `contracts.RESERVED_PROVIDER_ID_SOURCES` (events search: `auto`,
 `none`, provider aliases and conference keys; jobs search: `auto` and the
 built-in source aliases). Rejected packages never load, so
-their secrets are never resolved. Provider ids are also unique across packages.
+their secrets are never resolved. Provider ids are also unique across packages; inside one
+package the same id may serve several skills (once per skill) and then shares its
+secrets between them.
 
 ## Availability and billing
 

@@ -326,7 +326,8 @@ pub(super) fn parse_manifest(raw: &[u8]) -> Result<Manifest> {
                 "Invalid provider contract; use <app>.<skill>@<version> for the target skill or skill.requests@1.",
             ));
         }
-        if !provider_id(&p.id) || !ids.insert(p.id.as_str()) {
+        // One id may serve several skills (one service, one set of secrets), once per skill.
+        if !provider_id(&p.id) || !ids.insert((p.app.as_str(), p.skill.as_str(), p.id.as_str())) {
             return Err(Error::Invalid(
                 "Invalid or duplicate provider id; use 2-40 characters of a-z, 0-9 and _.",
             ));

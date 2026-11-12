@@ -187,7 +187,9 @@ Packages are rejected if they:
 
 - target an unknown skill, or a skill that does not accept the declared contract
   (`skill.requests@1` only fits skills paused without any provider);
-- reuse a built-in provider id or a provider id from another installed package;
+- reuse a built-in provider id or a provider id from another installed package
+  (inside one package the same id may serve several skills, once per skill; those
+  providers then share the same `SECRET__<PROVIDER ID>__<NAME>` values);
 - contribute anything other than `providers`;
 - have no executable for the server's CPU type.
 
