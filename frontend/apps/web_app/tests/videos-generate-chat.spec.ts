@@ -122,7 +122,7 @@ async function openNewestVideo(page: any) {
 
 async function closeOverlay(page: any, overlay: any) {
 	if (await overlay.isVisible().catch(() => false)) {
-		await overlay.getByTestId('embed-minimize').click().catch(() => page.keyboard.press('Escape'));
+		await overlay.getByTestId('embed-minimize').click({ timeout: 5000 }).catch(() => page.keyboard.press('Escape'));
 		await expect(overlay).toBeHidden({ timeout: 10_000 }).catch(() => undefined);
 	}
 }
