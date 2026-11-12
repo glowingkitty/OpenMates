@@ -92,6 +92,74 @@ models:
       computer_use: true
       streaming: true
 
+  - id: "gemini-4-carbon"
+    name: "Gemini 4 Carbon"
+    description: "Google's most capable Gemini 4 reasoning model for sustained agentic coding, multimodal knowledge work, scientific reasoning, and cybersecurity defense. Served through Google AI Studio with a bounded 64K synchronous output limit."
+    country_origin: "US"
+    for_app_skill: "ai.ask"
+    release_date: "2026-11-10" # Gemini API general availability (changelog)
+    capability_level: "high"
+    allow_auto_select: false # Explicit selection only; automatic routing profiles stay unchanged.
+    reasoning: true
+    reasoning_effort: "medium"
+    default_thinking_level: "MEDIUM"
+    bill_reasoning_tokens: true # Google bills output including thinking tokens.
+    input_types: [text, image, video, audio, pdf]
+    output_types: [text]
+    default_server: "google_ai_studio"
+    servers:
+      - id: "google_ai_studio"
+        reasoning_control:
+          parameter: thinking_level
+          levels: {LOW: "LOW", MEDIUM: "MEDIUM", HIGH: "HIGH"}
+          source_url: https://ai.google.dev/gemini-api/docs/thinking
+        name: "Google AI Studio"
+        model_id: "gemini-4-carbon"
+        region: "US"
+        country: "US"
+    # Regular standard rates from December 1; AI Studio route only.
+    pricing:
+      tokens:
+        input: { per_credit_unit: 80 }
+        cache_read: { per_credit_unit: 1600 }
+        output: { per_credit_unit: 15 }
+    cache_pricing:
+      enabled: true
+      write_billing: included_in_input
+      eligible_hosts: [google_ai_studio]
+      source_url: https://ai.google.dev/gemini-api/docs/pricing
+      reviewed_on: "2026-11-12"
+      status: verified_for_activation
+      expires_on: "2026-12-31" # Cache evidence review expiry; independent of promotion expiry.
+      # Implicit caching only (explicit caching unsupported); a live AI Studio
+      # probe on 2026-11-12 reported cachedContentTokenCount on the repeat call.
+    costs:
+      input_per_million_token: { price: 4, currency: USD, max_context: 1048576 }
+      cached_input_per_million_token: { price: 0.2, currency: USD }
+      output_per_million_token: { price: 20, currency: USD, max_context: 1048576 }
+    temporary_prices:
+      - id: "introductory-2026"
+        effective_from: "2026-11-10"
+        expires_on: "2026-11-30"
+        source_url: https://ai.google.dev/gemini-api/docs/pricing
+        reviewed_on: "2026-11-12"
+        eligible_hosts: [google_ai_studio]
+        processing_tier: standard
+        pricing:
+          tokens:
+            input: { per_credit_unit: 160 }
+            cache_read: { per_credit_unit: 3200 }
+            output: { per_credit_unit: 30 }
+        costs:
+          input_per_million_token: { price: 2, currency: USD, max_context: 1048576 }
+          cached_input_per_million_token: { price: 0.1, currency: USD }
+          output_per_million_token: { price: 10, currency: USD, max_context: 1048576 }
+    features:
+      max_output_tokens: 65536
+      tool_use: true
+      computer_use: true
+      streaming: true
+
   - id: "gemma-4-31b"
     name: "Gemma 4 31B"
     description: "Google Gemma 4 31B multimodal model served via Cerebras public preview, optimized for fast image-aware chat, screenshots, documents, diagrams, and design assets."

@@ -13,7 +13,7 @@ from backend.shared.python_utils.billing_utils import is_cache_tariff_admissible
 
 PROVIDERS = Path(__file__).resolve().parents[1] / "providers"
 ACTIVE = {
-    "google": {"gemini-3.7-flash", "gemini-3.8-flash"},
+    "google": {"gemini-3.7-flash", "gemini-3.8-flash", "gemini-4-carbon"},
     "openai": {"gpt-6-astra", "gpt-6.1-sol", "gpt-6-luna", "gpt-5.6-terra"},
     "anthropic": {
         "claude-fable-5-2", "claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5",

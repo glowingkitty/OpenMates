@@ -44,6 +44,27 @@ def test_argon_dates_switch_complete_tariffs_without_mutation(day, promo, input_
 
 
 # contract-test: supporting surface=rest_api assertions=billing.models.scheduled-temporary-tariffs
+@pytest.mark.parametrize("day,promo,input_cost,input_unit,cache_unit,output_unit", [
+    (date(2026, 11, 12), True, 2, 160, 3200, 30),
+    (date(2026, 11, 30), True, 2, 160, 3200, 30),
+    (date(2026, 12, 1), False, 4, 80, 1600, 15),
+])
+def test_carbon_introductory_tariff_ends_after_november(
+    day, promo, input_cost, input_unit, cache_unit, output_unit,
+):
+    model = catalog_model("google", "gemini-4-carbon")
+    result = resolve_model_tariff(model, on_date=day)
+    assert bool(result.get("active_temporary_price")) is promo
+    tokens = result["pricing"]["tokens"]
+    assert (tokens["input"]["per_credit_unit"], tokens["cache_read"]["per_credit_unit"],
+            tokens["output"]["per_credit_unit"]) == (input_unit, cache_unit, output_unit)
+    assert result["costs"]["input_per_million_token"]["price"] == input_cost
+    assert result["costs"]["cached_input_per_million_token"]["price"] == input_cost / 20
+    assert result["costs"]["output_per_million_token"]["price"] == input_cost * 5
+    assert result["cache_pricing"]["enabled"] is True
+
+
+# contract-test: supporting surface=rest_api assertions=billing.models.scheduled-temporary-tariffs
 def test_same_manager_recomputes_catalog_prices_at_utc_boundary(monkeypatch):
     model = catalog_model("google", "gemini-3.8-flash")
     manager = object.__new__(ConfigManager)

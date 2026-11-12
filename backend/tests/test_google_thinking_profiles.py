@@ -16,6 +16,9 @@ from backend.apps.ai.llm_providers import google_client
     ("gemini-4-argon", "LOW", "LOW"),
     ("gemini-4-argon", "MEDIUM", "MEDIUM"),
     ("gemini-4-argon", "HIGH", "HIGH"),
+    ("gemini-4-carbon", None, "MEDIUM"),
+    ("gemini-4-carbon", "LOW", "LOW"),
+    ("gemini-4-carbon", "HIGH", "HIGH"),
     ("gemini-3.8-flash", "LOW", "LOW"),
     ("gemini-3.8-flash", "MEDIUM", "MEDIUM"),
     ("gemini-3.8-flash", "HIGH", "HIGH"),
@@ -60,7 +63,7 @@ async def test_google_clients_send_only_supported_profile_level(
     assert config.thinking_config.include_thoughts is True
     actual_level = config.thinking_config.thinking_level
     assert (actual_level.value if actual_level is not None else None) == expected
-    if model_id == "gemini-4-argon":
+    if model_id in {"gemini-4-argon", "gemini-4-carbon"}:
         request_config = config.model_dump(exclude_unset=True)
         assert "temperature" not in request_config
         assert "top_p" not in request_config

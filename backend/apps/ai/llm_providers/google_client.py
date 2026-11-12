@@ -335,15 +335,20 @@ def _clamp_temperature_for_thinking_model(model_id: str, temperature: float) -> 
     return temperature
 
 
+# Gemini 4 models use Google's default sampling, a MEDIUM default thinking level
+# and a 64K synchronous output cap (long decode is not used).
+GEMINI_4_MODEL_IDS = frozenset({"gemini-4-argon", "gemini-4-carbon"})
+
+
 def _google_thinking_config(model_id: str, thinking_level: Optional[str]) -> types.ThinkingConfig:
     """Apply supported native thinking levels without affecting other models."""
 
-    if model_id == "gemini-4-argon":
+    if model_id in GEMINI_4_MODEL_IDS:
         if thinking_level is None:
             thinking_level = "MEDIUM"
         elif thinking_level not in {"LOW", "MEDIUM", "HIGH"}:
-            raise ValueError("Gemini 4 Argon thinking_level must be LOW, MEDIUM, or HIGH")
-    if model_id in {"gemini-3.8-flash", "gemini-4-argon"} and thinking_level in {"LOW", "MEDIUM", "HIGH"}:
+            raise ValueError(f"{model_id} thinking_level must be LOW, MEDIUM, or HIGH")
+    if (model_id == "gemini-3.8-flash" or model_id in GEMINI_4_MODEL_IDS) and thinking_level in {"LOW", "MEDIUM", "HIGH"}:
         return types.ThinkingConfig(
             include_thoughts=True,
             thinking_level=types.ThinkingLevel(thinking_level),
@@ -989,12 +994,12 @@ async def invoke_google_ai_studio_chat_completions(
         # infinite reasoning loops that exhaust the token budget and flush raw internal reasoning
         # text (missing thought: true tag) into the response as regular text.
         sampling_config = (
-            {} if normalized_model_id == "gemini-4-argon" else
+            {} if normalized_model_id in GEMINI_4_MODEL_IDS else
             {"temperature": _clamp_temperature_for_thinking_model(model_id, temperature)}
         )
         output_limit = (
             min(max_tokens, 65_536) if max_tokens is not None else 65_536
-        ) if normalized_model_id == "gemini-4-argon" else max_tokens
+        ) if normalized_model_id in GEMINI_4_MODEL_IDS else max_tokens
         transport_options = {}
         if request_attempts is not None or request_timeout_seconds is not None:
             transport_options["http_options"] = types.HttpOptions(
@@ -1386,12 +1391,12 @@ async def invoke_google_chat_completions(
         # infinite reasoning loops that exhaust the token budget and flush raw internal reasoning
         # text (missing thought: true tag) into the response as regular text.
         sampling_config = (
-            {} if normalized_model_id == "gemini-4-argon" else
+            {} if normalized_model_id in GEMINI_4_MODEL_IDS else
             {"temperature": _clamp_temperature_for_thinking_model(model_id, temperature)}
         )
         output_limit = (
             min(max_tokens, 65_536) if max_tokens is not None else 65_536
-        ) if normalized_model_id == "gemini-4-argon" else max_tokens
+        ) if normalized_model_id in GEMINI_4_MODEL_IDS else max_tokens
         generation_config = types.GenerateContentConfig(
             thinking_config=_google_thinking_config(normalized_model_id, thinking_level),
             **sampling_config,
