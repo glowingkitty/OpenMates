@@ -95,3 +95,87 @@ def test_gemini_chunked_application_files_all_join_the_application(monkeypatch, 
     assert [len(refs) for refs in created_apps] == [5, 6]
     assert app_embed_ids == [None, "app-1"]
     assert [ref["path"] for ref in created_apps[-1]] == [path for _l, path, _c in FILES]
+
+
+def _bundle_then_late_script_tokens() -> list[str]:
+    """Real dev run shape: a JSON file bundle first, the script sources as separate blocks after it."""
+    import json
+
+    bundle = {"files": {path: {"content": content} for _l, path, content in FILES[:4]}}
+    tokens = ["Here is a simple recipe web app.\n\n", "```json\n" + json.dumps(bundle, indent=2) + "\n", "```\n\n"]
+    for language, path, content in FILES[4:]:
+        tokens += ["```", f"{language}:{path}\n{content}", "```\n\n"]
+    return tokens
+
+
+def _bundle_split_fence_tokens() -> list[str]:
+    """Same content with the language on its own chunk (Gemini's usual split)."""
+    tokens = _bundle_then_late_script_tokens()
+    head = tokens[1]
+    return [tokens[0], "```", head[3:], *tokens[2:]]
+
+
+def _bundle_single_chunk_tokens() -> list[str]:
+    """The whole bundle block, both fences included, arrives as one chunk (real dev run 18)."""
+    tokens = _bundle_then_late_script_tokens()
+    return [tokens[0], tokens[1] + tokens[2], *tokens[3:]]
+
+
+@pytest.mark.parametrize(
+    "bundle_tokens", [_bundle_then_late_script_tokens, _bundle_split_fence_tokens, _bundle_single_chunk_tokens]
+)
+# contract-test: supporting surface=rest_api assertions=projects.files.application-single-source
+def test_script_files_after_a_combined_bundle_join_the_same_application(monkeypatch, bundle_tokens) -> None:
+    refreshed: list[tuple[str | None, list[str]]] = []
+    counter = {"n": 0}
+
+    async def main_stream(**_kwargs):
+        for token in bundle_tokens():
+            yield token
+
+    async def create_placeholder(*_args, **kwargs):
+        counter["n"] += 1
+        embed_id = f"file-{counter['n']}"
+        return {"embed_id": embed_id, "embed_reference": f'{{"type":"code","embed_id":"{embed_id}"}}'}
+
+    async def create_artifact(*_args, **kwargs):
+        return {"embed_id": "app-1", "child_embed_ids": [f"bundle-{i}" for i in range(len(kwargs["files"]))],
+                "embed_reference": '{"type":"application","embed_id":"app-1"}'}
+
+    async def create_application(*_args, **kwargs):
+        refreshed.append((kwargs.get("embed_id"), [ref["path"] for ref in kwargs["file_refs"]]))
+        return {"embed_id": "app-1", "embed_reference": '{"type":"application","embed_id":"app-1"}'}
+
+    class FakeEmbedService(EmbedService):
+        create_code_embed_placeholder = AsyncMock(side_effect=create_placeholder)
+        update_code_embed_content = AsyncMock(return_value=True)
+        create_application_artifact_embed = AsyncMock(side_effect=create_artifact)
+        create_application_embed = AsyncMock(side_effect=create_application)
+        update_application_embed = AsyncMock(return_value=True)
+
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+    monkeypatch.setattr(stream_consumer, "handle_main_processing", main_stream)
+    monkeypatch.setattr(stream_consumer.celery_config.app, "AsyncResult",
+                        lambda _: SimpleNamespace(state="STARTED"))
+    monkeypatch.setattr(stream_consumer, "_mark_code_embed_assistant_runnable", AsyncMock())
+    monkeypatch.setattr("backend.core.api.app.services.embed_service.EmbedService", FakeEmbedService)
+    request = AskSkillRequest(
+        chat_id="chat-1", message_id="message-1", user_id="user-1",
+        user_id_hash="hash-1", message_history=[], is_incognito=True,
+    )
+    response, *_ = asyncio.run(stream_consumer._consume_main_processing_stream(
+        task_id="task-1", request_data=request,
+        preprocessing_result=PreprocessingResult(can_proceed=True),
+        base_instructions={}, directus_service=SimpleNamespace(),
+        encryption_service=SimpleNamespace(), user_vault_key_id="vault-1",
+        all_mates_configs=[], discovered_apps_metadata={}, cache_service=AsyncMock(),
+    ))
+
+    assert response.count('"type":"application"') == 1
+    # The late script files are re-published into the same application, not left outside it.
+    assert refreshed, "the application was refreshed after the late files"
+    embed_id, paths = refreshed[-1]
+    assert embed_id == "app-1"
+    assert sorted(paths) == sorted(path for _l, path, _c in FILES)

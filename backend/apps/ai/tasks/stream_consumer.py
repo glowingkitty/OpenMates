@@ -8222,6 +8222,13 @@ async def _consume_main_processing_stream(
                                             if embed_reference_code:
                                                 chunk = embed_reference_code
                                                 application_parent_embed_created = True
+                                                # Models often send the combined block first and the
+                                                # script sources as separate file blocks afterwards;
+                                                # the end-of-stream refresh joins those to this parent.
+                                                combined_embed_id = _embed_id_from_reference_block(embed_reference_code)
+                                                if combined_embed_id:
+                                                    streaming_application_embed_id = combined_embed_id
+                                                    streaming_application_file_count = len(application_preview_files)
                                                 logger.info(
                                                     f"{log_prefix} Created generated application artifact from "
                                                     f"{len(application_preview_files)} file(s) in combined preview block"
@@ -9477,6 +9484,12 @@ async def _consume_main_processing_stream(
                                     )
                                 if chunk:
                                     application_parent_embed_created = True
+                                    # Script files sent as separate blocks after the bundle
+                                    # join this parent in the end-of-stream refresh.
+                                    bundle_embed_id = _embed_id_from_reference_block(chunk)
+                                    if bundle_embed_id:
+                                        streaming_application_embed_id = bundle_embed_id
+                                        streaming_application_file_count = len(application_preview_files_at_close)
                                     logger.info(
                                         f"{log_prefix} Created generated application artifact from "
                                         f"{len(application_preview_files_at_close)} file(s) in JSON bundle"

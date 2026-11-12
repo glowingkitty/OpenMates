@@ -5218,7 +5218,14 @@ async def handle_main_processing(
     active_focus_prompt_text: Optional[str] = None
     active_focus_prompt_section: Optional[str] = None
     translation_service = TranslationService()
-    if request_data.active_focus_id:
+    # The chat's active focus can be the bound Project's own focus (a bare id,
+    # e.g. the default focus of an assistant-created Project). Its instruction
+    # comes from the verified binding above, not from an app or private focus.
+    project_bound_focus = bool(
+        active_project_focus and request_data.active_focus_id
+        and request_data.active_focus_id == active_project_focus.get("focus_id")
+    )
+    if request_data.active_focus_id and not project_bound_focus:
         try:
             # Parse focus mode ID (format: "app_id-focus_id" using hyphen for consistency with tool names)
             if request_data.active_focus_id.startswith("project-focus:"):
