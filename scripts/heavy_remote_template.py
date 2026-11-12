@@ -26,7 +26,9 @@ import heavy_remote  # noqa: E402 - sibling module; path set up above
 
 REPO_URL = "https://github.com/glowingkitty/OpenMates.git"
 NODE_IMAGE_MAJOR = "24"
-APT_PACKAGES = ["build-essential", "pkg-config", "git", "ca-certificates", "curl", "xz-utils"]
+# python3-cryptography: Rust tests spawn the tests/sdk-conformance Python peers.
+APT_PACKAGES = ["build-essential", "pkg-config", "git", "ca-certificates", "curl", "xz-utils",
+                "python3", "python3-cryptography"]
 
 
 def rust_version(root: Path) -> str:
