@@ -22,7 +22,8 @@ import { chatKeyManager } from '../../encryption/ChatKeyManager';
 import { rememberOpenedRow, rustEmbedData, WORKER_RESOLVED_EMBED_KEY } from './embedDataClient';
 import type { StoredRowRequest, StoredRowResult } from './embedDataProtocol';
 import type { EmbedWriteClient } from './embedWriteClient';
-import { rustEmbedWriter } from './embedWriteSession';
+import { discardRustEmbedWriter, rustEmbedWriter } from './embedWriteSession';
+import { UnitPortError } from '../host/unitPort';
 
 /** The embedStore state the hook needs (bound methods of the store). */
 export interface EmbedKeyHost {
@@ -78,9 +79,17 @@ async function openInWorker(embedId: string, hashedChatId: string | undefined, r
 		const [result] = await writer.unit.request('openStoredRows', { rows: [request] });
 		return result;
 	};
-	let result = await open();
-	if (!result.ok && result.pendingChatHashes.length && (await adoptPendingChatKeys(writer, result.pendingChatHashes, embedId, host))) {
-		result = await open();
+	let result: StoredRowResult;
+	try {
+		const first = await open();
+		result = first;
+		if ('pendingChatHashes' in first && first.pendingChatHashes.length && (await adoptPendingChatKeys(writer, first.pendingChatHashes, embedId, host))) {
+			result = await open();
+		}
+	} catch (error) {
+		// A stalled unit would time out every later call too: reopen it on the next read.
+		if (error instanceof UnitPortError && error.code === 'unit_timeout') discardRustEmbedWriter(writer);
+		throw error;
 	}
 	const stats = rustEmbedData()?.stats;
 	if (stats) {

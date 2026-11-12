@@ -106,3 +106,31 @@ export function closeRustEmbedWriter(): void {
 	for (const forget of closeHooks) forget();
 	stale?.client.then((client) => client.close(), () => undefined);
 }
+
+/**
+ * Drops one opened client (and closes it) after a request timeout so the next
+ * call reopens the `embedWrite` unit instead of reusing a stalled port. A client
+ * that is no longer the current one is left alone.
+ */
+export function discardRustEmbedWriter(client: EmbedWriteClient): void {
+	const stale = current;
+	if (stale) {
+		void stale.client.then((open) => { if (open === client && current === stale) current = null; }, () => undefined);
+	}
+	client.close();
+}
+
+/**
+ * True for a Worker/unit failure that heals by itself (stalled or restarted
+ * Worker, unbound generation, IndexedDB briefly unavailable): callers must not
+ * record it as a permanent decryption failure.
+ */
+export function isTransientRustWorkerError(error: unknown): boolean {
+	if (error instanceof UnitPortError) {
+		return ['unit_timeout', 'unit_retired', 'unit_unbound', 'unit_closed', 'unit_aborted', 'embed_write_not_bound'].includes(error.code);
+	}
+	if (error instanceof Error) {
+		return error.message === 'embed_store_unavailable' || error.message.startsWith('shared_core_');
+	}
+	return false;
+}

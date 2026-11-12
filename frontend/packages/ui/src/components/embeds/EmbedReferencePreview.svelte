@@ -97,6 +97,7 @@
   ]);
   const INTERACTIVE_QUESTION_LANGUAGE = 'interactive_question';
   const EMBED_DATA_RETRY_DELAYS_MS = [1_000, 2_000, 3_000];
+  const EMBED_DATA_BACKGROUND_RETRY_MS = 10_000;
   let embedDataRetryCount = 0;
   let embedDataRetryTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -107,13 +108,15 @@
 
   function scheduleEmbedDataRetry(): void {
     if (embedDataRetryTimer) return;
-    const delay = EMBED_DATA_RETRY_DELAYS_MS[embedDataRetryCount];
-    if (delay === undefined) {
+    const delay = EMBED_DATA_RETRY_DELAYS_MS[embedDataRetryCount] ?? EMBED_DATA_BACKGROUND_RETRY_MS;
+    if (EMBED_DATA_RETRY_DELAYS_MS[embedDataRetryCount] === undefined) {
+      // Keep retrying quietly: a stalled Worker or late key heals on its own,
+      // and the preview renders as soon as the embed decrypts.
       loading = false;
       errorText = 'Preview unavailable';
-      return;
+    } else {
+      embedDataRetryCount += 1;
     }
-    embedDataRetryCount += 1;
     embedDataRetryTimer = setTimeout(() => {
       embedDataRetryTimer = null;
       void renderResolvedPreview();
@@ -394,6 +397,8 @@
       });
       errorText = 'Preview unavailable';
       loading = false;
+      // A thrown read (e.g. a stalled Worker) is transient: keep retrying.
+      scheduleEmbedDataRetry();
     }
   }
 

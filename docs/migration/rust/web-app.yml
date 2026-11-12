@@ -106,9 +106,9 @@ units:
     call (Rust `embed_write::read`, its three fields in one batched WebCrypto call). The unit holds no account state,
     so it is a pre-bind namespace like `crypto`: the embed key arrives per request (as the crypto...'
   typescript_fallback: none declared (4 files)
-  unit_tests: [childRevision.test.ts, embedContentEdit.test.ts, embedEditSession.test.ts, embedEditUnit.test.ts,
-    embedKeyResolution.test.ts, embedUnits.test.ts, embedWriteBinding.test.ts, messageEmbedVersion.test.ts, messageParentIds.test.ts,
-    readOps.test.ts, rustRecoveredChildRevision.test.ts]
+  unit_tests: [embedTransientWorker.test.ts, childRevision.test.ts, embedContentEdit.test.ts, embedEditSession.test.ts,
+    embedEditUnit.test.ts, embedKeyResolution.test.ts, embedUnits.test.ts, embedWriteBinding.test.ts, messageEmbedVersion.test.ts,
+    messageParentIds.test.ts, readOps.test.ts, rustRecoveredChildRevision.test.ts]
   e2e_specs: [web-rust-core-embeds.spec.ts]
   vectors: [packages/openmates-rust/src/toon_decode_ts_vectors.json]
   open_gaps: [Embed RSS +1..+77 MB vs TypeScript in the embeds bench (noisy); see performance-history.yml.]
@@ -123,9 +123,9 @@ units:
     and the revision-history decisions (embedWriteAdapter.ts sequences them); this unit persists the prepared rows
     (embe...
   typescript_fallback: none declared (4 files)
-  unit_tests: [childRevision.test.ts, embedContentEdit.test.ts, embedEditSession.test.ts, embedEditUnit.test.ts,
-    embedKeyResolution.test.ts, embedUnits.test.ts, embedWriteBinding.test.ts, messageEmbedVersion.test.ts, messageParentIds.test.ts,
-    readOps.test.ts, rustRecoveredChildRevision.test.ts]
+  unit_tests: [embedTransientWorker.test.ts, childRevision.test.ts, embedContentEdit.test.ts, embedEditSession.test.ts,
+    embedEditUnit.test.ts, embedKeyResolution.test.ts, embedUnits.test.ts, embedWriteBinding.test.ts, messageEmbedVersion.test.ts,
+    messageParentIds.test.ts, readOps.test.ts, rustRecoveredChildRevision.test.ts]
   e2e_specs: [web-rust-core-embeds.spec.ts]
   vectors: []
   open_gaps: [Streamed write is wired for send_embed_data only.]

@@ -35,6 +35,7 @@ import {
 } from "./embedPreviewBackfill";
 import { decodeToonInRust, openedEmbedField, RUST_TOON_INACTIVE, openStoredEmbedContent } from "./rustCore/embeds/embedDataClient";
 import { workerEmbedKey } from "./rustCore/embeds/embedKeyClient";
+import { isTransientRustWorkerError } from "./rustCore/embeds/embedWriteSession";
 import {
   clearEmbedRefIndexEntries,
   embedRefIndexVersion,
@@ -1767,17 +1768,24 @@ export class EmbedStore {
           `[EmbedStore] Error decrypting encrypted_content from separate fields: embed_id=${embedId} field=encrypted_content`,
           error,
         );
-        embed._decryptionFailed = true;
-        embed.status = "error";
-        embed.content = null;
-        // Cache the failed result so subsequent in-memory lookups don't retry decryption.
-        /* eslint-disable @typescript-eslint/no-explicit-any */
-        embedCache.set(contentRef, {
-          ...entry,
-          _decryptionFailed: true,
-          status: "error",
-        } as any);
-        /* eslint-enable @typescript-eslint/no-explicit-any */
+        if (isTransientRustWorkerError(error)) {
+          // A stalled or restarting Worker is not a decryption verdict: stay
+          // pending and uncached so the next read retries.
+          embed._decryptionPending = true;
+          embed.content = null;
+        } else {
+          embed._decryptionFailed = true;
+          embed.status = "error";
+          embed.content = null;
+          // Cache the failed result so subsequent in-memory lookups don't retry decryption.
+          /* eslint-disable @typescript-eslint/no-explicit-any */
+          embedCache.set(contentRef, {
+            ...entry,
+            _decryptionFailed: true,
+            status: "error",
+          } as any);
+          /* eslint-enable @typescript-eslint/no-explicit-any */
+        }
       }
     } else if (entry.data) {
       // Fallback: If encrypted_content not set but data is, try old format decryption
