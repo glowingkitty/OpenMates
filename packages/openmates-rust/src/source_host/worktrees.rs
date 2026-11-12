@@ -37,7 +37,9 @@ const MAX_STATE_BYTES: u64 = 16 * 1024;
 /// of the same chat must not both run `git worktree add`.
 static AREA_LOCK: Mutex<()> = Mutex::new(());
 
-fn area_lock() -> MutexGuard<'static, ()> {
+/// The in-process lock that serializes worktree-moving operations (also taken
+/// by the Git operations of `git_ops.rs` so a commit never races a removal).
+pub(super) fn area_lock() -> MutexGuard<'static, ()> {
     // A poisoned lock only means an earlier operation panicked; every
     // operation re-reads Git and the state file, so continuing is safe.
     AREA_LOCK
@@ -228,6 +230,7 @@ struct StateFile {
 }
 
 /// The host-owned worktree area below one OpenMates state directory.
+#[derive(Debug)]
 pub(crate) struct WorktreeArea {
     base: PathBuf,
 }

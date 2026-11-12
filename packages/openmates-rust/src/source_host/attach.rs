@@ -13,7 +13,7 @@ use super::store::{
     StoredRemoteSource, load_remote_sources, remote_cache_path, remote_source_type,
     upsert_remote_source,
 };
-use super::{HOST_CAPABILITIES, HostError, HostResult, NameOrder};
+use super::{HostError, HostResult, NameOrder, command_sandbox, host_capability_names};
 use crate::client::Client;
 use crate::error::Error;
 use crate::work::{
@@ -366,12 +366,13 @@ pub async fn attach_root(
 }
 
 fn host_capabilities() -> Vec<ProjectSourceCapability> {
-    HOST_CAPABILITIES
+    host_capability_names(command_sandbox::detect().is_ok())
         .iter()
         .map(|c| match *c {
             "read" => ProjectSourceCapability::Read,
             "search" => ProjectSourceCapability::Search,
             "import" => ProjectSourceCapability::Import,
+            "run_command" => ProjectSourceCapability::RunCommand,
             _ => ProjectSourceCapability::WriteRequest,
         })
         .collect()
@@ -449,7 +450,10 @@ pub async fn prepare_source(
                 .as_array()
                 .map(|values| values.iter().filter_map(Value::as_str).map(str::to_owned).collect())
                 .unwrap_or_default();
-            let mut wanted: Vec<String> = HOST_CAPABILITIES.iter().map(|c| (*c).to_owned()).collect();
+            let mut wanted: Vec<String> = host_capability_names(command_sandbox::detect().is_ok())
+                .iter()
+                .map(|c| (*c).to_owned())
+                .collect();
             current.sort();
             wanted.sort();
             if current != wanted {

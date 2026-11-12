@@ -17,6 +17,7 @@ mod command_scope;
 mod commands;
 mod dispatch;
 mod fs_safe;
+mod git_ops;
 pub(crate) mod ignore_rules;
 mod patch;
 pub(crate) mod path_policy;
@@ -34,6 +35,10 @@ mod writes_journal;
 mod command_sandbox_tests;
 #[cfg(test)]
 mod commands_tests;
+#[cfg(test)]
+mod git_ops_tests;
+#[cfg(test)]
+mod host_capability_tests;
 #[cfg(test)]
 mod ignore_rules_tests;
 #[cfg(test)]
@@ -66,10 +71,22 @@ pub use store::{
 use std::cmp::Ordering;
 use std::fmt;
 
-/// Capabilities the Rust host advertises for each source, in npm order. The
-/// `run_command` operation is implemented (`commands.rs`) but not advertised
-/// until the binding check in `work::projects::source_host` admits it.
+/// Capabilities the Rust host always advertises for each source, in npm order.
+/// `run_command` is added only on hosts with a command sandbox tier; use
+/// [`host_capability_names`] for the full list of this machine.
 pub const HOST_CAPABILITIES: [&str; 4] = ["read", "search", "import", "write_request"];
+
+/// The capability names this host advertises: [`HOST_CAPABILITIES`] plus
+/// `run_command` when `sandbox_available` (a confinement tier was detected).
+/// Without a sandbox the operation still answers `confinement_unavailable`
+/// but is never advertised.
+pub(crate) fn host_capability_names(sandbox_available: bool) -> Vec<&'static str> {
+    let mut names = HOST_CAPABILITIES.to_vec();
+    if sandbox_available {
+        names.push("run_command");
+    }
+    names
+}
 
 /// A host operation failure carrying the exact npm wire error code
 /// (`remoteAccessOperationErrorCode`). The message is local diagnostics only and

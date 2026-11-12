@@ -28,14 +28,25 @@ pub enum SourceHostOperation {
     /// One confined argv command in the request root (needs the
     /// `run_command` capability and, like a write, chat/operation/digest).
     RunCommand,
+    /// Read-only state of the chat worktree (needs `read`).
+    GitStatus,
+    /// Stage everything in the chat worktree and commit (needs
+    /// `write_request`; chat/operation/digest like a write).
+    GitCommit,
+    /// Rebase the chat's commits onto the target branch and fast-forward it
+    /// locally (needs `write_request`; chat/operation/digest like a write).
+    GitLand,
 }
 impl SourceHostOperation {
     fn capability(self) -> ProjectSourceCapability {
         match self {
             Self::Search => ProjectSourceCapability::Search,
-            Self::CreateFile | Self::UpdateFile | Self::CopyEntries | Self::MoveEntries => {
-                ProjectSourceCapability::WriteRequest
-            }
+            Self::CreateFile
+            | Self::UpdateFile
+            | Self::CopyEntries
+            | Self::MoveEntries
+            | Self::GitCommit
+            | Self::GitLand => ProjectSourceCapability::WriteRequest,
             Self::RunCommand => ProjectSourceCapability::RunCommand,
             _ => ProjectSourceCapability::Read,
         }
@@ -594,6 +605,8 @@ impl SourceHostSession {
             SourceHostOperation::CreateFile
                 | SourceHostOperation::UpdateFile
                 | SourceHostOperation::RunCommand
+                | SourceHostOperation::GitCommit
+                | SourceHostOperation::GitLand
         ) {
             identifier(frame.chat_id.as_deref().ok_or(Error::Protocol)?)?;
             identifier(frame.operation_id.as_deref().ok_or(Error::Protocol)?)?;

@@ -18,7 +18,7 @@
 use super::reads::{self, HostRoot};
 use super::worktrees::WorktreeArea;
 use super::writes::{self, Mutation, WriteRequest};
-use super::{HostError, HostResult, command_sandbox, commands, search};
+use super::{HostError, HostResult, command_sandbox, commands, git_ops, search};
 use crate::client::{
     Client, SourceHostAdapter, SourceHostOperation, SourceHostRequest, SourceHostSession,
 };
@@ -41,15 +41,26 @@ pub struct FilesystemSourceAdapter;
 
 impl SourceHostAdapter for FilesystemSourceAdapter {
     fn implemented_capabilities(&self) -> Vec<ProjectSourceCapability> {
-        vec![
-            ProjectSourceCapability::Read,
-            ProjectSourceCapability::Search,
-            ProjectSourceCapability::WriteRequest,
-        ]
+        capabilities_for(command_sandbox::detect().is_ok())
     }
     fn supports_operation(&self, _operation: SourceHostOperation) -> bool {
         true
     }
+}
+
+/// The capabilities this host implements, given whether a command sandbox
+/// tier was detected. `run_command` is claimed only with a tier (no sandbox:
+/// not advertised, the operation answers `confinement_unavailable`).
+pub(crate) fn capabilities_for(sandbox_available: bool) -> Vec<ProjectSourceCapability> {
+    let mut capabilities = vec![
+        ProjectSourceCapability::Read,
+        ProjectSourceCapability::Search,
+        ProjectSourceCapability::WriteRequest,
+    ];
+    if sandbox_available {
+        capabilities.push(ProjectSourceCapability::RunCommand);
+    }
+    capabilities
 }
 
 /// One live source the host serves.
@@ -136,6 +147,9 @@ fn operation_name(operation: SourceHostOperation) -> &'static str {
         SourceHostOperation::CopyEntries => "copy_entries",
         SourceHostOperation::MoveEntries => "move_entries",
         SourceHostOperation::RunCommand => commands::OPERATION,
+        SourceHostOperation::GitStatus => git_ops::STATUS_OPERATION,
+        SourceHostOperation::GitCommit => git_ops::COMMIT_OPERATION,
+        SourceHostOperation::GitLand => git_ops::LAND_OPERATION,
     }
 }
 
@@ -266,6 +280,10 @@ async fn execute(
             Err(HostError::failed("unsupported_operation"))
         }
         SourceHostOperation::RunCommand => run_command(client, source, context, &args, key).await,
+        SourceHostOperation::GitStatus => git_status(source, context).await,
+        SourceHostOperation::GitCommit | SourceHostOperation::GitLand => {
+            git_write(client, source, context, operation, &args, key).await
+        }
         SourceHostOperation::Search => {
             if args["include_content"] == true {
                 require_read_and_search(client, source).await?;
@@ -509,6 +527,76 @@ async fn run_command(
         Some(super::writes_journal::source_lock_exclusive().await?)
     };
     blocking(root, move |root| commands::run(&root, &proposal, &sandbox, worktree)).await
+}
+
+/// `git_status`: a read of the chat worktree; a chat without one answers
+/// `{"exists":false}` (reads before the first write use the source root).
+async fn git_status(source: &HostedSource, context: &RequestContext) -> HostResult<Value> {
+    let source = source.clone();
+    let chat = context.workspace_chat_id.clone();
+    tokio::task::spawn_blocking(move || {
+        match git_ops::existing_worktree(&source, chat.as_deref(), crate::client::now_ms()) {
+            Ok((area, worktree)) => git_ops::status(&area, &worktree),
+            Err(error) if error.code == "no_worktree" => Ok(json!({"exists": false})),
+            Err(error) => Err(error),
+        }
+    })
+    .await
+    .map_err(|_| HostError::failed("Host operation was interrupted"))?
+}
+
+/// `git_commit` / `git_land`: the same digest and backend authorization as a
+/// write. The worktree must already exist (checked before the approval is
+/// consumed); Git operations never create one.
+async fn git_write(
+    client: &mut Client,
+    source: &HostedSource,
+    context: &RequestContext,
+    operation: SourceHostOperation,
+    args: &Value,
+    key: &[u8; 32],
+) -> HostResult<Value> {
+    let commit = operation == SourceHostOperation::GitCommit;
+    let proposal = git_ops::validate(&args["git"], commit)?;
+    let chat_id = args["chat_id"].as_str().ok_or_else(denied)?;
+    if Some(chat_id) != context.chat_id.as_deref()
+        || Some(proposal.operation_id.as_str()) != context.operation_id.as_deref()
+        || Some(git_ops::digest(
+            key,
+            &context.project_id,
+            chat_id,
+            operation_name(operation),
+            &proposal,
+        )?) != context.proposal_digest
+    {
+        return Err(denied());
+    }
+    let lookup_source = source.clone();
+    let workspace = context.workspace_chat_id.clone();
+    let (_, worktree) = tokio::task::spawn_blocking(move || {
+        git_ops::existing_worktree(&lookup_source, workspace.as_deref(), crate::client::now_ms())
+    })
+    .await
+    .map_err(|_| HostError::failed("Host operation was interrupted"))??;
+    let route = source_route(
+        source,
+        &format!(
+            "/{}/requests/{}/authorize-write",
+            url::form_urlencoded::byte_serialize(source.source_id.as_bytes()).collect::<String>(),
+            url::form_urlencoded::byte_serialize(context.request_id.as_bytes()).collect::<String>()
+        ),
+    );
+    let body = json!({"source_session_id": context.source_session_id});
+    let authorized = authorize(client, &route, &body).await?;
+    if authorized["operation_id"] != proposal.operation_id.as_str() {
+        return Err(denied());
+    }
+    tokio::task::spawn_blocking(move || match proposal.message {
+        Some(message) => git_ops::commit(&worktree, &message),
+        None => git_ops::land(&worktree),
+    })
+    .await
+    .map_err(|_| HostError::failed("Host operation was interrupted"))?
 }
 
 /// Fresh backend re-authorization with an unchanged scope and operation.

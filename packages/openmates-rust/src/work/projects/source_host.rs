@@ -30,12 +30,9 @@ impl Projects<'_> {
                 .iter()
                 .enumerate()
                 .any(|(i, c)| capabilities[..i].contains(c))
-            || capabilities.iter().any(|c| {
-                matches!(
-                    c,
-                    ProjectSourceCapability::RunCommand | ProjectSourceCapability::Import
-                )
-            })
+            || capabilities
+                .iter()
+                .any(|c| matches!(c, ProjectSourceCapability::Import))
         {
             return Err(Error::Invalid(
                 "Supply nonempty implemented bridge capabilities.",
@@ -58,6 +55,8 @@ impl Projects<'_> {
                     Op::CopyEntries,
                     Op::MoveEntries,
                 ],
+                // The adapter advertises this only when a sandbox tier exists.
+                ProjectSourceCapability::RunCommand => &[Op::RunCommand],
                 _ => &[],
             };
             if !operations.iter().all(|op| adapter.supports_operation(*op)) {

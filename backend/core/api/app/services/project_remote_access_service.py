@@ -33,7 +33,10 @@ MAX_REQUESTS_PER_MINUTE = 60
 MAX_FILE_CHUNKS_PER_MINUTE = 256
 STATE_LOCK_TTL_SECONDS = 10
 STATE_LOCK_WAIT_SECONDS = 5
-WRITE_OPERATIONS = {"create_file", "update_file"}
+RUN_COMMAND_OPERATION = "run_command"
+# Write-class: needs chat/operation/digest context and the exact-approval path.
+# The digest is the client-computed Project-key HMAC; the server never sees argv.
+WRITE_OPERATIONS = {"create_file", "update_file", RUN_COMMAND_OPERATION}
 USER_FILE_OPERATIONS = {"copy_entries", "move_entries"}
 ALLOWED_OPERATIONS = {"list", "search", "read_text", "read_image_chunk", "read_file_chunk", *WRITE_OPERATIONS, *USER_FILE_OPERATIONS}
 WORKSPACE_CHAT_ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}")
@@ -428,7 +431,8 @@ class ProjectRemoteAccessService:
                     await mark_team_host_offline(host_user_id)
                 raise ProjectRemoteAccessError("source_offline", status_code=404)
             required_capability = (
-                "write_request" if operation in WRITE_OPERATIONS | USER_FILE_OPERATIONS
+                RUN_COMMAND_OPERATION if operation == RUN_COMMAND_OPERATION
+                else "write_request" if operation in WRITE_OPERATIONS | USER_FILE_OPERATIONS
                 else "search" if operation == "search" else "read"
             )
             if required_capability not in set(binding.get("capabilities") or []):
@@ -552,7 +556,10 @@ class ProjectRemoteAccessService:
         if (binding.get("source_session_id") != source_session_id
                 or binding.get("stable_device_fingerprint_hash") != stable_device_fingerprint_hash
                 or binding.get("key_epoch") != request.get("key_epoch")
-                or "write_request" not in set(binding.get("capabilities") or [])):
+                or (
+                    RUN_COMMAND_OPERATION if request["operation"] == RUN_COMMAND_OPERATION
+                    else "write_request"
+                ) not in set(binding.get("capabilities") or [])):
             raise ProjectRemoteAccessError("source_session_changed", status_code=409)
         return request
 
