@@ -939,6 +939,10 @@ def test_rust_check_plan_matches_rust_workflow_exclusions():
     ((_, single),) = plan("openmates-sdk::chat::tests")
     assert single[:4] == ["cargo", "test", "-p", "openmates-sdk"]
     assert single[-2:] == ["--", "chat::tests"]
+    # The SDK is tested with the features the CLI ships, or the host modules never compile.
+    assert single[single.index("--features") + 1] == "workflow-yaml"
+    ((_, other),) = plan("openmates")
+    assert "--features" not in other
 
 
 def test_rust_check_receipt_shows_first_failures_concisely():

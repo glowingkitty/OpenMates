@@ -26,6 +26,10 @@ ALL = "all"
 MAX_FAILURE_LINES = 40
 MAX_LINE = 300
 TEST_FLAGS = ["--locked", "--lib", "--bins", "--tests"]
+# Features a single-crate run must enable so it compiles what the shipping
+# binaries compile: the CLI builds the SDK with `workflow-yaml`, which gates the
+# remote-access host modules and their tests.
+CRATE_FEATURES = {"openmates-sdk": ["workflow-yaml"]}
 
 
 def validate_specs(specs: list[str]) -> list[str]:
@@ -60,6 +64,9 @@ def plan(target: str) -> list[tuple[str, list[str]]]:
         ]
     crate, separator, test_filter = target.partition("::")
     command = ["cargo", "test", "-p", crate, *TEST_FLAGS]
+    features = CRATE_FEATURES.get(crate)
+    if features:
+        command += ["--features", ",".join(features)]
     if separator:
         command += ["--", test_filter]
     return [(f"{crate} test" + (f" ({test_filter})" if separator else ""), command)]
