@@ -848,7 +848,9 @@ async def decide_preprocessing_with_jev(
         "load_app_settings_and_memories": [key for question, key in memory_map.items() if noul_value(response, question) >= 0.75],
         "relevant_app_skills": [key for question, key in skill_map.items() if noul_value(response, question) >= 0.70],
         "relevant_focus_modes": [key for question, key in focus_map.items() if noul_value(response, question) >= 0.75],
-        "relevant_rules": [{"id": row["id"], "revision": row.get("revision"),
+        # `source` must survive: the preprocessor turns selected personal rows into
+        # `memory:<id>` load requests and drops every non-auto_include row without it.
+        "relevant_rules": [{"id": row["id"], "revision": row.get("revision"), "source": row.get("source"),
                             "load_mode": row.get("load_mode", "auto_include")} for row in rule_candidates if row['id'] in {
             key for question, key in rule_map.items() if noul_value(response, question) >= 0.75}],
         "relevant_diagram_types": selected_diagram_types,

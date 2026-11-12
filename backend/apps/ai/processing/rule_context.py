@@ -101,6 +101,26 @@ def request_personal_catalog(request: Any) -> list[MemoryCatalogEntry]:
     """
     return personal_catalog(request_memory_catalog(request))
 
+def split_selected_rule_snapshots(
+    snapshots: Iterable[Any], memory_catalog: Iterable[MemoryCatalogEntry],
+) -> tuple[list[str], list[dict[str, Any]]]:
+    """Split Jev-selected rows into personal Memory requests and reloadable guides.
+
+    Selected personal rows (Auto include and Ask first alike) carry no body: they
+    become ``memory:<id>`` requests answered by the client per its local load
+    mode, and only for ids present in the catalog. The rest keeps Auto include
+    app/Project guides for the exact-revision reload.
+    """
+    catalog_ids = {entry.id for entry in personal_catalog(memory_catalog)}
+    rows = [row for row in snapshots if isinstance(row, dict)]
+    memory_keys = list(dict.fromkeys(
+        f"memory:{row['id']}" for row in rows
+        if row.get("source") == "personal" and row.get("id") in catalog_ids
+    ))
+    guides = [row for row in rows if row.get("source") != "personal"
+              and row.get("load_mode", "auto_include") == "auto_include"]
+    return memory_keys, guides
+
 def memory_catalog_snapshot(entries: Iterable[MemoryCatalogEntry]) -> list[dict[str, str]]:
     """Body-free metadata snapshot stored (vault-encrypted) in the pending request."""
     return [entry.model_dump() for entry in entries]

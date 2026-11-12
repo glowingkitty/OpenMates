@@ -3576,17 +3576,10 @@ async def handle_preprocessing(
     # answered by the client per its LOCAL load mode. Ids must be in the catalog.
     memory_request_keys: List[str] = []
     if isinstance(preselected_rule_snapshots, list):
-        from backend.apps.ai.processing.rule_context import personal_catalog, request_memory_catalog
-        catalog_ids = {entry.id for entry in personal_catalog(request_memory_catalog(request_data))}
-        memory_request_keys = list(dict.fromkeys(
-            f"memory:{row['id']}" for row in preselected_rule_snapshots
-            if isinstance(row, dict) and row.get("source") == "personal" and row.get("id") in catalog_ids
-        ))
-        preselected_rule_snapshots = [
-            row for row in preselected_rule_snapshots
-            if isinstance(row, dict) and row.get("source") != "personal"
-            and row.get("load_mode", "auto_include") == "auto_include"
-        ]
+        from backend.apps.ai.processing.rule_context import request_memory_catalog, split_selected_rule_snapshots
+        memory_request_keys, preselected_rule_snapshots = split_selected_rule_snapshots(
+            preselected_rule_snapshots, request_memory_catalog(request_data),
+        )
     preselected_workflow_snapshots = llm_analysis_args.pop("relevant_workflows", None)
     preselected_diagram_types = llm_analysis_args.pop("relevant_diagram_types", None)
     preselected_diagram_variant = llm_analysis_args.pop("relevant_diagram_variant", None)
