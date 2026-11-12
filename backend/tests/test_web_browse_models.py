@@ -996,3 +996,22 @@ def test_plan_accepts_harmless_spellings_of_an_action_and_still_validates_the_ta
     assert plan["actions"] == [{"kind": "click", "target": "1"}]
     with pytest.raises(PlanInvalid):
         validate_plan({"actions": [{"action": "click", "target": "9"}]}, observation)
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.control-loop
+def test_planner_and_safety_wording_let_simple_age_dialogs_through_but_not_proof_of_age():
+    from backend.shared.providers.browser_models import SAFE_QUESTION
+    from backend.shared.providers.browser_planner import (
+        BLOCK_REASONS,
+        PLANNER_INSTRUCTIONS,
+    )
+
+    assert "simple age or legal-notice confirmation" in PLANNER_INSTRUCTIONS
+    assert "is ordinary navigation: click it and continue" in PLANNER_INSTRUCTIONS
+    assert (
+        "date of birth, an identity document or another proof of age"
+        in PLANNER_INSTRUCTIONS
+    )
+    assert "confirming a simple age or legal-notice dialog" in SAFE_QUESTION
+    assert "purchases/payments" in SAFE_QUESTION
+    assert "date of birth or proof of age" in BLOCK_REASONS["age_confirmation"]

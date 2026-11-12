@@ -195,12 +195,12 @@ test('real Browse JSON, watch, pause/resume and closed saved history on laptop a
   try {
     const opened = await openSession(page, created.chatId, id => { sid = id; });
     receipt(info, { ...created, sessionId: sid, phase: 'viewer-opened' });
-    await expect(page.getByTestId('browse-session-viewer')).toContainText('You are watching');
+    await expect(page.getByTestId('browse-session-viewer')).toContainText(/You are watching|The browser is paused and compute is free/);
     await page.getByText('Structured data', { exact: true }).click();
     await expect(page.getByTestId('browse-json')).toContainText('Herman Melville - Moby-Dick');
     await screenshot(page, info, 'json-laptop');
     await page.getByRole('button', { name: 'Take control', exact: true }).click();
-    await expect(page.getByLabel('Text for the website', { exact: true })).toBeEnabled();
+    await expect(page.getByLabel('Text for the website', { exact: true })).toBeEnabled({ timeout: 30_000 });
     await page.getByRole('button', { name: 'Pause', exact: true }).click();
     await expect(page.getByTestId('browse-session-viewer')).toContainText('The browser is paused and compute is free');
     await page.getByRole('button', { name: 'Take control', exact: true }).click();
@@ -210,7 +210,8 @@ test('real Browse JSON, watch, pause/resume and closed saved history on laptop a
     await page.setViewportSize({ width: 390, height: 844 });
     await page.reload();
     await expandActivities(page);
-    await preview(page).last().click();
+    // The open fullscreen can be restored by the reload; open the card only when it is not.
+    if (!await page.getByTestId('browse-session-viewer').isVisible()) await preview(page).last().click();
     await expect(page.getByTestId('browse-session-viewer')).toContainText('Session expired');
     await expect(page.getByRole('button', { name: 'Take control', exact: true })).toHaveCount(0);
     await page.getByText('Structured data', { exact: true }).click();

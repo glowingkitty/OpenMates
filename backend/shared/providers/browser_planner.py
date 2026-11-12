@@ -40,7 +40,7 @@ BLOCK_REASONS: dict[str, str] = {
     "sending": "Continuing would send or publish something. Take control to decide.",
     "deleting": "Continuing would delete something. Take control to decide.",
     "personal_information": "Continuing needs personal information that was not provided. Take control to enter it.",
-    "age_confirmation": "The site asks you to confirm your age. Take control to confirm it yourself.",
+    "age_confirmation": "The site asks for a date of birth or proof of age. Take control to provide it yourself.",
     "access_denied": "The site denied access to this content.",
 }
 
@@ -60,8 +60,10 @@ PLANNER_INSTRUCTIONS = (
     "application extracts and formats the answer, so never navigate only to format it. "
     "Set blocked to one of sign_in, captcha, payment, sending, deleting, personal_information, age_confirmation, "
     "access_denied when continuing needs the user: signing in, human verification, paying, sending or publishing, "
-    "deleting, or personal information that the goal does not give. An age-confirmation dialog is always "
-    "age_confirmation; the user confirms their own age. Never buy, send, delete, publish, change accounts or "
+    "deleting, or personal information that the goal does not give. A simple age or legal-notice confirmation "
+    "(a button such as 'I am 18 or older' or 'Enter site') is ordinary navigation: click it and continue. Use "
+    "age_confirmation only when the site demands a date of birth, an identity document or another proof of age. "
+    "Never buy, send, delete, publish, change accounts or "
     "disclose secrets. When done or blocked, actions is []. Do not repeat actions that recent_results show made no progress. "
     "previous_plan_rejected, when present, says why your last reply was refused; correct exactly that."
 )

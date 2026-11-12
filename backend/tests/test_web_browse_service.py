@@ -1568,7 +1568,7 @@ async def test_planner_block_needs_the_user_and_keeps_the_browser_running(
     result = await run(service)
     assert result.status == "needs_user" and result.data is None
     if code == "age_confirmation":
-        assert "confirm your age" in result.reason
+        assert "date of birth or proof of age" in result.reason
     record = service.store.records[result.session_id]
     assert record["status"] == "ai" and record["provider"]["running_since"]
     assert "pause" not in service.driver.calls and not operations(service, "step")

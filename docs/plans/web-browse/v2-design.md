@@ -148,9 +148,12 @@ every fact relevant to the goal as a note with a literal quote before leaving a
 page; prefer few decisive actions; dismissing cookie banners is allowed;
 `done` only when the ledger plus this page cover the goal or the remaining
 parts are unavailable; `blocked` for sign-in, CAPTCHA, payment, sending,
-deleting, or missing personal information. Age-confirmation dialogs are
-`blocked` with reason `age_confirmation` (the user confirms their own age by
-taking control).
+deleting, or missing personal information. A simple age or legal-notice
+confirmation (a button such as "I am 18 or older") is ordinary navigation and
+is clicked; `blocked` with reason `age_confirmation` is only for a demanded
+date of birth, identity document or other proof of age (owner decision,
+2026-11-12: the AI takes every action that needs no information it lacks and
+no sensitive entry).
 
 Validation tolerates what cannot execute anything unintended: unknown
 top-level keys and extra action fields are dropped (every executed action is
