@@ -222,3 +222,22 @@ def test_schema_publisher_verifies_the_exact_local_carrier_before_push() -> None
     assert "load: true" in schema_section
     assert "tags: openmates-ci-database:local" in schema_section
     assert "ci_schema_bundle.py verify-image openmates-ci-database:local" in schema_section
+
+
+def test_publish_workflows_skip_the_dev_release_pr_copy() -> None:
+    """The dev->main PR must not rebuild what the dev push run already builds."""
+    guard = "github.event_name != 'pull_request' || github.head_ref != 'dev'"
+    for workflow, root_job in (
+        ("publish-selfhost-images.yml", "prepare"),
+        ("publish-cli.yml", "build-test"),
+        ("publish-python-sdk.yml", "build-test"),
+    ):
+        data = yaml.safe_load((ROOT / ".github" / "workflows" / workflow).read_text(encoding="utf-8"))
+        jobs = data["jobs"]
+        assert guard in jobs[root_job]["if"], workflow
+        for name, job in jobs.items():
+            if name == root_job:
+                continue
+            needs = job.get("needs", [])
+            needs = [needs] if isinstance(needs, str) else needs
+            assert needs, f"{workflow}:{name} must depend on the guarded root job"

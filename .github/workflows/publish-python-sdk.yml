@@ -42,6 +42,9 @@ concurrency:
 
 jobs:
   build-test:
+    # The dev->main release PR re-runs this for every dev push; the push run on dev
+    # already builds the same commit, so the PR copy only takes a CI slot.
+    if: ${{ github.event_name != 'pull_request' || github.head_ref != 'dev' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
