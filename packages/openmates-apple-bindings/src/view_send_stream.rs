@@ -62,6 +62,52 @@ impl Shared {
                 )
             })
             .await?;
+        self.finish_stream(stream).await
+    }
+
+    /// As [`Self::stream_send`] for an edit of `message_id` (truncate, then
+    /// the turn) with `options`.
+    ///
+    /// # Errors
+    /// As `begin_edit_with` and `TurnStream::run`; `Authentication` while
+    /// signed out.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) async fn stream_edit(
+        self: &Arc<Self>,
+        token: CancellationToken,
+        settings: SendSettings,
+        request: RequestId,
+        chat_id: String,
+        message_id: String,
+        text: String,
+        options: SendTurnOptions,
+    ) -> Result<SendReceipt> {
+        let lease: Arc<dyn ViewLease<Bytes>> = Arc::new(HostLease(self.clone()));
+        let stream = self
+            .signed_in(token, move |host, sink, cancel| {
+                settings.apply(host);
+                view_model::begin_edit_with(
+                    host,
+                    request,
+                    chat_id,
+                    message_id,
+                    text,
+                    options,
+                    sink.clone(),
+                    cancel,
+                    lease,
+                )
+            })
+            .await?;
+        self.finish_stream(stream).await
+    }
+
+    /// Run an admitted turn's reply and settle a rejected session on the
+    /// actor that admitted it.
+    async fn finish_stream(
+        self: &Arc<Self>,
+        stream: view_model::TurnStream<Bytes, crate::view_core::ListenerSink>,
+    ) -> Result<SendReceipt> {
         let owner = stream.owner();
         let result = stream.run().await;
         if result.is_ok() {

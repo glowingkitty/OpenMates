@@ -178,7 +178,15 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
             }
             let same = belongs_to_turn(&p, id, message, turn);
             if same {
+                let known = task_id.clone();
                 adopt_turn_task(task_id, text(&p, "task_id"), &mut earlier_tasks)?;
+                if *task_id != known {
+                    phases.deliver_update(&turn_scope,id,updates,cancel,StreamUpdate::TaskAssigned {
+                        chat_id: id.into(),
+                        message_id: message.into(),
+                        task_id: task_id.clone(),
+                    }).await?;
+                }
             }
             if owns_metadata(&p, id, message, turn, &task_id) {
                 observed.capture_owned(&kind, &p)?;
@@ -341,7 +349,15 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
                 && text(&p, "chat_id") == id
                 && text(&p, "user_message_id") == message
             {
+                let known = task_id.clone();
                 adopt_turn_task(task_id, text(&p, "task_id"), &mut earlier_tasks)?;
+                if *task_id != known {
+                    phases.deliver_update(&turn_scope,id,updates,cancel,StreamUpdate::TaskAssigned {
+                        chat_id: id.into(),
+                        message_id: message.into(),
+                        task_id: task_id.clone(),
+                    }).await?;
+                }
             }
             if kind == "thinking_chunk"
                 && text(&p, "chat_id") == id

@@ -104,6 +104,33 @@ final class SettingsFullParityUITests: XCTestCase {
         }
     }
 
+    // contract-test: direct surface=gui.apple assertions=notifications.sounds.silent-mode
+    func testNotificationsSilentModeQuickToggleIsVisibleAndTappable() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--ui-test-disable-auth-cache",
+            "--ui-test-account-settings-fixture",
+            "--ui-test-billing-fixture",
+        ]
+        app.launch()
+
+        XCTAssertTrue(app.buttons["settings-button"].waitForExistence(timeout: 15))
+        app.buttons["settings-button"].tap()
+        XCTAssertTrue(waitForElement("settings-menu", in: app, timeout: 10))
+        openDestination(("settings-notifications-row", "settings-notifications-page"), in: app)
+
+        let toggle = app.descendants(matching: .any)["silent-mode"].firstMatch
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5), "Silent mode quick toggle must be visible")
+        XCTAssertTrue(toggle.isHittable)
+        XCTAssertEqual(toggle.value as? String, "Off", "Silent mode starts off")
+        attachScreenshot(name: "Notifications settings with silent mode quick toggle")
+        toggle.tap()
+        XCTAssertEqual(toggle.value as? String, "On", "Tapping the switch turns silent mode on")
+        attachScreenshot(name: "Silent mode turned on in Notifications settings")
+        toggle.tap()
+        XCTAssertEqual(toggle.value as? String, "Off", "Tapping again turns silent mode off")
+    }
+
     // contract-test: direct surface=gui.apple assertions=settings-ui.navigation.parent-return,settings-ui.parity.web-apple-shell
     func testAuthenticatedProfileHeaderControlsOpenExistingDestinations() {
         let app = XCUIApplication()

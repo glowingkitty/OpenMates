@@ -5245,6 +5245,8 @@ struct MainAppView: View {
                 guard sidebarAccountScope == scope, generation == OfflineStore.shared.scopeGeneration,
                       isAuthenticated else { return }
                 applySyncedChatDeletion(id)
+                // Confirmed delete is a primary commit action: one light tap.
+                NativeHaptics.shared.confirmed(.chatDeleted, id: id, scope: generation.uuidString)
             } catch {
                 guard let message = CoreChatActions.userMessage(for: error) else { return }
                 ToastManager.shared.show(message, type: .error)

@@ -328,8 +328,18 @@ struct ToastOverlay: View {
                         notificationCard(toast, depth: 0, width: geometry.size.width)
                             .onAppear {
                                 guard toast.hapticScope == OfflineStore.shared.scopeGeneration else { return }
-                                NativeHaptics.shared.confirmed(.notification, id: toast.id.uuidString,
-                                    scope: OfflineStore.shared.scopeGeneration.uuidString)
+                                // Only warning and error notices carry a cue; success, info
+                                // and connection-state notices stay silent (notifications.sounds.important-events).
+                                let cue: NativeHaptics.Event?
+                                switch toast.type {
+                                case .error: cue = .error
+                                case .warning: cue = .notification
+                                case .success, .info, .connection: cue = nil
+                                }
+                                if let cue {
+                                    NativeHaptics.shared.confirmed(cue, id: toast.id.uuidString,
+                                        scope: OfflineStore.shared.scopeGeneration.uuidString)
+                                }
                             }
                     }
                 }

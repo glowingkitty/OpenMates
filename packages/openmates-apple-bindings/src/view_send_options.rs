@@ -53,6 +53,10 @@ pub struct SendOptionsRecord {
     /// originals; stored encrypted with the message.
     #[uniffi(default = [])]
     pub pii_mappings: Vec<PiiMappingRecord>,
+    /// The Project the turn belongs to (canonical lowercase UUID); applies to
+    /// a new chat, a continuation and an edit.
+    #[uniffi(default = None)]
+    pub project_id: Option<String>,
 }
 
 impl std::fmt::Debug for SendOptionsRecord {
@@ -71,6 +75,7 @@ impl std::fmt::Debug for SendOptionsRecord {
                 &self.excluded_pii_placeholders.len(),
             )
             .field("pii_mappings", &self.pii_mappings.len())
+            .field("project_id", &self.project_id)
             .finish()
     }
 }
@@ -91,6 +96,7 @@ impl From<SendOptionsRecord> for SendTurnOptions {
                 record.excluded_pii_placeholders,
             ),
             pii_mappings: record.pii_mappings.into_iter().map(pii_mapping).collect(),
+            project_id: record.project_id,
         }
     }
 }
@@ -188,6 +194,50 @@ impl ViewModelCore {
             let options = SendTurnOptions::from(options);
             let receipt = shared
                 .stream_send(token, settings, RequestId(request), chat_id, text, options)
+                .await?;
+            Ok(SendReceiptRecord::from(receipt))
+        })
+        .await
+    }
+
+    /// Edit user message `message_id` of personal chat `chat_id` with the
+    /// options of `sendWithOptions` (embeds, PII exclusions and mappings,
+    /// `projectId`, `reservedMessageId`): the core removes the message and
+    /// every later one, reads the open window again, then sends `text` as
+    /// `request`. The reply streams beside the actor like `sendWithOptions`;
+    /// events, `cancelSend` and send settings are the same. A turn of
+    /// attachments only may have an empty `text`. A failed send keeps the
+    /// truncation.
+    ///
+    /// # Errors
+    /// `Authentication` when signed out; `Invalid` before anything changes
+    /// for incognito, `slug` or `reservedChatId` (new-chat options), empty text
+    /// without embeds, a non-canonical Project id, or malformed embeds,
+    /// exclusions or PII mappings; `Invalid` for an assistant or unknown
+    /// message; `Forbidden` in a team scope; otherwise as `sendWithOptions`.
+    pub async fn edit_message_with_options(
+        &self,
+        request: u64,
+        chat_id: String,
+        message_id: String,
+        text: String,
+        options: SendOptionsRecord,
+        cancellation: Option<Arc<CoreCancellation>>,
+    ) -> Result<SendReceiptRecord, CoreError> {
+        let (shared, token) = (self.shared.clone(), self.foreground(cancellation));
+        self.run(async move {
+            let settings = SendSettings::read(&shared);
+            let options = SendTurnOptions::from(options);
+            let receipt = shared
+                .stream_edit(
+                    token,
+                    settings,
+                    RequestId(request),
+                    chat_id,
+                    message_id,
+                    text,
+                    options,
+                )
                 .await?;
             Ok(SendReceiptRecord::from(receipt))
         })

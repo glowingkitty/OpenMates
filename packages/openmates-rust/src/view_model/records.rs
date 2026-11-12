@@ -230,6 +230,16 @@ pub enum StreamEvent {
         /// A reply will follow.
         expects_reply: bool,
     },
+    /// The server task answering the turn is known (before any reply text);
+    /// pass `task_id` to a stop request.
+    TaskAssigned {
+        /// Chat id.
+        chat_id: String,
+        /// User message id of the turn.
+        message_id: String,
+        /// Server task id.
+        task_id: String,
+    },
     /// Dispatch may have committed; callers must not resend automatically.
     Submitted {
         /// Chat id.

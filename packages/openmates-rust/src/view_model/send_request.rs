@@ -45,6 +45,9 @@ pub struct SendTurnOptions {
     pub pii_exclusions: PiiExclusions,
     /// Placeholders the shell already wrote, with their originals.
     pub pii_mappings: Vec<SendPiiMapping>,
+    /// The Project this turn belongs to (canonical UUID). Applies to a new
+    /// chat, a continuation and an edit.
+    pub project_id: Option<String>,
 }
 
 impl Default for SendTurnOptions {
@@ -57,6 +60,7 @@ impl Default for SendTurnOptions {
             embeds: Vec::new(),
             pii_exclusions: PiiExclusions::default(),
             pii_mappings: Vec::new(),
+            project_id: None,
         }
     }
 }
@@ -100,6 +104,7 @@ impl SendTurnOptions {
             embeds: self.embeds.clone(),
             pii_exclusions: self.pii_exclusions.clone(),
             pii_mappings: self.pii_mappings.clone(),
+            project_id: self.project_id.clone(),
             ..SendOptions::default()
         }
     }

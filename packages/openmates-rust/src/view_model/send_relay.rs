@@ -72,6 +72,12 @@ impl<K: ViewSink> Relay<K> {
             self.live.set_chat(chat_id);
         }
         let event = stream_event_from_update(update).map_err(|_| Error::Protocol)?;
+        if let StreamUpdate::Consent { request_id, items } = update {
+            // Registered before the event is emitted, so an answer can never
+            // race ahead of its request.
+            let ids = items.iter().map(|item| item.id.clone()).collect();
+            self.live.add_consent(&self.chat_id, request_id, ids);
+        }
         Ok(ViewEvent::Stream {
             request: self.request,
             chat_id: self.chat_id.clone(),

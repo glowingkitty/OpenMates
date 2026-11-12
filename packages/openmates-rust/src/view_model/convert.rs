@@ -302,6 +302,15 @@ pub fn stream_event_from_update(update: &StreamUpdate) -> Result<StreamEvent, Vi
             message_id: message_id.clone(),
             content: content.clone(),
         },
+        StreamUpdate::TaskAssigned {
+            chat_id,
+            message_id,
+            task_id,
+        } => StreamEvent::TaskAssigned {
+            chat_id: chat_id.clone(),
+            message_id: message_id.clone(),
+            task_id: task_id.clone(),
+        },
         StreamUpdate::Status(message) => StreamEvent::Status {
             message: message.clone(),
         },

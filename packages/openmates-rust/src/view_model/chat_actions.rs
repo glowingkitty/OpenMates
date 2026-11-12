@@ -241,7 +241,7 @@ pub fn stop_reply<'a, S: ByteStore + 'static, H: ViewHost<S>>(
 
 /// Re-read `chat_id` as `request` when it is the open window, so a changed
 /// server history replaces the shown one.
-async fn reopen_if_open<S: ByteStore + 'static, H: ViewHost<S>>(
+pub(super) async fn reopen_if_open<S: ByteStore + 'static, H: ViewHost<S>>(
     host: &mut H,
     request: RequestId,
     chat_id: String,

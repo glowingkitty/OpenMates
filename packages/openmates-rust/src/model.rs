@@ -105,6 +105,15 @@ pub enum StreamUpdate {
         content: String,
     },
     Status(String),
+    /// The server task that answers this turn became known (the first
+    /// `ai_task_initiated`/turn frame naming it, before any reply text). Shells
+    /// pass it to stop requests; it repeats only when the turn hands over to a
+    /// continuation task.
+    TaskAssigned {
+        chat_id: String,
+        message_id: String,
+        task_id: String,
+    },
 }
 pub(crate) fn zeroize_json(v:&mut Value){
     use zeroize::Zeroize;
@@ -125,6 +134,7 @@ impl zeroize::Zeroize for StreamUpdate {
             Self::Content{content,thinking,mate}=>{content.zeroize();thinking.zeroize();mate.zeroize();},
             Self::Completed{chat_id,message_id,content}=>{chat_id.zeroize();message_id.zeroize();content.zeroize();},
             Self::Status(s)=>s.zeroize(),
+            Self::TaskAssigned{chat_id,message_id,task_id}=>{chat_id.zeroize();message_id.zeroize();task_id.zeroize();},
             Self::Consent{request_id,items}=>{request_id.zeroize();for item in items.iter_mut(){item.id.zeroize();item.title.zeroize();item.description.zeroize();item.status.zeroize();item.category.zeroize();zeroize_json(&mut item.fields);}items.clear();},
         }
     }

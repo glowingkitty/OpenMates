@@ -28,32 +28,36 @@ mod actor_host;
 mod arrange;
 #[cfg(not(target_arch = "wasm32"))]
 mod chat_actions;
+#[cfg(not(target_arch = "wasm32"))]
+mod consent_answer;
 mod convert;
+#[cfg(not(target_arch = "wasm32"))]
+mod draft_flows;
+#[cfg(not(target_arch = "wasm32"))]
+mod draft_versions;
+mod draft_view;
+#[cfg(not(target_arch = "wasm32"))]
+mod edit_request;
 #[cfg(not(target_arch = "wasm32"))]
 mod enrich;
 mod error;
 mod events;
 #[cfg(not(target_arch = "wasm32"))]
 mod first_page;
-mod metadata;
-mod records;
 #[cfg(not(target_arch = "wasm32"))]
 mod live_turns;
+mod metadata;
+mod records;
 #[cfg(not(target_arch = "wasm32"))]
 mod send_flows;
 #[cfg(not(target_arch = "wasm32"))]
 mod send_relay;
 #[cfg(not(target_arch = "wasm32"))]
-mod send_stream;
-#[cfg(not(target_arch = "wasm32"))]
 mod send_request;
 #[cfg(not(target_arch = "wasm32"))]
+mod send_stream;
+#[cfg(not(target_arch = "wasm32"))]
 mod send_turn;
-#[cfg(not(target_arch = "wasm32"))]
-mod draft_flows;
-mod draft_view;
-#[cfg(not(target_arch = "wasm32"))]
-mod draft_versions;
 mod socket_frames;
 mod socket_passthrough;
 #[cfg(not(target_arch = "wasm32"))]
@@ -78,17 +82,24 @@ pub use chat_actions::{
     clear_draft, delete_chat, delete_message, edit_message, fork_chat, retry_turn, save_draft,
     stop_reply,
 };
-/// Read a chat's saved draft for its composer.
+/// Answer a consent request a running turn showed.
 #[cfg(not(target_arch = "wasm32"))]
-pub use draft_flows::draft;
-/// A decrypted composer draft (`draft`, `ViewEvent::DraftChanged`).
-pub use draft_view::DraftView;
-#[cfg(not(target_arch = "wasm32"))]
-pub use draft_versions::{DraftVersionQuery, ServerDraftVersion, draft_versions};
+pub use consent_answer::ConsentAnswerer;
 pub use convert::{
     chat_list_row_from_item, chat_window_from_cached, chat_window_from_chat, embed_ref_from_item,
     message_record_from_message, stream_event_from_update,
 };
+/// Read a chat's saved draft for its composer.
+#[cfg(not(target_arch = "wasm32"))]
+pub use draft_flows::draft;
+#[cfg(not(target_arch = "wasm32"))]
+pub use draft_versions::{DraftVersionQuery, ServerDraftVersion, draft_versions};
+/// A decrypted composer draft (`draft`, `ViewEvent::DraftChanged`).
+pub use draft_view::DraftView;
+/// Edit a user message with per-turn options (embeds, PII, Project); the
+/// reply streams beside the actor like `begin_send_with`.
+#[cfg(not(target_arch = "wasm32"))]
+pub use edit_request::begin_edit_with;
 pub use error::{ViewErrorKind, ViewModelError};
 pub use events::{AccessDenial, RequestId, SessionEvent, SyncPhase, ViewCommand, ViewEvent};
 pub use metadata::{ChatRowMetadata, MessageMetadata, PiiMapping};
@@ -98,16 +109,14 @@ pub use records::{
 };
 #[cfg(not(target_arch = "wasm32"))]
 pub use send_flows::{SendCancelHandle, cancel_send, send};
-/// A send whose reply streams beside the actor (admission on the actor, the
-/// stream on the shell's task through a `ViewLease`).
-#[cfg(not(target_arch = "wasm32"))]
-pub use send_stream::{
-    LeasedCore, TurnOwner, TurnStream, ViewLease, begin_send, begin_send_with,
-};
 /// A send with per-turn options (privacy, incognito, slug, reserved ids) and
 /// its delivery receipt.
 #[cfg(not(target_arch = "wasm32"))]
 pub use send_request::{SendReceipt, SendTurnOptions, send_with};
+/// A send whose reply streams beside the actor (admission on the actor, the
+/// stream on the shell's task through a `ViewLease`).
+#[cfg(not(target_arch = "wasm32"))]
+pub use send_stream::{LeasedCore, TurnOwner, TurnStream, ViewLease, begin_send, begin_send_with};
 pub use socket_frames::{
     CORE_AND_SHELL_EVENT_TYPES, CORE_EVENT_TYPES, SocketEventOwner, classify_socket_event,
     forwards_to_shell, shell_may_send,
@@ -128,20 +137,24 @@ mod actor_tests;
 mod arrange_tests;
 #[cfg(all(test, unix))]
 mod chat_actions_tests;
+#[cfg(all(test, unix))]
+mod consent_answer_tests;
 #[cfg(test)]
 mod convert_tests;
 #[cfg(all(test, unix))]
 mod draft_flows_tests;
 #[cfg(all(test, unix))]
 mod draft_versions_tests;
+#[cfg(all(test, unix))]
+mod edit_request_tests;
 #[cfg(test)]
 mod events_tests;
 #[cfg(all(test, unix))]
 mod send_request_tests;
 #[cfg(all(test, unix))]
-mod send_tests;
-#[cfg(all(test, unix))]
 mod send_stream_tests;
+#[cfg(all(test, unix))]
+mod send_tests;
 #[cfg(test)]
 mod socket_frames_tests;
 #[cfg(all(test, unix))]

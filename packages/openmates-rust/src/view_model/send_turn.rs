@@ -196,7 +196,9 @@ impl SendTurn {
                 content,
                 ..
             } => self.completed(message_id, content, window),
-            StreamUpdate::Consent { .. } | StreamUpdate::Status(_) => None,
+            StreamUpdate::Consent { .. }
+            | StreamUpdate::Status(_)
+            | StreamUpdate::TaskAssigned { .. } => None,
         }
     }
 

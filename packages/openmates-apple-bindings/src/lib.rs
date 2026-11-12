@@ -22,6 +22,9 @@ mod pairing;
 mod view_account;
 mod view_adopt;
 mod view_chat_actions;
+mod view_consent;
+#[cfg(test)]
+mod view_consent_tests;
 mod view_core;
 mod view_draft_versions;
 mod view_drafts;

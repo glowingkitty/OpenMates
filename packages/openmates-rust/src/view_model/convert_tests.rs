@@ -318,6 +318,19 @@ fn stream_updates_convert_one_to_one() {
         }
     );
     assert_eq!(
+        stream_event_from_update(&StreamUpdate::TaskAssigned {
+            chat_id: "c".into(),
+            message_id: "m".into(),
+            task_id: "t".into(),
+        })
+        .unwrap(),
+        StreamEvent::TaskAssigned {
+            chat_id: "c".into(),
+            message_id: "m".into(),
+            task_id: "t".into()
+        }
+    );
+    assert_eq!(
         stream_event_from_update(&StreamUpdate::Status("Waiting".into())).unwrap(),
         StreamEvent::Status {
             message: "Waiting".into()

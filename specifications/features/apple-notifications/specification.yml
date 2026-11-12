@@ -101,14 +101,22 @@ assertions:
   - id: apple-notifications.delivery.confirmed-action-haptics
     type: behavior
     must: >
-      Supported active Apple devices provide native haptic confirmation after
-      account-fenced Task and Workflow creation or updates, completed Team
-      creation, fully unlocked login or signup, and API-key creation once its
-      one-time secret is available. A newly visible in-app notification emits
-      once per notification identity. Failed, stale, duplicate or replayed
-      operations and notification content updates remain silent. Native system
-      haptic settings apply, unsupported hardware is a no-op, and OS-delivered
-      notification vibration remains controlled by the operating system.
+      Supported active Apple devices give a light tap only on primary commit
+      actions: account-fenced Task and Workflow creation or saving, completed
+      Team creation, fully unlocked login or signup, API-key creation once its
+      one-time secret is available and a user-confirmed chat delete that
+      succeeded. A message sent from this device that the server admitted gives
+      an accepted cue, a newly visible in-app notification of kind chat message,
+      warning, automatic logout or backup reminder gives a notification cue and
+      a newly visible error notification gives an error cue, each once per
+      identity. Ordinary button presses never vibrate. One shared quiet window
+      drops any haptic within three seconds of the previous one; a dropped
+      haptic is never queued or replayed and does not extend the window. Silent
+      mode (device-only, applies immediately) turns all of them off. Failed,
+      stale, duplicate or replayed operations and notification content updates
+      remain silent. Native system haptic settings apply, unsupported hardware
+      is a no-op, and OS-delivered notification vibration remains controlled by
+      the operating system.
   - id: apple-notifications.registration.lifecycle
     type: behavior
     must: Apple reports push registration as active only after server acknowledgment; token rotation replaces the prior token for the same account-scoped device and environment, logout unregisters or revokes that registration, terminal APNs rejection marks it unusable, and denied, stale, or failed registrations never fabricate readiness or delivery success.

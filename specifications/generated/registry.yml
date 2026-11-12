@@ -479,7 +479,7 @@ specifications:
     version: 1
     status: draft
     path: features/apple-notifications
-    fingerprint: 42e16638702991c169b369b267c131ca9798944499e1988853bd068d675d436d
+    fingerprint: 7b357e449966a76aa5206ed8d630c80df2831f745db6d0fc5dace3ba6a4a9cce
     required_applies_to:
     - rest_api
     - gui.apple
@@ -996,9 +996,9 @@ specifications:
     - gui.web
   feature.video-call:
     version: 15
-    status: draft
+    status: approved
     path: features/video-call
-    fingerprint: 39f8663056cffb23dfe9c4d1f248a88879e85858f76018242cad80e1dfd50591
+    fingerprint: fc2135d8219467d3ab1efb3d79465b62fe23121fa2babecd3a408aa097423ec6
     required_applies_to:
     - gui.web
     - gui.apple
@@ -6421,7 +6421,7 @@ assertions:
     specification: feature.apple-notifications@1
     specification_id: feature.apple-notifications
     type: behavior
-    fingerprint: bb8298369f02a2603c0b763bc0d19052e3428c8a1e34926feb6c1e28cbef8a43
+    fingerprint: 7b890d762d045ee876ed116895aa63d90d15f0736ac2688fb2891b31301b8bc8
     required_applies_to:
     - rest_api
     - gui.apple
@@ -6469,7 +6469,7 @@ assertions:
     specification: feature.apple-notifications@1
     specification_id: feature.apple-notifications
     type: invariant
-    fingerprint: 14e09c0754b415ff19dd03cd7c8b9d958e71c9341bfbd91ec387d9b15b7bc3e8
+    fingerprint: c37060d28d58177e43a312237c0f31a8c130cb35931cc95b2e7126bcb8c206d9
     required_applies_to:
     - rest_api
     - gui.apple

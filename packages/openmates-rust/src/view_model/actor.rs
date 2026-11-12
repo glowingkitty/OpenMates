@@ -24,6 +24,7 @@ use super::{
     ChatWindowRecord, ListCompleteness, ViewEvent, ViewSink,
     arrange::arrange_chat_list,
     chat_list_row_from_item,
+    consent_answer::ConsentAnswerer,
     live_turns::LiveTurns,
     unowned_flows::{UnownedFrameSender, UnownedSeam},
     window::OpenWindow,
@@ -53,6 +54,8 @@ pub struct ViewCore<S: ByteStore + 'static> {
     pub(super) memory_write_jobs: bool,
     /// The shell's server region preference for each send (`send_flows.rs`).
     pub(super) server_region: ServerRegionPreference,
+    /// Where consent answers go; the client reads them while a turn waits.
+    consent: tokio::sync::mpsc::UnboundedSender<(String, Vec<String>)>,
 }
 
 impl<S: ByteStore + 'static> ViewCore<S> {
@@ -60,10 +63,12 @@ impl<S: ByteStore + 'static> ViewCore<S> {
     /// content is loaded eagerly after `Start` (see
     /// [`Self::set_eager_cached_content`]).
     pub fn new(
-        client: Client,
+        mut client: Client,
         session: ShellSession<S>,
         credentials: Arc<dyn CredentialPersistence>,
     ) -> Self {
+        let (consent, decisions) = tokio::sync::mpsc::unbounded_channel();
+        client.set_consent_receiver(decisions);
         Self {
             client,
             session,
@@ -75,7 +80,14 @@ impl<S: ByteStore + 'static> ViewCore<S> {
             unowned: UnownedSeam::default(),
             memory_write_jobs: false,
             server_region: ServerRegionPreference::Eu,
+            consent,
         }
+    }
+
+    /// A handle that answers consent requests of running turns without the
+    /// actor lock (a turn waiting for consent holds it).
+    pub fn consent_answerer(&self) -> ConsentAnswerer {
+        ConsentAnswerer::new(self.foreground.clone(), self.consent.clone())
     }
 
     /// The admitted live chat monitor, when one is running.

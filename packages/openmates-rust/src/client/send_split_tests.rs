@@ -245,3 +245,69 @@ async fn cancel_during_the_stream_withdraws_the_task_on_the_turn_socket() {
     assert_eq!(withdrawal["payload"]["task_id"], TASK);
     assert_eq!(withdrawal["payload"]["chat_id"], CHAT);
 }
+
+#[tokio::test]
+async fn task_assigned_is_emitted_before_content_and_again_only_for_a_continuation_task() {
+    let (ws, peer) = socket(|mut ws| async move {
+        admit_peer(&mut ws).await;
+        let frame = |kind: &'static str, task: &'static str, text: &'static str| {
+            (
+                kind,
+                json!({"chat_id":CHAT,"user_message_id":MESSAGE,"recovery_turn_id":TURN,
+                "task_id":task,"full_content_so_far":text}),
+            )
+        };
+        for (kind, payload) in [
+            frame("ai_typing_started", "task-one", ""),
+            frame("ai_message_update", "task-one", "first"),
+            frame("ai_message_update", "task-one", "first part"),
+            // A continuation task replaces the first one.
+            frame("ai_message_update", "task-two", "second"),
+            frame("ai_message_update", "task-two", "second part"),
+        ] {
+            emit(&mut ws, kind, payload).await;
+        }
+        next(&mut ws).await
+    })
+    .await;
+    let lease = Arc::new(Locked(Mutex::new(client())));
+    let (tx, mut rx) = mpsc::channel(32);
+    let cancel = CancellationToken::new();
+    let turn = admit(&lease, ws, tx, cancel.clone()).await;
+    let streaming = {
+        let lease = lease.clone();
+        tokio::spawn(async move { turn.stream(&*lease).await })
+    };
+    // Let the stream step take every scripted frame.
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    cancel.cancel();
+    let result = crate::platform::time::timeout(Duration::from_secs(5), streaming)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(matches!(result, Err(Error::Cancelled)));
+    drop(peer);
+    let mut assigned = Vec::new();
+    let mut first_content = None;
+    let mut position = 0;
+    while let Some(update) = rx.recv().await {
+        match update {
+            StreamUpdate::TaskAssigned {
+                chat_id,
+                message_id,
+                task_id,
+            } => {
+                assert_eq!((chat_id.as_str(), message_id.as_str()), (CHAT, MESSAGE));
+                assigned.push((position, task_id));
+            }
+            StreamUpdate::Content { .. } => {
+                first_content.get_or_insert(position);
+            }
+            _ => {}
+        }
+        position += 1;
+    }
+    let tasks: Vec<&str> = assigned.iter().map(|(_, task)| task.as_str()).collect();
+    assert_eq!(tasks, ["task-one", "task-two"]);
+    assert!(assigned[0].0 < first_content.expect("content was streamed"));
+}

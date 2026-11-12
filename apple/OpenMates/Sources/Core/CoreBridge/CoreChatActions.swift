@@ -9,18 +9,24 @@
 // then the streaming reply, then the canonical window) reach the transcript
 // through `CoreChatWindow`; nothing here assembles a stream. This type only
 // tells the caller when the core accepted the turn (its `Stream` event
-// `Submitted`, `Admitted` or `Completed`, or the call's success) and when the
-// turn ended, and remembers the message ids of core turns so the frozen Swift
-// socket stream does not draw or persist them a second time. A running turn
-// is stopped with `cancelSend()`; a reply this core did not start with
-// `stopReply`. Delete message, delete chat and fork are single core calls.
+// `Submitted`, `Admitted` or `Completed`, or the call's success), when the
+// turn ended and with which receipt (chat id, message ids, completed,
+// waiting or queued, queue mode and revision), and remembers the message ids
+// of core turns so the frozen Swift socket stream does not draw or persist
+// them a second time. Several turns may run at once: the core streams sends
+// of different chats in parallel and queues a second send of the same chat
+// (the receipt then says `queued`); nothing here refuses or orders them.
+// The task id of a reply arrives as the core's `taskAssigned` event (again
+// when a continuation task replaces it) and is kept per chat, read-only
+// through `taskId(for:)`. `stop(chatId:)` ends this device's own send with
+// `cancelSend()` and a reply it did not start with `stopReply` by that task
+// id. Delete message, delete chat and fork are single core calls.
 // The app uses delete chat, delete message and fork (personal chats); its
-// send, edit and stop stay on the Swift pipeline until the core send takes
-// attachments, PII mappings, queued follow-ups, temporary chat ids and
-// new-chat sends, so turns, cancel and stopReply here are not called yet.
+// send, edit and stop stay on the Swift pipeline until the view models move
+// their call sites, so turns and stop here are not called yet.
 // Every call goes through `CoreSession.perform` (the app's client) or an
-// injected fake (tests), logs a `core.actions.*` timing line and throws the
-// core's typed `CoreError`; nothing is retried or replaced here.
+// injected fake (tests), logs a `core.actions.*` timing line and keeps the
+// core's typed `CoreError` in `lastError`; nothing is retried here.
 // Specification: specifications/architecture/client-core/specification.yml
 // Assertions: client-core.viewmodel.capability-contract, client-core.viewmodel.stream-updates, client-core.shell.allowed-responsibilities, client-core.apple.strangler-order
 
@@ -31,8 +37,12 @@ import Foundation
 /// `CoreSessionChatActionsClient` is the app's implementation; tests inject a fake.
 @MainActor
 protocol ChatActionsCoreClient: AnyObject, Sendable {
-    func send(request: UInt64, chatId: String?, text: String) async throws -> ChatWindowViewRecord
-    func editMessage(request: UInt64, chatId: String, messageId: String, text: String) async throws -> ChatWindowViewRecord
+    /// Sends `text` (`chatId` nil: a new chat) with `options`; the core queues a second send into a busy chat.
+    func sendWithOptions(request: UInt64, chatId: String?, text: String,
+                         options: SendOptionsRecord) async throws -> SendReceiptRecord
+    /// Replaces user message `messageId` and everything after it; the core rejects incognito, slug and reserved chat id.
+    func editMessageWithOptions(request: UInt64, chatId: String, messageId: String, text: String,
+                                options: SendOptionsRecord) async throws -> SendReceiptRecord
     func retryLastTurn(request: UInt64, chatId: String) async throws -> ChatWindowViewRecord
     /// Cancels the running send, edit or retry; whether one was running.
     func cancelSend() -> Bool
@@ -51,16 +61,19 @@ final class CoreSessionChatActionsClient: ChatActionsCoreClient {
         self.session = session
     }
 
-    func send(request: UInt64, chatId: String?, text: String) async throws -> ChatWindowViewRecord {
+    func sendWithOptions(request: UInt64, chatId: String?, text: String,
+                         options: SendOptionsRecord) async throws -> SendReceiptRecord {
         try await session.perform { core, cancellation in
-            try await core.send(request: request, chatId: chatId, text: text, cancellation: cancellation)
+            try await core.sendWithOptions(request: request, chatId: chatId, text: text, options: options,
+                                           cancellation: cancellation)
         }
     }
 
-    func editMessage(request: UInt64, chatId: String, messageId: String, text: String) async throws -> ChatWindowViewRecord {
+    func editMessageWithOptions(request: UInt64, chatId: String, messageId: String, text: String,
+                                options: SendOptionsRecord) async throws -> SendReceiptRecord {
         try await session.perform { core, cancellation in
-            try await core.editMessage(request: request, chatId: chatId, messageId: messageId, text: text,
-                                       cancellation: cancellation)
+            try await core.editMessageWithOptions(request: request, chatId: chatId, messageId: messageId,
+                                                  text: text, options: options, cancellation: cancellation)
         }
     }
 
@@ -101,10 +114,10 @@ final class CoreSessionChatActionsClient: ChatActionsCoreClient {
 
 /// One turn the core sends.
 enum CoreChatTurn: Equatable, Sendable {
-    /// A new user message.
-    case send(text: String)
+    /// A new user message (`chatId` nil in `startTurn`: a new chat).
+    case send(text: String, options: SendOptionsRecord = SendOptionsRecord())
     /// Replace user message `messageId` and everything after it with `text`.
-    case edit(messageId: String, text: String)
+    case edit(messageId: String, text: String, options: SendOptionsRecord = SendOptionsRecord())
     /// Send the newest unanswered user turn again.
     case retry
 }
@@ -116,8 +129,6 @@ enum CoreTurnAcceptance: Equatable {
     /// The core refused or failed the turn before dispatch.
     case rejected(CoreError)
     case cancelled
-    /// Another core turn is still running.
-    case busy
     /// The app has no core (creation failed, unit-test host).
     case noCore
 }
@@ -129,10 +140,25 @@ enum CoreTurnOutcome: Equatable {
     case cancelled
 }
 
-/// The end of a turn and whether it had been accepted before.
+/// The end of a turn, whether it had been accepted before and the core's receipt.
 struct CoreTurnEnd: Equatable {
     let outcome: CoreTurnOutcome
     let wasAccepted: Bool
+    /// The core's receipt of a send or edit (`nil` for a retry, a refusal or a cancellation).
+    var receipt: SendReceiptRecord?
+
+    /// The core saved the message and queued it behind an active reply of its chat.
+    var isQueued: Bool { receipt?.status == .queued }
+}
+
+/// What `stop(chatId:)` did.
+enum CoreStopResult: Equatable {
+    /// This device's own send in the chat was cancelled (`cancelSend`).
+    case cancelledSend
+    /// A reply this call did not start was stopped by its task id.
+    case stoppedReply(taskId: String)
+    /// No send runs and no task id is known for the chat.
+    case nothingToStop
 }
 
 /// The app has no core for a chat action.
@@ -146,25 +172,34 @@ final class CoreChatActions {
     /// create their own instance with a fake client.
     static let shared = CoreChatActions()
 
-    /// The running turn.
+    /// A running turn. `chatId` is nil for a new-chat send until the core's
+    /// `Started` event names the chat.
     struct ActiveTurn: Equatable {
         let request: UInt64
-        let chatId: String
+        var chatId: String?
     }
 
-    private(set) var activeTurn: ActiveTurn?
+    private struct Runtime {
+        var accepted = false
+        var waiter: CheckedContinuation<CoreTurnAcceptance, Never>?
+        var onEnd: (@MainActor (CoreTurnEnd) -> Void)?
+        var task: Task<Void, Never>?
+    }
+
+    /// The running turns, oldest first.
+    private(set) var activeTurns: [ActiveTurn] = []
     /// User and reply message ids of core turns since sign-in.
     private(set) var turnMessageIDs = Set<String>()
+    /// The last non-cancelled failure of a call; cleared at sign-out.
+    private(set) var lastError: CoreError?
 
     var isAttached: Bool { client != nil }
 
     private var client: ChatActionsCoreClient?
     private let window: CoreChatWindow
     private var subscription: AnyCancellable?
-    private var turnTask: Task<Void, Never>?
-    private var acceptanceWaiter: CheckedContinuation<CoreTurnAcceptance, Never>?
-    private var accepted = false
-    private var onEnd: (@MainActor (CoreTurnEnd) -> Void)?
+    private var runtimes: [UInt64: Runtime] = [:]
+    private var taskIDs: [String: String] = [:]
 
     init(window: CoreChatWindow = .shared) {
         self.window = window
@@ -188,56 +223,70 @@ final class CoreChatActions {
         }
     }
 
-    /// Whether a core turn runs in `chatId`.
+    /// Whether a core turn of this device runs in `chatId`.
     func hasActiveTurn(in chatId: String) -> Bool {
-        activeTurn?.chatId == chatId
+        activeTurns.contains { $0.chatId == chatId }
     }
 
-    /// Not used by the app yet: it adopts this once the core send takes attachments, PII mappings, queued follow-ups, temporary chat ids and new-chat sends.
-    /// Starts `turn` in saved chat `chatId` and returns once the core accepted
-    /// or refused it; the reply keeps streaming through the window afterwards.
-    /// `onEnd` runs once when the turn ended (also after a refusal).
-    func startTurn(_ turn: CoreChatTurn, chatId: String,
+    /// The task id of the reply running in `chatId` (the core's latest
+    /// `taskAssigned`; a continuation task replaces it); `nil` when none is known.
+    func taskId(for chatId: String) -> String? {
+        taskIDs[chatId]
+    }
+
+    /// Not used by the app yet: the view models adopt this when they move their call sites.
+    /// Starts `turn` in saved chat `chatId` (`nil`: a new chat, send only) and
+    /// returns once the core accepted or refused it; the reply keeps streaming
+    /// through the window afterwards. Turns of other chats run in parallel and
+    /// a second send into a chat with an active reply is queued by the core
+    /// (`CoreTurnEnd.isQueued`). `onEnd` runs once when the turn ended (also
+    /// after a refusal).
+    func startTurn(_ turn: CoreChatTurn, chatId: String?,
                    onEnd: @escaping @MainActor (CoreTurnEnd) -> Void) async -> CoreTurnAcceptance {
         guard client != nil else {
             NativeSyncPerfLog.warning("phase=core.actions.turn outcome=no_core ms=0")
             return .noCore
         }
-        guard activeTurn == nil else { return .busy }
         let request = window.nextActionRequest()
-        activeTurn = ActiveTurn(request: request, chatId: chatId)
-        accepted = false
-        self.onEnd = onEnd
+        activeTurns.append(ActiveTurn(request: request, chatId: chatId ?? Self.reservedChatId(turn)))
+        runtimes[request] = Runtime(onEnd: onEnd)
         let started = NativeSyncPerfLog.now()
         let phase = Self.phase(turn)
-        turnTask = Task<Void, Never> { @MainActor [weak self] in
+        let task = Task<Void, Never> { @MainActor [weak self] in
             guard let self else { return }
-            let outcome = await self.run(turn, request: request, chatId: chatId)
+            let result = await self.run(turn, request: request, chatId: chatId)
             NativeSyncPerfLog.info(
-                "phase=core.actions.\(phase) outcome=\(Self.outcomeName(outcome)) ms=\(NativeSyncPerfLog.ms(since: started))")
-            self.finish(request: request, outcome: outcome)
+                "phase=core.actions.\(phase) outcome=\(Self.outcomeName(result.outcome)) ms=\(NativeSyncPerfLog.ms(since: started))")
+            self.finish(request: request, outcome: result.outcome, receipt: result.receipt)
         }
+        runtimes[request]?.task = task
         // The turn task starts only after this suspends, so the waiter is in
         // place before any event or outcome of the turn.
         return await withCheckedContinuation { continuation in
-            acceptanceWaiter = continuation
+            runtimes[request]?.waiter = continuation
         }
     }
 
-    /// Not used by the app yet: it adopts this once the core send takes attachments, PII mappings, queued follow-ups, temporary chat ids and new-chat sends.
-    /// Stops the running turn: `cancelSend` for a send on the core's actor,
-    /// and the call's cancellation for a turn still before its send (an
-    /// edit's truncation). Returns whether a turn was running.
+    /// Not used by the app yet: the view models adopt this when they move their call sites.
+    /// Stops the reply of `chatId`: `cancelSend` (and the call's cancellation)
+    /// for this device's own running send, else `stopReply` by the task id the
+    /// core assigned to a reply this call did not start.
     @discardableResult
-    func cancel() -> Bool {
-        guard activeTurn != nil else { return false }
-        let wasSending = client?.cancelSend() ?? false
-        turnTask?.cancel()
-        NativeSyncPerfLog.info("phase=core.actions.cancel sending=\(wasSending)")
-        return true
+    func stop(chatId: String) async throws -> CoreStopResult {
+        let client = try attachedClient()
+        let own = activeTurns.filter { $0.chatId == chatId }
+        if !own.isEmpty {
+            let wasSending = client.cancelSend()
+            for turn in own { runtimes[turn.request]?.task?.cancel() }
+            NativeSyncPerfLog.info("phase=core.actions.cancel sending=\(wasSending)")
+            return .cancelledSend
+        }
+        guard let taskId = taskIDs[chatId] else { return .nothingToStop }
+        try await stopReply(chatId: chatId, taskId: taskId)
+        return .stoppedReply(taskId: taskId)
     }
 
-    /// Not used by the app yet: it adopts this once the core send takes attachments, PII mappings, queued follow-ups, temporary chat ids and new-chat sends.
+    /// Not used by the app yet: the view models adopt this when they move their call sites.
     /// Stops reply task `taskId` of `chatId` that this core did not start.
     func stopReply(chatId: String, taskId: String) async throws {
         let client = try attachedClient()
@@ -286,75 +335,100 @@ final class CoreChatActions {
         return client
     }
 
-    private func run(_ turn: CoreChatTurn, request: UInt64, chatId: String) async -> CoreTurnOutcome {
-        guard let client else { return .failed(.Authentication) }
+    private func run(_ turn: CoreChatTurn, request: UInt64,
+                     chatId: String?) async -> (outcome: CoreTurnOutcome, receipt: SendReceiptRecord?) {
+        guard let client else { return (.failed(.Authentication), nil) }
         do {
             switch turn {
-            case .send(let text):
-                _ = try await client.send(request: request, chatId: chatId, text: text)
-            case .edit(let messageId, let text):
-                _ = try await client.editMessage(request: request, chatId: chatId, messageId: messageId, text: text)
+            case .send(let text, let options):
+                let receipt = try await client.sendWithOptions(request: request, chatId: chatId, text: text, options: options)
+                return (.completed, receipt)
+            case .edit(let messageId, let text, let options):
+                guard let chatId else {
+                    return (.failed(.Invalid(message: "An edit needs the chat of the message.")), nil)
+                }
+                let receipt = try await client.editMessageWithOptions(
+                    request: request, chatId: chatId, messageId: messageId, text: text, options: options)
+                return (.completed, receipt)
             case .retry:
+                guard let chatId else {
+                    return (.failed(.Invalid(message: "A retry needs the chat of the turn.")), nil)
+                }
                 _ = try await client.retryLastTurn(request: request, chatId: chatId)
+                return (.completed, nil)
             }
-            return .completed
         } catch {
             let coreError = Self.coreError(error)
-            return coreError == .Cancelled ? .cancelled : .failed(coreError)
+            return (coreError == .Cancelled ? .cancelled : .failed(coreError), nil)
         }
     }
 
-    private func finish(request: UInt64, outcome: CoreTurnOutcome) {
-        guard activeTurn?.request == request else { return }
-        let wasAccepted = accepted
-        activeTurn = nil
-        turnTask = nil
-        accepted = false
-        if let waiter = acceptanceWaiter {
-            acceptanceWaiter = nil
+    private func finish(request: UInt64, outcome: CoreTurnOutcome, receipt: SendReceiptRecord?) {
+        guard let runtime = runtimes.removeValue(forKey: request) else { return }
+        let chatId = activeTurns.first { $0.request == request }?.chatId
+        activeTurns.removeAll { $0.request == request }
+        if let receipt {
+            turnMessageIDs.formUnion([receipt.userMessageId, receipt.assistantMessageId].compactMap { $0 })
+        }
+        if let chatId, !hasActiveTurn(in: chatId) { taskIDs[chatId] = nil }
+        if case .failed(let failure) = outcome { lastError = failure }
+        if let waiter = runtime.waiter {
             switch outcome {
             case .completed: waiter.resume(returning: .accepted)
             case .failed(let failure): waiter.resume(returning: .rejected(failure))
             case .cancelled: waiter.resume(returning: .cancelled)
             }
         }
-        let end = onEnd
-        onEnd = nil
-        end?(CoreTurnEnd(outcome: outcome, wasAccepted: wasAccepted || outcome == .completed))
+        runtime.onEnd?(CoreTurnEnd(outcome: outcome, wasAccepted: runtime.accepted || outcome == .completed,
+                                   receipt: receipt))
     }
 
-    private func accept() {
-        accepted = true
-        guard let waiter = acceptanceWaiter else { return }
-        acceptanceWaiter = nil
+    private func accept(request: UInt64) {
+        runtimes[request]?.accepted = true
+        guard let waiter = runtimes[request]?.waiter else { return }
+        runtimes[request]?.waiter = nil
         waiter.resume(returning: .accepted)
     }
 
-    /// Follows the running turn's `Stream` events; sign-out forgets turn ids.
+    /// Follows the turns' `Stream` events and the reply task ids; sign-out
+    /// forgets turn ids, task ids and the last error and cancels running turns.
     func apply(_ event: ViewEventRecord) {
         switch event {
         case .stream(let request, _, let progress):
-            guard activeTurn?.request == request else { return }
-            switch progress {
-            case .started(_, let messageId, _):
-                turnMessageIDs.insert(messageId)
-            case .submitted(_, let messageId), .admitted(_, let messageId):
-                turnMessageIDs.insert(messageId)
-                accept()
-            case .completed(_, let messageId, _):
-                turnMessageIDs.insert(messageId)
-                accept()
-            case .consent(_, _), .content(_, _, _), .status(_):
-                break
-            }
+            applyStream(request: request, progress: progress)
         case .session(let session):
             switch session {
             case .signedOut, .expired, .accessDenied:
                 turnMessageIDs = []
+                taskIDs = [:]
+                lastError = nil
+                for runtime in runtimes.values { runtime.task?.cancel() }
             case .restored, .admitted, .verificationRequired:
                 break
             }
         default:
+            break
+        }
+    }
+
+    private func applyStream(request: UInt64, progress: StreamEventRecord) {
+        switch progress {
+        case .taskAssigned(let chatId, _, let taskId):
+            taskIDs[chatId] = taskId
+        case .completed(let chatId, let messageId, _):
+            taskIDs[chatId] = nil
+            guard runtimes[request] != nil else { return }
+            turnMessageIDs.insert(messageId)
+            accept(request: request)
+        case .started(let chatId, let messageId, _):
+            guard let index = activeTurns.firstIndex(where: { $0.request == request }) else { return }
+            if activeTurns[index].chatId == nil { activeTurns[index].chatId = chatId }
+            turnMessageIDs.insert(messageId)
+        case .submitted(_, let messageId), .admitted(_, let messageId):
+            guard runtimes[request] != nil else { return }
+            turnMessageIDs.insert(messageId)
+            accept(request: request)
+        case .consent(_, _), .content(_, _, _), .status(_):
             break
         }
     }
@@ -369,6 +443,7 @@ final class CoreChatActions {
         } catch {
             NativeSyncPerfLog.warning(
                 "phase=core.actions.\(phase) outcome=\(CoreSession.errorClass(error)) ms=\(NativeSyncPerfLog.ms(since: started))")
+            if let coreError = error as? CoreError, coreError != .Cancelled { lastError = coreError }
             throw error
         }
     }
@@ -377,10 +452,15 @@ final class CoreChatActions {
         (error as? CoreError) ?? CoreError.Internal(reason: String(describing: type(of: error)))
     }
 
+    private static func reservedChatId(_ turn: CoreChatTurn) -> String? {
+        if case .send(_, let options) = turn { return options.reservedChatId }
+        return nil
+    }
+
     private static func phase(_ turn: CoreChatTurn) -> String {
         switch turn {
-        case .send(_): return "send"
-        case .edit(_, _): return "edit"
+        case .send(_, _): return "send"
+        case .edit(_, _, _): return "edit"
         case .retry: return "retry"
         }
     }

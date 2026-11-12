@@ -30,7 +30,7 @@ use openmates_sdk::{
     },
     view_model::{
         self, ListRecovery, RequestId, RevocationHandle, SendCancelHandle, SessionEvent,
-        UnownedFrameSender, ViewCommand, ViewCore, ViewEvent, ViewHost, ViewSink,
+        ConsentAnswerer, UnownedFrameSender, ViewCommand, ViewCore, ViewEvent, ViewHost, ViewSink,
     },
 };
 use std::future::Future;
@@ -223,6 +223,8 @@ pub(crate) struct Shared {
     pub(crate) send_cancel: StdMutex<Option<SendCancelHandle>>,
     /// Raw-frame sender of the signed-in actor (`view_unowned.rs`).
     pub(crate) unowned_sender: StdMutex<Option<UnownedFrameSender>>,
+    /// Consent answerer of the signed-in actor (`view_consent.rs`).
+    pub(crate) consent: StdMutex<Option<ConsentAnswerer>>,
     /// Swift opted in to unowned socket frames; kept across sessions.
     pub(crate) forward_unowned: AtomicBool,
     /// Swift opted sends in to assistant Memory writes (`view_memories.rs`);
@@ -264,6 +266,7 @@ impl Shared {
             *lock(&self.revocation) = None;
             *lock(&self.send_cancel) = None;
             *lock(&self.unowned_sender) = None;
+            *lock(&self.consent) = None;
             return self
                 .sink
                 .emit(ViewEvent::Session(SessionEvent::SignedOut))
@@ -283,6 +286,7 @@ impl Shared {
         *lock(&self.revocation) = Some(core.revocation_handle());
         *lock(&self.send_cancel) = Some(core.send_cancel_handle());
         *lock(&self.unowned_sender) = Some(core.unowned_frame_sender());
+        *lock(&self.consent) = Some(core.consent_answerer());
         if self.forward_unowned.load(Ordering::SeqCst) {
             core.forward_unowned_frames(Arc::new(self.sink.clone()));
         }
@@ -353,6 +357,7 @@ impl Shared {
             *lock(&self.revocation) = None;
             *lock(&self.send_cancel) = None;
             *lock(&self.unowned_sender) = None;
+            *lock(&self.consent) = None;
             return result;
         }
         // Signed out already: still make revocation durable and wipe stored
@@ -435,6 +440,7 @@ impl ViewModelCore {
                 revocation: StdMutex::new(None),
                 send_cancel: StdMutex::new(None),
                 unowned_sender: StdMutex::new(None),
+            consent: StdMutex::new(None),
                 forward_unowned: AtomicBool::new(false),
                 memory_write_jobs: AtomicBool::new(false),
                 server_region_global: AtomicBool::new(false),

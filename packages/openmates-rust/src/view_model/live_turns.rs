@@ -3,6 +3,7 @@
 //! logout reach a turn whose reply streams beside the actor
 //! (`send_stream.rs`), and other calls leave the client's operation token
 //! alone while a turn depends on it. Native only; spec `client-core`.
+use crate::error::Error;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use tokio_util::sync::CancellationToken;
 
@@ -14,10 +15,19 @@ struct LiveTurn {
     cancel: CancellationToken,
 }
 
+/// A consent request a running turn showed and nobody answered yet.
+struct PendingConsent {
+    turn: u64,
+    chat_id: String,
+    request_id: String,
+    item_ids: Vec<String>,
+}
+
 #[derive(Default)]
 struct Entries {
     next: u64,
     turns: Vec<LiveTurn>,
+    consents: Vec<PendingConsent>,
 }
 
 /// The running turns of one actor. Its `Arc` identity is the actor's: a
@@ -76,6 +86,35 @@ impl LiveTurns {
         stopped
     }
 
+    /// Claim the pending consent `request_id` of `chat_id` for an answer
+    /// approving `approved`: the request is removed, so it is answered once.
+    ///
+    /// # Errors
+    /// `Invalid` for an unknown (or already answered) request, a request of
+    /// another chat, or an approved id the request did not list; the request
+    /// stays pending then.
+    pub(super) fn claim_consent(
+        &self,
+        chat_id: &str,
+        request_id: &str,
+        approved: &[String],
+    ) -> Result<(), Error> {
+        let mut entries = self.entries();
+        let index = entries
+            .consents
+            .iter()
+            .position(|c| c.chat_id == chat_id && c.request_id == request_id)
+            .ok_or(Error::Invalid("Unknown consent request."))?;
+        if approved
+            .iter()
+            .any(|id| !entries.consents[index].item_ids.contains(id))
+        {
+            return Err(Error::Invalid("The consent request has no such item."));
+        }
+        entries.consents.remove(index);
+        Ok(())
+    }
+
     /// Whether a turn runs.
     pub(super) fn any(&self) -> bool {
         !self.entries().turns.is_empty()
@@ -98,8 +137,23 @@ impl LiveTurnGuard {
     }
 }
 
+impl LiveTurnGuard {
+    /// The turn showed a consent request in `chat_id` listing `item_ids`; it
+    /// can be answered until the turn ends.
+    pub(super) fn add_consent(&self, chat_id: &str, request_id: &str, item_ids: Vec<String>) {
+        self.turns.entries().consents.push(PendingConsent {
+            turn: self.id,
+            chat_id: chat_id.to_owned(),
+            request_id: request_id.to_owned(),
+            item_ids,
+        });
+    }
+}
+
 impl Drop for LiveTurnGuard {
     fn drop(&mut self) {
-        self.turns.entries().turns.retain(|turn| turn.id != self.id);
+        let mut entries = self.turns.entries();
+        entries.turns.retain(|turn| turn.id != self.id);
+        entries.consents.retain(|c| c.turn != self.id);
     }
 }

@@ -486,6 +486,8 @@ struct OMSettingsToggleRow: View {
     var icon: String?
     @Binding var isOn: Bool
     var disabled = false
+    /// Identifier of the switch itself, so UI tests can read its On/Off value.
+    var toggleIdentifier = ""
 
     var body: some View {
         HStack(spacing: 0) {
@@ -525,7 +527,7 @@ struct OMSettingsToggleRow: View {
 
             Spacer(minLength: .spacing4)
 
-            OMToggle(isOn: $isOn, disabled: disabled)
+            OMToggle(isOn: $isOn, disabled: disabled, accessibilityIdentifier: toggleIdentifier)
         }
         .padding(.horizontal, .spacing5)
         .padding(.vertical, .spacing2)

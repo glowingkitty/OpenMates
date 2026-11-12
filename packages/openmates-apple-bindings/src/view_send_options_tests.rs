@@ -21,6 +21,7 @@ pub(crate) fn options() -> SendOptionsRecord {
         excluded_pii_originals: vec![],
         excluded_pii_placeholders: vec![],
         pii_mappings: vec![],
+        project_id: None,
     }
 }
 
@@ -163,4 +164,57 @@ async fn a_reserved_message_id_keys_the_optimistic_and_the_failed_user_message()
         matches!(failed.send_state, Some(SendStateRecord::Failed { .. })),
         "{failed:?}"
     );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn edit_with_options_refuses_new_chat_options_and_bad_project_ids() {
+    let dir = private_dir();
+    let (core, events) = opened(dir.path()).await;
+    let before = events.all().len();
+    let refused = [
+        SendOptionsRecord {
+            incognito: true,
+            ..options()
+        },
+        SendOptionsRecord {
+            slug: Some("garden-shed".into()),
+            ..options()
+        },
+        SendOptionsRecord {
+            reserved_chat_id: Some(NEW_CHAT.into()),
+            ..options()
+        },
+        SendOptionsRecord {
+            project_id: Some("not-a-uuid".into()),
+            ..options()
+        },
+    ];
+    for refused in refused {
+        let result = core
+            .edit_message_with_options(
+                2,
+                CHAT.into(),
+                MESSAGE.into(),
+                QUESTION.into(),
+                refused,
+                None,
+            )
+            .await;
+        assert!(
+            matches!(result, Err(CoreError::Invalid { .. })),
+            "{result:?}"
+        );
+    }
+    let bad_project = SendOptionsRecord {
+        project_id: Some("not-a-uuid".into()),
+        ..options()
+    };
+    let result = core
+        .send_with_options(3, Some(CHAT.into()), QUESTION.into(), bad_project, None)
+        .await;
+    assert!(
+        matches!(result, Err(CoreError::Invalid { .. })),
+        "{result:?}"
+    );
+    assert_eq!(events.all().len(), before, "nothing is shown or changed");
 }

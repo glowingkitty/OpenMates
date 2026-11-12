@@ -2235,6 +2235,17 @@ public protocol ViewModelCoreProtocol: AnyObject, Sendable {
     func stopReply(chatId: String, taskId: String, cancellation: CoreCancellation?) async throws 
     
     /**
+     * Answer consent request `request_id` of `chat_id`, approving exactly
+     * the items in `approved_item_ids` (an empty list declines).
+     *
+     * # Errors
+     * `Invalid` for an unknown, already answered or ended request, another
+     * chat's request, an unlisted item or more than 64 items; `Cancelled`
+     * when no turn reads answers any more; `Offline` when signed out.
+     */
+    func answerConsent(chatId: String, requestId: String, approvedItemIds: [String]) throws 
+    
+    /**
      * Swift stored the payload of `revision` (see
      * `CredentialStore.credentialsChanged`). Callable from any thread.
      *
@@ -2876,6 +2887,25 @@ public protocol ViewModelCoreProtocol: AnyObject, Sendable {
     func send(request: UInt64, chatId: String?, text: String, cancellation: CoreCancellation?) async throws  -> ChatWindowViewRecord
     
     /**
+     * Edit user message `message_id` of personal chat `chat_id` with the
+     * options of `sendWithOptions` (embeds, PII exclusions and mappings,
+     * `projectId`, `reservedMessageId`): the core removes the message and
+     * every later one, reads the open window again, then sends `text` as
+     * `request`. The reply streams beside the actor like `sendWithOptions`;
+     * events, `cancelSend` and send settings are the same. A turn of
+     * attachments only may have an empty `text`. A failed send keeps the
+     * truncation.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid` before anything changes
+     * for incognito, `slug` or `reservedChatId` (new-chat options), empty text
+     * without embeds, a non-canonical Project id, or malformed embeds,
+     * exclusions or PII mappings; `Invalid` for an assistant or unknown
+     * message; `Forbidden` in a team scope; otherwise as `sendWithOptions`.
+     */
+    func editMessageWithOptions(request: UInt64, chatId: String, messageId: String, text: String, options: SendOptionsRecord, cancellation: CoreCancellation?) async throws  -> SendReceiptRecord
+    
+    /**
      * `send` with per-turn `options`; returns the sent window plus the
      * delivery receipt. Same events (all carrying `request`), the same
      * `cancelSend`, the same send settings (Memory writes, server region).
@@ -3390,6 +3420,26 @@ open func stopReply(chatId: String, taskId: String, cancellation: CoreCancellati
             liftFunc: { $0 },
             errorHandler: FfiConverterTypeCoreError_lift
         )
+}
+    
+    /**
+     * Answer consent request `request_id` of `chat_id`, approving exactly
+     * the items in `approved_item_ids` (an empty list declines).
+     *
+     * # Errors
+     * `Invalid` for an unknown, already answered or ended request, another
+     * chat's request, an unlisted item or more than 64 items; `Cancelled`
+     * when no turn reads answers any more; `Offline` when signed out.
+     */
+open func answerConsent(chatId: String, requestId: String, approvedItemIds: [String])throws   {try rustCallWithError(FfiConverterTypeCoreError_lift) {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_method_viewmodelcore_answer_consent(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chatId),
+        FfiConverterString.lower(requestId),
+        FfiConverterSequenceString.lower(approvedItemIds),uniffiCallStatus
+    )
+}
 }
     
     /**
@@ -4703,6 +4753,39 @@ open func send(request: UInt64, chatId: String?, text: String, cancellation: Cor
             completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
             freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
             liftFunc: FfiConverterTypeChatWindowViewRecord_lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Edit user message `message_id` of personal chat `chat_id` with the
+     * options of `sendWithOptions` (embeds, PII exclusions and mappings,
+     * `projectId`, `reservedMessageId`): the core removes the message and
+     * every later one, reads the open window again, then sends `text` as
+     * `request`. The reply streams beside the actor like `sendWithOptions`;
+     * events, `cancelSend` and send settings are the same. A turn of
+     * attachments only may have an empty `text`. A failed send keeps the
+     * truncation.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid` before anything changes
+     * for incognito, `slug` or `reservedChatId` (new-chat options), empty text
+     * without embeds, a non-canonical Project id, or malformed embeds,
+     * exclusions or PII mappings; `Invalid` for an assistant or unknown
+     * message; `Forbidden` in a team scope; otherwise as `sendWithOptions`.
+     */
+open func editMessageWithOptions(request: UInt64, chatId: String, messageId: String, text: String, options: SendOptionsRecord, cancellation: CoreCancellation?)async throws  -> SendReceiptRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_edit_message_with_options(
+                        self.uniffiCloneHandle(),FfiConverterUInt64.lower(request),FfiConverterString.lower(chatId),FfiConverterString.lower(messageId),FfiConverterString.lower(text),FfiConverterTypeSendOptionsRecord_lower(options),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeSendReceiptRecord_lift,
             errorHandler: FfiConverterTypeCoreError_lift
         )
 }
@@ -9312,6 +9395,11 @@ public struct SendOptionsRecord: Equatable, Hashable {
      * originals; stored encrypted with the message.
      */
     public var piiMappings: [PiiMappingRecord]
+    /**
+     * The Project the turn belongs to (canonical lowercase UUID); applies to
+     * a new chat, a continuation and an edit.
+     */
+    public var projectId: String?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -9349,7 +9437,11 @@ public struct SendOptionsRecord: Equatable, Hashable {
         /**
          * Placeholders Swift already wrote (text or attachments) with their
          * originals; stored encrypted with the message.
-         */piiMappings: [PiiMappingRecord] = []) {
+         */piiMappings: [PiiMappingRecord] = [], 
+        /**
+         * The Project the turn belongs to (canonical lowercase UUID); applies to
+         * a new chat, a continuation and an edit.
+         */projectId: String? = nil) {
         self.piiDetection = piiDetection
         self.incognito = incognito
         self.slug = slug
@@ -9359,6 +9451,7 @@ public struct SendOptionsRecord: Equatable, Hashable {
         self.excludedPiiOriginals = excludedPiiOriginals
         self.excludedPiiPlaceholders = excludedPiiPlaceholders
         self.piiMappings = piiMappings
+        self.projectId = projectId
     }
 
     
@@ -9385,7 +9478,8 @@ public struct FfiConverterTypeSendOptionsRecord: FfiConverterRustBuffer {
                 embeds: FfiConverterSequenceTypeSendEmbedRecord.read(from: &buf), 
                 excludedPiiOriginals: FfiConverterSequenceString.read(from: &buf), 
                 excludedPiiPlaceholders: FfiConverterSequenceString.read(from: &buf), 
-                piiMappings: FfiConverterSequenceTypePiiMappingRecord.read(from: &buf)
+                piiMappings: FfiConverterSequenceTypePiiMappingRecord.read(from: &buf), 
+                projectId: FfiConverterOptionString.read(from: &buf)
         )
     }
 
@@ -9399,6 +9493,7 @@ public struct FfiConverterTypeSendOptionsRecord: FfiConverterRustBuffer {
         FfiConverterSequenceString.write(value.excludedPiiOriginals, into: &buf)
         FfiConverterSequenceString.write(value.excludedPiiPlaceholders, into: &buf)
         FfiConverterSequenceTypePiiMappingRecord.write(value.piiMappings, into: &buf)
+        FfiConverterOptionString.write(value.projectId, into: &buf)
     }
 }
 
@@ -13740,6 +13835,21 @@ public enum StreamEventRecord: Equatable, Hashable {
          */expectsReply: Bool
     )
     /**
+     * The server task answering the turn is known (before any reply text);
+     * pass `task_id` to `stopReply`.
+     */
+    case taskAssigned(
+        /**
+         * Chat id.
+         */chatId: String, 
+        /**
+         * User message id of the turn.
+         */messageId: String, 
+        /**
+         * Server task id.
+         */taskId: String
+    )
+    /**
      * Dispatch may have committed; never resend automatically.
      */
     case submitted(
@@ -13824,19 +13934,22 @@ public struct FfiConverterTypeStreamEventRecord: FfiConverterRustBuffer {
         case 2: return .started(chatId: try FfiConverterString.read(from: &buf), messageId: try FfiConverterString.read(from: &buf), expectsReply: try FfiConverterBool.read(from: &buf)
         )
         
-        case 3: return .submitted(chatId: try FfiConverterString.read(from: &buf), messageId: try FfiConverterString.read(from: &buf)
+        case 3: return .taskAssigned(chatId: try FfiConverterString.read(from: &buf), messageId: try FfiConverterString.read(from: &buf), taskId: try FfiConverterString.read(from: &buf)
         )
         
-        case 4: return .admitted(chatId: try FfiConverterString.read(from: &buf), messageId: try FfiConverterString.read(from: &buf)
+        case 4: return .submitted(chatId: try FfiConverterString.read(from: &buf), messageId: try FfiConverterString.read(from: &buf)
         )
         
-        case 5: return .content(content: try FfiConverterString.read(from: &buf), thinking: try FfiConverterString.read(from: &buf), mate: try FfiConverterString.read(from: &buf)
+        case 5: return .admitted(chatId: try FfiConverterString.read(from: &buf), messageId: try FfiConverterString.read(from: &buf)
         )
         
-        case 6: return .completed(chatId: try FfiConverterString.read(from: &buf), messageId: try FfiConverterString.read(from: &buf), content: try FfiConverterString.read(from: &buf)
+        case 6: return .content(content: try FfiConverterString.read(from: &buf), thinking: try FfiConverterString.read(from: &buf), mate: try FfiConverterString.read(from: &buf)
         )
         
-        case 7: return .status(message: try FfiConverterString.read(from: &buf)
+        case 7: return .completed(chatId: try FfiConverterString.read(from: &buf), messageId: try FfiConverterString.read(from: &buf), content: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 8: return .status(message: try FfiConverterString.read(from: &buf)
         )
         
         default: throw UniffiInternalError.unexpectedEnumCase
@@ -13860,34 +13973,41 @@ public struct FfiConverterTypeStreamEventRecord: FfiConverterRustBuffer {
             FfiConverterBool.write(expectsReply, into: &buf)
             
         
-        case let .submitted(chatId,messageId):
+        case let .taskAssigned(chatId,messageId,taskId):
             writeInt(&buf, Int32(3))
             FfiConverterString.write(chatId, into: &buf)
             FfiConverterString.write(messageId, into: &buf)
+            FfiConverterString.write(taskId, into: &buf)
             
         
-        case let .admitted(chatId,messageId):
+        case let .submitted(chatId,messageId):
             writeInt(&buf, Int32(4))
             FfiConverterString.write(chatId, into: &buf)
             FfiConverterString.write(messageId, into: &buf)
             
         
-        case let .content(content,thinking,mate):
+        case let .admitted(chatId,messageId):
             writeInt(&buf, Int32(5))
+            FfiConverterString.write(chatId, into: &buf)
+            FfiConverterString.write(messageId, into: &buf)
+            
+        
+        case let .content(content,thinking,mate):
+            writeInt(&buf, Int32(6))
             FfiConverterString.write(content, into: &buf)
             FfiConverterString.write(thinking, into: &buf)
             FfiConverterString.write(mate, into: &buf)
             
         
         case let .completed(chatId,messageId,content):
-            writeInt(&buf, Int32(6))
+            writeInt(&buf, Int32(7))
             FfiConverterString.write(chatId, into: &buf)
             FfiConverterString.write(messageId, into: &buf)
             FfiConverterString.write(content, into: &buf)
             
         
         case let .status(message):
-            writeInt(&buf, Int32(7))
+            writeInt(&buf, Int32(8))
             FfiConverterString.write(message, into: &buf)
             
         }
@@ -16057,6 +16177,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_stop_reply() != 1173) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_answer_consent() != 46826) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_acknowledge_credentials() != 21570) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -16208,6 +16331,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_send() != 49155) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_edit_message_with_options() != 25601) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_send_with_options() != 40331) {

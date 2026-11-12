@@ -3,7 +3,7 @@
 // deferred to the verified web flow in ChatImportView. Strings use AppStrings/i18n.
 // Uses OMSettingsPage/Section/Row primitives — no Form/List/Toggle/Picker/.navigationTitle.
 // Specification: specifications/features/notifications/specification.yml
-// Assertions: notifications.settings.ack-persisted, notifications.content.privacy-boundary
+// Assertions: notifications.settings.ack-persisted, notifications.content.privacy-boundary, notifications.sounds.silent-mode
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/settings/SettingsAccount.svelte
@@ -1358,6 +1358,7 @@ struct SettingsNotificationsView: View {
     @State private var isSavingEmail = false
     @State private var isLoaded = false
     @State private var errorMessage: String?
+    @State private var silentMode = NativeHaptics.isSilentMode()
 
     init(deepLinkPath: String? = nil) {
         _destination = State(initialValue: deepLinkPath == "chat" ? .chat
@@ -1379,6 +1380,12 @@ struct SettingsNotificationsView: View {
         } else {
             OMSettingsPage(title: AppStrings.settingsNotifications, showsHeader: false) {
                 OMSettingsSection {
+                    // Device-only quick toggle; mirrors web data-testid "silent-mode".
+                    OMSettingsToggleRow(
+                        title: L("settings.notifications.sounds.silent_mode"),
+                        subtitle: L("settings.notifications.sounds.silent_mode_info"),
+                        icon: "mute", isOn: $silentMode, toggleIdentifier: "silent-mode")
+                        .onChange(of: silentMode) { _, value in NativeHaptics.setSilentMode(value) }
                     OMSettingsRow(
                         title: L("settings.notifications.chat"),
                         icon: "notification",

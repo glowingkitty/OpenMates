@@ -239,3 +239,20 @@ fn default_options_are_the_plain_send() {
         Some(USER)
     );
 }
+
+#[test]
+fn project_id_passes_to_the_client_and_must_be_canonical() {
+    let project = "77777777-7777-4777-8777-777777777777";
+    let options = SendTurnOptions {
+        project_id: Some(project.into()),
+        ..SendTurnOptions::default()
+    };
+    assert_eq!(options.send_options().project_id.as_deref(), Some(project));
+    options.check(None).unwrap();
+    options.check(Some(CHAT)).unwrap();
+    let bad = SendTurnOptions {
+        project_id: Some("not-a-uuid".into()),
+        ..SendTurnOptions::default()
+    };
+    assert!(matches!(bad.check(None), Err(Error::Invalid(_))));
+}
