@@ -145,6 +145,29 @@ pub struct EmbedEventIdentity {
     pub embed_kind: EmbedKind,
 }
 
+impl EmbedEventIdentity {
+    /// Identity of an embed from its decrypted content (`embed_ref`, `app_id`,
+    /// `skill_id`, `type`); `None` when the ref is invalid or the type is not
+    /// user-editable.
+    ///
+    /// The server classifies by the embed row's plaintext `app_id/skill_id`.
+    /// A generated picture's row takes its `skill_id` from the content `type`
+    /// (`generated_image`, `generated_media_graph.py`), while the content's
+    /// `skill_id` names the skill that ran (`generate`, `generate_draft`). So
+    /// the kind is read from `skill_id`, else from `type`, as the row has it.
+    pub(crate) fn from_content(content: &Value) -> Option<Self> {
+        let field = |key: &str| content.get(key).and_then(Value::as_str).unwrap_or("");
+        let app_id = field("app_id");
+        let embed_kind = EmbedKind::from_app_skill(app_id, field("skill_id"))
+            .or_else(|| EmbedKind::from_app_skill(app_id, field("type")))?;
+        let embed_ref = field("embed_ref");
+        valid_embed_ref(embed_ref).then(|| Self {
+            embed_ref: embed_ref.to_owned(),
+            embed_kind,
+        })
+    }
+}
+
 impl EmbedUpdatedEvent {
     /// A schema-1 event; validate with [`build_embed_updated_event`].
     #[allow(clippy::too_many_arguments)] // Mirrors the flat wire payload one to one.

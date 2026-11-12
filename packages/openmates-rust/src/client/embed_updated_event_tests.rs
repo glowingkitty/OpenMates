@@ -148,6 +148,31 @@ fn maps_only_user_editable_types_to_kinds() {
     assert_eq!(EmbedKind::from_app_skill("web", "search"), None);
 }
 
+#[test]
+fn names_a_generated_picture_from_its_content_type_like_its_row() {
+    // The child content of `generated_media_graph.py`: the skill that ran, the row's type.
+    let content = json!({"app_id": "images", "skill_id": "generate", "type": "generated_image",
+        "embed_ref": "generated-images-4fb93b6f395a"});
+    assert_eq!(
+        EmbedEventIdentity::from_content(&content),
+        Some(EmbedEventIdentity {
+            embed_ref: "generated-images-4fb93b6f395a".into(),
+            embed_kind: EmbedKind::Image,
+        })
+    );
+    let upload = json!({"app_id": "images", "skill_id": "upload", "embed_ref": "cat-photo-x1y"});
+    assert_eq!(EmbedEventIdentity::from_content(&upload), Some(identity()));
+}
+
+#[test]
+fn names_no_embed_without_a_valid_ref_or_an_editable_type() {
+    let no_ref = json!({"app_id": "images", "skill_id": "generate", "type": "generated_image"});
+    assert_eq!(EmbedEventIdentity::from_content(&no_ref), None);
+    let search =
+        json!({"app_id": "web", "skill_id": "search", "type": "website", "embed_ref": "a-b"});
+    assert_eq!(EmbedEventIdentity::from_content(&search), None);
+}
+
 // contract-test: supporting surface=sdks.rust assertions=embed-user-edits.event.chat-notice
 #[tokio::test]
 async fn writer_writes_each_message_id_once() {

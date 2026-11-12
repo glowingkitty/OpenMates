@@ -9,9 +9,8 @@ use super::{
     UserRevisionRequest, commit_prepared, prepare_user_revision,
 };
 use crate::client::embed_updated_event::{
-    EmbedEventIdentity, EmbedKind, EmbedUpdatedWriter, EventWrite, NoticeReconcileReport,
-    SystemEventSink, build_embed_updated_event, parse_pending_notices, reconcile_notices,
-    valid_embed_ref,
+    EmbedEventIdentity, EmbedUpdatedWriter, EventWrite, NoticeReconcileReport, SystemEventSink,
+    build_embed_updated_event, parse_pending_notices, reconcile_notices,
 };
 use crate::client::embed_write::keys::OsNonces;
 use crate::client::transport::{Socket, send, wait};
@@ -204,14 +203,7 @@ impl Client {
     /// is unavailable, or its type is not user-editable.
     async fn embed_event_identity(&mut self, embed_id: &str) -> Option<EmbedEventIdentity> {
         let item = self.edit_embed_item(embed_id).await.ok()?;
-        let content = &item.fields["content"];
-        let embed_kind =
-            EmbedKind::from_app_skill(text(content, "app_id"), text(content, "skill_id"))?;
-        let embed_ref = text(content, "embed_ref");
-        valid_embed_ref(embed_ref).then(|| EmbedEventIdentity {
-            embed_ref: embed_ref.to_owned(),
-            embed_kind,
-        })
+        EmbedEventIdentity::from_content(&item.fields["content"])
     }
 
     /// Commit one user-made version of an embed (edit, restore, crop or an
