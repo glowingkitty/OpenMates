@@ -95,3 +95,21 @@ async def test_generative_answer_for_one_picture_stays_generative(monkeypatch):
     decision = await routing.decide_route(mode="auto", instructions="Animate this photo", picture_kinds=["image"],
                                           secrets_manager=None, task_id="t")
     assert decision == routing.RouteDecision("generative", routing.DECIDED_BY_MODEL)
+
+
+# contract-test: supporting surface=gui.web assertions=videos-generate.routing.generative-or-composed
+def test_assistant_tool_schema_does_not_offer_mode():
+    """The assistant cannot name a mode in chat: the routing model decides from the request."""
+    from pathlib import Path
+
+    import yaml
+
+    from backend.apps.ai.processing.tool_generator import _drop_assistant_hidden_properties
+
+    app = yaml.safe_load((Path(__file__).resolve().parents[1] / "apps/videos/app.yml").read_text())
+    schema = next(skill for skill in app["skills"] if skill["id"] == "generate")["tool_schema"]
+    assert "mode" in schema["properties"]["requests"]["items"]["properties"]
+    _drop_assistant_hidden_properties(schema)
+    offered = schema["properties"]["requests"]["items"]["properties"]
+    assert "mode" not in offered
+    assert {"instructions", "images"} <= set(offered)

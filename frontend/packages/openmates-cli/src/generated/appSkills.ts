@@ -8082,7 +8082,7 @@ export const APP_SKILL_METADATA = [
                 },
                 "type": "string",
                 "maxLength": 4000,
-                "description": "Natural-language description of the whole video: what it shows, texts, order, style, mood and pacing. For a composed video name the exact texts to show.\n"
+                "description": "What the user asked for, kept close to their own words: what the video shows, order, style, mood and pacing. Say so when it is based on search results or given pictures, and include the exact texts to show (headlines, titles, numbers) word for word.\n"
               },
               "images": {
                 "x-ui": {
@@ -8096,6 +8096,7 @@ export const APP_SKILL_METADATA = [
                 "description": "Optional exact embed_refs of pictures in this chat to use, in the order they should appear: uploads, generated images, vector graphics, or search results with a picture (image, web, news or video search). A generative clip can start from one picture only.\n"
               },
               "mode": {
+                "x-assistant": false,
                 "x-ui": {
                   "basic": true
                 },

@@ -21,7 +21,7 @@
     },
     {
       "path": "frontend/packages/openmates-cli/src/generated/appSkills.ts",
-      "sha256": "8cbc12d05e2f7140a77f49f35ebfa622f178d2d86712264cb5d2683e73c52eb1"
+      "sha256": "4d8a153de366c2e02bf66306c9f7013fcfa0273b430b12b4cd7a1468cab211e4"
     },
     {
       "path": "frontend/packages/openmates-cli/src/generatedFiles.ts",
@@ -29429,7 +29429,7 @@
                   },
                   "type": "string",
                   "maxLength": 4000,
-                  "description": "Natural-language description of the whole video: what it shows, texts, order, style, mood and pacing. For a composed video name the exact texts to show.\n"
+                  "description": "What the user asked for, kept close to their own words: what the video shows, order, style, mood and pacing. Say so when it is based on search results or given pictures, and include the exact texts to show (headlines, titles, numbers) word for word.\n"
                 },
                 "images": {
                   "x-ui": {
@@ -29443,6 +29443,7 @@
                   "description": "Optional exact embed_refs of pictures in this chat to use, in the order they should appear: uploads, generated images, vector graphics, or search results with a picture (image, web, news or video search). A generative clip can start from one picture only.\n"
                 },
                 "mode": {
+                  "x-assistant": false,
                   "x-ui": {
                     "basic": true
                   },

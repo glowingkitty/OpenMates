@@ -8605,31 +8605,51 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                       'maxItems': 1,
                                                                                       'type': 'array',
                                                                                       'x-ui': {'basic': False}},
-                                                                  'instructions': {'description': 'Natural-language '
-                                                                                                  'description '
-                                                                                                  'of '
+                                                                  'instructions': {'description': 'What '
                                                                                                   'the '
-                                                                                                  'whole '
-                                                                                                  'video: '
+                                                                                                  'user '
+                                                                                                  'asked '
+                                                                                                  'for, '
+                                                                                                  'kept '
+                                                                                                  'close '
+                                                                                                  'to '
+                                                                                                  'their '
+                                                                                                  'own '
+                                                                                                  'words: '
                                                                                                   'what '
-                                                                                                  'it '
+                                                                                                  'the '
+                                                                                                  'video '
                                                                                                   'shows, '
-                                                                                                  'texts, '
                                                                                                   'order, '
                                                                                                   'style, '
                                                                                                   'mood '
                                                                                                   'and '
                                                                                                   'pacing. '
-                                                                                                  'For '
-                                                                                                  'a '
-                                                                                                  'composed '
-                                                                                                  'video '
-                                                                                                  'name '
+                                                                                                  'Say '
+                                                                                                  'so '
+                                                                                                  'when '
+                                                                                                  'it '
+                                                                                                  'is '
+                                                                                                  'based '
+                                                                                                  'on '
+                                                                                                  'search '
+                                                                                                  'results '
+                                                                                                  'or '
+                                                                                                  'given '
+                                                                                                  'pictures, '
+                                                                                                  'and '
+                                                                                                  'include '
                                                                                                   'the '
                                                                                                   'exact '
                                                                                                   'texts '
                                                                                                   'to '
-                                                                                                  'show.\n',
+                                                                                                  'show '
+                                                                                                  '(headlines, '
+                                                                                                  'titles, '
+                                                                                                  'numbers) '
+                                                                                                  'word '
+                                                                                                  'for '
+                                                                                                  'word.\n',
                                                                                    'maxLength': 4000,
                                                                                    'type': 'string',
                                                                                    'x-ui': {'basic': True}},
@@ -8659,6 +8679,7 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                     'generative',
                                                                                     'composed'],
                                                                            'type': 'string',
+                                                                           'x-assistant': False,
                                                                            'x-ui': {'basic': True}},
                                                                   'model': {'description': 'Only '
                                                                                            'for '

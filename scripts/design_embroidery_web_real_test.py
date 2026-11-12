@@ -59,6 +59,13 @@ module.exports = {{
 
 
 def installed_chromium() -> Path:
+    """The browser of the proof. ``OPENMATES_PROOF_BROWSER`` names another Chrome build, needed when
+    the result is an H.264 video: the bundled open-source Chromium cannot decode it."""
+    override = os.environ.get("OPENMATES_PROOF_BROWSER")
+    if override:
+        if not Path(override).is_file():
+            raise ProofError("proof_browser_missing")
+        return Path(override)
     found = sorted((Path.home() / ".cache/ms-playwright").glob(CHROMIUM_GLOB))
     if not found:
         raise ProofError("installed_chromium_missing")
