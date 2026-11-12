@@ -100,6 +100,14 @@ export const variants = {
     isMobile: false,
   },
 
+  /** Results from public web pages and an operator-installed provider without a bundled icon */
+  webAndInstalledProviders: {
+    ...defaultProps,
+    id: "preview-events-search-web-providers",
+    query: "Open source conferences in Europe",
+    providers: ["web", "my_provider"],
+  },
+
   /** Mobile view */
   mobile: {
     ...defaultProps,

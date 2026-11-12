@@ -240,6 +240,20 @@ test('bus and rail cards name places, not the stop codes in brackets', async ({ 
   await testInfo.attach('travel-bus-stop-names', { body: await page.getByTestId('embed-preview').screenshot(), contentType: 'image/png' });
 });
 
+// contract-test: supporting surface=gui.web assertions=instance-app-packages.web-source
+test('events search names web and installed providers with an icon or initial, never an empty badge', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1100, height: 900 });
+  await page.goto(preview('events/EventsSearchEmbedPreview', 900, 'webAndInstalledProviders'));
+  await waitForComponentPreview(page);
+  const badges = page.getByTestId('events-search-provider-badge');
+  await expect(badges).toHaveCount(2);
+  const webIcon = badges.nth(0).locator('.provider-badge-icon');
+  await expect(webIcon).toBeVisible();
+  expect(await webIcon.evaluate(node => getComputedStyle(node).maskImage || getComputedStyle(node).webkitMaskImage)).toMatch(/^url\(/);
+  await expect(badges.nth(1)).toHaveText('M');
+  await testInfo.attach('events-search-provider-badges', { body: await page.getByTestId('embed-preview').screenshot(), contentType: 'image/png' });
+});
+
 for (const width of [390, 900]) {
   // contract-test: supporting surface=gui.web assertions=travel-search.surface-parity
   test(`travel itinerary matches the PDF journey and explicit baggage states at ${width}px`, async ({ page }, testInfo) => {
