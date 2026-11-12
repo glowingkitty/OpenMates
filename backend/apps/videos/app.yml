@@ -150,6 +150,9 @@ instructions:
       maps to change extend_end, "Extend this video at the start: …" to change
       extend_start, and "Apply these edits to this video: …" to change edit;
       the text after the colon is the instructions.
+      A video is changed only by that call, also when it is a composed,
+      code-rendered video: never answer with a code diff, code snippet or file
+      edit of its composition instead.
 skills:
   - id: generate
     anonymous_access: authenticated
@@ -309,6 +312,8 @@ skills:
       - vault_wrapped_aes_key
       - timeline
       - remotion_source
+      - filename
+      - attempts
   - id: get_transcript
     anonymous_access: authenticated
     name_translation_key: videos.get_transcript
