@@ -4,6 +4,7 @@ const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { deriveApiUrl } = require('./helpers/cli-test-helpers');
 const { skipIfFeaturesDisabled, skipWithoutCredentials } = require('./helpers/env-guard');
 const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
+const { workflowErrorNotifications } = require('./helpers/workflow-notifications');
 
 // contract-test: supporting surface=gui.web assertions=workflows-ui.workspace.recommendation-led-composition,notifications.web.stacked-deck
 test('workflow load failures leave the workspace clear while the header reports offline status', async ({ page, context }) => {
@@ -51,7 +52,7 @@ test('workflow load failures leave the workspace clear while the header reports 
 			await failedLoad;
 			await expect(page.getByTestId('workflows-start-screen')).toBeVisible();
 			await expect(page.getByTestId('workflow-input-composer')).toBeVisible();
-			await expect(page.getByTestId('workflows-error')).toHaveCount(0);
+			await expect(workflowErrorNotifications(page)).toHaveCount(0);
 			await expect(page.getByTestId('workflows-page')).not.toContainText('Load failed');
 		});
 
@@ -77,14 +78,14 @@ test('workflow load failures leave the workspace clear while the header reports 
 			await expect(page.getByTestId('connection-status-indicator')).toHaveAttribute('data-state', 'offline');
 			await expect(cachedCard).toBeVisible();
 			await expect(page.getByTestId('workflow-input-textarea')).toHaveValue('Keep this workflow draft');
-			await expect(page.getByTestId('workflows-error')).toHaveCount(0);
+			await expect(workflowErrorNotifications(page)).toHaveCount(0);
 		});
 
 		await test.step('explicit workflow actions still show actionable errors', async () => {
 			await page.getByTestId('workflow-import-input').setInputFiles({
 				name: 'invalid.yaml', mimeType: 'application/yaml', buffer: Buffer.from('invalid')
 			});
-			await expect(page.getByTestId('workflows-error')).toContainText('Choose an OpenMates .workflow.yml file.');
+			await expect(workflowErrorNotifications(page, 'Choose an OpenMates .workflow.yml file.').first()).toBeVisible();
 		});
 	} finally {
 		await context.setOffline(false);

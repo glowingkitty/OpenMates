@@ -381,9 +381,14 @@ test.describe('Example chats loading for new users', () => {
 		await expect(webPreview).not.toContainText('Open to view results');
 
 		await expect(page.getByTestId('chat-share-button')).toBeVisible({ timeout: 10000 });
-		await expect(page.getByTestId('chat-details-button')).toBeVisible({ timeout: 10000 });
+		// Chat settings live in the header More menu once the example offers several chat actions.
+		const detailsButton = page.getByTestId('chat-details-button');
+		if (!(await detailsButton.isVisible())) {
+			await page.getByTestId('chat-more-button').click();
+		}
+		await expect(detailsButton).toBeVisible({ timeout: 10000 });
 
-		await page.getByTestId('chat-details-button').click();
+		await detailsButton.click();
 		const settingsMenu = page.getByTestId('settings-menu');
 		await expect(settingsMenu).toBeVisible({ timeout: 10000 });
 		await expect(settingsMenu).toHaveAttribute('data-active-view', `chats/${exampleChatId}`, {
@@ -418,10 +423,10 @@ test.describe('Example chats loading for new users', () => {
 			waitUntil: 'domcontentloaded'
 		});
 		await page.waitForLoadState('networkidle');
-		const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
-		await expect(settingsMenu).toBeVisible({ timeout: 15000 });
-		await expect(settingsMenu.getByTestId('app-settings-memories-category')).toHaveCount(0);
-		await expect(settingsMenu.getByTestId('published-memory-route')).toHaveCount(0);
+		// Legacy Settings app links forward to the Apps workspace.
+		await expect(page.getByTestId('apps-detail-fullscreen')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('app-settings-memories-category')).toHaveCount(0);
+		await expect(page.getByTestId('published-memory-route')).toHaveCount(0);
 	});
 
 	// contract-test: direct surface=gui.web assertions=public-example-chats.history.explicit-forgotten-reveal,public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
@@ -497,7 +502,11 @@ test.describe('Example chats loading for new users', () => {
 
 		await page.locator('[data-testid="new-chat-cta-fullwidth"], [data-testid="new-chat-button"]').first().click();
 		await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0);
-		await expect(page.getByTestId('message-editor').locator('[contenteditable="true"]').first()).toBeFocused({ timeout: 5000 });
+		// ActiveChat.handleNewChatClick intentionally does not start a typing session; focus is explicit.
+		const newChatEditor = page.getByTestId('message-editor').locator('[contenteditable="true"]').first();
+		await expect(newChatEditor).toBeVisible({ timeout: 5000 });
+		await newChatEditor.click();
+		await expect(newChatEditor).toBeFocused({ timeout: 5000 });
 		await expect(
 			page.locator('[data-testid="resume-chat-large-card"], [data-testid="resume-chat-card"]').first()
 		).toBeVisible({ timeout: 10000 });
@@ -537,7 +546,11 @@ test.describe('Example chats loading for new users', () => {
 			.first();
 		await expect(assistantMessageWithNutritionCard).toBeVisible({ timeout: 15000 });
 
-		const nutritionSearchCard = assistantMessageWithNutritionCard.locator(nutritionSearchCardSelector);
+		// The search parent card and its child result cards all carry this testid; the parent is the one showing the query.
+		const nutritionSearchCard = assistantMessageWithNutritionCard
+			.locator(nutritionSearchCardSelector)
+			.filter({ hasText: 'spinach chickpea bell pepper carrot' })
+			.first();
 		await expect(nutritionSearchCard).toBeVisible({ timeout: 15000 });
 		await expect(nutritionSearchCard).toContainText('spinach chickpea bell pepper carrot');
 		await expect(nutritionSearchCard).toContainText('Edamam');
@@ -698,8 +711,9 @@ test.describe('Example chats loading for new users', () => {
 		await expect(map.getByTestId('search-result-route-path')).toHaveCount(2);
 		const cards = page.locator('.search-result-card');
 		await expect(cards).toHaveCount(2);
-		await expect(cards.first()).toContainText('Hamburg Central Station');
-		await expect(cards.last()).toContainText('Leipzig Central Station');
+		// Result cards use the compact city label; the full station name is in the child details.
+		await expect(cards.first()).toContainText('Hamburg');
+		await expect(cards.last()).toContainText('Leipzig');
 		for (const card of await cards.all()) {
 			const details = card.getByTestId('connection-preview-details');
 			await expect(details).toBeVisible();

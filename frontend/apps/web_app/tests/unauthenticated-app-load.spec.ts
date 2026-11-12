@@ -424,11 +424,11 @@ test.describe('Unauthenticated app load', () => {
 
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
-		await openRegisteredExample(page, 'example-artemis-ii-mission');
+		await openRegisteredExample(page, 'example-right-to-repair-laws');
 
 		const activeChatContainer = page.getByTestId('active-chat-container');
 		await expect(activeChatContainer).toBeVisible({ timeout: 10000 });
-		console.log('[unauthenticated-load] Artemis II example chat loaded');
+		console.log('[unauthenticated-load] Right to Repair example chat loaded');
 
 		// ─── 3. Verify assistant message is visible ────────────────────
 		const assistantMessage = page.getByTestId('mate-message-content').first();
@@ -436,6 +436,8 @@ test.describe('Unauthenticated app load', () => {
 		console.log('[unauthenticated-load] Assistant message content visible');
 
 		// ─── 4. Verify image and website embeds open in fullscreen ──────
+		// Skill-use embeds live in the collapsed assistant activity group; expand it first.
+		await page.getByTestId('assistant-activity-toggle').first().click();
 		const imageEmbed = page.locator('[data-testid="embed-preview"][data-app-id="images"][data-skill-id="search"]').first();
 		await imageEmbed.scrollIntoViewIfNeeded({ timeout: 15000 });
 		await expect(imageEmbed).toBeVisible({ timeout: 10000 });
@@ -444,12 +446,12 @@ test.describe('Unauthenticated app load', () => {
 		console.log('[unauthenticated-load] Image embed fullscreen opened');
 		await closeFullscreen(page, imageFullscreen);
 
-		const websiteEmbed = page.locator('[data-testid="embed-preview"][data-app-id="web"][data-skill-id="website"]').first();
+		const websiteEmbed = page.locator('[data-testid="embed-preview"][data-app-id="web"][data-skill-id="search"]').first();
 		await websiteEmbed.scrollIntoViewIfNeeded({ timeout: 15000 });
 		await expect(websiteEmbed).toBeVisible({ timeout: 10000 });
 		const websiteFullscreen = await openFullscreen(page, websiteEmbed);
 		await expect(websiteFullscreen).toBeVisible({ timeout: 10000 });
-		await expect(websiteFullscreen).toContainText(/Artemis|NASA|Launch/i, { timeout: 10000 });
+		await expect(websiteFullscreen).toContainText(/repair|EU|Cybernews/i, { timeout: 10000 });
 		console.log('[unauthenticated-load] Website embed fullscreen opened');
 		await closeFullscreen(page, websiteFullscreen);
 
@@ -466,14 +468,14 @@ test.describe('Unauthenticated app load', () => {
 		console.log('[unauthenticated-load] Scrolled to bottom of assistant message');
 
 		// ─── 6. Verify Wikipedia inline links are rendered ──────────────
-		// The Artemis II example chat has wikipedia_topics defined (10 topics).
+		// The Right to Repair example chat uses inline (wiki:Title) links.
 		// convertWikiTopicLinksOnDoc applies wiki links to the TipTap JSON doc,
 		// rendering as WikiInlineLink.svelte with data-testid="wiki-inline-link".
 		const wikiLinks = page.getByTestId('wiki-inline-link');
 		const wikiLinkCount = await wikiLinks.count();
 		expect(
 			wikiLinkCount,
-			`Expected at least one Wikipedia inline link in the Artemis II example chat, found ${wikiLinkCount}`
+			`Expected at least one Wikipedia inline link in the Right to Repair example chat, found ${wikiLinkCount}`
 		).toBeGreaterThan(0);
 		console.log(
 			`[unauthenticated-load] Found ${wikiLinkCount} Wikipedia inline link(s)`
@@ -559,7 +561,11 @@ test.describe('Unauthenticated app load', () => {
 		const menu = page.getByTestId('composer-model-selector-menu');
 		await menu.getByTestId('composer-model-provider-label').first().click();
 		const firstModelRow = menu.getByTestId('composer-model-row').first();
-		const modelName = (await firstModelRow.getByTestId('composer-model-name').textContent())?.trim();
+		// The row appends a server-region flag emoji (regional indicators) to the name; the
+		// selector aria-label carries only the plain model name.
+		const modelName = (await firstModelRow.getByTestId('composer-model-name').textContent())
+			?.replace(/[\u{1F1E6}-\u{1F1FF}]/gu, '')
+			.trim();
 		expect(modelName, 'The guest model picker should expose at least one model').toBeTruthy();
 		await firstModelRow.getByTestId('composer-model-toggle').click();
 		await expect(selector).toHaveAttribute('aria-label', new RegExp(modelName!, 'i'));
@@ -604,7 +610,12 @@ test.describe('Unauthenticated app load', () => {
 
 		await expect(page).toHaveURL(/#apps\/images(?:&|$)/);
 
-		const skillCardsScroll = page.locator('[data-testid="settings-skill-cards-scroll"]:visible');
+		// The Apps workspace route shows the app home; the horizontally scrolling skill
+		// cards live in the app's Settings panel, opened from the app home.
+		await page.getByTestId('apps-settings-open').click();
+		const settingsMenu = page.getByTestId('settings-menu');
+		await expect(settingsMenu).toBeVisible({ timeout: 10000 });
+		const skillCardsScroll = settingsMenu.getByTestId('settings-skill-cards-scroll');
 		await expect(skillCardsScroll).toBeVisible({ timeout: 10000 });
 		const touchMoveWasCanceled = await skillCardsScroll.evaluate(
 			(container: HTMLElement, dragDistancePx: number) => {
@@ -662,11 +673,15 @@ test.describe('Unauthenticated app load', () => {
 			if (msg.type() === 'error') consoleErrors.push(text);
 		});
 
-		await page.goto(getE2EDebugUrl('/#settings/apps/travel'), { waitUntil: 'domcontentloaded' });
+		await page.goto(getE2EDebugUrl('/#settings/apps/web'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
 
-		await expect(page).toHaveURL(/#apps\/travel(?:&|$)/);
-		await page.getByTestId('apps-tab-settings_memories').click();
+		await expect(page).toHaveURL(/#apps\/web(?:&|$)/);
+		await expect(page.getByTestId('apps-detail-fullscreen')).toBeVisible({ timeout: 30000 });
+		// The memories tab was removed from the app home; the app's Settings panel is where
+		// memory categories would be listed.
+		await page.getByTestId('apps-settings-open').click();
+		await expect(page.getByTestId('settings-menu')).toBeVisible({ timeout: 10000 });
 
 		// Typed app memories were removed: no app-specific memory categories are listed.
 		await expect(page.getByTestId('app-card-name').filter({ hasText: /^Trips$/i })).toHaveCount(0);

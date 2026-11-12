@@ -25,6 +25,7 @@ const {
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { mockCloudServerStatus, mockEmptyBuyerAddress } = require('./helpers/cloud-server-status');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const consoleLogs: string[] = [];
@@ -79,6 +80,8 @@ test('settings buy credits: 110k EUR-only tier auto-routes to bank transfer view
 	// Force bank_transfer_available=true with a hardcoded config mock.
 	// Use a non-empty placeholder public key so Payment.svelte doesn't throw
 	// "Stripe Public Key not found" before the bank_transfer_available flag is read.
+	await mockCloudServerStatus(page);
+	await mockEmptyBuyerAddress(page);
 	await page.route('**/v1/payments/config**', async (route: any) => {
 		await route.fulfill({
 			status: 200,

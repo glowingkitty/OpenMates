@@ -2576,8 +2576,13 @@ def run_e2e(
                             else {}
                         ),
                     )
+                    # helpers/provider-boundary.ts reads the key on behalf of
+                    # the specs that import it, so the name is not in their text.
                     if (
-                        "OPENMATES_TEST_ACCOUNT_API_KEY" in source
+                        (
+                            "OPENMATES_TEST_ACCOUNT_API_KEY" in source
+                            or "helpers/provider-boundary" in source
+                        )
                         and not local_signup_assertion
                     ):
                         primary["OPENMATES_TEST_ACCOUNT_API_KEY"] = provision_api_key(

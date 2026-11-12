@@ -24,7 +24,7 @@ test.describe('Plans in Tasks and Projects', () => {
     });
     const { planId } = await createProjectPlanForTest(page, projectName);
     expect(planPayload).not.toContain(projectName);
-    await expect(page.getByTestId('plan-title-input')).toBeVisible();
+    await expect(page.getByTestId('plan-detail-page').getByTestId('workspace-detail-title-field')).toBeVisible();
 
     await page.goto(getE2EDebugUrl('/tasks'), { waitUntil: 'domcontentloaded' });
     await expect(page.getByTestId('tasks-page')).toBeVisible({ timeout: 30000 });

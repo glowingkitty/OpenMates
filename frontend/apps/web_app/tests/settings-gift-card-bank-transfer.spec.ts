@@ -19,6 +19,7 @@ const {
 	setToggleChecked,
 } = require('./signup-flow-helpers');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { mockCloudServerStatus } = require('./helpers/cloud-server-status');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
@@ -27,6 +28,7 @@ const MOCK_IBAN = 'GB68REVO04290962398393';
 const MOCK_BIC = 'REVOGB21';
 const MOCK_REFERENCE = 'OM-GIFT-btgift01';
 
+// contract-test: direct surface=gui.web assertions=billing.purchase.provider-routing,billing.access.authenticated-first-party
 test('settings gift cards: bank transfer order is created as gift-card purchase', async ({ page }: { page: any }) => {
 	test.slow();
 	test.setTimeout(180000);
@@ -38,6 +40,7 @@ test('settings gift cards: bank transfer order is created as gift-card purchase'
 
 	let createBankTransferBody: Record<string, unknown> | null = null;
 
+	await mockCloudServerStatus(page);
 	await page.route('**/v1/payments/config', async (route: any) => {
 		await route.fulfill({
 			status: 200,

@@ -53,14 +53,16 @@ test('public landing server-renders and opens real app workspaces', async ({ pag
 
   const heroIcon = page.getByTestId('landing-hero-ai-icon');
   await expect(heroIcon).toBeVisible();
-  await expect(heroIcon.locator('.hero-ai-glyph')).toHaveCSS('mask-image', /ai\.svg/);
+  await expect(heroIcon.locator('.hero-ai-glyph svg path')).toHaveCount(1);
   const origin = new URL(page.url()).origin;
   for (const [testId, fragment, workspace] of [
     ['landing-explore-apps', '#apps', 'apps-daily-inspiration-area'],
     ['landing-explore-workflows', '#workflows', 'workflows-start-screen'],
   ] as const) {
     const link = page.getByTestId(testId);
-    await expect(link).toHaveAttribute('href', `${origin}/${fragment}`);
+    // The link is part of the feature copy, which appears once that feature's story has played.
+    await page.locator(fragment === '#apps' ? '#actionable-title' : '#workflows-title').scrollIntoViewIfNeeded();
+    await expect(link).toHaveAttribute('href', `${origin}/${fragment}`, { timeout: 45_000 });
     await expect(link).toHaveAttribute('target', '_blank');
     await expect(link).toHaveAttribute('rel', /noopener/);
     const ownerRequests: string[] = [];

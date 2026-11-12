@@ -37,6 +37,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 		: await resolve(event, {
 		transformPageChunk: ({ html }) => (isSeoRoute(event.url.pathname) ? stripDefaultSeoTags(html) : html)
 	});
+	// SSR pages get a SvelteKit preload `Link` header that lists every module of the
+	// route graph (tens of KB on /landing). Node's HTTP parser, proxies and link-preview
+	// bots reject headers that large. The same preload hints are emitted as <link> tags
+	// in the HTML <head>, so first-paint preloading is unchanged without the header.
+	response.headers.delete('link');
 	response.headers.set('X-Frame-Options', 'DENY');
 	response.headers.set('X-Content-Type-Options', 'nosniff');
 	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');

@@ -14,6 +14,7 @@ const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
 const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
+const { naturalProjectName } = require('./helpers/project-names');
 
 const IS_PROOF_CAPTURE = Boolean(process.env.PLAYWRIGHT_VIDEO_WIDTH && process.env.PLAYWRIGHT_VIDEO_HEIGHT);
 const PROOF_DEVICE = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10) === 390 ? 'web-phone' : 'web-laptop';
@@ -129,6 +130,7 @@ test.describe('Ready Workflow run Tasks projection', () => {
 
 		const apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
 		const createdWorkflowIds = new Set<string>();
+		const createdProjectUrls = new Set<string>();
 		const suffix = `${Date.now()}-${testInfo.workerIndex}`;
 		const proof = IS_PROOF_CAPTURE
 			? createVideoProofRuntime(READY_RUN_TASKS_PROOF, {
@@ -148,7 +150,24 @@ test.describe('Ready Workflow run Tasks projection', () => {
 				await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
 				await expect(page.getByTestId('workflows-page')).toBeVisible({ timeout: 30_000 });
 
-				await page.getByTestId('create-blank-workflow').click();
+				// The blank creator opens from a project's create menu.
+				const projectCreated = page.waitForResponse(
+					(response: any) => new URL(response.url()).pathname === '/v1/projects' && response.request().method() === 'POST' && response.ok(),
+					{ timeout: 30_000 }
+				);
+				await page.goto(getE2EDebugUrl('/projects'), { waitUntil: 'domcontentloaded' });
+				await expect(page.getByTestId('projects-page')).toBeVisible({ timeout: 30_000 });
+				await page.getByTestId('project-input-textarea').fill(naturalProjectName('Weekly report automation'));
+				await page.getByTestId('project-input-submit').click();
+				await page.getByTestId('project-write-policy-apply-and-show').check();
+				await page.getByTestId('project-write-policy-confirm').click();
+				const projectResponse = await projectCreated;
+				createdProjectUrls.add(`${new URL(projectResponse.url()).origin}/v1/projects/${encodeURIComponent((await projectResponse.json()).project.project_id)}`);
+				await expect(page.getByTestId('project-workspace-header')).toBeVisible({ timeout: 30_000 });
+				await page.getByTestId('project-tab-folders').click();
+				await page.getByTestId('project-folder-create-menu-button').click();
+				await page.getByTestId('project-create-workflow').click();
+				await expect(page.getByTestId('workflow-blank-creator')).toBeVisible({ timeout: 30_000 });
 				await page.getByTestId('workflow-blank-title-input').fill(workflowTitle);
 				const createResponse = page.waitForResponse(
 					(response: any) => new URL(response.url()).pathname === '/v1/workflows' && response.request().method() === 'POST' && response.ok(),
@@ -276,6 +295,9 @@ test.describe('Ready Workflow run Tasks projection', () => {
 		} finally {
 			for (const workflowId of createdWorkflowIds) {
 				await page.request.delete(`${apiUrl}/v1/workflows/${encodeURIComponent(workflowId)}`).catch(() => null);
+			}
+			for (const projectUrl of createdProjectUrls) {
+				await page.request.delete(projectUrl).catch(() => null);
 			}
 		}
 	});

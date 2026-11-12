@@ -9,6 +9,7 @@ const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 const { stringify } = require('yaml');
 const { randomUUID } = require('node:crypto');
 const { naturalProjectName } = require('./helpers/project-names');
+const { workflowErrorNotifications } = require('./helpers/workflow-notifications');
 
 function apiUrl(): string {
   const url = new URL(process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://app.dev.openmates.org');
@@ -95,7 +96,7 @@ test.describe('Portable Workflow files', () => {
       if (request.url().endsWith('/v1/workflows/file-import') && request.method() === 'POST') importRequests += 1;
     });
     await chooser.setFiles({ name: 'portable.yaml', mimeType: 'application/yaml', buffer: content });
-    await expect(page.getByTestId('workflows-error')).toContainText('Choose an OpenMates .workflow.yml file.');
+    await expect(workflowErrorNotifications(page, 'Choose an OpenMates .workflow.yml file.').first()).toBeVisible();
     await expect(input).toHaveValue('Keep this unsent workflow description');
     expect(importRequests).toBe(0);
     const imported = page.waitForResponse((response: Response) => response.url().endsWith('/v1/workflows/file-import') && response.request().method() === 'POST');
@@ -123,7 +124,7 @@ test.describe('Portable Workflow files', () => {
       transfer.items.add(new File(['format: openmates-workflow\nformat_version: 900\n'], 'bad.workflow.yml', { type: 'application/yaml' }));
       return transfer;
     }) });
-    await expect(page.getByTestId('workflows-error')).toContainText('not supported');
+    await expect(workflowErrorNotifications(page, 'not supported').first()).toBeVisible();
     await expect(page.getByTestId('workflow-input-textarea')).toHaveValue('Keep this unsent title');
     const title = `Dropped portable ${Date.now()}`;
     const document = portableWorkflow(title);

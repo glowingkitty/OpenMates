@@ -164,6 +164,9 @@ importers:
       eslint:
         specifier: ^9.35.0
         version: 9.35.0
+      jszip:
+        specifier: ^3.10.1
+        version: 3.10.1
       mermaid:
         specifier: ^11.16.1
         version: 11.16.1

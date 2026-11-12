@@ -119,7 +119,7 @@ test('keeps the Figma project header and icon tabs while switching workspace pan
   await expect(sharedPreviews.nth(2)).toContainText('architecture.pdf');
   await expect(sharedPreviews.nth(2)).toContainText('12 pages');
   await expect(page.getByTestId('project-item-card').getByTestId('project-remote-cloud-badge')).toHaveCount(0);
-  await expect(page.getByTestId('project-item-card').locator('.basic-infos-bar.desktop')).toHaveCount(3);
+  await expect(page.getByTestId('project-item-card').getByTestId('embed-result-identity')).toHaveCount(3);
   for (let index = 0; index < 3; index += 1) {
     const previewBox = await sharedPreviews.nth(index).boundingBox();
     const cardBox = await page.getByTestId('project-item-card').nth(index).boundingBox();
@@ -361,7 +361,7 @@ test('opens a connected source inside the Files grid with shared folder previews
   const nestedPath = page.getByLabel('Project folder path');
   await expect(nestedPath.getByText('frontend', { exact: true })).toBeVisible();
   await expect(nestedPath.getByText('.', { exact: true })).toHaveCount(0);
-  await expect(nestedPath).toHaveText(/^\s*\/\s*frontend\s*$/);
+  await expect(nestedPath).toHaveText(/^\s*\/\s*OpenMates repository\s*\/\s*frontend\s*$/);
   await expect(page.getByTestId('project-folders-panel').locator('.section-title h3')).toHaveCount(0);
   await nestedPath.getByRole('button', { name: 'Project root' }).click();
   await expect(nestedPath).toHaveCount(0);

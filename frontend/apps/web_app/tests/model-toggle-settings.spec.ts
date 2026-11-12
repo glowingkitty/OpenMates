@@ -121,12 +121,25 @@ async function closeSettings(page: any, logFn: (msg: string) => void): Promise<v
 	}
 }
 
+/**
+ * Open the first provider family card in the AI settings overview.
+ */
+async function openFirstProvider(aiSettings: any): Promise<void> {
+	const providerCard = aiSettings.getByTestId('ai-provider-family-card').first();
+	await providerCard.scrollIntoViewIfNeeded();
+	await providerCard.click();
+	await expect(
+		aiSettings.page().getByTestId('provider-model-item').first()
+	).toBeVisible({ timeout: 10000 });
+}
+
 // ─── Test ────────────────────────────────────────────────────────────────────
 
 test.describe('Model toggle persistence (OPE-53)', () => {
 	test.describe.configure({ timeout: 180000 });
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
+	// contract-test: supporting surface=gui.web assertions=ai-model-routing.settings.hierarchy-canonical
 	test('disabling a model persists after closing and re-opening settings', async ({ page }) => {
 		const logCheckpoint = createSignupLogger('MODEL_TOGGLE');
 		const takeStepScreenshot = createStepScreenshotter(logCheckpoint, {
@@ -147,14 +160,15 @@ test.describe('Model toggle persistence (OPE-53)', () => {
 		const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
 		const aiSettings = settingsMenu.getByTestId('ai-settings');
 
-		// ── Step 3: Find the first model toggle and record initial state ─
-		// Each model in the list has a .model-toggle wrapper containing a Toggle checkbox
-		const modelItems = aiSettings.getByTestId('model-item');
+		// ── Step 3: Open the first provider and record the first model's state ─
+		// Models are toggled on the provider details page, one row per model.
+		await openFirstProvider(aiSettings);
+		const modelItems = settingsMenu.getByTestId('provider-model-item');
 		const firstModelItem = modelItems.first();
 		await expect(firstModelItem).toBeVisible({ timeout: 5000 });
 
 		// Get the model name for logging
-		const modelName = await firstModelItem.getByTestId('model-name').textContent();
+		const modelName = await firstModelItem.getByTestId('provider-model-item-title').textContent();
 		logCheckpoint(`Target model: "${modelName}"`);
 
 		// Get initial toggle state
@@ -164,9 +178,7 @@ test.describe('Model toggle persistence (OPE-53)', () => {
 
 		// Ensure the model starts as enabled (if not, toggle it on first)
 		if (!wasEnabled) {
-			// model-toggle div itself has role="button" and onclick — click it directly
-			const toggleWrapper = firstModelItem.getByTestId('model-toggle');
-			await toggleWrapper.click();
+			await firstModelItem.getByTestId('provider-model-item-toggle').click();
 			logCheckpoint('Pre-toggled model ON so we can test disabling it.');
 			await page.waitForTimeout(1000);
 		}
@@ -174,27 +186,20 @@ test.describe('Model toggle persistence (OPE-53)', () => {
 		await takeStepScreenshot(page, '03-before-toggle');
 
 		// ── Step 4: Toggle the model OFF ───────────────────────────────
-		// model-toggle div itself has role="button" and onclick — click it directly
-		const toggleWrapper = firstModelItem.getByTestId('model-toggle');
-		await toggleWrapper.click();
+		await firstModelItem.getByTestId('provider-model-item-toggle').click();
 		logCheckpoint('Toggled model OFF.');
 		await page.waitForTimeout(1000);
 
 		// Verify toggle is now unchecked
-		const isNowOff = await firstToggle.evaluate((el: HTMLInputElement) => !el.checked);
-		expect(isNowOff).toBe(true);
+		await expect(firstToggle).not.toBeChecked();
 		logCheckpoint('Verified toggle is OFF in UI.');
-
-		// Verify the model item has the disabled class
-		await expect(firstModelItem).toHaveClass(/disabled/);
-		logCheckpoint('Model item has disabled class.');
 		await takeStepScreenshot(page, '04-toggled-off');
 
 		// ── Step 5: Reload page and verify persistence ──────────────
 		// A full page reload is a stronger persistence test than close/reopen —
 		// it forces IndexedDB reads and confirms the toggle was actually saved.
 		logCheckpoint('Reloading page to verify persistence...');
-		await page.reload({ waitUntil: 'networkidle' });
+		await page.reload({ waitUntil: 'domcontentloaded' });
 		await page.waitForTimeout(2000);
 
 		// Wait for the app to re-authenticate and load
@@ -206,30 +211,25 @@ test.describe('Model toggle persistence (OPE-53)', () => {
 
 		// Re-locate the model by name (DOM was destroyed and recreated)
 		const settingsMenuAfter = page.locator('[data-testid="settings-menu"].visible');
-		const modelItemsAfter = settingsMenuAfter.getByTestId('ai-settings').getByTestId('model-item');
-		const targetModelAfter = modelItemsAfter.filter({ hasText: modelName! });
+		await openFirstProvider(settingsMenuAfter.getByTestId('ai-settings'));
+		const targetModelAfter = settingsMenuAfter
+			.getByTestId('provider-model-item')
+			.filter({ hasText: modelName! });
 		await expect(targetModelAfter).toBeVisible({ timeout: 5000 });
 
 		// Verify the toggle persisted as OFF
 		const toggleAfter = targetModelAfter.locator('input[type="checkbox"]');
-		const isStillOff = await toggleAfter.evaluate((el: HTMLInputElement) => !el.checked);
-		expect(isStillOff).toBe(true);
-		logCheckpoint(`Persistence verified: "${modelName}" is still OFF after re-opening settings.`);
-
-		// Verify the model item still has the disabled class
-		await expect(targetModelAfter).toHaveClass(/disabled/);
+		await expect(toggleAfter).not.toBeChecked();
+		logCheckpoint(`Persistence verified: "${modelName}" is still OFF after reloading.`);
 		await takeStepScreenshot(page, '05-persisted-off');
 
 		// ── Step 6: Cleanup — toggle the model back ON ────────────────
-		// model-toggle div itself has role="button" and onclick — click it directly
-		const cleanupToggle = targetModelAfter.getByTestId('model-toggle');
-		await cleanupToggle.click();
+		await targetModelAfter.getByTestId('provider-model-item-toggle').click();
 		logCheckpoint('Cleanup: toggled model back ON.');
 		await page.waitForTimeout(1000);
 
 		// Verify it's back on
-		const isBackOn = await toggleAfter.evaluate((el: HTMLInputElement) => el.checked);
-		expect(isBackOn).toBe(true);
+		await expect(toggleAfter).toBeChecked();
 		logCheckpoint('Verified model is back ON.');
 		await takeStepScreenshot(page, '06-cleanup-on');
 
