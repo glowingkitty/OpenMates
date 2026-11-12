@@ -1655,6 +1655,9 @@
         "text": "إنشاء",
         "description": {
           "text": "أنشئ فيديو قصيرًا من وصفك والصور في المحادثة، كلقطات بالذكاء الاصطناعي أو كفيديو مركّب بدقة."
+        },
+        "pricing_note": {
+          "text": "المقاطع المولّدة: 34.5 (360p) أو 105 (720p) أو 156 (1080p) أو 313.5 (4K) رصيد في الثانية. الفيديوهات المركّبة: رموز النموذج الكاتب مضافًا إليها 5 رصيد عن كل دقيقة عرض بدأت. تُحتسب التعديلات فقط على ما تضيفه. لا يتم خصم أي رصيد إذا لم يتم تسليم فيديو."
         }
       },
       "create": {
@@ -8238,6 +8241,24 @@
       },
       "pending_changes": {
         "text": "تغييرات معلّقة: {count}"
+      },
+      "created_by": {
+        "text": "تم الإنشاء بواسطة {model}"
+      },
+      "change_edit": {
+        "text": "جارٍ تعديل الفيديو"
+      },
+      "change_extend_start": {
+        "text": "جارٍ تمديد الفيديو في البداية"
+      },
+      "change_extend_end": {
+        "text": "جارٍ تمديد الفيديو في النهاية"
+      },
+      "progress_correcting_round": {
+        "text": "جارٍ إصلاح مشكلة في المعالجة (الجولة {round})…"
+      },
+      "failed": {
+        "text": "فشل إنشاء الفيديو"
       },
       "progress_deciding": {
         "text": "جارٍ تحديد طريقة صنع الفيديو…"
@@ -15347,6 +15368,9 @@
           "credits_per_minute": {
             "text": "{credits} credits per minute"
           },
+          "credits_per_second": {
+            "text": "{credits} رصيد في الثانية"
+          },
           "credits_per_started_minute": {
             "text": "{credits} credits per started sandbox minute"
           },
@@ -15414,6 +15438,9 @@
           },
           "per_minute": {
             "text": "في الدقيقة"
+          },
+          "per_second": {
+            "text": "في الثانية"
           },
           "servers": {
             "text": "الخوادم"

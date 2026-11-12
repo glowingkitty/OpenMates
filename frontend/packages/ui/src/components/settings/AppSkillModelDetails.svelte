@@ -375,7 +375,7 @@
                             <Icon name="coins" type="subsetting" size="24px" noAnimation={true} />
                             <span class="pricing-value">
                                 {model.pricing.per_second} <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} />
-                                / second
+                                {$text('settings.app_store.skills.model_detail.per_second')}
                             </span>
                         </div>
                     {/if}
@@ -398,22 +398,25 @@
                                     : `/ ${skill.pricing.per_unit.unit_name}`}
                             </span>
                         </div>
-                    {:else if skill.pricing.per_minute !== undefined}
-                        <div class="pricing-row">
-                            <Icon name="coins" type="subsetting" size="24px" noAnimation={true} />
-                            <span class="pricing-value">
-                                {skill.pricing.per_minute} <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} />
-                                {$text('settings.app_store.skills.model_detail.per_minute')}
-                            </span>
-                        </div>
-                    {:else if skill.pricing.per_second !== undefined}
-                        <div class="pricing-row">
-                            <Icon name="coins" type="subsetting" size="24px" noAnimation={true} />
-                            <span class="pricing-value">
-                                {skill.pricing.per_second} <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} />
-                                / second
-                            </span>
-                        </div>
+                    {:else if skill.pricing.per_minute !== undefined || skill.pricing.per_second !== undefined}
+                        {#if skill.pricing.per_second !== undefined}
+                            <div class="pricing-row">
+                                <Icon name="coins" type="subsetting" size="24px" noAnimation={true} />
+                                <span class="pricing-value">
+                                    {skill.pricing.per_second} <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} />
+                                    {$text('settings.app_store.skills.model_detail.per_second')}
+                                </span>
+                            </div>
+                        {/if}
+                        {#if skill.pricing.per_minute !== undefined}
+                            <div class="pricing-row">
+                                <Icon name="coins" type="subsetting" size="24px" noAnimation={true} />
+                                <span class="pricing-value">
+                                    {skill.pricing.per_minute} <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} />
+                                    {$text('settings.app_store.skills.model_detail.per_minute')}
+                                </span>
+                            </div>
+                        {/if}
                     {:else if skill.pricing.fixed !== undefined}
                         <div class="pricing-row">
                             <Icon name="coins" type="subsetting" size="24px" noAnimation={true} />

@@ -8,6 +8,16 @@ content ``type`` ``generated_video``)::
      "progress_stage": "deciding" | "writing" | "rendering" | "correcting" | "generating",
      "progress_attempt": <1-based round>}
 
+A change of an earlier video (``generate_change``) adds two fields, so the card
+of the change call shows what is being changed: ``"change": "edit" | "extend_start" |
+"extend_end"`` and ``"source_embed_id"``, the embed id of the video being
+changed (the web client resolves the thumbnail from its own copy of that
+embed; no keys, file keys or URLs are ever sent). ``prompt`` is then the change
+instruction. The first update is sent before any model call (``deciding``),
+``generating`` while a new clip is made (extend), ``writing``/``correcting``
+while the author model rewrites a composed video, ``rendering`` while the
+sandbox renders (also the join render of an extended clip).
+
 ``deciding`` while the route is chosen, ``generating`` while a generative
 model makes the clip, ``writing``/``rendering``/``correcting`` while a composed
 video is authored and rendered. Updates are never stored; only the finished
@@ -31,17 +41,24 @@ STAGES = (STAGE_DECIDING, STAGE_WRITING, STAGE_RENDERING, STAGE_CORRECTING, STAG
 
 
 def processing_content(*, skill_id: str, instructions: str, input_embed_ids: Sequence[str], stage: str,
-                       attempt: int) -> dict[str, Any]:
+                       attempt: int, change: Optional[str] = None,
+                       source_embed_id: Optional[str] = None) -> dict[str, Any]:
     """Content of one processing update (see the module docstring for the contract)."""
     if stage not in STAGES:
         raise ValueError(f"unknown video progress stage {stage!r}")
     if attempt < 1:
         raise ValueError("video progress attempts are 1-based")
-    return {
+    if (change is None) != (source_embed_id is None):
+        raise ValueError("a change progress update needs both the change and the source embed id")
+    content: dict[str, Any] = {
         "app_id": "videos", "skill_id": skill_id, "type": "generated_video", "status": "processing",
         "prompt": instructions, "input_embed_ids": list(input_embed_ids), "progress_stage": stage,
         "progress_attempt": int(attempt),
     }
+    if change is not None:
+        content["change"] = change
+        content["source_embed_id"] = source_embed_id
+    return content
 
 
 class VideoProgressPublisher:
@@ -61,9 +78,16 @@ class VideoProgressPublisher:
         self._instructions = instructions
         self._input_embed_ids = list(input_embed_ids)
         self._log_prefix = log_prefix
+        self._change: Optional[str] = None
+        self._source_embed_id: Optional[str] = None
         self._last: Optional[tuple[str, int]] = None
         self._rounds = 0
         self.stages: list[str] = []
+
+    def mark_change(self, change: str, source_embed_id: str) -> None:
+        """Make every later update carry the change kind and the embed id of the video being changed."""
+        self._change = change
+        self._source_embed_id = source_embed_id
 
     async def __call__(self, stage: str, attempt: Optional[int] = None) -> None:
         if stage in (STAGE_WRITING, STAGE_CORRECTING):
@@ -79,7 +103,8 @@ class VideoProgressPublisher:
         from toon_format import encode as toon_encode
 
         content = processing_content(skill_id=self._skill_id, instructions=self._instructions,
-                                     input_embed_ids=self._input_embed_ids, stage=stage, attempt=round_number)
+                                     input_embed_ids=self._input_embed_ids, stage=stage, attempt=round_number,
+                                     change=self._change, source_embed_id=self._source_embed_id)
         await self._embed_service.send_embed_data_to_client(
             embed_id=self._embed_id,
             embed_type="generated_video",

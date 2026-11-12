@@ -1655,6 +1655,9 @@
         "text": "Genereren",
         "description": {
           "text": "Maak een korte video van je beschrijving en afbeeldingen in de chat, als AI-beelden of als exact samengestelde video."
+        },
+        "pricing_note": {
+          "text": "Gegenereerde clips: 34,5 (360p), 105 (720p), 156 (1080p) of 313,5 (4K) credits per seconde. Samengestelde video's: de tokens van het schrijvende model plus 5 credits per begonnen minuut renderen. Wijzigingen worden alleen berekend voor wat ze toevoegen. Er worden geen kosten berekend als er geen video wordt geleverd."
         }
       },
       "create": {
@@ -8238,6 +8241,24 @@
       },
       "pending_changes": {
         "text": "Openstaande wijzigingen: {count}"
+      },
+      "created_by": {
+        "text": "Gemaakt door {model}"
+      },
+      "change_edit": {
+        "text": "Video bewerken"
+      },
+      "change_extend_start": {
+        "text": "Video aan het begin verlengen"
+      },
+      "change_extend_end": {
+        "text": "Video aan het eind verlengen"
+      },
+      "progress_correcting_round": {
+        "text": "Renderprobleem oplossen (ronde {round})…"
+      },
+      "failed": {
+        "text": "Video maken mislukt"
       },
       "progress_deciding": {
         "text": "Bepalen hoe de video wordt gemaakt…"
@@ -15347,6 +15368,9 @@
           "credits_per_minute": {
             "text": "{credits} credits per minute"
           },
+          "credits_per_second": {
+            "text": "{credits} credits per seconde"
+          },
           "credits_per_started_minute": {
             "text": "{credits} credits per started sandbox minute"
           },
@@ -15414,6 +15438,9 @@
           },
           "per_minute": {
             "text": "per minuut"
+          },
+          "per_second": {
+            "text": "per seconde"
           },
           "servers": {
             "text": "Servers"

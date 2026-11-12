@@ -27,7 +27,7 @@ scope:
     - videos.generate calls made by the assistant in first-party chats originating from CLI, npm SDK, pip SDK, web, or Apple clients.
     - Text-only generative video through the developer REST API, as before.
     - Choosing between a generative model and a composed video, by the assistant's explicit wish or by a routing decision.
-    - Zero to twelve input pictures from the conversation; uploaded and generated images, vector graphics, and pictures of search results (image search, web search, news and other result cards that carry a picture).
+    - Zero to twelve references from the conversation; uploaded and generated images, vector graphics, single search results of image, web, news and video search (with or without a picture), and a whole search, which stands for its results (at most 24 results in total).
     - Composed videos; author program, sandbox render, bounded correction, progress, stored result with its timeline and source.
     - The timeline in the opened video, extending a generated clip at its start or end, and basic editing (texts, trimming, removing a part) as new versions of the same video.
   excludes:
@@ -45,7 +45,7 @@ models:
     images:
       type: embed_ref_list
       required: false
-      constraints: {max_items: 12, exact_conversation_reference: true, accepts: [uploaded_image, generated_image, vector_graphic, search_result_with_picture], order_is_meaningful: true}
+      constraints: {max_items: 12, exact_conversation_reference: true, accepts: [uploaded_image, generated_image, vector_graphic, search_result, whole_search], max_results_after_expansion: 24, max_pictures: 12, order_is_meaningful: true}
     mode:
       type: enum
       required: false
@@ -80,7 +80,7 @@ models:
       type: enum
       required: true
       values: [request_mode, routing_model]
-      constraints: {routing_model_sees: [instructions, number_and_kind_of_pictures], routing_model_never_sees_pictures: true, generative_answer_for_two_or_more_pictures_is_made_composed: true}
+      constraints: {routing_model_sees: [instructions, number_and_kind_of_pictures, number_of_text_only_results], routing_model_never_sees_pictures: true, generative_answer_for_two_or_more_pictures_is_made_composed: true, generative_answer_for_any_search_result_is_made_composed: true}
 
   ComposedAuthoring:
     author_models:
@@ -90,7 +90,7 @@ models:
     author_input:
       type: author_context
       required: true
-      values: [instructions, aspect_ratio, duration, reduced_copy_of_each_picture, exact_pixel_size_of_each_picture, source_title_of_search_result_pictures, previous_composition_when_changing_a_video]
+      values: [instructions, aspect_ratio, duration, reduced_copy_of_each_picture, exact_pixel_size_of_each_picture, title_and_text_of_each_search_result, previous_composition_when_changing_a_video]
     composition:
       type: remotion_module
       required: true
@@ -141,15 +141,15 @@ models:
 assertions:
   - id: videos-generate.request.instruction-and-pictures
     type: behavior
-    must: videos.generate accepts a natural-language instruction and up to twelve exact references of pictures visible in the conversation. Uploaded and generated images are read in their stored resolution; a search result is used through its picture, fetched once from its public address. A reference that is not in the conversation, a picture that cannot be read or fetched, more than twelve pictures, or a picture over the size limit fails explicitly before any model or sandbox is used; nothing is produced and nothing is charged.
+    must: videos.generate accepts a natural-language instruction and up to twelve exact references of pictures and search results visible in the conversation. Uploaded and generated images are read in their stored resolution; a search result is used through its text (title, description, source, address, date) and, when it has one, its picture, fetched once from its public address; a result without a picture is used through its text only. A whole search stands for its results in their order, at most 24; its results receive pictures while the twelve-picture limit allows, the rest are used through their text, and a result of a whole search whose picture cannot be fetched is used through its text. A reference that is not in the conversation, a picture of a result named on its own or of an uploaded or generated image that cannot be read or fetched, more than twelve references, or a picture over the size limit fails explicitly before any model or sandbox is used; nothing is produced and nothing is charged.
     depends_on: [models.GenerateRequest, models.Sandbox.limits, examples.request]
   - id: videos-generate.routing.generative-or-composed
     type: behavior
-    must: Every request is made either by a generative video model or as a composed video. When the request names a mode, that mode is used; the assistant in a chat is never offered the mode and cannot name one. Otherwise a routing model decides from the instruction, from the user's own message when the assistant passes it, and from how many pictures of which kind were given; exact texts, titles, lists, charts, slideshows of the given pictures and anything based on search results is composed, and invented moving footage is generative. A generative clip starts from at most one picture, so when the routing model chooses generative for two or more pictures, the video is made composed, still recorded as decided by the routing model. The decision is shown on the result. When the routing model cannot be reached the request fails explicitly and nothing is charged.
+    must: Every request is made either by a generative video model or as a composed video. When the request names a mode, that mode is used; the assistant in a chat is never offered the mode and cannot name one. Otherwise a routing model decides from the instruction, from the user's own message when the assistant passes it, and from how many pictures of which kind were given; exact texts, titles, lists, charts, slideshows of the given pictures and anything based on search results is composed, and invented moving footage is generative. A generative clip starts from at most one picture, so when the routing model chooses generative for two or more pictures or for any search result, the video is made composed, still recorded as decided by the routing model. The decision is shown on the result. When the routing model cannot be reached the request fails explicitly and nothing is charged.
     depends_on: [models.Routing, examples.routing]
   - id: videos-generate.composed.author-writes-composition
     type: behavior
-    must: For a composed video an author model that can see pictures receives the instruction, the format, a reduced copy of every picture with its exact pixel size, and the title of each search result, and writes one composition restricted to the allowed packages. The composition declares its length and size, names its parts, and shows the given pictures only from the files handed to it. The author never returns the video itself. When the first author model fails to produce a valid composition the next model in the fixed order is used.
+    must: For a composed video an author model that can see pictures receives the instruction, the format, a reduced copy of every picture with its exact pixel size, and the title and text of each search result, marked as untrusted data that is never followed as instructions, and writes one composition restricted to the allowed packages. The composition declares its length and size, names its parts, and shows the given pictures only from the files handed to it. The author never returns the video itself. When the first author model fails to produce a valid composition the next model in the fixed order is used.
     depends_on: [models.ComposedAuthoring, examples.composed]
   - id: videos-generate.composed.sandbox-render-and-correction
     type: invariant
@@ -161,11 +161,11 @@ assertions:
     depends_on: [models.GenerateRequest, examples.generative]
   - id: videos-generate.progress.shown-while-running
     type: behavior
-    must: From the moment the request is accepted the result card shows that the video is being made and names the current step (deciding, writing the composition, rendering, correcting, generating). Nothing unfinished is stored as chat content.
+    must: From the moment the request is accepted the result card shows that the video is being made and names the current step (deciding, writing the composition, rendering, correcting, generating). The card of a change of an existing video shows, while it runs, the picture of the video being changed, what kind of change it is and the change instruction. Nothing unfinished is stored as chat content.
     depends_on: [examples.progress]
   - id: videos-generate.result.video-with-timeline
     type: behavior
-    must: The finished result is one video with a thumbnail, its length and size, how it was made, the pictures it used as sources, and a timeline. A composed video's timeline lists its named parts with start and length and the texts that can be edited; a generative video's timeline holds one clip per generated clip. A composed video keeps its composition with the video.
+    must: The finished result is one video with a thumbnail, its length and size, how it was made, the pictures it used as sources, and a timeline. A composed video's timeline lists its named parts with start and length and the texts that can be edited; a generative video's timeline holds one clip per generated clip. A composed video keeps its composition with the video. In the chat the result card shows the thumbnail taken from the video with a play button and never a player; pressing it opens the video, which starts playing. The card names who made the video exactly once, as "Created by" followed by the model's display name.
     depends_on: [models.VideoResult, examples.result]
   - id: videos-generate.timeline.below-the-video
     type: behavior
@@ -189,7 +189,7 @@ assertions:
     depends_on: [models.Sandbox.runtime, models.VideoResult, examples.request]
   - id: videos-generate.billing.metered
     type: invariant
-    must: A generative clip is charged per second at its model's price. A composed video is charged the reported tokens of every author call at each model's price plus 5 credits per started minute of each sandbox render. The routing decision is not charged separately. Each version is charged exactly once for what that version used; a request that delivers no video is not charged.
+    must: A generative clip is charged per second at its model's price. A composed video is charged the reported tokens of every author call at each model's price plus 5 credits per started minute of each sandbox render. The routing decision is not charged separately. The price shown for the skill in the app settings names the price per second of every clip resolution, the token and render-minute price of composed videos, and that changes are charged only for what they add. Each version is charged exactly once for what that version used; a request that delivers no video is not charged.
     depends_on: [models.Sandbox.runtime, examples.billing]
   - id: videos-generate.surface.semantic-parity
     type: parity

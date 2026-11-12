@@ -1655,6 +1655,9 @@
         "text": "Generera",
         "description": {
           "text": "Skapa en kort video från din beskrivning och bilder i chatten, som AI-filmklipp eller som exakt sammansatt video."
+        },
+        "pricing_note": {
+          "text": "Genererade klipp: 34,5 (360p), 105 (720p), 156 (1080p) eller 313,5 (4K) krediter per sekund. Komponerade videor: de tokens som skrivmodellen använder plus 5 krediter per påbörjad renderingsminut. Ändringar debiteras bara för det de lägger till. Ingen debitering sker om ingen video levereras."
         }
       },
       "create": {
@@ -8238,6 +8241,24 @@
       },
       "pending_changes": {
         "text": "Väntande ändringar: {count}"
+      },
+      "created_by": {
+        "text": "Skapad av {model}"
+      },
+      "change_edit": {
+        "text": "Redigerar videon"
+      },
+      "change_extend_start": {
+        "text": "Förlänger videon i början"
+      },
+      "change_extend_end": {
+        "text": "Förlänger videon i slutet"
+      },
+      "progress_correcting_round": {
+        "text": "Åtgärdar ett renderingsfel (omgång {round})…"
+      },
+      "failed": {
+        "text": "Det gick inte att skapa videon"
       },
       "progress_deciding": {
         "text": "Bestämmer hur videon ska göras…"
@@ -15347,6 +15368,9 @@
           "credits_per_minute": {
             "text": "{credits} credits per minute"
           },
+          "credits_per_second": {
+            "text": "{credits} krediter per sekund"
+          },
           "credits_per_started_minute": {
             "text": "{credits} credits per started sandbox minute"
           },
@@ -15414,6 +15438,9 @@
           },
           "per_minute": {
             "text": "per minut"
+          },
+          "per_second": {
+            "text": "per sekund"
           },
           "servers": {
             "text": "Servrar"

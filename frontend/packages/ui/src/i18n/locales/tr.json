@@ -1655,6 +1655,9 @@
         "text": "Oluştur",
         "description": {
           "text": "Açıklamandan ve sohbetteki görsellerden yapay zeka çekimi ya da birebir oluşturulmuş kısa bir video yap."
+        },
+        "pricing_note": {
+          "text": "Üretilen klipler: saniye başına 34,5 (360p), 105 (720p), 156 (1080p) veya 313,5 (4K) kredi. Oluşturulan videolar: yazan modelin kullandığı token'lar artı başlanan her render dakikası için 5 kredi. Değişiklikler yalnızca ekledikleri kadar ücretlendirilir. Video teslim edilmezse ücret alınmaz."
         }
       },
       "create": {
@@ -8238,6 +8241,24 @@
       },
       "pending_changes": {
         "text": "Bekleyen değişiklikler: {count}"
+      },
+      "created_by": {
+        "text": "{model} tarafından oluşturuldu"
+      },
+      "change_edit": {
+        "text": "Video düzenleniyor"
+      },
+      "change_extend_start": {
+        "text": "Video baştan uzatılıyor"
+      },
+      "change_extend_end": {
+        "text": "Video sondan uzatılıyor"
+      },
+      "progress_correcting_round": {
+        "text": "İşleme sorunu düzeltiliyor (tur {round})…"
+      },
+      "failed": {
+        "text": "Video oluşturulamadı"
       },
       "progress_deciding": {
         "text": "Videonun nasıl yapılacağına karar veriliyor…"
@@ -15347,6 +15368,9 @@
           "credits_per_minute": {
             "text": "{credits} credits per minute"
           },
+          "credits_per_second": {
+            "text": "{credits} kredi saniye başına"
+          },
           "credits_per_started_minute": {
             "text": "{credits} credits per started sandbox minute"
           },
@@ -15414,6 +15438,9 @@
           },
           "per_minute": {
             "text": "dakika başına"
+          },
+          "per_second": {
+            "text": "saniye başına"
           },
           "servers": {
             "text": "Sunucular"

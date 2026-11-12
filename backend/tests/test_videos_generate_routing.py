@@ -98,6 +98,20 @@ async def test_generative_answer_for_one_picture_stays_generative(monkeypatch):
 
 
 # contract-test: supporting surface=gui.web assertions=videos-generate.routing.generative-or-composed
+@pytest.mark.asyncio
+async def test_text_only_results_are_counted_and_a_result_is_never_generative(monkeypatch):
+    seen = _stub_client(monkeypatch, answer=_choice("generative"))
+    decision = await routing.decide_route(
+        mode="auto", instructions="A short video about this article", picture_kinds=["search_result_text"],
+        secrets_manager=None, task_id="t",
+    )
+    assert decision == routing.RouteDecision("composed", routing.DECIDED_BY_MODEL)
+    assert seen["state"]["given_pictures"] == "no pictures; 1 search result without a picture (text only)"
+    assert routing.describe_pictures(["search_result", "search_result_text", "search_result_text"]) == (
+        "1 picture: 1 search_result; 2 search results without a picture (text only)")
+
+
+# contract-test: supporting surface=gui.web assertions=videos-generate.routing.generative-or-composed
 def test_assistant_tool_schema_does_not_offer_mode():
     """The assistant cannot name a mode in chat: the routing model decides from the request."""
     from pathlib import Path

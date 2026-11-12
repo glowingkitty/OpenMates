@@ -109,11 +109,15 @@ async function saveVideo(page: any, overlay: any, name: string, log: any) {
 
 /** Opens the newest finished video card in the chat; returns the fullscreen overlay. */
 async function openNewestVideo(page: any) {
+	// The card shows a thumbnail with a play button in its centre; pressing it opens the video, which starts playing.
 	const overlay = await openFullscreen(page, page.locator(FINISHED_VIDEO_CARD).last());
 	const media = overlay.getByTestId('video-generate-fullscreen');
 	await expect(media).toBeVisible({ timeout: 30_000 });
 	const video = overlay.getByTestId('video-generate-fullscreen-video');
 	await expect(video).toBeVisible({ timeout: 60_000 });
+	await expect
+		.poll(() => video.evaluate((element: HTMLVideoElement) => !element.paused && element.currentTime > 0), { timeout: 60_000 })
+		.toBe(true);
 	await expect
 		.poll(() => video.evaluate((element: HTMLVideoElement) => element.readyState), { timeout: 60_000 })
 		.toBeGreaterThanOrEqual(1);
@@ -177,11 +181,39 @@ async function openChangedVideo(page: any, overlay: any, previousDigest: string,
 	return current;
 }
 
-/** The card shows a progress step while the video is made; catching it is best effort. */
-async function screenshotProgress(page: any, screenshot: any, name: string) {
-	const progress = page.locator(`${VIDEO_CARD}:not([data-status="finished"])`).first();
-	const seen = await progress.waitFor({ state: 'visible', timeout: 60_000 }).then(() => true, () => false);
-	if (seen) await screenshot(page, name, { fullPage: false });
+/** While the video is made its request card names the current step. */
+async function screenshotProgress(page: any, screenshot: any, name: string, log: any) {
+	const step = page.locator('[data-testid="image-generate-request-model"][data-video-stage]:not([data-video-stage=""])').last();
+	await expect(step, 'the request card names the current step').toBeVisible({ timeout: 120_000 });
+	log(`progress step shown: ${await step.getAttribute('data-video-stage')} / ${(await step.textContent())?.trim()}`);
+	await screenshot(page, name, { fullPage: false });
+}
+
+/** The card of a running change shows the video being changed, the kind of change and the instruction. */
+async function expectChangeCard(page: any, screenshot: any, name: string, change: string, instruction: RegExp, log: any) {
+	const label = page.getByTestId('video-generate-request-change').last();
+	await expect(label, 'the change card names the kind of change').toBeVisible({ timeout: 180_000 });
+	await expect(label).toHaveAttribute('data-change', change);
+	const thumbnail = page.getByTestId('video-generate-request-source').last().getByTestId('video-generate-source-thumbnail');
+	await expect(thumbnail, 'the change card shows the video being changed').toBeVisible({ timeout: 30_000 });
+	expect(await thumbnail.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
+	await expect(page.getByTestId('image-generate-request-prompt').last()).toContainText(instruction);
+	log(`change card: ${(await label.textContent())?.trim()}`);
+	await screenshot(page, name, { fullPage: false });
+}
+
+/** The finished card: a frame of the video with a play button, no player, and the maker named once. */
+async function expectFinishedCard(page: any, log: any) {
+	const card = page.locator(FINISHED_VIDEO_CARD).last();
+	const thumbnail = card.getByTestId('video-generate-thumbnail');
+	await expect(thumbnail, 'the card shows a thumbnail from the video').toBeVisible({ timeout: 60_000 });
+	expect(await thumbnail.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
+	await expect(card.getByTestId('video-generate-play')).toBeVisible();
+	await expect(card.locator('video')).toHaveCount(0);
+	const text = (await card.innerText()).replace(/\s+/g, ' ');
+	expect(text.match(/Created by/g)?.length ?? 0, `the maker is named once in: ${text}`).toBe(1);
+	expect(text).not.toMatch(/gpt-6\.1-sol|gemini-omni/);
+	log(`finished card text: ${text}`);
 }
 
 test.describe('videos.generate chat', () => {
@@ -211,9 +243,10 @@ test.describe('videos.generate chat', () => {
 			await screenshot(page, 'web-results-found');
 
 			await sendWithGemini(page, COMPOSED_PROMPT, log, screenshot, 'video');
-			await screenshotProgress(page, screenshot, 'video-progress');
+			await screenshotProgress(page, screenshot, 'video-progress', log);
 			await expect(page.locator(FINISHED_VIDEO_CARD).first()).toBeVisible({ timeout: COMPOSED_TIMEOUT });
 			await expectReplyFromGemini(page, log, COMPOSED_TIMEOUT);
+			await expectFinishedCard(page, log);
 			await screenshot(page, 'video-card-finished');
 
 			overlay = await openNewestVideo(page);
@@ -265,6 +298,7 @@ test.describe('videos.generate chat', () => {
 			await expect.poll(() => userMessages.count(), { timeout: 60_000 }).toBeGreaterThan(before);
 			log('edit follow-up message sent');
 			await closeOverlay(page, overlay);
+			await expectChangeCard(page, screenshot, 'composed-change-card', 'edit', new RegExp(NEW_TEXT), log);
 			await expectNewReplyFromGemini(page, repliesBefore, log, CHANGE_TIMEOUT);
 			overlay = await openChangedVideo(page, overlay, firstDigest, CHANGE_TIMEOUT, log);
 			await screenshot(page, 'composed-version-two', { fullPage: false });
@@ -292,9 +326,10 @@ test.describe('videos.generate chat', () => {
 		let overlay = page.getByTestId('embed-fullscreen-overlay').last();
 		try {
 			await sendWithGemini(page, GENERATIVE_PROMPT, log, screenshot, 'clip');
-			await screenshotProgress(page, screenshot, 'clip-progress');
+			await screenshotProgress(page, screenshot, 'clip-progress', log);
 			await expect(page.locator(FINISHED_VIDEO_CARD).first()).toBeVisible({ timeout: GENERATIVE_TIMEOUT });
 			await expectReplyFromGemini(page, log, GENERATIVE_TIMEOUT);
+			await expectFinishedCard(page, log);
 			await screenshot(page, 'clip-card-finished');
 
 			overlay = await openNewestVideo(page);
@@ -317,6 +352,7 @@ test.describe('videos.generate chat', () => {
 			await expect.poll(() => userMessages.count(), { timeout: 60_000 }).toBeGreaterThan(before);
 			log('extend follow-up message sent');
 			await closeOverlay(page, overlay);
+			await expectChangeCard(page, screenshot, 'generative-change-card', 'extend_end', /camera rises above the fog/, log);
 			await expectNewReplyFromGemini(page, repliesBefore, log, CHANGE_TIMEOUT);
 			overlay = await openChangedVideo(page, overlay, firstDigest, CHANGE_TIMEOUT, log);
 			await expect(overlay.getByTestId('video-timeline').getByTestId('video-timeline-part')).toHaveCount(2, { timeout: 30_000 });

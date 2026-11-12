@@ -109,13 +109,15 @@ def _refs(images: Any) -> tuple[str, ...]:
     if images is None:
         return ()
     if not isinstance(images, (list, tuple)):
-        raise GenerateRequestError("images must be a list of exact embed_refs of pictures in this chat")
+        raise GenerateRequestError(
+            "images must be a list of exact embed_refs of pictures, search results or searches in this chat")
     if len(images) > MAX_IMAGES:
-        raise GenerateRequestError(f"at most {MAX_IMAGES} pictures can be used in one video")
+        raise GenerateRequestError(f"at most {MAX_IMAGES} pictures or search results can be named in one video")
     refs: list[str] = []
     for value in images:
         if not isinstance(value, str) or not value.strip():
-            raise GenerateRequestError("every entry of images must be the exact embed_ref of a picture in this chat")
+            raise GenerateRequestError(
+                "every entry of images must be the exact embed_ref of a picture, search result or search in this chat")
         refs.append(value.strip())
     return tuple(refs)
 

@@ -153,6 +153,15 @@ instructions:
       A video is changed only by that call, also when it is a composed,
       code-rendered video: never answer with a code diff, code snippet or file
       edit of its composition instead.
+  - instruction: |
+      When a video is about search results (web, news, image or video search),
+      pass in images the exact embed_ref of every result it is about, in the
+      order they should appear, also for results where you see no picture:
+      the skill gives the video author each result's picture (when it has one)
+      together with its title, description, source and date. When the user
+      means a whole earlier search ("from these news", "make a video of these
+      results"), pass that search's own embed_ref (for example news-search-…)
+      instead of listing every result. At most 12 references per video.
 skills:
   - id: generate
     anonymous_access: authenticated
@@ -164,15 +173,16 @@ skills:
       expose_get: true
       expose_post: true
     preprocessor_hint: >
-      Make any short video from a natural-language instruction, optionally with up to 12 pictures from
-      this chat (uploads, generated images, vector graphics, image/web/news/video search results with a
-      picture). Each request is made either as a generative clip (invented realistic or stylized footage,
+      Make any short video from a natural-language instruction, optionally with up to 12 references from
+      this chat (uploads, generated images, vector graphics, image/web/news/video search results with or
+      without a picture, or a whole search). Each request is made either as a generative clip (invented realistic or stylized footage,
       camera movement, animating one picture) or as a composed, code-rendered video (exact texts and
       titles, lists, numbers, charts, diagrams, slideshows or recaps of the given pictures, anything
       based on search results, two or more pictures). The skill decides the kind itself from
       the instructions and pictures. Pass the user's request in instructions without turning it into
       a cinematic prompt, and name the exact texts to show. When the video is based on search
-      results or other pictures in this chat, pass each one's exact embed_ref in images. To change an earlier result pass
+      results or other pictures in this chat, pass each one's exact embed_ref in images (results
+      without a visible picture too; the skill reads their pictures and texts itself). To change an earlier result pass
       its embed_ref as source_video with change edit, extend_start or extend_end.
       Do not use this for fake real-world footage, fake endorsements, public-figure
       likeness/persona/voice imitation, scams, spam, or watermark/detection evasion.
@@ -225,9 +235,12 @@ skills:
                 items:
                   type: string
                 description: >
-                  Optional exact embed_refs of pictures in this chat to use, in the order they should
-                  appear: uploads, generated images, vector graphics, or search results with a picture
-                  (image, web, news or video search). A generative clip can start from one picture only.
+                  Exact embed_refs of what the video shows or is about, in the order they should appear:
+                  uploads, generated images, vector graphics, and search results of image, web, news or
+                  video search. Pass every search result the video is based on, also when you see no
+                  picture for it: the skill reads each result's picture (when it has one) together with its
+                  title, description, source and date. The embed_ref of a whole search (e.g. a news search
+                  shown earlier) stands for all of its results. A generative clip can start from one picture only.
               mode:
                 # Not offered to the assistant: the routing model decides from the request itself.
                 x-assistant: false

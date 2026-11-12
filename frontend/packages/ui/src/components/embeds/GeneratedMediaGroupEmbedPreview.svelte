@@ -17,8 +17,8 @@
   import GeneratedMediaThumbnails from './GeneratedMediaThumbnails.svelte';
   import { generatedMediaChildIds } from './generatedMediaGroup';
   import { pinnedEmbedsOf } from '../../services/rustCore/embeds/messageEmbedVersion';
-
-  const VIDEO_STAGES = ['deciding', 'writing', 'rendering', 'correcting', 'generating'];
+  import VideoSourceThumbnail from './videos/VideoSourceThumbnail.svelte';
+  import { readVideoProgress, videoChangeText, videoStageText, type VideoChange, type VideoProgress, type VideoProgressStage } from './videos/videoGenerateCard';
 
   interface Props {
     id: string;
@@ -31,14 +31,20 @@
     prompt?: string;
     error?: string;
     /** Current step of a running videos.generate request (deciding, writing, rendering, correcting, generating). */
-    progressStage?: string;
+    progressStage?: VideoProgressStage;
+    /** 1-based round of the current videos.generate step. */
+    progressAttempt?: number;
+    /** Kind of change of an earlier video (edit, extend_start, extend_end). */
+    change?: VideoChange;
+    /** Embed id of the video being changed. */
+    sourceEmbedId?: string;
     taskId?: string;
     isMobile?: boolean;
     onFullscreen: () => void;
   }
 
   let {
-    id, appId, skillId, status, resultCount, childEmbedIds = [], prompt: promptProp, error = '', progressStage,
+    id, appId, skillId, status, resultCount, childEmbedIds = [], prompt: promptProp, error = '', progressStage, progressAttempt, change, sourceEmbedId,
     taskId, isMobile = false, onFullscreen,
   }: Props = $props();
   // The card is mounted once; later status changes of the parent arrive as updates.
@@ -57,16 +63,22 @@
   const childIds = $derived([...new Set([...(currentChildIds ?? childEmbedIds), ...pinnedIds])]);
   const count = $derived(Math.max(currentCount ?? 0, resultCount ?? 0, childIds.length));
 
-  // videos.generate names its current step on the parent card while it runs.
-  let videoStage = $state<string | undefined>(untrack(() => progressStage));
-  const videoStageKey = $derived(
-    appId === 'videos' && videoStage && VIDEO_STAGES.includes(videoStage) ? `embeds.video_generate.progress_${videoStage}` : null,
-  );
+  // videos.generate names its current step on the parent card while it runs. The
+  // steps arrive as processing updates of the result child (and of the parent
+  // itself when both share one id); a change of an earlier video also names the
+  // kind of change and the video being changed.
+  let videoProgress = $state<VideoProgress>(untrack(() => readVideoProgress({
+    progress_stage: progressStage, progress_attempt: progressAttempt, change, source_embed_id: sourceEmbedId,
+  })));
+  const translate = (key: string, options?: { values: Record<string, string> }) => $text(key, options);
+  const videoStageLabel = $derived(appId === 'videos' ? videoStageText(videoProgress, translate) : undefined);
+  const videoChangeLabel = $derived(appId === 'videos' ? videoChangeText(videoProgress.change, translate) : undefined);
+  const videoSourceId = $derived(appId === 'videos' ? videoProgress.sourceEmbedId : undefined);
 
   function handleUpdated(data: { decodedContent: Record<string, unknown> | null }) {
     const content = data.decodedContent;
     if (!content) return;
-    if (typeof content.progress_stage === 'string') videoStage = content.progress_stage;
+    if (appId === 'videos') videoProgress = readVideoProgress(content, videoProgress);
     if (content.status === 'processing' || content.status === 'finished' || content.status === 'error' || content.status === 'cancelled') {
       liveStatus = content.status;
     }
@@ -98,7 +110,7 @@
   // draft has something to look at, the card shows the request instead.
   let svgDraftState = $state<SvgDraftState>(EMPTY_SVG_DRAFT);
   const showSvgDraft = $derived(shownStatus === 'processing' && hasDrawableSvg(svgDraftState.draft));
-  const showRequest = $derived(shownStatus === 'processing' && !showSvgDraft && (!!prompt || !!videoStageKey));
+  const showRequest = $derived(shownStatus === 'processing' && !showSvgDraft && (!!prompt || !!videoStageLabel || !!videoChangeLabel));
   const draftStageLabelKey = $derived(svgDraftStageLabelKey(svgDraftState.stage));
   const modelLabel = $derived(request.model ? imageGenerationAttribution(request.model) : undefined);
   const FADE_MS = 350;
@@ -111,6 +123,7 @@
     const decoded = await decodeToonContent(toon) as Record<string, unknown> | null;
     if (!decoded) return;
     request = readGenerationRequest(decoded, request);
+    if (appId === 'videos') videoProgress = readVideoProgress(decoded, videoProgress);
     svgDraftState = mergeSvgDraft(svgDraftState, readSvgDraft(decoded));
     modifyState = mergeImageModify(modifyState, readImageModify(decoded));
   }
@@ -145,15 +158,22 @@
           {:else}
             <div class="request" data-testid="image-generate-request" data-stage={svgDraftState.stage}
                  out:fade={{ duration: FADE_MS }}>
-              {#if request.inputEmbedIds.length > 0}
+              {#if videoSourceId}
+                <div class="request-input video-source" data-testid="video-generate-request-source">
+                  <VideoSourceThumbnail embedId={videoSourceId} />
+                </div>
+              {:else if request.inputEmbedIds.length > 0}
                 <div class="request-input" data-testid="image-generate-request-input">
                   <GeneratedMediaThumbnails childEmbedIds={request.inputEmbedIds} />
                 </div>
               {/if}
               <div class="request-text">
-                <span class="request-model shimmer" data-testid="image-generate-request-model">
+                {#if videoChangeLabel}
+                  <span class="request-change" data-testid="video-generate-request-change" data-change={videoProgress.change}>{videoChangeLabel}</span>
+                {/if}
+                <span class="request-model shimmer" data-testid="image-generate-request-model" data-video-stage={videoProgress.stage}>
                   {draftStageLabelKey ? $text(draftStageLabelKey)
-                    : videoStageKey ? $text(videoStageKey)
+                    : videoStageLabel ? videoStageLabel
                     : modelLabel ? `${$text('embeds.image_generate.generating_via')} ${modelLabel}` : skillName}
                 </span>
                 {#if prompt}<p class="request-prompt shimmer" data-testid="image-generate-request-prompt">{prompt}</p>{/if}
@@ -183,6 +203,8 @@
   .request { position: absolute; inset: 0; display: flex; align-items: stretch; gap: var(--spacing-4); overflow: hidden; }
   .request-input { flex: 0 0 38%; min-width: 0; display: flex; }
   .request-text { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-2); overflow: hidden; }
+  .video-source { position: relative; overflow: hidden; border-radius: var(--radius-3); }
+  .request-change { flex: 0 0 auto; font-size: var(--font-size-tiny); line-height: 1.3; color: var(--color-font-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .request-model { flex: 0 0 auto; font-size: var(--font-size-tiny); line-height: 1.3; font-weight: 600; }
   .request-prompt { margin: 0; flex: 1 1 0; min-height: 0; font-size: var(--font-size-sm); line-height: 1.35; overflow: hidden; overflow-wrap: anywhere; }
   /* Same moving highlight as the processing status text in BasicInfosBar. */

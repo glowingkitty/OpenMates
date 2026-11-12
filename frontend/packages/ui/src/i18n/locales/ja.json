@@ -1655,6 +1655,9 @@
         "text": "生成",
         "description": {
           "text": "説明とチャット内の画像から、AI映像または正確に構成された動画として短い動画を作成します。"
+        },
+        "pricing_note": {
+          "text": "生成クリップ:1秒あたり 34.5(360p)、105(720p)、156(1080p)、313.5(4K)クレジット。構成動画:執筆モデルが使うトークンに加え、レンダリング開始した1分ごとに5クレジット。変更は追加分のみ課金されます。動画が届かなかった場合は課金されません。"
         }
       },
       "create": {
@@ -8238,6 +8241,24 @@
       },
       "pending_changes": {
         "text": "保留中の変更: {count}"
+      },
+      "created_by": {
+        "text": "{model} で作成"
+      },
+      "change_edit": {
+        "text": "動画を編集中"
+      },
+      "change_extend_start": {
+        "text": "動画の先頭を延長中"
+      },
+      "change_extend_end": {
+        "text": "動画の最後を延長中"
+      },
+      "progress_correcting_round": {
+        "text": "レンダリングの問題を修正中(ラウンド {round})…"
+      },
+      "failed": {
+        "text": "動画の生成に失敗しました"
       },
       "progress_deciding": {
         "text": "動画の作り方を決めています…"
@@ -15347,6 +15368,9 @@
           "credits_per_minute": {
             "text": "{credits} credits per minute"
           },
+          "credits_per_second": {
+            "text": "{credits} クレジット 1秒あたり"
+          },
           "credits_per_started_minute": {
             "text": "{credits} credits per started sandbox minute"
           },
@@ -15414,6 +15438,9 @@
           },
           "per_minute": {
             "text": "1分あたり"
+          },
+          "per_second": {
+            "text": "1秒あたり"
           },
           "servers": {
             "text": "サーバー"

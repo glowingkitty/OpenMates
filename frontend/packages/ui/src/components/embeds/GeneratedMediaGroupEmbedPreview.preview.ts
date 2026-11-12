@@ -2,6 +2,8 @@
 // Registers the same static child embeds the fullscreen fixture resolves, so the
 // parent card loads real thumbnails and the prompt like it does in a chat.
 import './GeneratedMediaGroupEmbedFullscreen.preview';
+// Registers the video a running change request changes (SOURCE_EMBED_ID).
+import { SOURCE_EMBED_ID } from './videos/VideoGenerateEmbedPreview.preview';
 
 const defaultProps = {
   id: '0e29d61f-c88d-489c-b4a0-d471d37ea365',
@@ -16,5 +18,14 @@ export const variants = {
   videoProgress: {
     ...defaultProps, appId: 'videos', status: 'processing' as const, resultCount: 0, childEmbedIds: [],
     prompt: 'A 20 second recap of this week\'s news', progressStage: 'rendering',
+  },
+  videoCorrecting: {
+    ...defaultProps, appId: 'videos', status: 'processing' as const, resultCount: 0, childEmbedIds: [],
+    prompt: 'A 20 second recap of this week\'s news', progressStage: 'correcting', progressAttempt: 2,
+  },
+  videoChange: {
+    ...defaultProps, appId: 'videos', status: 'processing' as const, resultCount: 0, childEmbedIds: [],
+    prompt: 'Make the headline of the budget scene bigger and use a warmer color', progressStage: 'writing',
+    change: 'edit', sourceEmbedId: SOURCE_EMBED_ID,
   },
 };

@@ -76,7 +76,8 @@
     .result-card.has-media:not(.text-first) { display: block; }
     .result-card.has-media .card-copy, .text-first .card-copy { position: absolute; inset: 0; justify-content: center; padding: 54px 48px 48px; }
     .result-card:not(.has-media):not(.text-first) .card-copy { justify-content: center; padding: 54px 48px 48px; }
-    .has-media .card-copy { right: 66.6667%; }
+    /* Same specificity as the inset rule above, so the copy keeps its left third and never runs over the media. */
+    .result-card.has-media .card-copy { right: 66.6667%; }
     .card-media, .text-first .card-media { position: absolute; display: block; inset: 0 0 0 33.3333%; }
     .card-media::after { display: none; }
     .has-media:not(.text-first) p { display: -webkit-box; -webkit-line-clamp: 4; }

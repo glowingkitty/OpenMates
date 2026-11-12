@@ -405,3 +405,77 @@ async def test_version_check_runs_before_the_frame_safety_check(world):
     with pytest.raises(generate_change.ChangeFailed):
         await _run(world, "edit", "- Trim the video: remove 1.0 s from the end")
     generate_pipeline.check_output_frames.assert_not_awaited()
+
+
+def world_calls(world):
+    """How often a clip model, the author, the sandbox render and the still model were used so far."""
+    return (world.omni.await_count, world.compose.await_count, world.render.await_count, world.still.await_count)
+
+
+async def _run_with_progress(world, change, instructions, duration=None):
+    from backend.apps.videos.tasks.generate_progress import VideoProgressPublisher
+
+    sent = []
+
+    class Service:
+        async def send_embed_data_to_client(self, **kwargs):
+            from toon_format import decode as toon_decode
+
+            sent.append((world_calls(world), kwargs, toon_decode(kwargs["content_toon"])))
+
+    progress = VideoProgressPublisher(Service(), skill_id="generate", embed_id="child-1", parent_embed_id="parent-1",
+                                      user_id="user-1", chat_id="chat-1", message_id="message-2",
+                                      instructions=instructions, input_embed_ids=[], log_prefix="[test]")
+    progress.mark_change(change, EMBED_ID)
+    await generate_change.run_change_request(_task(), _request(change, instructions, duration),
+                                             source_video_embed_id=EMBED_ID, arguments=_arguments(), progress=progress)
+    return sent
+
+
+# contract-test: supporting surface=rest_api assertions=videos-generate.progress.shown-while-running
+@pytest.mark.asyncio
+async def test_change_publishes_its_first_update_before_any_model_call(world):
+    sent = await _run_with_progress(world, "extend_end", "The sun rises over the hills", duration=4)
+    calls, kwargs, first = sent[0]
+    assert calls == (0, 0, 0, 0)
+    assert (first["change"], first["source_embed_id"], first["prompt"]) == (
+        "extend_end", EMBED_ID, "The sun rises over the hills")
+    assert (first["status"], first["progress_stage"], first["progress_attempt"]) == ("processing", "deciding", 1)
+    assert (kwargs["embed_id"], kwargs["parent_embed_id"], kwargs["status"]) == ("child-1", "parent-1", "processing")
+    assert "key" not in " ".join(first) and "http" not in str(first)
+
+
+# contract-test: supporting surface=rest_api assertions=videos-generate.progress.shown-while-running
+@pytest.mark.asyncio
+async def test_extend_end_of_a_generative_clip_goes_generating_then_rendering(world):
+    sent = await _run_with_progress(world, "extend_end", "More sunrise", duration=4)
+    assert [content["progress_stage"] for _calls, _kwargs, content in sent] == ["deciding", "generating", "rendering"]
+    assert {content["change"] for _c, _k, content in sent} == {"extend_end"}
+
+
+# contract-test: supporting surface=rest_api assertions=videos-generate.progress.shown-while-running
+@pytest.mark.asyncio
+async def test_edit_of_a_composed_video_shows_the_author_stages(world):
+    world.kept = _composed()
+
+    async def compose(request, *, on_stage, **_kwargs):
+        for stage in ("writing", "rendering", "correcting", "rendering"):
+            await on_stage(stage)
+        return _rendered(240, author="anthropic/claude-haiku-5-5")
+
+    world.compose.side_effect = compose
+    sent = await _run_with_progress(world, "edit", "Change the headline to Harbour festival")
+    contents = [content for _calls, _kwargs, content in sent]
+    assert [c["progress_stage"] for c in contents] == ["deciding", "writing", "rendering", "correcting", "rendering"]
+    assert [c["progress_attempt"] for c in contents] == [1, 1, 1, 2, 2]
+    assert {c["change"] for c in contents} == {"edit"} and {c["source_embed_id"] for c in contents} == {EMBED_ID}
+
+
+# contract-test: supporting surface=rest_api assertions=videos-generate.progress.shown-while-running
+def test_non_change_progress_content_is_unchanged():
+    from backend.apps.videos.tasks.generate_progress import processing_content
+
+    content = processing_content(skill_id="generate", instructions="A video", input_embed_ids=["a"],
+                                 stage="writing", attempt=1)
+    assert set(content) == {"app_id", "skill_id", "type", "status", "prompt", "input_embed_ids", "progress_stage",
+                            "progress_attempt"}

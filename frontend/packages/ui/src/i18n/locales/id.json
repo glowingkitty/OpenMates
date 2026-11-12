@@ -1655,6 +1655,9 @@
         "text": "Buat",
         "description": {
           "text": "Buat video pendek dari deskripsimu dan gambar di obrolan, sebagai rekaman AI atau video susunan yang tepat."
+        },
+        "pricing_note": {
+          "text": "Klip yang dihasilkan: 34,5 (360p), 105 (720p), 156 (1080p) atau 313,5 (4K) kredit per detik. Video komposisi: token yang dipakai model penulis ditambah 5 kredit per menit rendering yang dimulai. Perubahan hanya dikenai biaya untuk yang ditambahkannya. Tidak ada biaya jika tidak ada video yang dikirim."
         }
       },
       "create": {
@@ -8238,6 +8241,24 @@
       },
       "pending_changes": {
         "text": "Perubahan tertunda: {count}"
+      },
+      "created_by": {
+        "text": "Dibuat oleh {model}"
+      },
+      "change_edit": {
+        "text": "Mengedit video"
+      },
+      "change_extend_start": {
+        "text": "Memperpanjang video di awal"
+      },
+      "change_extend_end": {
+        "text": "Memperpanjang video di akhir"
+      },
+      "progress_correcting_round": {
+        "text": "Memperbaiki masalah render (putaran {round})…"
+      },
+      "failed": {
+        "text": "Gagal membuat video"
       },
       "progress_deciding": {
         "text": "Menentukan cara membuat video…"
@@ -15347,6 +15368,9 @@
           "credits_per_minute": {
             "text": "{credits} credits per minute"
           },
+          "credits_per_second": {
+            "text": "{credits} kredit per detik"
+          },
           "credits_per_started_minute": {
             "text": "{credits} credits per started sandbox minute"
           },
@@ -15414,6 +15438,9 @@
           },
           "per_minute": {
             "text": "per menit"
+          },
+          "per_second": {
+            "text": "per detik"
           },
           "servers": {
             "text": "Server"

@@ -7,10 +7,11 @@ of which kind were given. The pictures themselves are never sent. When Jev
 cannot be reached the request fails explicitly (``RoutingUnavailable``) before
 anything is charged; there is no default route.
 
-A generative clip starts from at most one picture. The routing prompt says so,
-and the rule is also applied after the answer: when the model picks generative
-for two or more pictures, the request is made as a composed video (still
-recorded as decided by the routing model).
+A generative clip starts from at most one picture and never from a search
+result. The routing prompt says so, and the rule is also applied after the
+answer: when the model picks generative for two or more inputs or for any
+search result (with or without a picture), the request is made as a composed
+video (still recorded as decided by the routing model).
 """
 
 from __future__ import annotations
@@ -28,7 +29,10 @@ ROUTING_TASK = "video_route"
 DECIDED_BY_REQUEST = "request_mode"
 DECIDED_BY_MODEL = "routing_model"
 MAX_GENERATIVE_PICTURES = 1
-PICTURE_KINDS = ("image", "search_result")  # an owned picture (upload, generated, vector) or a search result
+# An owned picture (upload, generated, vector), a search result with its picture, or one used through its text only.
+PICTURE_KINDS = ("image", "search_result", "search_result_text")
+TEXT_ONLY_KIND = "search_result_text"
+RESULT_KINDS = frozenset({"search_result", TEXT_ONLY_KIND})
 
 ROUTE_CRITERIA = {
     MODE_COMPOSED: (
@@ -54,12 +58,20 @@ class RouteDecision:
 
 
 def describe_pictures(kinds: Sequence[str]) -> str:
-    """Plain count and kinds of the given pictures, e.g. "4 pictures: 1 image, 3 search_result"."""
-    if not kinds:
-        return "no pictures"
-    counts = Counter(kinds)
+    """Plain count and kinds of the given inputs, e.g. "4 pictures: 1 image, 3 search_result".
+
+    Search results used through their text only are counted apart:
+    "1 picture: 1 search_result; 3 search results without a picture (text only)".
+    """
+    pictures = [kind for kind in kinds if kind != TEXT_ONLY_KIND]
+    text_only = len(kinds) - len(pictures)
+    counts = Counter(pictures)
     parts = ", ".join(f"{counts[kind]} {kind}" for kind in sorted(counts))
-    return f"{len(kinds)} picture{'s' if len(kinds) != 1 else ''}: {parts}"
+    described = f"{len(pictures)} picture{'s' if len(pictures) != 1 else ''}: {parts}" if pictures else "no pictures"
+    if text_only:
+        described += (f"; {text_only} search result{'s' if text_only != 1 else ''} without a picture "
+                      "(text only)")
+    return described
 
 
 async def decide_route(*, mode: str, instructions: str, picture_kinds: Sequence[str], secrets_manager: Any,
@@ -90,7 +102,7 @@ async def decide_route(*, mode: str, instructions: str, picture_kinds: Sequence[
                 "Choose composed for exact texts, titles, lists, charts, slideshows of the given pictures, "
                 "anything based on search results or two or more pictures; choose generative for invented "
                 "moving footage. A generative clip can start from at most one picture: with two or more given "
-                "pictures the video is always composed."
+                "pictures or any given search result the video is always composed."
             ),
             "criteria": dict(ROUTE_CRITERIA),
         },
@@ -106,7 +118,9 @@ async def decide_route(*, mode: str, instructions: str, picture_kinds: Sequence[
     if not isinstance(answer, ChoiceAnswer) or answer.choice not in ROUTE_CRITERIA:
         raise RoutingUnavailable("the routing model returned no valid route")
     route = answer.choice
-    if route == MODE_GENERATIVE and len(picture_kinds) > MAX_GENERATIVE_PICTURES:
+    if route == MODE_GENERATIVE and (len(picture_kinds) > MAX_GENERATIVE_PICTURES
+                                     or any(kind in RESULT_KINDS for kind in picture_kinds)):
+        # A clip starts from at most one picture and never from a search result, so these are composed.
         logger.info("[%s] Routing model chose generative for %s; made as composed", task_id,
                     describe_pictures(picture_kinds))
         route = MODE_COMPOSED

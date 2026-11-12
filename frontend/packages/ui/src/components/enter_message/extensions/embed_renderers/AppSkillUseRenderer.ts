@@ -59,6 +59,7 @@ import Model3DResultEmbedPreview from "../../../embeds/models3d/Model3DResultEmb
 import MusicGenerateEmbedPreview from "../../../embeds/music/MusicGenerateEmbedPreview.svelte";
 import AudioGenerateEmbedPreview from "../../../embeds/audio/AudioGenerateEmbedPreview.svelte";
 import VideoGenerateEmbedPreview from "../../../embeds/videos/VideoGenerateEmbedPreview.svelte";
+import { videoGenerateCardProps } from "../../../embeds/videos/videoGenerateCard";
 import VideoCreateEmbedPreview from "../../../embeds/videos/VideoCreateEmbedPreview.svelte";
 import ImageViewEmbedPreview from "../../../embeds/images/ImageViewEmbedPreview.svelte";
 import PdfViewEmbedPreview from "../../../embeds/pdf/PdfViewEmbedPreview.svelte";
@@ -4387,7 +4388,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
   }
 
   /**
-   * Render generated video embeds with the dedicated video player preview.
+   * Render generated video embeds with the thumbnail card (play opens the fullscreen player).
    */
   private renderVideoGenerateComponent(
     attrs: EmbedNodeAttributes,
@@ -4410,7 +4411,6 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const files = decodedContent?.files || undefined;
     const aesKey = decodedContent?.aes_key || "";
     const aesNonce = decodedContent?.aes_nonce || "";
-    const previewVideoUrl = decodedContent?.previewVideoUrl || decodedContent?.preview_video_url || "";
     const previewImageUrl = decodedContent?.previewImageUrl || decodedContent?.preview_image_url || "";
     const error = decodedContent?.error || "";
 
@@ -4448,10 +4448,10 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           files,
           aesKey,
           aesNonce,
-          previewVideoUrl,
           previewImageUrl,
           status: status as "processing" | "finished" | "error",
           error,
+          ...videoGenerateCardProps(decodedContent),
           taskId,
           isMobile: false,
           onFullscreen: handleFullscreen,

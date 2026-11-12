@@ -1655,6 +1655,9 @@
         "text": "Générer",
         "description": {
           "text": "Crée une courte vidéo à partir de ta description et des images du chat, en images IA ou en vidéo composée précise."
+        },
+        "pricing_note": {
+          "text": "Clips générés : 34,5 (360p), 105 (720p), 156 (1080p) ou 313,5 (4K) crédits par seconde. Vidéos composées : les tokens du modèle rédacteur plus 5 crédits par minute de rendu commencée. Les modifications ne sont facturées que pour ce qu'elles ajoutent. Aucun frais si aucune vidéo n'est livrée."
         }
       },
       "create": {
@@ -8265,6 +8268,24 @@
       },
       "pending_changes": {
         "text": "Modifications en attente : {count}"
+      },
+      "created_by": {
+        "text": "Créé par {model}"
+      },
+      "change_edit": {
+        "text": "Modification de la vidéo"
+      },
+      "change_extend_start": {
+        "text": "Prolongation de la vidéo au début"
+      },
+      "change_extend_end": {
+        "text": "Prolongation de la vidéo à la fin"
+      },
+      "progress_correcting_round": {
+        "text": "Correction d'un problème de rendu (tour {round})…"
+      },
+      "failed": {
+        "text": "Échec de la génération de la vidéo"
       },
       "progress_deciding": {
         "text": "Choix de la façon de créer la vidéo…"
@@ -15374,6 +15395,9 @@
           "credits_per_minute": {
             "text": "{credits} credits per minute"
           },
+          "credits_per_second": {
+            "text": "{credits} crédits par seconde"
+          },
           "credits_per_started_minute": {
             "text": "{credits} credits per started sandbox minute"
           },
@@ -15441,6 +15465,9 @@
           },
           "per_minute": {
             "text": "par minute"
+          },
+          "per_second": {
+            "text": "par seconde"
           },
           "servers": {
             "text": "Serveurs"

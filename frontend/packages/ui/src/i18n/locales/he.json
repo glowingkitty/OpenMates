@@ -1655,6 +1655,9 @@
         "text": "יצירה",
         "description": {
           "text": "יצירת סרטון קצר מהתיאור שלך ומתמונות בצ'אט, כצילומי AI או כסרטון מורכב מדויק."
+        },
+        "pricing_note": {
+          "text": "קליפים שנוצרו: 34.5 (360p), 105 (720p), 156 (1080p) או 313.5 (4K) קרדיטים לשנייה. סרטונים מורכבים: הטוקנים שמודל הכתיבה משתמש בהם ועוד 5 קרדיטים לכל דקת רינדור שהתחילה. שינויים מחויבים רק על מה שהם מוסיפים. אין חיוב כאשר לא נמסר סרטון."
         }
       },
       "create": {
@@ -8238,6 +8241,24 @@
       },
       "pending_changes": {
         "text": "שינויים ממתינים: {count}"
+      },
+      "created_by": {
+        "text": "נוצר על ידי {model}"
+      },
+      "change_edit": {
+        "text": "עורך את הסרטון"
+      },
+      "change_extend_start": {
+        "text": "מאריך את הסרטון בהתחלה"
+      },
+      "change_extend_end": {
+        "text": "מאריך את הסרטון בסוף"
+      },
+      "progress_correcting_round": {
+        "text": "מתקן בעיית עיבוד (סבב {round})…"
+      },
+      "failed": {
+        "text": "יצירת הסרטון נכשלה"
       },
       "progress_deciding": {
         "text": "מחליט איך ליצור את הסרטון…"
@@ -15347,6 +15368,9 @@
           "credits_per_minute": {
             "text": "{credits} credits per minute"
           },
+          "credits_per_second": {
+            "text": "{credits} קרדיטים לשנייה"
+          },
           "credits_per_started_minute": {
             "text": "{credits} credits per started sandbox minute"
           },
@@ -15414,6 +15438,9 @@
           },
           "per_minute": {
             "text": "לדקה"
+          },
+          "per_second": {
+            "text": "לשנייה"
           },
           "servers": {
             "text": "שרתים"

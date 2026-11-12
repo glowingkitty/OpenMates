@@ -1655,6 +1655,9 @@
         "text": "Generovat",
         "description": {
           "text": "Vytvoř krátké video z popisu a obrázků v chatu, jako AI záběry nebo přesně sestavené video."
+        },
+        "pricing_note": {
+          "text": "Generované klipy: 34,5 (360p), 105 (720p), 156 (1080p) nebo 313,5 (4K) kreditu za sekundu. Složená videa: tokeny, které použije píšící model, plus 5 kreditů za každou započatou minutu renderování. Změny se účtují jen za to, co přidávají. Pokud není doručeno žádné video, nic se neúčtuje."
         }
       },
       "create": {
@@ -8238,6 +8241,24 @@
       },
       "pending_changes": {
         "text": "Čekající změny: {count}"
+      },
+      "created_by": {
+        "text": "Vytvořeno pomocí {model}"
+      },
+      "change_edit": {
+        "text": "Úprava videa"
+      },
+      "change_extend_start": {
+        "text": "Prodlužování videa na začátku"
+      },
+      "change_extend_end": {
+        "text": "Prodlužování videa na konci"
+      },
+      "progress_correcting_round": {
+        "text": "Opravuji chybu vykreslení (kolo {round})…"
+      },
+      "failed": {
+        "text": "Vytvoření videa se nezdařilo"
       },
       "progress_deciding": {
         "text": "Rozhoduji, jak video vytvořit…"
@@ -15347,6 +15368,9 @@
           "credits_per_minute": {
             "text": "{credits} credits per minute"
           },
+          "credits_per_second": {
+            "text": "{credits} kreditů za sekundu"
+          },
           "credits_per_started_minute": {
             "text": "{credits} credits per started sandbox minute"
           },
@@ -15414,6 +15438,9 @@
           },
           "per_minute": {
             "text": "za minutu"
+          },
+          "per_second": {
+            "text": "za sekundu"
           },
           "servers": {
             "text": "Servery"

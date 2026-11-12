@@ -27,6 +27,8 @@ from backend.apps.images.vector_author import VECTOR_AUTHOR_MODELS
 from backend.apps.videos.composed.contract import extract_source, frame_size
 from backend.apps.videos.composed.models import (
     INPUT_KINDS,
+    MAX_SOURCES,
+    SOURCE_KINDS,
     AuthorUsage,
     ComposedInputError,
     ComposedRequest,
@@ -72,6 +74,11 @@ def _validate_request(request: ComposedRequest) -> str:
         raise ComposedInputError("a composed video lasts between 2 and 60 seconds")
     if len(request.inputs) > MAX_INPUTS:
         raise ComposedInputError(f"at most {MAX_INPUTS} pictures can be used")
+    if len(request.sources) > MAX_SOURCES:
+        raise ComposedInputError(f"at most {MAX_SOURCES} search results without a picture can be used")
+    for source in request.sources:
+        if source.kind not in SOURCE_KINDS or not (source.title.strip() or source.text.strip()):
+            raise ComposedInputError("every source text needs a title or text of a search result")
     names = [item.name for item in request.inputs]
     if len(set(names)) != len(names):
         raise ComposedInputError("every input needs its own file name")
@@ -130,7 +137,8 @@ async def compose_video(
         stream_fn = call_main_llm_stream
     first = build_author_message(instructions=instructions, aspect_ratio=request.aspect_ratio,
                                  duration_seconds=request.duration_seconds, inputs=request.inputs,
-                                 previews=previews, previous_source=request.previous_source)
+                                 previews=previews, previous_source=request.previous_source,
+                                 sources=request.sources)
     usage: list[AuthorUsage] = []
     failures: list[str] = []
     provider_failures = 0

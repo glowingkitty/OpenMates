@@ -1655,6 +1655,9 @@
         "text": "Tạo",
         "description": {
           "text": "Tạo video ngắn từ mô tả của bạn và hình ảnh trong cuộc trò chuyện, dưới dạng cảnh quay AI hoặc video dựng chính xác."
+        },
+        "pricing_note": {
+          "text": "Clip được tạo: 34,5 (360p), 105 (720p), 156 (1080p) hoặc 313,5 (4K) credit mỗi giây. Video dựng bằng mã: token mà mô hình viết sử dụng cộng 5 credit cho mỗi phút kết xuất đã bắt đầu. Thay đổi chỉ bị tính phí cho phần được thêm. Không bị tính phí nếu không có video nào được giao."
         }
       },
       "create": {
@@ -8238,6 +8241,24 @@
       },
       "pending_changes": {
         "text": "Thay đổi đang chờ: {count}"
+      },
+      "created_by": {
+        "text": "Được tạo bởi {model}"
+      },
+      "change_edit": {
+        "text": "Đang chỉnh sửa video"
+      },
+      "change_extend_start": {
+        "text": "Đang kéo dài video ở đầu"
+      },
+      "change_extend_end": {
+        "text": "Đang kéo dài video ở cuối"
+      },
+      "progress_correcting_round": {
+        "text": "Đang sửa lỗi kết xuất (vòng {round})…"
+      },
+      "failed": {
+        "text": "Tạo video thất bại"
       },
       "progress_deciding": {
         "text": "Đang quyết định cách tạo video…"
@@ -15347,6 +15368,9 @@
           "credits_per_minute": {
             "text": "{credits} credits per minute"
           },
+          "credits_per_second": {
+            "text": "{credits} credit mỗi giây"
+          },
           "credits_per_started_minute": {
             "text": "{credits} credits per started sandbox minute"
           },
@@ -15414,6 +15438,9 @@
           },
           "per_minute": {
             "text": "mỗi phút"
+          },
+          "per_second": {
+            "text": "mỗi giây"
           },
           "servers": {
             "text": "Máy chủ"

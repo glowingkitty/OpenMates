@@ -172,7 +172,10 @@
         }
 
         if (pricing.per_second !== undefined) {
-            parts.push(`${pricing.per_second} ${$text('common.credits')} / second`);
+            parts.push(
+                $text('settings.app_store.skills.pricing.credits_per_second')
+                    .replace('{credits}', String(pricing.per_second))
+            );
         }
         
         return parts.length > 0 ? parts.join(', ') : `1 ${$text('common.credits')} / request`;
@@ -215,6 +218,17 @@
             }
         }
         return examples;
+    });
+
+    /**
+     * Optional skill-specific pricing note, read from `<name_translation_key>.pricing_note`.
+     * Only shown when that translation exists (same convention as the how-to-use examples).
+     */
+    let pricingNote = $derived.by(() => {
+        if (!skill?.name_translation_key) return '';
+        const key = `${skill.name_translation_key}.pricing_note`;
+        const translated = $text(key);
+        return translated && translated !== key && !translated.startsWith('[T:') ? translated : '';
     });
 
     /**
@@ -416,6 +430,11 @@
                             {$text('settings.app_store.skills.pricing.token_usage_note')}
                         </SettingsInfoBox>
                     {/if}
+                    {#if pricingNote}
+                        <SettingsInfoBox type="info">
+                            <span data-testid="skill-pricing-note">{pricingNote}</span>
+                        </SettingsInfoBox>
+                    {/if}
                 </div>
             </div>
 
@@ -529,6 +548,11 @@
                     {#if skill?.pricing?.tokens}
                         <SettingsInfoBox type="info">
                             {$text('settings.app_store.skills.pricing.token_usage_note')}
+                        </SettingsInfoBox>
+                    {/if}
+                    {#if pricingNote}
+                        <SettingsInfoBox type="info">
+                            <span data-testid="skill-pricing-note">{pricingNote}</span>
                         </SettingsInfoBox>
                     {/if}
                 </div>

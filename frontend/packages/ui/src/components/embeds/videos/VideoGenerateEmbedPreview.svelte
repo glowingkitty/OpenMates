@@ -1,132 +1,141 @@
 <!--
   frontend/packages/ui/src/components/embeds/videos/VideoGenerateEmbedPreview.svelte
 
-  Preview for videos.generate embeds. Generated videos are encrypted in S3 and
-  decrypted client-side before playback, matching generated image/audio embeds.
+  Result card of a videos.generate video. The card never loads the MP4: it shows
+  the video's still image (`files.thumbnail`, decrypted client-side with the
+  video's AES key, or a public poster) under a round play button that opens the
+  fullscreen player, which starts playing. The maker is named once as
+  "Created by <model>"; the meta line holds only duration and resolution.
+
+  While a request runs the card names the current step. A change of an earlier
+  video (edit / extend) shows that video's dimmed thumbnail, the kind of change
+  and the change instruction.
 -->
 
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import ResultEmbedCard from '../ResultEmbedCard.svelte';
+  import VideoSourceThumbnail from './VideoSourceThumbnail.svelte';
   import { text } from '@repo/ui';
-  import { createAudioUrlOwner } from '../audio/audioEmbedCrypto';
-  const audioUrlOwner = createAudioUrlOwner();
-  const fetchAndDecryptAudio = audioUrlOwner.fetch;
-  const releaseCachedAudio = audioUrlOwner.release;
-  onDestroy(audioUrlOwner.destroy);
-  import { hasMediaEncryptionMetadata } from '../../../services/encryption/mediaEncryption';
+  import { createImageUrlOwner } from '../images/imageEmbedCrypto';
+  import { formatSeconds } from './videoTimelineModel';
+  import {
+    EMPTY_VIDEO_PROGRESS, loadVideoThumbnail, readVideoProgress, videoChangeText, videoMakerName, videoStageText,
+    type VideoChange, type VideoFiles, type VideoProgress, type VideoProgressStage,
+  } from './videoGenerateCard';
 
-  interface VideoFileVariant {
-    s3_key: string;
-    size_bytes?: number;
-    format?: string;
-    mime_type?: string;
-    duration_seconds?: number;
-    aes_nonce?: string;
-    encryption?: string;
-  }
+  type Status = 'processing' | 'finished' | 'error';
 
   interface Props {
     id: string;
     prompt?: string;
     model?: string;
+    /** Author model of a composed video (e.g. "gpt-6.1-sol"). */
+    authorModel?: string;
+    /** "generative" | "composed". */
+    madeBy?: string;
     durationSeconds?: number;
     resolution?: string;
     s3BaseUrl?: string;
-    files?: { original?: VideoFileVariant };
+    files?: VideoFiles;
     aesKey?: string;
     aesNonce?: string;
-    previewVideoUrl?: string;
+    /** Public poster (fixtures, store examples); preferred over the encrypted thumbnail. */
     previewImageUrl?: string;
-    status: 'processing' | 'finished' | 'error';
+    status: Status;
     error?: string;
+    progressStage?: VideoProgressStage;
+    progressAttempt?: number;
+    change?: VideoChange;
+    sourceEmbedId?: string;
     taskId?: string;
     isMobile?: boolean;
     onFullscreen: () => void;
   }
 
   let {
-    id, prompt = '', model = '', durationSeconds, resolution = '', s3BaseUrl = '', files,
-    aesKey = '', aesNonce = '', previewVideoUrl = '', previewImageUrl = '', status, error = '', taskId, isMobile = false, onFullscreen,
+    id, prompt = '', model = '', authorModel = '', madeBy = '', durationSeconds, resolution = '', s3BaseUrl = '', files,
+    aesKey = '', aesNonce = '', previewImageUrl = '', status, error = '', progressStage, progressAttempt, change,
+    sourceEmbedId, taskId, isMobile = false, onFullscreen,
   }: Props = $props();
 
-  let videoUrl = $state<string | undefined>();
-  let videoError = $state<string | undefined>();
-  let retainedS3Key: string | undefined;
   const skillName = $text('app_skills.videos.generate');
+  const imageOwner = createImageUrlOwner();
+  onDestroy(imageOwner.destroy);
 
-  let updatedStatus = $state<'processing' | 'finished' | 'error' | undefined>();
-  let updatedPrompt = $state<string | undefined>();
-  let updatedModel = $state<string | undefined>();
-  let updatedDurationSeconds = $state<number | undefined>();
-  let updatedResolution = $state<string | undefined>();
-  let updatedS3BaseUrl = $state<string | undefined>();
-  let updatedFiles = $state<{ original?: VideoFileVariant } | undefined>();
-  let updatedAesKey = $state<string | undefined>();
-  let updatedAesNonce = $state<string | undefined>();
-  let updatedPreviewImageUrl = $state<string | undefined>();
-  let updatedError = $state<string | undefined>();
+  let updatedStatus = $state<Status | undefined>();
+  let updated = $state<Record<string, unknown>>({});
+  let updatedProgress = $state<VideoProgress | undefined>();
+
+  function pick<T>(key: string, kind: 'string' | 'number' | 'object', fallback: T): T {
+    const value = updated[key];
+    if (kind === 'object') return (typeof value === 'object' && value !== null ? value : fallback) as T;
+    return (typeof value === kind ? value : fallback) as T;
+  }
 
   const currentStatus = $derived(updatedStatus ?? status);
-  const currentPrompt = $derived(updatedPrompt ?? prompt);
-  const currentModel = $derived(updatedModel ?? model);
-  const currentDurationSeconds = $derived(updatedDurationSeconds ?? durationSeconds);
-  const currentResolution = $derived(updatedResolution ?? resolution);
-  const currentS3BaseUrl = $derived(updatedS3BaseUrl ?? s3BaseUrl);
-  const currentFiles = $derived(updatedFiles ?? files);
-  const currentAesKey = $derived(updatedAesKey ?? aesKey);
-  const currentAesNonce = $derived(updatedAesNonce ?? aesNonce);
-  const currentPreviewImageUrl = $derived(updatedPreviewImageUrl ?? previewImageUrl);
-  const currentError = $derived(updatedError ?? error);
+  const currentPrompt = $derived(pick('prompt', 'string', prompt));
+  const currentModel = $derived(pick('model', 'string', model));
+  const currentAuthorModel = $derived(pick('author_model', 'string', authorModel));
+  const currentMadeBy = $derived(pick('made_by', 'string', madeBy));
+  const currentDurationSeconds = $derived(pick<number | undefined>('duration_seconds', 'number', durationSeconds));
+  const currentResolution = $derived(pick('resolution', 'string', resolution));
+  const currentS3BaseUrl = $derived(pick('s3_base_url', 'string', s3BaseUrl));
+  const currentFiles = $derived(pick<VideoFiles | undefined>('files', 'object', files));
+  const currentAesKey = $derived(pick('aes_key', 'string', aesKey));
+  const currentAesNonce = $derived(pick('aes_nonce', 'string', aesNonce));
+  const currentPreviewImageUrl = $derived(pick('previewImageUrl', 'string', pick('preview_image_url', 'string', previewImageUrl)));
+  const currentError = $derived(pick('error', 'string', error));
+  const progress = $derived(updatedProgress ?? readVideoProgress({
+    progress_stage: progressStage, progress_attempt: progressAttempt, change, source_embed_id: sourceEmbedId,
+  }, EMPTY_VIDEO_PROGRESS));
 
+  const translate = (key: string, options?: { values: Record<string, string> }) => $text(key, options);
+  const processing = $derived(currentStatus === 'processing');
+  const changeLabel = $derived(processing ? videoChangeText(progress.change, translate) : undefined);
+  const stageText = $derived(processing ? (videoStageText(progress, translate) ?? $text('embeds.processing')) : undefined);
+  const maker = $derived(videoMakerName({ model: currentModel, authorModel: currentAuthorModel, madeBy: currentMadeBy }));
+  const sourceLabel = $derived(processing
+    ? changeLabel
+    : (currentStatus === 'finished' && maker ? $text('embeds.video_generate.created_by', { values: { model: maker } }) : undefined));
+  const metaLine = $derived(
+    processing ? stageText
+      : currentStatus === 'error' ? (currentError || $text('embeds.video_generate.failed'))
+      : [currentDurationSeconds ? formatSeconds(currentDurationSeconds) : '', currentResolution].filter(Boolean).join(' · ') || undefined,
+  );
+  const showSource = $derived(processing && !!progress.sourceEmbedId);
+
+  let thumbnailUrl = $state<string | undefined>();
   $effect(() => {
-    if (currentStatus === 'finished' && previewVideoUrl && videoUrl !== previewVideoUrl) {
-      videoUrl = previewVideoUrl;
-      return;
-    }
-    if (currentStatus === 'finished' && !videoUrl && currentFiles?.original?.s3_key && currentS3BaseUrl && currentAesKey && hasMediaEncryptionMetadata(currentFiles.original, currentAesNonce)) {
-      loadVideo();
-    }
+    const source = {
+      previewImageUrl: currentPreviewImageUrl, s3BaseUrl: currentS3BaseUrl, files: currentFiles,
+      aesKey: currentAesKey, aesNonce: currentAesNonce,
+    };
+    if (currentStatus !== 'finished') { thumbnailUrl = undefined; return; }
+    let cancelled = false;
+    loadVideoThumbnail(source, imageOwner)
+      .then((url) => { if (!cancelled) thumbnailUrl = url; })
+      .catch((err) => {
+        // The play button stays on the neutral surface; fullscreen still loads the video.
+        console.error('[VideoGenerateEmbedPreview] Failed to load the video thumbnail:', err);
+        if (!cancelled) thumbnailUrl = undefined;
+      });
+    return () => { cancelled = true; };
   });
-
-  onDestroy(() => {
-    if (retainedS3Key) releaseCachedAudio(retainedS3Key);
-  });
-
-  async function loadVideo() {
-    const file = currentFiles?.original;
-    if (!file?.s3_key) return;
-    try {
-      videoError = undefined;
-      videoUrl = await fetchAndDecryptAudio(currentS3BaseUrl, file.s3_key, currentAesKey, currentAesNonce, file.mime_type || 'video/mp4', file);
-      retainedS3Key = file.s3_key;
-    } catch (err) {
-      videoError = err instanceof Error ? err.message : 'Failed to load video';
-    }
-  }
 
   function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> }) {
-    const decoded = data.decodedContent;
-    updatedStatus = (decoded.status as 'processing' | 'finished' | 'error') || (data.status as 'processing' | 'finished' | 'error') || currentStatus;
-    updatedPrompt = typeof decoded.prompt === 'string' ? decoded.prompt : updatedPrompt;
-    updatedModel = typeof decoded.model === 'string' ? decoded.model : updatedModel;
-    updatedDurationSeconds = typeof decoded.duration_seconds === 'number' ? decoded.duration_seconds : updatedDurationSeconds;
-    updatedResolution = typeof decoded.resolution === 'string' ? decoded.resolution : updatedResolution;
-    updatedS3BaseUrl = typeof decoded.s3_base_url === 'string' ? decoded.s3_base_url : updatedS3BaseUrl;
-    updatedFiles = typeof decoded.files === 'object' && decoded.files !== null ? decoded.files as { original?: VideoFileVariant } : updatedFiles;
-    updatedAesKey = typeof decoded.aes_key === 'string' ? decoded.aes_key : updatedAesKey;
-    updatedAesNonce = typeof decoded.aes_nonce === 'string' ? decoded.aes_nonce : updatedAesNonce;
-    updatedPreviewImageUrl = typeof decoded.previewImageUrl === 'string'
-      ? decoded.previewImageUrl
-      : (typeof decoded.preview_image_url === 'string' ? decoded.preview_image_url : updatedPreviewImageUrl);
-    updatedError = typeof decoded.error === 'string' ? decoded.error : updatedError;
+    const decoded = data.decodedContent ?? {};
+    const next = (decoded.status ?? data.status) as Status | undefined;
+    if (next === 'processing' || next === 'finished' || next === 'error') updatedStatus = next;
+    updated = { ...updated, ...decoded };
+    updatedProgress = readVideoProgress(decoded, progress);
   }
 
-  function statusText(): string {
-    if (currentStatus === 'processing') return 'Generating video';
-    if (currentStatus === 'error') return currentError || 'Video generation failed';
-    return [currentModel, currentResolution, currentDurationSeconds ? `${currentDurationSeconds}s` : ''].filter(Boolean).join(' · ');
+  function open(event: MouseEvent) {
+    event.stopPropagation();
+    event.preventDefault();
+    onFullscreen();
   }
 </script>
 
@@ -141,31 +150,76 @@
   {taskId}
   {isMobile}
   {onFullscreen}
-  customStatusText={statusText()}
+  customStatusText={metaLine}
   onEmbedDataUpdated={handleEmbedDataUpdated}
 >
   {#snippet details()}
-    <ResultEmbedCard title={currentPrompt || skillName} sourceLabel={currentModel} description={statusText()} mediaFit="contain">
+    <ResultEmbedCard title={currentPrompt || skillName} {sourceLabel} description={metaLine} mediaFit="contain">
       {#snippet media()}
-    <div class="video-generate-preview" data-testid="video-generate-preview">
-      {#if currentStatus === 'finished' && videoUrl}
-        <video onclick={(event) => event.stopPropagation()} onkeydown={(event) => event.stopPropagation()} oncontextmenu={(event) => event.stopPropagation()} src={videoUrl} poster={currentPreviewImageUrl || undefined} controls playsinline preload="metadata" data-testid="video-generate-video">
-          <track kind="captions" src="data:text/vtt,WEBVTT" />
-        </video>
-      {:else if videoError || currentStatus === 'error'}
-        <div class="error">{videoError || currentError}</div>
-      {:else}
-        <div class="placeholder">{statusText()}</div>
-      {/if}
-    </div>
+        <div class="video-generate-preview" data-testid="video-generate-preview" data-status={currentStatus}>
+          {#if currentStatus === 'finished'}
+            <button type="button" class="open-video" aria-label={$text('embeds.video_play')} data-testid="video-generate-open" onclick={open}>
+              {#if thumbnailUrl}
+                <img class="thumbnail" src={thumbnailUrl} alt="" data-testid="video-generate-thumbnail" />
+              {:else}
+                <span class="placeholder" data-testid="video-generate-placeholder"></span>
+              {/if}
+              <span class="play-button" data-testid="video-generate-play" aria-hidden="true"><span class="play-icon"></span></span>
+            </button>
+          {:else if showSource && progress.sourceEmbedId}
+            <VideoSourceThumbnail embedId={progress.sourceEmbedId} />
+          {:else if processing}
+            <span class="placeholder" data-testid="video-generate-placeholder"></span>
+            <span class="spinner" data-testid="video-generate-processing" aria-hidden="true"></span>
+          {:else}
+            <span class="placeholder" data-testid="video-generate-placeholder"></span>
+            <span class="error-text" data-testid="video-generate-error">{metaLine}</span>
+          {/if}
+          {#if stageText}
+            <span class="stage" data-testid="video-generate-stage" data-stage={progress.stage}>{stageText}</span>
+          {/if}
+        </div>
       {/snippet}
     </ResultEmbedCard>
   {/snippet}
 </UnifiedEmbedPreview>
 
 <style>
-  .video-generate-preview { height: 100%; display: flex; align-items: center; justify-content: center; padding: 0; }
-  video { object-fit: contain; width: 100%; max-height: 100%; border-radius: 12px; background: var(--color-grey-100); }
-  .placeholder, .error { color: var(--color-font-primary); font-size: 0.875rem; text-align: center; }
-  .error { color: var(--color-error, #b00020); }
+  .video-generate-preview { position: absolute; inset: 0; overflow: hidden; }
+  .open-video { position: absolute; inset: 0; width: 100%; height: 100%; min-width: 0; margin: 0; padding: 0; border: 0; border-radius: inherit; background: none; filter: none; scale: 1; cursor: pointer; display: block; }
+  .open-video:hover, .open-video:active { background: none; scale: 1; filter: none; }
+  .open-video:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+  /* The still image fills the media area, pinned to its box (Safari cannot size it in a flex item). */
+  .thumbnail { position: absolute; inset: 0; width: 100%; height: 100%; display: block; object-fit: cover; }
+  .placeholder { position: absolute; inset: 0; display: block; background: var(--color-grey-20); }
+  /* Same round dark play button as the video fullscreen thumbnail, sized for the card. */
+  .play-button {
+    position: absolute; top: 50%; left: 50%; width: 56px; height: 56px; transform: translate(-50%, -50%);
+    display: flex; align-items: center; justify-content: center; border-radius: var(--radius-full);
+    background: color-mix(in srgb, black 70%, transparent); pointer-events: none;
+    transition: transform var(--duration-normal) var(--easing-in-out), background var(--duration-normal) var(--easing-in-out);
+  }
+  .open-video:hover .play-button { background: color-mix(in srgb, black 85%, transparent); transform: translate(-50%, -50%) scale(1.1); }
+  .open-video:active .play-button { transform: translate(-50%, -50%) scale(0.95); }
+  .play-icon {
+    width: 32px; height: 32px; display: block; background-image: url('@openmates/ui/static/icons/play.svg');
+    background-size: contain; background-repeat: no-repeat; background-position: center; filter: brightness(0) invert(1);
+  }
+  .spinner {
+    position: absolute; top: 50%; left: 50%; width: 36px; height: 36px; margin: -18px 0 0 -18px; box-sizing: border-box;
+    border-radius: var(--radius-full); border: 3px solid var(--color-grey-40); border-top-color: var(--color-grey-70);
+    animation: spin 1s linear infinite;
+  }
+  .stage {
+    position: absolute; left: var(--spacing-4); bottom: var(--spacing-4); max-width: calc(100% - 2 * var(--spacing-4));
+    padding: var(--spacing-1) var(--spacing-4); box-sizing: border-box; border-radius: var(--radius-2);
+    background: color-mix(in srgb, black 55%, transparent); color: white; font-size: var(--font-size-tiny); line-height: 1.3;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none;
+  }
+  .error-text {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; box-sizing: border-box;
+    padding: var(--spacing-4); text-align: center; color: var(--color-error); font-size: var(--font-size-xs); overflow-wrap: anywhere;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
 </style>

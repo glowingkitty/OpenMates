@@ -68,6 +68,7 @@ import Model3DResultEmbedPreview from "../../../embeds/models3d/Model3DResultEmb
 import MusicGenerateEmbedPreview from "../../../embeds/music/MusicGenerateEmbedPreview.svelte";
 import AudioGenerateEmbedPreview from "../../../embeds/audio/AudioGenerateEmbedPreview.svelte";
 import VideoGenerateEmbedPreview from "../../../embeds/videos/VideoGenerateEmbedPreview.svelte";
+import { videoGenerateCardProps } from "../../../embeds/videos/videoGenerateCard";
 import VideoCreateEmbedPreview from "../../../embeds/videos/VideoCreateEmbedPreview.svelte";
 import ImageViewEmbedPreview from "../../../embeds/images/ImageViewEmbedPreview.svelte";
 import ImageResultEmbedPreview from "../../../embeds/images/ImageResultEmbedPreview.svelte";
@@ -2560,10 +2561,10 @@ export class GroupRenderer implements EmbedRenderer {
             files: decodedContent?.files || undefined,
             aesKey: decodedContent?.aes_key || "",
             aesNonce: decodedContent?.aes_nonce || "",
-            previewVideoUrl: decodedContent?.previewVideoUrl || decodedContent?.preview_video_url || "",
             previewImageUrl: decodedContent?.previewImageUrl || decodedContent?.preview_image_url || "",
             status: status as "processing" | "finished" | "error",
             error: decodedContent?.error || "",
+            ...videoGenerateCardProps(decodedContent),
             taskId,
             isMobile: false,
             onFullscreen: handleFullscreen,

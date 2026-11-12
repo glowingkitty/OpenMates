@@ -8053,7 +8053,7 @@
     "app_namespace_py": "videos",
     "skill_method_py": "generate",
     "description_key": "app_skills.videos.generate.description",
-    "description": "Make any short video from a natural-language instruction, optionally with up to 12 pictures from this chat (uploads, generated images, vector graphics, image/web/news/video search results with a picture). Each request is made either as a generative clip (invented realistic or stylized footage, camera movement, animating one picture) or as a composed, code-rendered video (exact texts and titles, lists, numbers, charts, diagrams, slideshows or recaps of the given pictures, anything based on search",
+    "description": "Make any short video from a natural-language instruction, optionally with up to 12 references from this chat (uploads, generated images, vector graphics, image/web/news/video search results with or without a picture, or a whole search). Each request is made either as a generative clip (invented realistic or stylized footage, camera movement, animating one picture) or as a composed, code-rendered video (exact texts and titles, lists, numbers, charts, diagrams, slideshows or recaps of the given pi",
     "schema": {
       "type": "object",
       "properties": {
@@ -8088,7 +8088,7 @@
                 "items": {
                   "type": "string"
                 },
-                "description": "Optional exact embed_refs of pictures in this chat to use, in the order they should appear: uploads, generated images, vector graphics, or search results with a picture (image, web, news or video search). A generative clip can start from one picture only.\n"
+                "description": "Exact embed_refs of what the video shows or is about, in the order they should appear: uploads, generated images, vector graphics, and search results of image, web, news or video search. Pass every search result the video is based on, also when you see no picture for it: the skill reads each result's picture (when it has one) together with its title, description, source and date. The embed_ref of a whole search (e.g. a news search shown earlier) stands for all of its results. A generative clip can start from one picture only.\n"
               },
               "mode": {
                 "x-assistant": false,

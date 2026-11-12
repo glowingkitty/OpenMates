@@ -97,8 +97,10 @@
           onPrompt?.(content.prompt.trim());
         }
         let url = publicUrl(content);
-        const files = content.files as Record<string, { s3_key: string; aes_nonce?: string; encryption?: string }> | undefined;
-        const preview = files?.preview ?? files?.original;
+        const files = content.files as Record<string, { s3_key: string; aes_nonce?: string; encryption?: string; mime_type?: string }> | undefined;
+        // A video lists its still image as `thumbnail`; its `original` is the MP4, never an image.
+        const original = files?.original?.mime_type?.startsWith('video/') ? undefined : files?.original;
+        const preview = files?.preview ?? files?.thumbnail ?? original;
         if (!url && preview && typeof content.s3_base_url === 'string' && typeof content.aes_key === 'string'
             && hasMediaEncryptionMetadata(preview, content.aes_nonce as string | undefined)) {
           url = getCachedImageUrl(preview.s3_key);

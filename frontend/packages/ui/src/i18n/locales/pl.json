@@ -1655,6 +1655,9 @@
         "text": "Generuj",
         "description": {
           "text": "Twórz krótkie wideo z opisu i obrazów z czatu, jako ujęcia AI lub dokładnie złożone wideo."
+        },
+        "pricing_note": {
+          "text": "Generowane klipy: 34,5 (360p), 105 (720p), 156 (1080p) lub 313,5 (4K) kredytu za sekundę. Wideo komponowane: tokeny modelu piszącego plus 5 kredytów za każdą rozpoczętą minutę renderowania. Zmiany są rozliczane tylko za to, co dodają. Nie pobieramy opłaty, jeśli nie dostarczono wideo."
         }
       },
       "create": {
@@ -8238,6 +8241,24 @@
       },
       "pending_changes": {
         "text": "Oczekujące zmiany: {count}"
+      },
+      "created_by": {
+        "text": "Utworzono przez {model}"
+      },
+      "change_edit": {
+        "text": "Edytowanie wideo"
+      },
+      "change_extend_start": {
+        "text": "Wydłużanie wideo na początku"
+      },
+      "change_extend_end": {
+        "text": "Wydłużanie wideo na końcu"
+      },
+      "progress_correcting_round": {
+        "text": "Naprawiam problem z renderowaniem (runda {round})…"
+      },
+      "failed": {
+        "text": "Nie udało się wygenerować wideo"
       },
       "progress_deciding": {
         "text": "Ustalam, jak zrobić wideo…"
@@ -15347,6 +15368,9 @@
           "credits_per_minute": {
             "text": "{credits} credits per minute"
           },
+          "credits_per_second": {
+            "text": "{credits} kredytów za sekundę"
+          },
           "credits_per_started_minute": {
             "text": "{credits} credits per started sandbox minute"
           },
@@ -15414,6 +15438,9 @@
           },
           "per_minute": {
             "text": "za minutę"
+          },
+          "per_second": {
+            "text": "za sekundę"
           },
           "servers": {
             "text": "Serwery"

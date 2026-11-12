@@ -44,6 +44,13 @@
         "components/video-timeline-edit.spec.ts"
       ]
     },
+    "videos_generate_card_preview": {
+      "execution": "e2e",
+      "enabling_work": "Account-free Vite-only bare previews of the videos.generate result card and request card: thumbnail with play button instead of a player, maker named once, long title kept in its text column, running steps, running changes with the changed video's thumbnail, error, and fullscreen autoplay after a click. Fixtures use the bundled store example clip, its poster and inline images. No backend, provider, sandbox, account credentials or AI inference.",
+      "specs": [
+        "components/video-generate-preview.spec.ts"
+      ]
+    },
     "images_modify_embed_preview": {
       "execution": "e2e",
       "enabling_work": "Account-free Vite-only bare image card and opened view in the images.modify states (steps, draft picture, finished, unmet requirements, failed). Fixtures carry a tiny inline synthetic JPEG. No backend, E2B sandbox, account credentials or AI inference. The real edit is verified separately against the sandbox template and in chat.",

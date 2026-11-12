@@ -1670,6 +1670,9 @@
         "text": "Generieren",
         "description": {
           "text": "Erstelle ein kurzes Video aus deiner Beschreibung und Bildern im Chat, als KI-Aufnahme oder als exakt gestaltetes Video."
+        },
+        "pricing_note": {
+          "text": "Generierte Clips: 34,5 (360p), 105 (720p), 156 (1080p) oder 313,5 (4K) Credits pro Sekunde. Komponierte Videos: die Tokens des schreibenden Modells plus 5 Credits pro angefangener Render-Minute. Änderungen werden nur für das berechnet, was sie hinzufügen. Wird kein Video geliefert, fallen keine Kosten an."
         }
       },
       "create": {
@@ -9884,6 +9887,24 @@
       },
       "pending_changes": {
         "text": "Ausstehende Änderungen: {count}"
+      },
+      "created_by": {
+        "text": "Erstellt von {model}"
+      },
+      "change_edit": {
+        "text": "Video wird bearbeitet"
+      },
+      "change_extend_start": {
+        "text": "Video wird am Anfang verlängert"
+      },
+      "change_extend_end": {
+        "text": "Video wird am Ende verlängert"
+      },
+      "progress_correcting_round": {
+        "text": "Renderfehler wird behoben (Runde {round})…"
+      },
+      "failed": {
+        "text": "Videoerstellung fehlgeschlagen"
       },
       "progress_deciding": {
         "text": "Entscheide, wie das Video entsteht…"
@@ -18184,6 +18205,9 @@
           "credits_per_minute": {
             "text": "{credits} Credits pro Minute"
           },
+          "credits_per_second": {
+            "text": "{credits} Credits pro Sekunde"
+          },
           "credits_per_started_minute": {
             "text": "{credits} Credits pro angefangener Sandbox-Minute"
           },
@@ -18251,6 +18275,9 @@
           },
           "per_minute": {
             "text": "pro Minute"
+          },
+          "per_second": {
+            "text": "pro Sekunde"
           },
           "servers": {
             "text": "Server"

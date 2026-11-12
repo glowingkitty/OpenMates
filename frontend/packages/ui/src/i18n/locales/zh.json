@@ -1655,6 +1655,9 @@
         "text": "生成",
         "description": {
           "text": "根据你的描述和聊天中的图片制作短视频，可以是 AI 生成画面，也可以是精确排版的合成视频。"
+        },
+        "pricing_note": {
+          "text": "生成的片段:每秒 34.5(360p)、105(720p)、156(1080p)或 313.5(4K)积分。合成视频:编写模型使用的 token,加上每开始一分钟渲染 5 积分。修改只按新增的部分计费。如果没有交付视频,则不收费。"
         }
       },
       "create": {
@@ -8238,6 +8241,24 @@
       },
       "pending_changes": {
         "text": "待处理的更改：{count}"
+      },
+      "created_by": {
+        "text": "由 {model} 创建"
+      },
+      "change_edit": {
+        "text": "正在编辑视频"
+      },
+      "change_extend_start": {
+        "text": "正在从开头延长视频"
+      },
+      "change_extend_end": {
+        "text": "正在从结尾延长视频"
+      },
+      "progress_correcting_round": {
+        "text": "正在修复渲染问题(第 {round} 轮)…"
+      },
+      "failed": {
+        "text": "视频生成失败"
       },
       "progress_deciding": {
         "text": "正在决定如何制作视频…"
@@ -15347,6 +15368,9 @@
           "credits_per_minute": {
             "text": "{credits} credits per minute"
           },
+          "credits_per_second": {
+            "text": "{credits} 积分 每秒"
+          },
           "credits_per_started_minute": {
             "text": "{credits} credits per started sandbox minute"
           },
@@ -15414,6 +15438,9 @@
           },
           "per_minute": {
             "text": "每分钟"
+          },
+          "per_second": {
+            "text": "每秒"
           },
           "servers": {
             "text": "服务器"

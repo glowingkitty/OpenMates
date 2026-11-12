@@ -1655,6 +1655,9 @@
         "text": "생성",
         "description": {
           "text": "설명과 채팅 속 이미지로 AI 영상 또는 정확하게 구성된 영상 형태의 짧은 비디오를 만듭니다."
+        },
+        "pricing_note": {
+          "text": "생성된 클립: 초당 34.5(360p), 105(720p), 156(1080p) 또는 313.5(4K) 크레딧. 구성형 영상: 작성 모델이 사용한 토큰에 더해 렌더링 시작한 1분마다 5크레딧. 변경은 추가된 부분에 대해서만 청구됩니다. 영상이 전달되지 않으면 청구되지 않습니다."
         }
       },
       "create": {
@@ -8238,6 +8241,24 @@
       },
       "pending_changes": {
         "text": "대기 중인 변경 사항: {count}"
+      },
+      "created_by": {
+        "text": "{model}(으)로 생성"
+      },
+      "change_edit": {
+        "text": "동영상 편집 중"
+      },
+      "change_extend_start": {
+        "text": "동영상 앞부분 연장 중"
+      },
+      "change_extend_end": {
+        "text": "동영상 끝부분 연장 중"
+      },
+      "progress_correcting_round": {
+        "text": "렌더링 문제 수정 중({round}회차)…"
+      },
+      "failed": {
+        "text": "동영상 생성 실패"
       },
       "progress_deciding": {
         "text": "동영상 제작 방식을 정하는 중…"
@@ -15347,6 +15368,9 @@
           "credits_per_minute": {
             "text": "{credits} credits per minute"
           },
+          "credits_per_second": {
+            "text": "{credits} 크레딧 초당"
+          },
           "credits_per_started_minute": {
             "text": "{credits} credits per started sandbox minute"
           },
@@ -15414,6 +15438,9 @@
           },
           "per_minute": {
             "text": "분당"
+          },
+          "per_second": {
+            "text": "초당"
           },
           "servers": {
             "text": "서버"

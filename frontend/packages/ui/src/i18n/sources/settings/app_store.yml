@@ -1630,6 +1630,30 @@ skills.pricing.credits_per_minute:
   sv: "{credits} credits per minute"
   he: "{credits} credits per minute"
   verified_by_human: [en, de]
+skills.pricing.credits_per_second:
+  context: Per-second pricing line for app skills. Replacement is numeric credits.
+  en: "{credits} credits per second"
+  de: "{credits} Credits pro Sekunde"
+  zh: "{credits} 积分 每秒"
+  es: "{credits} créditos por segundo"
+  fr: "{credits} crédits par seconde"
+  pt: "{credits} créditos por segundo"
+  ru: "{credits} кредитов в секунду"
+  ja: "{credits} クレジット 1秒あたり"
+  ko: "{credits} 크레딧 초당"
+  it: "{credits} crediti al secondo"
+  tr: "{credits} kredi saniye başına"
+  vi: "{credits} credit mỗi giây"
+  id: "{credits} kredit per detik"
+  pl: "{credits} kredytów za sekundę"
+  nl: "{credits} credits per seconde"
+  ar: "{credits} رصيد في الثانية"
+  hi: "{credits} क्रेडिट प्रति सेकंड"
+  th: "{credits} เครดิต ต่อวินาที"
+  cs: "{credits} kreditů za sekundu"
+  sv: "{credits} krediter per sekund"
+  he: "{credits} קרדיטים לשנייה"
+  verified_by_human: [en, de]
 skills.pricing.credits_per_started_minute:
   context: Started-minute sandbox pricing line for app skills. Replacement is numeric credits.
   en: "{credits} credits per started sandbox minute"
@@ -3069,6 +3093,30 @@ skills.model_detail.per_minute:
   cs: za minutu
   sv: per minut
   he: לדקה
+  verified_by_human: []
+skills.model_detail.per_second:
+  context: Pricing unit label showing cost per second of generated media
+  en: "per second"
+  de: "pro Sekunde"
+  zh: "每秒"
+  es: "por segundo"
+  fr: "par seconde"
+  pt: "por segundo"
+  ru: "в секунду"
+  ja: "1秒あたり"
+  ko: "초당"
+  it: "al secondo"
+  tr: "saniye başına"
+  vi: "mỗi giây"
+  id: "per detik"
+  pl: "za sekundę"
+  nl: "per seconde"
+  ar: "في الثانية"
+  hi: "प्रति सेकंड"
+  th: "ต่อวินาที"
+  cs: "za sekundu"
+  sv: "per sekund"
+  he: "לשנייה"
   verified_by_human: []
 skills.model_detail.servers:
   context: Label for the server/infrastructure region on model detail page

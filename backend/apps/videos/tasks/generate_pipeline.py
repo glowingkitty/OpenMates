@@ -52,6 +52,7 @@ from backend.apps.videos.tasks.generate_billing import charge_composed_credits, 
 from backend.apps.videos.tasks.generate_change import ChangeNotAvailable, run_change_request
 from backend.apps.videos.tasks.generate_inputs import (
     KIND_RESULT,
+    LoadedInputs,
     PictureRef,
     VideoInputUnavailable,
     classify_pictures,
@@ -185,18 +186,24 @@ async def run_generate(task: Any, app_id: str, skill_id: str, arguments: dict[st
             source_id = str(arguments.get("source_video_embed_id") or "")
             if not source_id:
                 raise VideoFailure(ERROR_INVALID_INPUT, "The video to change is not in this conversation.")
-            return await run_change_request(task, request, source_video_embed_id=source_id, arguments=arguments)
+            progress.mark_change(str(request.change), source_id)
+            return await run_change_request(task, request, source_video_embed_id=source_id, arguments=arguments,
+                                            progress=progress)
         vault_key_id = str(arguments.get("user_vault_key_id") or "")
         if image_ids and not vault_key_id:
             raise ValueError("videos.generate with pictures requires the vault key identifier")
-        pictures = (await classify_pictures(image_ids, request.images, read_content=task_reader(task, vault_key_id))
-                    if image_ids else [])
+        try:
+            pictures = (await classify_pictures(image_ids, request.images, read_content=task_reader(task, vault_key_id),
+                                                owner_hash=_hash(user_id))
+                        if image_ids else [])
+        except VideoInputUnavailable as exc:
+            raise VideoFailure(ERROR_INVALID_INPUT, f"{exc} Nothing was made or charged.") from exc
         if request.mode not in (MODE_GENERATIVE, MODE_COMPOSED):
             await progress(STAGE_DECIDING, 1)
         try:
             decision = await decide_route(
                 mode=request.mode, instructions=request.instructions,
-                picture_kinds=[picture.kind for picture in pictures], secrets_manager=task._secrets_manager,
+                picture_kinds=[picture.routing_kind for picture in pictures], secrets_manager=task._secrets_manager,
                 task_id=str(task.request.id), user_request=request.user_request,
             )
             check_route_constraints(request, decision.route)
@@ -302,14 +309,14 @@ async def _run_composed(
     await require_storage_available(s3_service)
     bucket = get_bucket_name("chatfiles", s3_service.environment)
     try:
-        inputs, _kinds = await load_composed_inputs(
+        loaded = await load_composed_inputs(
             task, pictures=pictures, user_id=user_id, vault_key_id=vault_key_id, s3_service=s3_service,
             bucket=bucket, log_prefix=log_prefix,
-        ) if pictures else ([], [])
+        ) if pictures else LoadedInputs()
     except VideoInputUnavailable as exc:
         raise VideoFailure(ERROR_INVALID_INPUT, f"{exc} Nothing was made or charged.", made_by=MADE_BY_COMPOSED) \
             from exc
-    source_titles = [item.title for item in inputs if item.kind == "search_result" and item.title]
+    inputs, source_titles = loaded.inputs, loaded.source_titles
 
     safety = get_pipeline()
     if inputs:
@@ -325,7 +332,8 @@ async def _run_composed(
     try:
         video = await compose_video(
             ComposedRequest(instructions=request.instructions, aspect_ratio=request.aspect_ratio,
-                            duration_seconds=request.duration_seconds, inputs=tuple(inputs)),
+                            duration_seconds=request.duration_seconds, inputs=tuple(inputs),
+                            sources=tuple(loaded.sources)),
             secrets_manager=task._secrets_manager, task_id=str(task.request.id), on_stage=progress.on_stage,
         )
     except ComposedInputError as exc:
@@ -349,7 +357,7 @@ async def _run_composed(
         log_prefix=log_prefix, inputs=inputs,
     )
     await _keep_composed(task, s3_service=s3_service, stored=stored, video=video, request=request, inputs=inputs,
-                         pictures=pictures, user_id=user_id, embed_id=embed_id, vault_key_id=vault_key_id,
+                         pictures=loaded.pictures, user_id=user_id, embed_id=embed_id, vault_key_id=vault_key_id,
                          in_chat=bool(arguments.get("chat_id")))
     billing_status = await _charge(
         arguments, user_id=user_id, app_id=app_id, skill_id=skill_id, credits=credits, usage_details=usage_details,

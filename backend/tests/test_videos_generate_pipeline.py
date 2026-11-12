@@ -17,11 +17,12 @@ from typing import Any
 import pytest
 from unittest.mock import AsyncMock
 
-from backend.apps.videos.composed.models import AuthorUsage, ComposedInput, ComposedVideo, ComposeFailure
+from backend.apps.videos.composed.models import AuthorUsage, ComposedInput, ComposedSource, ComposedVideo, \
+    ComposeFailure
 from backend.apps.videos.routing import RoutingUnavailable
 from backend.apps.videos.tasks import generate_pipeline as pipeline
 from backend.apps.videos.tasks import generate_task
-from backend.apps.videos.tasks.generate_inputs import PictureRef
+from backend.apps.videos.tasks.generate_inputs import LoadedInputs, PictureRef
 from backend.apps.videos.tasks.generate_result import StoredVideo
 from backend.shared.python_utils.generated_media_graph import COMPLETION_RESULT_FIELDS
 
@@ -107,12 +108,16 @@ def world(monkeypatch) -> World:
     async def classify(embed_ids: Any, refs: Any, **_kwargs: Any) -> list[PictureRef]:
         return state.pictures or [PictureRef(embed_id, ref, "image") for embed_id, ref in zip(embed_ids, refs)]
 
-    async def load(_task: Any, *, pictures: Any, **_kwargs: Any) -> tuple[list, list]:
+    async def load(_task: Any, *, pictures: Any, **_kwargs: Any) -> LoadedInputs:
+        with_picture = [p for p in pictures if p.use_picture]
         inputs = [ComposedInput(name=f"input-{i}.jpg", content=b"jpeg", mime_type="image/jpeg", width=800,
                                 height=600, title="Rocket launch" if p.kind == "search_result" else "photo.jpg",
                                 kind="search_result" if p.kind == "search_result" else "image")
-                  for i, p in enumerate(pictures, start=1)]
-        return inputs, [p.kind for p in pictures]
+                  for i, p in enumerate(with_picture, start=1)]
+        sources = [ComposedSource(title="Launch delayed", text="Source: Example News")
+                   for p in pictures if not p.use_picture]
+        titles = [item.title for item in inputs if item.kind == "search_result"] + [s.title for s in sources]
+        return LoadedInputs(inputs=inputs, pictures=with_picture, sources=sources, source_titles=titles)
 
     class Safety:
         async def validate_input(self, **_kwargs: Any) -> Any:
@@ -240,6 +245,40 @@ async def test_search_result_titles_reach_the_child(world: World) -> None:
     world.pictures = [PictureRef(ids[0], "photo-0", "search_result")]
     await pipeline.run_generate(_Task(), "videos", "generate", _arguments(image_embed_ids=ids))
     assert world.published[0]["source_titles"] == ["Rocket launch"]
+
+
+# contract-test: supporting surface=gui.web assertions=videos-generate.composed.author-writes-composition
+@pytest.mark.asyncio
+async def test_results_without_a_picture_reach_the_author_as_source_texts(world: World) -> None:
+    ids = [str(uuid.uuid4()), str(uuid.uuid4())]
+    world.pictures = [PictureRef(ids[0], "headline-1", "search_result"),
+                      PictureRef(ids[1], "headline-2", "search_result", use_picture=False)]
+    result = await pipeline.run_generate(_Task(), "videos", "generate", _arguments(image_embed_ids=ids))
+    [request] = world.compose_calls
+    assert len(request.inputs) == 1 and request.sources == (ComposedSource("Launch delayed", "Source: Example News"),)
+    assert world.published[0]["source_titles"] == ["Rocket launch", "Launch delayed"]
+    assert world.published[0]["input_embed_ids"] == ids and result["status"] == "finished"
+    # Only the picture file is stored and kept with the video.
+    assert len(world.store_kwargs[0]["inputs"]) == 1 and [p.embed_id for p in world.kept[0]["pictures"]] == ids[:1]
+
+
+# contract-test: supporting surface=gui.web assertions=videos-generate.routing.generative-or-composed
+@pytest.mark.asyncio
+async def test_routing_counts_text_only_results_and_never_makes_them_generative(world: World, monkeypatch) -> None:
+    seen = {}
+
+    async def decide(**kwargs: Any) -> Any:
+        from backend.apps.videos.routing import DECIDED_BY_MODEL, RouteDecision
+
+        seen.update(kwargs)
+        return RouteDecision("composed", DECIDED_BY_MODEL)
+
+    monkeypatch.setattr(pipeline, "decide_route", decide)
+    ids = [str(uuid.uuid4())]
+    world.pictures = [PictureRef(ids[0], "headline-1", "search_result", use_picture=False)]
+    await pipeline.run_generate(_Task(), "videos", "generate", _arguments(mode="auto", image_embed_ids=ids))
+    assert seen["picture_kinds"] == ["search_result_text"]
+    assert world.compose_calls and len(world.compose_calls[0].sources) == 1
 
 
 # contract-test: supporting surface=gui.web assertions=videos-generate.billing.metered

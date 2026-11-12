@@ -1655,6 +1655,9 @@
         "text": "Gerar",
         "description": {
           "text": "Cria um vídeo curto a partir da tua descrição e das imagens do chat, como filmagem de IA ou como vídeo composto exato."
+        },
+        "pricing_note": {
+          "text": "Clipes gerados: 34,5 (360p), 105 (720p), 156 (1080p) ou 313,5 (4K) créditos por segundo. Vídeos compostos: os tokens do modelo de escrita mais 5 créditos por minuto de renderização iniciado. As alterações são cobradas apenas pelo que acrescentam. Nada é cobrado quando nenhum vídeo é entregue."
         }
       },
       "create": {
@@ -8265,6 +8268,24 @@
       },
       "pending_changes": {
         "text": "Alterações pendentes: {count}"
+      },
+      "created_by": {
+        "text": "Criado por {model}"
+      },
+      "change_edit": {
+        "text": "Editando o vídeo"
+      },
+      "change_extend_start": {
+        "text": "Estendendo o vídeo no início"
+      },
+      "change_extend_end": {
+        "text": "Estendendo o vídeo no final"
+      },
+      "progress_correcting_round": {
+        "text": "Corrigindo um problema de renderização (rodada {round})…"
+      },
+      "failed": {
+        "text": "Falha ao gerar o vídeo"
       },
       "progress_deciding": {
         "text": "Decidindo como fazer o vídeo…"
@@ -15374,6 +15395,9 @@
           "credits_per_minute": {
             "text": "{credits} credits per minute"
           },
+          "credits_per_second": {
+            "text": "{credits} créditos por segundo"
+          },
           "credits_per_started_minute": {
             "text": "{credits} credits per started sandbox minute"
           },
@@ -15441,6 +15465,9 @@
           },
           "per_minute": {
             "text": "por minuto"
+          },
+          "per_second": {
+            "text": "por segundo"
           },
           "servers": {
             "text": "Servidores"

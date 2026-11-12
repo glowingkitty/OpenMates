@@ -4,11 +4,14 @@
 #
 # One skill makes every video: per request either a generative clip (Gemini Omni / H3)
 # or a composed, code-rendered video (decided by the request's mode or by the
-# routing model in the task). Pictures are exact embed_refs of the conversation,
-# resolved through the file index (search results also through their indexed
-# search parent); a reference that is not in the conversation fails explicitly
-# and nothing is queued or charged. The worker reads the pictures server-side,
-# so no picture travels through the broker.
+# routing model in the task). ``images`` holds exact embed_refs of the
+# conversation: pictures, single search results (their picture when they have
+# one, always their text) and whole searches (the search's own embed_ref, which
+# the worker expands to its results). They resolve through the file index
+# (earlier results and searches also through their indexed search parent); a
+# reference that is not in the conversation fails explicitly and nothing is
+# queued or charged. The worker reads every input server-side, so no picture
+# or result text travels through the broker.
 
 import hashlib
 import logging
@@ -39,8 +42,9 @@ __all__ = ["DEFAULT_MODEL", "H3_MODEL", "VALID_MODELS", "GenerateSkill", "VideoG
            "VideoGenerationRequestItem", "VideoGenerationResponse"]
 
 NOT_IN_CHAT_MESSAGE = (
-    "is not a picture or video in this conversation. Pass the exact embed_ref of an uploaded or generated image, a "
-    "vector graphic, a search result with a picture, or (as source_video) a video made by videos.generate."
+    "is not a picture, search result or video in this conversation. Pass the exact embed_ref of an uploaded or "
+    "generated image, a vector graphic, a search result (image, web, news or video search, with or without a "
+    "picture), a whole search, or (as source_video) a video made by videos.generate."
 )
 
 

@@ -33,6 +33,12 @@ from typing import Any, Optional
 
 from backend.apps.videos.generate_request import EXTEND_MAX_SECONDS, GENERATIVE_DEFAULT_SECONDS, GenerateRequest
 from backend.apps.videos.tasks.change_edits import ClipEditError, apply_clip_edits, clip_frames, visible_seconds
+from backend.apps.videos.tasks.generate_progress import (
+    STAGE_DECIDING,
+    STAGE_GENERATING,
+    STAGE_RENDERING,
+    VideoProgressPublisher,
+)
 from backend.apps.videos.tasks.video_kept import KeptClip, KeptInput, KeptVideo, KeptVideoError
 
 logger = logging.getLogger(__name__)
@@ -101,7 +107,9 @@ class _Context:
     """Services and identities of one change."""
 
     def __init__(self, task: Any, request: GenerateRequest, arguments: dict[str, Any], target: Any, kept: KeptVideo,
-                 *, s3_service: Any, bucket: str, vault_key_id: str) -> None:
+                 *, s3_service: Any, bucket: str, vault_key_id: str,
+                 progress: Optional[VideoProgressPublisher] = None) -> None:
+        self.progress = progress
         self.task, self.request, self.arguments, self.target, self.kept = task, request, arguments, target, kept
         self.s3_service, self.bucket, self.vault_key_id = s3_service, bucket, vault_key_id
         self.user_id = str(arguments["user_id"])
@@ -118,9 +126,15 @@ class _Context:
             raise ChangeFailed(ERROR_CHANGE_UNAVAILABLE, NOT_KEPT_MESSAGE)
         return data
 
+    async def stage(self, stage: str) -> None:
+        """Publish one processing update on the card of this change call (never stored)."""
+        if self.progress is not None:
+            await self.progress(stage)
+
 
 async def run_change_request(task: Any, request: GenerateRequest, *, source_video_embed_id: str,
-                             arguments: dict[str, Any]) -> dict[str, Any]:
+                             arguments: dict[str, Any],
+                             progress: Optional[VideoProgressPublisher] = None) -> dict[str, Any]:
     """Make version N+1 of ``source_video_embed_id`` as the request says, or fail without a charge."""
     from backend.shared.python_utils.media_revision import VIDEO_KIND, find_revision_target, revisions_enabled
 
@@ -137,13 +151,16 @@ async def run_change_request(task: Any, request: GenerateRequest, *, source_vide
     )
     if target is None:
         raise ChangeFailed(ERROR_INVALID_INPUT, NOT_CHANGEABLE_MESSAGE)
-    context = await _open(task, request, arguments, target, user_id=user_id, vault_key_id=vault_key_id)
+    if progress is not None:
+        await progress(STAGE_DECIDING, 1)  # first update before any storage read or model call
+    context = await _open(task, request, arguments, target, user_id=user_id, vault_key_id=vault_key_id,
+                          progress=progress)
     made = await _make(context)
     return await _deliver(context, made)
 
 
 async def _open(task: Any, request: GenerateRequest, arguments: dict[str, Any], target: Any, *, user_id: str,
-                vault_key_id: str) -> _Context:
+                vault_key_id: str, progress: Optional[VideoProgressPublisher] = None) -> _Context:
     from backend.apps.videos.tasks.video_kept import recall_video
     from backend.core.api.app.services.s3.config import get_bucket_name
     from backend.shared.python_utils.storage_availability import initialize_task_storage, require_storage_available
@@ -159,7 +176,7 @@ async def _open(task: Any, request: GenerateRequest, arguments: dict[str, Any], 
     if kept is None:
         raise ChangeFailed(ERROR_CHANGE_UNAVAILABLE, NOT_KEPT_MESSAGE)
     return _Context(task, request, arguments, target, kept, s3_service=s3_service, bucket=bucket,
-                    vault_key_id=vault_key_id)
+                    vault_key_id=vault_key_id, progress=progress)
 
 
 async def _make(context: _Context) -> _Made:
@@ -245,6 +262,7 @@ async def _join(context: _Context, clips: tuple[KeptClip, ...], new: dict[int, b
             {"name": item.name, "duration_in_frames": clip.duration_in_frames,
              "trim_before_frames": clip.trim_before_frames, "trim_after_frames": clip.trim_after_frames,
              "label": clip.label} for item, clip in zip(inputs, clips)], aspect_ratio=context.kept.aspect_ratio)
+        await context.stage(STAGE_RENDERING)
         return await render_source_directly(source, inputs, secrets_manager=context.task._secrets_manager,
                                             task_id=str(context.task.request.id))
     except ComposedInputError as exc:
@@ -262,6 +280,7 @@ async def _omni_clip(context: _Context, prompt: str, *, seconds: int, first: byt
         generate_omni_video,
     )
 
+    await context.stage(STAGE_GENERATING)
     try:
         return await generate_omni_video(
             prompt, duration_seconds=seconds, aspect_ratio=context.kept.aspect_ratio,
@@ -294,6 +313,7 @@ async def _extend(context: _Context, *, seconds: int, at_start: bool) -> _Made:
     from backend.shared.python_utils.video_frames import extract_frame
 
     kept = context.kept
+    await context.stage(STAGE_GENERATING)
     current = await context.read(kept.video)
     still_credits = 0
     if at_start:
@@ -344,6 +364,7 @@ async def _author_edit(context: _Context) -> _Made:
                             duration_seconds=context.request.duration_seconds, inputs=composed_inputs,
                             previous_source=source),
             secrets_manager=context.task._secrets_manager, task_id=str(context.task.request.id),
+            on_stage=context.stage,
         )
     except ComposedInputError as exc:
         raise ChangeFailed(ERROR_INVALID_INPUT, f"The video could not be changed: {exc}. Nothing was charged.") \

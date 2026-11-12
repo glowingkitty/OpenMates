@@ -115,19 +115,21 @@ test('tapping the generated image opens only the image in a new tab right away',
 });
 
 // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
-test('generated video previews retain native controls and fullscreen PiP remains available after play', async ({ page }) => {
-  await page.goto('/dev/preview/embeds/videos/VideoGenerateEmbedPreview?chrome=0&width=700');
+// Generated video cards show a thumbnail with a play button (video-generate-preview.spec.ts);
+// the player, its native controls and autoplay live in the fullscreen.
+test('generated video fullscreen plays with native controls and video fullscreen PiP remains available after play', async ({ page }) => {
+  await page.goto('/dev/preview/embeds/videos/VideoGenerateEmbedFullscreen?chrome=0&width=700');
   await waitForComponentPreview(page);
-  const video = page.getByTestId('video-generate-video');
+  await waitForComponentMotion(page.getByTestId('embed-fullscreen-overlay'));
+  const video = page.getByTestId('video-generate-fullscreen-video');
   await expect(video).toHaveAttribute('controls', '');
   await expect(video).toHaveAttribute('playsinline', '');
   await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.readyState)).toBeGreaterThanOrEqual(2);
+  // Native controls toggle playback (autoplay is asserted in video-generate-preview.spec.ts).
+  const wasPaused = await video.evaluate((element: HTMLVideoElement) => element.paused);
   await video.focus();
   await video.press('Space');
-  await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.paused)).toBe(false);
-  await video.press('Space');
-  await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.paused)).toBe(true);
-  await expect(page.getByTestId('video-generate-video')).toBeVisible();
+  await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.paused)).toBe(!wasPaused);
 
   const fixture = await page.request.get('/images/examples/group1.jpg');
   const image = await fixture.body();

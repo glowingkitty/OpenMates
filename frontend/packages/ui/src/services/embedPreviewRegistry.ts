@@ -691,14 +691,17 @@ resolvers.set("music-generated-music", async ({ embedId, decodedContent, embedDa
 });
 
 resolvers.set("videos-generated-video", async ({ embedId, decodedContent, embedData, onFullscreen }) => {
-  const { default: component } = await import('../components/embeds/videos/VideoGenerateEmbedPreview.svelte');
+  const [{ default: component }, { videoGenerateCardProps }] = await Promise.all([
+    import('../components/embeds/videos/VideoGenerateEmbedPreview.svelte'),
+    import('../components/embeds/videos/videoGenerateCard'),
+  ]);
   return { component, props: {
     id: embedId, prompt: decodedContent.prompt, model: decodedContent.model,
     durationSeconds: decodedContent.duration_seconds, resolution: decodedContent.resolution,
     s3BaseUrl: decodedContent.s3_base_url, files: decodedContent.files,
     aesKey: decodedContent.aes_key, aesNonce: decodedContent.aes_nonce,
-    previewVideoUrl: decodedContent.previewVideoUrl ?? decodedContent.preview_video_url,
     previewImageUrl: decodedContent.previewImageUrl ?? decodedContent.preview_image_url,
+    error: decodedContent.error, ...videoGenerateCardProps(decodedContent),
     status: normalizeStatus(embedData.status ?? decodedContent.status), onFullscreen,
   } };
 });

@@ -2,7 +2,9 @@
 
 ``ComposedRequest`` is what the videos.generate task hands in: the
 instruction, the format and the pictures (or mp4 clips) the composition may
-show, each already loaded at full size and named for the sandbox. The engine
+show, each already loaded at full size and named for the sandbox, plus the
+text of every referenced search result (``ComposedInput.text`` for a result
+with a picture, ``ComposedSource`` for one without). The engine
 returns ``ComposedVideo`` with the MP4, its thumbnail, the final composition
 source, the validated timeline and everything billing needs (author token
 usage per call, wall seconds per sandbox round). ``ComposeFailure`` means no
@@ -15,6 +17,8 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 INPUT_KINDS = frozenset({"image", "search_result", "video_clip"})
+SOURCE_KINDS = frozenset({"search_result"})
+MAX_SOURCES = 24  # text-only search results of one request (a whole search expands to at most this many)
 FAILURE_CODES = frozenset({"no_valid_composition", "render_failed", "sandbox_unavailable", "author_unavailable"})
 
 
@@ -29,6 +33,16 @@ class ComposedInput:
     height: int
     title: str = ""  # search-result title or upload file name, shown to the author
     kind: str = "image"  # "image" | "search_result" | "video_clip"
+    text: str = ""  # search result: its bounded text (source, date, URL, description); untrusted data
+
+
+@dataclass(frozen=True)
+class ComposedSource:
+    """A referenced search result without a picture file: only its title and text reach the author."""
+
+    title: str
+    text: str  # bounded "Label: value" lines; untrusted third-party data
+    kind: str = "search_result"
 
 
 @dataclass(frozen=True)
@@ -38,6 +52,7 @@ class ComposedRequest:
     duration_seconds: Optional[int]
     inputs: tuple[ComposedInput, ...]
     previous_source: Optional[str] = None  # kept composition when changing a video
+    sources: tuple[ComposedSource, ...] = ()  # text-only search results, after the pictures in request order
 
 
 @dataclass(frozen=True)
