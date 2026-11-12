@@ -193298,8 +193298,8 @@ assertions:
     - &id24659
       path: frontend/apps/web_app/tests/workflows-reorder-inputs.spec.ts
       line: 17
-      name: reorders persisted nodes and renders real fitness and travel date and
-        location controls
+      name: reorders persisted nodes and renders real date and location controls from
+        a skill without a configured-provider dependency
       surface: gui.web
     supporting_tests:
     - &id24574
@@ -200297,8 +200297,8 @@ assertions:
     - &id25460
       path: frontend/apps/web_app/tests/workflows-reorder-inputs.spec.ts
       line: 17
-      name: reorders persisted nodes and renders real fitness and travel date and
-        location controls
+      name: reorders persisted nodes and renders real date and location controls from
+        a skill without a configured-provider dependency
       surface: gui.web
     supporting_tests:
     - &id25433
