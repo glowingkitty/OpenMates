@@ -202,3 +202,14 @@ def test_author_makes_exactly_the_requested_sounds():
 
     text = inspect.getsource(prompt)
     assert "Make exactly the sounds the request describes" in text
+
+
+# contract-test: supporting surface=gui.web assertions=videos-generate.composed.sound
+def test_author_music_prompt_never_names_an_artist_or_work():
+    # A real dev recap failed: the music provider refused the author's music prompt with 400.
+    import inspect
+
+    from backend.apps.videos.composed import prompt
+
+    text = inspect.getsource(prompt)
+    assert "never name an artist, composer, band, song, film, show or brand" in text
