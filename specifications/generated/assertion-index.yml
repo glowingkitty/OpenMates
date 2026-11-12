@@ -47003,12 +47003,12 @@ assertions:
     direct_tests:
     - &id5870
       path: frontend/apps/web_app/tests/videos-generate-chat.spec.ts
-      line: 171
+      line: 176
       name: composed video from web results, timeline, edit
       surface: gui.web
     - &id5871
       path: frontend/apps/web_app/tests/videos-generate-chat.spec.ts
-      line: 306
+      line: 311
       name: composed video from pictures in the chat
       surface: gui.web
     supporting_tests:
@@ -47112,12 +47112,12 @@ assertions:
     direct_tests:
     - &id5901
       path: frontend/apps/web_app/tests/videos-generate-chat.spec.ts
-      line: 171
+      line: 176
       name: composed video from web results, timeline, edit
       surface: gui.web
     - &id5902
       path: frontend/apps/web_app/tests/videos-generate-chat.spec.ts
-      line: 306
+      line: 311
       name: composed video from pictures in the chat
       surface: gui.web
     supporting_tests:
@@ -47463,7 +47463,7 @@ assertions:
     direct_tests:
     - &id5921
       path: frontend/apps/web_app/tests/videos-generate-chat.spec.ts
-      line: 255
+      line: 260
       name: generative clip, extend at the end
       surface: gui.web
     supporting_tests:
@@ -47495,7 +47495,7 @@ assertions:
     direct_tests:
     - &id5922
       path: frontend/apps/web_app/tests/videos-generate-chat.spec.ts
-      line: 171
+      line: 176
       name: composed video from web results, timeline, edit
       surface: gui.web
     supporting_tests: []
@@ -47518,17 +47518,17 @@ assertions:
       surface: gui.web
     - &id5926
       path: frontend/apps/web_app/tests/videos-generate-chat.spec.ts
-      line: 171
+      line: 176
       name: composed video from web results, timeline, edit
       surface: gui.web
     - &id5927
       path: frontend/apps/web_app/tests/videos-generate-chat.spec.ts
-      line: 255
+      line: 260
       name: generative clip, extend at the end
       surface: gui.web
     - &id5928
       path: frontend/apps/web_app/tests/videos-generate-chat.spec.ts
-      line: 306
+      line: 311
       name: composed video from pictures in the chat
       surface: gui.web
     supporting_tests:
@@ -47598,12 +47598,12 @@ assertions:
       surface: gui.web
     - &id5935
       path: frontend/apps/web_app/tests/videos-generate-chat.spec.ts
-      line: 171
+      line: 176
       name: composed video from web results, timeline, edit
       surface: gui.web
     - &id5936
       path: frontend/apps/web_app/tests/videos-generate-chat.spec.ts
-      line: 255
+      line: 260
       name: generative clip, extend at the end
       surface: gui.web
     - &id5937
@@ -47665,7 +47665,7 @@ assertions:
       surface: gui.web
     - &id5949
       path: frontend/apps/web_app/tests/videos-generate-chat.spec.ts
-      line: 255
+      line: 260
       name: generative clip, extend at the end
       surface: gui.web
     - &id5950
@@ -47762,7 +47762,7 @@ assertions:
       surface: gui.web
     - &id5961
       path: frontend/apps/web_app/tests/videos-generate-chat.spec.ts
-      line: 171
+      line: 176
       name: composed video from web results, timeline, edit
       surface: gui.web
     - &id5962
@@ -47881,12 +47881,12 @@ assertions:
       surface: gui.web
     - &id5981
       path: frontend/apps/web_app/tests/videos-generate-chat.spec.ts
-      line: 171
+      line: 176
       name: composed video from web results, timeline, edit
       surface: gui.web
     - &id5982
       path: frontend/apps/web_app/tests/videos-generate-chat.spec.ts
-      line: 255
+      line: 260
       name: generative clip, extend at the end
       surface: gui.web
     supporting_tests:

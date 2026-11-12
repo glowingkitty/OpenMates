@@ -145,7 +145,12 @@ async function openChangedVideo(page: any, overlay: any, previousDigest: string,
 	await expect(async () => {
 		if (!(await current.isVisible().catch(() => false))) current = await openNewestVideo(page);
 		if ((await shownVideoDigest(current)) === previousDigest) {
+			// A build without the client core does not apply a new version of an open embed live;
+			// a reload reads the stored head from the server.
 			await closeOverlay(page, current);
+			await page.reload();
+			await expect(page.locator(FINISHED_VIDEO_CARD).last()).toBeVisible({ timeout: 120_000 });
+			log('reloaded the page to read the stored video');
 			current = await openNewestVideo(page);
 		}
 		expect(await shownVideoDigest(current), 'the changed video replaced the first one').not.toBe(previousDigest);
@@ -166,7 +171,7 @@ async function screenshotProgress(page: any, screenshot: any, name: string) {
 	if (seen) await screenshot(page, name, { fullPage: false });
 }
 
-test.describe.serial('videos.generate chat', () => {
+test.describe('videos.generate chat', () => {
 	// contract-test: direct surface=gui.web assertions=videos-generate.routing.generative-or-composed,videos-generate.composed.author-writes-composition,videos-generate.progress.shown-while-running,videos-generate.result.video-with-timeline,videos-generate.timeline.below-the-video,videos-generate.change.edit-mode,videos-generate.change.same-video-next-version
 	test('composed video from web results, timeline, edit', async ({ page }) => {
 		test.setTimeout(2_400_000);
