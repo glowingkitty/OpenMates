@@ -12126,10 +12126,28 @@ def _validate_specification_commit_message(files: list[str], message: str) -> No
         )
 
 
+def _validate_shell_logic_guard(session: dict, files: list[str], message: str) -> None:
+    """Refuse guarded shell logic edits without a Rust change or `shell-only:` line."""
+    try:
+        from scripts import shell_logic_guard
+    except ModuleNotFoundError:
+        import shell_logic_guard
+    root = _session_checkout_root(session)
+    changes = [("M" if (root / path).exists() else "D", path) for path in files]
+    errors, warnings = shell_logic_guard.check(changes, message)
+    for warning in warnings:
+        print(warning)
+    if errors and shell_logic_guard.is_blocking():
+        raise RuntimeError("Shell logic guard: " + " ".join(errors))
+    for error in errors:
+        print(f"Shell logic guard (warn-only until {shell_logic_guard.BLOCKING_FROM.isoformat()}): {error}")
+
+
 def _preflight_deploy_commit_message(args: argparse.Namespace, session: dict, files: list[str]) -> str:
     """Reject deterministic commit-message errors before expensive deploy gates."""
     message = _integration_commit_message(args, session)
     _validate_specification_commit_message(files, message)
+    _validate_shell_logic_guard(session, files, message)
     return message
 
 

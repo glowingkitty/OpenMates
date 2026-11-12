@@ -323,6 +323,8 @@ tasks:
   - id: TASK-11
     title: Deploy guard for shell logic edits (implements the design below)
     read: [.claude/hooks/, scripts/sessions.py deploy validation, this Plan's deploy_guard section]
+    status: done
+    note: scripts/shell_logic_guard.py, wired into sessions.py _preflight_deploy_commit_message; tests in scripts/tests/test_shell_logic_guard.py. Warn-only until 2026-11-26 (BLOCKING_FROM), then sessions.py deploy refuses, per the deploy_guard rollout.
     done: the guard rejects a deploy that changes guarded shell paths without a linked Rust change or a `shell-only:` line, with tests in scripts/tests.
   - id: TASK-12
     title: apple-ui CI mode - run XCUITest targets on macos-26
