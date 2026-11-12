@@ -86118,7 +86118,7 @@ assertions:
     current_direct_proof: false
   billing.models.cost-plus-margin:
     specification: feature.billing@11
-    fingerprint: fdceb8602df9ece31ab590f7163ea53d444de603bae6dd9a103ad864a0abee2c
+    fingerprint: 5a427a787a15b2d65b57910bdc6f478dd8017376e1b5f4a5b6696ae7eb69d139
     direct_tests: []
     supporting_tests:
     - &id10860
@@ -86502,7 +86502,7 @@ assertions:
     current_direct_proof: false
   billing.surface.semantic-parity:
     specification: feature.billing@11
-    fingerprint: 58eaff2cb93beefb28dea2b9e154937695445e26a29b4956bc630f4c5e31d77e
+    fingerprint: 2524a2a7a666428624790170141e07930d0caea0857349781f423251443d4e53
     direct_tests:
     - &id10928
       path: backend/tests/test_apps_api.py

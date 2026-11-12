@@ -43,10 +43,12 @@ current_model_prices:
 
 cost_plus_prices:
   - id: token-rates-round-up-to-five-token-steps
+    assertion_ids: [billing.models.cost-plus-margin]
     given: The configured margin is 50 percent.
     when: Input tokens cost $1.50 per 1M and cached input $0.15 per 1M.
     then: Customers see 445 and 4445 tokens per credit instead of 444.44 and 4444.44.
   - id: margin-rounds-up-to-five-credit-steps
+    assertion_ids: [billing.models.cost-plus-margin]
     given: The configured margin is 50 percent.
     when: Per-request or per-minute supplier costs that correspond to 8.6, 5.4 and 180.5 credits are priced.
     then: The customer prices are 10, 10 and 185 credits.
