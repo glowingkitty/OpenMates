@@ -49,6 +49,10 @@ const COMPOSED_PROMPT =
 	'Based on the web results, create a short video for me: about 15 seconds, one result per scene with its headline and picture.';
 const GENERATIVE_PROMPT =
 	'Create a 4 second generative video clip: a slow drone flight over a foggy pine forest at sunrise, cinematic.';
+const PICTURES_PROMPT = 'Generate two pictures: a red fox in fresh snow, and a blue jay on a pine branch.';
+const PICTURES_VIDEO_PROMPT =
+	'Make a short video from these two pictures: about 8 seconds, each picture in its own scene with a caption naming the animal.';
+const FINISHED_IMAGE_CARD = '[data-testid="embed-preview"][data-app-id="images"][data-status="finished"]';
 const EXTEND_TEXT = 'the camera rises above the fog and reveals a lake';
 const NEW_TEXT = 'Mars rover news';
 const SEARCH_TIMEOUT = 300_000;
@@ -282,6 +286,45 @@ test.describe.serial('videos.generate chat', () => {
 			await expect(overlay.getByTestId('video-timeline').getByTestId('video-timeline-part')).toHaveCount(2, { timeout: 30_000 });
 			await screenshot(page, 'generative-version-two', { fullPage: false });
 			await saveVideo(page, overlay, 'generative-v2.mp4', log);
+		} finally {
+			if (process.env.KEEP_VIDEOS_CHAT !== '1') {
+				await closeOverlay(page, overlay);
+				await deleteActiveChat(page, log);
+			}
+		}
+	});
+
+	// contract-test: direct surface=gui.web assertions=videos-generate.routing.generative-or-composed,videos-generate.composed.author-writes-composition,videos-generate.result.video-with-timeline
+	test('composed video from pictures in the chat', async ({ page }) => {
+		test.setTimeout(1_800_000);
+		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+		const log = createSignupLogger('videos-generate-pictures');
+		const screenshot = createStepScreenshotter(log, { filenamePrefix: 'videos-generate-pictures' });
+		attachConsoleListeners(page);
+		attachNetworkListeners(page);
+
+		await loginToTestAccount(page, log, screenshot);
+		await startNewChat(page, log);
+		let overlay = page.getByTestId('embed-fullscreen-overlay').last();
+		try {
+			await sendWithGemini(page, PICTURES_PROMPT, log, screenshot, 'pictures');
+			await expect.poll(() => page.locator(FINISHED_IMAGE_CARD).count(), { timeout: GENERATIVE_TIMEOUT })
+				.toBeGreaterThanOrEqual(2);
+			await expectReplyFromGemini(page, log, GENERATIVE_TIMEOUT);
+			await screenshot(page, 'pictures-generated');
+
+			await sendWithGemini(page, PICTURES_VIDEO_PROMPT, log, screenshot, 'pictures-video');
+			await expect(page.locator(FINISHED_VIDEO_CARD).first()).toBeVisible({ timeout: COMPOSED_TIMEOUT });
+			await expectReplyFromGemini(page, log, COMPOSED_TIMEOUT);
+
+			overlay = await openNewestVideo(page);
+			await expect(overlay.getByTestId('video-generate-fullscreen')).toHaveAttribute('data-made-by', 'composed');
+			const parts = overlay.getByTestId('video-timeline').getByTestId('video-timeline-part');
+			expect(await parts.count()).toBeGreaterThanOrEqual(2);
+			log(`timeline parts: ${await parts.count()}`);
+			await parts.nth(1).click();
+			await screenshot(page, 'pictures-video-fullscreen', { fullPage: false });
+			await saveVideo(page, overlay, 'composed-pictures.mp4', log);
 		} finally {
 			if (process.env.KEEP_VIDEOS_CHAT !== '1') {
 				await closeOverlay(page, overlay);

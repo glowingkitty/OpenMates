@@ -22,8 +22,9 @@
   import VideoEditInspector from './VideoEditInspector.svelte';
   import { createAudioUrlOwner } from '../audio/audioEmbedCrypto';
   import { text } from '../../../i18n/translations';
-  import { decodeToonContent } from '../../../services/embedResolver';
-  import { EMBED_VERSIONS_ENABLED, embedContentAtVersion, embedHead } from '../../../services/rustCore/embeds/messageEmbedVersion';
+  import { decodeToonContent, requestEmbedFromServerOnce, resolveEmbed } from '../../../services/embedResolver';
+  import { chatSyncService } from '../../../services/chatSyncService';
+  import { EMBED_VERSIONS_ENABLED, embedContentAtVersion, embedHead, noteEmbedHeadChanged } from '../../../services/rustCore/embeds/messageEmbedVersion';
   import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedFullscreenRawData, type EmbedSourceChatContext } from '../../../types/embedFullscreen';
   import { hasMediaEncryptionMetadata } from '../../../services/encryption/mediaEncryption';
   import {
@@ -140,7 +141,45 @@
     });
   });
 
+  // A change (edit, extend) stores the next version of this same video while it is open: show it.
+  const HEAD_RELOAD_ATTEMPTS = 5;
+  const HEAD_RELOAD_DELAY_MS = 2000;
+  let reloadTimer: ReturnType<typeof setTimeout> | undefined;
+  async function reloadHead(attempt = 1) {
+    const id = embedId;
+    if (!EMBED_VERSIONS_ENABLED || !id) return;
+    try {
+      await requestEmbedFromServerOnce(id, 'video embed updated', { chatId: sourceChatId });
+      noteEmbedHeadChanged(id);
+      const head = await embedHead(id);
+      const version = head?.version ?? 1;
+      if (version <= (headVersion ?? 1)) {
+        // The finished event can arrive before the new head is readable here.
+        if (attempt < HEAD_RELOAD_ATTEMPTS) reloadTimer = setTimeout(() => void reloadHead(attempt + 1), HEAD_RELOAD_DELAY_MS);
+        return;
+      }
+      const stored = await resolveEmbed(id, { chatId: sourceChatId ?? undefined });
+      if (typeof stored?.content !== 'string') return;
+      headVersion = version;
+      await showVersion(version, stored.content);
+    } catch (err) {
+      console.error('[VideoGenerateEmbedFullscreen] Failed to load the new video version:', err);
+      versionError = err instanceof Error ? err.message : String(err);
+    }
+  }
+  function onEmbedUpdated(event: Event) {
+    const detail = (event as CustomEvent<{ embed_id?: string; status?: string }>).detail;
+    const updated = detail?.embed_id?.replace(/^embed:/, '');
+    if (updated && updated === embedId?.replace(/^embed:/, '') && detail.status === 'finished') {
+      clearTimeout(reloadTimer);
+      void reloadHead();
+    }
+  }
+  chatSyncService.addEventListener('embedUpdated', onEmbedUpdated);
+
   onDestroy(() => {
+    chatSyncService.removeEventListener('embedUpdated', onEmbedUpdated);
+    clearTimeout(reloadTimer);
     cancelAnimationFrame(frame);
     if (retainedS3Key) releaseCachedAudio(retainedS3Key);
   });
