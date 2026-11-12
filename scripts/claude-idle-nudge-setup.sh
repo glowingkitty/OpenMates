@@ -28,7 +28,7 @@ Description=Wake idle Claude chats every 10 minutes
 
 [Timer]
 OnBootSec=10min
-OnStartupSec=10min
+OnActiveSec=10min
 OnUnitActiveSec=10min
 AccuracySec=1min
 
@@ -38,4 +38,5 @@ UNIT
 
 systemctl --user daemon-reload
 systemctl --user enable --now openmates-claude-idle-nudge.timer
+systemctl --user restart openmates-claude-idle-nudge.timer
 systemctl --user status openmates-claude-idle-nudge.timer --no-pager | head -5

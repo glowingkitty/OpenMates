@@ -44,7 +44,7 @@ Description=Reconcile OpenMates agent worktrees hourly
 
 [Timer]
 OnBootSec=10min
-OnStartupSec=10min
+OnActiveSec=10min
 OnUnitActiveSec=1h
 Persistent=true
 
@@ -54,4 +54,5 @@ EOF
 
 systemctl --user daemon-reload
 systemctl --user enable --now worktree-reconciliation.timer
+systemctl --user restart worktree-reconciliation.timer
 systemctl --user status worktree-reconciliation.timer --no-pager

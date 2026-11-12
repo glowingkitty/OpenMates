@@ -29,7 +29,7 @@ Description=Close idle Claude chat processes every 30 minutes
 
 [Timer]
 OnBootSec=10min
-OnStartupSec=10min
+OnActiveSec=10min
 OnUnitActiveSec=30min
 AccuracySec=1min
 
@@ -39,4 +39,5 @@ UNIT
 
 systemctl --user daemon-reload
 systemctl --user enable --now openmates-claude-idle-chats.timer
+systemctl --user restart openmates-claude-idle-chats.timer
 systemctl --user status openmates-claude-idle-chats.timer --no-pager | head -5
