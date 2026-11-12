@@ -129,4 +129,16 @@ describe('session broker', () => {
 		expect(isCoreUnitClose({ coreUnitClose: 1, id: 1 })).toBe(false);
 		expect(isCoreUnitClose({ version: 1, id: 1, operation: 'status' })).toBe(false);
 	});
+
+	// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary
+	it('ensureBound admits the principal without a unit and later leases reuse it', async () => {
+		const { broker, units, workers } = harness();
+		const generation = await broker.ensureBound(ALICE);
+		expect(units).toHaveLength(0);
+		expect(broker.principal).toBe(ALICE);
+		const lease = await broker.lease(ALICE);
+		expect(lease.generation).toBe(generation);
+		expect(workers[0].binds).toBe(1);
+		await expect(broker.ensureBound('not-a-principal')).rejects.toThrow();
+	});
 });

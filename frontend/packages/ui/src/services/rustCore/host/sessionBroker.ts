@@ -53,6 +53,13 @@ export interface SessionBroker {
 	prewarm(signal?: AbortSignal): Promise<void>;
 	/** Admits `principal` once (reused afterwards) and opens one core unit lease under it. */
 	lease(principal: string, options?: LeaseOptions): Promise<CoreLease>;
+	/**
+	 * Admits `principal` (reused when already admitted) WITHOUT opening a unit, so a
+	 * sibling unit (streamed-embed writes) has a bound generation in every state the
+	 * saved-chat admission refuses (team workspace, device verification). Binding is
+	 * per account, never per workspace; keys and team scope stay with each unit.
+	 */
+	ensureBound(principal: string, signal?: AbortSignal): Promise<number>;
 	/** Principal of the current admission, null when none. */
 	readonly principal: string | null;
 	/** Open leases of the current admission. */
@@ -107,6 +114,10 @@ export function createSessionBroker(core: SharedRustCore): SessionBroker {
 		get principal() { return admission?.principal ?? null; },
 		get activeLeases() { return admission?.leases.size ?? 0; },
 		prewarm(signal) { return core.prewarm(signal); },
+		async ensureBound(principal, signal) {
+			if (!PRINCIPAL.test(principal)) throw new SharedCoreError('bad_envelope');
+			return (await admit(principal, signal)).bound;
+		},
 		async lease(principal, options = {}) {
 			if (!PRINCIPAL.test(principal)) {
 				for (const port of options.extraPorts ?? []) port.close();

@@ -12,6 +12,7 @@
  */
 import { getKeyFromStorage } from '../../cryptoService';
 import { requireSharedRustCore, type SharedRustCore } from '../host/sharedCoreRegistry';
+import { currentPrincipalBinder } from '../host/serverSessionRegistry';
 import { UnitPortError } from '../host/unitPort';
 import { openEmbedWriteClient, type EmbedWriteClient } from './embedWriteClient';
 
@@ -35,8 +36,36 @@ async function nonExtractable(key: CryptoKey): Promise<CryptoKey> {
 	}
 }
 
+/** Account principal of the signed-in profile (never a workspace id), null when signed out. */
+async function accountPrincipal(): Promise<string | null> {
+	const [{ get }, { userProfile }] = await Promise.all([import('svelte/store'), import('../../../stores/userProfile')]);
+	return get(userProfile).user_id;
+}
+
+/**
+ * The saved-chat admission binds the core only for a personal workspace on a
+ * verified device; a streamed embed arrives in team workspaces and during device
+ * verification too. When nothing is bound the account principal is bound here
+ * (same principal the saved-chat admission would use; a later admission reuses it).
+ */
+async function bindAccountPrincipal(): Promise<void> {
+	const binder = currentPrincipalBinder();
+	const principal = binder ? await accountPrincipal() : null;
+	if (binder && principal) await binder(principal);
+}
+
 async function boundGeneration(core: SharedRustCore): Promise<number> {
 	const deadline = Date.now() + BIND_WAIT_MS;
+	if (core.generation === null) {
+		try {
+			await bindAccountPrincipal();
+		} catch (error) {
+			if (core.generation === null) {
+				console.warn('[RustEmbedWrite] principal bind failed', error);
+				throw new UnitPortError('embed_write_not_bound');
+			}
+		}
+	}
 	while (core.generation === null) {
 		if (Date.now() >= deadline) throw new UnitPortError('embed_write_not_bound');
 		await new Promise((resolve) => setTimeout(resolve, BIND_POLL_MS));

@@ -60,3 +60,19 @@ export function onceServerCheckedSession(listener: () => void): () => void {
 export function notifyServerCheckedSession(): void {
 	for (const listener of [...admittedListeners]) listener();
 }
+
+/** Binds the shared core to the account principal without a saved-chat admission. */
+export type PrincipalBinder = (principal: string) => Promise<unknown>;
+
+let principalBinder: PrincipalBinder | null = null;
+
+/** Registers the single principal binder (the web loader's session broker); returns its unregister. */
+export function registerPrincipalBinder(next: PrincipalBinder): () => void {
+	principalBinder = next;
+	return () => { if (principalBinder === next) principalBinder = null; };
+}
+
+/** The registered binder, null when none (flag-off build). */
+export function currentPrincipalBinder(): PrincipalBinder | null {
+	return principalBinder;
+}

@@ -7,6 +7,7 @@ import { BrowserCoreWorkerHost } from '@openmates/ui/src/services/rustCore/worke
 import { createSessionBroker, type CoreLease, type SessionBroker } from '@openmates/ui/src/services/rustCore/host/sessionBroker';
 import { validProductionBootstrap } from './productionBootstrap';
 import type { ProductionBootstrap } from './productionBootstrap';
+import { registerPrincipalBinder } from '@openmates/ui/src/services/rustCore/host/serverSessionRegistry';
 import { startSharedRustCore } from './shared/sharedWorkerStart';
 import type { LocalSavedChatSession, ProductionSavedChatSession } from '@openmates/ui/src/services/rustCore/secondDeviceSavedChatSession';
 import type { SavedChatSelection } from '@openmates/ui/src/services/rustCore/selectedSavedChat';
@@ -20,6 +21,10 @@ function sessionBroker(): SessionBroker {
 	broker ??= createSessionBroker(startSharedRustCore());
 	return broker;
 }
+
+// Streamed-embed writes need a bound generation even where the saved-chat admission
+// refuses (team workspace, device verification): they bind the account principal here.
+registerPrincipalBinder((principal) => sessionBroker().ensureBound(principal));
 
 /**
  * Load the shared Worker's WASM now, in parallel with page boot. Loading confers
