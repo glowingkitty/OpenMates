@@ -18,6 +18,7 @@ pub(super) const MAX_ENTRIES: usize = 2000;
 pub(super) const MAX_MANIFEST_BYTES: u64 = 256 * 1024;
 pub(super) const TARGETS: &[&str] = &["aarch64", "x86_64"];
 const MAX_PROVIDERS: usize = 32;
+const MAX_PROVIDER_REGIONS: usize = 60;
 const MAX_PATH_CHARS: usize = 240;
 
 #[derive(Deserialize)]
@@ -49,6 +50,9 @@ pub(super) struct Provider {
     pub optional_secrets: Option<Vec<String>>,
     #[serde(default)]
     pub skill_hint: Option<String>,
+    /// ISO 3166-1 alpha-2 codes the provider covers; absent means worldwide.
+    #[serde(default)]
+    pub regions: Option<Vec<String>>,
 }
 impl Provider {
     pub(super) fn secret_names(&self) -> &[String] {
@@ -124,6 +128,10 @@ fn secret_name(value: &str) -> bool {
     (1..=64).contains(&value.len())
         && value.bytes().next().is_some_and(|b| b.is_ascii_lowercase())
         && value.bytes().all(|b| lower_alnum(b) || b == b'_')
+}
+/// An ISO 3166-1 alpha-2 country code in upper case.
+fn region_code(value: &str) -> bool {
+    value.len() == 2 && value.bytes().all(|b| b.is_ascii_uppercase())
 }
 /// Generic contract served to any built-in skill that is paused for lack of a provider.
 pub(super) const GENERIC_CONTRACT: &str = "skill.requests@1";
@@ -360,6 +368,17 @@ pub(super) fn parse_manifest(raw: &[u8]) -> Result<Manifest> {
         {
             return Err(Error::Invalid(
                 "Invalid provider optional_secrets; use unique lowercase names that are not also in secrets.",
+            ));
+        }
+        // Same rule as the server loader: a declared list is never empty.
+        if p.regions.as_deref().is_some_and(|regions| {
+            regions.is_empty()
+                || regions.len() > MAX_PROVIDER_REGIONS
+                || !regions.iter().all(|code| region_code(code))
+                || regions.iter().collect::<BTreeSet<_>>().len() != regions.len()
+        }) {
+            return Err(Error::Invalid(
+                "Invalid provider regions; use 1-60 unique ISO 3166-1 alpha-2 codes such as DE.",
             ));
         }
         if p.skill_hint

@@ -681,3 +681,30 @@ fn optional_secrets_are_validated_and_do_not_make_a_provider_unavailable() {
     assert_eq!(provider["optionalSecrets"][0]["name"], "token");
     assert_eq!(provider["optionalSecrets"][0]["configured"], false);
 }
+
+fn with_regions(version: &str, regions: &str) -> Vec<u8> {
+    let manifest = manifest(version).replace(
+        "secrets: [api_key]\n",
+        &format!("secrets: [api_key]\n      regions: {regions}\n"),
+    );
+    zip(&[
+        ("manifest.yml", manifest.as_bytes()),
+        ("bin/aarch64/provider", PROVIDER),
+        ("bin/x86_64/provider", PROVIDER),
+    ])
+}
+
+#[test]
+fn provider_regions_accept_country_codes_and_reject_anything_else() {
+    let f = Fixture::new();
+    for (version, bad) in [
+        ("1.0.0", "[]"),
+        ("1.0.1", "[de]"),
+        ("1.0.2", "[DE, DE]"),
+        ("1.0.3", "[DEU]"),
+    ] {
+        let error = f.install(&with_regions(version, bad)).unwrap_err();
+        assert!(error.to_string().contains("regions"), "{error}");
+    }
+    f.install(&with_regions("1.1.0", "[DE, AT]")).unwrap();
+}

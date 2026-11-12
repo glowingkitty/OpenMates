@@ -209,6 +209,11 @@ openmates server restart
 Names in `optional_secrets` (for example an outbound `proxy_url`) are read the
 same way but are passed only when set and never make the provider unavailable.
 
+A provider that covers only some countries can declare them with `regions`
+(1-60 unique ISO 3166-1 alpha-2 codes, for example `regions: [DE, AT]`). A
+generic-contract request that names other countries does not start that
+provider and lists it as skipped. Without `regions` the provider is worldwide.
+
 Secrets are imported into Vault at `kv/data/providers/<provider id>` like
 built-in provider keys. A provider receives only its own declared secrets, for
 the duration of one call. While a declared secret is missing, the provider is
