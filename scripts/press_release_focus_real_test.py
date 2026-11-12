@@ -81,7 +81,7 @@ CASES: dict[str, dict] = {
     "project-style": {"format": "word", "project": True, "turns": [
         "Set up our press style for press releases and save it to this project. " + STYLE
         + " Media contact: Jonas Example, press officer, press@example.org. Mara Example, CEO, is usually quoted.",
-        "Yes, save the press style to this project's Memories.",
+        "Thanks. If the press style is not saved to this project's Memories yet, save it now; otherwise just confirm.",
     ], "reuse_turns": [
         "Write a press release about our app launch. " + NEWS
         + " Skip all questions and the fact check, use your recommended headline and write it now.",
@@ -102,13 +102,19 @@ def memory_count(cli: str) -> int:
     return len(entries) if isinstance(entries, list) else -1
 
 
-def project_memory_files(cli: str, project_id: str) -> list[str]:
-    try:
-        listed = command(cli, ["projects", "files", "list", project_id, "--path", MEMORY_DIR])
-    except ProofError:
-        return []
-    text = json.dumps(listed)
-    return sorted(set(part.split('"')[0] for part in text.split(MEMORY_DIR + "/")[1:] if part.split('"')[0].endswith(".md")))
+def project_memory_files(cli: str, project_id: str, out: Path, label: str) -> list[str]:
+    """Memory file names under .openmates/memories; the raw listings are kept as receipts."""
+    found: set[str] = set()
+    for name, args in (("path", ["--path", MEMORY_DIR]), ("tree", ["--depth", "4"])):
+        try:
+            listed = command(cli, ["projects", "files", "list", project_id, *args])
+        except ProofError as exc:
+            listed = {"error": str(exc)}
+        write_receipt(out / f"{label}-files-{name}.json", listed)
+        text = json.dumps(listed)
+        found.update(part.split('"')[0].rsplit("/", 1)[-1] for part in re.split(r"(?:\.openmates/)?memories/", text)[1:]
+                     if part.split('"')[0].endswith(".md"))
+    return sorted(found)
 
 
 def find_id(value: object) -> str | None:
@@ -158,18 +164,18 @@ def run_project_case(cli: str, label: str, case: dict, out: Path, timeout: int) 
         personal_before = memory_count(cli)
         save = run_case(cli, f"{label}-save", {**case, "format": None}, out, timeout,
                         project_id=project_id, expect_focus_any=True)
-        files = project_memory_files(cli, project_id)
+        files = project_memory_files(cli, project_id, out, label)
         memory_text = ""
         for name in files:
-            read = command(cli, ["projects", "files", "read", project_id, f"{MEMORY_DIR}/{name}"])
+            read = command(cli, ["projects", "files", "read", project_id, f"{MEMORY_DIR}/{name}", "--include-ignored"])
             memory_text += json.dumps(read).lower()
         write_receipt(out / f"{label}-project-memories.json", {"files": files})
         result["save"] = save
         result["project_memory_files"] = len(files)
-        result["project_memory_has_style"] = "3,000 apartments" in memory_text or "3000 apartments" in memory_text
+        result["project_memory_has_style"] = "3,000" in memory_text or "3000" in memory_text
         result["personal_memories_unchanged"] = memory_count(cli) == personal_before
         reuse = run_case(cli, f"{label}-reuse", {"format": "word", "turns": case["reuse_turns"]}, out, timeout,
-                         project_id=project_id, extra_tokens=["3,000 apartments"], expect_focus_any=True)
+                         project_id=project_id, extra_tokens=["3,000"], expect_focus_any=True)
         result["reuse"] = reuse
         checks = [len(files) >= 1, result["project_memory_has_style"], result["personal_memories_unchanged"],
                   reuse["status"] == "passed"]

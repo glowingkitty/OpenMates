@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any, Awaitable, Callable, Iterable, Mapping, Optional
 
 from backend.apps.ai.processing.jev_decisions import (
@@ -95,8 +96,14 @@ def _app_id(identifier: str, app_ids: Iterable[str]) -> str | None:
 
 def _app_catalogue(available_apps: Iterable[str], available_skills: Iterable[str],
                    available_focus_modes: Iterable[str] = (),
-                   authoring_definitions: Mapping[str, Mapping[str, Any]] | None = None) -> list[str]:
-    """Give stage one a compact, public capability sketch for every available app."""
+                   authoring_definitions: Mapping[str, Mapping[str, Any]] | None = None,
+                   request_text: str = "") -> list[str]:
+    """Give stage one a compact, public capability sketch for every available app.
+
+    Every focus mode keeps its own short hint. Hints that share words with the
+    latest request come first, because the decision model weighs the start of
+    a long app sketch most; ties keep the app.yml order.
+    """
     app_ids = list(dict.fromkeys(available_apps))
     names: dict[str, list[str]] = {app_id: [] for app_id in app_ids}
     examples: dict[str, list[str]] = {app_id: [] for app_id in app_ids}
@@ -122,24 +129,51 @@ def _app_catalogue(available_apps: Iterable[str], available_skills: Iterable[str
         app_id = _app_id(identifier, app_ids)
         if app_id is not None:
             focus_name = identifier[len(app_id) + 1:].replace("_", " ") + " focus"
-            names[app_id].append(focus_name)
-            # A focus is selectable only when stage one keeps its app, so its
-            # relevance hint must be visible here, not just its bare name.
-            short_hint = " ".join(hint.split()).split(". ", 1)[0][:180]
+            # A focus is selectable only when stage one keeps its app, so every
+            # focus needs its own relevance hint here, not just its bare name.
+            short_hint = " ".join(hint.split()).split(". ", 1)[0][:FOCUS_HINT_CHARS]
             if short_hint:
                 focus_examples[app_id].append(f"{focus_name}: {short_hint}")
+            else:
+                names[app_id].append(focus_name)
+    request_words = _routing_words(request_text)
     catalogue = []
     for app_id in app_ids:
+        focus_examples[app_id].sort(key=lambda row: -len(request_words & _routing_words(row)))
         skills_and_focuses = f"capabilities {', '.join(names[app_id])}" if names[app_id] else ""
-        example_hints = "; ".join(focus_examples[app_id][:2] + examples[app_id][:2])
+        example_hints = "; ".join(focus_examples[app_id] + examples[app_id][:2])
         provider_names = ", ".join(dict.fromkeys(providers[app_id]))
         provider_hint = f"providers {provider_names}" if provider_names else ""
         authored = ", ".join(f"{kind} ({row['display_name']})" for kind, row in
                              (authoring_definitions or {}).items() if row["app_id"] == app_id)
         authoring_hint = f"Create result cards from research or supplied facts, independent of search availability: {authored}" if authored else ""
         description = "; ".join(part for part in (authoring_hint, provider_hint, skills_and_focuses, example_hints) if part)
-        catalogue.append(f"{app_id}: {description or PUBLIC_APP_CAPABILITIES.get(app_id, app_id.replace('_', ' '))}"[:500])
+        # Apps with many focus modes get room for each focus hint instead of
+        # silently dropping the later ones behind a fixed cut.
+        limit = APP_SKETCH_CHARS + FOCUS_SKETCH_CHARS * max(0, len(focus_examples[app_id]) - 2)
+        catalogue.append(f"{app_id}: {description or PUBLIC_APP_CAPABILITIES.get(app_id, app_id.replace('_', ' '))}"[:limit])
     return catalogue
+
+
+APP_SKETCH_CHARS = 500
+FOCUS_HINT_CHARS = 180
+FOCUS_SKETCH_CHARS = 210
+# Words every focus hint shares; they say nothing about which focus fits.
+_ROUTING_STOP_WORDS = frozenset({
+    "select", "when", "only", "user", "users", "wants", "want", "with", "that", "this", "their", "they",
+    "from", "about", "into", "also", "help", "your", "what", "which", "would", "could", "should", "other",
+    "please", "make", "need", "needs", "have", "does", "like", "some", "more", "most", "than", "then",
+})
+
+
+def _routing_words(text: str) -> set[str]:
+    """Lower-case content words (four or more letters, any script) for hint ordering."""
+    return {word for word in re.findall(r"[^\W\d_]{4,}", text.casefold())
+            if word not in _ROUTING_STOP_WORDS}
+
+
+def _latest_user_text(message_history: list[Any]) -> str:
+    return next((row["content"] for row in reversed(_messages(message_history)) if row["role"] == "user"), "")
 
 
 def _messages(message_history: list[Any]) -> list[dict[str, str]]:
@@ -442,7 +476,8 @@ async def decide_app_and_project_routing_with_jev(
     A Project choice proposes consent only. It cannot authorize a file operation.
     Optional specialist discovery sees validated selection metadata, never bodies.
     """
-    catalogue = _app_catalogue(available_apps, available_skills, available_focus_modes, authoring_definitions)
+    catalogue = _app_catalogue(available_apps, available_skills, available_focus_modes, authoring_definitions,
+                               request_text=_latest_user_text(message_history))
     valid_apps = {entry.partition(": ")[0] for entry in catalogue}
     state: dict[str, Any] = {
         "messages": _messages(message_history), "previous_category": previous_category,
@@ -625,7 +660,8 @@ async def decide_preprocessing_with_jev(
         inferred = [entry.partition(": ")[0].split("-", 1)[0] for entry in available_skills]
         inferred.extend((available_settings_and_memories or {}).keys())
         available_apps = list(dict.fromkeys(inferred))
-    app_catalogue = _app_catalogue(available_apps, available_skills, available_focus_modes, authoring_definitions)
+    app_catalogue = _app_catalogue(available_apps, available_skills, available_focus_modes, authoring_definitions,
+                                   request_text=_latest_user_text(message_history))
     valid_app_ids = {entry.partition(": ")[0] for entry in app_catalogue}
     state: dict[str, Any] = {
         "messages": _messages(message_history),

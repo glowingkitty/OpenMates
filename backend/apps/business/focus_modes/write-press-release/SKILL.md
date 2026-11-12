@@ -60,10 +60,11 @@ phases:
       for future press releases. Recommend saving it to the active Project's
       Memories when a Project is active, because the style belongs to that
       company; otherwise offer a personal Memory that loads only when
-      mentioned. Save only after the user agrees: in a Project, call
-      save_memory with target project and load_mode auto_include; otherwise
-      save_memory with load_mode mention_only. Honor a request to skip this
-      phase.
+      mentioned. Save only after the user agrees; if they already asked to
+      save it, save without asking again. In a Project, call save_memory with
+      target project and load_mode auto_include; otherwise save_memory with
+      load_mode mention_only. Save the same style only once. Honor a request
+      to skip this phase.
     requirements:
       - id: style_known
         text: A press style is loaded, derived from the user's material or answers, or the user chose neutral defaults or asked to skip.

@@ -36,6 +36,28 @@ def test_routing_catalogue_keeps_providers_from_every_skill_before_hint_truncati
     assert "internal" not in catalogue[0]
 
 
+# contract-test: supporting surface=rest_api assertions=focus-modes.natural-request
+def test_stage_one_shows_every_focus_hint_and_leads_with_the_request_match():
+    import yaml
+
+    app = yaml.safe_load((Path(__file__).resolve().parents[1] / "apps/business/app.yml").read_text())
+    focuses = [f"business-{row['id']}: {' '.join(row['preprocessor_hint'].split())}" for row in app["focuses"]]
+    assert len(focuses) > 2 and focuses[-1].startswith("business-write_press_release")
+    (plain,) = jev_preprocessing._app_catalogue(["business"], [], focuses)
+    # Later focus modes are no longer cut off behind the first two hints.
+    for row in app["focuses"]:
+        assert f"{row['id'].replace('_', ' ')} focus: Select" in plain
+    (ranked,) = jev_preprocessing._app_catalogue(
+        ["business"], [], focuses, request_text="Kannst du eine Pressemitteilung für unseren Launch schreiben?")
+    # The decision model weighs the start of a long sketch most.
+    assert ranked.index("write press release focus") < ranked.index("find brand name focus")
+    assert ranked.startswith("business: write press release focus: Select for any request to write")
+    assert jev_preprocessing._latest_user_text([
+        {"role": "user", "content": "first"}, {"role": "assistant", "content": "reply"},
+        {"role": "user", "content": " Write a press release "},
+    ]) == "Write a press release"
+
+
 def test_provider_correction_keeps_preceding_activity_and_provider_brand():
     history = [
         {"role": "user", "content": "Show me capoeira classes on OpenSports in Berlin."},
