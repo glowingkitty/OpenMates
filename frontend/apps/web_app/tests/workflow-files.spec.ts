@@ -53,7 +53,7 @@ test.describe('Portable Workflow files', () => {
     expect(created.ok()).toBe(true);
     const { workflow } = await created.json();
     try {
-      await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
+      await page.goto(getE2EDebugUrl('/#workflows'), { waitUntil: 'domcontentloaded' });
       await page.getByTestId('workflow-landing-card').filter({ hasText: title }).first().click();
       await expect(page.getByTestId('workspace-detail-title')).toHaveText(title);
       await page.getByTestId('workflow-detail-actions').getByRole('button', { name: 'More', exact: true }).click();
@@ -76,7 +76,7 @@ test.describe('Portable Workflow files', () => {
   // contract-test: supporting surface=gui.web assertions=workflows-ui.files.composer-drop-import,workflows.portability.disabled-validated-import
   test('composer file button opens the picker, rejects other extensions and imports a Workflow YAML', async ({ page }: { page: Page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
+    await page.goto(getE2EDebugUrl('/#workflows'), { waitUntil: 'domcontentloaded' });
     const composer = page.getByTestId('workflow-input-composer');
     const input = page.getByTestId('workflow-input-textarea');
     const button = composer.getByTestId('workflow-import-button');
@@ -117,7 +117,7 @@ test.describe('Portable Workflow files', () => {
 
   // contract-test: supporting surface=gui.web assertions=workflows-ui.files.composer-drop-import,workflows.portability.disabled-validated-import
   test('dropping a Workflow YAML opens disabled Template with persisted binding review and preserves typed text on failed import', async ({ page }: { page: Page }) => {
-    await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
+    await page.goto(getE2EDebugUrl('/#workflows'), { waitUntil: 'domcontentloaded' });
     await page.getByTestId('workflow-input-textarea').fill('Keep this unsent title');
     await page.getByTestId('workflow-import-dropzone').dispatchEvent('drop', { dataTransfer: await page.evaluateHandle(() => {
       const transfer = new DataTransfer();
