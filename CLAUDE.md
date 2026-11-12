@@ -121,6 +121,14 @@ when a skill or this file points to it.
   recordings from older commits. If browser CI cannot run or fails for infra
   reasons, fix the blocker or say plainly the flow is unproven; never present
   deployed work as verified without this, and run the E2E before deploying.
+- Result video is mandatory, without being asked, for a new feature, a
+  drastically changed feature (new flow, redesigned UI, replaced pipeline or
+  output) and a new provider: the final reply shows a video from the deployed
+  commit in which the result itself is visible on the real stack (web or Apple
+  flow, or a CLI terminal recording when there is no UI; a new provider: a real
+  request answered with that provider's data). A passing test, screenshots or a
+  log are not a substitute; without the video the work is not done. Only the
+  user can waive it. Details: `.claude/rules/testing.md`.
 
 ## Planning and Tasks
 - Ordinary work: inline goal + acceptance criteria. Durable `docs/plans/<slug>/plan.yml`

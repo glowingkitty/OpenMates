@@ -98,6 +98,10 @@ memory behavior, the spec or inline contract must also define this phase gate:
    complete, or after an explicit waiver/blocker is recorded. This applies to
    Apple UI parity; Apple client logic comes from the Rust core and is not
    sequenced behind web.
+6. A new provider is done only with a result video in the final reply: a real
+   request on the deployed commit answered with this provider's data, recorded
+   in the web app or, without UI, as a CLI terminal recording ("Mandatory
+   result video" in `.claude/rules/testing.md`). Test output alone is not enough.
 
 ### Step 2: Read Reference Implementation
 

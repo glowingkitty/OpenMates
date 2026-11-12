@@ -22,6 +22,11 @@ rule; report missing capture/upload failure for selected evidence explicitly.
 Extra edited/captioned proof production follows the
 accepted scope. Preserve explicitly required product-contract checks.
 
+New feature, drastically changed feature or new provider: a result video from
+the deployed commit is mandatory in the final reply ("Mandatory result video"
+in `.claude/rules/testing.md`). Make sure a spec records the flow before
+deploying; without the video the work is not reported as done.
+
 For frontend readiness use `sessions.py wait-deploy --commit <sha>` and wait on
 the process, not a model-driven polling loop. Report the outcome, commit and
 verification. End/cleanup is optional maintenance, not another completion gate.

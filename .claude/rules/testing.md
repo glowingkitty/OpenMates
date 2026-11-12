@@ -100,3 +100,26 @@ behavior or material scope growth; keep the patch and evidence.
 6. Edited/captioned proof videos only when requested (`/create-demo-video`,
    `sessions.py update --require-proof-video`). Never publish private
    production evidence or personal data.
+
+## Mandatory result video (new feature, drastic update, new provider)
+Applies without the user asking when the work adds a feature, drastically
+changes one (new flow, redesigned UI, replaced pipeline, different output) or
+adds a provider. Small fixes, refactors without visible change, docs and
+tooling follow the normal delivery rules above.
+1. Decide at the start which flow the video will show and make sure a spec
+   records it: a web or Apple flow for visible work, a real terminal recording
+   (`cli-tui-proof-helpers.ts` / `cli_video_capture.py`) when there is no UI.
+2. The video shows the result, not just a green check: the feature used end to
+   end with its real output on screen. New provider: a real request through
+   the deployed stack answered with that provider's data (result rendered in
+   the chat, embed or CLI output). Mocks, fixture replay and direct function
+   calls do not count.
+3. It comes from a run on the deployed commit and is shown in the final reply
+   as the signed link or `<video>` HTML, next to 1-3 screenshots from it. One
+   video per new flow or provider; raw recordings are enough, captions and
+   edits only on request.
+4. Watch enough of it (frames or screenshots) to confirm the result is really
+   visible, and name any defect you see.
+5. No video means not done: do not mark the Task Done or call the work
+   verified. If capture is impossible, say why and what is unproven; only the
+   user can waive the video.
