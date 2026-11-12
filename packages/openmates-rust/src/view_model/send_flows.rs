@@ -20,7 +20,7 @@ use super::{
     window::OpenWindow,
 };
 use crate::{
-    client::Client,
+    client::{Client, SendOptions, server_region::ServerRegionPreference},
     error::{Error, Result},
     local_cache::ByteStore,
     model::{Chat, StreamUpdate},
@@ -90,8 +90,12 @@ pub(super) trait TurnDispatch: Send {
     ) -> BoxFuture<'a, Result<Chat>>;
 }
 
-/// `Client::send_message`, the encrypted turn over the chat socket.
-pub(super) struct ClientDispatch;
+/// `Client::send` with default options (`Client::send_message`), the
+/// encrypted turn over the chat socket, plus the actor's Memory-write opt-in.
+pub(super) struct ClientDispatch {
+    memory_write_jobs: bool,
+    server_region: ServerRegionPreference,
+}
 
 impl TurnDispatch for ClientDispatch {
     fn dispatch<'a>(
@@ -102,7 +106,15 @@ impl TurnDispatch for ClientDispatch {
         updates: mpsc::Sender<StreamUpdate>,
         cancel: CancellationToken,
     ) -> BoxFuture<'a, Result<Chat>> {
-        Box::pin(client.send_message(chat_id, text, updates, cancel))
+        let options = SendOptions {
+            memory_write_jobs: self.memory_write_jobs,
+            server_region: self.server_region,
+            ..SendOptions::default()
+        };
+        Box::pin(async move {
+            let outcome = client.send(chat_id, text, options, updates, cancel).await?;
+            Ok(outcome.chat)
+        })
     }
 }
 
@@ -130,8 +142,12 @@ pub fn send<'a, S: ByteStore + 'static, H: ViewHost<S>>(
     cancel: &'a CancellationToken,
 ) -> BoxFuture<'a, Result<ChatWindowRecord>> {
     Box::pin(async move {
+        let mut dispatch = ClientDispatch {
+            memory_write_jobs: host.core().memory_write_jobs,
+            server_region: host.core().server_region,
+        };
         host.core_mut()
-            .send_turn(request, chat_id, text, sink, cancel, &mut ClientDispatch)
+            .send_turn(request, chat_id, text, sink, cancel, &mut dispatch)
             .await
     })
 }
@@ -147,6 +163,21 @@ impl<S: ByteStore + 'static> ViewCore<S> {
     /// A handle that cancels the running send without the actor.
     pub fn send_cancel_handle(&self) -> SendCancelHandle {
         SendCancelHandle::new(self.foreground.clone())
+    }
+
+    /// Opt sends in to assistant Memory writes: the turn advertises
+    /// `memory_write_jobs`, and the core claims, stores and announces (with
+    /// the encrypted `context_entry` notice carrying Undo data) each Memory
+    /// the assistant saves (`client::memory_write_jobs`). Off by default:
+    /// only a shell that shows the notice and its Undo may switch it on.
+    pub fn set_memory_write_jobs(&mut self, enabled: bool) {
+        self.memory_write_jobs = enabled;
+    }
+
+    /// The server region preference of the following sends (the shell keeps
+    /// the device-local setting; EU until it is set).
+    pub fn set_server_region(&mut self, preference: ServerRegionPreference) {
+        self.server_region = preference;
     }
 
     /// [`send`] with an explicit dispatcher (tests script the client).

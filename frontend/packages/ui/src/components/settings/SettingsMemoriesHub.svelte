@@ -4,6 +4,8 @@
      for discovering new apps that support memories.
 
      Architecture: See docs/architecture/app-skills.md
+     Native Swift counterparts:
+     - apple/OpenMates/Sources/Features/Settings/Views/SettingsMemoriesFull.swift
      Route: settings_memories (top-level, shown in sidebar nav); settings_memories/create and
             settings_memories/<id> (or memories/<id> deep links) show only the memory's own page.
      Navigation: Clicking a category navigates to apps/{appId}/settings_memories/{categoryId}

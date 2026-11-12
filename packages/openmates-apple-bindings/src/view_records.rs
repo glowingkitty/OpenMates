@@ -5,6 +5,7 @@
 //! enums need labels. Spec: `a2-design.md` (View model); plan
 //! `apple-client-core-migration` lane L8. Row and message metadata mirrors
 //! live in `view_record_details.rs`.
+use crate::view_account::SessionVerificationRecord;
 use crate::view_record_details::{ChatRowMetadataRecord, MessageMetadataRecord};
 use openmates_sdk::view_model::{
     AccessDenial, ChatListRow, ChatRowStatus, ChatWindowRecord, ChatWindowSource, EmbedRef,
@@ -49,9 +50,9 @@ pub struct ChatListRowRecord {
     pub category: String,
     /// Draft or locked state.
     pub status: ChatRowStatusRecord,
-    /// Creation time in unix milliseconds.
+    /// Creation time in unix seconds (the server chat-row unit).
     pub created_at: Option<i64>,
-    /// Last update in unix milliseconds.
+    /// Last update in unix seconds (the server chat-row unit).
     pub updated_at: Option<i64>,
     /// Server message version.
     pub messages_v: Option<u64>,
@@ -65,6 +66,8 @@ pub struct ChatListRowRecord {
     pub has_draft: bool,
     /// Home-card footer such as a reminder countdown.
     pub footer: Option<String>,
+    /// The row is a saved-item home entry (an embed card), not a chat.
+    pub is_saved_item: bool,
     /// Further facts of the held chat row (icon, sub-chat, budget, draft).
     pub metadata: ChatRowMetadataRecord,
 }
@@ -302,6 +305,12 @@ pub enum SessionEventRecord {
     },
     /// The session expired.
     Expired,
+    /// The server kept the session but asks to verify this device or to
+    /// sign in again before it admits it; credentials stay stored.
+    VerificationRequired {
+        /// What the server asks for.
+        verification: SessionVerificationRecord,
+    },
     /// Access was denied.
     AccessDenied {
         /// Why.
@@ -346,6 +355,8 @@ pub enum ViewErrorKindRecord {
     Forbidden,
     /// The session expired.
     Expired,
+    /// The server asks to verify this device or to sign in again.
+    VerificationRequired,
     /// The operation was cancelled.
     Cancelled,
     /// Local I/O failed.
@@ -378,6 +389,9 @@ pub enum ViewEventRecord {
         rows: Vec<ChatListRowRecord>,
         /// How far the list can be trusted.
         completeness: ListCompletenessRecord,
+        /// Chats the account has in this scope as the server last reported it;
+        /// `None` until reported.
+        total_count: Option<u64>,
     },
     /// A chat window is ready or changed.
     ChatWindow {
@@ -433,6 +447,20 @@ pub enum ViewEventRecord {
     },
     /// The current unit of work finished.
     Done,
+    /// An inbound socket frame of a shell feature the core does not own yet
+    /// (core `UnownedSocketFrame`; temporary strangler seam).
+    UnownedSocketFrame {
+        /// The frame's `type` name.
+        event_type: String,
+        /// The frame's payload as JSON text.
+        payload_json: String,
+    },
+    /// `count` unowned frames were dropped here; re-read their state (core
+    /// `UnownedSocketFramesDropped`).
+    UnownedSocketFramesDropped {
+        /// Frames lost at this position.
+        count: u64,
+    },
 }
 
 impl From<ListCompleteness> for ListCompletenessRecord {
@@ -472,6 +500,7 @@ impl From<ChatListRow> for ChatListRowRecord {
             archived: row.archived,
             has_draft: row.has_draft,
             footer: row.footer,
+            is_saved_item: row.is_saved_item,
             metadata: row.metadata.into(),
         }
     }
@@ -662,6 +691,9 @@ impl From<SessionEvent> for SessionEventRecord {
                 expires_at,
             },
             SessionEvent::Expired => Self::Expired,
+            SessionEvent::VerificationRequired(verification) => Self::VerificationRequired {
+                verification: verification.into(),
+            },
             SessionEvent::AccessDenied(denial) => Self::AccessDenied {
                 denial: denial.into(),
             },
@@ -692,6 +724,7 @@ impl From<ViewErrorKind> for ViewErrorKindRecord {
             ViewErrorKind::Offline => Self::Offline,
             ViewErrorKind::Forbidden => Self::Forbidden,
             ViewErrorKind::Expired => Self::Expired,
+            ViewErrorKind::VerificationRequired => Self::VerificationRequired,
             ViewErrorKind::Cancelled => Self::Cancelled,
             ViewErrorKind::Io => Self::Io,
             ViewErrorKind::Protocol => Self::ProtocolError,
@@ -710,9 +743,14 @@ impl From<ViewEvent> for ViewEventRecord {
                 phase: phase.into(),
                 received,
             },
-            ViewEvent::ChatList { rows, completeness } => Self::ChatList {
+            ViewEvent::ChatList {
+                rows,
+                completeness,
+                total_count,
+            } => Self::ChatList {
                 rows: rows.into_iter().map(Into::into).collect(),
                 completeness: completeness.into(),
+                total_count,
             },
             ViewEvent::ChatWindow { request, window } => Self::ChatWindow {
                 request: request.0,
@@ -751,6 +789,16 @@ impl From<ViewEvent> for ViewEventRecord {
                 error: error.into(),
             },
             ViewEvent::Done => Self::Done,
+            ViewEvent::UnownedSocketFrame {
+                event_type,
+                payload_json,
+            } => Self::UnownedSocketFrame {
+                event_type,
+                payload_json,
+            },
+            ViewEvent::UnownedSocketFramesDropped { count } => {
+                Self::UnownedSocketFramesDropped { count }
+            }
         }
     }
 }

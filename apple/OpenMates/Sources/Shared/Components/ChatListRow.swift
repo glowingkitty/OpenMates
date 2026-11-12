@@ -1,6 +1,10 @@
 // Specification: specifications/features/chat-navigation/specification.yml
 // Assertions: chat-navigation.projects.nested-readable, chat-navigation.activity.global-running, chat-navigation.projects.organize
 // Chat list row — single row in the chat sidebar.
+// Specification: specifications/architecture/client-core/specification.yml
+// Assertions: client-core.viewmodel.capability-contract
+// Sidebar rows from the client core carry `ChatSidebarRowPresentation`
+// (unread count, draft-only state, draft preview decided by the core).
 // Specification: specifications/features/message-input/specification.yml
 // Assertions: message-input.drafts.preview-persistence
 // Specification: specifications/architecture/drafts/specification.yml
@@ -29,12 +33,21 @@ struct ChatListRow: View {
     let activeSubChatCount: Int
     let suppliedDraftPreview: String?
     let formattedDraftPreview: String?
+    /// The client core's decision for this row (sidebar rows from `CoreChatList`);
+    /// `nil` for rows the core does not list yet (public chats, search, fixtures).
+    let presentation: ChatSidebarRowPresentation?
 
-    init(chat: Chat, suppliedDraftPreview: String? = nil, processing: Bool = false, activeSubChatCount: Int = 0, previewIsFormatted: Bool = false) {
+    init(chat: Chat, suppliedDraftPreview: String? = nil, processing: Bool = false, activeSubChatCount: Int = 0, previewIsFormatted: Bool = false,
+         presentation: ChatSidebarRowPresentation? = nil) {
         self.chat = chat; self.suppliedDraftPreview = suppliedDraftPreview
         self.processing = processing; self.activeSubChatCount = activeSubChatCount
-        let preview = previewIsFormatted ? suppliedDraftPreview ?? "" : ChatDraftPreviewFormatter.format(suppliedDraftPreview)
-        formattedDraftPreview = chat.hasNonEmptyDraft == false || preview.isEmpty ? nil : preview
+        self.presentation = presentation
+        if let presentation {
+            formattedDraftPreview = presentation.draftPreview
+        } else {
+            let preview = previewIsFormatted ? suppliedDraftPreview ?? "" : ChatDraftPreviewFormatter.format(suppliedDraftPreview)
+            formattedDraftPreview = chat.hasNonEmptyDraft == false || preview.isEmpty ? nil : preview
+        }
     }
 
     private struct PublicIconDescriptor {
@@ -98,7 +111,10 @@ struct ChatListRow: View {
         return formattedDraftPreview
     }
 
-    private var isDraftOnly: Bool { ChatSidebarDisplayPolicy.isDraftOnly(chat, preview: formattedDraftPreview) }
+    private var isDraftOnly: Bool {
+        presentation?.isDraftOnly ?? ChatSidebarDisplayPolicy.isDraftOnly(chat, preview: formattedDraftPreview)
+    }
+    private var unreadCount: Int { presentation?.unreadCount ?? unreadStore.getUnreadCount(chatId: chat.id) }
     private var titleForDisplay: String { isDraftOnly ? AppStrings.draftBadge : chat.displayTitle }
 
     var body: some View {
@@ -156,7 +172,7 @@ struct ChatListRow: View {
             // Web .unread-badge: 21px circle, bottom/right -2px, small medium text.
             .overlay(alignment: .bottomTrailing) {
                 if let text = ChatSidebarDisplayPolicy.unreadBadgeText(
-                    count: unreadStore.getUnreadCount(chatId: chat.id), processing: processing, draftOnly: isDraftOnly) {
+                    count: unreadCount, processing: processing, draftOnly: isDraftOnly) {
                     Text(text)
                         .font(.omSmall).fontWeight(.medium).foregroundStyle(.white)
                         .frame(width: 21, height: 21)

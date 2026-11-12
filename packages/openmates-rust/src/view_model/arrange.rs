@@ -14,6 +14,10 @@ use crate::client::overview::{
 use crate::model::Item;
 use std::collections::BTreeMap;
 
+/// Id prefix of a saved-item home entry (`embed:<id>`): a row of the list
+/// that is an embed card, not a chat.
+pub const SAVED_ITEM_ID_PREFIX: &str = "embed:";
+
 /// Arrange chat inventory items in display order at the current time and the
 /// shell-provided local UTC offset (`overview::set_local_utc_offset_minutes`).
 pub fn arrange_chat_list(client: &Client, items: Vec<Item>) -> Vec<Item> {
@@ -68,7 +72,7 @@ pub fn place_home_entries(ordered: Vec<Item>, entries: Vec<HomeEntry>) -> Vec<It
                 category,
                 footer,
             } => result.push(Item {
-                id: format!("embed:{embed_id}"),
+                id: format!("{SAVED_ITEM_ID_PREFIX}{embed_id}"),
                 title,
                 description: summary.unwrap_or_else(|| "Open saved item".to_owned()),
                 category: category.unwrap_or_default(),

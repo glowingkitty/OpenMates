@@ -48,7 +48,7 @@ final class DevPreviewLaunchConfigurationTests: XCTestCase {
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testSelectedTextAndFullscreenActionRoutesResolveToIsolatedFixtures() throws {
         for variant in ["selected-text", "selected-text-user", "selected-text-readonly", "fork-settings",
-                        "action-calendar", "action-export", "action-memory", "action-memory-error",
+                        "action-calendar", "action-export",
                         "action-pcb", "action-pcb-failed", "action-pcb-delayed", "action-pcb-recipient"] {
             let config = try XCTUnwrap(DevPreviewLaunchConfiguration.parse(arguments:
                 ["--dev-preview", "message", "--dev-preview-variant", variant]))

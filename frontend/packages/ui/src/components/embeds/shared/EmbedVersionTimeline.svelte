@@ -7,6 +7,8 @@
 
   Used in: CodeEmbedFullscreen, DocsEmbedFullscreen, SheetEmbedFullscreen.
   Architecture: docs/architecture/messaging/embed-diff-editing.md
+  Native Swift counterparts: apple/OpenMates/Sources/Features/Embeds/Views/EmbedVersionHistoryView.swift,
+    apple/OpenMates/Sources/Features/Embeds/Views/EmbedVersionEditControls.swift (core version list and restore)
 -->
 <script lang="ts">
 	import { text } from '../../../i18n/translations';

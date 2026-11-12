@@ -72,6 +72,46 @@ class LockPreparationTests(unittest.TestCase):
         self.assertFalse(lane.owned("packages/third_party/.hidden"))
         self.assertFalse(lane.owned(lane.ROOTS[0] + "/Cargo.lock"))
 
+    def test_apple_bindings_is_a_known_member_with_its_bindgen_target(self):
+        self.assertIn("packages/openmates-apple-bindings", lane.ROOTS)
+        self.assertTrue(lane.owned(lane.APPLE + "/uniffi-bindgen.rs"))
+        self.assertFalse(lane.owned(lane.CLI + "/uniffi-bindgen.rs"))
+        self.assertFalse(lane.owned(lane.APPLE + "/target/x.rs"))
+        self.assertEqual(lane.ROOTS[3], lane.BROWSER)
+
+    def _workspace(self, root, members, extra_dep=None):
+        root.mkdir(parents=True, exist_ok=True)
+        (root / "Cargo.toml").write_text(
+            "[workspace]\nmembers = [" + ", ".join('"' + m + '"' for m in members) + "]\n")
+        for m in members:
+            (root / m).mkdir(parents=True, exist_ok=True)
+            body = '[package]\nname="x"\nversion="0.1.0"\n[dependencies]\nserde = "1"\n'
+            if extra_dep and m == lane.APPLE:
+                body += extra_dep
+            (root / m / "Cargo.toml").write_text(body)
+
+    def test_real_root_workspace_passes_validate_manifests(self):
+        work = Path(__file__).resolve().parents[2]
+        if not (work / "Cargo.toml").is_file():
+            self.skipTest("no checkout")
+        lane.validate_manifests(work)
+
+    def test_unknown_sixth_member_is_refused(self):
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as d:
+            self._workspace(Path(d), (*lane.ROOTS, "packages/unknown"))
+            with self.assertRaises(Exception):
+                lane.validate_manifests(Path(d))
+
+    def test_apple_member_git_dependency_is_refused(self):
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as d:
+            self._workspace(Path(d), lane.ROOTS)
+            lane.validate_manifests(Path(d))
+            self._workspace(Path(d), lane.ROOTS, 'evil = { git = "https://example.org/x.git" }\n')
+            with self.assertRaises(Exception):
+                lane.validate_manifests(Path(d))
+
     def test_valid_receipt(self):
         self.assertTrue(self.valid(self.fixture()))
 

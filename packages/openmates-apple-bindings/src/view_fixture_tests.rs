@@ -46,7 +46,7 @@ async fn a_seeded_cache_starts_offline_with_the_cached_list_and_row_metadata() {
             event: SessionEventRecord::Restored { .. }
         }
     ));
-    let ViewEventRecord::ChatList { rows, completeness } = &all[1] else {
+    let ViewEventRecord::ChatList { rows, completeness, .. } = &all[1] else {
         panic!("cached list expected: {all:?}");
     };
     assert_eq!(*completeness, ListCompletenessRecord::Cached);
@@ -175,6 +175,11 @@ fn metadata_mirrors_map_every_field_one_to_one() {
         budget_spent: Some(4),
         draft_v: Some(5),
         draft_preview: Some("draft".into()),
+        is_shared_by_others: Some(true),
+        last_visible_message_id: Some("last".into()),
+        app_id: Some("app".into()),
+        sub_chat_wait_for_completion: Some(true),
+        sub_chat_report_trigger: Some("each".into()),
     };
     assert_eq!(
         ChatRowMetadataRecord::from(row),
@@ -193,10 +198,17 @@ fn metadata_mirrors_map_every_field_one_to_one() {
             budget_spent: Some(4),
             draft_v: Some(5),
             draft_preview: Some("draft".into()),
+            is_shared_by_others: Some(true),
+            last_visible_message_id: Some("last".into()),
+            app_id: Some("app".into()),
+            sub_chat_wait_for_completion: Some(true),
+            sub_chat_report_trigger: Some("each".into()),
         }
     );
     let message = MessageMetadata {
         created_at: Some(1),
+        updated_at: Some(8),
+        app_id: Some("app".into()),
         server_message_id: Some("server".into()),
         client_message_id: Some("client".into()),
         user_message_id: Some("user".into()),
@@ -220,6 +232,8 @@ fn metadata_mirrors_map_every_field_one_to_one() {
         MessageMetadataRecord::from(message),
         MessageMetadataRecord {
             created_at: Some(1),
+            updated_at: Some(8),
+            app_id: Some("app".into()),
             server_message_id: Some("server".into()),
             client_message_id: Some("client".into()),
             user_message_id: Some("user".into()),

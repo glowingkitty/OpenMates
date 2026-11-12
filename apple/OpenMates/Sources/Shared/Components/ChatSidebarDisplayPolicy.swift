@@ -1,5 +1,6 @@
 // Display-only counterpart for chats/Chats.svelte and utils/chatGroupUtils.ts.
-// Sorting, hidden/subchat filtering and static sections remain with the caller.
+// Order comes from the client core (`CoreChatList`); hidden/subchat filtering
+// and static sections remain with the caller.
 // Specification: specifications/architecture/drafts/specification.yml
 // Assertions: drafts.draft-only.presentation, drafts.sync.version-authoritative, drafts.established-chat.presentation-unchanged
 import Foundation
@@ -95,11 +96,12 @@ enum ChatSidebarDisplayPolicy {
         let shouldShowMore: Bool
     }
 
-    /// The caller supplies one filtered, ordered chat snapshot. Derive every
-    /// sidebar consumer from that same input before entering draft observation.
+    /// The caller supplies one filtered chat snapshot in the client core's
+    /// display order. Derive every sidebar consumer from that same input
+    /// before entering draft observation. "Show more" counts only the listed
+    /// rows: the core does not report an account total yet.
     static func snapshot(sortedUserChats: [Chat], appliesDisplayLimit: Bool,
                          limit: Int, selectedChatID: String?, lastActiveChatID: String?,
-                         totalChatCount: Int, serverChatPagesExhausted: Bool,
                          now: Date = Date(), calendar: Calendar = gregorianCalendar) -> Snapshot {
         let visible = appliesDisplayLimit
             ? visibleChats(sortedUserChats: sortedUserChats, limit: limit,
@@ -107,8 +109,7 @@ enum ChatSidebarDisplayPolicy {
             : sortedUserChats
         let count = sortedUserChats.count
         return Snapshot(visibleChats: visible, groups: groups(visible, now: now, calendar: calendar),
-            filteredCount: count, shouldShowMore: appliesDisplayLimit &&
-                (count > limit || (!serverChatPagesExhausted && totalChatCount > count)))
+            filteredCount: count, shouldShowMore: appliesDisplayLimit && count > limit)
     }
 
     static func nextLimit(after limit: Int) -> Int {

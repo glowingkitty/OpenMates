@@ -46,49 +46,6 @@ struct LoginRequest: Encodable {
     var passwordProof: String? = nil
 }
 
-struct PasswordV2ChallengeRequest: Encodable {
-    let hashedEmail: String
-    let sessionId: String
-    let purpose: String
-}
-
-struct PasswordV2ChallengeResponse: Decodable {
-    let challengeId: String
-    let nonce: String
-    let expiresIn: Int
-}
-
-struct PasswordV2MigrationRequest: Encodable {
-    let oldLookupHash: String
-    let passwordAuthKey: String
-    let encryptedMasterKey: String
-    let salt: String
-    let keyIv: String
-}
-
-struct PasswordV2MigrationCapabilities: Decodable {
-    let stagedProtocol: Int
-    let confirmRequired: Bool
-}
-
-struct PasswordV2MigrationStatus: Decodable {
-    let success: Bool
-    let migrationStatus: String
-    let legacyPasswordRetained: Bool
-}
-
-struct PasswordV2StagedProofRequest: Encodable {
-    let challengeId: String
-    let passwordProof: String
-}
-
-struct PasswordV2StagedWrapper: Decodable {
-    let encryptedKey: String
-    let salt: String
-    let keyIv: String
-    let credentialVersion: Int
-}
-
 struct DeviceInfo: Encodable {
     let os: String
     let deviceModel: String
@@ -414,12 +371,3 @@ struct PasskeyAuthSession: Decodable {
     let wsToken: String?
 }
 
-// MARK: - Device verification
-
-struct DeviceVerifyRequest: Encodable {
-    let code: String
-}
-
-struct DeviceVerifyResponse: Decodable {
-    let success: Bool
-}

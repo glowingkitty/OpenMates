@@ -1,3 +1,4 @@
+<!-- Native Swift counterparts: apple/OpenMates/Sources/Features/Settings/Views/SettingsBillingAddressView.swift -->
 <script lang="ts">
     import { text } from '@repo/ui';
     import { onMount } from 'svelte';

@@ -21,7 +21,7 @@ async fn send_sink_paints_stream_updates_but_not_send_windows_or_lists() {
     let window = openmates_sdk::view_model::chat_window_from_chat(&chat, ChatWindowSource::Live, None, false, false,
         openmates_sdk::view_model::PiiRestoration::PageLocal).unwrap();
     sink.emit(ViewEvent::ChatWindow { request: RequestId(3), window }).await.unwrap();
-    sink.emit(ViewEvent::ChatList { rows: Vec::new(), completeness: core_view::ListCompleteness::Partial }).await.unwrap();
+    sink.emit(ViewEvent::ChatList { rows: Vec::new(), completeness: core_view::ListCompleteness::Partial, total_count: None }).await.unwrap();
     let reply = received.try_recv().unwrap();
     assert!(matches!(reply.view, View::Stream(StreamUpdate::Submitted { ref message_id, .. }) if message_id == "synthetic-user"));
     assert!(received.try_recv().is_err(), "the terminal paints a send's turn from its stream updates");

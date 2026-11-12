@@ -934,6 +934,12 @@ enum AppStrings {
     static var learningModeEnableButton: String { L("settings.learning_mode_enable_button") }
     static var learningModeDisableButton: String { L("settings.learning_mode_disable_button") }
     static var learningModeLocked: String { L("settings.learning_mode_locked") }
+    static var learningModeCollaborativeLabel: String { L("settings.learning_mode_collaborative_label") }
+    static var learningModeCollaborativeHelp: String { L("settings.learning_mode_collaborative_help") }
+    static var learningModeCollaborativeEnablePrompt: String { L("settings.learning_mode_collaborative_enable_prompt") }
+    static var learningModeCollaborativeConfirmButton: String { L("settings.learning_mode_collaborative_confirm_button") }
+    static var learningModeCollaborativeEnabled: String { L("settings.learning_mode_collaborative_enabled") }
+    static var learningModeCollaborativeDisabled: String { L("settings.learning_mode_collaborative_disabled") }
     static var learningModeShortenedNotice: String { L("learning_mode_shortened_notice") }
     static var incognitoExplainerDescription: String { L("settings.incognito_explainer_description") }
     static var incognitoExplainerDeviceSpecific: String { L("settings.incognito_explainer_feature_device_specific") }
@@ -1363,8 +1369,6 @@ enum AppStrings {
         LocalizationManager.shared.text("embeds.register_on_provider", replacements: ["provider": provider])
     }
 
-    static var embedAddMemory: String { L("embeds.add_memory") }
-    static var embedForgetMemory: String { L("embeds.forget_memory") }
 
     static var openGoogleFlights: String {
         L("embeds.open_google_flights")

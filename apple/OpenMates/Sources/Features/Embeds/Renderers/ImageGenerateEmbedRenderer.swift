@@ -1,3 +1,15 @@
+// ImageGenerateEmbedRenderer — native counterpart for image generate embeds.
+// Preview identity layout and fullscreen with the image using the available
+// width and height; tapping the image opens only the image (system previewer).
+//
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/embeds/images/ImageGenerateEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/images/ImageGenerateEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/ResultEmbedFullscreen.svelte
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 // ImageGenerateEmbedRenderer — native counterpart for image generation embeds.
 //
 // ─── Web source ─────────────────────────────────────────────────────
@@ -58,13 +70,13 @@ struct ImageGenerateEmbedRenderer: View {
         case .fullscreen:
             HStack(alignment: .center, spacing: 0) {
                 if let s3BaseUrl, let aesKey {
-                    EncryptedImageView(
+                    TappableEncryptedImageView(
                         s3Url: s3BaseUrl, s3Key: nil, aesKey: aesKey, aesNonce: aesNonce, encryption: encryption,
-                        contentMode: .fit
+                        filename: nil
                     )
-                    .clipShape(RoundedRectangle(cornerRadius: .radius4))
                     .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 4)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .frame(maxWidth: .infinity, maxHeight: ImageFullscreenSizing.maxImageHeight)
+                    .accessibilityIdentifier("image-generate-fullscreen-image")
                 }
 
                 if prompt != nil || modelDisplayName != nil {
@@ -124,7 +136,7 @@ struct ImageGenerateEmbedRenderer: View {
                     .padding(.vertical, 24)
                 }
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, .spacing4)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
     }
@@ -141,5 +153,24 @@ struct ImageGenerateEmbedRenderer: View {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(prompt, forType: .string)
         #endif
+    }
+}
+
+/// Web `ResultEmbedFullscreen` budget for app images: all height left after
+/// header, facts and composer (viewport minus 18rem), side gutters of spacing-4.
+@MainActor
+enum ImageFullscreenSizing {
+    static let reservedHeight: CGFloat = 288
+
+    static var maxImageHeight: CGFloat {
+        #if os(iOS)
+        let viewport = UIApplication.shared.connectedScenes
+            .compactMap { ($0 as? UIWindowScene)?.windows.first(where: { $0.isKeyWindow })?.bounds.size }
+            .first ?? UIScreen.main.bounds.size
+        #elseif os(macOS)
+        let viewport = NSApp.keyWindow?.contentView?.bounds.size
+            ?? NSScreen.main?.visibleFrame.size ?? CGSize(width: 900, height: 900)
+        #endif
+        return max(16, viewport.height - reservedHeight)
     }
 }

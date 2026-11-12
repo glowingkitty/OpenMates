@@ -418,6 +418,14 @@ final class EmbedRenderingParityUITests: XCTestCase {
         ])
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence,chats.surface.semantic-parity
+    func testJobsAndRainRadarEmbedsRenderPreviewAndFullscreen() {
+        continueAfterFailure = true
+        captureCanonicalRegistryKeys([
+            "app:jobs:search", "jobs-job-result", "app:weather:rain_radar"
+        ])
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.layout.responsive-history
     func testImagesSearchFullscreenNarrowGridMatchesWebBoundsAndSpacing() throws {
         XCUIDevice.shared.orientation = .portrait

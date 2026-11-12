@@ -86,6 +86,9 @@ pub struct SendOptions {
     /// turn advertise `memory_write_jobs` and the core stores the Memory and its
     /// history notice. Only a shell that shows the notice may set this.
     pub memory_write_jobs: bool,
+    /// The device's server region preference, sent as the turn's
+    /// `model_routing_restrictions` when it is not the EU default.
+    pub server_region: crate::client::server_region::ServerRegionPreference,
     pub response_timeout_ms: Option<u64>,
     pub sub_chat_consent: SendConsentPolicy,
     pub memory_consent: SendConsentPolicy,
@@ -102,6 +105,7 @@ impl Default for SendOptions {
             project_file_jobs: false,
             approve_project_file_writes: false,
             memory_write_jobs: false,
+            server_region: crate::client::server_region::ServerRegionPreference::Eu,
             response_timeout_ms: None,
             sub_chat_consent: SendConsentPolicy::Caller,
             memory_consent: SendConsentPolicy::Caller,

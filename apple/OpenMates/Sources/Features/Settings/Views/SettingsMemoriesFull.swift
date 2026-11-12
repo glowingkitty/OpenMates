@@ -1,198 +1,226 @@
-// Web source: frontend/packages/ui/src/components/settings/SettingsMemoriesHub.svelte,
-// AppStoreCard.svelte, AppSettingsMemoriesCategory.svelte, AppSettingsMemoriesEntryDetail.svelte,
-// AppSettingsMemoriesCreateEntry.svelte and settings/elements/SettingsSectionHeading.svelte.
+// Settings > Memories: the list of the account's personal Memories (sorted by
+// most recently modified, search, sort, Create memory, Renew for expired
+// ones) and, as sub-pages, the create page and one Memory's page. Data comes
+// from the Rust core (`CoreSession` memory documents); opening the screen runs
+// the core's expiry sweep first. Signed out shows only the help text and the
+// app discovery link, like the web.
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/settings/SettingsMemoriesHub.svelte
+//          frontend/packages/ui/src/components/settings/MemoriesEditor.svelte
+//          frontend/packages/ui/src/components/settings/MemoryList.svelte
+//          frontend/packages/ui/src/components/settings/SearchSortBar.svelte
+//          frontend/packages/ui/src/components/settings/elements/SettingsItem.svelte
+//          frontend/packages/ui/src/components/settings/elements/SettingsSectionHeading.svelte
+//          frontend/packages/ui/src/components/settings/elements/SettingsInfoBox.svelte
+// CSS:     SettingsMemoriesHub.svelte <style>: .settings-memories-hub (padding 14px, max-width 1400px),
+//          .encryption-notice, .discover-link-section (border-top grey-20)
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift, TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
 // Specification: specifications/features/app-memories/specification.yml
-// Assertions: app-memories.surface.semantic-parity
+// Assertions: app-memories.lifecycle.encrypted-crud, app-memories.expiry.client-enforced, app-memories.compatibility.legacy-documents, app-memories.surface.semantic-parity
 // Specification: specifications/features/settings-ui/specification.yml
 // Assertions: settings-ui.navigation.parent-return, settings-ui.parity.web-apple-shell
 
-import Combine
 import SwiftUI
 
 struct SettingsMemoriesFullView: View {
     @Environment(\.omSettingsScrollOffsetHandler) private var scrollOffsetHandler
     @EnvironmentObject private var authManager: AuthManager
-    @ObservedObject private var workspace = TeamWorkspaceContext.shared
-    @ObservedObject private var offline = OfflineStore.shared
-    @StateObject private var service: SettingsMemoryService
-    @State private var route: SettingsMemoryRoute
+    @StateObject private var model: SettingsMemoryDocumentsModel
+    @State private var page: SettingsMemoryPage
     var onChildNavigationChanged: ((SettingsChildBannerNavigation?) -> Void)?
     var onDiscoverApps: (() -> Void)?
-    var onOpenExampleChat: (String) -> Void
-    var embedRecords: [String: EmbedRecord]
-    var onOpenEmbed: ((EmbedRecord) -> Void)?
 
-    init(deepLinkPath: String? = nil, onChildNavigationChanged: ((SettingsChildBannerNavigation?) -> Void)? = nil,
-         onDiscoverApps: (() -> Void)? = nil, onOpenExampleChat: @escaping (String) -> Void = { id in
-            guard let url = URL(string: "openmates://chat/\(id)") else { return }
-            NotificationCenter.default.post(name: .deepLinkReceived, object: nil, userInfo: ["url": url])
-         }, embedRecords: [String: EmbedRecord] = [:], onOpenEmbed: ((EmbedRecord) -> Void)? = nil, service: SettingsMemoryService = SettingsMemoryService()) {
-        self.onChildNavigationChanged = onChildNavigationChanged; self.onDiscoverApps = onDiscoverApps
-        self.onOpenExampleChat = onOpenExampleChat
-        self.embedRecords = embedRecords; self.onOpenEmbed = onOpenEmbed
-        #if DEBUG
-        let fixturePath = ProcessInfo.processInfo.arguments.contains("--ui-test-memory-editor-fixture") ? "apps/travel/settings_memories/preferred_activities" : nil
-        _route = State(initialValue: SettingsMemoryRoute(path: deepLinkPath ?? fixturePath))
-        #else
-        _route = State(initialValue: SettingsMemoryRoute(path: deepLinkPath))
-        #endif
-        _service = StateObject(wrappedValue: service)
+    init(deepLinkPath: String? = nil,
+         onChildNavigationChanged: ((SettingsChildBannerNavigation?) -> Void)? = nil,
+         onDiscoverApps: (() -> Void)? = nil,
+         model: SettingsMemoryDocumentsModel? = nil) {
+        self.onChildNavigationChanged = onChildNavigationChanged
+        self.onDiscoverApps = onDiscoverApps
+        _page = State(initialValue: deepLinkPath.flatMap(SettingsMemoryPage.init(path:)) ?? .list)
+        _model = StateObject(wrappedValue: model ?? SettingsMemoryDocumentsModel(store: CoreSession.shared))
     }
-    private var contextIdentity: String {
-        "\(authManager.currentUser?.id ?? "guest"):\(ServerProfile.current().id):\(offline.scopeGeneration):\(workspace.contextEpoch)"
-    }
-    private var selectedCategory: SettingsMemoryCategory? { service.categories.first { $0.id == route.categoryIdentity } }
+
+    private var isAuthenticated: Bool { authManager.currentUser != nil }
+    private var accountIdentity: String { authManager.currentUser?.id ?? "guest" }
+
     var body: some View {
-        Group {
-            if route == .hub { hub }
-            else if let category = selectedCategory {
-                switch route {
-                case .hub: hub
-                case .category: SettingsMemoryCategoryView(category: category, service: service, onNavigate: navigate, onOpenExampleChat: onOpenExampleChat, embedRecords: embedRecords, onOpenEmbed: onOpenEmbed).id(category.id)
-                case .entry(_, _, let id):
-                    if let entry = entry(id, category: category) {
-                        SettingsMemoryEntryDetailView(category: category, entry: entry, service: service,
-                            onEdit: { navigate(.editor(category.appId, category.categoryId, entry.id)) },
-                            onDeleted: { navigate(.category(category.appId, category.categoryId)) }, embedRecords: embedRecords, onOpenEmbed: onOpenEmbed)
-                    } else { stateText(AppStrings.localized("settings.app_settings_memories.entry_not_found")) }
-                case .editor(_, _, let id):
-                    if service.isAuthenticated, id == nil || entry(id!, category: category)?.isExample == false {
-                        SettingsMemoryEditorView(category: category, entry: id.flatMap { entry($0, category: category) }, service: service,
-                            onSaved: { navigate(id.map { .entry(category.appId, category.categoryId, $0) } ?? .category(category.appId, category.categoryId)) },
-                            onCancel: { navigate(route.parent) })
-                        .id("\(category.id):\(id ?? "create")")
-                    } else { stateText(AppStrings.memoryAuthenticationRequired) }
+        OMSettingsPage(title: "", showsHeader: false, showsFooter: false, contentHorizontalPadding: 0, contentVerticalSpacing: 0) {
+            Group {
+                switch page {
+                case .list: listPage
+                case .create: entryPage(row: nil)
+                case .entry(let id):
+                    if let row = model.row(for: id) { entryPage(row: row) }
+                    else if model.state == .loading || model.state == .idle { stateText(AppStrings.loading) }
+                    else { stateText(model.errorMessage ?? AppStrings.memoriesNotFound) }
                 }
-            } else { stateText(service.state == .loading ? AppStrings.loading : AppStrings.localized("settings.app_store.category_not_found")) }
+            }
+            // Web .settings-memories-hub: 14px padding, max-width 1400px, centered.
+            .padding(.spacing6 + .spacing1)
+            .frame(maxWidth: 1400, alignment: .leading).frame(maxWidth: .infinity)
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("settings-memories-page")
-        .task(id: contextIdentity) { await service.load(); publishChildNavigation() }
-        .onChange(of: authManager.currentUser?.id) { _, _ in service.cancel(); route = .hub; publishChildNavigation() }
-        .onChange(of: workspace.contextEpoch) { _, _ in service.cancel(); route = .hub; publishChildNavigation() }
-        .onReceive(NotificationCenter.default.publisher(for: ServerConfiguration.didChangeNotification)) { _ in
-            service.cancel(); route = .hub; publishChildNavigation()
+        .task(id: accountIdentity) {
+            guard isAuthenticated else { model.cancel(); return }
+            await model.open()
+            publishChildNavigation()
         }
-        .onChange(of: route) { _, _ in scrollOffsetHandler.callback?(0); publishChildNavigation() }
-        .onChange(of: service.state) { _, _ in publishChildNavigation() }
-        .onDisappear { service.cancel(); onChildNavigationChanged?(nil) }
+        .onChange(of: page) { _, _ in scrollOffsetHandler.callback?(0); publishChildNavigation() }
+        .onChange(of: model.saving) { _, _ in publishChildNavigation() }
+        .onAppear { publishChildNavigation() }
+        .onDisappear { model.cancel(); onChildNavigationChanged?(nil) }
     }
-    private func entry(_ id: String, category: SettingsMemoryCategory) -> SettingsMemoryEntry? {
-        service.entries(in: category).first { $0.id == id } ?? category.examples.first { $0.id == id }
-    }
-    private func navigate(_ destination: SettingsMemoryRoute) { route = destination }
-    private func publishChildNavigation() {
-        guard route != .hub else { onChildNavigationChanged?(nil); return }
-        let category = selectedCategory
-        let title: String
-        switch route {
-        case .hub: return
-        case .category: title = category?.categoryName ?? AppStrings.settingsMemories
-        case .entry(_, _, let id): title = category.flatMap { entry(id, category: $0)?.title(in: $0) } ?? AppStrings.settingsMemories
-        case .editor(_, _, let id): title = id == nil ? AppStrings.localized("common.add_entry") : AppStrings.edit
+
+    // MARK: - List
+
+    private var listPage: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(AppStrings.memoriesSourcesHelp)
+                .font(.omSmall).foregroundStyle(Color.fontSecondary).lineSpacing(5)
+                .padding(.horizontal, .spacing4).padding(.bottom, .spacing8)
+                .accessibilityIdentifier("settings-memories-sources-help")
+            if isAuthenticated {
+                VStack(alignment: .leading, spacing: .spacing4) {
+                    OMSettingsSectionHeading(title: AppStrings.memoriesPrivate, icon: "settings_memories")
+                    memoryList
+                }
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("settings-memories-private")
+            }
+            Divider().overlay(Color.grey20).padding(.top, .spacing12).padding(.bottom, .spacing4)
+            OMSettingsRow(title: AppStrings.memoriesDiscoverApps, icon: "app",
+                          accessibilityIdentifier: "settings-memory-discover-apps") { onDiscoverApps?() }
         }
-        let siblings: (previous: SettingsMemoryCategory?, next: SettingsMemoryCategory?)
-        if case .category = route, let category { siblings = SettingsMemoryCatalog.siblings(categories: service.categories, selected: category) }
-        else { siblings = (nil, nil) }
-        func navigation(_ category: SettingsMemoryCategory?) -> SettingsChildSiblingNavigation? {
-            category.map { target in SettingsChildSiblingNavigation(title: target.categoryName, onSelect: {
-                guard service.state != .pending else { return }
-                navigate(.category(target.appId, target.categoryId))
-            }) }
-        }
-        onChildNavigationChanged?(SettingsChildBannerNavigation(title: title, description: category?.description ?? "",
-            allowsBack: service.state != .pending, icon: category?.iconName ?? "memory",
-            breadcrumb: [AppStrings.settings, AppStrings.settingsMemories, route.parent == .hub ? nil : category?.categoryName].compactMap { $0 }.joined(separator: " / "),
-            appColorID: category?.appId, typeLabel: AppStrings.settingsMemories,
-            previous: navigation(siblings.previous), next: navigation(siblings.next),
-            onBack: { guard service.state != .pending else { return }; navigate(route.parent) }))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("settings-memories-hub")
     }
-    private var hub: some View {
-        OMSettingsPage(title: "", showsHeader: false, showsFooter: false, contentHorizontalPadding: 0, contentVerticalSpacing: 0) {
-            VStack(alignment: .leading, spacing: 0) {
-                Text(AppStrings.localized("settings.app_settings_memories.encryption_notice"))
-                    .font(.omSmall).foregroundStyle(Color.fontSecondary).lineSpacing(5)
-                    .padding(.horizontal, .spacing4).padding(.bottom, .spacing8)
-                if service.state == .loading { stateText(AppStrings.loading) }
-                else if service.state == .missingKey { stateText(AppStrings.memoryAuthenticationRequired) }
-                else {
-                    let sections = service.sections
-                    if sections.isEmpty { stateText(AppStrings.localized("settings.app_store.settings_memories.hub_no_entries")) }
-                    ForEach(Array(sections.enumerated()), id: \.element.id) { index, section in
-                        VStack(alignment: .leading, spacing: 0) {
-                            if index > 0 { Divider().overlay(Color.grey20).padding(.top, .spacing12).padding(.bottom, .spacing4) }
-                            SettingsMemoryAppHeading(section: section)
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: .spacing6) {
-                                    ForEach(section.categories) { category in
-                                        SettingsMemoryCategoryCard(category: category) { navigate(.category(category.appId, category.categoryId)) }
-                                            .padding(.spacing5 / 2)
-                                    }
-                                }
-                                .padding(.vertical, .spacing2)
-                            }
-                            .padding(.top, .spacing4)
-                        }
+
+    /// Web MemoryList.svelte.
+    private var memoryList: some View {
+        VStack(alignment: .leading, spacing: .spacing4) {
+            HStack {
+                Spacer(minLength: 0)
+                Button(AppStrings.memoriesCreate) { open(.create) }
+                    .buttonStyle(OMSettingsButtonStyle())
+                    .disabled(model.saving || model.state == .loading)
+                    .accessibilityIdentifier("memory-create")
+            }
+            .padding(.horizontal, .spacing5)
+
+            if let notice = model.savedNotice {
+                OMSettingsInfoBox(kind: .success, message: notice, identifier: "rule-saved-notice")
+            }
+
+            switch model.state {
+            case .idle, .loading:
+                stateText(AppStrings.loading)
+            case .failed where model.rows.isEmpty:
+                VStack(alignment: .leading, spacing: .spacing4) {
+                    Button(AppStrings.retry) { Task { await model.reload() } }
+                        .buttonStyle(OMSettingsButtonStyle(secondary: true))
+                        .accessibilityIdentifier("memory-retry")
+                }
+                .padding(.horizontal, .spacing5)
+            case .loaded where model.rows.isEmpty:
+                stateText(AppStrings.memoriesEmpty).accessibilityIdentifier("memory-empty")
+            default:
+                searchSortBar
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(model.visibleRows) { row in
+                        memoryRow(row)
                     }
                 }
-                Divider().overlay(Color.grey20).padding(.top, .spacing12).padding(.bottom, .spacing4)
-                OMSettingsRow(title: AppStrings.localized("settings.app_store.settings_memories.discover_link"), icon: "app",
-                    accessibilityIdentifier: "settings-memory-discover-apps") { onDiscoverApps?() }
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("memory-list")
             }
-            .padding(.horizontal, .spacing6 + .spacing1).padding(.vertical, .spacing6 + .spacing1)
-            .frame(maxWidth: 1400, alignment: .leading).frame(maxWidth: .infinity)
-            .accessibilityElement(children: .contain)
-            .accessibilityIdentifier("settings-memories-hub")
+
+            if let error = model.errorMessage {
+                OMSettingsInfoBox(kind: .warning, message: error, identifier: "memory-error")
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("memory-list-page")
+    }
+
+    /// Web SearchSortBar.svelte: search field and sort dropdown.
+    private var searchSortBar: some View {
+        VStack(alignment: .leading, spacing: .spacing4) {
+            OMSettingsTextInput(label: AppStrings.search, placeholder: AppStrings.search,
+                                value: $model.query, identifier: "memory-search")
+            OMDropdown(title: AppStrings.memoriesSortLabel, options: [
+                OMDropdownOption(SettingsMemorySort.modified.rawValue, label: AppStrings.memoriesSortModified),
+                OMDropdownOption(SettingsMemorySort.added.rawValue, label: AppStrings.memoriesSortAdded),
+                OMDropdownOption(SettingsMemorySort.title.rawValue, label: AppStrings.memoriesSortTitle),
+            ], selection: Binding(
+                get: { model.sort.rawValue },
+                set: { model.sort = SettingsMemorySort(rawValue: $0) ?? .modified }))
+            .padding(.horizontal, .spacing5)
+            .accessibilityIdentifier("memory-sort")
         }
     }
-    private func stateText(_ text: String) -> some View {
-        VStack(alignment: .leading, spacing: .spacing4) {
-            Text(text).font(.omSmall).foregroundStyle(Color.fontSecondary)
-            if case .error = service.state {
-                Button(AppStrings.retry) { Task { await service.load() } }.buttonStyle(OMSecondaryButtonStyle())
-            }
-        }.frame(maxWidth: .infinity, alignment: .leading).padding(.spacing6)
-            .accessibilityIdentifier("settings-memories-state")
-    }
-}
 
-private struct SettingsMemoryAppHeading: View {
-    let section: SettingsMemoryAppSection
-    var body: some View {
-        VStack(alignment: .leading, spacing: .spacing2) {
-            HStack(spacing: .spacing6) {
-                Icon(section.iconName.isEmpty ? AppIconView.iconName(forAppId: section.appId) : section.iconName, size: 22)
-                    .foregroundStyle(Color.fontButton).frame(width: 44, height: 44)
-                    .background(AppIconView.gradient(forAppId: section.appId), in: RoundedRectangle(cornerRadius: .radius4))
-                Text(section.name).font(.omP.weight(.bold)).foregroundStyle(Color.fontPrimary)
-            }
-            RoundedRectangle(cornerRadius: .radiusFull).fill(LinearGradient.primary).frame(height: .spacing2)
-        }.padding(.horizontal, .spacing5).padding(.top, .spacing6).padding(.bottom, .spacing6)
-    }
-}
-
-private struct SettingsMemoryCategoryCard: View {
-    let category: SettingsMemoryCategory
-    let action: () -> Void
-    var body: some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: .spacing3) {
-                HStack(spacing: .spacing5) {
-                    SettingsMemoryIcon(name: category.iconName, size: .spacing20)
-                    Text(category.categoryName).font(.omP.weight(.semibold)).foregroundStyle(Color.fontButton)
-                        .lineLimit(2).frame(maxWidth: .infinity, alignment: .leading).padding(.top, .spacing1)
-                }
-                Text(category.description).font(.omSmall).foregroundStyle(Color.fontButton.opacity(0.9))
-                    .lineLimit(2).frame(maxWidth: .infinity, alignment: .leading)
+    @ViewBuilder private func memoryRow(_ row: SettingsMemoryRow) -> some View {
+        let appId = row.record.fields?.appId.flatMap { $0.isEmpty ? nil : $0 }
+        OMSettingsRow(title: row.title, subtitleTop: model.subtitle(for: row),
+                      icon: appId.map(AppIconView.iconName(forAppId:)) ?? "settings_memories",
+                      iconGradient: appId.map(AppIconView.gradient(forAppId:)),
+                      accessibilityIdentifier: "memory-row") {
+            open(.entry(row.id))
+        }
+        .disabled(model.saving)
+        if row.record.expired, row.isReadable {
+            HStack {
+                Button(AppStrings.memoriesRenew) { Task { await model.renew(row) } }
+                    .buttonStyle(OMSettingsButtonStyle(secondary: true))
+                    .disabled(model.saving)
+                    .accessibilityIdentifier("memory-renew")
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, .spacing8).padding(.top, .spacing12 + .spacing1 / 2).padding(.bottom, .spacing8)
-            .frame(width: 223, height: 129, alignment: .topLeading)
-            .background(AppIconView.gradient(forAppId: category.appId))
-            .clipShape(RoundedRectangle(cornerRadius: .radius5))
-            .shadow(color: Color.fontPrimary.opacity(0.1), radius: .spacing2, x: 0, y: .spacing1)
+            .padding(.horizontal, .spacing5)
         }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("settings-memory-category-\(category.appId)-\(category.categoryId)")
+    }
+
+    // MARK: - Create / entry page
+
+    private func entryPage(row: SettingsMemoryRow?) -> some View {
+        SettingsMemoryEntryPage(
+            row: row, saving: model.saving, error: model.errorMessage,
+            onSave: { draft in
+                Task { if await model.save(draft, existingID: row?.id) { page = .list } }
+            },
+            onCancel: { open(.list) },
+            onDelete: {
+                guard let row else { return }
+                Task { if await model.delete(id: row.id) { page = .list } }
+            })
+            .id(row?.id ?? "create")
+    }
+
+    private func open(_ next: SettingsMemoryPage) {
+        if next != .list { model.clearMessages() }
+        page = next
+    }
+
+    private func stateText(_ text: String) -> some View {
+        Text(text).font(.omSmall).foregroundStyle(Color.fontSecondary)
+            .frame(maxWidth: .infinity, alignment: .leading).padding(.spacing6)
+            .accessibilityIdentifier("settings-memories-state")
+    }
+
+    /// Sub-pages publish the shared settings banner (title + Back to the list).
+    private func publishChildNavigation() {
+        let title: String
+        switch page {
+        case .list: onChildNavigationChanged?(nil); return
+        case .create: title = AppStrings.memoriesCreateTitle
+        case .entry(let id): title = model.row(for: id)?.title ?? AppStrings.settingsMemories
+        }
+        onChildNavigationChanged?(SettingsChildBannerNavigation(
+            title: title, description: "", allowsBack: !model.saving, icon: "settings_memories",
+            breadcrumb: [AppStrings.settings, AppStrings.settingsMemories].joined(separator: " / "),
+            typeLabel: AppStrings.settingsMemories,
+            onBack: { guard !model.saving else { return }; open(.list) }))
     }
 }

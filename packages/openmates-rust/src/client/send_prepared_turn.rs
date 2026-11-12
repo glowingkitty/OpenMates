@@ -149,6 +149,9 @@ impl Client {
             let capabilities = inference["client_capabilities"].as_array_mut().ok_or(Error::Protocol)?;
             capabilities.push(json!(MEMORY_WRITE_JOBS_CAPABILITY));
         }
+        if let Some(restrictions) = options.server_region.routing_restrictions() {
+            inference["model_routing_restrictions"] = restrictions;
+        }
         let (active_focus, mut focus_state) = self.current_focus_state(id, key)?;
         inference["active_focus_id"] = json!(active_focus);
         inference["focus_phase_state"] = focus_state.clone();

@@ -29,7 +29,6 @@ This file tracks the current native Swift counterparts for the Svelte product UI
 | `frontend/packages/ui/src/components/FocusModeSelector.svelte` | `apple/OpenMates/Sources/Features/Chat/Views/FocusModeView.swift` |
 | `frontend/packages/ui/src/components/IncognitoMode.svelte` | `apple/OpenMates/Sources/Features/Chat/Views/IncognitoMode.swift` |
 | `frontend/packages/ui/src/components/DailyInspiration.svelte` | `apple/OpenMates/Sources/Features/Chat/Views/DailyInspirationView.swift` |
-| `frontend/packages/ui/src/components/MessageContextMenu.svelte` | `apple/OpenMates/Sources/Features/Chat/Views/MessageContextMenu.swift`, `apple/OpenMates/Sources/Features/Chat/Views/ChatContextMenu.swift` |
 | `frontend/packages/ui/src/components/MentionDropdown.svelte` | `apple/OpenMates/Sources/Features/Chat/Views/MentionDropdownView.swift` |
 | `frontend/packages/ui/src/components/NewChatSuggestions.svelte` | `apple/OpenMates/Sources/Features/Chat/Views/NewChatSuggestionsView.swift` |
 | `frontend/packages/ui/src/components/PIIDetection.svelte` | `apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift` |

@@ -66,6 +66,16 @@ pub fn handle<'a, S: ByteStore + 'static, H: ViewHost<S>>(
             send_flows::cancel_send(host);
             Ok(())
         }),
+        ViewCommand::SendUnownedFrame {
+            event_type,
+            payload_json,
+        } => Box::pin(async move {
+            let sender = host.core().unowned_frame_sender();
+            sender
+                .send(&event_type, &payload_json)
+                .await
+                .map_err(Error::from)
+        }),
     }
 }
 
@@ -142,17 +152,20 @@ pub fn boot_sync<'a, S: ByteStore + 'static, H: ViewHost<S>>(
             .await?;
         superseded(host, cancel, &generation)?;
         let client = host.core_mut().client_mut();
-        let items = match proof {
+        let (items, complete) = match proof {
             Some(proof) => {
                 client
-                    .list_with_fresh_chat_inventory(Workspace::Chats, proof, cancel)
+                    .list_with_fresh_chat_inventory_marked(Workspace::Chats, proof, cancel)
                     .await?
             }
-            None => client.list(Workspace::Chats).await?,
+            None => (client.list(Workspace::Chats).await?, false),
         };
         host.core_mut().persist().await?;
         superseded(host, cancel, &generation)?;
-        sink.emit(list_event(host, items)?).await
+        let event = host
+            .core()
+            .chat_list_event(items, network_list_completeness(complete))?;
+        sink.emit(event).await
     })
 }
 
@@ -232,6 +245,16 @@ pub fn logout<'a, S: ByteStore + 'static, H: ViewHost<S>>(
             .await?;
         result
     })
+}
+
+/// Completeness of a network-read list: `Complete` only when the rows are the
+/// whole inventory of the scope, proven by a current recovery inventory.
+pub(super) fn network_list_completeness(inventory_proven: bool) -> ListCompleteness {
+    if inventory_proven {
+        ListCompleteness::Complete
+    } else {
+        ListCompleteness::Partial
+    }
 }
 
 /// `items` as a network-read chat list. `Partial`: the core cannot yet tell

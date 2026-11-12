@@ -38,6 +38,9 @@ def test_apple_ui_plan_runs_exactly_the_selected_tests_serially():
     assert selected == specs
     assert command[command.index("-parallel-testing-enabled") + 1] == "NO"
     assert "/out/OpenMatesUITests.xcresult" in command
+    # The UI fixtures seed the core: Rust feature and Swift condition come together.
+    assert "OPENMATES_CORE_TEST_SUPPORT=YES" in command
+    assert "OTHER_SWIFT_FLAGS=$(inherited) -DOPENMATES_CORE_TEST_SUPPORT" in command
 
 
 def test_apple_unit_plan_selects_only_the_unit_target():
@@ -47,6 +50,8 @@ def test_apple_unit_plan_selects_only_the_unit_target():
     assert "-parallel-testing-enabled" not in command
     assert "/out/OpenMatesTests.xcresult" in command
     assert "ENABLE_USER_SCRIPT_SANDBOXING=NO" in command
+    assert "OPENMATES_CORE_TEST_SUPPORT=YES" in command
+    assert "OTHER_SWIFT_FLAGS=$(inherited) -DOPENMATES_CORE_TEST_SUPPORT" in command
     assert command[command.index("-test-timeouts-enabled") + 1] == "YES"
     assert command[command.index("-maximum-test-execution-time-allowance") + 1] == "300"
 
@@ -64,3 +69,8 @@ def test_apple_core_plan_builds_core_and_the_watch_as_its_own_late_step():
     assert names.index(watch[0]) > names.index("OpenMatesCore xcframework (iOS, simulator, macOS)")
     assert "--watch" not in commands["OpenMatesCore xcframework (iOS, simulator, macOS)"]
     assert all(not skip for *_, skip in plan)
+
+
+def test_the_core_lane_never_builds_test_fixtures():
+    joined = " ".join(" ".join(cmd) for _, cmd, *_ in ci_apple.core_plan(Path("/src"), Path("/out")))
+    assert "test-support" not in joined and "OPENMATES_CORE_TEST_SUPPORT" not in joined

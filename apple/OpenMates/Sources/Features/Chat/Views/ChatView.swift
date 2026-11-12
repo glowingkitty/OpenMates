@@ -1239,6 +1239,7 @@ struct ChatView: View {
         modelHost.deactivate()
         scrollPositionDebounceTask?.cancel()
         handoffManager.stopAdvertising()
+        viewModel.closeCoreWindow()
         Task { await invalidateDeferredComposerSends() }
     }
 

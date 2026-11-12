@@ -332,6 +332,8 @@ struct AppSkillUseRenderer: View {
             return AnyView(SearchDomainParentRenderer(embed: embed, kind: .nutrition, mode: .preview, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed))
         } else if appId == "shopping", skillId == "search_products" {
             return AnyView(SearchDomainParentRenderer(embed: embed, kind: .shopping, mode: .preview, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed))
+        } else if appId == "jobs", skillId == "search" {
+            return AnyView(JobsSearchEmbedRenderer(embed: embed, mode: .preview, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed))
         } else if isCalendarActionSkill {
             return AnyView(CalendarActionEmbedRenderer(embed: embed, data: data, skillId: skillId, mode: .preview))
         } else if isFitnessSearchSkill {
@@ -511,6 +513,8 @@ struct AppSkillUseRenderer: View {
             SearchDomainParentRenderer(embed: embed, kind: .nutrition, mode: .fullscreen, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
         } else if appId == "shopping", skillId == "search_products" {
             SearchDomainParentRenderer(embed: embed, kind: .shopping, mode: .fullscreen, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
+        } else if appId == "jobs", skillId == "search" {
+            JobsSearchEmbedRenderer(embed: embed, mode: .fullscreen, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
         } else if isCalendarActionSkill {
             CalendarActionEmbedRenderer(embed: embed, data: data, skillId: skillId, mode: .fullscreen)
         } else if isFitnessSearchSkill {

@@ -1,3 +1,8 @@
+//! Account authentication on `Client` (shared core): session validation, password
+//! sign-in with an OTP or backup-code second factor, recovery-key sign-in
+//! (`auth_recovery_key.rs`), native passkey sign-in and passkey device
+//! verification (`auth_passkey.rs`) and the v1→v2 password migration
+//! (`password_migration.rs`). Spec: `specifications/features/auth`.
 use super::*;
 #[path = "session_validation.rs"]
 mod session_validation;
@@ -7,6 +12,20 @@ pub(in crate::client) use session_validation::BeforeSessionValidation;
 mod owned_session_validation;
 #[path = "signup.rs"]
 mod signup;
+#[path = "auth_recovery_key.rs"]
+mod auth_recovery_key;
+// Native shells only: the web keeps its own passkey flow in the shell for now.
+#[cfg(not(target_arch = "wasm32"))]
+#[path = "auth_passkey.rs"]
+mod auth_passkey;
+#[cfg(not(target_arch = "wasm32"))]
+pub use auth_passkey::{
+    PASSKEY_OTHER_REQUEST, PASSKEY_PRF_UNAVAILABLE, PASSKEY_WRONG_ACCOUNT, PasskeyChallenge,
+    PasskeyContinuation,
+};
+#[path = "password_migration.rs"]
+mod password_migration;
+pub use password_migration::PasswordMigrationOutcome;
 pub(in crate::client) use owned_session_validation::{PreparedOwnedSessionValidation, OwnedSessionValidationHeaders,
     OwnedSessionValidationBody, CompletedOwnedSessionValidation, OwnedSessionValidationReceipt,
     send_owned_session_validation_headers, send_owned_session_validation_headers_with_negative, drive_owned_session_validation_body};
@@ -79,6 +98,36 @@ pub struct PasswordLoginOptions {
     pub stay_logged_in: bool,
 }
 
+/// What a successful password sign-in reports besides the installed session.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PasswordLoginReport {
+    /// Password wrapper version that unlocked the master key: `1` is the
+    /// legacy PBKDF2 credential (a candidate for
+    /// [`Client::migrate_legacy_password`]), `2` the Argon2id credential.
+    pub credential_version: u8,
+    /// Backup codes left after a backup-code login (server
+    /// `remaining_backup_codes`); `None` for other second factors.
+    pub remaining_backup_codes: Option<u32>,
+}
+
+/// Credentials of the signed-in account set aside while a new sign-in runs,
+/// so a failed sign-in restores (and a successful one zeroizes) them.
+pub(super) struct SigninBackup {
+    cookies: BTreeMap<String, String>,
+    session: Option<Session>,
+    browser_credentials: Option<credentials::BrowserCredentials>,
+}
+
+/// Results of the unauthenticated `/v1/auth/lookup` step shared by the
+/// password and recovery-key sign-ins.
+pub(super) struct LoginLookup {
+    pub(super) email: String,
+    pub(super) hashed_email: String,
+    pub(super) user_email_salt: String,
+    pub(super) salt: Vec<u8>,
+    pub(super) email_key: String,
+}
+
 impl Client {
     /// Ordinary and detached validation share the exact fixed auth algorithm.
     /// Always contacts the server (sockets, recovery and browser lanes).
@@ -144,6 +193,8 @@ impl Client {
         validation_before: Result<BeforeSessionValidation>,
         transition_out: &mut Option<ActualSessionValidationTransition>,
     ) -> Result<()> {
+        // A verification request holds only until the next answer.
+        self.session_verification = None;
         // Observe known denial before cancellation can mask it. Native callers
         // retain their existing typed transport behavior.
         if matches!(*observed_status,Some(401|403))&&received.is_err(){
@@ -157,6 +208,11 @@ impl Client {
             other=>other?,
         };
         if !session_response::succeeded(&response) {
+            // Device verification or re-auth: the server kept the session, so
+            // the native client keeps it (and its stored credentials) too.
+            if self.hold_for_verification(&response) {
+                return Err(Error::VerificationRequired);
+            }
             self.forget_session();
             return Err(Error::Expired);
         }
@@ -254,6 +310,27 @@ impl Client {
         &mut self, email: &str, password: &str, tfa: Option<&str>, routing_session_id: Option<&str>,
         options: PasswordLoginOptions,
     ) -> Result<()> {
+        let tfa = tfa.map(|code| (code, crate::web_auth::TfaCodeType::Otp));
+        self.login_password_transaction(email, password, tfa, routing_session_id, options).await.map(|_| ())
+    }
+    /// Password sign-in with an OTP or a backup code as second factor; reports
+    /// the unlocking credential version (for the v1→v2 migration) and the
+    /// backup codes left.
+    ///
+    /// # Errors
+    /// As [`Client::login_password_with_options`]. With a backup code, a
+    /// refused code is `Authentication`, never `TwoFactorRequired`: the
+    /// caller already supplied the second factor.
+    pub async fn login_password_second_factor(
+        &mut self, email: &str, password: &str, tfa: Option<(&str, crate::web_auth::TfaCodeType)>,
+        options: PasswordLoginOptions,
+    ) -> Result<PasswordLoginReport> {
+        self.login_password_transaction(email, password, tfa, None, options).await
+    }
+    async fn login_password_transaction(
+        &mut self, email: &str, password: &str, tfa: Option<(&str, crate::web_auth::TfaCodeType)>,
+        routing_session_id: Option<&str>, options: PasswordLoginOptions,
+    ) -> Result<PasswordLoginReport> {
         // A new sign-in is an isolated credential transaction. An existing
         // account's refresh token must not be rotated or published as the new
         // account while its challenge is still unverified.
@@ -262,46 +339,48 @@ impl Client {
         let unwrap_scope = if cfg!(target_arch = "wasm32") && self.browser_password_transport {
             Some(PasswordUnwrapScope::begin(self)?)
         } else { None };
-        let mut previous = std::mem::take(&mut self.cookies);
-        let previous_session = self.session.take();
-        let previous_browser_credentials = self.browser_credentials.take();
+        let backup = self.begin_signin();
         let result = self.password_inner(email, password, tfa, routing_session_id, options, unwrap_scope.as_ref()).await;
-        if result.is_err() {
-            self.cookies = previous;
-            self.session = previous_session;
-            self.browser_credentials = previous_browser_credentials;
-            self.credentials_changed();
-        } else {
-            if self.browser_authority.is_some() {
-                let session=self.session.take().ok_or(Error::Protocol)?;
-                self.browser_credentials=Some(credentials::BrowserCredentials::from_native_session(session));
-            }
-            drop(previous_browser_credentials);
-            for value in previous.values_mut() {
-                zeroize::Zeroize::zeroize(value);
-            }
-        }
+        self.finish_signin(backup, result.is_ok())?;
         result
     }
-    async fn password_inner(
-        &mut self,
-        email: &str,
-        password: &str,
-        tfa: Option<&str>,
-        routing_session_id: Option<&str>,
-        options: PasswordLoginOptions,
-        _unwrap_scope: Option<&PasswordUnwrapScope>,
-    ) -> Result<()> {
+    /// Set the current account's credentials aside for a new sign-in.
+    pub(super) fn begin_signin(&mut self) -> SigninBackup {
+        SigninBackup {
+            cookies: std::mem::take(&mut self.cookies),
+            session: self.session.take(),
+            browser_credentials: self.browser_credentials.take(),
+        }
+    }
+    /// End a sign-in begun by [`Client::begin_signin`]: restore the previous
+    /// credentials after a failure, zeroize them after a success.
+    pub(super) fn finish_signin(&mut self, backup: SigninBackup, succeeded: bool) -> Result<()> {
+        let SigninBackup { cookies: mut previous, session, browser_credentials } = backup;
+        if !succeeded {
+            self.cookies = previous;
+            self.session = session;
+            self.browser_credentials = browser_credentials;
+            self.credentials_changed();
+            return Ok(());
+        }
+        if self.browser_authority.is_some() {
+            let session=self.session.take().ok_or(Error::Protocol)?;
+            self.browser_credentials=Some(credentials::BrowserCredentials::from_native_session(session));
+        }
+        drop((session, browser_credentials));
+        for value in previous.values_mut() {
+            zeroize::Zeroize::zeroize(value);
+        }
+        Ok(())
+    }
+    /// The unauthenticated email lookup: normalized email, its hash, the
+    /// account email salt (bounded) and the derived email encryption key.
+    pub(super) async fn login_lookup(&mut self, email: &str) -> Result<LoginLookup> {
         let email = email.trim().to_lowercase();
-        if email.len() > 512 || !email.contains('@') || password.is_empty() {
+        if email.len() > 512 || !email.contains('@') {
             return Err(Error::Authentication);
         }
         let hashed_email = crypto::hash_email(&email);
-        let session_id = match routing_session_id {
-            Some(id) if uuid::Uuid::parse_str(id).is_ok_and(|v|v.to_string()==id) => id.to_owned(),
-            Some(_) => return Err(Error::Authentication),
-            None => uuid::Uuid::new_v4().to_string(),
-        };
         let lookup = self
             .request(
                 Method::POST,
@@ -317,6 +396,70 @@ impl Client {
             return Err(Error::Protocol);
         }
         let email_key = crypto::derive_email_key(&email, &user_email_salt)?;
+        Ok(LoginLookup { email, hashed_email, user_email_salt, salt, email_key })
+    }
+    /// Owner guards every authenticated login reply must pass before its
+    /// master key is unwrapped: the account email salt matches the lookup,
+    /// the user has an id and (native) the refresh cookie arrived.
+    pub(super) fn check_login_owner(&self, user: &Value, user_email_salt: &str) -> Result<()> {
+        if text(user, "user_email_salt") != user_email_salt
+            || (!self.browser_cookies() && !self.cookies.contains_key("auth_refresh_token"))
+        {
+            return Err(Error::Protocol);
+        }
+        required(user, "id")?;
+        Ok(())
+    }
+    /// Install the session of an authenticated, unlocked login reply.
+    pub(super) fn admit_login(&mut self, login: &Value, lookup: LoginLookup, session_id: String, master: Key) -> Result<()> {
+        let user = login.get("user").ok_or(Error::Protocol)?.clone();
+        let LoginLookup { hashed_email, user_email_salt, email_key, .. } = lookup;
+        let session = Session {
+            api_url: self.base.to_string().trim_end_matches('/').to_owned(),
+            session_id,
+            cookies: self.cookies.clone(),
+            ws_token: login
+                .get("ws_token")
+                .and_then(Value::as_str)
+                .map(str::to_owned),
+            master_key: master,
+            hashed_email,
+            user_email_salt,
+            email_encryption_key: Some(email_key),
+            created_at: now_ms(),
+            paired_session_expires_at: None,
+            active_team_id: None,
+        };
+        self.install_new_session(session, user);
+        Ok(())
+    }
+    /// Revoke the server session of a login whose local unlock failed
+    /// (native only: browser cookies may belong to another account).
+    pub(super) async fn revoke_unlocked_login(&mut self) {
+        if !self.browser_cookies() {
+            // Best effort: the unlock error is what the caller reports.
+            let _ = self.request(Method::POST, "/v1/auth/logout", Some(json!({}))).await;
+        }
+    }
+    async fn password_inner(
+        &mut self,
+        email: &str,
+        password: &str,
+        tfa: Option<(&str, crate::web_auth::TfaCodeType)>,
+        routing_session_id: Option<&str>,
+        options: PasswordLoginOptions,
+        _unwrap_scope: Option<&PasswordUnwrapScope>,
+    ) -> Result<PasswordLoginReport> {
+        if password.is_empty() {
+            return Err(Error::Authentication);
+        }
+        let session_id = match routing_session_id {
+            Some(id) if uuid::Uuid::parse_str(id).is_ok_and(|v|v.to_string()==id) => id.to_owned(),
+            Some(_) => return Err(Error::Authentication),
+            None => uuid::Uuid::new_v4().to_string(),
+        };
+        let lookup = self.login_lookup(email).await?;
+        let (hashed_email, email_key, salt) = (&lookup.hashed_email, &lookup.email_key, &lookup.salt);
         let challenge = self
             .request(
                 Method::POST,
@@ -326,14 +469,15 @@ impl Client {
                 ),
             )
             .await?;
-        let (auth, wrap) = crypto::derive_password_keys_v2(password, &salt)?;
+        let (auth, wrap) = crypto::derive_password_keys_v2(password, salt)?;
         let proof = crypto::password_proof_v2(&auth, required(&challenge, "nonce")?, "login")?;
         drop(auth); // auth proof is complete; never retain an unused derived auth key.
         let mut body = json!({"hashed_email":hashed_email,"session_id":session_id,"login_method":"password","stay_logged_in":options.stay_logged_in,"email_encryption_key":email_key,"credential_version":2,"challenge_id":required(&challenge,"challenge_id")?,"password_proof":proof});
-        if let Some(code) = tfa {
+        if let Some((code, kind)) = tfa {
             body["tfa_code"] = json!(code);
-            body["code_type"] = json!("otp")
+            body["code_type"] = json!(kind.wire())
         }
+        let backup = matches!(tfa, Some((_, crate::web_auth::TfaCodeType::Backup)));
         let mut login = self
             .request(Method::POST, "/v1/auth/login", Some(body.clone()))
             .await?;
@@ -351,7 +495,7 @@ impl Client {
                 .ok_or(Error::Protocol)?
                 .remove("challenge_id");
             body["credential_version"] = json!(1);
-            body["lookup_hash"] = json!(crypto::hash_key(password, &salt)?);
+            body["lookup_hash"] = json!(crypto::hash_key(password, salt)?);
             let legacy = self
                 .request(Method::POST, "/v1/auth/login", Some(body))
                 .await?;
@@ -360,20 +504,19 @@ impl Client {
             {
                 login = legacy;
                 version = 1
-            } else if v2_tfa || legacy.get("tfa_required") == Some(&json!(true)) {
+            } else if !backup && (v2_tfa || legacy.get("tfa_required") == Some(&json!(true))) {
+                // A refused backup code is a wrong credential: the caller
+                // already gave the second factor (web `tfa_invalid`).
                 return Err(Error::TwoFactorRequired);
             } else {
                 return Err(Error::Authentication);
             }
         }
         let user = login.get("user").ok_or(Error::Protocol)?;
-        if user.get("credential_version").and_then(Value::as_u64) != Some(version as u64)
-            || text(user, "user_email_salt") != user_email_salt
-            || (!self.browser_cookies() && !self.cookies.contains_key("auth_refresh_token"))
-        {
+        if user.get("credential_version").and_then(Value::as_u64) != Some(version as u64) {
             return Err(Error::Protocol);
         }
-        required(user, "id")?;
+        self.check_login_owner(user, &lookup.user_email_salt)?;
         #[cfg(target_arch = "wasm32")]
         let unwrapped = if self.browser_password_transport && version == 1 {
             let scope = _unwrap_scope.ok_or(Error::Cancelled)?;
@@ -384,9 +527,9 @@ impl Client {
                 || scope.check(self)).await;
             scope.check(self)?;
             result
-        } else { unwrap_login_master_key(password,version,&salt,&wrap,user) };
+        } else { unwrap_login_master_key(password,version,&lookup.salt,&wrap,user) };
         #[cfg(not(target_arch = "wasm32"))]
-        let unwrapped = unwrap_login_master_key(password,version,&salt,&wrap,user);
+        let unwrapped = unwrap_login_master_key(password,version,&lookup.salt,&wrap,user);
         drop(wrap); // no persistent/cache state; release before any failure cleanup await.
         let master = match unwrapped {
             Ok(v) => v,
@@ -394,36 +537,22 @@ impl Client {
                 // Fetch cookies cannot be rolled back. Before fresh owner proof,
                 // an ambient cookie may already belong to a different account.
                 // Never issue blind browser logout as local unwrap cleanup.
-                if !self.browser_cookies() {
-                    let _ = self.request(Method::POST, "/v1/auth/logout", Some(json!({}))).await;
-                }
+                self.revoke_unlocked_login().await;
                 return Err(e);
             }
         };
-        let session = Session {
-            api_url: self.base.to_string().trim_end_matches('/').to_owned(),
-            session_id,
-            cookies: self.cookies.clone(),
-            ws_token: login
-                .get("ws_token")
-                .and_then(Value::as_str)
-                .map(str::to_owned),
-            master_key: master,
-            hashed_email,
-            user_email_salt,
-            email_encryption_key: Some(email_key),
-            created_at: now_ms(),
-            paired_session_expires_at: None,
-            active_team_id: None,
-        };
-        self.install_new_session(session, user.clone());
-        Ok(())
+        let remaining_backup_codes = if backup {
+            login.get("remaining_backup_codes").and_then(Value::as_u64).and_then(|n| u32::try_from(n).ok())
+        } else { None };
+        self.admit_login(&login, lookup, session_id, master)?;
+        Ok(PasswordLoginReport { credential_version: version, remaining_backup_codes })
     }
     /// Shared by password login and signup: replace every account-scoped
     /// cache and credential authority with the freshly established session.
     pub(super) fn install_new_session(&mut self, session: Session, user: Value) {
         self.clear_account_cache();
         self.session = Some(session);
+        self.session_verification = None;
         self.generation = self.generation.wrapping_add(1);
         self.user = user;
         self.clear_chat_rows();

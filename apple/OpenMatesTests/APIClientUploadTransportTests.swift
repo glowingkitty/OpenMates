@@ -93,68 +93,6 @@ final class APIClientUploadTransportTests: XCTestCase {
         XCTAssertEqual(selfHosted.uploadBaseURL, selfHosted.apiBaseURL)
     }
 
-    // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle,message-input.embeds.gated-send,auth.session.isolation
-    @MainActor
-    func testRecordingUploadAwaitsRecoveryBeforeRetryingWithRenewedCookie() async throws {
-        let originalProfile = ServerConfiguration.current
-        let profile = ServerProfile.custom(domain: "audio-recovery-fixture.example")
-        ServerConfiguration.current = profile.endpointConfiguration
-        let firstRequest = expectation(description: "First upload is rejected")
-        let recoveryStarted = expectation(description: "Recovery starts")
-        let fixture = RecordingUploadURLProtocol.Fixture(firstRequest: firstRequest)
-        RecordingUploadURLProtocol.setFixture(fixture)
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [RecordingUploadURLProtocol.self]
-        let storage = try XCTUnwrap(configuration.httpCookieStorage)
-        let transport = URLSession(configuration: configuration)
-        defer {
-            transport.invalidateAndCancel()
-            RecordingUploadURLProtocol.setFixture(nil)
-            ServerConfiguration.current = originalProfile
-        }
-        func cookie(_ value: String) throws -> HTTPCookie {
-            try XCTUnwrap(HTTPCookie(properties: [.domain: try XCTUnwrap(profile.apiBaseURL.host),
-                .path: "/", .name: "auth_refresh_token", .value: value, .secure: "TRUE"]))
-        }
-        storage.setCookie(try cookie("fixture-expired"))
-        let renewed = try cookie("fixture-renewed")
-        let accepted = try JSONDecoder().decode(SessionResponse.self,
-            from: Data(#"{"success":true,"user":{"id":"audio-fixture-account","username":"Fixture"},"wsToken":"fixture-token"}"#.utf8))
-        var validation: CheckedContinuation<SessionResponse, Error>?
-        var validations = 0
-        let api = APIClient(session: transport, uploadSession: transport, cookieStorage: storage)
-        let auth = AuthManager(api: api, sessionValidator: { _, _ in
-            validations += 1
-            if validations == 1 { return accepted }
-            recoveryStarted.fulfill()
-            let response = try await withCheckedThrowingContinuation { validation = $0 }
-            storage.setCookie(renewed)
-            return response
-        }, profileCacheWriter: { _ in }, sessionMasterKeyAvailable: { _ in true }, sessionScopeActivator: { _ in })
-        auth.currentUser = try JSONDecoder().decode(UserProfile.self,
-            from: Data(#"{"id":"audio-fixture-account","username":"Fixture"}"#.utf8))
-        auth.state = .authenticated
-        await auth.validateSessionAfterOfflineBootstrap()
-        XCTAssertTrue(auth.hasNetworkAuthority)
-        XCTAssertEqual(validations, 1)
-        let upload = Task {
-            try await api.uploadFile(data: Data([1, 2, 3]), filename: "fixture.m4a", contentType: "audio/mp4", chatId: "fixture-chat")
-        }
-        await fulfillment(of: [firstRequest, recoveryStarted], timeout: 2)
-        XCTAssertEqual(fixture.requests.count, 1, "The upload must not race the suspended refresh")
-        guard let validation else { upload.cancel(); return XCTFail("Expected suspended session recovery") }
-        validation.resume(returning: accepted)
-        let data = try await upload.value
-        XCTAssertEqual(data, Data(#"{"ok":true}"#.utf8))
-        XCTAssertEqual(fixture.requests.count, 2)
-        XCTAssertEqual(validations, 2, "The rejected upload must recover exactly once after bootstrap")
-        XCTAssertEqual(fixture.requests.map { $0.value(forHTTPHeaderField: "Cookie") },
-            ["auth_refresh_token=fixture-expired", "auth_refresh_token=fixture-renewed"])
-        XCTAssertTrue(fixture.requests.allSatisfy { $0.httpMethod == "POST" && $0.url?.path == "/v1/upload/file" })
-        XCTAssertTrue(fixture.requests.allSatisfy { $0.value(forHTTPHeaderField: "Content-Type")?.hasPrefix("multipart/form-data; boundary=") == true })
-        withExtendedLifetime(auth) {}
-    }
-
     // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle,message-input.privacy-context
     @MainActor
     func testRecordingFailureDiagnosticsOnlyContainStatusOrCategory() {
@@ -163,13 +101,14 @@ final class APIClientUploadTransportTests: XCTestCase {
         XCTAssertEqual(AudioRecordingUploadService.failureCategory(DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "private body"))), "response_decode")
     }
 
-    // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle,message-input.embeds.gated-send
+    // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle,message-input.embeds.gated-send,client-core.apple.strangler-order
     @MainActor
-    func testRecordingUploadDoesNotRetryUnsupportedMediaResponse() async throws {
+    func testAppUploadsGoThroughTheCoreAndNeverTheURLSessionTransport() async throws {
         let originalProfile = ServerConfiguration.current
         ServerConfiguration.current = ServerProfile.custom(domain: "audio-status-fixture.example").endpointConfiguration
-        let firstRequest = expectation(description: "Upload receives HTTP 415")
-        let fixture = RecordingUploadURLProtocol.Fixture(firstRequest: firstRequest, firstStatus: 415)
+        let unused = expectation(description: "No URLSession upload")
+        unused.isInverted = true
+        let fixture = RecordingUploadURLProtocol.Fixture(firstRequest: unused, firstStatus: 415)
         RecordingUploadURLProtocol.setFixture(fixture)
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [RecordingUploadURLProtocol.self]
@@ -179,14 +118,43 @@ final class APIClientUploadTransportTests: XCTestCase {
             ServerConfiguration.current = originalProfile
         }
         let api = APIClient(uploadSession: transport, cookieStorage: try XCTUnwrap(configuration.httpCookieStorage))
+        // The unit-test host launches no core: the upload fails typed instead
+        // of falling back to the Swift transport.
         do {
             _ = try await api.uploadFile(data: Data([1]), filename: "fixture.m4a", contentType: "audio/mp4", chatId: "fixture-chat")
-            XCTFail("Expected the server rejection to remain an upload failure")
-        } catch APIError.httpError(let status, _) {
-            XCTAssertEqual(status, 415)
+            XCTFail("an upload without a core succeeded")
+        } catch let error as CoreSessionAdoptionError {
+            XCTAssertEqual(error, .coreUnavailable)
         }
-        await fulfillment(of: [firstRequest], timeout: 2)
-        XCTAssertEqual(fixture.requests.count, 1)
+        await fulfillment(of: [unused], timeout: 0.5)
+        XCTAssertEqual(fixture.requests.count, 0)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send,client-core.viewmodel.capability-contract
+    @MainActor
+    func testACoreUploadRemovesItsTemporaryFileAlsoWhenTheCoreRefuses() async throws {
+        let container = FileManager.default.temporaryDirectory.path
+        let name = "upload-core-\(UUID().uuidString)"
+        addTeardownBlock { try? FileManager.default.removeItem(atPath: (container as NSString).appendingPathComponent(name)) }
+        let core = try CoreSession(
+            config: CoreConfig(apiUrl: "https://never-contact.example.invalid", appUrl: "https://app.example.invalid",
+                cacheContainer: container, cacheDirectoryName: name),
+            credentials: InMemoryCredentialStore())
+        try await core.start()
+        func leftovers() -> Set<String> {
+            Set((try? FileManager.default.contentsOfDirectory(atPath: APIClient.coreUploadDirectory.path)) ?? [])
+        }
+        let before = leftovers()
+        do {
+            _ = try await APIClient().uploadThroughCore(
+                url: try XCTUnwrap(URL(string: "https://never-contact.example.invalid/v1/upload/file")),
+                data: Data("private file bytes".utf8), filename: "notes.txt", contentType: "text/plain",
+                fields: [HttpFieldRecord(name: "chat_id", value: "fixture-chat")], core: core)
+            XCTFail("an upload without a session succeeded")
+        } catch let error as CoreError {
+            XCTAssertEqual(error, .Authentication)
+        }
+        XCTAssertEqual(leftovers(), before, "the temporary upload file outlived the call")
     }
 
     // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle,message-input.embeds.gated-send
@@ -205,13 +173,12 @@ final class APIClientUploadTransportTests: XCTestCase {
             ServerConfiguration.current = originalProfile
         }
         let api = APIClient(session: transport, cookieStorage: try XCTUnwrap(configuration.httpCookieStorage))
-        let accepted = try JSONDecoder().decode(SessionResponse.self,
-            from: Data(#"{"success":true,"user":{"id":"audio-batch-fixture-account","username":"Fixture"},"wsToken":"fixture-token"}"#.utf8))
-        let auth = AuthManager(api: api, sessionValidator: { _, _ in accepted },
-            profileCacheWriter: { _ in }, sessionMasterKeyAvailable: { _ in true }, sessionScopeActivator: { _ in })
-        auth.currentUser = accepted.user
-        auth.state = .authenticated
-        await auth.validateSessionAfterOfflineBootstrap()
+        let profileJSON = Data(#"{"id":"audio-batch-fixture-account","username":"Fixture"}"#.utf8)
+        let auth = AuthManager(api: api, reads: AuthCoreReads(
+                profile: { UserProfileRecord(json: profileJSON, fresh: true) },
+                socketGrant: { LegacySocketGrantRecord(sessionId: AuthManager.nativeSessionId, wsToken: "fixture-token") }),
+            profileCacheWriter: { _ in }, sessionScopeActivator: { _ in })
+        await auth.apply(.admitted(username: "Fixture", expiresAt: nil))
         XCTAssertTrue(auth.hasNetworkAuthority)
         let _: Data = try await api.request(.post, path: AudioRecordingUploadService.batchTranscriptionPath,
             body: ["requests": []] as [String: Any])

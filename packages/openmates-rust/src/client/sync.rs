@@ -497,6 +497,7 @@ impl Client {
         let mut embed_selectors=super::saved_embed_selector::SelectorFrames::default();
         let mut embed_keys = vec![];
         let mut metadata_seen = false;
+        let mut reported_total = None;
         let mut phase1_windows = super::sync_windows::Phase1Windows::default();
         let mut sync_done = false;
         let mut recovery_done = false;
@@ -582,6 +583,7 @@ impl Client {
                 read_phase::accept_sync_ciphertext_frame(&k,&p,self.team()?,
                     &mut phase1_windows,&mut chats,&mut chat_arrival_order,&mut wrappers,
                     &mut embeds,&mut embed_keys,&mut metadata_seen,&mut sync_done)?;
+                if k == "phase_2_last_20_chats_ready" { reported_total = p["total_chat_count"].as_u64().or(reported_total); }
                 embed_selectors.observe(&k,&p);
                 super::sync_feed::observe_cold_start(&k, &p, self.team()?, &mut feed_capture);
             }
@@ -681,6 +683,7 @@ impl Client {
         sync_message_windows.retain(|id, _| !self.is_deleted_chat(id));
         self.chats = chats;
         self.chat_arrival_order = Some(chat_arrival_order);
+        if reported_total.is_some() { self.chat_total_count = reported_total; }
         self.sync_message_windows = sync_message_windows;
         self.wrappers = wrappers;
         self.embeds = embeds;

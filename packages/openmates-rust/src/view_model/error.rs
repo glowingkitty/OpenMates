@@ -70,6 +70,8 @@ pub enum ViewErrorKind {
     Forbidden,
     /// The session expired.
     Expired,
+    /// The server asks to verify this device or to sign in again.
+    VerificationRequired,
     /// The operation was cancelled.
     Cancelled,
     /// Local I/O failed.
@@ -95,6 +97,7 @@ impl From<&Error> for ViewErrorKind {
             Error::Offline => Self::Offline,
             Error::Forbidden => Self::Forbidden,
             Error::Expired => Self::Expired,
+            Error::VerificationRequired => Self::VerificationRequired,
             Error::Cancelled => Self::Cancelled,
             Error::Io => Self::Io,
             Error::Protocol => Self::Protocol,

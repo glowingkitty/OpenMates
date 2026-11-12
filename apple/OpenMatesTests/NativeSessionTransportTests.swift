@@ -1,3 +1,6 @@
+// Swift transports that keep their own cookie handling after the Rust core
+// took over app REST: the Watch session transport and the upload host. App
+// REST through the core: APIClient+CoreTransport.swift.
 import XCTest
 @testable import OpenMates
 
@@ -79,7 +82,6 @@ import XCTest
         NativeSessionURLProtocol.setHandler { request in
             XCTAssertEqual(request.url?.path, "/v1/embeds/chats/fixture-chat/references/availability")
             XCTAssertEqual(request.httpMethod, "POST")
-            XCTAssertFalse(request.httpShouldHandleCookies)
             return .init(status: 200, body: Data(#"{"results":[{"embed_id":"fixture-embed","state":"ready"}]}"#.utf8))
         }
         let ready = try await api.embedReferenceAvailability(chatID: "fixture-chat", embedIDs: ["fixture-embed"],
@@ -90,7 +92,6 @@ import XCTest
         NativeSessionURLProtocol.setHandler { request in
             XCTAssertEqual(request.url?.path, "/v1/embeds/chats/fixture-chat/references/availability")
             XCTAssertEqual(request.httpMethod, "POST")
-            XCTAssertFalse(request.httpShouldHandleCookies)
             XCTAssertEqual(request.value(forHTTPHeaderField: "Origin"), origin)
             return .init(status: 200, body: Data(#"{"results":[{"embed_id":"fixture-embed","state":"ready"}]}"#.utf8), gate: gate)
         }
@@ -128,201 +129,6 @@ import XCTest
     }
 
     // contract-test: supporting surface=gui.apple assertions=auth.session.lifecycle,auth.session.isolation
-    func testSessionRequestRetainsRefreshCookieAndPublishesRotationForNextRequest() async throws {
-        let body = response(account: "account-A", token: "rotated-socket-token")
-        let origin = profile.webBaseURL.absoluteString
-        NativeSessionURLProtocol.setHandler { request in
-            XCTAssertEqual(request.url?.path, "/v1/auth/session")
-            XCTAssertFalse(request.httpShouldHandleCookies)
-            XCTAssertTrue(request.value(forHTTPHeaderField: "Cookie")?.contains("retained-refresh") == true)
-            XCTAssertEqual(request.value(forHTTPHeaderField: "Origin"), origin)
-            return .init(status: 200, body: body, cookie: "rotated-refresh")
-        }
-        let result = try await validate { true }
-        XCTAssertEqual(result.wsToken, "rotated-socket-token")
-        XCTAssertEqual(refreshCookie, "rotated-refresh")
-        NativeSessionURLProtocol.setHandler { request in
-            XCTAssertTrue(request.value(forHTTPHeaderField: "Cookie")?.contains("rotated-refresh") == true)
-            XCTAssertFalse(request.value(forHTTPHeaderField: "Cookie")?.contains("retained-refresh") == true)
-            return .init(status: 200, body: body)
-        }
-        _ = try await validate { true }
-    }
-
-    // contract-test: supporting surface=gui.apple assertions=auth.session.isolation
-    func testResponseForAnotherAccountCannotPublishItsRefreshCookie() async throws {
-        let body = response(account: "account-B", token: "other-socket-token")
-        NativeSessionURLProtocol.setHandler { _ in
-            return .init(status: 200, body: body, cookie: "other-account-refresh")
-        }
-        let result = try await validate { true }
-        XCTAssertEqual(result.user?.id, "account-B") // AuthManager performs the identity rejection.
-        XCTAssertEqual(refreshCookie, "retained-refresh")
-    }
-
-    // contract-test: supporting surface=gui.apple assertions=auth.session.isolation
-    func testExpiredAuthorityRejectsLateResponseBeforeCookiePublication() async throws {
-        let authority = AuthorityFence()
-        let body = response(account: "account-A", token: "stale-socket-token")
-        NativeSessionURLProtocol.setHandler { _ in
-            return .init(status: 200, body: body, cookie: "stale-refresh")
-        }
-        do { _ = try await validate { authority.isCurrent() }; XCTFail("A stale response was admitted") }
-        catch is CancellationError {}
-        XCTAssertEqual(refreshCookie, "retained-refresh")
-        XCTAssertEqual(authority.checks, 2, "Request capture succeeds; response authority has expired")
-    }
-
-    // contract-test: supporting surface=gui.apple assertions=auth.session.authoritative-enforcement
-    func testCurrentRevocationClearsRefreshCookieThroughTheSameFence() async throws {
-        let body = Data(#"{"detail":"Expired"}"#.utf8)
-        NativeSessionURLProtocol.setHandler { _ in
-            return .init(status: 401, body: body, cookie: "", maxAge: 0)
-        }
-        do { _ = try await validate { true }; XCTFail("Revoked session succeeded") }
-        catch APIError.httpError(let status, _) { XCTAssertEqual(status, 401) }
-        XCTAssertNil(refreshCookie)
-    }
-
-    // contract-test: supporting surface=gui.apple assertions=auth.session.isolation
-    func testStaleRevocationCannotClearTheReplacementCredential() async throws {
-        let authority = AuthorityFence()
-        NativeSessionURLProtocol.setHandler { _ in
-            return .init(status: 401, body: Data(#"{"detail":"Expired"}"#.utf8), cookie: "", maxAge: 0)
-        }
-        do { _ = try await validate { authority.isCurrent() }; XCTFail("Stale revocation was admitted") }
-        catch is CancellationError {}
-        XCTAssertEqual(refreshCookie, "retained-refresh")
-        XCTAssertEqual(authority.checks, 2)
-    }
-
-    // contract-test: supporting surface=gui.apple assertions=auth.session.lifecycle,auth.session.isolation
-    func testOrdinaryRenewalPinsCookieAndPublishesBeforeNextRequest() async throws {
-        try authenticate()
-        NativeSessionURLProtocol.setHandler { request in
-            XCTAssertFalse(request.httpShouldHandleCookies)
-            XCTAssertTrue(request.value(forHTTPHeaderField: "Cookie")?.contains("retained-refresh") == true)
-            return .init(status: 200, body: Data("{}".utf8), cookie: "renewed-refresh")
-        }
-        // Manual auth consumers use the same ordinary transport as product routes.
-        let _: Data = try await api.request(.post, path: "/v1/auth/2fa/setup/provider", serverProfile: profile)
-        XCTAssertEqual(refreshCookie, "renewed-refresh")
-        NativeSessionURLProtocol.setHandler { request in
-            XCTAssertTrue(request.value(forHTTPHeaderField: "Cookie")?.contains("renewed-refresh") == true)
-            return .init(status: 200, body: Data("{}".utf8))
-        }
-        let _: Data = try await api.request(.get, path: "/v1/settings", serverProfile: profile)
-    }
-
-    // contract-test: supporting surface=gui.apple assertions=auth.session.isolation
-    func testDelayedOrdinaryResponseCannotReplaceNewLoginCredentialForSameAccount() async throws {
-        try authenticate()
-        let delayed = NativeSessionResponseGate()
-        NativeSessionURLProtocol.setHandler { request in
-            XCTAssertFalse(request.httpShouldHandleCookies)
-            return .init(status: 200, body: Data("{}".utf8), cookie: "old-session-successor", gate: delayed)
-        }
-        let operation = Task { try await api.request(.get, path: "/v1/settings", serverProfile: profile) as Data }
-        await delayed.waitUntilHeld()
-        // Same account reauth creates a replacement credential; even if the
-        // logical identity still matches, the previous sent credential is stale.
-        auth?.state = .unauthenticated
-        cookieStorage.setCookie(try cookie("replacement-login"))
-        auth?.state = .authenticated
-        delayed.release()
-        _ = try await operation.value
-        XCTAssertEqual(refreshCookie, "replacement-login")
-        NativeSessionURLProtocol.setHandler { request in
-            XCTAssertTrue(request.value(forHTTPHeaderField: "Cookie")?.contains("replacement-login") == true)
-            XCTAssertFalse(request.value(forHTTPHeaderField: "Cookie")?.contains("old-session-successor") == true)
-            return .init(status: 200, body: Data("{}".utf8))
-        }
-        let _: Data = try await api.request(.get, path: "/v1/settings", serverProfile: profile)
-    }
-
-    // contract-test: supporting surface=gui.apple assertions=auth.session.isolation
-    func testInitializingOrdinaryResponseCannotReplaceLaterLoginCredential() async throws {
-        auth = AuthManager(profileCacheWriter: { _ in })
-        XCTAssertNil(auth?.sessionRecoveryContext)
-        let delayed = NativeSessionResponseGate()
-        NativeSessionURLProtocol.setHandler { request in
-            XCTAssertFalse(request.httpShouldHandleCookies)
-            XCTAssertTrue(request.value(forHTTPHeaderField: "Cookie")?.contains("retained-refresh") == true)
-            return .init(status: 200, body: Data("{}".utf8), cookie: "startup-successor", gate: delayed)
-        }
-        let operation = Task { try await api.request(.get, path: "/v1/auth/lookup", serverProfile: profile) as Data }
-        await delayed.waitUntilHeld()
-        cookieStorage.setCookie(try cookie("replacement-login"))
-        try authenticate()
-        delayed.release()
-        do { _ = try await operation.value; XCTFail("Initializing response was admitted after login") }
-        catch is CancellationError {}
-        XCTAssertEqual(refreshCookie, "replacement-login")
-    }
-
-    // contract-test: supporting surface=gui.apple assertions=auth.session.lifecycle
-    func testPublicLookupWithUnchangedNilIdentityStillSucceeds() async throws {
-        auth = AuthManager(profileCacheWriter: { _ in })
-        XCTAssertNil(auth?.sessionRecoveryContext)
-        NativeSessionURLProtocol.setHandler { request in
-            XCTAssertFalse(request.httpShouldHandleCookies)
-            return .init(status: 200, body: Data(#"{"found":true}"#.utf8))
-        }
-        let result: Data = try await api.request(.get, path: "/v1/auth/lookup", serverProfile: profile)
-        XCTAssertEqual(result, Data(#"{"found":true}"#.utf8))
-        XCTAssertEqual(refreshCookie, "retained-refresh")
-    }
-
-    // contract-test: supporting surface=gui.apple assertions=auth.session.isolation
-    func testAccountReplacementRejectsHeldResponseBeforeCookiePublication() async throws {
-        try authenticate()
-        let delayed = NativeSessionResponseGate()
-        NativeSessionURLProtocol.setHandler { _ in
-            .init(status: 200, body: Data("{}".utf8), cookie: "old-account-successor", gate: delayed)
-        }
-        let operation = Task { try await api.request(.get, path: "/v1/settings", serverProfile: profile) as Data }
-        await delayed.waitUntilHeld()
-        auth?.currentUser = try JSONDecoder().decode(UserProfile.self,
-            from: Data(#"{"id":"account-B","username":"Replacement"}"#.utf8))
-        cookieStorage.setCookie(try cookie("replacement-account"))
-        delayed.release()
-        do { _ = try await operation.value; XCTFail("Old account response was admitted") }
-        catch is CancellationError {}
-        XCTAssertEqual(refreshCookie, "replacement-account")
-    }
-
-    // contract-test: supporting surface=gui.apple assertions=auth.session.lifecycle,auth.session.isolation
-    func testConcurrentDuplicateSuccessorsCannotRollBackLaterRotation() async throws {
-        try authenticate()
-        let firstGate = NativeSessionResponseGate()
-        let duplicateGate = NativeSessionResponseGate()
-        let staleGate = NativeSessionResponseGate()
-        NativeSessionURLProtocol.setHandler { request in
-            XCTAssertFalse(request.httpShouldHandleCookies)
-            switch request.url?.lastPathComponent {
-            case "first": return .init(status: 200, body: Data(), cookie: "successor-one", gate: firstGate)
-            case "duplicate": return .init(status: 200, body: Data(), cookie: "successor-one", gate: duplicateGate)
-            case "stale": return .init(status: 200, body: Data(), cookie: "successor-one", gate: staleGate)
-            default:
-                XCTAssertTrue(request.value(forHTTPHeaderField: "Cookie")?.contains("successor-one") == true)
-                return .init(status: 200, body: Data(), cookie: "successor-two")
-            }
-        }
-        let first = Task { try await api.request(.get, path: "/v1/first", serverProfile: profile) as Data }
-        let duplicate = Task { try await api.request(.get, path: "/v1/duplicate", serverProfile: profile) as Data }
-        let stale = Task { try await api.request(.get, path: "/v1/stale", serverProfile: profile) as Data }
-        await firstGate.waitUntilHeld(); await duplicateGate.waitUntilHeld(); await staleGate.waitUntilHeld()
-        firstGate.release(); _ = try await first.value
-        XCTAssertEqual(refreshCookie, "successor-one")
-        duplicateGate.release(); _ = try await duplicate.value
-        XCTAssertEqual(refreshCookie, "successor-one")
-        let _: Data = try await api.request(.get, path: "/v1/later", serverProfile: profile)
-        XCTAssertEqual(refreshCookie, "successor-two")
-        staleGate.release(); _ = try await stale.value
-        XCTAssertEqual(refreshCookie, "successor-two")
-    }
-
-    // contract-test: supporting surface=gui.apple assertions=auth.session.lifecycle,auth.session.isolation
     func testVerifiedWatchRequestPublishesRenewalUnderItsOwnFence() async throws {
         NativeSessionURLProtocol.setHandler { request in
             XCTAssertEqual(request.httpMethod, "PATCH")
@@ -351,17 +157,6 @@ import XCTest
         } catch is CancellationError {}
         XCTAssertEqual(authority.checks, 2)
         XCTAssertEqual(refreshCookie, "retained-refresh")
-    }
-
-    // contract-test: supporting surface=gui.apple assertions=auth.session.lifecycle,auth.session.authoritative-enforcement
-    func testExplicitLoginAndLogoutKeepTheirOwnCookieMutationHandling() async throws {
-        try authenticate()
-        NativeSessionURLProtocol.setHandler { request in
-            XCTAssertTrue(request.httpShouldHandleCookies)
-            return .init(status: 200, body: Data("{}".utf8))
-        }
-        let _: Data = try await api.request(.post, path: "/v1/auth/login", serverProfile: profile)
-        let _: Data = try await api.request(.post, path: "/v1/auth/logout", serverProfile: profile)
     }
 
     // contract-test: supporting surface=gui.apple assertions=auth.session.lifecycle,apple-watch.pairing.private-session
@@ -494,57 +289,6 @@ import XCTest
         try await exerciseUploadRenewal(profile: profile, responseDomain: nil)
     }
 
-    // contract-test: supporting surface=gui.apple assertions=auth.session.lifecycle,auth.session.authoritative-enforcement,auth.session.isolation
-    func testExplicitLoginAndLogoutReconcilePriorUploadMirrorOnlyWithinConfiguredHosts() async throws {
-        let transportProfile = ServerProfile.production
-        try seedUploadAliases(profile: transportProfile)
-        NativeSessionURLProtocol.setHandler { request in
-            Self.assertOnlyRefresh("authority-A", in: request)
-            return .init(status: 200, body: Data(), cookie: "upload-B")
-        }
-        _ = try await api.uploadFileForVerifiedWatchSession(data: Data("fixture".utf8), filename: "fixture.m4a",
-            contentType: "audio/mp4", chatId: "fixture-chat", serverProfile: transportProfile, validate: {})
-        NativeSessionURLProtocol.setHandler { request in
-            XCTAssertTrue(request.httpShouldHandleCookies)
-            return .init(status: 200, body: Data(), cookie: "login-C", cookieDomain: ".openmates.org")
-        }
-        let _: Data = try await api.request(.post, path: "/v1/auth/login", serverProfile: transportProfile)
-        try await assertNextAPIAndUploadUse("login-C", profile: transportProfile)
-        NativeSessionURLProtocol.setHandler { _ in
-            .init(status: 200, body: Data(), cookie: "", maxAge: 0, cookieDomain: ".openmates.org")
-        }
-        let _: Data = try await api.request(.post, path: "/v1/auth/logout", serverProfile: transportProfile)
-        for url in [transportProfile.apiBaseURL, transportProfile.uploadBaseURL] {
-            XCTAssertFalse(cookieStorage.cookies(for: url)?.contains { $0.name == "auth_refresh_token" } == true)
-            XCTAssertTrue(cookieStorage.cookies(for: url)?.contains { $0.name == "fixture_preference" } == true)
-        }
-        XCTAssertEqual(cookieStorage.cookies(for: URL(string: "https://unrelated-cookie.example")!)?
-            .first { $0.name == "auth_refresh_token" }?.value, "unrelated-session")
-    }
-
-    // contract-test: supporting surface=gui.apple assertions=auth.session.isolation
-    func testDelayedUploadRenewalCannotRetireReplacementLoginAliases() async throws {
-        let transportProfile = ServerProfile.production
-        try seedUploadAliases(profile: transportProfile)
-        let gate = NativeSessionResponseGate()
-        NativeSessionURLProtocol.setHandler { request in
-            Self.assertOnlyRefresh("authority-A", in: request)
-            return .init(status: 200, body: Data(), cookie: "old-upload-B", gate: gate)
-        }
-        let operation = Task {
-            try await api.uploadFileForVerifiedWatchSession(data: Data("fixture".utf8), filename: "fixture.m4a",
-                contentType: "audio/mp4", chatId: "fixture-chat", serverProfile: transportProfile, validate: {})
-        }
-        await gate.waitUntilHeld()
-        NativeSessionURLProtocol.setHandler { _ in
-            .init(status: 200, body: Data(), cookie: "replacement-C", cookieDomain: ".openmates.org")
-        }
-        let _: Data = try await api.request(.post, path: "/v1/auth/login", serverProfile: transportProfile)
-        gate.release()
-        _ = try await operation.value
-        try await assertNextAPIAndUploadUse("replacement-C", profile: transportProfile)
-    }
-
     private func exerciseUploadRenewal(profile transportProfile: ServerProfile, responseDomain: String?) async throws {
         try seedUploadAliases(profile: transportProfile)
         NativeSessionURLProtocol.setHandler { request in
@@ -620,88 +364,6 @@ import XCTest
 
     @MainActor private final class WatchFixtureClock { var now = 20 }
 
-    // contract-test: supporting surface=gui.apple assertions=auth.session.lifecycle,auth.session.isolation
-    func testAcceptedRESTSuccessorRenewsSocketAuthorityOnceAndDuplicateDoesNotRevalidate() async throws {
-        var validations = 0
-        let renewal = expectation(description: "Accepted REST successor validates socket authority")
-        let initial = try JSONDecoder().decode(SessionResponse.self,
-            from: response(account: "account-A", token: "predecessor-socket"))
-        let successor = try JSONDecoder().decode(SessionResponse.self,
-            from: response(account: "account-A", token: "successor-socket"))
-        let manager = try await makeOnlineAuth { _, _ in
-            validations += 1
-            if validations == 2 { renewal.fulfill() }
-            return validations == 1 ? initial : successor
-        }
-        let context = try XCTUnwrap(manager.sessionRecoveryContext)
-        XCTAssertEqual(manager.webSocketToken, "predecessor-socket")
-        NativeSessionURLProtocol.setHandler { _ in
-            .init(status: 200, body: Data(), cookie: "accepted-refresh-successor")
-        }
-        let _: Data = try await api.request(.get, path: "/v1/renewal", serverProfile: profile)
-        await fulfillment(of: [renewal], timeout: 2)
-        if validations == 2 { await manager.recoverSession(expected: context) }
-        XCTAssertEqual(validations, 2)
-        XCTAssertEqual(manager.webSocketToken, "successor-socket")
-        XCTAssertEqual(manager.sessionValidationState, .onlineAuthenticated)
-        let _: Data = try await api.request(.get, path: "/v1/duplicate", serverProfile: profile)
-        await Task.yield()
-        XCTAssertEqual(validations, 2)
-        XCTAssertEqual(refreshCookie, "accepted-refresh-successor")
-    }
-
-    // contract-test: supporting surface=gui.apple assertions=auth.session.lifecycle,auth.session.isolation
-    func testDelayedRESTSuccessorCannotRenewAReplacementAccount() async throws {
-        var validations = 0
-        let valid = try JSONDecoder().decode(SessionResponse.self,
-            from: response(account: "account-A", token: "account-A-socket"))
-        let manager = try await makeOnlineAuth { _, _ in validations += 1; return valid }
-        let gate = NativeSessionResponseGate()
-        NativeSessionURLProtocol.setHandler { _ in
-            .init(status: 200, body: Data(), cookie: "stale-account-successor", gate: gate)
-        }
-        let pending = Task { try await api.request(.get, path: "/v1/delayed", serverProfile: profile) as Data }
-        await gate.waitUntilHeld()
-        manager.currentUser = try JSONDecoder().decode(UserProfile.self,
-            from: Data(#"{"id":"account-B","username":"Replacement"}"#.utf8))
-        cookieStorage.setCookie(try cookie("account-B-refresh"))
-        gate.release()
-        do { _ = try await pending.value; XCTFail("Replaced account must reject delayed response") }
-        catch is CancellationError {}
-        await Task.yield()
-        XCTAssertEqual(validations, 1)
-        XCTAssertEqual(manager.currentUser?.id, "account-B")
-        XCTAssertEqual(refreshCookie, "account-B-refresh")
-    }
-
-    // contract-test: supporting surface=gui.apple assertions=auth.session.authoritative-enforcement
-    func testFailedRESTResponseCookieDoesNotAuthorizeSuccessorRenewal() async throws {
-        var validations = 0
-        let valid = try JSONDecoder().decode(SessionResponse.self,
-            from: response(account: "account-A", token: "current-socket"))
-        let manager = try await makeOnlineAuth { _, _ in validations += 1; return valid }
-        NativeSessionURLProtocol.setHandler { _ in
-            .init(status: 503, body: Data(), cookie: "unverified-refresh")
-        }
-        do { let _: Data = try await api.request(.get, path: "/v1/unavailable", serverProfile: profile); XCTFail("503 must fail") }
-        catch APIError.httpError(status: 503, message: _) {}
-        await Task.yield()
-        XCTAssertEqual(validations, 1)
-        XCTAssertEqual(manager.webSocketToken, "current-socket")
-    }
-
-    private func makeOnlineAuth(validator: @escaping AuthManager.SessionValidator) async throws -> AuthManager {
-        let manager = AuthManager(api: api, sessionValidator: validator,
-            profileCacheWriter: { _ in }, sessionMasterKeyAvailable: { _ in true }, sessionScopeActivator: { _ in })
-        manager.currentUser = try JSONDecoder().decode(UserProfile.self,
-            from: Data(#"{"id":"account-A","username":"Fixture"}"#.utf8))
-        manager.state = .authenticated
-        auth = manager
-        await manager.validateSessionAfterOfflineBootstrap()
-        XCTAssertEqual(manager.sessionValidationState, .onlineAuthenticated)
-        return manager
-    }
-
     private func authenticate() throws {
         let manager = AuthManager(profileCacheWriter: { _ in })
         manager.currentUser = try JSONDecoder().decode(UserProfile.self,
@@ -710,19 +372,13 @@ import XCTest
         auth = manager
     }
 
-    // Both reads occur inside APIClient's production MainActor fence. Admit
-    // request capture, then expire authority before response publication. Real
-    // account/server transitions are covered by AuthSessionReauthenticationTests.
+    // Both reads occur inside APIClient's MainActor fence: admit request
+    // capture, then expire authority before response publication.
     @MainActor private final class AuthorityFence {
         private(set) var checks = 0
         func isCurrent() -> Bool { checks += 1; return checks == 1 }
     }
 
-    private func validate(isCurrent: @escaping @MainActor () -> Bool) async throws -> SessionResponse {
-        try await api.validateNativeSession(serverProfile: profile,
-            body: SessionRequest(sessionId: "fixture-native-session", deviceInfo: nil),
-            expectedAccountID: "account-A", isCurrent: isCurrent)
-    }
     private var refreshCookie: String? {
         cookieStorage.cookies(for: profile.apiBaseURL)?.first { $0.name == "auth_refresh_token" }?.value
     }

@@ -59,6 +59,13 @@ fn core_owned_route(path: &str) -> bool {
         || path.starts_with("/v1/auth/login/")
 }
 
+/// Password-migration routes: a 401 there answers a wrong or stale password
+/// proof, not a dead session, so the session must survive it (the shell shows
+/// the error and the user retries).
+fn keeps_session_on_401(path: &str) -> bool {
+    path.starts_with("/v1/auth/password-v2/")
+}
+
 /// One shell request. `body` is zeroized on drop (it may carry plaintext).
 pub struct ShellHttpRequest {
     /// `GET`, `POST`, `PUT`, `PATCH` or `DELETE`.
@@ -91,28 +98,64 @@ pub struct ShellHttpResponse {
 pub struct PreparedShellHttp {
     request: crate::platform::http::RequestBuilder,
     binding: Binding,
+    keeps_session_on_401: bool,
 }
 
 /// What the response was received for: the same session and generation
-/// must still be current when it is finished.
-struct Binding {
+/// must still be current when it is finished (shared with `shell_upload`).
+pub(super) struct Binding {
     generation: u64,
     session_id: Zeroizing<String>,
 }
 
-struct Received {
-    status: u16,
-    headers: HeaderMap,
-    body: Result<Zeroizing<Vec<u8>>>,
+impl Binding {
+    /// Binding to the client's current session and generation.
+    ///
+    /// # Errors
+    /// `Authentication` without a session.
+    pub(super) fn current(client: &Client) -> Result<Self> {
+        Ok(Self {
+            generation: client.generation,
+            session_id: Zeroizing::new(client.require_session()?.session_id.clone()),
+        })
+    }
+
+    /// The session and generation are still the ones prepared for.
+    pub(super) fn is_current(&self, client: &Client) -> bool {
+        client
+            .session()
+            .is_some_and(|session| session.session_id == *self.session_id)
+            && client.generation == self.generation
+    }
+}
+
+/// Status, headers and (bounded) body of one received response.
+pub(super) struct Received {
+    pub(super) status: u16,
+    pub(super) headers: HeaderMap,
+    pub(super) body: Result<Zeroizing<Vec<u8>>>,
+}
+
+/// The allow-listed response headers, lower-case names, in arrival order.
+pub(super) fn response_headers(headers: &HeaderMap) -> Vec<(String, String)> {
+    headers
+        .iter()
+        .filter(|(name, _)| RESPONSE_HEADERS.contains(&name.as_str()))
+        .filter_map(|(name, value)| {
+            Some((name.as_str().to_owned(), value.to_str().ok()?.to_owned()))
+        })
+        .collect()
 }
 
 /// A sent request; hand it back to [`Client::finish_shell_http`].
 pub struct SentShellHttp {
     binding: Binding,
     received: Result<Received>,
+    keeps_session_on_401: bool,
 }
 
-fn invalid_text(text: &str, max: usize) -> bool {
+/// Empty, longer than `max` bytes or containing a control character.
+pub(super) fn invalid_text(text: &str, max: usize) -> bool {
     text.is_empty() || text.len() > max || text.chars().any(char::is_control)
 }
 
@@ -190,7 +233,7 @@ impl Client {
         if self.browser_cookies() {
             return Err(Error::Forbidden);
         }
-        let session_id = Zeroizing::new(self.require_session()?.session_id.clone());
+        let binding = Binding::current(self)?;
         let method = checked_method(&request.method)?;
         checked_path(&request.path)?;
         if core_owned_route(&request.path) {
@@ -251,16 +294,15 @@ impl Client {
         }
         Ok(PreparedShellHttp {
             request: builder,
-            binding: Binding {
-                generation: self.generation,
-                session_id,
-            },
+            binding,
+            keeps_session_on_401: keeps_session_on_401(&request.path),
         })
     }
 
     /// Apply the outcome of `sent` to this client: a 401 or an
     /// expected-principal 403 forgets the session (`Expired`, as the core's
-    /// own requests); otherwise rotated cookies are merged into the client's
+    /// own requests; a 401 on a `/v1/auth/password-v2/` route is returned as a
+    /// response and keeps the session); otherwise rotated cookies are merged into the client's
     /// jar (also when the body then failed) and the response is returned.
     ///
     /// # Errors
@@ -270,11 +312,12 @@ impl Client {
     /// `Expired` for a rejected session; `Forbidden` for a redirect;
     /// `Protocol` for an oversized body or malformed cookies.
     pub fn finish_shell_http(&mut self, sent: SentShellHttp) -> Result<ShellHttpResponse> {
-        let SentShellHttp { binding, received } = sent;
-        let current = self
-            .session()
-            .is_some_and(|session| session.session_id == *binding.session_id);
-        if !current || self.generation != binding.generation {
+        let SentShellHttp {
+            binding,
+            received,
+            keeps_session_on_401,
+        } = sent;
+        if !binding.is_current(self) {
             return Err(Error::Cancelled);
         }
         let received = received?;
@@ -283,7 +326,7 @@ impl Client {
         if status == 403 || redirect {
             self.chat_list_freshness.invalidate();
         }
-        if status == 401 {
+        if status == 401 && !keeps_session_on_401 {
             self.forget_session();
             return Err(Error::Expired);
         }
@@ -299,14 +342,7 @@ impl Client {
             self.forget_session();
             return Err(Error::Expired);
         }
-        let headers = received
-            .headers
-            .iter()
-            .filter(|(name, _)| RESPONSE_HEADERS.contains(&name.as_str()))
-            .filter_map(|(name, value)| {
-                Some((name.as_str().to_owned(), value.to_str().ok()?.to_owned()))
-            })
-            .collect();
+        let headers = response_headers(&received.headers);
         Ok(ShellHttpResponse {
             status,
             headers,
@@ -321,7 +357,11 @@ impl PreparedShellHttp {
     /// headers or body; a response whose headers arrived keeps them, so a
     /// rotated cookie is still applied by the finish step.
     pub async fn send(self, cancel: &CancellationToken) -> SentShellHttp {
-        let Self { request, binding } = self;
+        let Self {
+            request,
+            binding,
+            keeps_session_on_401,
+        } = self;
         let received = tokio::select! {
             biased;
             () = cancel.cancelled() => Err(Error::Cancelled),
@@ -330,11 +370,17 @@ impl PreparedShellHttp {
                 Ok(response) => Ok(read(response, cancel).await),
             },
         };
-        SentShellHttp { binding, received }
+        SentShellHttp {
+            binding,
+            received,
+            keeps_session_on_401,
+        }
     }
 }
 
-async fn read(
+/// Read status, headers and the whole body (bounded by
+/// [`SHELL_HTTP_MAX_RESPONSE_BODY`]); `cancel` stops the body read.
+pub(super) async fn read(
     mut response: crate::platform::http::Response,
     cancel: &CancellationToken,
 ) -> Received {
@@ -370,3 +416,7 @@ async fn read(
         body,
     }
 }
+
+#[cfg(test)]
+#[path = "shell_http_tests.rs"]
+mod tests;

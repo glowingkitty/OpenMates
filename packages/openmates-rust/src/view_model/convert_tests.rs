@@ -339,3 +339,11 @@ fn stream_updates_convert_one_to_one() {
     };
     assert!(stream_event_from_update(&bad).is_err());
 }
+
+#[test]
+fn only_embed_prefixed_ids_are_saved_item_rows() {
+    let mut item = row_item();
+    assert!(!chat_list_row_from_item(&item).unwrap().is_saved_item);
+    item.id = format!("{}e1", crate::view_model::SAVED_ITEM_ID_PREFIX);
+    assert!(chat_list_row_from_item(&item).unwrap().is_saved_item);
+}

@@ -1,3 +1,4 @@
+<!-- Native Swift counterparts: apple/OpenMates/Sources/Features/Settings/Views/SettingsLearningModeView.swift -->
 <!--
     SettingsLearningModeSetup — Account-wide Learning Mode setup page.
 

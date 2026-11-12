@@ -215,8 +215,11 @@ actor AudioRealtimeTranscriptionClient {
                       ServerProfile.current().apiBaseURL == profile.apiBaseURL else {
                     throw AudioRealtimeTranscriptionError.authenticationUnavailable
                 }
-                if forceRefresh || tokenNeedsRefresh(authManager.webSocketToken) {
-                    await authManager.validateSessionAfterOfflineBootstrap()
+                let grant: LegacySocketGrantRecord
+                do {
+                    grant = try await authManager.socketGrant(force: forceRefresh, needsRefresh: { tokenNeedsRefresh($0) })
+                } catch {
+                    throw AudioRealtimeTranscriptionError.authenticationUnavailable
                 }
                 guard authManager.state == .authenticated,
                       authManager.currentUser?.id == owner,
@@ -224,14 +227,14 @@ actor AudioRealtimeTranscriptionClient {
                       LocalModelStore.shared.recordingTranscriptionGeneration == selection.preferenceGeneration,
                       ServerProfile.current().apiBaseURL == profile.apiBaseURL,
                       authManager.sessionValidationState == .onlineAuthenticated,
-                      let token = authManager.webSocketToken,
+                      let token = grant.wsToken,
                       !tokenNeedsRefresh(token) else {
                     throw AudioRealtimeTranscriptionError.authenticationUnavailable
                 }
                 return Authentication(
                     apiBaseURL: profile.apiBaseURL,
                     webOrigin: profile.webBaseURL.absoluteString,
-                    sessionID: AuthManager.nativeSessionId,
+                    sessionID: grant.sessionId,
                     webSocketToken: token
                 )
             },

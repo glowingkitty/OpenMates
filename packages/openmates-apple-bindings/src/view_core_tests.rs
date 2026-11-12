@@ -225,7 +225,10 @@ async fn start_emits_the_cached_chat_list_from_a_seeded_cache_before_any_network
             event: SessionEventRecord::Restored { display_name: None }
         }
     );
-    let ViewEventRecord::ChatList { rows, completeness } = &all[1] else {
+    let ViewEventRecord::ChatList {
+        rows, completeness, ..
+    } = &all[1]
+    else {
         panic!("cached chat list expected: {all:?}");
     };
     assert_eq!(*completeness, ListCompletenessRecord::Cached);
@@ -391,4 +394,18 @@ fn bad_cache_directories_are_rejected() {
     std::fs::create_dir(dir.path().join("private")).unwrap();
     std::os::unix::fs::symlink(dir.path().join("private"), dir.path().join("link")).unwrap();
     assert_eq!(rejected(Some(base), Some("link")), CoreError::Io);
+}
+
+#[test]
+fn chat_list_record_carries_the_account_total_and_saved_item_flag() {
+    use openmates_sdk::view_model::{ListCompleteness, ViewEvent};
+    let record = ViewEventRecord::from(ViewEvent::ChatList {
+        rows: Vec::new(),
+        completeness: ListCompleteness::Partial,
+        total_count: Some(412),
+    });
+    let ViewEventRecord::ChatList { total_count, .. } = record else {
+        panic!("chat list record expected");
+    };
+    assert_eq!(total_count, Some(412));
 }

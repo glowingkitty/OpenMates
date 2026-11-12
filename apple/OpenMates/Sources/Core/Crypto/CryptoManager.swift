@@ -596,11 +596,18 @@ actor CryptoManager {
         #endif
     }
 
-    func loadMasterKey(for userId: String) throws -> SymmetricKey? {
+    /// The account's master key. In the iOS/macOS app the core owns it
+    /// (`CoreLegacyAccess.masterKey(for:)`, memory only); the Watch and the
+    /// share extensions, which run no core, still read their Keychain copy.
+    func loadMasterKey(for userId: String) async throws -> SymmetricKey? {
+        #if (os(iOS) || os(macOS)) && !OPENMATES_SHARE_EXTENSION
+        return try await CoreLegacyAccess.masterKey(for: userId)
+        #else
         guard let data = try KeychainHelper.load(key: "openmates.masterKey.\(userId)") else {
             return nil
         }
         return SymmetricKey(data: data)
+        #endif
     }
 
     func deleteMasterKey(for userId: String) throws {

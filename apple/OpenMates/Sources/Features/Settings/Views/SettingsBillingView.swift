@@ -8,6 +8,7 @@
 // Svelte:  frontend/packages/ui/src/components/settings/SettingsBilling.svelte
 //          frontend/packages/ui/src/components/settings/SettingsUsage.svelte
 //          frontend/packages/ui/src/components/settings/billing/SettingsInvoices.svelte
+//          frontend/packages/ui/src/components/settings/billing/SettingsBillingAddress.svelte
 // CSS:     frontend/packages/ui/src/styles/settings.css
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift
@@ -32,7 +33,7 @@ enum BillingUITestFixture {
 }
 
 private enum BillingRoute {
-    case buyCredits, autoTopUp, invoices, usage, referralCode, giftCards, support
+    case buyCredits, autoTopUp, invoices, billingAddress, usage, referralCode, giftCards, support
 }
 
 struct SettingsBillingView: View {
@@ -48,7 +49,7 @@ struct SettingsBillingView: View {
         self.referralCodeRequest = referralCodeRequest
         let routes: [String: BillingRoute] = ["buy-credits": .buyCredits, "auto-topup": .autoTopUp,
             "auto-topup/low-balance": .autoTopUp, "auto-topup/monthly": .autoTopUp,
-            "invoices": .invoices, "usage": .usage, "referral-code": .referralCode,
+            "invoices": .invoices, "address": .billingAddress, "usage": .usage, "referral-code": .referralCode,
             "gift-cards": .giftCards, "gift-cards/redeem": .giftCards, "gift-cards/redeemed": .giftCards,
             "gift-cards/buy": .giftCards, "redeem-giftcard": .giftCards]
         _route = State(initialValue: routes[deepLinkPath ?? ""] ?? (referralCodeRequest > 0 ? .referralCode : nil))
@@ -69,7 +70,7 @@ struct SettingsBillingView: View {
             route = .referralCode
         }
         .onReceive(NotificationCenter.default.publisher(for: .paymentCompleted)) { _ in
-            Task { await authManager.validateSessionAfterOfflineBootstrap() }
+            Task { await authManager.ensureAdmitted(forceReadmit: true) }
         }
     }
 
@@ -94,6 +95,7 @@ struct SettingsBillingView: View {
                 billingRow(AppStrings.buyCredits, icon: "coins", id: "settings-billing-buy-credits-row", route: .buyCredits)
                 billingRow(AppStrings.autoTopUp, icon: "reload", id: "settings-billing-auto-topup-row", route: .autoTopUp)
                 billingRow(AppStrings.invoices, icon: "document", id: "settings-billing-invoices-row", route: .invoices)
+                billingRow(AppStrings.billingAddress, icon: "pin", id: "personal-billing-address", route: .billingAddress)
                 billingRow(AppStrings.giftCards, icon: "gift", id: "settings-billing-gift-cards-row", route: .giftCards)
                 billingRow(AppStrings.referralCode, icon: "gift", id: "settings-billing-referral-code-row", route: .referralCode)
                 billingRow(AppStrings.billingSupport, icon: "support", id: "settings-billing-support-row", route: .support)
@@ -130,6 +132,7 @@ struct SettingsBillingView: View {
             case .buyCredits: BuyCreditsView()
             case .autoTopUp: AutoTopUpView()
             case .invoices: InvoicesView()
+            case .billingAddress: BillingAddressView()
             case .usage: BillingUsageView(context: usageContext)
             case .referralCode: SettingsReferralCodeView()
             case .giftCards: BillingGiftCardsView()

@@ -4,6 +4,8 @@
      An unsaved suggestion is shown with a banner and the current text of every changed field;
      nothing is saved until Save. Spec: specifications/features/app-memories.
      Preview: /dev/preview/settings/MemoryEntryPage
+     Native Swift counterparts:
+     - apple/OpenMates/Sources/Features/Settings/Memories/SettingsMemoryEntryPage.swift
 -->
 <script lang="ts">
   import { onMount, untrack } from 'svelte';

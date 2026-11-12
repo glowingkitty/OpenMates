@@ -331,6 +331,16 @@ struct EmbedContentView: View {
                 SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "days")
             case .weatherDay:
                 WeatherDayEmbedRenderer(data: rawData, mode: mode)
+            case .weatherRainRadar:
+                // Rain radar renders through the app-skill renderer, which owns
+                // the radar preview/fullscreen views (same path as app_skill_use records).
+                AppSkillUseRenderer(embed: embed, allEmbedRecords: allEmbedRecords, mode: mode, onOpenEmbed: onOpenEmbed)
+
+            // Jobs
+            case .jobsSearch:
+                JobsSearchEmbedRenderer(embed: embed, mode: mode, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
+            case .jobsResult:
+                JobsResultEmbedRenderer(data: rawData, mode: mode)
 
             // Workflows
             case .workflowsCreateOrModify, .workflowsSearch:

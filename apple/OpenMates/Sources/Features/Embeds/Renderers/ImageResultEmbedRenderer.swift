@@ -28,18 +28,7 @@ struct ImageResultEmbedRenderer: View {
     @State private var thumbnailFailed = false
     @State private var fullscreenContentWidth: CGFloat = 0
 
-    private var fullscreenImageMaximumHeight: CGFloat {
-        #if os(iOS)
-        let viewport = UIApplication.shared.connectedScenes
-            .compactMap { ($0 as? UIWindowScene)?.windows.first(where: { $0.isKeyWindow })?.bounds.size }
-            .first ?? UIScreen.main.bounds.size
-        #elseif os(macOS)
-        let viewport = NSApp.keyWindow?.contentView?.bounds.size
-            ?? NSScreen.main?.visibleFrame.size ?? CGSize(width: 900, height: 900)
-        #endif
-        let contentWidth = fullscreenContentWidth > 0 ? fullscreenContentWidth : viewport.width
-        return min(viewport.height * 0.6, contentWidth <= 560 ? 520 : 720)
-    }
+    private var fullscreenImageMaximumHeight: CGFloat { ImageFullscreenSizing.maxImageHeight }
 
     private var title: String? { data?["title"]?.value as? String }
     private var rawImageURL: String? {
@@ -109,7 +98,8 @@ struct ImageResultEmbedRenderer: View {
                 }
                 .frame(maxWidth: .infinity)
                 .frame(minHeight: 200)
-                .padding(.spacing8)
+                .padding(.horizontal, .spacing4)
+                .padding(.vertical, .spacing8)
                 .background(Color(hex: 0xFAFAFA))
                 .contentShape(Rectangle())
                 .onTapGesture {

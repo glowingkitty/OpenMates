@@ -3,6 +3,7 @@
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/settings/learning-mode/SettingsLearningModeSetup.svelte
 //          frontend/packages/ui/src/components/settings/elements/SettingsPageContainer.svelte
+//          (collaborative-building toggle and passcode prompt: SettingsLearningModeSetup.svelte)
 //          frontend/packages/ui/src/components/settings/elements/SettingsDropdown.svelte
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift
@@ -16,6 +17,9 @@ struct SettingsLearningModeView: View {
     @ObservedObject private var controller: LearningModeController
     @State private var selectedAgeGroup = LearningModeAgeGroup.age13To15.rawValue
     @State private var passcode = ""
+    @State private var collaborativeBuild = true
+    @State private var collaborativePrompt = false
+    @State private var collaborativePasscode = ""
 
     init(
         isAuthenticated: Bool,
@@ -29,6 +33,16 @@ struct SettingsLearningModeView: View {
 
     private var status: LearningModeStatus {
         isAuthenticated ? controller.status : guestSession.status
+    }
+
+    /// Web `collaborativeToggleVisible`: hidden for under-10 learners.
+    private var collaborativeToggleVisible: Bool {
+        if status.enabled { return status.ageGroup != .under10 }
+        return selectedAgeGroup != LearningModeAgeGroup.under10.rawValue
+    }
+
+    private var collaborativeIsOn: Bool {
+        status.enabled ? status.collaborativeBuild : collaborativeBuild
     }
 
     var body: some View {
@@ -48,6 +62,34 @@ struct SettingsLearningModeView: View {
                             disabled: controller.isLoading
                         )
                         .accessibilityIdentifier("learning-mode-age-group-dropdown")
+                    }
+                }
+
+                if collaborativeToggleVisible {
+                    OMSettingsToggleRow(
+                        title: AppStrings.learningModeCollaborativeLabel,
+                        subtitleTop: AppStrings.learningModeCollaborativeHelp,
+                        icon: "study",
+                        isOn: Binding(get: { collaborativeIsOn }, set: { _ in toggleCollaborative() }),
+                        disabled: controller.isLoading
+                    )
+                    .accessibilityIdentifier("learning-mode-collaborative")
+                }
+
+                if collaborativePrompt, isAuthenticated, status.enabled, !status.collaborativeBuild {
+                    VStack(alignment: .leading, spacing: .spacing4) {
+                        sectionHeading(AppStrings.learningModeCollaborativeEnablePrompt, icon: "lock")
+                        SecureField(AppStrings.learningModeDisablePasscodePlaceholder, text: $collaborativePasscode)
+                            .textFieldStyle(OMTextFieldStyle())
+                            .accessibilityLabel(AppStrings.learningModeCollaborativeEnablePrompt)
+                            .accessibilityIdentifier("learning-mode-collaborative-passcode-input")
+                        Button(action: confirmCollaborativeOn) {
+                            Text(AppStrings.learningModeCollaborativeConfirmButton)
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(OMPrimaryButtonStyle())
+                        .disabled(controller.isLoading || collaborativePasscode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .accessibilityIdentifier("learning-mode-collaborative-confirm-button")
                     }
                 }
 
@@ -81,6 +123,10 @@ struct SettingsLearningModeView: View {
         }
         .background(Color.grey0)
         .accessibilityIdentifier("learning-mode-settings-page")
+        .onChange(of: selectedAgeGroup) { _, newValue in
+            // Web: collaborative building returns to its default (on) when the age group changes.
+            collaborativeBuild = newValue != LearningModeAgeGroup.under10.rawValue
+        }
         .task {
             guard isAuthenticated, !controller.hasLoaded else { return }
             await controller.loadAccountStatus()
@@ -149,10 +195,45 @@ struct SettingsLearningModeView: View {
         }
     }
 
+    private func toggleCollaborative() {
+        if !status.enabled {
+            collaborativeBuild.toggle()
+            return
+        }
+        if !isAuthenticated {
+            guestSession.setCollaborativeBuild(!status.collaborativeBuild)
+            return
+        }
+        if status.collaborativeBuild {
+            // Turning collaborative building off is free.
+            collaborativePrompt = false
+            collaborativePasscode = ""
+            Task {
+                await controller.setAccountCollaborativeBuild(false, passcode: nil)
+                if controller.error == nil { ToastManager.shared.show(AppStrings.learningModeCollaborativeDisabled, type: .success) }
+            }
+            return
+        }
+        collaborativePrompt.toggle()
+    }
+
+    private func confirmCollaborativeOn() {
+        let trimmed = collaborativePasscode.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        Task {
+            await controller.setAccountCollaborativeBuild(true, passcode: trimmed)
+            if controller.error == nil {
+                collaborativePrompt = false
+                collaborativePasscode = ""
+                ToastManager.shared.show(AppStrings.learningModeCollaborativeEnabled, type: .success)
+            }
+        }
+    }
+
     private func submit() {
         guard let ageGroup = LearningModeAgeGroup(rawValue: selectedAgeGroup) else { return }
         if !isAuthenticated {
-            status.enabled ? guestSession.deactivate() : guestSession.activate(ageGroup: ageGroup)
+            status.enabled ? guestSession.deactivate() : guestSession.activate(ageGroup: ageGroup, collaborativeBuild: collaborativeBuild)
             return
         }
 
@@ -161,7 +242,7 @@ struct SettingsLearningModeView: View {
             if status.enabled {
                 await controller.deactivateAccount(passcode: trimmedPasscode)
             } else {
-                await controller.activateAccount(passcode: trimmedPasscode, ageGroup: ageGroup)
+                await controller.activateAccount(passcode: trimmedPasscode, ageGroup: ageGroup, collaborativeBuild: collaborativeBuild)
             }
             if controller.error == nil { passcode = "" }
         }

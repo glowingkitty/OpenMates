@@ -1,20 +1,28 @@
-// Web source: frontend/packages/ui/src/services/voiceCall.ts, voiceCallAudioGate.ts
+// Web source: frontend/packages/ui/src/services/voiceCall.ts, voiceCallAudioGate.ts, voiceCallBackground.ts,
+// assistantSpeechController.ts (live-call speech output)
 // Specification: specifications/features/video-call/specification.yml
 // Assertions: video-call.audio.single-owner, video-call.audio.startup-buffer,
-// video-call.audio.automatic-idle, video-call.lifecycle.recovery-and-billing
+// video-call.audio.automatic-idle, video-call.lifecycle.recovery-and-billing,
+// video-call.audio.background-resume
 
 #if !os(watchOS)
 import AVFoundation
 import Foundation
+#if os(iOS)
+import UIKit
+#endif
 
 /// Memory-only duplex audio, separate from AAC composer recording and ordinary
-/// 1.25x response speech. Foreground adapter; no background/call-route promise.
+/// 1.25x response speech. Foreground adapter; no background/call-route promise:
+/// capture the OS stops while the app is away ends the call cleanly instead.
 @MainActor
 final class NativeVoiceCallAppleAudio: NativeVoiceCallAudio {
     private let runtime: AssistantSpeechAppRuntime
     private let permission: @MainActor @Sendable () async -> Bool
     private let engine = AVAudioEngine()
     private let player = AVAudioPlayerNode()
+    /// Assistant speech of the call (`assistant_speech_audio` MP3 on the chat socket).
+    private let speechOutput = NativeVoiceCallSpeechEngineOutput()
     private var reservation: UUID?
     private var playbackGeneration = UUID()
     private var queuedPlaybackFrames = 0
@@ -26,6 +34,8 @@ final class NativeVoiceCallAppleAudio: NativeVoiceCallAudio {
     private var onFailure: (@Sendable (NativeVoiceCallError) async -> Void)?
     private var interruptionObserver: NSObjectProtocol?
     private var routeObserver: NSObjectProtocol?
+    private var lifecycleObservers: [NSObjectProtocol] = []
+    private var inBackground = false
     private var invalidated: @Sendable () async -> Void
 
     init(runtime: AssistantSpeechAppRuntime = .shared,
@@ -103,15 +113,41 @@ final class NativeVoiceCallAppleAudio: NativeVoiceCallAudio {
         if !configured {
             engine.attach(player)
             engine.connect(player, to: engine.mainMixerNode, format: playback)
+            speechOutput.attach(to: engine)
             configured = true
         }
         #if os(iOS)
         interruptionObserver = NotificationCenter.default.addObserver(forName: AVAudioSession.interruptionNotification,
-            object: nil, queue: .main) { notification in
+            object: nil, queue: .main) { [weak self] notification in
                 if notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt == AVAudioSession.InterruptionType.began.rawValue {
-                    Task { await failure(.audioUnavailable) }
+                    // Away from the screen the user can no longer speak: end, do not fail.
+                    let away = MainActor.assumeIsolated { self?.inBackground ?? false }
+                    let error = NativeVoiceCallInterruptionPolicy.interruptionError(appInBackground: away)
+                    Task { await failure(error) }
                 }
             }
+        inBackground = false
+        lifecycleObservers = [
+            NotificationCenter.default.addObserver(forName: UIApplication.didEnterBackgroundNotification,
+                object: nil, queue: .main) { [weak self] _ in
+                    MainActor.assumeIsolated {
+                        guard let self else { return }
+                        self.inBackground = true
+                    }
+                },
+            NotificationCenter.default.addObserver(forName: UIApplication.willEnterForegroundNotification,
+                object: nil, queue: .main) { [weak self] _ in
+                    // A suspended app may return with its engine stopped and no
+                    // interruption delivered; that capture cannot be trusted.
+                    let error: NativeVoiceCallError? = MainActor.assumeIsolated {
+                        guard let self else { return nil }
+                        self.inBackground = false
+                        return NativeVoiceCallInterruptionPolicy.returnError(
+                            captureInstalled: self.tapInstalled, engineRunning: self.engine.isRunning)
+                    }
+                    if let error { Task { await failure(error) } }
+                },
+        ]
         routeObserver = NotificationCenter.default.addObserver(forName: AVAudioSession.routeChangeNotification,
             object: nil, queue: .main) { notification in
                 // A lost device ends visibly; no silent capture on a new route.
@@ -123,6 +159,7 @@ final class NativeVoiceCallAppleAudio: NativeVoiceCallAudio {
         engine.prepare()
         try engine.start()
         player.play()
+        runtime.attachLiveCallSpeechOutput(speechOutput)
     }
 
     func setMicrophoneEnabled(_ enabled: Bool) { capture?.setEnabled(enabled) }
@@ -164,9 +201,12 @@ final class NativeVoiceCallAppleAudio: NativeVoiceCallAudio {
         continuation?.finish(); continuation = nil
         consumer = nil // finished bounded stream drains; controller generation rejects late callbacks
         playbackGeneration = UUID(); queuedPlaybackFrames = 0
+        runtime.detachLiveCallSpeechOutput(speechOutput); speechOutput.stop()
         player.stop(); engine.stop()
         if let interruptionObserver { NotificationCenter.default.removeObserver(interruptionObserver) }
         if let routeObserver { NotificationCenter.default.removeObserver(routeObserver) }
+        lifecycleObservers.forEach { NotificationCenter.default.removeObserver($0) }
+        lifecycleObservers = []; inBackground = false
         interruptionObserver = nil; routeObserver = nil; onFailure = nil
         #if os(iOS)
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)

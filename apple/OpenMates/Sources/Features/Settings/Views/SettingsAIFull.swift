@@ -605,8 +605,7 @@ struct SettingsAIFullView: View {
         isLoadingPreferences = true
         defer { isLoadingPreferences = false }
         do {
-            let response: SessionResponse = try await APIClient.shared.request(.get, path: "/v1/auth/session")
-            guard let user = response.user else { throw CocoaError(.coderValueNotFound) }
+            let user = try await AuthManager.admittedProfile()
             defaultSimpleModel = user.defaultAiModelSimple ?? ""
             defaultComplexModel = user.defaultAiModelComplex ?? ""
             defaultMostDemandingModel = user.defaultAiModelMostDemanding ?? ""

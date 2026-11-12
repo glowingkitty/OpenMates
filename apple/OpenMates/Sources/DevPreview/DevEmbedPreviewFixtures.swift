@@ -49,6 +49,7 @@ enum DevEmbedPreviewApp: String, CaseIterable, Identifiable {
     case videos
     case weather
     case events
+    case jobs
     case workflows
     case projects
 
@@ -89,6 +90,7 @@ enum DevEmbedPreviewApp: String, CaseIterable, Identifiable {
         case .videos: return "Videos"
         case .weather: return "Weather"
         case .events: return "Events"
+        case .jobs: return "Jobs"
         case .workflows: return "Workflows"
         case .projects: return "Projects"
         }
@@ -879,6 +881,8 @@ enum DevEmbedPreviewFixtures {
             return [weatherForecast, weatherDay, weatherRainRadar]
         case .events:
             return [eventsSearch, event]
+        case .jobs:
+            return [jobsSearch, jobsResult]
         case .workflows:
             return [workflowsCreate, workflowsSearch, workflowsWorkflow]
         case .projects:
@@ -2882,6 +2886,40 @@ enum DevEmbedPreviewFixtures {
             "preview_results": previewResults, "results": results
         ], embedIds: children.map(\.id).joined(separator: "|"))
         return skill(id: "weather-forecast", label: "Forecast", primary: parent, children: children)
+    }
+
+    private static var jobRows: [[String: Any]] { [
+        ["id": "preview-job-1", "title": "Climate Data Analyst", "company": "Example Organization",
+         "location": "Berlin", "country": "DE", "provider": "ExampleJobsD",
+         "url": "https://example.com/jobs/climate-data", "remote": false,
+         "description": "Analyse public climate datasets and publish quarterly reports.",
+         "employment_type": "full_time", "published_at": "2026-06-01T09:00:00Z",
+         "salary_min": 62000, "salary_max": 74000, "salary_currency": "EUR", "salary_period": "year",
+         "sector": "Research", "role": "Data analyst", "seniority": "Mid-level",
+         "organization_type": "Non-profit", "detail_status": "full"],
+        ["id": "preview-job-2", "title": "Energy Researcher", "company": "Example Institute",
+         "location": "Stockholm", "country": "SE", "provider": "JobTech",
+         "url": "https://example.com/jobs/energy", "apply_url": "https://example.com/jobs/energy/apply",
+         "remote": true, "description": "Research energy systems.", "detail_status": "summary"]
+    ] }
+
+    private static var jobsSearch: DevEmbedPreviewSkill {
+        let parentId = "preview-jobs-search-1"
+        let children = jobRows.enumerated().map { index, row in
+            record(id: "preview-jobs-search-result-\(index + 1)", type: EmbedType.jobsResult.rawValue,
+                   appId: "jobs", data: row, parentEmbedId: parentId)
+        }
+        let parent = appSkill(id: parentId, type: EmbedType.jobsSearch.rawValue, appId: "jobs", skillId: "search", data: [
+            "query": "climate analyst", "providers": ["ExampleJobsD", "JobTech"],
+            "result_count": jobRows.count, "preview_results": jobRows
+        ], embedIds: children.map(\.id).joined(separator: "|"))
+        return skill(id: "jobs-search", label: "Search", primary: parent, children: children)
+    }
+
+    private static var jobsResult: DevEmbedPreviewSkill {
+        let embed = record(id: "preview-job-result-1", type: EmbedType.jobsResult.rawValue,
+                           appId: "jobs", data: jobRows[0])
+        return skill(id: "jobs-result", label: "Job listing", primary: embed)
     }
 
     private static var weatherRainRadar: DevEmbedPreviewSkill {

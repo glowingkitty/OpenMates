@@ -40,7 +40,8 @@ fn message_id(chat: u32, index: u32) -> String {
     )
 }
 
-fn sealed(text: &str, key: &Key) -> std::result::Result<String, CoreError> {
+/// `text` sealed with `key` in the core's combined cipher format.
+pub(crate) fn sealed(text: &str, key: &Key) -> std::result::Result<String, CoreError> {
     Ok(encrypt_combined(text, key)?)
 }
 
@@ -150,7 +151,15 @@ pub fn test_support_seed_cached_account(
             message: "Seed 1 to 500 chats and at most 2000 messages.".to_owned(),
         });
     }
-    let session = Session {
+    let session = synthetic_session(api_url);
+    let snapshot = snapshot(chat_count, message_count, &session.master_key)?;
+    write_cache(&session, &cache_container, &cache_directory_name, &snapshot)
+}
+
+/// The synthetic account of every fixture: a fresh random master key, no
+/// cookies and no `ws_token`, so no server knows it.
+pub(crate) fn synthetic_session(api_url: String) -> Session {
+    Session {
         api_url,
         session_id: "synthetic-fixture-session".into(),
         cookies: Default::default(),
@@ -162,31 +171,46 @@ pub fn test_support_seed_cached_account(
         created_at: 1,
         paired_session_expires_at: None,
         active_team_id: None,
-    };
-    let snapshot = snapshot(chat_count, message_count, &session.master_key)?;
+    }
+}
+
+/// Persist the ciphertext `snapshot` of `session` through the core's real
+/// cache write path (`Client::restore_ciphertext_snapshot`, then
+/// `ShellSession::persist`) into `cache_directory_name` inside
+/// `cache_container`, and return the credential payload of `session`.
+/// Blocks the calling thread on its own runtime.
+///
+/// # Errors
+/// `Invalid` for an unusable cache path; cache write and encryption errors.
+pub(crate) fn write_cache(
+    session: &Session,
+    cache_container: &str,
+    cache_directory_name: &str,
+    snapshot: &Value,
+) -> std::result::Result<Vec<u8>, CoreError> {
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
         .map_err(|_| CoreError::Io)?;
     runtime.block_on(async {
-        let bytes = FileByteStore::open_in(Path::new(&cache_container), &cache_directory_name)
+        let bytes = FileByteStore::open_in(Path::new(cache_container), cache_directory_name)
             .map_err(|_| CoreError::Invalid {
                 message: "The cache container or directory name is not usable.".to_owned(),
             })?;
         let cache = CacheStore::new(
             Arc::new(CacheEngine::new(bytes)),
-            Arc::new(FixedContext(session_cache_context(&session)?)),
+            Arc::new(FixedContext(session_cache_context(session)?)),
             Arc::new(NoScope),
             OrderedBlocking::new(),
         );
         // The client validates its origin with the HTTP client, which needs
         // the runtime's reactor.
         let mut client = Client::new(&session.api_url, Some(session.clone()))?;
-        client.restore_ciphertext_snapshot(&snapshot)?;
+        client.restore_ciphertext_snapshot(snapshot)?;
         ShellSession::new(cache)
             .persist(&mut client, &Seeded(session.clone()))
             .await?;
         Ok::<_, CoreError>(())
     })?;
-    serde_json::to_vec(&session).map_err(|_| CoreError::Protocol)
+    serde_json::to_vec(session).map_err(|_| CoreError::Protocol)
 }

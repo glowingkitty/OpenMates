@@ -143,6 +143,14 @@ pub(crate) fn unwrap_master_key_with_wrapping_key(ciphertext:&str,iv:&str,wrappi
     password_master_from_plaintext(&raw)
 }
 
+/// Wrap a master key with an already-derived password wrapping key under a
+/// fresh random IV: base64 ciphertext+tag and base64 IV, the exact inverse of
+/// [`unwrap_master_key_with_wrapping_key`] (TS `cryptoService.encryptKey`).
+/// Used by the v1→v2 password migration; the caller zeroizes both keys.
+pub(crate) fn wrap_master_key_with_wrapping_key(master: &[u8; 32], wrapping_key: &[u8; 32]) -> Result<(String, String)> {
+    signup::wrap_raw_key(master, wrapping_key, &mut signup::os_fill)
+}
+
 pub fn derive_email_key(email: &str, salt_b64: &str) -> Result<String> {
     hash_key(
         email,

@@ -20,7 +20,15 @@ pub mod recommendations;
 pub use apps::DirectAppSkillAdmission;
 mod auth;
 mod session_response;
-pub use auth::PasswordLoginOptions;
+mod session_verification;
+pub use session_verification::{DeviceVerificationMethod, SessionVerification};
+pub use auth::{PasswordLoginOptions, PasswordLoginReport, PasswordMigrationOutcome};
+/// Native passkey sign-in and device verification (`auth_passkey.rs`).
+#[cfg(not(target_arch = "wasm32"))]
+pub use auth::{
+    PASSKEY_OTHER_REQUEST, PASSKEY_PRF_UNAVAILABLE, PASSKEY_WRONG_ACCOUNT, PasskeyChallenge,
+    PasskeyContinuation,
+};
 mod auth_handoff;
 pub use auth_handoff::FreshSessionHandoff;
 mod browser;
@@ -66,6 +74,8 @@ pub mod embed_user_revision;
 pub mod embed_updated_event;
 /// Image Enhance: start, wait and save the result as the next embed version.
 pub mod image_enhance;
+/// Version history with provenance and the edit head of a native shell's edit.
+pub mod embed_version_history;
 pub mod saved_embed;
 #[doc(hidden)]
 pub mod shared_items;
@@ -83,6 +93,8 @@ pub use owned_apps_inventory::{PreparedOwnedAppsInventory,OwnedAppsInventoryHead
 pub use owned_saved_send::{PreparedOwnedSavedSend,OwnedClientPhase,OwnedSavedSendResume,OwnedSavedSendStep,OwnedSavedSendTerminal,OwnedSavedSendDriver,OwnedSavedSendControl,OwnedSavedSendDisposition,OwnedSavedSendReturnedRefusal,OwnedSavedSendRefusalReason};
 
 mod monitor;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+pub(crate) use monitor::test_peer as monitor_test_peer;
 pub use monitor::{PreparedInitialSync,InitialSyncControl,InitialSyncRead,InitialSyncMetadataBatch};
 #[doc(hidden)]
 pub use monitor::{PreparedOwnedChatMonitor,OwnedChatMonitorStartStep,OwnedChatMonitorStartApply,OwnedChatMonitorReady,OwnedChatMonitorStartControl,OwnedChatMonitorStartTerminal};
@@ -153,9 +165,12 @@ pub use chat_list_freshness::CacheClockEvidence;
 pub use sync::FreshChatInventory;
 mod project_create_request;
 use project_create_request::PROJECT_CREATE_CAPABILITY;
+pub mod memory_document_fields;
+mod memory_frontmatter;
 pub mod memory_documents;
 mod memory_catalog;
 pub mod memory_write_jobs;
+pub mod server_region;
 pub mod memory_write_job_bridge;
 mod project_file_jobs;
 use memory_write_jobs::MEMORY_WRITE_JOBS_CAPABILITY;
@@ -177,6 +192,9 @@ pub(crate) mod transport;
 // Temporary shell passthrough for un-migrated Apple code (plan step A6 removes it).
 #[cfg(not(target_arch = "wasm32"))] mod shell_http;
 #[cfg(not(target_arch = "wasm32"))] pub use shell_http::{PreparedShellHttp, SentShellHttp, ShellHttpRequest, ShellHttpResponse, SHELL_HTTP_MAX_REQUEST_BODY, SHELL_HTTP_MAX_RESPONSE_BODY};
+// Authenticated multipart upload for the same shells (plan step A6 removes it).
+#[cfg(not(target_arch = "wasm32"))] mod shell_upload;
+#[cfg(not(target_arch = "wasm32"))] pub use shell_upload::{PreparedShellUpload, SentShellUpload, ShellUploadRequest, SHELL_UPLOAD_MAX_FILE};
 #[cfg(not(target_arch = "wasm32"))] pub use transport::binary_stream::{BinaryResponse, SseMessage, SseOpen, SseParser, SseStream, parse_sse_message};
 mod transport_owned_start;
 mod workflow_delivery;
@@ -589,6 +607,8 @@ pub struct Client {
     chats: BTreeMap<String, Value>,
     original_physical_draft_bounds:BTreeMap<String,browser::original_draft_bounds::OriginalPhysicalDraftBounds>,
     chat_arrival_order: Option<Vec<String>>,
+    /// Account chat count the server reported with the last recent-chats phase.
+    chat_total_count: Option<u64>,
     chat_list_freshness: chat_list_freshness::ChatListFreshness,
     cache_clock: Option<std::sync::Arc<dyn Fn() -> Option<CacheClockEvidence> + Send + Sync>>,
     wrappers: Vec<Value>,
@@ -628,6 +648,8 @@ pub struct Client {
     extra_socket_capabilities: Vec<&'static str>,
     /// Last successful native session validation (see auth.rs reuse rules).
     recent_validation: Option<auth::RecentValidation>,
+    /// Verification the last native session check asked for (session_verification.rs).
+    session_verification: Option<SessionVerification>,
     /// Chats this client deleted (chat_tombstones.rs); display state only.
     deleted_chats: BTreeMap<String, u64>,
     /// Partially restored native cache content (cache_policy.rs).
@@ -699,6 +721,7 @@ impl Client {
             chat_details_overlap: None,
             credential_ack: 0,
             recent_validation: None,
+            session_verification: None,
             deleted_chats: BTreeMap::new(),
             cached_content: Default::default(),
             chat_details_cache: BTreeMap::new(),
@@ -732,6 +755,7 @@ impl Client {
             chats: BTreeMap::new(),
             original_physical_draft_bounds:BTreeMap::new(),
             chat_arrival_order: None,
+            chat_total_count: None,
             chat_list_freshness: Default::default(),
             cache_clock: None,
             wrappers: vec![],
@@ -1002,6 +1026,7 @@ impl Client {
         }
         self.fresh_auth.advance_operation();
         self.chat_list_freshness.invalidate();
+        self.chat_total_count = None;
         if let Some(browser)=self.browser_credentials.as_mut() {
             browser.active_team_id=team.map(str::to_owned);
         } else {
@@ -1257,6 +1282,7 @@ impl Client {
         for cookie in self.cookies.values_mut(){zeroize::Zeroize::zeroize(cookie);}
         self.cookies.clear();
         self.pair = None;
+        self.session_verification = None;
         self.clear_account_cache();
         self.credentials_changed();
     }

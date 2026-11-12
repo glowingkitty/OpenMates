@@ -38,6 +38,18 @@ pub struct ChatRowMetadata {
     pub draft_v: Option<u64>,
     /// Decrypted draft preview text; personal scope with a draft only.
     pub draft_preview: Option<String>,
+    /// Another account shared this chat with the user (`is_shared_by_others`).
+    pub is_shared_by_others: Option<bool>,
+    /// Id of the last message visible in the chat (`last_visible_message_id`).
+    pub last_visible_message_id: Option<String>,
+    /// App the chat belongs to (`app_id`).
+    pub app_id: Option<String>,
+    /// Sub-chat setting: the parent waits for the sub-chat to finish
+    /// (`sub_chat_settings.wait_for_completion`).
+    pub sub_chat_wait_for_completion: Option<bool>,
+    /// Sub-chat setting: when the sub-chat reports to its parent, `each` or
+    /// `all` (`sub_chat_settings.report_trigger`).
+    pub sub_chat_report_trigger: Option<String>,
 }
 
 /// One personal-data replacement of a message: the placeholder the server
@@ -59,6 +71,10 @@ pub struct PiiMapping {
 pub struct MessageMetadata {
     /// Server creation time of the row (`created_at`).
     pub created_at: Option<i64>,
+    /// Server time of the last edit of the row (`updated_at`).
+    pub updated_at: Option<i64>,
+    /// App that produced the message (`app_id`).
+    pub app_id: Option<String>,
     /// Server message id (`message_id`).
     pub server_message_id: Option<String>,
     /// Client message id assigned by the sending device.

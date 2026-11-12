@@ -1,5 +1,7 @@
 <!--
   frontend/packages/ui/src/components/embeds/images/ImageGenerateEmbedPreview.svelte
+
+  Native Swift counterparts: apple/OpenMates/Sources/Features/Embeds/Renderers/ImageGenerateEmbedRenderer.swift
   
   Preview component for Image Generate embeds (images/generate and images/generate_draft).
   Uses UnifiedEmbedPreview as base and provides image-specific details content.

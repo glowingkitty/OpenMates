@@ -81,12 +81,12 @@ pub(crate) struct Randomness<'a> {
     pub nacl: &'a mut dyn FnMut(&mut [u8]),
 }
 
-fn os_fill(bytes: &mut [u8]) {
+pub(super) fn os_fill(bytes: &mut [u8]) {
     OsRng.fill_bytes(bytes);
 }
 
 /// AES-GCM raw-key wrap (`encryptRawKeyWithAesGcm`): base64 ciphertext+tag, base64 IV.
-fn wrap_raw_key(
+pub(super) fn wrap_raw_key(
     raw: &[u8; 32],
     wrapping: &[u8; 32],
     random: &mut dyn FnMut(&mut [u8]),

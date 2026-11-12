@@ -64,6 +64,16 @@ pub enum ViewCommand {
     Cancel,
     /// Sign out and wipe local credentials.
     Logout,
+    /// Write a raw frame of a shell feature that is not in the core yet on
+    /// the core's socket (`UnownedFrameSender::send`; types the core owns are
+    /// refused). Temporary strangler seam, removed when A5/A6 move the
+    /// remaining features into the core.
+    SendUnownedFrame {
+        /// The frame's `type`.
+        event_type: String,
+        /// The frame's `payload`, a JSON object as text.
+        payload_json: String,
+    },
 }
 
 /// Why access was withdrawn (mirror of `ChatMonitorAccessDenial`).
@@ -99,6 +109,9 @@ pub enum SessionEvent {
     },
     /// The session expired.
     Expired,
+    /// The server kept the session but asks to verify this device or to sign
+    /// in again before it admits it; credentials stay stored.
+    VerificationRequired(crate::client::SessionVerification),
     /// Access was denied.
     AccessDenied(AccessDenial),
 }
@@ -133,6 +146,10 @@ pub enum ViewEvent {
         rows: Vec<ChatListRow>,
         /// How far the list can be trusted.
         completeness: ListCompleteness,
+        /// Chats the account has in this scope as the server last reported
+        /// it (more than `rows` when the list is partial); `None` until the
+        /// server reported one.
+        total_count: Option<u64>,
     },
     /// A chat window is ready or changed.
     ChatWindow {
@@ -190,4 +207,24 @@ pub enum ViewEvent {
     },
     /// The current unit of work finished.
     Done,
+    /// An inbound socket frame whose type the core does not own
+    /// (`classify_socket_event`), for a shell feature that is not in the
+    /// core yet. Delivered in socket arrival order by the forwarder that
+    /// `ViewCore::forward_unowned_frames` starts; not ordered against the
+    /// other events. Temporary strangler seam, removed when A5/A6 move the
+    /// remaining features into the core.
+    UnownedSocketFrame {
+        /// The frame's `type` (or legacy `event`) name.
+        event_type: String,
+        /// The frame's payload as JSON text.
+        payload_json: String,
+    },
+    /// `count` consecutive unowned frames were dropped at this position
+    /// because the shell drained too slowly (bounded queue); the state they
+    /// carried is unknown and must be re-read. Same seam and end as
+    /// `UnownedSocketFrame`.
+    UnownedSocketFramesDropped {
+        /// Frames lost at this position.
+        count: u64,
+    },
 }

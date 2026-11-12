@@ -49,7 +49,7 @@ pub fn prepare_local_upload(
 
 /// npm form field: name escaping like the WHATWG FormData serializer and
 /// CRLF-normalized value.
-fn field_part(boundary: &str, name: &str, value: &str) -> String {
+pub(super) fn field_part(boundary: &str, name: &str, value: &str) -> String {
     let name = name
         .replace('"', "%22")
         .replace('\r', "%0D")

@@ -65,7 +65,15 @@ struct AskOpenMatesIntent: AppIntent {
         )
         chatStore.upsertChat(chat)
 
-        wsManager.connect(sessionId: AuthManager.nativeSessionId, token: authManager.webSocketToken)
+        // The socket credential is the core's (`CoreLegacyAccess`).
+        let grant: LegacySocketGrantRecord
+        do {
+            grant = try await authManager.socketGrant()
+        } catch {
+            NativeDiagnostics.warning("phase=intent.ws_grant error=\(CoreSession.errorClass(error))", category: "websocket")
+            return "OpenMates could not connect. Open the app and try again."
+        }
+        wsManager.connect(sessionId: grant.sessionId, token: grant.wsToken)
         guard await waitUntilConnected(wsManager) else {
             return "OpenMates could not connect. Open the app and try again."
         }

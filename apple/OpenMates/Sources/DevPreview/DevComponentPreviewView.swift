@@ -650,8 +650,6 @@ private struct DevComponentPreviewCanvas: View {
                 DevMessageSelectionFixture(variant: configuration.variant)
             } else if configuration.variant == "fork-settings" {
                 DevMessageForkSettingsFixture()
-            } else if ["action-memory", "action-memory-error"].contains(configuration.variant) {
-                DevEmbedMemoryActionFixture(variant: configuration.variant)
             } else if ["action-calendar", "action-export"].contains(configuration.variant) {
                 DevFullscreenActionFixture(variant: configuration.variant)
             } else if configuration.variant.hasPrefix("action-pcb") {

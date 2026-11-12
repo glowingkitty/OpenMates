@@ -487,6 +487,22 @@ fileprivate struct FfiConverterUInt16: FfiConverterPrimitive {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterUInt32: FfiConverterPrimitive {
+    typealias FfiType = UInt32
+    typealias SwiftType = UInt32
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UInt32 {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterUInt64: FfiConverterPrimitive {
     typealias FfiType = UInt64
     typealias SwiftType = UInt64
@@ -1299,6 +1315,164 @@ public func FfiConverterTypeCredentialStore_lower(_ value: CredentialStore) -> U
 
 
 /**
+ * Forwards Enhance WebSocket frames into a running `waitImageEnhance` or
+ * `enhanceImage`, so the next job read happens at once. Create one per
+ * Enhance and feed it the `unownedSocketFrame` events (`type`, payload
+ * JSON); safe to call from any thread while the wait runs.
+ */
+public protocol ImageEnhanceWakerProtocol: AnyObject, Sendable {
+    
+    /**
+     * Feed one socket frame: `true` when it was `image_enhance_ready` or
+     * `image_enhance_failed` with a valid payload and woke the wait, `false`
+     * for every other frame.
+     *
+     * # Errors
+     * `Invalid` when `payload_json` is not JSON.
+     */
+    func notifyFrame(eventType: String, payloadJson: String) throws  -> Bool
+    
+}
+/**
+ * Forwards Enhance WebSocket frames into a running `waitImageEnhance` or
+ * `enhanceImage`, so the next job read happens at once. Create one per
+ * Enhance and feed it the `unownedSocketFrame` events (`type`, payload
+ * JSON); safe to call from any thread while the wait runs.
+ */
+open class ImageEnhanceWaker: ImageEnhanceWakerProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_openmates_apple_bindings_fn_clone_imageenhancewaker(self.handle, $0) }
+    }
+    /**
+     * A waker with no pending event.
+     */
+public convenience init() {
+    let handle =
+        try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_constructor_imageenhancewaker_new(uniffiCallStatus
+    )
+}
+    self.init(unsafeFromHandle: handle)
+}
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_openmates_apple_bindings_fn_free_imageenhancewaker(handle, $0) }
+    }
+
+    
+
+    
+    /**
+     * Feed one socket frame: `true` when it was `image_enhance_ready` or
+     * `image_enhance_failed` with a valid payload and woke the wait, `false`
+     * for every other frame.
+     *
+     * # Errors
+     * `Invalid` when `payload_json` is not JSON.
+     */
+open func notifyFrame(eventType: String, payloadJson: String)throws  -> Bool  {
+    return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeCoreError_lift) {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_method_imageenhancewaker_notify_frame(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(eventType),
+        FfiConverterString.lower(payloadJson),uniffiCallStatus
+    )
+})
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeImageEnhanceWaker: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = ImageEnhanceWaker
+
+    public static func lift(_ handle: UInt64) throws -> ImageEnhanceWaker {
+        return ImageEnhanceWaker(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: ImageEnhanceWaker) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ImageEnhanceWaker {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: ImageEnhanceWaker, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeImageEnhanceWaker_lift(_ handle: UInt64) throws -> ImageEnhanceWaker {
+    return try FfiConverterTypeImageEnhanceWaker.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeImageEnhanceWaker_lower(_ value: ImageEnhanceWaker) -> UInt64 {
+    return FfiConverterTypeImageEnhanceWaker.lower(value)
+}
+
+
+
+
+
+
+/**
  * The core instance. Create one per account process; drop shuts the runtime
  * down without blocking the caller.
  */
@@ -1888,6 +2062,60 @@ public func FfiConverterTypeViewListener_lower(_ value: ViewListener) -> UInt64 
 public protocol ViewModelCoreProtocol: AnyObject, Sendable {
     
     /**
+     * The verification the server asked for at the last session check, or
+     * `nil` (also announced as `Session(VerificationRequired)`). Waits for a
+     * running command.
+     *
+     * # Errors
+     * `Internal` for a binding failure only.
+     */
+    func pendingVerification() async throws  -> SessionVerificationRecord?
+    
+    /**
+     * The account's user payload with `fresh` (admitted in this run) or not
+     * (cached at the last admission, the server not reached yet). Waits for
+     * a running command.
+     *
+     * # Errors
+     * `Authentication` while signed out, while a verification is pending,
+     * or before the first admission of this account on this profile (no
+     * cached payload); `Protocol` or `Io` for an unreadable cached record.
+     */
+    func userProfile() async throws  -> UserProfileRecord
+    
+    /**
+     * The account's user payload exactly as the server sent it (UTF-8 JSON
+     * object; decode it with `UserProfile`): the admitted one, or for a
+     * restored session the server has not admitted yet (offline start) the
+     * one cached at this account's last admission. `userProfile` tells the
+     * two apart. Replaced by every admission (login, restore, adoption, team
+     * switch), each announced by `Session(Admitted)`; gone after sign-out.
+     * It contains what the server payload contains (among it the wrapped
+     * master key fields), so never log it. Waits for a running command.
+     *
+     * # Errors
+     * As `userProfile`.
+     */
+    func userProfileJson() async throws  -> Data
+    
+    /**
+     * Answer a pending two-factor device verification with the
+     * authenticator `code` (zeroized after the call; never stored or
+     * logged), then admit the session again (`Session(Admitted)`). Run
+     * `bootSync` afterwards for the network chat list.
+     *
+     * # Errors
+     * `Authentication` while signed out or when the server refused the code
+     * (the verification stays pending; ask again); `Invalid` without a
+     * pending two-factor verification or for a malformed code (nothing
+     * sent); `Expired` when the server ended the session (the profile is
+     * then signed out and wiped, `Session(Expired)`); `VerificationRequired`
+     * when the server still asks; `Offline`, `Protocol`; `Cancelled` when
+     * `cancellation` fired.
+     */
+    func verifyDevice2fa(code: String, cancellation: CoreCancellation?) async throws 
+    
+    /**
      * TEMPORARY (removed with plan step A3, auth session). Hand a session that Swift
      * signed in (passkey, recovery key, backup code, device verification)
      * to the core: validated, stored through the Keychain with
@@ -2019,12 +2247,152 @@ public protocol ViewModelCoreProtocol: AnyObject, Sendable {
     func switchTeam(teamId: String?, cancellation: CoreCancellation?) async throws 
     
     /**
+     * The server's draft versions of `chats`, sorted by chat id; chats the
+     * server does not report are absent. Uses the live monitor socket and
+     * changes no core state. Runs on the actor, so other commands wait for
+     * it. Cancelling after the request was written retires the monitor
+     * socket; the core reconnects it like after any socket loss.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Offline` without a live monitor;
+     * `Forbidden` in a team scope or above 10,000 chats; `Protocol` for a
+     * malformed chat id or response; `Conflict` for a server version below
+     * Swift's; `Cancelled`.
+     */
+    func draftVersions(chats: [DraftVersionQueryRecord], cancellation: CoreCancellation?) async throws  -> [ServerDraftVersionRecord]
+    
+    /**
+     * Enhance the head version of image `embed_id` and save the result as
+     * its next version in one call: start, wait up to 180 s, commit with
+     * action `enhance`, write the chat event. `operation_id` is the job's
+     * UUID chosen by Swift (keep it: on `EnhanceTimeout`, a lost answer or a
+     * cancel, resume with `saveImageEnhanceResult`; nothing is charged
+     * twice). Holds the actor for the whole run; prefer
+     * `startImageEnhance` + sliced `waitImageEnhance` + save when other
+     * commands must stay responsive.
+     *
+     * # Errors
+     * The errors of `startImageEnhance`, `waitImageEnhance` and
+     * `saveImageEnhanceResult`.
+     */
+    func enhanceImage(embedId: String, scope: EmbedScopeRecord, operationId: String, waker: ImageEnhanceWaker?, cancellation: CoreCancellation?) async throws  -> ImageEnhanceSavedRecord
+    
+    /**
+     * Read the job `operation_id` now (after an Enhance frame or on
+     * resume). Reading a ready result counts as its delivery: it stays
+     * charged and saveable until `expires_at`.
+     *
+     * # Errors
+     * `NotFound { enhance_not_found }`, `Busy`, `Offline`, `Cancelled`.
+     */
+    func imageEnhanceStatus(operationId: String, cancellation: CoreCancellation?) async throws  -> ImageEnhanceJobRecord
+    
+    /**
+     * Save the result of job `operation_id` as the next version of
+     * `embed_id` in the scope it was started in. The head is the core's
+     * cached head, which must still be the version the job started from.
+     * Safe to repeat: a result already saved (here or on another device)
+     * returns `AlreadyCommitted` instead of a second version.
+     *
+     * # Errors
+     * `EnhanceNotReady`, `EnhanceFailed`, `EnhanceExpired`, `VersionConflict`
+     * (the head moved), `ScopeMismatch`, `ProjectContextRequired`,
+     * `KeyUnavailable`, and the commit's refusals.
+     */
+    func saveImageEnhanceResult(embedId: String, scope: EmbedScopeRecord, operationId: String, cancellation: CoreCancellation?) async throws  -> ImageEnhanceSavedRecord
+    
+    /**
+     * Start Enhance of the head version of image `embed_id` in `scope` (or
+     * replay the job `operation_id`; `nil`: a fresh UUID). Returns the job;
+     * keep its `operation_id` to wait, read and save. Waits for a running
+     * command.
+     *
+     * # Errors
+     * `TeamUnavailable`, `ProjectContextRequired`, `InsufficientCredits`,
+     * `VersionConflict` (no charge), `InvalidSource`, `NotFound`,
+     * `RateLimited`, `Busy`, `OperationConflict`, `Unavailable`,
+     * `KeyUnavailable`, `Offline`, `SessionExpired`, `Cancelled`.
+     */
+    func startImageEnhance(embedId: String, scope: EmbedScopeRecord, operationId: String?, cancellation: CoreCancellation?) async throws  -> ImageEnhanceJobRecord
+    
+    /**
+     * Wait until the job `operation_id` is ready or committed, for at most
+     * `deadline_ms` (`nil`: 180 s). The wait holds the actor, so other
+     * commands queue behind it: wait in short slices (for example 15 s,
+     * then `waitImageEnhance` again) or cancel it when the user leaves the
+     * image. Frames fed to `waker` make the next read happen at once.
+     *
+     * # Errors
+     * `EnhanceFailed` (nothing charged), `EnhanceExpired`, `EnhanceTimeout`
+     * (the job keeps running), and the errors of `imageEnhanceStatus`.
+     */
+    func waitImageEnhance(operationId: String, deadlineMs: UInt64?, waker: ImageEnhanceWaker?, cancellation: CoreCancellation?) async throws  -> ImageEnhanceJobRecord
+    
+    /**
+     * Commit a user edit of a document, sheet, diagram or slides embed as
+     * its next version: `content` is the new head plaintext in its stored
+     * form (the TOON string the embed content opens to; zeroized after the
+     * call), `text_preview` the new preview when the type keeps one,
+     * `operation_id` the idempotency key of a resend of the same edit
+     * (`nil`: fresh). The head is the core's cached head (fetched once when
+     * not cached). Writes the chat's `embed_updated` event when the embed
+     * has a chat (`event`).
+     *
+     * # Errors
+     * `VersionConflict` (reload, then edit again), `ProjectContextRequired`,
+     * `AccessDenied`, `Validation`, `Refused`, `KeyUnavailable`, `Offline`,
+     * `SessionExpired`, `Cancelled`, `Transport`.
+     */
+    func commitEmbedEdit(embedId: String, scope: EmbedScopeRecord, content: String, textPreview: String?, operationId: String?, cancellation: CoreCancellation?) async throws  -> EmbedRevisionOutcomeRecord
+    
+    /**
+     * The version history of `embed_id` with who made each version
+     * (assistant or user, and the user's action), oldest first, read from
+     * the server (metadata only). `scope` is the chat or Project the embed
+     * is shown in (required for Team embeds; `nil` reads as the owner).
+     * Waits for a running command.
+     *
+     * # Errors
+     * `Authentication` signed out; `AccessDenied`, `NotFound`-like refusals
+     * as `AccessDenied { forbidden }`; `Offline`; `Transport { protocol }`
+     * for a malformed page; `Cancelled`.
+     */
+    func embedVersionHistory(embedId: String, scope: EmbedScopeRecord?, cancellation: CoreCancellation?) async throws  -> EmbedVersionHistoryRecord
+    
+    /**
+     * Write the `embed_updated` events the server still lists as pending
+     * for `chat_id` (edits made in the Projects workspace or on another
+     * device). `openChat` already runs this once after the window is shown;
+     * call it again after a reconnect. Written events reach the window as
+     * new system messages. Offline, Team chats and refused reads come back
+     * as `deferred_code`, not as errors.
+     *
+     * # Errors
+     * `Authentication` signed out; `SessionExpired`; `Cancelled`.
+     */
+    func reconcileEmbedUpdateNotices(chatId: String, cancellation: CoreCancellation?) async throws  -> EmbedNoticeReconcileRecord
+    
+    /**
+     * Restore version `from_version` of `embed_id` as its next version
+     * (content and, for images, its files); every version stays in the
+     * history. Personal account only (the version read is Personal).
+     *
+     * # Errors
+     * `Validation { invalid_restored_from }` unless `1 <= from_version <
+     * head`; `Refused { restore_source_missing }`; otherwise as
+     * `commitEmbedEdit`.
+     */
+    func restoreEmbedVersion(embedId: String, scope: EmbedScopeRecord, fromVersion: Int64, cancellation: CoreCancellation?) async throws  -> EmbedRevisionOutcomeRecord
+    
+    /**
      * Perform `request` with the core's session and return the response.
      * Several requests may run at once; each waits for a running command
      * (for example a send) only to prepare and to finish. A rotated cookie
      * is stored through the Keychain before this returns. A 401 signs the
-     * profile out (wipe, `Session(Expired)` event). Not covered: uploads to
-     * the upload host, multipart helpers and streaming responses.
+     * profile out (wipe, `Session(Expired)` event), except on
+     * `/v1/auth/password-v2/` (password migration) routes, where the 401
+     * is returned as an ordinary response and the session stays. Uploads use
+     * `uploadFile`; streaming responses are not covered.
      *
      * # Errors
      * `Authentication` while signed out (also when signed out during the
@@ -2101,12 +2469,26 @@ public protocol ViewModelCoreProtocol: AnyObject, Sendable {
     func finishPairLogin(cancellation: CoreCancellation?) async throws  -> Bool
     
     /**
+     * `loginPassword` with a backup code as the second factor (the server
+     * consumes it; `remainingBackupCodes` reports what is left). Same
+     * hand-over, migration and cancel behaviour.
+     *
+     * # Errors
+     * As `loginPassword`, except that a refused backup code (or password)
+     * is `Authentication`, never `TwoFactorRequired`.
+     */
+    func loginBackupCode(email: String, password: String, backupCode: String, stayLoggedIn: Bool, cancellation: CoreCancellation?) async throws  -> LoginRecord
+    
+    /**
      * Sign in with email and password in the core, then begin the session on
      * this profile (Keychain store and `acknowledgeCredentials`) and `start`
      * from it: `Session(Restored)`, `ChatList(Cached)`, `Session(Admitted)`.
-     * Run `bootSync` afterwards for the network chat list. `password` and
-     * `tfaCode` are zeroized after the core call; the binding never stores
-     * or logs them. `stayLoggedIn` is the server cookie lifetime only.
+     * Run `bootSync` afterwards for the network chat list. After a legacy
+     * (v1) password unlocked the account, the core migrates it to v2 before
+     * the hand-over; the result is `passwordMigration` and never fails the
+     * login. `password` and `tfaCode` are zeroized after the core call; the
+     * binding never stores or logs them. `stayLoggedIn` is the server cookie
+     * lifetime only.
      *
      * # Errors
      * The core's login outcome: `TwoFactorRequired` (call again with
@@ -2118,7 +2500,22 @@ public protocol ViewModelCoreProtocol: AnyObject, Sendable {
      * after the Keychain store wipes the stored session, logs the new server
      * session out and emits `Session(SignedOut)`.
      */
-    func loginPassword(email: String, password: String, tfaCode: String?, stayLoggedIn: Bool, cancellation: CoreCancellation?) async throws 
+    func loginPassword(email: String, password: String, tfaCode: String?, stayLoggedIn: Bool, cancellation: CoreCancellation?) async throws  -> LoginRecord
+    
+    /**
+     * Sign in with email and the account recovery key in the core (no
+     * second factor; the master key is unwrapped from the recovery-key
+     * wrapper). Same hand-over and cancel behaviour as `loginPassword`;
+     * `passwordMigration` is `NotNeeded`. `recoveryKey` is zeroized after
+     * the core call and never stored or logged.
+     *
+     * # Errors
+     * `Authentication` for a wrong key or unknown account (the server does
+     * not tell them apart); `Crypto` when the returned wrapper does not open
+     * (the new server session is logged out); `Invalid` while signed in or
+     * for an oversized key; then as `loginPassword`.
+     */
+    func loginRecoveryKey(email: String, recoveryKey: String, stayLoggedIn: Bool, cancellation: CoreCancellation?) async throws  -> LoginRecord
     
     /**
      * Poll the running pair login once; returns the relay status as the core
@@ -2140,6 +2537,198 @@ public protocol ViewModelCoreProtocol: AnyObject, Sendable {
      * `Crypto` for a malformed PIN; `Authentication` when the relay refused.
      */
     func submitPairPin(pin: String) async throws 
+    
+    /**
+     * Begin answering a pending passkey device verification
+     * (`pendingVerification` is `Device(method: Passkey)`): returns the
+     * options for the system ceremony for this account; the core keeps the
+     * continuation.
+     *
+     * # Errors
+     * `Authentication` while signed out or for a refused request; `Invalid`
+     * without a pending passkey verification; `Offline`, `Protocol`;
+     * `Cancelled` when `cancellation` fired (nothing kept).
+     */
+    func beginPasskeyDeviceVerification(cancellation: CoreCancellation?) async throws  -> PasskeyChallengeRecord
+    
+    /**
+     * Begin a passkey sign-in: returns the options for the system passkey
+     * ceremony; the core keeps the continuation (a new begin replaces it).
+     * Without `email` any passkey of this device may answer (discoverable
+     * credential, the current Apple and web flow); with `email` the server
+     * lists only that account's passkeys and the core refuses another
+     * account's passkey at finish.
+     *
+     * # Errors
+     * `Invalid` while signed in; `Authentication` for a malformed email or a
+     * refused request; `Offline`, `Protocol`; `Cancelled` when
+     * `cancellation` fired (nothing kept).
+     */
+    func beginPasskeyLogin(email: String?, cancellation: CoreCancellation?) async throws  -> PasskeyChallengeRecord
+    
+    /**
+     * Forget a begun passkey login or device verification (none: no-op). The
+     * server challenge simply lapses; nothing was signed in yet.
+     */
+    func cancelPasskeyLogin() async 
+    
+    /**
+     * Answer the pending passkey device verification with the ceremony's
+     * assertion (same `assertionJson` shape as `finishPasskeyLogin`; no PRF
+     * output is needed), then admit the session again (`Session(Admitted)`),
+     * as `verifyDevice2fa`. The continuation is used up: begin again to retry.
+     *
+     * # Errors
+     * `Invalid` without a begun device verification, for an unreadable
+     * assertion or one of another request, or `PASSKEY_WRONG_ACCOUNT` for
+     * another account's passkey; `Authentication` while signed out or when
+     * the server refused it (the verification stays pending); then as
+     * `verifyDevice2fa` (`Expired`, `VerificationRequired`, `Offline`,
+     * `Protocol`, `Cancelled`).
+     */
+    func finishPasskeyDeviceVerification(assertionJson: Data, cancellation: CoreCancellation?) async throws 
+    
+    /**
+     * Finish the begun passkey sign-in with the ceremony's result, then hand
+     * over and `start` exactly as `loginPassword` (`passwordMigration` is
+     * `NotNeeded`, `remainingBackupCodes` nil). `assertionJson` is UTF-8
+     * JSON `{"credential_id": base64url raw id, "client_data_json",
+     * "authenticator_data", "signature", "user_handle"?: standard base64 of
+     * the raw bytes}`; `prfOutput` is the raw PRF `first` output (16..=64
+     * bytes), zeroized after the core call, never sent, stored or logged.
+     * The continuation is used up by this call: begin again to retry.
+     *
+     * # Errors
+     * `Invalid` without a begun passkey login, while signed in, for an
+     * unreadable assertion or one of another request
+     * (`PASSKEY_OTHER_REQUEST`), without a usable PRF output
+     * (`PASSKEY_PRF_UNAVAILABLE`: the passkey or OS lacks PRF support) or for
+     * another account's passkey (`PASSKEY_WRONG_ACCOUNT`); the message is the
+     * core's fixed English reason. `Authentication` when the server refused
+     * the passkey or the login; `Crypto` when the master key does not
+     * unwrap; then as `loginPassword`, including `Cancelled` and the
+     * cancel-after-store wipe (`Session(SignedOut)`).
+     */
+    func finishPasskeyLogin(assertionJson: Data, prfOutput: Data, stayLoggedIn: Bool, cancellation: CoreCancellation?) async throws  -> LoginRecord
+    
+    /**
+     * The assistant's Memory writes in `chat_id` that carry Undo data,
+     * oldest first, read from the chat's history on the server.
+     *
+     * # Errors
+     * `Authentication` when signed out; chat read errors (`Forbidden`,
+     * `Offline`, `Crypto`, `Expired`); `Cancelled`.
+     */
+    func assistantMemoryWrites(chatId: String, cancellation: CoreCancellation?) async throws  -> [ContextEntryNoticeRecord]
+    
+    /**
+     * Create a Memory (new id `personal:<uuid>`, `createdAt` and `updatedAt`
+     * set to now) and return it as stored.
+     *
+     * # Errors
+     * `Memory` with `invalid_rule_document` (blank title or body, a field
+     * over its limit, a bad date), `rule_catalog_limit` (24 Memories or
+     * 64,000 characters), `rule_save_failed` (server refused); else as
+     * `listMemoryDocuments`.
+     */
+    func createMemoryDocument(fields: MemoryFieldsRecord, cancellation: CoreCancellation?) async throws  -> MemoryDocumentRecord
+    
+    /**
+     * The web expiry sweep: delete every Memory whose `validUntil` passed
+     * (unreadable documents are never deleted); returns how many. Call when
+     * Settings > Memories opens and when the app returns to the foreground.
+     *
+     * # Errors
+     * As `deleteMemoryDocument`; Memories deleted before a failure stay deleted.
+     */
+    func deleteExpiredMemoryDocuments(cancellation: CoreCancellation?) async throws  -> UInt32
+    
+    /**
+     * Delete Memory `id` (from the canonical and the legacy settings key).
+     *
+     * # Errors
+     * `Memory(rule_not_found)` for an unknown id, `Memory(rule_save_failed)`
+     * when the server refused, else as `listMemoryDocuments`.
+     */
+    func deleteMemoryDocument(id: String, cancellation: CoreCancellation?) async throws 
+    
+    /**
+     * The personal Memories in storage order (later entries were stored
+     * later), read fresh from the encrypted account settings. Sorting and
+     * filtering are view state (web `memoryListEntries.ts`).
+     *
+     * Commands run on the actor one at a time; `cancellation` stops the
+     * call (a cancel after a write was sent may still store it).
+     *
+     * # Errors
+     * `Authentication` when signed out; `Memory` with
+     * `rule_settings_unavailable`, `invalid_rule_document` or
+     * `rule_catalog_limit` for settings the web refuses too; `Offline`,
+     * `Expired`, `Cancelled`.
+     */
+    func listMemoryDocuments(cancellation: CoreCancellation?) async throws  -> [MemoryDocumentRecord]
+    
+    /**
+     * One personal Memory by id, read fresh.
+     *
+     * # Errors
+     * `Memory(rule_not_found)` for an unknown id, else as `listMemoryDocuments`.
+     */
+    func memoryDocument(id: String, cancellation: CoreCancellation?) async throws  -> MemoryDocumentRecord
+    
+    /**
+     * Opt this device's sends in (or out) to assistant Memory writes. On,
+     * each `send` advertises `memory_write_jobs`; when the assistant saves
+     * a Memory during the turn, the core claims the job, stores the Memory
+     * encrypted and writes the encrypted `context_entry` notice (with Undo
+     * data) into the chat before the turn ends. Off by default; switch it on
+     * only once the chat shows that notice and its Undo. Kept across
+     * sign-ins of this core; applies from the next `send`.
+     */
+    func setAssistantMemoryWrites(enabled: Bool) 
+    
+    /**
+     * Undo the assistant's Memory write `job_id` of `chat_id`: delete the
+     * Memory it created or restore the document it replaced. Refused when
+     * the Memory was edited since the assistant wrote it.
+     *
+     * # Errors
+     * `Memory` with `rule_not_undoable` (no such undoable write in the
+     * chat), `rule_not_found` (already deleted), `rule_changed` (edited
+     * since), `rule_settings_unavailable` (the previous document cannot be
+     * opened), `rule_save_failed`; else as `assistantMemoryWrites`.
+     */
+    func undoAssistantMemoryWrite(chatId: String, jobId: String, cancellation: CoreCancellation?) async throws  -> MemoryUndoOutcomeRecord
+    
+    /**
+     * Replace Memory `id` with `fields` (its `createdAt` is kept,
+     * `updatedAt` set to now) and return it as stored. The settings endpoint
+     * has no compare-and-swap token: the last write wins, like on the web.
+     *
+     * # Errors
+     * `Memory(rule_not_found)` for an unknown id, else as `createMemoryDocument`.
+     */
+    func updateMemoryDocument(id: String, fields: MemoryFieldsRecord, cancellation: CoreCancellation?) async throws  -> MemoryDocumentRecord
+    
+    /**
+     * The server region preference applied to this core's sends (`Eu`
+     * until Swift sets it).
+     */
+    func serverRegionPreference()  -> ServerRegionPreferenceRecord
+    
+    /**
+     * The stored preference read the way every shell reads it: `"global"`
+     * is `Global`, any other value (or none) `Eu`. For migrating a setting
+     * Swift kept as text.
+     */
+    func serverRegionPreferenceFromStored(value: String?)  -> ServerRegionPreferenceRecord
+    
+    /**
+     * Set the server region preference of the following sends. Not
+     * persisted by the core: Swift keeps the setting and sets it again after
+     * launch. Kept across sign-ins of this core; applies from the next `send`.
+     */
+    func setServerRegionPreference(preference: ServerRegionPreferenceRecord) 
     
     /**
      * Cancel the running send without waiting for the actor; returns
@@ -2179,6 +2768,52 @@ public protocol ViewModelCoreProtocol: AnyObject, Sendable {
      * `Internal` for a binding failure only.
      */
     func sessionInfo() async throws  -> SessionInfoRecord?
+    
+    /**
+     * Opt in to unowned socket frames: from now on, also after a new
+     * sign-in, every frame of a type the core does not own reaches the
+     * listener as `unownedSocketFrame` (a slow listener makes the core drop
+     * frames and report `unownedSocketFramesDropped`). Without this call
+     * nothing is kept.
+     *
+     * Signed out, the opt-in is kept for the next session.
+     *
+     * # Errors
+     * `Internal` when the core was shut down.
+     */
+    func forwardUnownedFrames() async throws 
+    
+    /**
+     * Write one raw frame `{"type": eventType, "payload": <payloadJson>}`
+     * on the core's monitor socket. Works while the actor is busy and
+     * settles within 10 seconds, or earlier through `cancellation`.
+     *
+     * # Errors
+     * `Unavailable` (`socket_frame_core_owned`) for a type the core owns,
+     * checked first; `Invalid` for a malformed type or a payload that is not
+     * a JSON object; `Offline` without a live socket or on timeout;
+     * `Unavailable` (`socket_frame_queue_full`) when 16 frames wait;
+     * `Offline` also when signed out; `Cancelled`.
+     */
+    func sendUnownedFrame(eventType: String, payloadJson: String, cancellation: CoreCancellation?) async throws 
+    
+    /**
+     * Upload `request`'s file with the core's session and return the
+     * server's answer (non-2xx statuses, including 401, are returned, not
+     * thrown, and do not sign out). Several uploads may run at once; each
+     * waits for a running command only to prepare and to finish. No
+     * progress is reported.
+     *
+     * # Errors
+     * `Authentication` while signed out (also when signed out during the
+     * upload); `Forbidden` for a host or endpoint outside the allow-list or
+     * a redirect; `Invalid` for a malformed URL, filename, content type,
+     * field, a relative path, a file that is not a regular file or is over
+     * 100 MB; `Io` when the file cannot be opened; `Offline` without a
+     * response; `Protocol` for an oversized response; `Cancelled` when
+     * `cancellation` fired or the session changed meanwhile.
+     */
+    func uploadFile(request: UploadRequestRecord, cancellation: CoreCancellation?) async throws  -> HttpResponseRecord
     
 }
 /**
@@ -2263,6 +2898,116 @@ public convenience init(config: CoreConfig, credentials: CredentialStore, listen
 
     
 
+    
+    /**
+     * The verification the server asked for at the last session check, or
+     * `nil` (also announced as `Session(VerificationRequired)`). Waits for a
+     * running command.
+     *
+     * # Errors
+     * `Internal` for a binding failure only.
+     */
+open func pendingVerification()async throws  -> SessionVerificationRecord?  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_pending_verification(
+                        self.uniffiCloneHandle()
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterOptionTypeSessionVerificationRecord.lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * The account's user payload with `fresh` (admitted in this run) or not
+     * (cached at the last admission, the server not reached yet). Waits for
+     * a running command.
+     *
+     * # Errors
+     * `Authentication` while signed out, while a verification is pending,
+     * or before the first admission of this account on this profile (no
+     * cached payload); `Protocol` or `Io` for an unreadable cached record.
+     */
+open func userProfile()async throws  -> UserProfileRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_user_profile(
+                        self.uniffiCloneHandle()
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeUserProfileRecord_lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * The account's user payload exactly as the server sent it (UTF-8 JSON
+     * object; decode it with `UserProfile`): the admitted one, or for a
+     * restored session the server has not admitted yet (offline start) the
+     * one cached at this account's last admission. `userProfile` tells the
+     * two apart. Replaced by every admission (login, restore, adoption, team
+     * switch), each announced by `Session(Admitted)`; gone after sign-out.
+     * It contains what the server payload contains (among it the wrapped
+     * master key fields), so never log it. Waits for a running command.
+     *
+     * # Errors
+     * As `userProfile`.
+     */
+open func userProfileJson()async throws  -> Data  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_user_profile_json(
+                        self.uniffiCloneHandle()
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterData.lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Answer a pending two-factor device verification with the
+     * authenticator `code` (zeroized after the call; never stored or
+     * logged), then admit the session again (`Session(Admitted)`). Run
+     * `bootSync` afterwards for the network chat list.
+     *
+     * # Errors
+     * `Authentication` while signed out or when the server refused the code
+     * (the verification stays pending; ask again); `Invalid` without a
+     * pending two-factor verification or for a malformed code (nothing
+     * sent); `Expired` when the server ended the session (the profile is
+     * then signed out and wiped, `Session(Expired)`); `VerificationRequired`
+     * when the server still asks; `Offline`, `Protocol`; `Cancelled` when
+     * `cancellation` fired.
+     */
+open func verifyDevice2fa(code: String, cancellation: CoreCancellation?)async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_verify_device_2fa(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(code),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_void,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_void,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
     
     /**
      * TEMPORARY (removed with plan step A3, auth session). Hand a session that Swift
@@ -2543,12 +3288,292 @@ open func switchTeam(teamId: String?, cancellation: CoreCancellation?)async thro
 }
     
     /**
+     * The server's draft versions of `chats`, sorted by chat id; chats the
+     * server does not report are absent. Uses the live monitor socket and
+     * changes no core state. Runs on the actor, so other commands wait for
+     * it. Cancelling after the request was written retires the monitor
+     * socket; the core reconnects it like after any socket loss.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Offline` without a live monitor;
+     * `Forbidden` in a team scope or above 10,000 chats; `Protocol` for a
+     * malformed chat id or response; `Conflict` for a server version below
+     * Swift's; `Cancelled`.
+     */
+open func draftVersions(chats: [DraftVersionQueryRecord], cancellation: CoreCancellation?)async throws  -> [ServerDraftVersionRecord]  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_draft_versions(
+                        self.uniffiCloneHandle(),FfiConverterSequenceTypeDraftVersionQueryRecord.lower(chats),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterSequenceTypeServerDraftVersionRecord.lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Enhance the head version of image `embed_id` and save the result as
+     * its next version in one call: start, wait up to 180 s, commit with
+     * action `enhance`, write the chat event. `operation_id` is the job's
+     * UUID chosen by Swift (keep it: on `EnhanceTimeout`, a lost answer or a
+     * cancel, resume with `saveImageEnhanceResult`; nothing is charged
+     * twice). Holds the actor for the whole run; prefer
+     * `startImageEnhance` + sliced `waitImageEnhance` + save when other
+     * commands must stay responsive.
+     *
+     * # Errors
+     * The errors of `startImageEnhance`, `waitImageEnhance` and
+     * `saveImageEnhanceResult`.
+     */
+open func enhanceImage(embedId: String, scope: EmbedScopeRecord, operationId: String, waker: ImageEnhanceWaker?, cancellation: CoreCancellation?)async throws  -> ImageEnhanceSavedRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_enhance_image(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(embedId),FfiConverterTypeEmbedScopeRecord_lower(scope),FfiConverterString.lower(operationId),FfiConverterOptionTypeImageEnhanceWaker.lower(waker),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeImageEnhanceSavedRecord_lift,
+            errorHandler: FfiConverterTypeEmbedEditError_lift
+        )
+}
+    
+    /**
+     * Read the job `operation_id` now (after an Enhance frame or on
+     * resume). Reading a ready result counts as its delivery: it stays
+     * charged and saveable until `expires_at`.
+     *
+     * # Errors
+     * `NotFound { enhance_not_found }`, `Busy`, `Offline`, `Cancelled`.
+     */
+open func imageEnhanceStatus(operationId: String, cancellation: CoreCancellation?)async throws  -> ImageEnhanceJobRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_image_enhance_status(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(operationId),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeImageEnhanceJobRecord_lift,
+            errorHandler: FfiConverterTypeEmbedEditError_lift
+        )
+}
+    
+    /**
+     * Save the result of job `operation_id` as the next version of
+     * `embed_id` in the scope it was started in. The head is the core's
+     * cached head, which must still be the version the job started from.
+     * Safe to repeat: a result already saved (here or on another device)
+     * returns `AlreadyCommitted` instead of a second version.
+     *
+     * # Errors
+     * `EnhanceNotReady`, `EnhanceFailed`, `EnhanceExpired`, `VersionConflict`
+     * (the head moved), `ScopeMismatch`, `ProjectContextRequired`,
+     * `KeyUnavailable`, and the commit's refusals.
+     */
+open func saveImageEnhanceResult(embedId: String, scope: EmbedScopeRecord, operationId: String, cancellation: CoreCancellation?)async throws  -> ImageEnhanceSavedRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_save_image_enhance_result(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(embedId),FfiConverterTypeEmbedScopeRecord_lower(scope),FfiConverterString.lower(operationId),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeImageEnhanceSavedRecord_lift,
+            errorHandler: FfiConverterTypeEmbedEditError_lift
+        )
+}
+    
+    /**
+     * Start Enhance of the head version of image `embed_id` in `scope` (or
+     * replay the job `operation_id`; `nil`: a fresh UUID). Returns the job;
+     * keep its `operation_id` to wait, read and save. Waits for a running
+     * command.
+     *
+     * # Errors
+     * `TeamUnavailable`, `ProjectContextRequired`, `InsufficientCredits`,
+     * `VersionConflict` (no charge), `InvalidSource`, `NotFound`,
+     * `RateLimited`, `Busy`, `OperationConflict`, `Unavailable`,
+     * `KeyUnavailable`, `Offline`, `SessionExpired`, `Cancelled`.
+     */
+open func startImageEnhance(embedId: String, scope: EmbedScopeRecord, operationId: String?, cancellation: CoreCancellation?)async throws  -> ImageEnhanceJobRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_start_image_enhance(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(embedId),FfiConverterTypeEmbedScopeRecord_lower(scope),FfiConverterOptionString.lower(operationId),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeImageEnhanceJobRecord_lift,
+            errorHandler: FfiConverterTypeEmbedEditError_lift
+        )
+}
+    
+    /**
+     * Wait until the job `operation_id` is ready or committed, for at most
+     * `deadline_ms` (`nil`: 180 s). The wait holds the actor, so other
+     * commands queue behind it: wait in short slices (for example 15 s,
+     * then `waitImageEnhance` again) or cancel it when the user leaves the
+     * image. Frames fed to `waker` make the next read happen at once.
+     *
+     * # Errors
+     * `EnhanceFailed` (nothing charged), `EnhanceExpired`, `EnhanceTimeout`
+     * (the job keeps running), and the errors of `imageEnhanceStatus`.
+     */
+open func waitImageEnhance(operationId: String, deadlineMs: UInt64?, waker: ImageEnhanceWaker?, cancellation: CoreCancellation?)async throws  -> ImageEnhanceJobRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_wait_image_enhance(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(operationId),FfiConverterOptionUInt64.lower(deadlineMs),FfiConverterOptionTypeImageEnhanceWaker.lower(waker),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeImageEnhanceJobRecord_lift,
+            errorHandler: FfiConverterTypeEmbedEditError_lift
+        )
+}
+    
+    /**
+     * Commit a user edit of a document, sheet, diagram or slides embed as
+     * its next version: `content` is the new head plaintext in its stored
+     * form (the TOON string the embed content opens to; zeroized after the
+     * call), `text_preview` the new preview when the type keeps one,
+     * `operation_id` the idempotency key of a resend of the same edit
+     * (`nil`: fresh). The head is the core's cached head (fetched once when
+     * not cached). Writes the chat's `embed_updated` event when the embed
+     * has a chat (`event`).
+     *
+     * # Errors
+     * `VersionConflict` (reload, then edit again), `ProjectContextRequired`,
+     * `AccessDenied`, `Validation`, `Refused`, `KeyUnavailable`, `Offline`,
+     * `SessionExpired`, `Cancelled`, `Transport`.
+     */
+open func commitEmbedEdit(embedId: String, scope: EmbedScopeRecord, content: String, textPreview: String?, operationId: String?, cancellation: CoreCancellation?)async throws  -> EmbedRevisionOutcomeRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_commit_embed_edit(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(embedId),FfiConverterTypeEmbedScopeRecord_lower(scope),FfiConverterString.lower(content),FfiConverterOptionString.lower(textPreview),FfiConverterOptionString.lower(operationId),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeEmbedRevisionOutcomeRecord_lift,
+            errorHandler: FfiConverterTypeEmbedEditError_lift
+        )
+}
+    
+    /**
+     * The version history of `embed_id` with who made each version
+     * (assistant or user, and the user's action), oldest first, read from
+     * the server (metadata only). `scope` is the chat or Project the embed
+     * is shown in (required for Team embeds; `nil` reads as the owner).
+     * Waits for a running command.
+     *
+     * # Errors
+     * `Authentication` signed out; `AccessDenied`, `NotFound`-like refusals
+     * as `AccessDenied { forbidden }`; `Offline`; `Transport { protocol }`
+     * for a malformed page; `Cancelled`.
+     */
+open func embedVersionHistory(embedId: String, scope: EmbedScopeRecord?, cancellation: CoreCancellation?)async throws  -> EmbedVersionHistoryRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_embed_version_history(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(embedId),FfiConverterOptionTypeEmbedScopeRecord.lower(scope),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeEmbedVersionHistoryRecord_lift,
+            errorHandler: FfiConverterTypeEmbedEditError_lift
+        )
+}
+    
+    /**
+     * Write the `embed_updated` events the server still lists as pending
+     * for `chat_id` (edits made in the Projects workspace or on another
+     * device). `openChat` already runs this once after the window is shown;
+     * call it again after a reconnect. Written events reach the window as
+     * new system messages. Offline, Team chats and refused reads come back
+     * as `deferred_code`, not as errors.
+     *
+     * # Errors
+     * `Authentication` signed out; `SessionExpired`; `Cancelled`.
+     */
+open func reconcileEmbedUpdateNotices(chatId: String, cancellation: CoreCancellation?)async throws  -> EmbedNoticeReconcileRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_reconcile_embed_update_notices(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(chatId),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeEmbedNoticeReconcileRecord_lift,
+            errorHandler: FfiConverterTypeEmbedEditError_lift
+        )
+}
+    
+    /**
+     * Restore version `from_version` of `embed_id` as its next version
+     * (content and, for images, its files); every version stays in the
+     * history. Personal account only (the version read is Personal).
+     *
+     * # Errors
+     * `Validation { invalid_restored_from }` unless `1 <= from_version <
+     * head`; `Refused { restore_source_missing }`; otherwise as
+     * `commitEmbedEdit`.
+     */
+open func restoreEmbedVersion(embedId: String, scope: EmbedScopeRecord, fromVersion: Int64, cancellation: CoreCancellation?)async throws  -> EmbedRevisionOutcomeRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_restore_embed_version(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(embedId),FfiConverterTypeEmbedScopeRecord_lower(scope),FfiConverterInt64.lower(fromVersion),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeEmbedRevisionOutcomeRecord_lift,
+            errorHandler: FfiConverterTypeEmbedEditError_lift
+        )
+}
+    
+    /**
      * Perform `request` with the core's session and return the response.
      * Several requests may run at once; each waits for a running command
      * (for example a send) only to prepare and to finish. A rotated cookie
      * is stored through the Keychain before this returns. A 401 signs the
-     * profile out (wipe, `Session(Expired)` event). Not covered: uploads to
-     * the upload host, multipart helpers and streaming responses.
+     * profile out (wipe, `Session(Expired)` event), except on
+     * `/v1/auth/password-v2/` (password migration) routes, where the 401
+     * is returned as an ordinary response and the session stays. Uploads use
+     * `uploadFile`; streaming responses are not covered.
      *
      * # Errors
      * `Authentication` while signed out (also when signed out during the
@@ -2709,12 +3734,40 @@ open func finishPairLogin(cancellation: CoreCancellation?)async throws  -> Bool 
 }
     
     /**
+     * `loginPassword` with a backup code as the second factor (the server
+     * consumes it; `remainingBackupCodes` reports what is left). Same
+     * hand-over, migration and cancel behaviour.
+     *
+     * # Errors
+     * As `loginPassword`, except that a refused backup code (or password)
+     * is `Authentication`, never `TwoFactorRequired`.
+     */
+open func loginBackupCode(email: String, password: String, backupCode: String, stayLoggedIn: Bool, cancellation: CoreCancellation?)async throws  -> LoginRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_login_backup_code(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(email),FfiConverterString.lower(password),FfiConverterString.lower(backupCode),FfiConverterBool.lower(stayLoggedIn),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeLoginRecord_lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
      * Sign in with email and password in the core, then begin the session on
      * this profile (Keychain store and `acknowledgeCredentials`) and `start`
      * from it: `Session(Restored)`, `ChatList(Cached)`, `Session(Admitted)`.
-     * Run `bootSync` afterwards for the network chat list. `password` and
-     * `tfaCode` are zeroized after the core call; the binding never stores
-     * or logs them. `stayLoggedIn` is the server cookie lifetime only.
+     * Run `bootSync` afterwards for the network chat list. After a legacy
+     * (v1) password unlocked the account, the core migrates it to v2 before
+     * the hand-over; the result is `passwordMigration` and never fails the
+     * login. `password` and `tfaCode` are zeroized after the core call; the
+     * binding never stores or logs them. `stayLoggedIn` is the server cookie
+     * lifetime only.
      *
      * # Errors
      * The core's login outcome: `TwoFactorRequired` (call again with
@@ -2726,7 +3779,7 @@ open func finishPairLogin(cancellation: CoreCancellation?)async throws  -> Bool 
      * after the Keychain store wipes the stored session, logs the new server
      * session out and emits `Session(SignedOut)`.
      */
-open func loginPassword(email: String, password: String, tfaCode: String?, stayLoggedIn: Bool, cancellation: CoreCancellation?)async throws   {
+open func loginPassword(email: String, password: String, tfaCode: String?, stayLoggedIn: Bool, cancellation: CoreCancellation?)async throws  -> LoginRecord  {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
@@ -2734,10 +3787,39 @@ open func loginPassword(email: String, password: String, tfaCode: String?, stayL
                         self.uniffiCloneHandle(),FfiConverterString.lower(email),FfiConverterString.lower(password),FfiConverterOptionString.lower(tfaCode),FfiConverterBool.lower(stayLoggedIn),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
                 )
             },
-            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_void,
-            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_void,
-            freeFunc: ffi_openmates_apple_bindings_rust_future_free_void,
-            liftFunc: { $0 },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeLoginRecord_lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Sign in with email and the account recovery key in the core (no
+     * second factor; the master key is unwrapped from the recovery-key
+     * wrapper). Same hand-over and cancel behaviour as `loginPassword`;
+     * `passwordMigration` is `NotNeeded`. `recoveryKey` is zeroized after
+     * the core call and never stored or logged.
+     *
+     * # Errors
+     * `Authentication` for a wrong key or unknown account (the server does
+     * not tell them apart); `Crypto` when the returned wrapper does not open
+     * (the new server session is logged out); `Invalid` while signed in or
+     * for an oversized key; then as `loginPassword`.
+     */
+open func loginRecoveryKey(email: String, recoveryKey: String, stayLoggedIn: Bool, cancellation: CoreCancellation?)async throws  -> LoginRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_login_recovery_key(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(email),FfiConverterString.lower(recoveryKey),FfiConverterBool.lower(stayLoggedIn),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeLoginRecord_lift,
             errorHandler: FfiConverterTypeCoreError_lift
         )
 }
@@ -2789,6 +3871,410 @@ open func submitPairPin(pin: String)async throws   {
             liftFunc: { $0 },
             errorHandler: FfiConverterTypeCoreError_lift
         )
+}
+    
+    /**
+     * Begin answering a pending passkey device verification
+     * (`pendingVerification` is `Device(method: Passkey)`): returns the
+     * options for the system ceremony for this account; the core keeps the
+     * continuation.
+     *
+     * # Errors
+     * `Authentication` while signed out or for a refused request; `Invalid`
+     * without a pending passkey verification; `Offline`, `Protocol`;
+     * `Cancelled` when `cancellation` fired (nothing kept).
+     */
+open func beginPasskeyDeviceVerification(cancellation: CoreCancellation?)async throws  -> PasskeyChallengeRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_begin_passkey_device_verification(
+                        self.uniffiCloneHandle(),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypePasskeyChallengeRecord_lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Begin a passkey sign-in: returns the options for the system passkey
+     * ceremony; the core keeps the continuation (a new begin replaces it).
+     * Without `email` any passkey of this device may answer (discoverable
+     * credential, the current Apple and web flow); with `email` the server
+     * lists only that account's passkeys and the core refuses another
+     * account's passkey at finish.
+     *
+     * # Errors
+     * `Invalid` while signed in; `Authentication` for a malformed email or a
+     * refused request; `Offline`, `Protocol`; `Cancelled` when
+     * `cancellation` fired (nothing kept).
+     */
+open func beginPasskeyLogin(email: String?, cancellation: CoreCancellation?)async throws  -> PasskeyChallengeRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_begin_passkey_login(
+                        self.uniffiCloneHandle(),FfiConverterOptionString.lower(email),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypePasskeyChallengeRecord_lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Forget a begun passkey login or device verification (none: no-op). The
+     * server challenge simply lapses; nothing was signed in yet.
+     */
+open func cancelPasskeyLogin()async   {
+    return
+        try!  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_cancel_passkey_login(
+                        self.uniffiCloneHandle()
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_void,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_void,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: nil
+            
+        )
+}
+    
+    /**
+     * Answer the pending passkey device verification with the ceremony's
+     * assertion (same `assertionJson` shape as `finishPasskeyLogin`; no PRF
+     * output is needed), then admit the session again (`Session(Admitted)`),
+     * as `verifyDevice2fa`. The continuation is used up: begin again to retry.
+     *
+     * # Errors
+     * `Invalid` without a begun device verification, for an unreadable
+     * assertion or one of another request, or `PASSKEY_WRONG_ACCOUNT` for
+     * another account's passkey; `Authentication` while signed out or when
+     * the server refused it (the verification stays pending); then as
+     * `verifyDevice2fa` (`Expired`, `VerificationRequired`, `Offline`,
+     * `Protocol`, `Cancelled`).
+     */
+open func finishPasskeyDeviceVerification(assertionJson: Data, cancellation: CoreCancellation?)async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_finish_passkey_device_verification(
+                        self.uniffiCloneHandle(),FfiConverterData.lower(assertionJson),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_void,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_void,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Finish the begun passkey sign-in with the ceremony's result, then hand
+     * over and `start` exactly as `loginPassword` (`passwordMigration` is
+     * `NotNeeded`, `remainingBackupCodes` nil). `assertionJson` is UTF-8
+     * JSON `{"credential_id": base64url raw id, "client_data_json",
+     * "authenticator_data", "signature", "user_handle"?: standard base64 of
+     * the raw bytes}`; `prfOutput` is the raw PRF `first` output (16..=64
+     * bytes), zeroized after the core call, never sent, stored or logged.
+     * The continuation is used up by this call: begin again to retry.
+     *
+     * # Errors
+     * `Invalid` without a begun passkey login, while signed in, for an
+     * unreadable assertion or one of another request
+     * (`PASSKEY_OTHER_REQUEST`), without a usable PRF output
+     * (`PASSKEY_PRF_UNAVAILABLE`: the passkey or OS lacks PRF support) or for
+     * another account's passkey (`PASSKEY_WRONG_ACCOUNT`); the message is the
+     * core's fixed English reason. `Authentication` when the server refused
+     * the passkey or the login; `Crypto` when the master key does not
+     * unwrap; then as `loginPassword`, including `Cancelled` and the
+     * cancel-after-store wipe (`Session(SignedOut)`).
+     */
+open func finishPasskeyLogin(assertionJson: Data, prfOutput: Data, stayLoggedIn: Bool, cancellation: CoreCancellation?)async throws  -> LoginRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_finish_passkey_login(
+                        self.uniffiCloneHandle(),FfiConverterData.lower(assertionJson),FfiConverterData.lower(prfOutput),FfiConverterBool.lower(stayLoggedIn),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeLoginRecord_lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * The assistant's Memory writes in `chat_id` that carry Undo data,
+     * oldest first, read from the chat's history on the server.
+     *
+     * # Errors
+     * `Authentication` when signed out; chat read errors (`Forbidden`,
+     * `Offline`, `Crypto`, `Expired`); `Cancelled`.
+     */
+open func assistantMemoryWrites(chatId: String, cancellation: CoreCancellation?)async throws  -> [ContextEntryNoticeRecord]  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_assistant_memory_writes(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(chatId),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterSequenceTypeContextEntryNoticeRecord.lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Create a Memory (new id `personal:<uuid>`, `createdAt` and `updatedAt`
+     * set to now) and return it as stored.
+     *
+     * # Errors
+     * `Memory` with `invalid_rule_document` (blank title or body, a field
+     * over its limit, a bad date), `rule_catalog_limit` (24 Memories or
+     * 64,000 characters), `rule_save_failed` (server refused); else as
+     * `listMemoryDocuments`.
+     */
+open func createMemoryDocument(fields: MemoryFieldsRecord, cancellation: CoreCancellation?)async throws  -> MemoryDocumentRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_create_memory_document(
+                        self.uniffiCloneHandle(),FfiConverterTypeMemoryFieldsRecord_lower(fields),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeMemoryDocumentRecord_lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * The web expiry sweep: delete every Memory whose `validUntil` passed
+     * (unreadable documents are never deleted); returns how many. Call when
+     * Settings > Memories opens and when the app returns to the foreground.
+     *
+     * # Errors
+     * As `deleteMemoryDocument`; Memories deleted before a failure stay deleted.
+     */
+open func deleteExpiredMemoryDocuments(cancellation: CoreCancellation?)async throws  -> UInt32  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_delete_expired_memory_documents(
+                        self.uniffiCloneHandle(),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_u32,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_u32,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_u32,
+            liftFunc: FfiConverterUInt32.lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Delete Memory `id` (from the canonical and the legacy settings key).
+     *
+     * # Errors
+     * `Memory(rule_not_found)` for an unknown id, `Memory(rule_save_failed)`
+     * when the server refused, else as `listMemoryDocuments`.
+     */
+open func deleteMemoryDocument(id: String, cancellation: CoreCancellation?)async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_delete_memory_document(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(id),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_void,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_void,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * The personal Memories in storage order (later entries were stored
+     * later), read fresh from the encrypted account settings. Sorting and
+     * filtering are view state (web `memoryListEntries.ts`).
+     *
+     * Commands run on the actor one at a time; `cancellation` stops the
+     * call (a cancel after a write was sent may still store it).
+     *
+     * # Errors
+     * `Authentication` when signed out; `Memory` with
+     * `rule_settings_unavailable`, `invalid_rule_document` or
+     * `rule_catalog_limit` for settings the web refuses too; `Offline`,
+     * `Expired`, `Cancelled`.
+     */
+open func listMemoryDocuments(cancellation: CoreCancellation?)async throws  -> [MemoryDocumentRecord]  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_list_memory_documents(
+                        self.uniffiCloneHandle(),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterSequenceTypeMemoryDocumentRecord.lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * One personal Memory by id, read fresh.
+     *
+     * # Errors
+     * `Memory(rule_not_found)` for an unknown id, else as `listMemoryDocuments`.
+     */
+open func memoryDocument(id: String, cancellation: CoreCancellation?)async throws  -> MemoryDocumentRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_memory_document(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(id),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeMemoryDocumentRecord_lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Opt this device's sends in (or out) to assistant Memory writes. On,
+     * each `send` advertises `memory_write_jobs`; when the assistant saves
+     * a Memory during the turn, the core claims the job, stores the Memory
+     * encrypted and writes the encrypted `context_entry` notice (with Undo
+     * data) into the chat before the turn ends. Off by default; switch it on
+     * only once the chat shows that notice and its Undo. Kept across
+     * sign-ins of this core; applies from the next `send`.
+     */
+open func setAssistantMemoryWrites(enabled: Bool)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_method_viewmodelcore_set_assistant_memory_writes(
+            self.uniffiCloneHandle(),
+        FfiConverterBool.lower(enabled),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Undo the assistant's Memory write `job_id` of `chat_id`: delete the
+     * Memory it created or restore the document it replaced. Refused when
+     * the Memory was edited since the assistant wrote it.
+     *
+     * # Errors
+     * `Memory` with `rule_not_undoable` (no such undoable write in the
+     * chat), `rule_not_found` (already deleted), `rule_changed` (edited
+     * since), `rule_settings_unavailable` (the previous document cannot be
+     * opened), `rule_save_failed`; else as `assistantMemoryWrites`.
+     */
+open func undoAssistantMemoryWrite(chatId: String, jobId: String, cancellation: CoreCancellation?)async throws  -> MemoryUndoOutcomeRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_undo_assistant_memory_write(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(chatId),FfiConverterString.lower(jobId),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeMemoryUndoOutcomeRecord_lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Replace Memory `id` with `fields` (its `createdAt` is kept,
+     * `updatedAt` set to now) and return it as stored. The settings endpoint
+     * has no compare-and-swap token: the last write wins, like on the web.
+     *
+     * # Errors
+     * `Memory(rule_not_found)` for an unknown id, else as `createMemoryDocument`.
+     */
+open func updateMemoryDocument(id: String, fields: MemoryFieldsRecord, cancellation: CoreCancellation?)async throws  -> MemoryDocumentRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_update_memory_document(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(id),FfiConverterTypeMemoryFieldsRecord_lower(fields),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeMemoryDocumentRecord_lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * The server region preference applied to this core's sends (`Eu`
+     * until Swift sets it).
+     */
+open func serverRegionPreference() -> ServerRegionPreferenceRecord  {
+    return try!  FfiConverterTypeServerRegionPreferenceRecord_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_method_viewmodelcore_server_region_preference(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * The stored preference read the way every shell reads it: `"global"`
+     * is `Global`, any other value (or none) `Eu`. For migrating a setting
+     * Swift kept as text.
+     */
+open func serverRegionPreferenceFromStored(value: String?) -> ServerRegionPreferenceRecord  {
+    return try!  FfiConverterTypeServerRegionPreferenceRecord_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_method_viewmodelcore_server_region_preference_from_stored(
+            self.uniffiCloneHandle(),
+        FfiConverterOptionString.lower(value),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Set the server region preference of the following sends. Not
+     * persisted by the core: Swift keeps the setting and sets it again after
+     * launch. Kept across sign-ins of this core; applies from the next `send`.
+     */
+open func setServerRegionPreference(preference: ServerRegionPreferenceRecord)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_method_viewmodelcore_set_server_region_preference(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeServerRegionPreferenceRecord_lower(preference),uniffiCallStatus
+    )
+}
 }
     
     /**
@@ -2861,6 +4347,94 @@ open func sessionInfo()async throws  -> SessionInfoRecord?  {
             completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
             freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
             liftFunc: FfiConverterOptionTypeSessionInfoRecord.lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Opt in to unowned socket frames: from now on, also after a new
+     * sign-in, every frame of a type the core does not own reaches the
+     * listener as `unownedSocketFrame` (a slow listener makes the core drop
+     * frames and report `unownedSocketFramesDropped`). Without this call
+     * nothing is kept.
+     *
+     * Signed out, the opt-in is kept for the next session.
+     *
+     * # Errors
+     * `Internal` when the core was shut down.
+     */
+open func forwardUnownedFrames()async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_forward_unowned_frames(
+                        self.uniffiCloneHandle()
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_void,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_void,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Write one raw frame `{"type": eventType, "payload": <payloadJson>}`
+     * on the core's monitor socket. Works while the actor is busy and
+     * settles within 10 seconds, or earlier through `cancellation`.
+     *
+     * # Errors
+     * `Unavailable` (`socket_frame_core_owned`) for a type the core owns,
+     * checked first; `Invalid` for a malformed type or a payload that is not
+     * a JSON object; `Offline` without a live socket or on timeout;
+     * `Unavailable` (`socket_frame_queue_full`) when 16 frames wait;
+     * `Offline` also when signed out; `Cancelled`.
+     */
+open func sendUnownedFrame(eventType: String, payloadJson: String, cancellation: CoreCancellation?)async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_send_unowned_frame(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(eventType),FfiConverterString.lower(payloadJson),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_void,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_void,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Upload `request`'s file with the core's session and return the
+     * server's answer (non-2xx statuses, including 401, are returned, not
+     * thrown, and do not sign out). Several uploads may run at once; each
+     * waits for a running command only to prepare and to finish. No
+     * progress is reported.
+     *
+     * # Errors
+     * `Authentication` while signed out (also when signed out during the
+     * upload); `Forbidden` for a host or endpoint outside the allow-list or
+     * a redirect; `Invalid` for a malformed URL, filename, content type,
+     * field, a relative path, a file that is not a regular file or is over
+     * 100 MB; `Io` when the file cannot be opened; `Offline` without a
+     * response; `Protocol` for an oversized response; `Cancelled` when
+     * `cancellation` fired or the session changed meanwhile.
+     */
+open func uploadFile(request: UploadRequestRecord, cancellation: CoreCancellation?)async throws  -> HttpResponseRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_upload_file(
+                        self.uniffiCloneHandle(),FfiConverterTypeUploadRequestRecord_lower(request),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeHttpResponseRecord_lift,
             errorHandler: FfiConverterTypeCoreError_lift
         )
 }
@@ -3076,11 +4650,11 @@ public struct ChatListRowRecord: Equatable, Hashable {
      */
     public var status: ChatRowStatusRecord
     /**
-     * Creation time in unix milliseconds.
+     * Creation time in unix seconds (the server chat-row unit).
      */
     public var createdAt: Int64?
     /**
-     * Last update in unix milliseconds.
+     * Last update in unix seconds (the server chat-row unit).
      */
     public var updatedAt: Int64?
     /**
@@ -3108,6 +4682,10 @@ public struct ChatListRowRecord: Equatable, Hashable {
      */
     public var footer: String?
     /**
+     * The row is a saved-item home entry (an embed card), not a chat.
+     */
+    public var isSavedItem: Bool
+    /**
      * Further facts of the held chat row (icon, sub-chat, budget, draft).
      */
     public var metadata: ChatRowMetadataRecord
@@ -3134,10 +4712,10 @@ public struct ChatListRowRecord: Equatable, Hashable {
          * Draft or locked state.
          */status: ChatRowStatusRecord, 
         /**
-         * Creation time in unix milliseconds.
+         * Creation time in unix seconds (the server chat-row unit).
          */createdAt: Int64?, 
         /**
-         * Last update in unix milliseconds.
+         * Last update in unix seconds (the server chat-row unit).
          */updatedAt: Int64?, 
         /**
          * Server message version.
@@ -3158,6 +4736,9 @@ public struct ChatListRowRecord: Equatable, Hashable {
          * Home-card footer such as a reminder countdown.
          */footer: String?, 
         /**
+         * The row is a saved-item home entry (an embed card), not a chat.
+         */isSavedItem: Bool, 
+        /**
          * Further facts of the held chat row (icon, sub-chat, budget, draft).
          */metadata: ChatRowMetadataRecord) {
         self.id = id
@@ -3174,6 +4755,7 @@ public struct ChatListRowRecord: Equatable, Hashable {
         self.archived = archived
         self.hasDraft = hasDraft
         self.footer = footer
+        self.isSavedItem = isSavedItem
         self.metadata = metadata
     }
 
@@ -3207,6 +4789,7 @@ public struct FfiConverterTypeChatListRowRecord: FfiConverterRustBuffer {
                 archived: FfiConverterBool.read(from: &buf), 
                 hasDraft: FfiConverterBool.read(from: &buf), 
                 footer: FfiConverterOptionString.read(from: &buf), 
+                isSavedItem: FfiConverterBool.read(from: &buf), 
                 metadata: FfiConverterTypeChatRowMetadataRecord.read(from: &buf)
         )
     }
@@ -3226,6 +4809,7 @@ public struct FfiConverterTypeChatListRowRecord: FfiConverterRustBuffer {
         FfiConverterBool.write(value.archived, into: &buf)
         FfiConverterBool.write(value.hasDraft, into: &buf)
         FfiConverterOptionString.write(value.footer, into: &buf)
+        FfiConverterBool.write(value.isSavedItem, into: &buf)
         FfiConverterTypeChatRowMetadataRecord.write(value.metadata, into: &buf)
     }
 }
@@ -3417,6 +5001,26 @@ public struct ChatRowMetadataRecord: Equatable, Hashable {
      * Decrypted draft preview text; personal scope with a draft only.
      */
     public var draftPreview: String?
+    /**
+     * Another account shared this chat with the user.
+     */
+    public var isSharedByOthers: Bool?
+    /**
+     * Id of the last message visible in the chat.
+     */
+    public var lastVisibleMessageId: String?
+    /**
+     * App the chat belongs to.
+     */
+    public var appId: String?
+    /**
+     * Sub-chat setting: the parent waits for the sub-chat to finish.
+     */
+    public var subChatWaitForCompletion: Bool?
+    /**
+     * Sub-chat setting: `each` or `all`.
+     */
+    public var subChatReportTrigger: String?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -3462,7 +5066,22 @@ public struct ChatRowMetadataRecord: Equatable, Hashable {
          */draftV: UInt64?, 
         /**
          * Decrypted draft preview text; personal scope with a draft only.
-         */draftPreview: String?) {
+         */draftPreview: String?, 
+        /**
+         * Another account shared this chat with the user.
+         */isSharedByOthers: Bool?, 
+        /**
+         * Id of the last message visible in the chat.
+         */lastVisibleMessageId: String?, 
+        /**
+         * App the chat belongs to.
+         */appId: String?, 
+        /**
+         * Sub-chat setting: the parent waits for the sub-chat to finish.
+         */subChatWaitForCompletion: Bool?, 
+        /**
+         * Sub-chat setting: `each` or `all`.
+         */subChatReportTrigger: String?) {
         self.icon = icon
         self.activeFocusId = activeFocusId
         self.parentId = parentId
@@ -3477,6 +5096,11 @@ public struct ChatRowMetadataRecord: Equatable, Hashable {
         self.budgetSpent = budgetSpent
         self.draftV = draftV
         self.draftPreview = draftPreview
+        self.isSharedByOthers = isSharedByOthers
+        self.lastVisibleMessageId = lastVisibleMessageId
+        self.appId = appId
+        self.subChatWaitForCompletion = subChatWaitForCompletion
+        self.subChatReportTrigger = subChatReportTrigger
     }
 
     
@@ -3508,7 +5132,12 @@ public struct FfiConverterTypeChatRowMetadataRecord: FfiConverterRustBuffer {
                 budgetLimit: FfiConverterOptionUInt64.read(from: &buf), 
                 budgetSpent: FfiConverterOptionUInt64.read(from: &buf), 
                 draftV: FfiConverterOptionUInt64.read(from: &buf), 
-                draftPreview: FfiConverterOptionString.read(from: &buf)
+                draftPreview: FfiConverterOptionString.read(from: &buf), 
+                isSharedByOthers: FfiConverterOptionBool.read(from: &buf), 
+                lastVisibleMessageId: FfiConverterOptionString.read(from: &buf), 
+                appId: FfiConverterOptionString.read(from: &buf), 
+                subChatWaitForCompletion: FfiConverterOptionBool.read(from: &buf), 
+                subChatReportTrigger: FfiConverterOptionString.read(from: &buf)
         )
     }
 
@@ -3527,6 +5156,11 @@ public struct FfiConverterTypeChatRowMetadataRecord: FfiConverterRustBuffer {
         FfiConverterOptionUInt64.write(value.budgetSpent, into: &buf)
         FfiConverterOptionUInt64.write(value.draftV, into: &buf)
         FfiConverterOptionString.write(value.draftPreview, into: &buf)
+        FfiConverterOptionBool.write(value.isSharedByOthers, into: &buf)
+        FfiConverterOptionString.write(value.lastVisibleMessageId, into: &buf)
+        FfiConverterOptionString.write(value.appId, into: &buf)
+        FfiConverterOptionBool.write(value.subChatWaitForCompletion, into: &buf)
+        FfiConverterOptionString.write(value.subChatReportTrigger, into: &buf)
     }
 }
 
@@ -3906,6 +5540,127 @@ public func FfiConverterTypeClientRegistrationStartRecord_lower(_ value: ClientR
 
 
 /**
+ * A `context_entry` system message of a chat ("Memory saved"), as shown.
+ */
+public struct ContextEntryNoticeRecord: Equatable, Hashable {
+    /**
+     * Memory or workflow.
+     */
+    public var kind: ContextEntryKindRecord
+    /**
+     * Created or updated.
+     */
+    public var action: ContextEntryActionRecord
+    /**
+     * Id of the saved entry (a Memory id opens its Settings page).
+     */
+    public var entryId: String
+    /**
+     * Title shown in the history line.
+     */
+    public var title: String
+    /**
+     * Unix seconds.
+     */
+    public var createdAt: Int64
+    /**
+     * The assistant wrote the entry during a turn (no review step).
+     */
+    public var fromAssistant: Bool
+    /**
+     * Job id to pass to `undoAssistantMemoryWrite`; `nil` when the notice
+     * carries no Undo data.
+     */
+    public var undoJobId: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Memory or workflow.
+         */kind: ContextEntryKindRecord, 
+        /**
+         * Created or updated.
+         */action: ContextEntryActionRecord, 
+        /**
+         * Id of the saved entry (a Memory id opens its Settings page).
+         */entryId: String, 
+        /**
+         * Title shown in the history line.
+         */title: String, 
+        /**
+         * Unix seconds.
+         */createdAt: Int64, 
+        /**
+         * The assistant wrote the entry during a turn (no review step).
+         */fromAssistant: Bool, 
+        /**
+         * Job id to pass to `undoAssistantMemoryWrite`; `nil` when the notice
+         * carries no Undo data.
+         */undoJobId: String?) {
+        self.kind = kind
+        self.action = action
+        self.entryId = entryId
+        self.title = title
+        self.createdAt = createdAt
+        self.fromAssistant = fromAssistant
+        self.undoJobId = undoJobId
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ContextEntryNoticeRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeContextEntryNoticeRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ContextEntryNoticeRecord {
+        return
+            try ContextEntryNoticeRecord(
+                kind: FfiConverterTypeContextEntryKindRecord.read(from: &buf), 
+                action: FfiConverterTypeContextEntryActionRecord.read(from: &buf), 
+                entryId: FfiConverterString.read(from: &buf), 
+                title: FfiConverterString.read(from: &buf), 
+                createdAt: FfiConverterInt64.read(from: &buf), 
+                fromAssistant: FfiConverterBool.read(from: &buf), 
+                undoJobId: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ContextEntryNoticeRecord, into buf: inout [UInt8]) {
+        FfiConverterTypeContextEntryKindRecord.write(value.kind, into: &buf)
+        FfiConverterTypeContextEntryActionRecord.write(value.action, into: &buf)
+        FfiConverterString.write(value.entryId, into: &buf)
+        FfiConverterString.write(value.title, into: &buf)
+        FfiConverterInt64.write(value.createdAt, into: &buf)
+        FfiConverterBool.write(value.fromAssistant, into: &buf)
+        FfiConverterOptionString.write(value.undoJobId, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeContextEntryNoticeRecord_lift(_ buf: RustBuffer) throws -> ContextEntryNoticeRecord {
+    return try FfiConverterTypeContextEntryNoticeRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeContextEntryNoticeRecord_lower(_ value: ContextEntryNoticeRecord) -> RustBuffer {
+    return FfiConverterTypeContextEntryNoticeRecord.lower(value)
+}
+
+
+/**
  * Construction options. No environment, file or Keychain is read.
  */
 public struct CoreConfig: Equatable, Hashable {
@@ -4078,6 +5833,166 @@ public func FfiConverterTypeCredentialSnapshotRecord_lower(_ value: CredentialSn
 
 
 /**
+ * One chat of a draft versions request.
+ */
+public struct DraftVersionQueryRecord: Equatable, Hashable {
+    /**
+     * Chat id (canonical lowercase UUID).
+     */
+    public var chatId: String
+    /**
+     * Swift's stored `draft_v` of that chat (0: none).
+     */
+    public var clientDraftV: UInt64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Chat id (canonical lowercase UUID).
+         */chatId: String, 
+        /**
+         * Swift's stored `draft_v` of that chat (0: none).
+         */clientDraftV: UInt64) {
+        self.chatId = chatId
+        self.clientDraftV = clientDraftV
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension DraftVersionQueryRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDraftVersionQueryRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DraftVersionQueryRecord {
+        return
+            try DraftVersionQueryRecord(
+                chatId: FfiConverterString.read(from: &buf), 
+                clientDraftV: FfiConverterUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: DraftVersionQueryRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.chatId, into: &buf)
+        FfiConverterUInt64.write(value.clientDraftV, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDraftVersionQueryRecord_lift(_ buf: RustBuffer) throws -> DraftVersionQueryRecord {
+    return try FfiConverterTypeDraftVersionQueryRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDraftVersionQueryRecord_lower(_ value: DraftVersionQueryRecord) -> RustBuffer {
+    return FfiConverterTypeDraftVersionQueryRecord.lower(value)
+}
+
+
+/**
+ * Outcome of a pending-notice reconcile of one chat.
+ */
+public struct EmbedNoticeReconcileRecord: Equatable, Hashable {
+    /**
+     * Events written and confirmed now (they arrive as new system messages).
+     */
+    public var written: UInt64
+    /**
+     * Notices whose message the chat already has.
+     */
+    public var alreadyPresent: UInt64
+    /**
+     * Message ids left pending (the embed is not nameable on this device).
+     */
+    public var unresolvedMessageIds: [String]
+    /**
+     * Set when the reconcile did not run now (`team_chat`, `offline`, ...);
+     * the next open retries.
+     */
+    public var deferredCode: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Events written and confirmed now (they arrive as new system messages).
+         */written: UInt64, 
+        /**
+         * Notices whose message the chat already has.
+         */alreadyPresent: UInt64, 
+        /**
+         * Message ids left pending (the embed is not nameable on this device).
+         */unresolvedMessageIds: [String], 
+        /**
+         * Set when the reconcile did not run now (`team_chat`, `offline`, ...);
+         * the next open retries.
+         */deferredCode: String?) {
+        self.written = written
+        self.alreadyPresent = alreadyPresent
+        self.unresolvedMessageIds = unresolvedMessageIds
+        self.deferredCode = deferredCode
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension EmbedNoticeReconcileRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEmbedNoticeReconcileRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EmbedNoticeReconcileRecord {
+        return
+            try EmbedNoticeReconcileRecord(
+                written: FfiConverterUInt64.read(from: &buf), 
+                alreadyPresent: FfiConverterUInt64.read(from: &buf), 
+                unresolvedMessageIds: FfiConverterSequenceString.read(from: &buf), 
+                deferredCode: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: EmbedNoticeReconcileRecord, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.written, into: &buf)
+        FfiConverterUInt64.write(value.alreadyPresent, into: &buf)
+        FfiConverterSequenceString.write(value.unresolvedMessageIds, into: &buf)
+        FfiConverterOptionString.write(value.deferredCode, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEmbedNoticeReconcileRecord_lift(_ buf: RustBuffer) throws -> EmbedNoticeReconcileRecord {
+    return try FfiConverterTypeEmbedNoticeReconcileRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEmbedNoticeReconcileRecord_lower(_ value: EmbedNoticeReconcileRecord) -> RustBuffer {
+    return FfiConverterTypeEmbedNoticeReconcileRecord.lower(value)
+}
+
+
+/**
  * Reference to a decrypted embed (core `EmbedRef`).
  */
 public struct EmbedRefRecord: Equatable, Hashable {
@@ -4203,6 +6118,563 @@ public func FfiConverterTypeEmbedRefRecord_lift(_ buf: RustBuffer) throws -> Emb
 #endif
 public func FfiConverterTypeEmbedRefRecord_lower(_ value: EmbedRefRecord) -> RustBuffer {
     return FfiConverterTypeEmbedRefRecord.lower(value)
+}
+
+
+/**
+ * A version committed by an edit, restore or Enhance save.
+ */
+public struct EmbedRevisionOutcomeRecord: Equatable, Hashable {
+    /**
+     * Embed id.
+     */
+    public var embedId: String
+    /**
+     * Idempotency key of the commit.
+     */
+    public var operationId: String
+    /**
+     * The new head version (N+1).
+     */
+    public var version: Int64
+    /**
+     * The version it was made from (N).
+     */
+    public var baseVersion: Int64
+    /**
+     * What the user did.
+     */
+    public var action: EmbedUpdateActionRecord
+    /**
+     * The version a restore copied.
+     */
+    public var restoredFrom: Int64?
+    /**
+     * Where it was saved.
+     */
+    public var surface: EmbedUpdateSurfaceRecord
+    /**
+     * True when the server answered from an earlier receipt of the same operation.
+     */
+    public var idempotent: Bool
+    /**
+     * False when the commit is durable but the core's cached head was not
+     * updated: refresh the embed before the next edit.
+     */
+    public var cacheSynchronized: Bool
+    /**
+     * The chat event of the version.
+     */
+    public var event: EmbedEventDeliveryRecord
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Embed id.
+         */embedId: String, 
+        /**
+         * Idempotency key of the commit.
+         */operationId: String, 
+        /**
+         * The new head version (N+1).
+         */version: Int64, 
+        /**
+         * The version it was made from (N).
+         */baseVersion: Int64, 
+        /**
+         * What the user did.
+         */action: EmbedUpdateActionRecord, 
+        /**
+         * The version a restore copied.
+         */restoredFrom: Int64?, 
+        /**
+         * Where it was saved.
+         */surface: EmbedUpdateSurfaceRecord, 
+        /**
+         * True when the server answered from an earlier receipt of the same operation.
+         */idempotent: Bool, 
+        /**
+         * False when the commit is durable but the core's cached head was not
+         * updated: refresh the embed before the next edit.
+         */cacheSynchronized: Bool, 
+        /**
+         * The chat event of the version.
+         */event: EmbedEventDeliveryRecord) {
+        self.embedId = embedId
+        self.operationId = operationId
+        self.version = version
+        self.baseVersion = baseVersion
+        self.action = action
+        self.restoredFrom = restoredFrom
+        self.surface = surface
+        self.idempotent = idempotent
+        self.cacheSynchronized = cacheSynchronized
+        self.event = event
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension EmbedRevisionOutcomeRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEmbedRevisionOutcomeRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EmbedRevisionOutcomeRecord {
+        return
+            try EmbedRevisionOutcomeRecord(
+                embedId: FfiConverterString.read(from: &buf), 
+                operationId: FfiConverterString.read(from: &buf), 
+                version: FfiConverterInt64.read(from: &buf), 
+                baseVersion: FfiConverterInt64.read(from: &buf), 
+                action: FfiConverterTypeEmbedUpdateActionRecord.read(from: &buf), 
+                restoredFrom: FfiConverterOptionInt64.read(from: &buf), 
+                surface: FfiConverterTypeEmbedUpdateSurfaceRecord.read(from: &buf), 
+                idempotent: FfiConverterBool.read(from: &buf), 
+                cacheSynchronized: FfiConverterBool.read(from: &buf), 
+                event: FfiConverterTypeEmbedEventDeliveryRecord.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: EmbedRevisionOutcomeRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.embedId, into: &buf)
+        FfiConverterString.write(value.operationId, into: &buf)
+        FfiConverterInt64.write(value.version, into: &buf)
+        FfiConverterInt64.write(value.baseVersion, into: &buf)
+        FfiConverterTypeEmbedUpdateActionRecord.write(value.action, into: &buf)
+        FfiConverterOptionInt64.write(value.restoredFrom, into: &buf)
+        FfiConverterTypeEmbedUpdateSurfaceRecord.write(value.surface, into: &buf)
+        FfiConverterBool.write(value.idempotent, into: &buf)
+        FfiConverterBool.write(value.cacheSynchronized, into: &buf)
+        FfiConverterTypeEmbedEventDeliveryRecord.write(value.event, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEmbedRevisionOutcomeRecord_lift(_ buf: RustBuffer) throws -> EmbedRevisionOutcomeRecord {
+    return try FfiConverterTypeEmbedRevisionOutcomeRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEmbedRevisionOutcomeRecord_lower(_ value: EmbedRevisionOutcomeRecord) -> RustBuffer {
+    return FfiConverterTypeEmbedRevisionOutcomeRecord.lower(value)
+}
+
+
+/**
+ * One message of an open chat window as the timeline grouping reads it.
+ */
+public struct EmbedTimelineRowRecord: Equatable, Hashable {
+    /**
+     * Message id.
+     */
+    public var messageId: String
+    /**
+     * Author role (only system messages can be embed events).
+     */
+    public var role: MessageRoleRecord
+    /**
+     * Decrypted content as in `MessageViewRecord.content`.
+     */
+    public var content: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Message id.
+         */messageId: String, 
+        /**
+         * Author role (only system messages can be embed events).
+         */role: MessageRoleRecord, 
+        /**
+         * Decrypted content as in `MessageViewRecord.content`.
+         */content: String) {
+        self.messageId = messageId
+        self.role = role
+        self.content = content
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension EmbedTimelineRowRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEmbedTimelineRowRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EmbedTimelineRowRecord {
+        return
+            try EmbedTimelineRowRecord(
+                messageId: FfiConverterString.read(from: &buf), 
+                role: FfiConverterTypeMessageRoleRecord.read(from: &buf), 
+                content: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: EmbedTimelineRowRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.messageId, into: &buf)
+        FfiConverterTypeMessageRoleRecord.write(value.role, into: &buf)
+        FfiConverterString.write(value.content, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEmbedTimelineRowRecord_lift(_ buf: RustBuffer) throws -> EmbedTimelineRowRecord {
+    return try FfiConverterTypeEmbedTimelineRowRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEmbedTimelineRowRecord_lower(_ value: EmbedTimelineRowRecord) -> RustBuffer {
+    return FfiConverterTypeEmbedTimelineRowRecord.lower(value)
+}
+
+
+/**
+ * A folded run of `embed_updated` events of one embed ("Image updated, 3 changes").
+ */
+public struct EmbedUpdatedGroupRecord: Equatable, Hashable {
+    /**
+     * Embed of the run.
+     */
+    public var embedId: String
+    /**
+     * Its ref, to open the embed.
+     */
+    public var embedRef: String
+    /**
+     * Kind shown as "<Kind> updated".
+     */
+    public var embedKind: EmbedKindRecord
+    /**
+     * Newest version of the run.
+     */
+    public var latestVersion: Int64
+    /**
+     * Events in the run.
+     */
+    public var changeCount: UInt64
+    /**
+     * Action of the newest event.
+     */
+    public var latestAction: EmbedUpdateActionRecord
+    /**
+     * Unix seconds of the newest event.
+     */
+    public var latestCreatedAt: Int64
+    /**
+     * Version the newest event restored (restore only).
+     */
+    public var restoredFrom: Int64?
+    /**
+     * Where the newest edit was made.
+     */
+    public var surface: EmbedUpdateSurfaceRecord
+    /**
+     * Message ids of the run, oldest first.
+     */
+    public var messageIds: [String]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Embed of the run.
+         */embedId: String, 
+        /**
+         * Its ref, to open the embed.
+         */embedRef: String, 
+        /**
+         * Kind shown as "<Kind> updated".
+         */embedKind: EmbedKindRecord, 
+        /**
+         * Newest version of the run.
+         */latestVersion: Int64, 
+        /**
+         * Events in the run.
+         */changeCount: UInt64, 
+        /**
+         * Action of the newest event.
+         */latestAction: EmbedUpdateActionRecord, 
+        /**
+         * Unix seconds of the newest event.
+         */latestCreatedAt: Int64, 
+        /**
+         * Version the newest event restored (restore only).
+         */restoredFrom: Int64?, 
+        /**
+         * Where the newest edit was made.
+         */surface: EmbedUpdateSurfaceRecord, 
+        /**
+         * Message ids of the run, oldest first.
+         */messageIds: [String]) {
+        self.embedId = embedId
+        self.embedRef = embedRef
+        self.embedKind = embedKind
+        self.latestVersion = latestVersion
+        self.changeCount = changeCount
+        self.latestAction = latestAction
+        self.latestCreatedAt = latestCreatedAt
+        self.restoredFrom = restoredFrom
+        self.surface = surface
+        self.messageIds = messageIds
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension EmbedUpdatedGroupRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEmbedUpdatedGroupRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EmbedUpdatedGroupRecord {
+        return
+            try EmbedUpdatedGroupRecord(
+                embedId: FfiConverterString.read(from: &buf), 
+                embedRef: FfiConverterString.read(from: &buf), 
+                embedKind: FfiConverterTypeEmbedKindRecord.read(from: &buf), 
+                latestVersion: FfiConverterInt64.read(from: &buf), 
+                changeCount: FfiConverterUInt64.read(from: &buf), 
+                latestAction: FfiConverterTypeEmbedUpdateActionRecord.read(from: &buf), 
+                latestCreatedAt: FfiConverterInt64.read(from: &buf), 
+                restoredFrom: FfiConverterOptionInt64.read(from: &buf), 
+                surface: FfiConverterTypeEmbedUpdateSurfaceRecord.read(from: &buf), 
+                messageIds: FfiConverterSequenceString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: EmbedUpdatedGroupRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.embedId, into: &buf)
+        FfiConverterString.write(value.embedRef, into: &buf)
+        FfiConverterTypeEmbedKindRecord.write(value.embedKind, into: &buf)
+        FfiConverterInt64.write(value.latestVersion, into: &buf)
+        FfiConverterUInt64.write(value.changeCount, into: &buf)
+        FfiConverterTypeEmbedUpdateActionRecord.write(value.latestAction, into: &buf)
+        FfiConverterInt64.write(value.latestCreatedAt, into: &buf)
+        FfiConverterOptionInt64.write(value.restoredFrom, into: &buf)
+        FfiConverterTypeEmbedUpdateSurfaceRecord.write(value.surface, into: &buf)
+        FfiConverterSequenceString.write(value.messageIds, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEmbedUpdatedGroupRecord_lift(_ buf: RustBuffer) throws -> EmbedUpdatedGroupRecord {
+    return try FfiConverterTypeEmbedUpdatedGroupRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEmbedUpdatedGroupRecord_lower(_ value: EmbedUpdatedGroupRecord) -> RustBuffer {
+    return FfiConverterTypeEmbedUpdatedGroupRecord.lower(value)
+}
+
+
+/**
+ * The version history of one embed, oldest first.
+ */
+public struct EmbedVersionHistoryRecord: Equatable, Hashable {
+    /**
+     * Embed id.
+     */
+    public var embedId: String
+    /**
+     * The server's head version.
+     */
+    public var currentVersion: Int64
+    /**
+     * Every listed version, ascending.
+     */
+    public var versions: [EmbedVersionRecord]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Embed id.
+         */embedId: String, 
+        /**
+         * The server's head version.
+         */currentVersion: Int64, 
+        /**
+         * Every listed version, ascending.
+         */versions: [EmbedVersionRecord]) {
+        self.embedId = embedId
+        self.currentVersion = currentVersion
+        self.versions = versions
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension EmbedVersionHistoryRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEmbedVersionHistoryRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EmbedVersionHistoryRecord {
+        return
+            try EmbedVersionHistoryRecord(
+                embedId: FfiConverterString.read(from: &buf), 
+                currentVersion: FfiConverterInt64.read(from: &buf), 
+                versions: FfiConverterSequenceTypeEmbedVersionRecord.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: EmbedVersionHistoryRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.embedId, into: &buf)
+        FfiConverterInt64.write(value.currentVersion, into: &buf)
+        FfiConverterSequenceTypeEmbedVersionRecord.write(value.versions, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEmbedVersionHistoryRecord_lift(_ buf: RustBuffer) throws -> EmbedVersionHistoryRecord {
+    return try FfiConverterTypeEmbedVersionHistoryRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEmbedVersionHistoryRecord_lower(_ value: EmbedVersionHistoryRecord) -> RustBuffer {
+    return FfiConverterTypeEmbedVersionHistoryRecord.lower(value)
+}
+
+
+/**
+ * One stored version of an embed.
+ */
+public struct EmbedVersionRecord: Equatable, Hashable {
+    /**
+     * Version number (1 is the assistant's first version).
+     */
+    public var version: Int64
+    /**
+     * Who made it.
+     */
+    public var origin: EmbedRevisionOriginRecord
+    /**
+     * What the user did; `nil` for assistant versions.
+     */
+    public var action: EmbedUpdateActionRecord?
+    /**
+     * Unix seconds it was stored, when the server reported it.
+     */
+    public var createdAt: Int64?
+    /**
+     * True for the head version (what the embed shows now).
+     */
+    public var isCurrent: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Version number (1 is the assistant's first version).
+         */version: Int64, 
+        /**
+         * Who made it.
+         */origin: EmbedRevisionOriginRecord, 
+        /**
+         * What the user did; `nil` for assistant versions.
+         */action: EmbedUpdateActionRecord?, 
+        /**
+         * Unix seconds it was stored, when the server reported it.
+         */createdAt: Int64?, 
+        /**
+         * True for the head version (what the embed shows now).
+         */isCurrent: Bool) {
+        self.version = version
+        self.origin = origin
+        self.action = action
+        self.createdAt = createdAt
+        self.isCurrent = isCurrent
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension EmbedVersionRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEmbedVersionRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EmbedVersionRecord {
+        return
+            try EmbedVersionRecord(
+                version: FfiConverterInt64.read(from: &buf), 
+                origin: FfiConverterTypeEmbedRevisionOriginRecord.read(from: &buf), 
+                action: FfiConverterOptionTypeEmbedUpdateActionRecord.read(from: &buf), 
+                createdAt: FfiConverterOptionInt64.read(from: &buf), 
+                isCurrent: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: EmbedVersionRecord, into buf: inout [UInt8]) {
+        FfiConverterInt64.write(value.version, into: &buf)
+        FfiConverterTypeEmbedRevisionOriginRecord.write(value.origin, into: &buf)
+        FfiConverterOptionTypeEmbedUpdateActionRecord.write(value.action, into: &buf)
+        FfiConverterOptionInt64.write(value.createdAt, into: &buf)
+        FfiConverterBool.write(value.isCurrent, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEmbedVersionRecord_lift(_ buf: RustBuffer) throws -> EmbedVersionRecord {
+    return try FfiConverterTypeEmbedVersionRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEmbedVersionRecord_lower(_ value: EmbedVersionRecord) -> RustBuffer {
+    return FfiConverterTypeEmbedVersionRecord.lower(value)
 }
 
 
@@ -4621,8 +7093,8 @@ public func FfiConverterTypeHttpRequestRecord_lower(_ value: HttpRequestRecord) 
 
 
 /**
- * The server's answer for any status the core does not own (it owns 401,
- * redirects and an expected-principal 403).
+ * The server's answer for any status the core does not own (it owns 401
+ * except on password-migration routes, redirects and an expected-principal 403).
  */
 public struct HttpResponseRecord: Equatable, Hashable {
     /**
@@ -4703,6 +7175,156 @@ public func FfiConverterTypeHttpResponseRecord_lower(_ value: HttpResponseRecord
 
 
 /**
+ * One Enhance job (no result bytes or keys: those stay in the core until
+ * the save seals them).
+ */
+public struct ImageEnhanceJobRecord: Equatable, Hashable {
+    /**
+     * The job's idempotency key; keep it to resume.
+     */
+    public var operationId: String
+    /**
+     * The enhanced embed.
+     */
+    public var embedId: String
+    /**
+     * Job state.
+     */
+    public var state: ImageEnhanceStateRecord
+    /**
+     * Version N the job enhances.
+     */
+    public var baseVersion: Int64
+    /**
+     * Version N+1 the result becomes.
+     */
+    public var targetVersion: Int64
+    /**
+     * Quoted price in credits.
+     */
+    public var credits: Int64
+    /**
+     * Whether the price was charged.
+     */
+    public var charged: Bool
+    /**
+     * Unix seconds the job was created.
+     */
+    public var createdAt: Int64
+    /**
+     * Unix seconds after which an unsaved result is deleted.
+     */
+    public var expiresAt: Int64
+    /**
+     * Failure code of a failed job.
+     */
+    public var errorCode: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The job's idempotency key; keep it to resume.
+         */operationId: String, 
+        /**
+         * The enhanced embed.
+         */embedId: String, 
+        /**
+         * Job state.
+         */state: ImageEnhanceStateRecord, 
+        /**
+         * Version N the job enhances.
+         */baseVersion: Int64, 
+        /**
+         * Version N+1 the result becomes.
+         */targetVersion: Int64, 
+        /**
+         * Quoted price in credits.
+         */credits: Int64, 
+        /**
+         * Whether the price was charged.
+         */charged: Bool, 
+        /**
+         * Unix seconds the job was created.
+         */createdAt: Int64, 
+        /**
+         * Unix seconds after which an unsaved result is deleted.
+         */expiresAt: Int64, 
+        /**
+         * Failure code of a failed job.
+         */errorCode: String?) {
+        self.operationId = operationId
+        self.embedId = embedId
+        self.state = state
+        self.baseVersion = baseVersion
+        self.targetVersion = targetVersion
+        self.credits = credits
+        self.charged = charged
+        self.createdAt = createdAt
+        self.expiresAt = expiresAt
+        self.errorCode = errorCode
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ImageEnhanceJobRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeImageEnhanceJobRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ImageEnhanceJobRecord {
+        return
+            try ImageEnhanceJobRecord(
+                operationId: FfiConverterString.read(from: &buf), 
+                embedId: FfiConverterString.read(from: &buf), 
+                state: FfiConverterTypeImageEnhanceStateRecord.read(from: &buf), 
+                baseVersion: FfiConverterInt64.read(from: &buf), 
+                targetVersion: FfiConverterInt64.read(from: &buf), 
+                credits: FfiConverterInt64.read(from: &buf), 
+                charged: FfiConverterBool.read(from: &buf), 
+                createdAt: FfiConverterInt64.read(from: &buf), 
+                expiresAt: FfiConverterInt64.read(from: &buf), 
+                errorCode: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ImageEnhanceJobRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.operationId, into: &buf)
+        FfiConverterString.write(value.embedId, into: &buf)
+        FfiConverterTypeImageEnhanceStateRecord.write(value.state, into: &buf)
+        FfiConverterInt64.write(value.baseVersion, into: &buf)
+        FfiConverterInt64.write(value.targetVersion, into: &buf)
+        FfiConverterInt64.write(value.credits, into: &buf)
+        FfiConverterBool.write(value.charged, into: &buf)
+        FfiConverterInt64.write(value.createdAt, into: &buf)
+        FfiConverterInt64.write(value.expiresAt, into: &buf)
+        FfiConverterOptionString.write(value.errorCode, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeImageEnhanceJobRecord_lift(_ buf: RustBuffer) throws -> ImageEnhanceJobRecord {
+    return try FfiConverterTypeImageEnhanceJobRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeImageEnhanceJobRecord_lower(_ value: ImageEnhanceJobRecord) -> RustBuffer {
+    return FfiConverterTypeImageEnhanceJobRecord.lower(value)
+}
+
+
+/**
  * What `WebSocketManager` needs to open its socket for the core's session.
  */
 public struct LegacySocketGrantRecord: Equatable, Hashable {
@@ -4770,6 +7392,334 @@ public func FfiConverterTypeLegacySocketGrantRecord_lift(_ buf: RustBuffer) thro
 #endif
 public func FfiConverterTypeLegacySocketGrantRecord_lower(_ value: LegacySocketGrantRecord) -> RustBuffer {
     return FfiConverterTypeLegacySocketGrantRecord.lower(value)
+}
+
+
+/**
+ * What a successful sign-in reports to Swift besides the started session.
+ */
+public struct LoginRecord: Equatable, Hashable {
+    /**
+     * The password v1→v2 migration the core ran after this login.
+     */
+    public var passwordMigration: PasswordMigrationRecord
+    /**
+     * Backup codes left after a backup-code login; `None` otherwise.
+     */
+    public var remainingBackupCodes: UInt32?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The password v1→v2 migration the core ran after this login.
+         */passwordMigration: PasswordMigrationRecord, 
+        /**
+         * Backup codes left after a backup-code login; `None` otherwise.
+         */remainingBackupCodes: UInt32?) {
+        self.passwordMigration = passwordMigration
+        self.remainingBackupCodes = remainingBackupCodes
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LoginRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLoginRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LoginRecord {
+        return
+            try LoginRecord(
+                passwordMigration: FfiConverterTypePasswordMigrationRecord.read(from: &buf), 
+                remainingBackupCodes: FfiConverterOptionUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LoginRecord, into buf: inout [UInt8]) {
+        FfiConverterTypePasswordMigrationRecord.write(value.passwordMigration, into: &buf)
+        FfiConverterOptionUInt32.write(value.remainingBackupCodes, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLoginRecord_lift(_ buf: RustBuffer) throws -> LoginRecord {
+    return try FfiConverterTypeLoginRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLoginRecord_lower(_ value: LoginRecord) -> RustBuffer {
+    return FfiConverterTypeLoginRecord.lower(value)
+}
+
+
+/**
+ * One stored personal Memory, decrypted.
+ */
+public struct MemoryDocumentRecord: Equatable, Hashable {
+    /**
+     * Stored id (`personal:<uuid>`); pass it to read, update and delete.
+     */
+    public var id: String
+    /**
+     * The parsed fields; `nil` when this client cannot read the document
+     * (then show `document` read-only; delete still works).
+     */
+    public var fields: MemoryFieldsRecord?
+    /**
+     * Unix seconds of the first save (`nil` for older Memories).
+     */
+    public var createdAt: UInt64?
+    /**
+     * Unix seconds of the latest save; sort "modified" by `updatedAt ??
+     * createdAt`, untimed Memories last, later stored first.
+     */
+    public var updatedAt: UInt64?
+    /**
+     * `validUntil` has passed (the web hides and deletes such Memories).
+     */
+    public var expired: Bool
+    /**
+     * The canonical Markdown document as stored.
+     */
+    public var document: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Stored id (`personal:<uuid>`); pass it to read, update and delete.
+         */id: String, 
+        /**
+         * The parsed fields; `nil` when this client cannot read the document
+         * (then show `document` read-only; delete still works).
+         */fields: MemoryFieldsRecord?, 
+        /**
+         * Unix seconds of the first save (`nil` for older Memories).
+         */createdAt: UInt64?, 
+        /**
+         * Unix seconds of the latest save; sort "modified" by `updatedAt ??
+         * createdAt`, untimed Memories last, later stored first.
+         */updatedAt: UInt64?, 
+        /**
+         * `validUntil` has passed (the web hides and deletes such Memories).
+         */expired: Bool, 
+        /**
+         * The canonical Markdown document as stored.
+         */document: String) {
+        self.id = id
+        self.fields = fields
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+        self.expired = expired
+        self.document = document
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension MemoryDocumentRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMemoryDocumentRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MemoryDocumentRecord {
+        return
+            try MemoryDocumentRecord(
+                id: FfiConverterString.read(from: &buf), 
+                fields: FfiConverterOptionTypeMemoryFieldsRecord.read(from: &buf), 
+                createdAt: FfiConverterOptionUInt64.read(from: &buf), 
+                updatedAt: FfiConverterOptionUInt64.read(from: &buf), 
+                expired: FfiConverterBool.read(from: &buf), 
+                document: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: MemoryDocumentRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterOptionTypeMemoryFieldsRecord.write(value.fields, into: &buf)
+        FfiConverterOptionUInt64.write(value.createdAt, into: &buf)
+        FfiConverterOptionUInt64.write(value.updatedAt, into: &buf)
+        FfiConverterBool.write(value.expired, into: &buf)
+        FfiConverterString.write(value.document, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMemoryDocumentRecord_lift(_ buf: RustBuffer) throws -> MemoryDocumentRecord {
+    return try FfiConverterTypeMemoryDocumentRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMemoryDocumentRecord_lower(_ value: MemoryDocumentRecord) -> RustBuffer {
+    return FfiConverterTypeMemoryDocumentRecord.lower(value)
+}
+
+
+/**
+ * The editable fields of one Memory page (web `RuleDocumentFields` without
+ * the save times, which the core stamps).
+ */
+public struct MemoryFieldsRecord: Equatable, Hashable {
+    /**
+     * Title, at most 180 characters once trimmed; required.
+     */
+    public var title: String
+    /**
+     * Legacy summary; keep what was read, new Memories pass `nil`.
+     */
+    public var description: String?
+    /**
+     * When the assistant should use it (at most 1,200 characters); empty
+     * means always considered.
+     */
+    public var whenToUse: String
+    /**
+     * Markdown body (at most 20,000 characters); required.
+     */
+    public var body: String
+    /**
+     * `nil` stores no load mode (the web editor writes `AutoInclude`).
+     */
+    public var loadMode: MemoryLoadModeRecord?
+    /**
+     * Start of the validity window, ISO 8601 (the web writes
+     * `YYYY-MM-DDT00:00:00.000Z`).
+     */
+    public var validFrom: String?
+    /**
+     * Expiry, ISO 8601 (the web writes `YYYY-MM-DDT23:59:59.000Z`); the
+     * Memory is deleted once it passed (`deleteExpiredMemoryDocuments`).
+     */
+    public var validUntil: String?
+    /**
+     * Embed ids the body references; keep what was read.
+     */
+    public var references: [String]
+    /**
+     * Optional app the Memory belongs to (icon and colour only).
+     */
+    public var appId: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Title, at most 180 characters once trimmed; required.
+         */title: String, 
+        /**
+         * Legacy summary; keep what was read, new Memories pass `nil`.
+         */description: String?, 
+        /**
+         * When the assistant should use it (at most 1,200 characters); empty
+         * means always considered.
+         */whenToUse: String, 
+        /**
+         * Markdown body (at most 20,000 characters); required.
+         */body: String, 
+        /**
+         * `nil` stores no load mode (the web editor writes `AutoInclude`).
+         */loadMode: MemoryLoadModeRecord?, 
+        /**
+         * Start of the validity window, ISO 8601 (the web writes
+         * `YYYY-MM-DDT00:00:00.000Z`).
+         */validFrom: String?, 
+        /**
+         * Expiry, ISO 8601 (the web writes `YYYY-MM-DDT23:59:59.000Z`); the
+         * Memory is deleted once it passed (`deleteExpiredMemoryDocuments`).
+         */validUntil: String?, 
+        /**
+         * Embed ids the body references; keep what was read.
+         */references: [String], 
+        /**
+         * Optional app the Memory belongs to (icon and colour only).
+         */appId: String?) {
+        self.title = title
+        self.description = description
+        self.whenToUse = whenToUse
+        self.body = body
+        self.loadMode = loadMode
+        self.validFrom = validFrom
+        self.validUntil = validUntil
+        self.references = references
+        self.appId = appId
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension MemoryFieldsRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMemoryFieldsRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MemoryFieldsRecord {
+        return
+            try MemoryFieldsRecord(
+                title: FfiConverterString.read(from: &buf), 
+                description: FfiConverterOptionString.read(from: &buf), 
+                whenToUse: FfiConverterString.read(from: &buf), 
+                body: FfiConverterString.read(from: &buf), 
+                loadMode: FfiConverterOptionTypeMemoryLoadModeRecord.read(from: &buf), 
+                validFrom: FfiConverterOptionString.read(from: &buf), 
+                validUntil: FfiConverterOptionString.read(from: &buf), 
+                references: FfiConverterSequenceString.read(from: &buf), 
+                appId: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: MemoryFieldsRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.title, into: &buf)
+        FfiConverterOptionString.write(value.description, into: &buf)
+        FfiConverterString.write(value.whenToUse, into: &buf)
+        FfiConverterString.write(value.body, into: &buf)
+        FfiConverterOptionTypeMemoryLoadModeRecord.write(value.loadMode, into: &buf)
+        FfiConverterOptionString.write(value.validFrom, into: &buf)
+        FfiConverterOptionString.write(value.validUntil, into: &buf)
+        FfiConverterSequenceString.write(value.references, into: &buf)
+        FfiConverterOptionString.write(value.appId, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMemoryFieldsRecord_lift(_ buf: RustBuffer) throws -> MemoryFieldsRecord {
+    return try FfiConverterTypeMemoryFieldsRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMemoryFieldsRecord_lower(_ value: MemoryFieldsRecord) -> RustBuffer {
+    return FfiConverterTypeMemoryFieldsRecord.lower(value)
 }
 
 
@@ -4904,6 +7854,14 @@ public struct MessageMetadataRecord: Equatable, Hashable {
      */
     public var createdAt: Int64?
     /**
+     * Server time of the last edit of the row (`updated_at`).
+     */
+    public var updatedAt: Int64?
+    /**
+     * App that produced the message (`app_id`).
+     */
+    public var appId: String?
+    /**
      * Server message id (`message_id`).
      */
     public var serverMessageId: String?
@@ -4967,6 +7925,12 @@ public struct MessageMetadataRecord: Equatable, Hashable {
          * Server creation time of the row (`created_at`).
          */createdAt: Int64?, 
         /**
+         * Server time of the last edit of the row (`updated_at`).
+         */updatedAt: Int64?, 
+        /**
+         * App that produced the message (`app_id`).
+         */appId: String?, 
+        /**
          * Server message id (`message_id`).
          */serverMessageId: String?, 
         /**
@@ -5009,6 +7973,8 @@ public struct MessageMetadataRecord: Equatable, Hashable {
          * Personal-data mappings stored with this message.
          */piiMappings: [PiiMappingRecord]) {
         self.createdAt = createdAt
+        self.updatedAt = updatedAt
+        self.appId = appId
         self.serverMessageId = serverMessageId
         self.clientMessageId = clientMessageId
         self.userMessageId = userMessageId
@@ -5042,6 +8008,8 @@ public struct FfiConverterTypeMessageMetadataRecord: FfiConverterRustBuffer {
         return
             try MessageMetadataRecord(
                 createdAt: FfiConverterOptionInt64.read(from: &buf), 
+                updatedAt: FfiConverterOptionInt64.read(from: &buf), 
+                appId: FfiConverterOptionString.read(from: &buf), 
                 serverMessageId: FfiConverterOptionString.read(from: &buf), 
                 clientMessageId: FfiConverterOptionString.read(from: &buf), 
                 userMessageId: FfiConverterOptionString.read(from: &buf), 
@@ -5061,6 +8029,8 @@ public struct FfiConverterTypeMessageMetadataRecord: FfiConverterRustBuffer {
 
     public static func write(_ value: MessageMetadataRecord, into buf: inout [UInt8]) {
         FfiConverterOptionInt64.write(value.createdAt, into: &buf)
+        FfiConverterOptionInt64.write(value.updatedAt, into: &buf)
+        FfiConverterOptionString.write(value.appId, into: &buf)
         FfiConverterOptionString.write(value.serverMessageId, into: &buf)
         FfiConverterOptionString.write(value.clientMessageId, into: &buf)
         FfiConverterOptionString.write(value.userMessageId, into: &buf)
@@ -5385,6 +8355,71 @@ public func FfiConverterTypePairChallengeRecord_lower(_ value: PairChallengeReco
 
 
 /**
+ * The WebAuthn request options for the system passkey ceremony.
+ */
+public struct PasskeyChallengeRecord: Equatable, Hashable {
+    /**
+     * The server's `/v1/auth/passkey/assertion/initiate` reply as UTF-8 JSON
+     * (`challenge` base64url, `rp.id`, `timeout`, `allowCredentials`,
+     * `userVerification`, `extensions.prf.eval.first` base64url salt). Holds
+     * no secret; the continuation stays in the core.
+     */
+    public var optionsJson: Data
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The server's `/v1/auth/passkey/assertion/initiate` reply as UTF-8 JSON
+         * (`challenge` base64url, `rp.id`, `timeout`, `allowCredentials`,
+         * `userVerification`, `extensions.prf.eval.first` base64url salt). Holds
+         * no secret; the continuation stays in the core.
+         */optionsJson: Data) {
+        self.optionsJson = optionsJson
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension PasskeyChallengeRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePasskeyChallengeRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PasskeyChallengeRecord {
+        return
+            try PasskeyChallengeRecord(
+                optionsJson: FfiConverterData.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PasskeyChallengeRecord, into buf: inout [UInt8]) {
+        FfiConverterData.write(value.optionsJson, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePasskeyChallengeRecord_lift(_ buf: RustBuffer) throws -> PasskeyChallengeRecord {
+    return try FfiConverterTypePasskeyChallengeRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePasskeyChallengeRecord_lower(_ value: PasskeyChallengeRecord) -> RustBuffer {
+    return FfiConverterTypePasskeyChallengeRecord.lower(value)
+}
+
+
+/**
  * Account password-v2 keys (bridge keys `authKey`, `wrapKey`, now raw bytes).
  * Both are secret; Swift wraps `wrap_key` in a `SymmetricKey` and drops the Data.
  */
@@ -5599,6 +8634,85 @@ public func FfiConverterTypeProbeRecord_lift(_ buf: RustBuffer) throws -> ProbeR
 #endif
 public func FfiConverterTypeProbeRecord_lower(_ value: ProbeRecord) -> RustBuffer {
     return FfiConverterTypeProbeRecord.lower(value)
+}
+
+
+/**
+ * The server's draft state of one requested chat.
+ */
+public struct ServerDraftVersionRecord: Equatable, Hashable {
+    /**
+     * Chat id.
+     */
+    public var chatId: String
+    /**
+     * The server's current `draft_v`; 0 means it holds no draft.
+     */
+    public var serverDraftV: UInt64
+    /**
+     * The server's authoritative deletion version, when it has one.
+     */
+    public var tombstoneV: UInt64?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Chat id.
+         */chatId: String, 
+        /**
+         * The server's current `draft_v`; 0 means it holds no draft.
+         */serverDraftV: UInt64, 
+        /**
+         * The server's authoritative deletion version, when it has one.
+         */tombstoneV: UInt64?) {
+        self.chatId = chatId
+        self.serverDraftV = serverDraftV
+        self.tombstoneV = tombstoneV
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ServerDraftVersionRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeServerDraftVersionRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ServerDraftVersionRecord {
+        return
+            try ServerDraftVersionRecord(
+                chatId: FfiConverterString.read(from: &buf), 
+                serverDraftV: FfiConverterUInt64.read(from: &buf), 
+                tombstoneV: FfiConverterOptionUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ServerDraftVersionRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.chatId, into: &buf)
+        FfiConverterUInt64.write(value.serverDraftV, into: &buf)
+        FfiConverterOptionUInt64.write(value.tombstoneV, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeServerDraftVersionRecord_lift(_ buf: RustBuffer) throws -> ServerDraftVersionRecord {
+    return try FfiConverterTypeServerDraftVersionRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeServerDraftVersionRecord_lower(_ value: ServerDraftVersionRecord) -> RustBuffer {
+    return FfiConverterTypeServerDraftVersionRecord.lower(value)
 }
 
 
@@ -5906,6 +9020,190 @@ public func FfiConverterTypeUnwrappedChatKeyRecord_lift(_ buf: RustBuffer) throw
 #endif
 public func FfiConverterTypeUnwrappedChatKeyRecord_lower(_ value: UnwrappedChatKeyRecord) -> RustBuffer {
     return FfiConverterTypeUnwrappedChatKeyRecord.lower(value)
+}
+
+
+/**
+ * One upload of a local file to the upload service.
+ */
+public struct UploadRequestRecord: Equatable, Hashable {
+    /**
+     * Absolute URL of `/v1/upload/file`, `/v1/upload/profile-image` or
+     * `/v1/upload/team-profile-image` on the configured API origin or, for
+     * an official API host, on the official upload host. Other hosts or
+     * paths are refused.
+     */
+    public var url: String
+    /**
+     * Absolute path of the file to send (at most 100 MB). The core reads it
+     * while sending; Swift keeps it until the call returns, then deletes it.
+     */
+    public var filePath: String
+    /**
+     * Filename of the `file` part (exact, including relative Project paths).
+     */
+    public var filename: String
+    /**
+     * Content type of the `file` part.
+     */
+    public var contentType: String
+    /**
+     * `chat_id`, `team_id`, `encrypted_profile_image_metadata`, each at most
+     * once.
+     */
+    public var fields: [HttpFieldRecord]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Absolute URL of `/v1/upload/file`, `/v1/upload/profile-image` or
+         * `/v1/upload/team-profile-image` on the configured API origin or, for
+         * an official API host, on the official upload host. Other hosts or
+         * paths are refused.
+         */url: String, 
+        /**
+         * Absolute path of the file to send (at most 100 MB). The core reads it
+         * while sending; Swift keeps it until the call returns, then deletes it.
+         */filePath: String, 
+        /**
+         * Filename of the `file` part (exact, including relative Project paths).
+         */filename: String, 
+        /**
+         * Content type of the `file` part.
+         */contentType: String, 
+        /**
+         * `chat_id`, `team_id`, `encrypted_profile_image_metadata`, each at most
+         * once.
+         */fields: [HttpFieldRecord]) {
+        self.url = url
+        self.filePath = filePath
+        self.filename = filename
+        self.contentType = contentType
+        self.fields = fields
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension UploadRequestRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeUploadRequestRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UploadRequestRecord {
+        return
+            try UploadRequestRecord(
+                url: FfiConverterString.read(from: &buf), 
+                filePath: FfiConverterString.read(from: &buf), 
+                filename: FfiConverterString.read(from: &buf), 
+                contentType: FfiConverterString.read(from: &buf), 
+                fields: FfiConverterSequenceTypeHttpFieldRecord.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: UploadRequestRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.url, into: &buf)
+        FfiConverterString.write(value.filePath, into: &buf)
+        FfiConverterString.write(value.filename, into: &buf)
+        FfiConverterString.write(value.contentType, into: &buf)
+        FfiConverterSequenceTypeHttpFieldRecord.write(value.fields, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeUploadRequestRecord_lift(_ buf: RustBuffer) throws -> UploadRequestRecord {
+    return try FfiConverterTypeUploadRequestRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeUploadRequestRecord_lower(_ value: UploadRequestRecord) -> RustBuffer {
+    return FfiConverterTypeUploadRequestRecord.lower(value)
+}
+
+
+/**
+ * The account's user payload and where it came from.
+ */
+public struct UserProfileRecord: Equatable, Hashable {
+    /**
+     * UTF-8 JSON object exactly as the server sent it (secret-bearing:
+     * never log it).
+     */
+    public var json: Data
+    /**
+     * `true`: admitted by the server in this run. `false`: cached from the
+     * last admission of this account while the restored session is not
+     * admitted yet (offline start); replaced by the next admission.
+     */
+    public var fresh: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * UTF-8 JSON object exactly as the server sent it (secret-bearing:
+         * never log it).
+         */json: Data, 
+        /**
+         * `true`: admitted by the server in this run. `false`: cached from the
+         * last admission of this account while the restored session is not
+         * admitted yet (offline start); replaced by the next admission.
+         */fresh: Bool) {
+        self.json = json
+        self.fresh = fresh
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension UserProfileRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeUserProfileRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UserProfileRecord {
+        return
+            try UserProfileRecord(
+                json: FfiConverterData.read(from: &buf), 
+                fresh: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: UserProfileRecord, into buf: inout [UInt8]) {
+        FfiConverterData.write(value.json, into: &buf)
+        FfiConverterBool.write(value.fresh, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeUserProfileRecord_lift(_ buf: RustBuffer) throws -> UserProfileRecord {
+    return try FfiConverterTypeUserProfileRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeUserProfileRecord_lower(_ value: UserProfileRecord) -> RustBuffer {
+    return FfiConverterTypeUserProfileRecord.lower(value)
 }
 
 
@@ -6368,6 +9666,156 @@ public func FfiConverterTypeChatWindowSourceRecord_lower(_ value: ChatWindowSour
 
 
 /**
+ * What happened to the announced entry.
+ */
+
+public enum ContextEntryActionRecord: Equatable, Hashable {
+    
+    /**
+     * A new entry was created.
+     */
+    case created
+    /**
+     * An existing entry was updated.
+     */
+    case updated
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension ContextEntryActionRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeContextEntryActionRecord: FfiConverterRustBuffer {
+    typealias SwiftType = ContextEntryActionRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ContextEntryActionRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .created
+        
+        case 2: return .updated
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: ContextEntryActionRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .created:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .updated:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeContextEntryActionRecord_lift(_ buf: RustBuffer) throws -> ContextEntryActionRecord {
+    return try FfiConverterTypeContextEntryActionRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeContextEntryActionRecord_lower(_ value: ContextEntryActionRecord) -> RustBuffer {
+    return FfiConverterTypeContextEntryActionRecord.lower(value)
+}
+
+
+
+/**
+ * Kind of entry a `context_entry` chat notice announces.
+ */
+
+public enum ContextEntryKindRecord: Equatable, Hashable {
+    
+    /**
+     * A Memory.
+     */
+    case memory
+    /**
+     * A workflow.
+     */
+    case workflow
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension ContextEntryKindRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeContextEntryKindRecord: FfiConverterRustBuffer {
+    typealias SwiftType = ContextEntryKindRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ContextEntryKindRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .memory
+        
+        case 2: return .workflow
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: ContextEntryKindRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .memory:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .workflow:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeContextEntryKindRecord_lift(_ buf: RustBuffer) throws -> ContextEntryKindRecord {
+    return try FfiConverterTypeContextEntryKindRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeContextEntryKindRecord_lower(_ value: ContextEntryKindRecord) -> RustBuffer {
+    return FfiConverterTypeContextEntryKindRecord.lower(value)
+}
+
+
+
+/**
  * Error returned by every fallible Apple binding call. Swift sees an `enum
  * CoreError: Error` with these cases. `Cancelled` covers both a call stopped
  * through its `CoreCancellation` (Swift task cancelled) and a core refusal such
@@ -6431,6 +9879,12 @@ enum CoreError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
      */
     case Expired
     /**
+     * The server kept the session but asks to verify this device or to sign
+     * in again; the detail is the event `Session(VerificationRequired)` and
+     * `ViewModelCore.pendingVerification()`. Stored credentials stay.
+     */
+    case VerificationRequired
+    /**
      * The core aborted the operation (also: stale credential revision).
      */
     case Cancelled
@@ -6447,6 +9901,18 @@ enum CoreError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
      * The object changed; read its latest state before retrying.
      */
     case Conflict
+    /**
+     * A Memory operation was refused (`view_memories.rs`). `code` is the web
+     * client's stable code (`ruleDocumentService.ts`): `rule_not_found`,
+     * `rule_exists`, `rule_changed`, `rule_not_undoable`,
+     * `invalid_rule_document`, `rule_catalog_limit`,
+     * `rule_settings_unavailable` or `rule_save_failed`.
+     */
+    case Memory(
+        /**
+         * Stable lowercase code.
+         */code: String
+    )
     /**
      * Binding failure (runtime task panicked or the core was shut down).
      */
@@ -6499,11 +9965,15 @@ public struct FfiConverterTypeCoreError: FfiConverterRustBuffer {
         case 8: return .Offline
         case 9: return .Forbidden
         case 10: return .Expired
-        case 11: return .Cancelled
-        case 12: return .Io
-        case 13: return .ProtocolError
-        case 14: return .Conflict
-        case 15: return .Internal(
+        case 11: return .VerificationRequired
+        case 12: return .Cancelled
+        case 13: return .Io
+        case 14: return .ProtocolError
+        case 15: return .Conflict
+        case 16: return .Memory(
+            code: try FfiConverterString.read(from: &buf)
+            )
+        case 17: return .Internal(
             reason: try FfiConverterString.read(from: &buf)
             )
 
@@ -6561,24 +10031,33 @@ public struct FfiConverterTypeCoreError: FfiConverterRustBuffer {
             writeInt(&buf, Int32(10))
         
         
-        case .Cancelled:
+        case .VerificationRequired:
             writeInt(&buf, Int32(11))
         
         
-        case .Io:
+        case .Cancelled:
             writeInt(&buf, Int32(12))
         
         
-        case .ProtocolError:
+        case .Io:
             writeInt(&buf, Int32(13))
         
         
-        case .Conflict:
+        case .ProtocolError:
             writeInt(&buf, Int32(14))
         
         
-        case let .Internal(reason):
+        case .Conflict:
             writeInt(&buf, Int32(15))
+        
+        
+        case let .Memory(code):
+            writeInt(&buf, Int32(16))
+            FfiConverterString.write(code, into: &buf)
+            
+        
+        case let .Internal(reason):
+            writeInt(&buf, Int32(17))
             FfiConverterString.write(reason, into: &buf)
             
         }
@@ -6689,6 +10168,1126 @@ public func FfiConverterTypeDecryptFailure_lower(_ value: DecryptFailure) -> Rus
 
 
 /**
+ * The factor the server asks for (core `DeviceVerificationMethod`).
+ */
+
+public enum DeviceVerificationMethodRecord: Equatable, Hashable {
+    
+    /**
+     * A code from the authenticator app: answer with `verifyDevice2fa`.
+     */
+    case twoFactor
+    /**
+     * A passkey assertion. The ceremony is Swift's (`ASAuthorization`); the
+     * core does not finish passkey device verification yet.
+     */
+    case passkey
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension DeviceVerificationMethodRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDeviceVerificationMethodRecord: FfiConverterRustBuffer {
+    typealias SwiftType = DeviceVerificationMethodRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DeviceVerificationMethodRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .twoFactor
+        
+        case 2: return .passkey
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: DeviceVerificationMethodRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .twoFactor:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .passkey:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDeviceVerificationMethodRecord_lift(_ buf: RustBuffer) throws -> DeviceVerificationMethodRecord {
+    return try FfiConverterTypeDeviceVerificationMethodRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDeviceVerificationMethodRecord_lower(_ value: DeviceVerificationMethodRecord) -> RustBuffer {
+    return FfiConverterTypeDeviceVerificationMethodRecord.lower(value)
+}
+
+
+
+/**
+ * Why an embed edit, restore, Enhance or history read failed. Each case is
+ * a stable code Swift can switch on; `code` fields carry the server's or
+ * core's stable code (`embed_type_not_editable`, `restore_source_missing`,
+ * ...). Messages never contain content, keys or URLs.
+ */
+public 
+enum EmbedEditError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
+
+    
+    
+    /**
+     * The embed changed meanwhile (another device or the assistant saved a
+     * newer version): reload it before editing again. Code
+     * `embed_version_conflict`.
+     */
+    case VersionConflict(
+        /**
+         * The server's head version, when known.
+         */currentVersion: Int64?
+    )
+    /**
+     * The embed belongs to a Project: save it in `EmbedScopeRecord.project`.
+     */
+    case ProjectContextRequired
+    /**
+     * The Enhance result is saved in another scope than it was started in.
+     */
+    case ScopeMismatch
+    /**
+     * This account may not edit this embed here.
+     */
+    case AccessDenied(
+        /**
+         * `forbidden`, `chat_access_denied`, `embed_type_not_editable`, ...
+         */code: String
+    )
+    /**
+     * The request was malformed (nothing was saved).
+     */
+    case Validation(
+        /**
+         * `invalid_restored_from`, `invalid_scope`, `invalid_head`, ...
+         */code: String
+    )
+    /**
+     * Another stable refusal of the server.
+     */
+    case Refused(
+        /**
+         * `restore_source_missing`, `operation_payload_mismatch`, ...
+         */code: String
+    )
+    /**
+     * The embed key is not available on this device.
+     */
+    case KeyUnavailable
+    /**
+     * Not enough credits for Enhance (nothing charged).
+     */
+    case InsufficientCredits
+    /**
+     * Team images cannot be enhanced yet.
+     */
+    case TeamUnavailable
+    /**
+     * The embed, chat, Project link or Enhance job does not exist.
+     */
+    case NotFound(
+        /**
+         * `embed_not_found`, `enhance_not_found`, ...
+         */code: String
+    )
+    /**
+     * The image cannot be enhanced (`not_an_image`, `unsupported_format`, ...).
+     */
+    case InvalidSource(
+        /**
+         * Stable code.
+         */code: String
+    )
+    /**
+     * Too many Enhance requests; retry later.
+     */
+    case RateLimited
+    /**
+     * The Enhance job is being updated; retry the same call.
+     */
+    case Busy
+    /**
+     * The operation id belongs to another embed or account.
+     */
+    case OperationConflict
+    /**
+     * A service is temporarily unavailable.
+     */
+    case Unavailable(
+        /**
+         * Server or core code.
+         */code: String
+    )
+    /**
+     * The Enhance job failed on the server; nothing was charged.
+     */
+    case EnhanceFailed(
+        /**
+         * The job's operation id.
+         */operationId: String, 
+        /**
+         * Server failure code.
+         */code: String
+    )
+    /**
+     * The Enhance result was not saved within 24 hours and is gone.
+     */
+    case EnhanceExpired(
+        /**
+         * The job's operation id.
+         */operationId: String
+    )
+    /**
+     * The Enhance job is still running.
+     */
+    case EnhanceNotReady(
+        /**
+         * The job's operation id.
+         */operationId: String
+    )
+    /**
+     * The wait ended before the job settled; the job keeps running. Keep
+     * `operation_id` and call `saveImageEnhanceResult` later.
+     */
+    case EnhanceTimeout(
+        /**
+         * The job's operation id.
+         */operationId: String
+    )
+    /**
+     * No network connection; nothing is known to be saved unless a retry
+     * with the same operation id reports it.
+     */
+    case Offline
+    /**
+     * The session ended (`Session(Expired)` was emitted when the server
+     * rejected it).
+     */
+    case SessionExpired
+    /**
+     * Signed out or not admitted.
+     */
+    case Authentication
+    /**
+     * The server asks to verify this device (`Session(VerificationRequired)`).
+     */
+    case VerificationRequired
+    /**
+     * `cancellation` fired.
+     */
+    case Cancelled
+    /**
+     * Another transport, crypto, storage or protocol failure.
+     */
+    case Transport(
+        /**
+         * `protocol`, `encryption_failed`, `io`, `locked`, `conflict`, ...
+         */code: String
+    )
+    /**
+     * Binding failure (runtime shut down or task panicked).
+     */
+    case Internal(
+        /**
+         * Fixed, non-secret reason.
+         */reason: String
+    )
+
+    
+
+    
+
+    
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+    
+}
+
+#if compiler(>=6)
+extension EmbedEditError: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEmbedEditError: FfiConverterRustBuffer {
+    typealias SwiftType = EmbedEditError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EmbedEditError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .VersionConflict(
+            currentVersion: try FfiConverterOptionInt64.read(from: &buf)
+            )
+        case 2: return .ProjectContextRequired
+        case 3: return .ScopeMismatch
+        case 4: return .AccessDenied(
+            code: try FfiConverterString.read(from: &buf)
+            )
+        case 5: return .Validation(
+            code: try FfiConverterString.read(from: &buf)
+            )
+        case 6: return .Refused(
+            code: try FfiConverterString.read(from: &buf)
+            )
+        case 7: return .KeyUnavailable
+        case 8: return .InsufficientCredits
+        case 9: return .TeamUnavailable
+        case 10: return .NotFound(
+            code: try FfiConverterString.read(from: &buf)
+            )
+        case 11: return .InvalidSource(
+            code: try FfiConverterString.read(from: &buf)
+            )
+        case 12: return .RateLimited
+        case 13: return .Busy
+        case 14: return .OperationConflict
+        case 15: return .Unavailable(
+            code: try FfiConverterString.read(from: &buf)
+            )
+        case 16: return .EnhanceFailed(
+            operationId: try FfiConverterString.read(from: &buf), 
+            code: try FfiConverterString.read(from: &buf)
+            )
+        case 17: return .EnhanceExpired(
+            operationId: try FfiConverterString.read(from: &buf)
+            )
+        case 18: return .EnhanceNotReady(
+            operationId: try FfiConverterString.read(from: &buf)
+            )
+        case 19: return .EnhanceTimeout(
+            operationId: try FfiConverterString.read(from: &buf)
+            )
+        case 20: return .Offline
+        case 21: return .SessionExpired
+        case 22: return .Authentication
+        case 23: return .VerificationRequired
+        case 24: return .Cancelled
+        case 25: return .Transport(
+            code: try FfiConverterString.read(from: &buf)
+            )
+        case 26: return .Internal(
+            reason: try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: EmbedEditError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .VersionConflict(currentVersion):
+            writeInt(&buf, Int32(1))
+            FfiConverterOptionInt64.write(currentVersion, into: &buf)
+            
+        
+        case .ProjectContextRequired:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .ScopeMismatch:
+            writeInt(&buf, Int32(3))
+        
+        
+        case let .AccessDenied(code):
+            writeInt(&buf, Int32(4))
+            FfiConverterString.write(code, into: &buf)
+            
+        
+        case let .Validation(code):
+            writeInt(&buf, Int32(5))
+            FfiConverterString.write(code, into: &buf)
+            
+        
+        case let .Refused(code):
+            writeInt(&buf, Int32(6))
+            FfiConverterString.write(code, into: &buf)
+            
+        
+        case .KeyUnavailable:
+            writeInt(&buf, Int32(7))
+        
+        
+        case .InsufficientCredits:
+            writeInt(&buf, Int32(8))
+        
+        
+        case .TeamUnavailable:
+            writeInt(&buf, Int32(9))
+        
+        
+        case let .NotFound(code):
+            writeInt(&buf, Int32(10))
+            FfiConverterString.write(code, into: &buf)
+            
+        
+        case let .InvalidSource(code):
+            writeInt(&buf, Int32(11))
+            FfiConverterString.write(code, into: &buf)
+            
+        
+        case .RateLimited:
+            writeInt(&buf, Int32(12))
+        
+        
+        case .Busy:
+            writeInt(&buf, Int32(13))
+        
+        
+        case .OperationConflict:
+            writeInt(&buf, Int32(14))
+        
+        
+        case let .Unavailable(code):
+            writeInt(&buf, Int32(15))
+            FfiConverterString.write(code, into: &buf)
+            
+        
+        case let .EnhanceFailed(operationId,code):
+            writeInt(&buf, Int32(16))
+            FfiConverterString.write(operationId, into: &buf)
+            FfiConverterString.write(code, into: &buf)
+            
+        
+        case let .EnhanceExpired(operationId):
+            writeInt(&buf, Int32(17))
+            FfiConverterString.write(operationId, into: &buf)
+            
+        
+        case let .EnhanceNotReady(operationId):
+            writeInt(&buf, Int32(18))
+            FfiConverterString.write(operationId, into: &buf)
+            
+        
+        case let .EnhanceTimeout(operationId):
+            writeInt(&buf, Int32(19))
+            FfiConverterString.write(operationId, into: &buf)
+            
+        
+        case .Offline:
+            writeInt(&buf, Int32(20))
+        
+        
+        case .SessionExpired:
+            writeInt(&buf, Int32(21))
+        
+        
+        case .Authentication:
+            writeInt(&buf, Int32(22))
+        
+        
+        case .VerificationRequired:
+            writeInt(&buf, Int32(23))
+        
+        
+        case .Cancelled:
+            writeInt(&buf, Int32(24))
+        
+        
+        case let .Transport(code):
+            writeInt(&buf, Int32(25))
+            FfiConverterString.write(code, into: &buf)
+            
+        
+        case let .Internal(reason):
+            writeInt(&buf, Int32(26))
+            FfiConverterString.write(reason, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEmbedEditError_lift(_ buf: RustBuffer) throws -> EmbedEditError {
+    return try FfiConverterTypeEmbedEditError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEmbedEditError_lower(_ value: EmbedEditError) -> RustBuffer {
+    return FfiConverterTypeEmbedEditError.lower(value)
+}
+
+
+/**
+ * What happened to the chat event of a committed version.
+ */
+
+public enum EmbedEventDeliveryRecord: Equatable, Hashable {
+    
+    /**
+     * The `embed_updated` event was written and confirmed now.
+     */
+    case written
+    /**
+     * This device (or the chat) already has it.
+     */
+    case alreadyWritten
+    /**
+     * The embed has no chat (a Project-only file).
+     */
+    case noChat
+    /**
+     * Not written now; the next chat open on any device writes it.
+     */
+    case deferred(
+        /**
+         * `home_chat_unavailable`, `embed_identity_unavailable`, `offline`, ...
+         */code: String
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension EmbedEventDeliveryRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEmbedEventDeliveryRecord: FfiConverterRustBuffer {
+    typealias SwiftType = EmbedEventDeliveryRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EmbedEventDeliveryRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .written
+        
+        case 2: return .alreadyWritten
+        
+        case 3: return .noChat
+        
+        case 4: return .deferred(code: try FfiConverterString.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: EmbedEventDeliveryRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .written:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .alreadyWritten:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .noChat:
+            writeInt(&buf, Int32(3))
+        
+        
+        case let .deferred(code):
+            writeInt(&buf, Int32(4))
+            FfiConverterString.write(code, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEmbedEventDeliveryRecord_lift(_ buf: RustBuffer) throws -> EmbedEventDeliveryRecord {
+    return try FfiConverterTypeEmbedEventDeliveryRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEmbedEventDeliveryRecord_lower(_ value: EmbedEventDeliveryRecord) -> RustBuffer {
+    return FfiConverterTypeEmbedEventDeliveryRecord.lower(value)
+}
+
+
+
+/**
+ * User-editable embed kinds, shown as "<Kind> updated".
+ */
+
+public enum EmbedKindRecord: Equatable, Hashable {
+    
+    /**
+     * Generated or uploaded image.
+     */
+    case image
+    /**
+     * HTML diagram.
+     */
+    case diagram
+    /**
+     * Slides deck.
+     */
+    case slides
+    /**
+     * Sheet.
+     */
+    case sheet
+    /**
+     * Document.
+     */
+    case document
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension EmbedKindRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEmbedKindRecord: FfiConverterRustBuffer {
+    typealias SwiftType = EmbedKindRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EmbedKindRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .image
+        
+        case 2: return .diagram
+        
+        case 3: return .slides
+        
+        case 4: return .sheet
+        
+        case 5: return .document
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: EmbedKindRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .image:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .diagram:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .slides:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .sheet:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .document:
+            writeInt(&buf, Int32(5))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEmbedKindRecord_lift(_ buf: RustBuffer) throws -> EmbedKindRecord {
+    return try FfiConverterTypeEmbedKindRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEmbedKindRecord_lower(_ value: EmbedKindRecord) -> RustBuffer {
+    return FfiConverterTypeEmbedKindRecord.lower(value)
+}
+
+
+
+/**
+ * Who made a version.
+ */
+
+public enum EmbedRevisionOriginRecord: Equatable, Hashable {
+    
+    /**
+     * The assistant (generation or revision).
+     */
+    case assistant
+    /**
+     * The user (edit, Enhance, restore, crop).
+     */
+    case user
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension EmbedRevisionOriginRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEmbedRevisionOriginRecord: FfiConverterRustBuffer {
+    typealias SwiftType = EmbedRevisionOriginRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EmbedRevisionOriginRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .assistant
+        
+        case 2: return .user
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: EmbedRevisionOriginRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .assistant:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .user:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEmbedRevisionOriginRecord_lift(_ buf: RustBuffer) throws -> EmbedRevisionOriginRecord {
+    return try FfiConverterTypeEmbedRevisionOriginRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEmbedRevisionOriginRecord_lower(_ value: EmbedRevisionOriginRecord) -> RustBuffer {
+    return FfiConverterTypeEmbedRevisionOriginRecord.lower(value)
+}
+
+
+
+/**
+ * Where a version is saved or read (core `RevisionScope`). A Project-linked
+ * embed is saved only in Project scope (`ProjectContextRequired` otherwise).
+ */
+
+public enum EmbedScopeRecord: Equatable, Hashable {
+    
+    /**
+     * The embed's chat (`team_id` for a Team chat).
+     */
+    case chat(
+        /**
+         * Chat id.
+         */chatId: String, 
+        /**
+         * Team of a Team chat.
+         */teamId: String?
+    )
+    /**
+     * A Project that links the embed.
+     */
+    case project(
+        /**
+         * Project id.
+         */projectId: String, 
+        /**
+         * Team of a Team Project.
+         */teamId: String?
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension EmbedScopeRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEmbedScopeRecord: FfiConverterRustBuffer {
+    typealias SwiftType = EmbedScopeRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EmbedScopeRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .chat(chatId: try FfiConverterString.read(from: &buf), teamId: try FfiConverterOptionString.read(from: &buf)
+        )
+        
+        case 2: return .project(projectId: try FfiConverterString.read(from: &buf), teamId: try FfiConverterOptionString.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: EmbedScopeRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .chat(chatId,teamId):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(chatId, into: &buf)
+            FfiConverterOptionString.write(teamId, into: &buf)
+            
+        
+        case let .project(projectId,teamId):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(projectId, into: &buf)
+            FfiConverterOptionString.write(teamId, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEmbedScopeRecord_lift(_ buf: RustBuffer) throws -> EmbedScopeRecord {
+    return try FfiConverterTypeEmbedScopeRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEmbedScopeRecord_lower(_ value: EmbedScopeRecord) -> RustBuffer {
+    return FfiConverterTypeEmbedScopeRecord.lower(value)
+}
+
+
+
+/**
+ * One item of the chat timeline: an ordinary message or a folded event run.
+ */
+
+public enum EmbedTimelineItemRecord: Equatable, Hashable {
+    
+    /**
+     * Input row `index`, rendered as before.
+     */
+    case message(
+        /**
+         * Index into the input rows.
+         */index: UInt64, 
+        /**
+         * Its message id.
+         */messageId: String
+    )
+    /**
+     * A run of user edits of one embed, rendered as one notice.
+     */
+    case embedUpdated(
+        /**
+         * The folded run.
+         */group: EmbedUpdatedGroupRecord
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension EmbedTimelineItemRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEmbedTimelineItemRecord: FfiConverterRustBuffer {
+    typealias SwiftType = EmbedTimelineItemRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EmbedTimelineItemRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .message(index: try FfiConverterUInt64.read(from: &buf), messageId: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 2: return .embedUpdated(group: try FfiConverterTypeEmbedUpdatedGroupRecord.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: EmbedTimelineItemRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .message(index,messageId):
+            writeInt(&buf, Int32(1))
+            FfiConverterUInt64.write(index, into: &buf)
+            FfiConverterString.write(messageId, into: &buf)
+            
+        
+        case let .embedUpdated(group):
+            writeInt(&buf, Int32(2))
+            FfiConverterTypeEmbedUpdatedGroupRecord.write(group, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEmbedTimelineItemRecord_lift(_ buf: RustBuffer) throws -> EmbedTimelineItemRecord {
+    return try FfiConverterTypeEmbedTimelineItemRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEmbedTimelineItemRecord_lower(_ value: EmbedTimelineItemRecord) -> RustBuffer {
+    return FfiConverterTypeEmbedTimelineItemRecord.lower(value)
+}
+
+
+
+/**
+ * What the user did to make a version.
+ */
+
+public enum EmbedUpdateActionRecord: Equatable, Hashable {
+    
+    /**
+     * A content edit.
+     */
+    case edit
+    /**
+     * An image Enhance result.
+     */
+    case enhance
+    /**
+     * A copy of an earlier version.
+     */
+    case restore
+    /**
+     * A cropped image.
+     */
+    case crop
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension EmbedUpdateActionRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEmbedUpdateActionRecord: FfiConverterRustBuffer {
+    typealias SwiftType = EmbedUpdateActionRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EmbedUpdateActionRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .edit
+        
+        case 2: return .enhance
+        
+        case 3: return .restore
+        
+        case 4: return .crop
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: EmbedUpdateActionRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .edit:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .enhance:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .restore:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .crop:
+            writeInt(&buf, Int32(4))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEmbedUpdateActionRecord_lift(_ buf: RustBuffer) throws -> EmbedUpdateActionRecord {
+    return try FfiConverterTypeEmbedUpdateActionRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEmbedUpdateActionRecord_lower(_ value: EmbedUpdateActionRecord) -> RustBuffer {
+    return FfiConverterTypeEmbedUpdateActionRecord.lower(value)
+}
+
+
+
+/**
+ * Where a user edit was made.
+ */
+
+public enum EmbedUpdateSurfaceRecord: Equatable, Hashable {
+    
+    /**
+     * In the embed's chat.
+     */
+    case chat
+    /**
+     * In the Projects workspace.
+     */
+    case project
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension EmbedUpdateSurfaceRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEmbedUpdateSurfaceRecord: FfiConverterRustBuffer {
+    typealias SwiftType = EmbedUpdateSurfaceRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EmbedUpdateSurfaceRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .chat
+        
+        case 2: return .project
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: EmbedUpdateSurfaceRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .chat:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .project:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEmbedUpdateSurfaceRecord_lift(_ buf: RustBuffer) throws -> EmbedUpdateSurfaceRecord {
+    return try FfiConverterTypeEmbedUpdateSurfaceRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEmbedUpdateSurfaceRecord_lower(_ value: EmbedUpdateSurfaceRecord) -> RustBuffer {
+    return FfiConverterTypeEmbedUpdateSurfaceRecord.lower(value)
+}
+
+
+
+/**
  * Result for one encrypted field.
  */
 
@@ -6777,6 +11376,207 @@ public func FfiConverterTypeFieldDecryptOutcome_lower(_ value: FieldDecryptOutco
 
 
 /**
+ * What saving an Enhance result did.
+ */
+
+public enum ImageEnhanceSavedRecord: Equatable, Hashable {
+    
+    /**
+     * Saved now as the next version (its chat event is `outcome.event`).
+     */
+    case committed(
+        /**
+         * The job's operation id.
+         */operationId: String, 
+        /**
+         * The committed version.
+         */outcome: EmbedRevisionOutcomeRecord
+    )
+    /**
+     * An earlier attempt or another device already saved it: reload the
+     * embed (its chat event comes from the pending-notice reconcile).
+     */
+    case alreadyCommitted(
+        /**
+         * The job's operation id.
+         */operationId: String, 
+        /**
+         * The version the result became.
+         */version: Int64
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension ImageEnhanceSavedRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeImageEnhanceSavedRecord: FfiConverterRustBuffer {
+    typealias SwiftType = ImageEnhanceSavedRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ImageEnhanceSavedRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .committed(operationId: try FfiConverterString.read(from: &buf), outcome: try FfiConverterTypeEmbedRevisionOutcomeRecord.read(from: &buf)
+        )
+        
+        case 2: return .alreadyCommitted(operationId: try FfiConverterString.read(from: &buf), version: try FfiConverterInt64.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: ImageEnhanceSavedRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .committed(operationId,outcome):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(operationId, into: &buf)
+            FfiConverterTypeEmbedRevisionOutcomeRecord.write(outcome, into: &buf)
+            
+        
+        case let .alreadyCommitted(operationId,version):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(operationId, into: &buf)
+            FfiConverterInt64.write(version, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeImageEnhanceSavedRecord_lift(_ buf: RustBuffer) throws -> ImageEnhanceSavedRecord {
+    return try FfiConverterTypeImageEnhanceSavedRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeImageEnhanceSavedRecord_lower(_ value: ImageEnhanceSavedRecord) -> RustBuffer {
+    return FfiConverterTypeImageEnhanceSavedRecord.lower(value)
+}
+
+
+
+/**
+ * Server state of an Enhance job.
+ */
+
+public enum ImageEnhanceStateRecord: Equatable, Hashable {
+    
+    /**
+     * Running.
+     */
+    case pending
+    /**
+     * A result exists; save it before `expires_at`.
+     */
+    case ready
+    /**
+     * Saved as version `target_version`.
+     */
+    case committed
+    /**
+     * Failed; nothing was charged.
+     */
+    case failed
+    /**
+     * Never saved and deleted.
+     */
+    case expired
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension ImageEnhanceStateRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeImageEnhanceStateRecord: FfiConverterRustBuffer {
+    typealias SwiftType = ImageEnhanceStateRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ImageEnhanceStateRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .pending
+        
+        case 2: return .ready
+        
+        case 3: return .committed
+        
+        case 4: return .failed
+        
+        case 5: return .expired
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: ImageEnhanceStateRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .pending:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .ready:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .committed:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .failed:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .expired:
+            writeInt(&buf, Int32(5))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeImageEnhanceStateRecord_lift(_ buf: RustBuffer) throws -> ImageEnhanceStateRecord {
+    return try FfiConverterTypeImageEnhanceStateRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeImageEnhanceStateRecord_lower(_ value: ImageEnhanceStateRecord) -> RustBuffer {
+    return FfiConverterTypeImageEnhanceStateRecord.lower(value)
+}
+
+
+
+/**
  * How trustworthy a published chat list is (core `ListCompleteness`).
  */
 
@@ -6857,6 +11657,166 @@ public func FfiConverterTypeListCompletenessRecord_lift(_ buf: RustBuffer) throw
 #endif
 public func FfiConverterTypeListCompletenessRecord_lower(_ value: ListCompletenessRecord) -> RustBuffer {
     return FfiConverterTypeListCompletenessRecord.lower(value)
+}
+
+
+
+/**
+ * When the assistant loads a Memory (`load_mode`).
+ */
+
+public enum MemoryLoadModeRecord: Equatable, Hashable {
+    
+    /**
+     * `auto_include`: loaded whenever it applies (the web default).
+     */
+    case autoInclude
+    /**
+     * `ask_first`: the user is asked before it is loaded.
+     */
+    case askFirst
+    /**
+     * `mention_only`: only when the user mentions it.
+     */
+    case mentionOnly
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension MemoryLoadModeRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMemoryLoadModeRecord: FfiConverterRustBuffer {
+    typealias SwiftType = MemoryLoadModeRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MemoryLoadModeRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .autoInclude
+        
+        case 2: return .askFirst
+        
+        case 3: return .mentionOnly
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: MemoryLoadModeRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .autoInclude:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .askFirst:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .mentionOnly:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMemoryLoadModeRecord_lift(_ buf: RustBuffer) throws -> MemoryLoadModeRecord {
+    return try FfiConverterTypeMemoryLoadModeRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMemoryLoadModeRecord_lower(_ value: MemoryLoadModeRecord) -> RustBuffer {
+    return FfiConverterTypeMemoryLoadModeRecord.lower(value)
+}
+
+
+
+/**
+ * What an Undo did.
+ */
+
+public enum MemoryUndoOutcomeRecord: Equatable, Hashable {
+    
+    /**
+     * The Memory the assistant created was deleted.
+     */
+    case deleted
+    /**
+     * The Memory the assistant updated holds its previous document again.
+     */
+    case restored
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension MemoryUndoOutcomeRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMemoryUndoOutcomeRecord: FfiConverterRustBuffer {
+    typealias SwiftType = MemoryUndoOutcomeRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MemoryUndoOutcomeRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .deleted
+        
+        case 2: return .restored
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: MemoryUndoOutcomeRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .deleted:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .restored:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMemoryUndoOutcomeRecord_lift(_ buf: RustBuffer) throws -> MemoryUndoOutcomeRecord {
+    return try FfiConverterTypeMemoryUndoOutcomeRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMemoryUndoOutcomeRecord_lower(_ value: MemoryUndoOutcomeRecord) -> RustBuffer {
+    return FfiConverterTypeMemoryUndoOutcomeRecord.lower(value)
 }
 
 
@@ -7017,6 +11977,160 @@ public func FfiConverterTypeMessageStatusRecord_lift(_ buf: RustBuffer) throws -
 #endif
 public func FfiConverterTypeMessageStatusRecord_lower(_ value: MessageStatusRecord) -> RustBuffer {
     return FfiConverterTypeMessageStatusRecord.lower(value)
+}
+
+
+
+/**
+ * Outcome of the password v1→v2 migration (core `PasswordMigrationOutcome`).
+ * Every value but `Completed` leaves the old password working; the core
+ * resumes a `PendingConfirmation` at the next password login by itself.
+ */
+
+public enum PasswordMigrationRecord: Equatable, Hashable {
+    
+    /**
+     * Not a legacy password login (v2 password, recovery key): nothing ran.
+     */
+    case notNeeded
+    /**
+     * The v2 credential is live and the legacy one retired.
+     */
+    case completed
+    /**
+     * v2 installed; the server keeps the legacy credential too.
+     */
+    case legacyRetained
+    /**
+     * v2 staged, not confirmed yet; the next password login resumes it.
+     */
+    case pendingConfirmation
+    /**
+     * The account's legacy credentials must be bound first; nothing staged.
+     */
+    case deferredLegacyCredentials
+    /**
+     * The server asks for a recent strong verification first.
+     */
+    case deferredRecentVerification
+    /**
+     * The server asks for a fresh password login first.
+     */
+    case deferredFreshLogin
+    /**
+     * The server does not offer the staged migration protocol.
+     */
+    case unsupported
+    /**
+     * The attempt failed (network, malformed reply, wrapper mismatch, or
+     * cancelled); the login itself succeeded.
+     */
+    case failed(
+        /**
+         * Payload-free failure class.
+         */kind: ViewErrorKindRecord
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension PasswordMigrationRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePasswordMigrationRecord: FfiConverterRustBuffer {
+    typealias SwiftType = PasswordMigrationRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PasswordMigrationRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .notNeeded
+        
+        case 2: return .completed
+        
+        case 3: return .legacyRetained
+        
+        case 4: return .pendingConfirmation
+        
+        case 5: return .deferredLegacyCredentials
+        
+        case 6: return .deferredRecentVerification
+        
+        case 7: return .deferredFreshLogin
+        
+        case 8: return .unsupported
+        
+        case 9: return .failed(kind: try FfiConverterTypeViewErrorKindRecord.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: PasswordMigrationRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .notNeeded:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .completed:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .legacyRetained:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .pendingConfirmation:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .deferredLegacyCredentials:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .deferredRecentVerification:
+            writeInt(&buf, Int32(6))
+        
+        
+        case .deferredFreshLogin:
+            writeInt(&buf, Int32(7))
+        
+        
+        case .unsupported:
+            writeInt(&buf, Int32(8))
+        
+        
+        case let .failed(kind):
+            writeInt(&buf, Int32(9))
+            FfiConverterTypeViewErrorKindRecord.write(kind, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePasswordMigrationRecord_lift(_ buf: RustBuffer) throws -> PasswordMigrationRecord {
+    return try FfiConverterTypePasswordMigrationRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePasswordMigrationRecord_lower(_ value: PasswordMigrationRecord) -> RustBuffer {
+    return FfiConverterTypePasswordMigrationRecord.lower(value)
 }
 
 
@@ -7219,6 +12333,81 @@ public func FfiConverterTypeSendStateRecord_lower(_ value: SendStateRecord) -> R
 
 
 /**
+ * Where this device's AI turns preferably run.
+ */
+
+public enum ServerRegionPreferenceRecord: Equatable, Hashable {
+    
+    /**
+     * Prefer EU-hosted servers (default).
+     */
+    case eu
+    /**
+     * Each model's fastest server, worldwide.
+     */
+    case global
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension ServerRegionPreferenceRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeServerRegionPreferenceRecord: FfiConverterRustBuffer {
+    typealias SwiftType = ServerRegionPreferenceRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ServerRegionPreferenceRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .eu
+        
+        case 2: return .global
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: ServerRegionPreferenceRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .eu:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .global:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeServerRegionPreferenceRecord_lift(_ buf: RustBuffer) throws -> ServerRegionPreferenceRecord {
+    return try FfiConverterTypeServerRegionPreferenceRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeServerRegionPreferenceRecord_lower(_ value: ServerRegionPreferenceRecord) -> RustBuffer {
+    return FfiConverterTypeServerRegionPreferenceRecord.lower(value)
+}
+
+
+
+/**
  * Session lifecycle events (core `SessionEvent`).
  */
 
@@ -7251,6 +12440,15 @@ public enum SessionEventRecord: Equatable, Hashable {
      * The session expired.
      */
     case expired
+    /**
+     * The server kept the session but asks to verify this device or to
+     * sign in again before it admits it; credentials stay stored.
+     */
+    case verificationRequired(
+        /**
+         * What the server asks for.
+         */verification: SessionVerificationRecord
+    )
     /**
      * Access was denied.
      */
@@ -7290,7 +12488,10 @@ public struct FfiConverterTypeSessionEventRecord: FfiConverterRustBuffer {
         
         case 4: return .expired
         
-        case 5: return .accessDenied(denial: try FfiConverterTypeAccessDenialRecord.read(from: &buf)
+        case 5: return .verificationRequired(verification: try FfiConverterTypeSessionVerificationRecord.read(from: &buf)
+        )
+        
+        case 6: return .accessDenied(denial: try FfiConverterTypeAccessDenialRecord.read(from: &buf)
         )
         
         default: throw UniffiInternalError.unexpectedEnumCase
@@ -7320,8 +12521,13 @@ public struct FfiConverterTypeSessionEventRecord: FfiConverterRustBuffer {
             writeInt(&buf, Int32(4))
         
         
-        case let .accessDenied(denial):
+        case let .verificationRequired(verification):
             writeInt(&buf, Int32(5))
+            FfiConverterTypeSessionVerificationRecord.write(verification, into: &buf)
+            
+        
+        case let .accessDenied(denial):
+            writeInt(&buf, Int32(6))
             FfiConverterTypeAccessDenialRecord.write(denial, into: &buf)
             
         }
@@ -7341,6 +12547,103 @@ public func FfiConverterTypeSessionEventRecord_lift(_ buf: RustBuffer) throws ->
 #endif
 public func FfiConverterTypeSessionEventRecord_lower(_ value: SessionEventRecord) -> RustBuffer {
     return FfiConverterTypeSessionEventRecord.lower(value)
+}
+
+
+
+/**
+ * What the server asks before it admits the session (core
+ * `SessionVerification`). Holds no secret.
+ */
+
+public enum SessionVerificationRecord: Equatable, Hashable {
+    
+    /**
+     * Verify this device with `method`.
+     */
+    case device(
+        /**
+         * The factor to use.
+         */method: DeviceVerificationMethodRecord, 
+        /**
+         * Why (`new_device`, `location_change`, `session_verification`).
+         */reason: String, 
+        /**
+         * A passkey check may also be answered with the password.
+         */passwordFallbackAvailable: Bool
+    )
+    /**
+     * Sign in again (`logout`, then a new login); no factor approves this
+     * session.
+     */
+    case reAuth(
+        /**
+         * Why, as the server named it.
+         */reason: String
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension SessionVerificationRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSessionVerificationRecord: FfiConverterRustBuffer {
+    typealias SwiftType = SessionVerificationRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SessionVerificationRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .device(method: try FfiConverterTypeDeviceVerificationMethodRecord.read(from: &buf), reason: try FfiConverterString.read(from: &buf), passwordFallbackAvailable: try FfiConverterBool.read(from: &buf)
+        )
+        
+        case 2: return .reAuth(reason: try FfiConverterString.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: SessionVerificationRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .device(method,reason,passwordFallbackAvailable):
+            writeInt(&buf, Int32(1))
+            FfiConverterTypeDeviceVerificationMethodRecord.write(method, into: &buf)
+            FfiConverterString.write(reason, into: &buf)
+            FfiConverterBool.write(passwordFallbackAvailable, into: &buf)
+            
+        
+        case let .reAuth(reason):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(reason, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSessionVerificationRecord_lift(_ buf: RustBuffer) throws -> SessionVerificationRecord {
+    return try FfiConverterTypeSessionVerificationRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSessionVerificationRecord_lower(_ value: SessionVerificationRecord) -> RustBuffer {
+    return FfiConverterTypeSessionVerificationRecord.lower(value)
 }
 
 
@@ -7684,6 +12987,10 @@ public enum ViewErrorKindRecord: Equatable, Hashable {
      */
     case expired
     /**
+     * The server asks to verify this device or to sign in again.
+     */
+    case verificationRequired
+    /**
      * The operation was cancelled.
      */
     case cancelled
@@ -7741,13 +13048,15 @@ public struct FfiConverterTypeViewErrorKindRecord: FfiConverterRustBuffer {
         
         case 10: return .expired
         
-        case 11: return .cancelled
+        case 11: return .verificationRequired
         
-        case 12: return .io
+        case 12: return .cancelled
         
-        case 13: return .protocolError
+        case 13: return .io
         
-        case 14: return .conflict
+        case 14: return .protocolError
+        
+        case 15: return .conflict
         
         default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -7798,20 +13107,24 @@ public struct FfiConverterTypeViewErrorKindRecord: FfiConverterRustBuffer {
             writeInt(&buf, Int32(10))
         
         
-        case .cancelled:
+        case .verificationRequired:
             writeInt(&buf, Int32(11))
         
         
-        case .io:
+        case .cancelled:
             writeInt(&buf, Int32(12))
         
         
-        case .protocolError:
+        case .io:
             writeInt(&buf, Int32(13))
         
         
-        case .conflict:
+        case .protocolError:
             writeInt(&buf, Int32(14))
+        
+        
+        case .conflict:
+            writeInt(&buf, Int32(15))
         
         }
     }
@@ -7869,7 +13182,11 @@ public enum ViewEventRecord: Equatable, Hashable {
          */rows: [ChatListRowRecord], 
         /**
          * How far the list can be trusted.
-         */completeness: ListCompletenessRecord
+         */completeness: ListCompletenessRecord, 
+        /**
+         * Chats the account has in this scope as the server last reported it;
+         * `None` until reported.
+         */totalCount: UInt64?
     )
     /**
      * A chat window is ready or changed.
@@ -7955,6 +13272,27 @@ public enum ViewEventRecord: Equatable, Hashable {
      * The current unit of work finished.
      */
     case done
+    /**
+     * An inbound socket frame of a shell feature the core does not own yet
+     * (core `UnownedSocketFrame`; temporary strangler seam).
+     */
+    case unownedSocketFrame(
+        /**
+         * The frame's `type` name.
+         */eventType: String, 
+        /**
+         * The frame's payload as JSON text.
+         */payloadJson: String
+    )
+    /**
+     * `count` unowned frames were dropped here; re-read their state (core
+     * `UnownedSocketFramesDropped`).
+     */
+    case unownedSocketFramesDropped(
+        /**
+         * Frames lost at this position.
+         */count: UInt64
+    )
 
 
 
@@ -7982,7 +13320,7 @@ public struct FfiConverterTypeViewEventRecord: FfiConverterRustBuffer {
         case 2: return .syncProgress(phase: try FfiConverterTypeSyncPhaseRecord.read(from: &buf), received: try FfiConverterUInt64.read(from: &buf)
         )
         
-        case 3: return .chatList(rows: try FfiConverterSequenceTypeChatListRowRecord.read(from: &buf), completeness: try FfiConverterTypeListCompletenessRecord.read(from: &buf)
+        case 3: return .chatList(rows: try FfiConverterSequenceTypeChatListRowRecord.read(from: &buf), completeness: try FfiConverterTypeListCompletenessRecord.read(from: &buf), totalCount: try FfiConverterOptionUInt64.read(from: &buf)
         )
         
         case 4: return .chatWindow(request: try FfiConverterUInt64.read(from: &buf), window: try FfiConverterTypeChatWindowViewRecord.read(from: &buf)
@@ -8008,6 +13346,12 @@ public struct FfiConverterTypeViewEventRecord: FfiConverterRustBuffer {
         
         case 11: return .done
         
+        case 12: return .unownedSocketFrame(eventType: try FfiConverterString.read(from: &buf), payloadJson: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 13: return .unownedSocketFramesDropped(count: try FfiConverterUInt64.read(from: &buf)
+        )
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
@@ -8027,10 +13371,11 @@ public struct FfiConverterTypeViewEventRecord: FfiConverterRustBuffer {
             FfiConverterUInt64.write(received, into: &buf)
             
         
-        case let .chatList(rows,completeness):
+        case let .chatList(rows,completeness,totalCount):
             writeInt(&buf, Int32(3))
             FfiConverterSequenceTypeChatListRowRecord.write(rows, into: &buf)
             FfiConverterTypeListCompletenessRecord.write(completeness, into: &buf)
+            FfiConverterOptionUInt64.write(totalCount, into: &buf)
             
         
         case let .chatWindow(request,window):
@@ -8078,6 +13423,17 @@ public struct FfiConverterTypeViewEventRecord: FfiConverterRustBuffer {
         case .done:
             writeInt(&buf, Int32(11))
         
+        
+        case let .unownedSocketFrame(eventType,payloadJson):
+            writeInt(&buf, Int32(12))
+            FfiConverterString.write(eventType, into: &buf)
+            FfiConverterString.write(payloadJson, into: &buf)
+            
+        
+        case let .unownedSocketFramesDropped(count):
+            writeInt(&buf, Int32(13))
+            FfiConverterUInt64.write(count, into: &buf)
+            
         }
     }
 }
@@ -8097,6 +13453,30 @@ public func FfiConverterTypeViewEventRecord_lower(_ value: ViewEventRecord) -> R
     return FfiConverterTypeViewEventRecord.lower(value)
 }
 
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionUInt32: FfiConverterRustBuffer {
+    typealias SwiftType = UInt32?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterUInt32.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterUInt32.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
@@ -8269,6 +13649,54 @@ fileprivate struct FfiConverterOptionTypeCoreListener: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeImageEnhanceWaker: FfiConverterRustBuffer {
+    typealias SwiftType = ImageEnhanceWaker?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeImageEnhanceWaker.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeImageEnhanceWaker.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeContextEntryNoticeRecord: FfiConverterRustBuffer {
+    typealias SwiftType = ContextEntryNoticeRecord?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeContextEntryNoticeRecord.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeContextEntryNoticeRecord.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeCredentialSnapshotRecord: FfiConverterRustBuffer {
     typealias SwiftType = CredentialSnapshotRecord?
 
@@ -8285,6 +13713,30 @@ fileprivate struct FfiConverterOptionTypeCredentialSnapshotRecord: FfiConverterR
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeCredentialSnapshotRecord.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeMemoryFieldsRecord: FfiConverterRustBuffer {
+    typealias SwiftType = MemoryFieldsRecord?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeMemoryFieldsRecord.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeMemoryFieldsRecord.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -8317,6 +13769,54 @@ fileprivate struct FfiConverterOptionTypeSessionInfoRecord: FfiConverterRustBuff
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeEmbedScopeRecord: FfiConverterRustBuffer {
+    typealias SwiftType = EmbedScopeRecord?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeEmbedScopeRecord.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeEmbedScopeRecord.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeEmbedUpdateActionRecord: FfiConverterRustBuffer {
+    typealias SwiftType = EmbedUpdateActionRecord?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeEmbedUpdateActionRecord.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeEmbedUpdateActionRecord.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeFieldDecryptOutcome: FfiConverterRustBuffer {
     typealias SwiftType = FieldDecryptOutcome?
 
@@ -8333,6 +13833,30 @@ fileprivate struct FfiConverterOptionTypeFieldDecryptOutcome: FfiConverterRustBu
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeFieldDecryptOutcome.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeMemoryLoadModeRecord: FfiConverterRustBuffer {
+    typealias SwiftType = MemoryLoadModeRecord?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeMemoryLoadModeRecord.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeMemoryLoadModeRecord.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -8359,6 +13883,55 @@ fileprivate struct FfiConverterOptionTypeSendStateRecord: FfiConverterRustBuffer
         case 1: return try FfiConverterTypeSendStateRecord.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeSessionVerificationRecord: FfiConverterRustBuffer {
+    typealias SwiftType = SessionVerificationRecord?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeSessionVerificationRecord.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeSessionVerificationRecord.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceString: FfiConverterRustBuffer {
+    typealias SwiftType = [String]
+
+    public static func write(_ value: [String], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterString.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [String] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [String]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterString.read(from: &buf))
+        }
+        return seq
     }
 }
 
@@ -8415,6 +13988,56 @@ fileprivate struct FfiConverterSequenceTypeChatMetadataRecord: FfiConverterRustB
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeContextEntryNoticeRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [ContextEntryNoticeRecord]
+
+    public static func write(_ value: [ContextEntryNoticeRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeContextEntryNoticeRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ContextEntryNoticeRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ContextEntryNoticeRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeContextEntryNoticeRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeDraftVersionQueryRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [DraftVersionQueryRecord]
+
+    public static func write(_ value: [DraftVersionQueryRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeDraftVersionQueryRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [DraftVersionQueryRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [DraftVersionQueryRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeDraftVersionQueryRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeEmbedRefRecord: FfiConverterRustBuffer {
     typealias SwiftType = [EmbedRefRecord]
 
@@ -8432,6 +14055,56 @@ fileprivate struct FfiConverterSequenceTypeEmbedRefRecord: FfiConverterRustBuffe
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeEmbedRefRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeEmbedTimelineRowRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [EmbedTimelineRowRecord]
+
+    public static func write(_ value: [EmbedTimelineRowRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeEmbedTimelineRowRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [EmbedTimelineRowRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [EmbedTimelineRowRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeEmbedTimelineRowRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeEmbedVersionRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [EmbedVersionRecord]
+
+    public static func write(_ value: [EmbedVersionRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeEmbedVersionRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [EmbedVersionRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [EmbedVersionRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeEmbedVersionRecord.read(from: &buf))
         }
         return seq
     }
@@ -8515,6 +14188,31 @@ fileprivate struct FfiConverterSequenceTypeHttpFieldRecord: FfiConverterRustBuff
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeMemoryDocumentRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [MemoryDocumentRecord]
+
+    public static func write(_ value: [MemoryDocumentRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeMemoryDocumentRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [MemoryDocumentRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [MemoryDocumentRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeMemoryDocumentRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeMessageFieldsRecord: FfiConverterRustBuffer {
     typealias SwiftType = [MessageFieldsRecord]
 
@@ -8590,6 +14288,31 @@ fileprivate struct FfiConverterSequenceTypePiiMappingRecord: FfiConverterRustBuf
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeServerDraftVersionRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [ServerDraftVersionRecord]
+
+    public static func write(_ value: [ServerDraftVersionRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeServerDraftVersionRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ServerDraftVersionRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ServerDraftVersionRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeServerDraftVersionRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeSessionCookieRecord: FfiConverterRustBuffer {
     typealias SwiftType = [SessionCookieRecord]
 
@@ -8657,6 +14380,31 @@ fileprivate struct FfiConverterSequenceTypeWrappedChatKeyRecord: FfiConverterRus
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeWrappedChatKeyRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeEmbedTimelineItemRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [EmbedTimelineItemRecord]
+
+    public static func write(_ value: [EmbedTimelineItemRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeEmbedTimelineItemRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [EmbedTimelineItemRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [EmbedTimelineItemRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeEmbedTimelineItemRecord.read(from: &buf))
         }
         return seq
     }
@@ -8953,6 +14701,34 @@ public func startServerLogin(serverSetup: String, registrationRecord: String, st
     )
 })
 }
+/**
+ * Fold the `embed_updated` system events of an open chat window (rows in
+ * window order, as `ChatWindow` delivers them) the way the web timeline
+ * shows them: consecutive events of one embed with no other row between
+ * them become one `EmbedUpdated` item; every other row, including an
+ * invalid event payload, stays a `Message`. Pure; no actor or network.
+ */
+public func embedUpdateTimeline(rows: [EmbedTimelineRowRecord]) -> [EmbedTimelineItemRecord]  {
+    return try!  FfiConverterSequenceTypeEmbedTimelineItemRecord.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_embed_update_timeline(
+        FfiConverterSequenceTypeEmbedTimelineRowRecord.lower(rows),uniffiCallStatus
+    )
+})
+}
+/**
+ * Parse the plaintext of a chat's `role: system` message: the notice record
+ * when it is a valid `context_entry` event ("Memory saved", "Workflow
+ * updated"), else `nil`. Pure; for rendering chat history rows.
+ */
+public func contextEntryNotice(content: String) -> ContextEntryNoticeRecord?  {
+    return try!  FfiConverterOptionTypeContextEntryNoticeRecord.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_context_entry_notice(
+        FfiConverterString.lower(content),uniffiCallStatus
+    )
+})
+}
 
 private enum InitializationResult {
     case ok
@@ -9011,6 +14787,12 @@ private let initializationResult: InitializationResult = {
     if (uniffi_openmates_apple_bindings_checksum_func_start_server_login() != 494) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_openmates_apple_bindings_checksum_func_embed_update_timeline() != 59258) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_context_entry_notice() != 3233) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_openmates_apple_bindings_checksum_method_corecancellation_cancel() != 32025) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -9056,6 +14838,18 @@ private let initializationResult: InitializationResult = {
     if (uniffi_openmates_apple_bindings_checksum_method_viewlistener_on_event() != 15894) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_pending_verification() != 30683) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_user_profile() != 11640) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_user_profile_json() != 17606) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_verify_device_2fa() != 37524) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_adopt_session() != 31921) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -9089,7 +14883,37 @@ private let initializationResult: InitializationResult = {
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_switch_team() != 20358) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_http_request() != 50748) {
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_draft_versions() != 23118) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_enhance_image() != 29649) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_image_enhance_status() != 38775) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_save_image_enhance_result() != 55612) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_start_image_enhance() != 42700) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_wait_image_enhance() != 54777) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_commit_embed_edit() != 32110) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_embed_version_history() != 16223) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_reconcile_embed_update_notices() != 32977) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_restore_embed_version() != 4986) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_http_request() != 23645) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_legacy_master_key() != 42336) {
@@ -9107,13 +14931,70 @@ private let initializationResult: InitializationResult = {
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_finish_pair_login() != 21585) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_login_password() != 24622) {
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_login_backup_code() != 10958) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_login_password() != 10813) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_login_recovery_key() != 56998) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_poll_pair_login() != 17469) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_submit_pair_pin() != 24978) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_begin_passkey_device_verification() != 26945) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_begin_passkey_login() != 2362) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_cancel_passkey_login() != 45915) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_finish_passkey_device_verification() != 42645) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_finish_passkey_login() != 49944) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_assistant_memory_writes() != 48299) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_create_memory_document() != 28795) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_delete_expired_memory_documents() != 54500) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_delete_memory_document() != 51292) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_list_memory_documents() != 55616) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_memory_document() != 37442) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_set_assistant_memory_writes() != 64005) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_undo_assistant_memory_write() != 59551) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_update_memory_document() != 35185) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_server_region_preference() != 12846) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_server_region_preference_from_stored() != 2366) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_set_server_region_preference() != 63111) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_cancel_send() != 12295) {
@@ -9125,6 +15006,18 @@ private let initializationResult: InitializationResult = {
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_session_info() != 51951) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_forward_unowned_frames() != 62339) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_send_unowned_frame() != 31489) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_upload_file() != 50705) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_imageenhancewaker_notify_frame() != 22400) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_openmates_apple_bindings_checksum_constructor_corecancellation_new() != 2322) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -9132,6 +15025,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_constructor_viewmodelcore_new() != 44060) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_constructor_imageenhancewaker_new() != 49111) {
         return InitializationResult.apiChecksumMismatch
     }
 

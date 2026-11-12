@@ -717,7 +717,9 @@ final class AppDeepLinkRoutingTests: XCTestCase {
             XCTAssertFalse(route.hasNativeChild, path)
         }
         XCTAssertTrue(SettingsDeepLinkRoute("apps/all").hasNativeChild)
-        XCTAssertTrue(SettingsDeepLinkRoute("apps/jobs/settings_memories/profile").hasNativeChild)
+        // Typed app memory categories were removed; Memories live under settings_memories.
+        XCTAssertFalse(SettingsDeepLinkRoute("apps/jobs/settings_memories/profile").hasNativeChild)
+        XCTAssertTrue(SettingsDeepLinkRoute("settings_memories/create").hasNativeChild)
     }
 
     // contract-test: supporting surface=gui.apple assertions=apple-task-board.new-task-shortcuts

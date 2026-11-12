@@ -5,6 +5,8 @@ pub(super) mod cookie_observation;
 mod owned_monitor_socket;
 mod remote_command_stop;
 pub(crate) mod local_connector;
+mod monitor_error_frames;
+pub(super) use monitor_error_frames::{MonitorFrame, receive_monitor_frame};
 #[cfg(not(target_arch = "wasm32"))] pub(super) mod binary_stream;
 pub(super) use owned_monitor_socket::{PreparedOwnedMonitorSocket,UnannouncedOwnedMonitorSocket,prepare_owned_passive_monitor_socket,connect_owned_passive_monitor_socket,announce_owned_passive_monitor_socket};
 #[cfg(all(feature="browser-metadata-prototype",any(target_arch="wasm32",test)))]
@@ -1278,6 +1280,9 @@ pub(super) async fn receive_ephemeral(ws: &mut Socket) -> Result<(String, Value)
 }
 /// Only the monitor admits the legacy canonical event envelope. Ordinary
 /// request/ACK, send, recovery and task-only parsing remains unchanged.
+/// The live monitor uses `receive_monitor_frame`; the native volatile
+/// metadata reader is the remaining caller.
+#[cfg(not(target_arch = "wasm32"))]
 pub(super) async fn receive_monitor(ws: &mut Socket) -> Result<(String, Value)> {
     let _original_receive=ws.own_receive()?;
     if let Some(frame) = ws.pop_pending()? {
@@ -1300,11 +1305,15 @@ enum ErrorAllowance<'a> {
     EmbedDiff,
     /// Another device of the same owner holds this exact job's lease.
     RecoveryClaim { job: &'a str, request: &'a str },
+    /// The live monitor attributes every error frame itself
+    /// (`transport/monitor_error_frames.rs`).
+    Monitor,
 }
 impl ErrorAllowance<'_> {
     fn admits(self, payload: &Value) -> bool {
         match self {
             Self::None => false,
+            Self::Monitor => true,
             Self::EmbedDiff => payload["code"] == "embed_diff_conflict"
                 && payload["request_id"].is_string()
                 && payload["embed_id"].is_string()
@@ -1314,6 +1323,17 @@ impl ErrorAllowance<'_> {
                 && payload["request_id"] == request,
         }
     }
+}
+/// Whether an `error` frame with `payload` is a fatal protocol violation for
+/// this waiter (every error frame the waiter cannot receive as data).
+fn rejects_error_frame(payload: &Value, ephemeral: bool, allowance: ErrorAllowance<'_>) -> bool {
+    let task_error = payload["job_id"].is_string()
+        && payload["request_id"].is_string()
+        && matches!(
+            payload["code"].as_str(),
+            Some("TaskUpdateJobConflictError" | "TaskUpdateJobNotFoundError" | "ValueError" | "PermissionError")
+        );
+    !ephemeral && payload["code"] != "workflow_chat_delivery_rejected" && !task_error && !allowance.admits(payload)
 }
 async fn receive_raw_policy(
     ws: &mut Socket, ephemeral: bool, monitor: bool, allowance: ErrorAllowance<'_>,
@@ -1347,29 +1367,13 @@ async fn receive_raw_policy(
                 if kind == "force_logout" {
                     return Err(Error::Expired);
                 }
-                let task_error = frame["payload"]["job_id"].is_string()
-                    && frame["payload"]["request_id"].is_string()
-                    && matches!(
-                        frame["payload"]["code"].as_str(),
-                        Some(
-                            "TaskUpdateJobConflictError"
-                                | "TaskUpdateJobNotFoundError"
-                                | "ValueError"
-                                | "PermissionError"
-                        )
-                    );
                 if kind == "error" && is_turn_preflight_rejection(&frame["payload"]) {
                     return Err(Error::Unavailable {
                         code: "chat_turn_rejected",
                         reason: "SERVER_REJECTED_TURN_BEFORE_ADMISSION",
                     });
                 }
-                if kind == "error"
-                    && !ephemeral
-                    && frame["payload"]["code"] != "workflow_chat_delivery_rejected"
-                    && !task_error
-                    && !allowance.admits(&frame["payload"])
-                {
+                if kind == "error" && rejects_error_frame(&frame["payload"], ephemeral, allowance) {
                     return Err(Error::Protocol);
                 }
                 return Ok((kind, frame.get("payload").cloned().unwrap_or(Value::Null)));

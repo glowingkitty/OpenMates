@@ -45,8 +45,8 @@ pub struct HttpRequestRecord {
     pub body: Option<Vec<u8>>,
 }
 
-/// The server's answer for any status the core does not own (it owns 401,
-/// redirects and an expected-principal 403).
+/// The server's answer for any status the core does not own (it owns 401
+/// except on password-migration routes, redirects and an expected-principal 403).
 #[derive(Clone, PartialEq, Eq, uniffi::Record)]
 pub struct HttpResponseRecord {
     /// HTTP status code; non-2xx statuses are returned, not thrown.
@@ -56,6 +56,19 @@ pub struct HttpResponseRecord {
     pub headers: Vec<HttpFieldRecord>,
     /// Body bytes, at most 16 MiB.
     pub body: Vec<u8>,
+}
+
+/// Hand a core response to Swift (also used by `view_upload.rs`).
+pub(crate) fn response_record(mut response: ShellHttpResponse) -> HttpResponseRecord {
+    HttpResponseRecord {
+        status: response.status,
+        headers: std::mem::take(&mut response.headers)
+            .into_iter()
+            .map(|(name, value)| HttpFieldRecord { name, value })
+            .collect(),
+        // Swift owns the bytes from here; the core copy is zeroized.
+        body: response.body.to_vec(),
+    }
 }
 
 impl Shared {
@@ -92,8 +105,10 @@ impl ViewModelCore {
     /// Several requests may run at once; each waits for a running command
     /// (for example a send) only to prepare and to finish. A rotated cookie
     /// is stored through the Keychain before this returns. A 401 signs the
-    /// profile out (wipe, `Session(Expired)` event). Not covered: uploads to
-    /// the upload host, multipart helpers and streaming responses.
+    /// profile out (wipe, `Session(Expired)` event), except on
+    /// `/v1/auth/password-v2/` (password migration) routes, where the 401
+    /// is returned as an ordinary response and the session stays. Uploads use
+    /// `uploadFile`; streaming responses are not covered.
     ///
     /// # Errors
     /// `Authentication` while signed out (also when signed out during the
@@ -127,17 +142,9 @@ impl ViewModelCore {
             body: body.map(Zeroizing::new),
         };
         let (shared, token) = (self.shared.clone(), self.detached(cancellation));
-        let mut response = self
+        let response = self
             .run(async move { shared.http_request(request, token).await })
             .await?;
-        Ok(HttpResponseRecord {
-            status: response.status,
-            headers: std::mem::take(&mut response.headers)
-                .into_iter()
-                .map(|(name, value)| HttpFieldRecord { name, value })
-                .collect(),
-            // Swift owns the bytes from here; the core copy is zeroized.
-            body: response.body.to_vec(),
-        })
+        Ok(response_record(response))
     }
 }

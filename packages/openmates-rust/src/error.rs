@@ -15,6 +15,10 @@ pub enum Error {
     Offline,
     Forbidden,
     Expired,
+    /// The server kept the session but asks to verify this device or to sign
+    /// in again; the detail is `Client::session_verification`. Stored
+    /// credentials stay (the session is not gone).
+    VerificationRequired,
     Cancelled,
     Io,
     Protocol,
@@ -58,6 +62,7 @@ impl fmt::Display for Error {
             Self::Offline => "Offline. Showing available encrypted local data.",
             Self::Forbidden => "This operation is not available for the current account or Team.",
             Self::Expired => "This session expired. Sign in again.",
+            Self::VerificationRequired => "Verify this device or sign in again to continue.",
             Self::Cancelled => "The operation was cancelled.",
             Self::Io => "The local operation could not be completed.",
             Self::Conflict => "The object changed. Read its latest state before retrying.",

@@ -1,3 +1,4 @@
+<!-- Native Swift counterparts: apple/OpenMates/Sources/App/MainAppView.swift (chatActionsOverlay) -->
 <script lang="ts">
     import { createEventDispatcher, onMount, tick } from 'svelte';
     import { text } from '@repo/ui'; // Import text store for translations

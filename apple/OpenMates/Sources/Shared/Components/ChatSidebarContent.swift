@@ -2,7 +2,11 @@
 // Assertions: chat-navigation.projects.nested-readable, chat-navigation.activity.global-running, chat-navigation.projects.organize
 // Specification: specifications/architecture/drafts/specification.yml
 // Assertions: drafts.draft-only.presentation, drafts.established-chat.presentation-unchanged
+// Specification: specifications/architecture/client-core/specification.yml
+// Assertions: client-core.viewmodel.capability-contract
 // Production sidebar content, independently renderable with in-memory inputs.
+// In the app the user rows come from the client core (`CoreChatList`): order
+// and per-row presentation (`ChatSidebarRowPresentation`) as the core gave them.
 // Web: chats/Chats.svelte .activity-history-wrapper/.group-title, chats/Chat.svelte.
 // Account loading/filtering, hidden-chat authentication and shell width stay with
 // the parent. This renderer never opens an account store or starts a request.
@@ -19,6 +23,17 @@ struct ChatSidebarDraftContext<Content: View>: View {
     @ObservedObject private var drafts = DraftService.shared
     @ViewBuilder let content: ([String: String]) -> Content
     var body: some View { content(drafts.displayDraftPreviews) }
+}
+
+/// What the client core decided for one sidebar row (plan
+/// apple-client-core-migration A4 lane 2, `CoreChatRowMapper`). Rows that
+/// carry it are shown as the core gave them; rows without it (public chats,
+/// fixtures) keep the row view's own presentation rules.
+struct ChatSidebarRowPresentation: Equatable, Sendable {
+    let unreadCount: Int
+    let isDraftOnly: Bool
+    /// Formatted draft preview; `nil` without a draft.
+    let draftPreview: String?
 }
 
 struct ChatSidebarSection: Identifiable {
@@ -52,6 +67,8 @@ struct ChatSidebarContent<SearchContent: View>: View {
     let publicSections: [ChatSidebarSection]
     let selectedChatID: String?
     let draftPreviews: [String: String]
+    /// Core presentation of the user rows, by chat id (`CoreChatList`).
+    let rowPresentations: [String: ChatSidebarRowPresentation]
     let showSearch: Bool
     let emptyMessage: String?
     let loadMore: ChatSidebarLoadMore?
@@ -63,7 +80,7 @@ struct ChatSidebarContent<SearchContent: View>: View {
          revealRunningRequest: Int = 0, showsHiddenChatsButton: Bool = true,
          processingChatIDs: Set<String> = [], userSections: [ChatSidebarSection],
          publicSections: [ChatSidebarSection], selectedChatID: String?, draftPreviews: [String: String],
-         previewsAreFormatted: Bool = false, showSearch: Bool, emptyMessage: String?, loadMore: ChatSidebarLoadMore?,
+         previewsAreFormatted: Bool = false, rowPresentations: [String: ChatSidebarRowPresentation] = [:], showSearch: Bool, emptyMessage: String?, loadMore: ChatSidebarLoadMore?,
          actions: ChatSidebarActions, refresh: @escaping () async -> Void,
          @ViewBuilder searchContent: @escaping () -> SearchContent) {
         self.projectNavigation = projectNavigation
@@ -73,8 +90,11 @@ struct ChatSidebarContent<SearchContent: View>: View {
         self.processingChatIDs = processingChatIDs
         let previews = previewsAreFormatted ? draftPreviews : draftPreviews.mapValues { ChatDraftPreviewFormatter.format($0) }
         self.draftPreviews = previews
+        self.rowPresentations = rowPresentations
         self.userSections = userSections.compactMap { section in
+            // Core rows are shown as the core listed them.
             let chats = section.chats.filter { chat in
+                rowPresentations[chat.id] != nil ||
                 ChatSidebarDisplayPolicy.isPresentationReady(chat, preview: previews[chat.id],
                     processing: processingChatIDs.contains(chat.id) || projectNavigation?.runningIDs.contains(chat.id) == true)
             }
@@ -170,7 +190,8 @@ struct ChatSidebarContent<SearchContent: View>: View {
                     ChatSidebarRowButton(chat: chat, selected: selectedChatID == chat.id,
                         processing: processingChatIDs.contains(chat.id) || projectNavigation?.runningIDs.contains(chat.id) == true,
                         activeSubChatCount: projectNavigation?.activeSubChatCounts[chat.id] ?? 0,
-                        draftPreview: draftPreviews[chat.id], onSelect: { actions.select(chat) },
+                        draftPreview: rowPresentations[chat.id].map { $0.draftPreview } ?? draftPreviews[chat.id],
+                        presentation: rowPresentations[chat.id], onSelect: { actions.select(chat) },
                         onShowActions: actions.showActions.map { action in { action(chat) } })
                         .modifier(ChatProjectDragModifier(payload: actions.dragPayload?(chat),
                             onDrop: actions.dropChat.map { drop in { drop($0, chat) } }))
@@ -195,6 +216,7 @@ private struct ChatSidebarRowButton: View {
     let processing: Bool
     let activeSubChatCount: Int
     let draftPreview: String?
+    let presentation: ChatSidebarRowPresentation?
     let onSelect: () -> Void
     let onShowActions: (() -> Void)?
     @State private var hovering = false
@@ -203,7 +225,7 @@ private struct ChatSidebarRowButton: View {
         Button {
             if !selectionGate.suppressSelection { onSelect() }
         } label: {
-            ChatListRow(chat: chat, suppliedDraftPreview: draftPreview, processing: processing, activeSubChatCount: activeSubChatCount, previewIsFormatted: true)
+            ChatListRow(chat: chat, suppliedDraftPreview: draftPreview, processing: processing, activeSubChatCount: activeSubChatCount, previewIsFormatted: true, presentation: presentation)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(selected ? Color.grey0 : hovering ? Color.grey10 : Color.clear)
                 .clipShape(RoundedRectangle(cornerRadius: 8))

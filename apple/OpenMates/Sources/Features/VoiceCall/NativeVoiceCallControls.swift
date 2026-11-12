@@ -1,8 +1,17 @@
 // Web source: frontend/packages/ui/src/components/voicecall/VoiceCallBar.svelte
 // Computed reference: .runtime/followups123/web-voice-reference362.json (root).
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/voicecall/VoiceCallBar.svelte
+//          frontend/packages/ui/src/components/enter_message/VoiceCallLiveTranscript.svelte
+//          (.call-live-transcript: font-primary at 0.45 opacity, 0.6 when submitted,
+//          new words fade in over 320ms; reduced motion: no animation)
+// Logic:   frontend/packages/ui/src/services/voiceCall.ts (liveTranscript, cameraError,
+//          endBecauseMicrophoneLost -> voicecall.ended_in_background)
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift, TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
 // Specification: specifications/features/video-call/specification.yml
 // Assertions: video-call.chat.call-strip-layout, video-call.chat.fixed-binding,
-// video-call.privacy.first-call-warning
+// video-call.privacy.first-call-warning, video-call.chat.transcripts, video-call.audio.background-resume
 // Source geometry only; actual Apple appearance/audio proof belongs to root.
 #if !os(watchOS)
 import SwiftUI
@@ -16,11 +25,20 @@ struct NativeVoiceCallOverlay: View {
         ZStack {
             VStack {
                 Spacer()
-                if coordinator.isActive || coordinator.state.status == .failed || coordinator.integrationError != nil {
+                if coordinator.isActive || coordinator.state.status == .failed || coordinator.integrationError != nil
+                    || coordinator.state.error == .endedInBackground {
                     VStack(spacing: .spacing4) {
+                        // Web renders this inside the composer; the composer is
+                        // owned by the chat window, so the call surface shows it.
+                        if let live = coordinator.state.liveTranscript, coordinator.isActive {
+                            NativeVoiceCallLiveTranscriptView(transcript: live)
+                        }
                         if let error = coordinator.integrationError ?? coordinator.state.error {
                             Text(AppStrings.nativeCallError(error)).font(.omSmall)
                                 .accessibilityIdentifier("voice-call-error")
+                        } else if let notice = coordinator.state.cameraNotice, coordinator.isActive {
+                            Text(AppStrings.nativeCallCameraNotice(notice)).font(.omSmall)
+                                .accessibilityIdentifier("voice-call-camera-error")
                         }
                         NativeVoiceCallBar(coordinator: coordinator, returnToChat: returnToChat)
                     }
@@ -103,6 +121,23 @@ struct NativeVoiceCallBar: View {
             // VoiceCallBar .round: 44px, 20% white, 28px web icon.
             .frame(width: 44, height: 44).background(.white.opacity(0.2)).clipShape(Circle())
         }.buttonStyle(.plain).accessibilityLabel(label).accessibilityIdentifier(id)
+    }
+}
+
+/// Display only: the user's in-progress utterance, never part of the draft.
+struct NativeVoiceCallLiveTranscriptView: View {
+    let transcript: NativeVoiceCallLiveTranscript
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    var body: some View {
+        Text(transcript.text.trimmingCharacters(in: .whitespacesAndNewlines))
+            .font(.omP).foregroundStyle(Color.fontPrimary)
+            .opacity(transcript.submitted ? 0.6 : 0.45)
+            .frame(maxWidth: 390, alignment: .leading)
+            .fixedSize(horizontal: false, vertical: true)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.32), value: transcript.text)
+            .allowsHitTesting(false)
+            .accessibilityIdentifier("voice-call-live-transcript")
+            .accessibilityAddTraits(.updatesFrequently)
     }
 }
 

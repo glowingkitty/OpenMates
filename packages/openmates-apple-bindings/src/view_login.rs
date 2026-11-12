@@ -1,7 +1,10 @@
-//! Core-performed sign-in on `ViewModelCore`: the password login
-//! (`Client::login_password_with_options`) and the pair login of this device
-//! as receiver (`Client::begin_pair`, `poll_pair`, `submit_pair_pin`, then
-//! `AcknowledgedCredentials::finish_pair_session`). Each success ends in the
+//! Core-performed sign-in on `ViewModelCore`: the password login with an OTP
+//! or backup code (`Client::login_password_second_factor`, then the v1→v2
+//! migration in `view_login_migration`), the recovery-key login
+//! (`Client::login_recovery_key`) and the pair login of this device as
+//! receiver (`Client::begin_pair`, `poll_pair`, `submit_pair_pin`, then
+//! `AcknowledgedCredentials::finish_pair_session`); the passkey login's
+//! exports live in `view_login_passkey` and end in the same `Shared::login`. Each success ends in the
 //! core hand-over (`begin_client_session`: new fence epoch, Keychain store
 //! with acknowledgement) and the normal `start`. Outcomes are the core's own:
 //! `Ok`, or a `CoreError` mapped 1:1 from `openmates_sdk::Error` (for example
@@ -11,15 +14,39 @@
 use crate::CoreError;
 use crate::core::CoreCancellation;
 use crate::view_core::{AppleHost, Shared, ViewModelCore};
+use crate::view_login_migration::{LoginRecord, PasswordMigrationRecord, migrate_after_login};
 use openmates_sdk::{
     Client,
-    client::PasswordLoginOptions,
+    client::{PasskeyContinuation, PasswordLoginOptions},
     error::{Error, Result},
     view_model::{SessionEvent, ViewEvent, ViewSink},
+    web_auth::TfaCodeType,
 };
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 use zeroize::Zeroizing;
+
+/// The credential of one core-performed sign-in (secrets zeroized on drop).
+pub(crate) enum LoginMethod {
+    /// Email password, optionally with a second factor of this kind.
+    Password {
+        email: String,
+        password: Zeroizing<String>,
+        tfa: Option<(Zeroizing<String>, TfaCodeType)>,
+    },
+    /// The account recovery key (no second factor).
+    RecoveryKey {
+        email: String,
+        recovery_key: Zeroizing<String>,
+    },
+    /// A finished passkey ceremony answering the core's `continuation`
+    /// (`view_login_passkey.rs`); the PRF output is secret.
+    Passkey {
+        continuation: PasskeyContinuation,
+        assertion_json: Vec<u8>,
+        prf_output: Zeroizing<Vec<u8>>,
+    },
+}
 
 /// What a signed-out core refuses to replace.
 const SIGNED_IN: Error = Error::Invalid("Sign out before signing in to another account.");
@@ -54,30 +81,61 @@ impl Shared {
         Ok(())
     }
 
-    async fn login_password(
+    /// One core-performed sign-in, its hand-over and the cancel-after-store
+    /// wipe, shared by every login method.
+    pub(crate) async fn login(
         &self,
-        email: String,
-        password: Zeroizing<String>,
-        tfa_code: Option<Zeroizing<String>>,
+        method: LoginMethod,
         stay_logged_in: bool,
         cancel: CancellationToken,
-    ) -> Result<()> {
+    ) -> Result<LoginRecord> {
         // The actor lock is held throughout, so no command interleaves with
         // the login and its hand-over (terminal app: same refusal).
         let mut host = self.host.lock().await;
         Self::refuse_signed_in(&host)?;
         let mut client = Client::with_options(&self.api_url, None, self.options())?;
         let options = PasswordLoginOptions { stay_logged_in };
-        let login = client
-            .login_password_with_options(
-                &email,
-                &password,
-                tfa_code.as_ref().map(|code| code.as_str()),
-                options,
-            )
-            .await;
-        drop((password, tfa_code));
-        login?;
+        let (password_migration, remaining_backup_codes) = match method {
+            LoginMethod::Password {
+                email,
+                password,
+                tfa,
+            } => {
+                let tfa_code = tfa.as_ref().map(|(code, kind)| (code.as_str(), *kind));
+                let report = client
+                    .login_password_second_factor(&email, &password, tfa_code, options)
+                    .await;
+                drop(tfa);
+                let report = report?;
+                // Before the hand-over, while the password is still here: the
+                // core never stores it, so this is the only moment it can run.
+                let migration = migrate_after_login(&client, &report, &password, &cancel).await;
+                (migration, report.remaining_backup_codes)
+            }
+            LoginMethod::RecoveryKey {
+                email,
+                recovery_key,
+            } => {
+                let login = client
+                    .login_recovery_key(&email, &recovery_key, options)
+                    .await;
+                drop(recovery_key);
+                login?;
+                (PasswordMigrationRecord::NotNeeded, None)
+            }
+            LoginMethod::Passkey {
+                continuation,
+                assertion_json,
+                prf_output,
+            } => {
+                let login = client
+                    .passkey_login_finish(continuation, &assertion_json, &prf_output, options)
+                    .await;
+                drop(prf_output);
+                login?;
+                (PasswordMigrationRecord::NotNeeded, None)
+            }
+        };
         let begun = if cancel.is_cancelled() {
             Err(Error::Cancelled)
         } else {
@@ -104,7 +162,11 @@ impl Shared {
             return Err(Error::Cancelled);
         }
         drop(client);
-        self.start_locked(&mut host, cancel).await
+        self.start_locked(&mut host, cancel).await?;
+        Ok(LoginRecord {
+            password_migration,
+            remaining_backup_codes,
+        })
     }
 
     async fn begin_pair(&self) -> Result<PairChallengeRecord> {
@@ -205,14 +267,30 @@ impl Shared {
     }
 }
 
+impl ViewModelCore {
+    async fn login_with(
+        &self,
+        method: LoginMethod,
+        stay_logged_in: bool,
+        cancellation: Option<Arc<CoreCancellation>>,
+    ) -> std::result::Result<LoginRecord, CoreError> {
+        let (shared, token) = (self.shared.clone(), self.foreground(cancellation));
+        self.run(async move { shared.login(method, stay_logged_in, token).await })
+            .await
+    }
+}
+
 #[uniffi::export]
 impl ViewModelCore {
     /// Sign in with email and password in the core, then begin the session on
     /// this profile (Keychain store and `acknowledgeCredentials`) and `start`
     /// from it: `Session(Restored)`, `ChatList(Cached)`, `Session(Admitted)`.
-    /// Run `bootSync` afterwards for the network chat list. `password` and
-    /// `tfaCode` are zeroized after the core call; the binding never stores
-    /// or logs them. `stayLoggedIn` is the server cookie lifetime only.
+    /// Run `bootSync` afterwards for the network chat list. After a legacy
+    /// (v1) password unlocked the account, the core migrates it to v2 before
+    /// the hand-over; the result is `passwordMigration` and never fails the
+    /// login. `password` and `tfaCode` are zeroized after the core call; the
+    /// binding never stores or logs them. `stayLoggedIn` is the server cookie
+    /// lifetime only.
     ///
     /// # Errors
     /// The core's login outcome: `TwoFactorRequired` (call again with
@@ -230,15 +308,61 @@ impl ViewModelCore {
         tfa_code: Option<String>,
         stay_logged_in: bool,
         cancellation: Option<Arc<CoreCancellation>>,
-    ) -> std::result::Result<(), CoreError> {
-        let (password, tfa_code) = (Zeroizing::new(password), tfa_code.map(Zeroizing::new));
-        let (shared, token) = (self.shared.clone(), self.foreground(cancellation));
-        self.run(async move {
-            shared
-                .login_password(email, password, tfa_code, stay_logged_in, token)
-                .await
-        })
-        .await
+    ) -> std::result::Result<LoginRecord, CoreError> {
+        let method = LoginMethod::Password {
+            email,
+            password: Zeroizing::new(password),
+            tfa: tfa_code.map(|code| (Zeroizing::new(code), TfaCodeType::Otp)),
+        };
+        self.login_with(method, stay_logged_in, cancellation).await
+    }
+
+    /// `loginPassword` with a backup code as the second factor (the server
+    /// consumes it; `remainingBackupCodes` reports what is left). Same
+    /// hand-over, migration and cancel behaviour.
+    ///
+    /// # Errors
+    /// As `loginPassword`, except that a refused backup code (or password)
+    /// is `Authentication`, never `TwoFactorRequired`.
+    pub async fn login_backup_code(
+        &self,
+        email: String,
+        password: String,
+        backup_code: String,
+        stay_logged_in: bool,
+        cancellation: Option<Arc<CoreCancellation>>,
+    ) -> std::result::Result<LoginRecord, CoreError> {
+        let method = LoginMethod::Password {
+            email,
+            password: Zeroizing::new(password),
+            tfa: Some((Zeroizing::new(backup_code), TfaCodeType::Backup)),
+        };
+        self.login_with(method, stay_logged_in, cancellation).await
+    }
+
+    /// Sign in with email and the account recovery key in the core (no
+    /// second factor; the master key is unwrapped from the recovery-key
+    /// wrapper). Same hand-over and cancel behaviour as `loginPassword`;
+    /// `passwordMigration` is `NotNeeded`. `recoveryKey` is zeroized after
+    /// the core call and never stored or logged.
+    ///
+    /// # Errors
+    /// `Authentication` for a wrong key or unknown account (the server does
+    /// not tell them apart); `Crypto` when the returned wrapper does not open
+    /// (the new server session is logged out); `Invalid` while signed in or
+    /// for an oversized key; then as `loginPassword`.
+    pub async fn login_recovery_key(
+        &self,
+        email: String,
+        recovery_key: String,
+        stay_logged_in: bool,
+        cancellation: Option<Arc<CoreCancellation>>,
+    ) -> std::result::Result<LoginRecord, CoreError> {
+        let method = LoginMethod::RecoveryKey {
+            email,
+            recovery_key: Zeroizing::new(recovery_key),
+        };
+        self.login_with(method, stay_logged_in, cancellation).await
     }
 
     /// Begin a pair login of this device: returns the code (and link) the

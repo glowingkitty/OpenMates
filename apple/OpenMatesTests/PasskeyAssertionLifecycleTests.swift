@@ -128,11 +128,8 @@ import XCTest
     }
 
     private func result() -> PasskeyAssertionResult {
-        PasskeyAssertionResult(credentialId: "fixture-credential", prfSignature: Data([1]),
-            verifyRequest: .init(credentialId: "fixture-credential",
-                assertionResponse: .init(authenticatorData: "", clientDataJSON: "", signature: "", userHandle: nil),
-                clientDataJSON: "", authenticatorData: "", sessionId: "fixture-session", stayLoggedIn: false,
-                hashedEmail: nil, emailEncryptionKey: nil))
+        PasskeyAssertionResult(credentialId: "fixture-credential", clientDataJSON: "", authenticatorData: "",
+            signature: "", userHandle: nil, prfOutput: Data([1]))
     }
 
     private final class Controller: PasskeyAssertionController {

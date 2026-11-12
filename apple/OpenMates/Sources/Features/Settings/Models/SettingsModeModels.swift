@@ -30,19 +30,23 @@ struct LearningModeStatus: Decodable, Equatable, Sendable {
     var failedAttempts: Int
     var deactivationBlockedUntil: Int?
     var source: LearningModeSource
+    /// Web `learning_mode.collaborative_build`: the AI may build things together with the learner.
+    var collaborativeBuild: Bool
 
     init(
         enabled: Bool,
         ageGroup: LearningModeAgeGroup? = nil,
         failedAttempts: Int = 0,
         deactivationBlockedUntil: Int? = nil,
-        source: LearningModeSource = .account
+        source: LearningModeSource = .account,
+        collaborativeBuild: Bool = false
     ) {
         self.enabled = enabled
         self.ageGroup = ageGroup
         self.failedAttempts = failedAttempts
         self.deactivationBlockedUntil = deactivationBlockedUntil
         self.source = source
+        self.collaborativeBuild = collaborativeBuild
     }
 
     var isLocked: Bool {
@@ -55,6 +59,7 @@ struct LearningModeStatus: Decodable, Equatable, Sendable {
         case ageGroup
         case failedAttempts
         case deactivationBlockedUntil
+        case collaborativeBuild
     }
 
     init(from decoder: any Decoder) throws {
@@ -63,6 +68,7 @@ struct LearningModeStatus: Decodable, Equatable, Sendable {
         ageGroup = try container.decodeIfPresent(LearningModeAgeGroup.self, forKey: .ageGroup)
         failedAttempts = try container.decodeIfPresent(Int.self, forKey: .failedAttempts) ?? 0
         deactivationBlockedUntil = try container.decodeIfPresent(Int.self, forKey: .deactivationBlockedUntil)
+        collaborativeBuild = try container.decodeIfPresent(Bool.self, forKey: .collaborativeBuild) ?? false
         source = .account
     }
 }
@@ -70,6 +76,14 @@ struct LearningModeStatus: Decodable, Equatable, Sendable {
 struct LearningModeActivateRequest: Encodable, Sendable {
     let passcode: String
     let ageGroup: LearningModeAgeGroup
+    /// Omitted when nil so the server applies its default (on, except under 10).
+    var collaborativeBuild: Bool?
+}
+
+struct LearningModeCollaborativeRequest: Encodable, Sendable {
+    let enabled: Bool
+    /// Required by the server only when turning collaborative building on.
+    var passcode: String?
 }
 
 struct LearningModeDeactivateRequest: Encodable, Sendable {
@@ -81,6 +95,18 @@ protocol LearningModeClientProtocol: AnyObject {
     func loadStatus() async throws -> LearningModeStatus
     func activate(passcode: String, ageGroup: LearningModeAgeGroup) async throws -> LearningModeStatus
     func deactivate(passcode: String) async throws -> LearningModeStatus
+    func activate(passcode: String, ageGroup: LearningModeAgeGroup, collaborativeBuild: Bool) async throws -> LearningModeStatus
+    func setCollaborativeBuild(enabled: Bool, passcode: String?) async throws -> LearningModeStatus
+}
+
+extension LearningModeClientProtocol {
+    func activate(passcode: String, ageGroup: LearningModeAgeGroup, collaborativeBuild: Bool) async throws -> LearningModeStatus {
+        try await activate(passcode: passcode, ageGroup: ageGroup)
+    }
+
+    func setCollaborativeBuild(enabled: Bool, passcode: String?) async throws -> LearningModeStatus {
+        try await loadStatus()
+    }
 }
 
 @MainActor
@@ -88,6 +114,23 @@ final class LearningModeAPIClient: LearningModeClientProtocol {
     static let statusPath = "/v1/learning-mode"
     static let activationPath = "/v1/learning-mode/activate"
     static let deactivationPath = "/v1/learning-mode/deactivate"
+    static let collaborativePath = "/v1/learning-mode/collaborative"
+
+    func activate(passcode: String, ageGroup: LearningModeAgeGroup, collaborativeBuild: Bool) async throws -> LearningModeStatus {
+        try await APIClient.shared.request(
+            .post,
+            path: Self.activationPath,
+            body: LearningModeActivateRequest(passcode: passcode, ageGroup: ageGroup, collaborativeBuild: collaborativeBuild)
+        )
+    }
+
+    func setCollaborativeBuild(enabled: Bool, passcode: String?) async throws -> LearningModeStatus {
+        try await APIClient.shared.request(
+            .post,
+            path: Self.collaborativePath,
+            body: LearningModeCollaborativeRequest(enabled: enabled, passcode: enabled ? passcode : nil)
+        )
+    }
 
     func loadStatus() async throws -> LearningModeStatus {
         try await APIClient.shared.request(.get, path: Self.statusPath)
@@ -115,8 +158,17 @@ final class LearningModeGuestSession: ObservableObject {
     static let shared = LearningModeGuestSession()
     @Published private(set) var status = LearningModeStatus(enabled: false, source: .guestSession)
 
-    func activate(ageGroup: LearningModeAgeGroup) {
-        status = LearningModeStatus(enabled: true, ageGroup: ageGroup, source: .guestSession)
+    func activate(ageGroup: LearningModeAgeGroup, collaborativeBuild: Bool = true) {
+        status = LearningModeStatus(
+            enabled: true, ageGroup: ageGroup, source: .guestSession,
+            collaborativeBuild: ageGroup != .under10 && collaborativeBuild
+        )
+    }
+
+    /// Guest Learning Mode has no passcode on Apple, so both directions are free here.
+    func setCollaborativeBuild(_ enabled: Bool) {
+        guard status.enabled, status.ageGroup != .under10 else { return }
+        status.collaborativeBuild = enabled
     }
 
     func deactivate() {
@@ -157,16 +209,31 @@ final class LearningModeController: ObservableObject {
         }
     }
 
-    func activateAccount(passcode: String, ageGroup: LearningModeAgeGroup) async {
+    func activateAccount(passcode: String, ageGroup: LearningModeAgeGroup, collaborativeBuild: Bool = true) async {
         isLoading = true
         defer { isLoading = false }
         do {
-            status = try await client.activate(passcode: passcode, ageGroup: ageGroup)
+            status = try await client.activate(
+                passcode: passcode, ageGroup: ageGroup,
+                collaborativeBuild: ageGroup != .under10 && collaborativeBuild
+            )
             hasLoaded = true
             error = nil
         } catch {
             self.error = .save
             NativeDiagnostics.error("Learning Mode activation failed: \(type(of: error))", category: "learning_mode")
+        }
+    }
+
+    func setAccountCollaborativeBuild(_ enabled: Bool, passcode: String?) async {
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            status = try await client.setCollaborativeBuild(enabled: enabled, passcode: passcode)
+            error = nil
+        } catch {
+            self.error = .save
+            NativeDiagnostics.error("Learning Mode collaborative update failed: \(type(of: error))", category: "learning_mode")
         }
     }
 

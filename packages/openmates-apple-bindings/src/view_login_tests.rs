@@ -12,7 +12,7 @@ const USER: &str = "synthetic-user";
 const PAIR_TOKEN: &str = "SYNTH4";
 const PIN: &str = "W4P3KQ";
 
-fn vector() -> Value {
+pub(crate) fn vector() -> Value {
     serde_json::from_str(include_str!(
         "../../openmates-rust/tests/crypto_fixtures/account.json"
     ))
@@ -27,11 +27,16 @@ fn admitted_reply() -> Reply {
 /// The password endpoints of the vector account. With `tfa`, the login
 /// asks for a second factor until a code is sent.
 async fn password_api(tfa: bool) -> LoopbackApi {
+    password_api_with(tfa, admitted_reply).await
+}
+
+/// `password_api` whose session check answers `session()`.
+pub(crate) async fn password_api_with(tfa: bool, session: fn() -> Reply) -> LoopbackApi {
     let v = vector();
     serve(move |line, body| {
         let path = line.split(' ').nth(1).unwrap_or_default();
         match (line.split(' ').next().unwrap_or_default(), path) {
-            ("POST", "/v1/auth/session") => admitted_reply(),
+            ("POST", "/v1/auth/session") => session(),
             ("POST", "/v1/auth/lookup") => {
                 Reply::Json(json!({"user_email_salt": v["password_v2_salt"]}))
             }
@@ -57,19 +62,19 @@ async fn password_api(tfa: bool) -> LoopbackApi {
 }
 
 /// An empty Keychain stand-in that stores and acknowledges.
-fn acknowledging() -> Arc<Keychain> {
+pub(crate) fn acknowledging() -> Arc<Keychain> {
     Arc::new(Keychain {
         acknowledge: true,
         ..Keychain::default()
     })
 }
 
-fn stored(keychain: &Keychain) -> Option<Session> {
+pub(crate) fn stored(keychain: &Keychain) -> Option<Session> {
     let payload = keychain.payload.lock().unwrap().clone()?;
     Some(serde_json::from_slice(&payload).unwrap())
 }
 
-fn admitted(events: &[ViewEventRecord]) -> bool {
+pub(crate) fn admitted(events: &[ViewEventRecord]) -> bool {
     events.iter().any(|event| {
         matches!(
             event,
@@ -301,9 +306,9 @@ async fn an_unacknowledged_keychain_store_fails_as_locked_and_logs_the_new_sessi
 /// Cancels the login's `CoreCancellation` when the store arrives, then
 /// stores and acknowledges a little later (the cancel lands after the store
 /// began but before the login continues).
-struct CancellingKeychain {
-    inner: Arc<Keychain>,
-    cancel: Arc<CoreCancellation>,
+pub(crate) struct CancellingKeychain {
+    pub(crate) inner: Arc<Keychain>,
+    pub(crate) cancel: Arc<CoreCancellation>,
 }
 
 impl CredentialStore for CancellingKeychain {

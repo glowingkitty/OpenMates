@@ -38,6 +38,16 @@ pub struct ChatRowMetadataRecord {
     pub draft_v: Option<u64>,
     /// Decrypted draft preview text; personal scope with a draft only.
     pub draft_preview: Option<String>,
+    /// Another account shared this chat with the user.
+    pub is_shared_by_others: Option<bool>,
+    /// Id of the last message visible in the chat.
+    pub last_visible_message_id: Option<String>,
+    /// App the chat belongs to.
+    pub app_id: Option<String>,
+    /// Sub-chat setting: the parent waits for the sub-chat to finish.
+    pub sub_chat_wait_for_completion: Option<bool>,
+    /// Sub-chat setting: `each` or `all`.
+    pub sub_chat_report_trigger: Option<String>,
 }
 
 /// One personal-data replacement of a message (core `PiiMapping`).
@@ -58,6 +68,10 @@ pub struct PiiMappingRecord {
 pub struct MessageMetadataRecord {
     /// Server creation time of the row (`created_at`).
     pub created_at: Option<i64>,
+    /// Server time of the last edit of the row (`updated_at`).
+    pub updated_at: Option<i64>,
+    /// App that produced the message (`app_id`).
+    pub app_id: Option<String>,
     /// Server message id (`message_id`).
     pub server_message_id: Option<String>,
     /// Client message id assigned by the sending device.
@@ -105,6 +119,11 @@ impl From<ChatRowMetadata> for ChatRowMetadataRecord {
             budget_spent: value.budget_spent,
             draft_v: value.draft_v,
             draft_preview: value.draft_preview,
+            is_shared_by_others: value.is_shared_by_others,
+            last_visible_message_id: value.last_visible_message_id,
+            app_id: value.app_id,
+            sub_chat_wait_for_completion: value.sub_chat_wait_for_completion,
+            sub_chat_report_trigger: value.sub_chat_report_trigger,
         }
     }
 }
@@ -123,6 +142,8 @@ impl From<MessageMetadata> for MessageMetadataRecord {
     fn from(value: MessageMetadata) -> Self {
         Self {
             created_at: value.created_at,
+            updated_at: value.updated_at,
+            app_id: value.app_id,
             server_message_id: value.server_message_id,
             client_message_id: value.client_message_id,
             user_message_id: value.user_message_id,

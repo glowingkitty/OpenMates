@@ -1,5 +1,7 @@
 // Binds complete, decrypted saved-memory snapshots to generic Live Activity state.
 // Private titles, notes and memory values never enter the retained bridge snapshot.
+// No source feeds snapshots today: the typed saved-memory service was removed
+// (app-memories.typed.removed) and saved-flag embeds are not readable here yet.
 // Specification: specifications/features/apple-live-activities/specification.yml
 // Assertions: apple-live-activities.memories.upcoming, apple-live-activities.lifecycle.isolation
 
@@ -15,11 +17,6 @@ struct UpcomingMemorySnapshotScope: Equatable {
     init(accountID: String, server: ServerProfile, scope: UUID, team: APIRequestTeamContext) {
         self.accountID = accountID; self.server = server; self.scope = scope
         teamID = team.teamID; teamEpoch = team.epoch
-    }
-
-    init?(_ context: SettingsMemoryContext) {
-        guard let accountID = context.accountID else { return nil }
-        self.init(accountID: accountID, server: context.server, scope: context.scope, team: context.team)
     }
 
     /// Runtime fences change on relaunch; the persisted owner identity must not.

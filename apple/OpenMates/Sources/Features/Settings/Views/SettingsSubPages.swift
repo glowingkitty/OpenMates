@@ -1262,8 +1262,7 @@ struct SettingsAutoDeleteView: View {
         .task {
             guard !isLoaded else { return }
             do {
-                let response: SessionResponse = try await APIClient.shared.request(.get, path: "/v1/auth/session")
-                autoDeleteDays = response.user?.autoDeleteChatsAfterDays ?? 0
+                autoDeleteDays = try await AuthManager.admittedProfile().autoDeleteChatsAfterDays ?? 0
             } catch {}
             isLoaded = true
         }
@@ -1445,8 +1444,7 @@ struct SettingsNotificationsView: View {
     private func load() async {
         guard !isLoaded else { return }
         do {
-            let response: SessionResponse = try await APIClient.shared.request(.get, path: "/v1/auth/session")
-            chatNotifications = response.user?.pushNotificationEnabled ?? false
+            chatNotifications = try await AuthManager.admittedProfile().pushNotificationEnabled ?? false
             let snapshot = try await requestEmailNotificationSettings(
                 using: webSocketManager, type: "email_notification_settings_get",
                 payload: [:], responseType: "email_notification_settings_snapshot")

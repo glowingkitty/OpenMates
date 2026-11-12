@@ -53,6 +53,10 @@ fn full_row() -> Value {
         "draft_v": 3,
         "encrypted_draft_md": crypto::encrypt_combined("Ask about tiles", &MASTER).unwrap(),
         "encrypted_draft_preview": crypto::encrypt_combined("Ask about", &MASTER).unwrap(),
+        "is_shared_by_others": true,
+        "last_visible_message_id": "message-9",
+        "app_id": "travel",
+        "sub_chat_settings": {"wait_for_completion": true, "report_trigger": "all"},
     })
 }
 
@@ -77,6 +81,11 @@ fn a_full_chat_row_projects_every_held_fact() {
             budget_spent: Some(120),
             draft_v: Some(3),
             draft_preview: Some("Ask about".into()),
+            is_shared_by_others: Some(true),
+            last_visible_message_id: Some("message-9".into()),
+            app_id: Some("travel".into()),
+            sub_chat_wait_for_completion: Some(true),
+            sub_chat_report_trigger: Some("all".into()),
         }
     );
 }
@@ -136,6 +145,8 @@ fn reply_row() -> Value {
         "role": "assistant",
         "status": "synced",
         "created_at": 1_700_000_050,
+        "updated_at": 1_700_000_060,
+        "app_id": "travel",
         "encrypted_content": enc("Hello [NAME_1]"),
         "encrypted_model_name": enc("synthetic-model"),
         "encrypted_category": enc("software_development"),
@@ -167,6 +178,8 @@ fn held_message_rows_project_metadata_by_message_id() {
     );
     let reply = &found["m2"];
     assert_eq!(reply.created_at, Some(1_700_000_050));
+    assert_eq!(reply.updated_at, Some(1_700_000_060));
+    assert_eq!(reply.app_id.as_deref(), Some("travel"));
     assert_eq!(reply.server_message_id.as_deref(), Some("server-2"));
     assert_eq!(reply.user_message_id.as_deref(), Some("m1"));
     assert_eq!(reply.stored_status.as_deref(), Some("synced"));
@@ -208,4 +221,37 @@ fn a_mistyped_message_field_is_a_protocol_error() {
     let mut row = reply_row();
     row["thinking_token_count"] = json!(-3);
     assert!(matches!(message_metadata(&row, &KEY), Err(Error::Protocol)));
+}
+
+// contract-test: supporting surface=sdks.rust assertions=chats.persistence.client-encrypted
+#[test]
+fn a_mistyped_sub_chat_settings_field_is_a_protocol_error() {
+    let mut row = full_row();
+    row["sub_chat_settings"] = json!("all");
+    assert_eq!(
+        client_with(row).chat_row_metadata(CHAT),
+        Err(crate::error::Error::Protocol)
+    );
+}
+
+// contract-test: supporting surface=sdks.rust assertions=chats.persistence.client-encrypted
+#[test]
+fn sub_chat_settings_may_carry_one_of_the_two_settings() {
+    let mut row = full_row();
+    row["sub_chat_settings"] = json!({"report_trigger": "each"});
+    let metadata = client_with(row).chat_row_metadata(CHAT).unwrap();
+    assert_eq!(metadata.sub_chat_wait_for_completion, None);
+    assert_eq!(metadata.sub_chat_report_trigger.as_deref(), Some("each"));
+}
+
+#[test]
+fn chat_total_count_is_none_until_reported_and_resets_with_the_scope() {
+    let mut client = client_with(full_row());
+    assert_eq!(client.chat_total_count(), None);
+    client.chat_total_count = Some(412);
+    assert_eq!(client.chat_total_count(), Some(412));
+    client
+        .set_team(Some("33333333-3333-4333-8333-333333333333"))
+        .unwrap();
+    assert_eq!(client.chat_total_count(), None);
 }

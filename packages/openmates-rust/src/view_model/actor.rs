@@ -8,7 +8,9 @@
 //! (moved from the TUI `runtime.rs` actor). Native only. Spec: `client-core`
 //! (one core, thin shells) and `client-core.cache`.
 use crate::{
-    client::{ChatMonitor, ChatRefreshDurableReceipt, Client},
+    client::{
+        ChatMonitor, ChatRefreshDurableReceipt, Client, server_region::ServerRegionPreference,
+    },
     error::{Error, Result},
     local_cache::ByteStore,
     model::Item,
@@ -19,8 +21,12 @@ use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 
 use super::{
-    ChatWindowRecord, ListCompleteness, ViewEvent, arrange::arrange_chat_list,
-    chat_list_row_from_item, send_flows::ForegroundSlot, window::OpenWindow,
+    ChatWindowRecord, ListCompleteness, ViewEvent, ViewSink,
+    arrange::arrange_chat_list,
+    chat_list_row_from_item,
+    send_flows::ForegroundSlot,
+    unowned_flows::{UnownedFrameSender, UnownedSeam},
+    window::OpenWindow,
 };
 
 /// The actor state a shell owns exactly once per profile. The `Client` is
@@ -38,6 +44,15 @@ pub struct ViewCore<S: ByteStore + 'static> {
     pub(super) window: Option<OpenWindow>,
     /// Cancel token of the running send (`SendCancelHandle`).
     pub(super) foreground: ForegroundSlot,
+    /// Passthrough of socket frames the core does not own (temporary
+    /// strangler seam, removed when A5/A6 move the remaining features into
+    /// the core).
+    unowned: UnownedSeam,
+    /// Sends opt in to assistant Memory writes (`SendOptions::memory_write_jobs`);
+    /// off until the shell renders the Memory notice (`send_flows.rs`).
+    pub(super) memory_write_jobs: bool,
+    /// The shell's server region preference for each send (`send_flows.rs`).
+    pub(super) server_region: ServerRegionPreference,
 }
 
 impl<S: ByteStore + 'static> ViewCore<S> {
@@ -57,6 +72,9 @@ impl<S: ByteStore + 'static> ViewCore<S> {
             monitor: None,
             window: None,
             foreground: ForegroundSlot::default(),
+            unowned: UnownedSeam::default(),
+            memory_write_jobs: false,
+            server_region: ServerRegionPreference::Eu,
         }
     }
 
@@ -67,9 +85,33 @@ impl<S: ByteStore + 'static> ViewCore<S> {
 
     /// Install (or with `None` retire) the live chat monitor the shell host
     /// admitted; returns the previous one. Retiring it does not close the
-    /// open window: chat reads then run without a monitor witness.
+    /// open window: chat reads then run without a monitor witness. The
+    /// passthrough follows the installed monitor: the previous socket's
+    /// forwarded frames end after what it already queued, and shell frames
+    /// go to the new socket.
     pub fn set_chat_monitor(&mut self, monitor: Option<ChatMonitor>) -> Option<ChatMonitor> {
+        self.unowned
+            .replace(monitor.as_ref().map(ChatMonitor::socket_passthrough));
         std::mem::replace(&mut self.monitor, monitor)
+    }
+
+    /// Opt in to the passthrough: every inbound frame of the monitor socket
+    /// whose type the core does not own (`classify_socket_event`) reaches
+    /// `sink` as `ViewEvent::UnownedSocketFrame`, in arrival order, from a
+    /// forwarder task (never the actor). A slow `sink` makes the socket side
+    /// drop and report `ViewEvent::UnownedSocketFramesDropped`. Without this
+    /// call nothing is kept. Temporary strangler seam, removed when A5/A6
+    /// move the remaining features into the core.
+    pub fn forward_unowned_frames(&mut self, sink: Arc<dyn ViewSink>) {
+        self.unowned.forward_to(sink);
+    }
+
+    /// A handle that writes raw frames of un-migrated shell features on the
+    /// installed monitor's socket (`UnownedFrameSender::send`). Temporary
+    /// strangler seam, removed when A5/A6 move the remaining features into
+    /// the core.
+    pub fn unowned_frame_sender(&self) -> UnownedFrameSender {
+        self.unowned.sender()
     }
 
     /// Re-check the installed monitor's session and scope admission with the
@@ -229,7 +271,11 @@ impl<S: ByteStore + 'static> ViewCore<S> {
             .collect::<std::result::Result<Vec<_>, _>>()
             .map_err(|_| Error::Protocol)?;
         super::enrich::enrich_rows(&self.client, &mut rows)?;
-        Ok(ViewEvent::ChatList { rows, completeness })
+        Ok(ViewEvent::ChatList {
+            rows,
+            completeness,
+            total_count: self.client.chat_total_count(),
+        })
     }
 }
 

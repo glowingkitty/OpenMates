@@ -1394,7 +1394,7 @@ class BrowserPackagingTests(SyntheticPinTests):
             )
             for folder in (work, logs, exported):
                 folder.mkdir(mode=0o700)
-            crate = work / lane.ROOTS[-1]
+            crate = work / lane.BROWSER
             crate.mkdir(parents=True)
             version = "0.2.128" if variant == "lock-mismatch" else lane.BINDGEN_VERSION
             (work / "Cargo.lock").write_text(
@@ -2585,7 +2585,7 @@ class WasmNameSectionTests(unittest.TestCase):
             work, output = private / "source", private / "export"
             work.mkdir()
             output.mkdir()
-            crate = work / lane.ROOTS[-1]
+            crate = work / lane.BROWSER
             crate.mkdir(parents=True)
             (work / "Cargo.lock").write_text(
                 'version=4\n[[package]]\nname="wasm-bindgen"\nversion="0.2.129"\n'

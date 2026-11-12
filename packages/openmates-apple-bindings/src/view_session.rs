@@ -32,7 +32,9 @@ impl Shared {
     /// Apply the auth loss rule to the outcome of a command on the actor:
     /// `Expired` while the client holds no session any more means the server
     /// rejected it; the profile is then signed out locally and
-    /// `Session(Expired)` is emitted. Other outcomes pass through.
+    /// `Session(Expired)` is emitted. `VerificationRequired` keeps the session
+    /// and announces `Session(VerificationRequired)` (`view_account.rs`).
+    /// Other outcomes pass through.
     ///
     /// # Errors
     /// The local sign-out error, else `result`'s error.
@@ -41,6 +43,10 @@ impl Shared {
         host: &mut Option<AppleHost>,
         result: Result<T>,
     ) -> Result<T> {
+        if matches!(result, Err(Error::VerificationRequired)) {
+            self.announce_verification(host).await?;
+            return result;
+        }
         let rejected = matches!(result, Err(Error::Expired))
             && host
                 .as_ref()

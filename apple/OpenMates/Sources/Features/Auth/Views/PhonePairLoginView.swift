@@ -1,7 +1,10 @@
 // Phone / PC login — initiating device flow for Magic Pair Login.
 // Auto-generates the QR code, polls until the other device authorizes,
-// then completes local OPAQUE with the 6-character PIN and decrypts the bundle.
-// This is intentionally separate from the settings authorizer screen.
+// then sends the 6-character PIN. The Rust core runs the pair login (code,
+// polling, OPAQUE, bundle, storage, acknowledgement) through `AuthManager`;
+// this view only shows it. Separate from the settings authorizer screen.
+// Specification: specifications/architecture/client-core/specification.yml
+// Assertions: client-core.viewmodel.capability-contract, client-core.apple.strangler-order
 //
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/Login.svelte
@@ -83,8 +86,8 @@ struct PhonePairLoginView: View {
         .task { await initiatePairingIfNeeded() }
         .onDisappear {
             pairState.pollTask?.cancel()
-            if let token = pairState.token {
-                Task { await PairV2Runtime.cancel(token: token, serverProfile: ServerProfile.current()) }
+            if pairState.token != nil, !pairState.isSubmitting {
+                Task { await authManager.cancelPairLogin() }
             }
         }
     }
@@ -249,23 +252,21 @@ struct PhonePairLoginView: View {
         if !force, pairState.token != nil {
             return
         }
-        if let oldToken = pairState.token {
-            await PairV2Runtime.cancel(token: oldToken, serverProfile: ServerProfile.current())
-        }
         pairState.reset()
         let generation = pairState.generation
 
         do {
-            let initiation = try await PairLoginRuntime.initiate()
+            // Replaces a running pair login in the core.
+            let challenge = try await authManager.beginPairLogin()
             guard !Task.isCancelled, generation == pairState.generation else {
-                await PairV2Runtime.cancel(token: initiation.token, serverProfile: ServerProfile.current())
+                await authManager.cancelPairLogin()
                 return
             }
-            pairState.token = initiation.token
-            pairState.pairURLString = initiation.pairURLString
-            pairState.qrImage = generateQRCode(from: initiation.pairURLString)
+            pairState.token = challenge.token
+            pairState.pairURLString = challenge.loginUrl
+            pairState.qrImage = generateQRCode(from: challenge.loginUrl)
             pairState.status = .waiting
-            startPolling(token: initiation.token)
+            startPolling(token: challenge.token)
         } catch {
             guard !Task.isCancelled, generation == pairState.generation else { return }
             pairState.errorMessage = error.localizedDescription
@@ -281,23 +282,19 @@ struct PhonePairLoginView: View {
                 if Task.isCancelled { return }
 
                 do {
-                    let response = try await PairLoginRuntime.poll(token: token)
-
-                    await MainActor.run {
-                        if response.status == "approved" {
-                            pairState.status = .ready
-                            isPinFocused = true
-                            if pairState.pin.count == 6 {
-                                submitPinIfReady()
-                            }
-                        } else if ["failed", "cancelled"].contains(response.status) {
-                            pairState.status = .expired
+                    let status = try await authManager.pollPairLogin()
+                    guard pairState.token == token else { return }
+                    if status == "approved" {
+                        pairState.status = .ready
+                        isPinFocused = true
+                        if pairState.pin.count == 6 {
+                            submitPinIfReady()
                         }
-                    }
-
-                    if response.status == "approved" || response.status == "failed" || response.status == "cancelled" {
                         return
                     }
+                } catch CoreError.Expired {
+                    pairState.status = .expired
+                    return
                 } catch {
                     await MainActor.run {
                         pairState.errorMessage = error.localizedDescription
@@ -325,18 +322,23 @@ struct PhonePairLoginView: View {
         guard pairState.status == .ready,
               !pairState.isSubmitting,
               pairState.pin.count == 6,
-              let token = pairState.token else { return }
+              pairState.token != nil else { return }
         pairState.isSubmitting = true
         pairState.errorMessage = nil
 
         Task {
             do {
-                let result = try await PairLoginRuntime.complete(token: token, pin: pairState.pin, stayLoggedIn: stayLoggedIn)
-                try await authManager.completePairLogin(response: result.loginResponse, masterKey: result.masterKey) {
-                    try await PairLoginRuntime.acknowledge(token: token)
-                }
-            } catch PairLoginRuntimeError.completeFailed(let kind) {
-                handlePairCompleteFailure(kind)
+                try await authManager.completePairLogin(pin: pairState.pin)
+            } catch CoreError.Authentication, CoreError.Crypto {
+                // Wrong PIN; the core does not report remaining attempts.
+                pairState.isSubmitting = false
+                pairState.pin = ""
+                pairState.errorMessage = AppStrings.loginFailed
+            } catch CoreError.Expired {
+                pairState.isSubmitting = false
+                pairState.pin = ""
+                pairState.status = .expired
+                pairState.errorMessage = AppStrings.pairExpired
             } catch {
                 pairState.errorMessage = error.localizedDescription
                 pairState.pin = ""
@@ -344,30 +346,6 @@ struct PhonePairLoginView: View {
                 pairState.isSubmitting = false
             }
         }
-    }
-
-    private func handlePairCompleteFailure(_ kind: PairLoginCompleteFailureKind) {
-        pairState.isSubmitting = false
-        pairState.pin = ""
-
-        if kind == .tooManyAttempts {
-            pairState.errorMessage = AppStrings.pairPinLocked
-            pairState.status = .expired
-            return
-        }
-
-        if case .invalidPIN(let attempts) = kind {
-            pairState.errorMessage = AppStrings.pairPinError(attempts: attempts)
-            return
-        }
-
-        if kind == .expired {
-            pairState.status = .expired
-            pairState.errorMessage = AppStrings.pairExpired
-            return
-        }
-
-        pairState.errorMessage = AppStrings.loginFailed
     }
 
     private func generateQRCode(from string: String) -> Image? {

@@ -1,6 +1,8 @@
 <!--
   frontend/packages/ui/src/components/embeds/images/ImageResultEmbedFullscreen.svelte
 
+  Native Swift counterparts: apple/OpenMates/Sources/Features/Embeds/Renderers/ImageResultEmbedRenderer.swift
+
   Fullscreen view for a single image_result child embed.
   Shows the full-size proxied image, title, source domain, and a link to the source page.
 

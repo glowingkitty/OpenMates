@@ -464,26 +464,6 @@ final class WatchPairLoginRuntimeTests: XCTestCase {
         let missingBinding = Data(#"{"protocol_version":2,"master_key_exported":"x","grant_secret":"y","user_email_salt":"z","hashed_email":"h","user_id":"u"}"#.utf8)
         XCTAssertThrowsError(try decoder.decode(PairV2Bundle.self, from: missingBinding))
     }
-
-    // contract-test: supporting surface=gui.apple assertions=apple-watch.pairing.private-session
-    func testMasterKeyPersistsLocallyThroughKeychain() async throws {
-        let userId = "watch-pair-login-runtime-tests-\(UUID().uuidString)"
-        let masterKeyData = Data((32..<64).map(UInt8.init))
-        let masterKey = SymmetricKey(data: masterKeyData)
-
-        try? await CryptoManager.shared.deleteMasterKey(for: userId)
-        try await CryptoManager.shared.saveMasterKey(masterKey, for: userId)
-        let loaded = try await CryptoManager.shared.loadMasterKey(for: userId)
-        try await CryptoManager.shared.deleteMasterKey(for: userId)
-        let deleted = try await CryptoManager.shared.loadMasterKey(for: userId)
-
-        XCTAssertEqual(loaded.map { rawData(from: $0) }, masterKeyData)
-        XCTAssertNil(deleted)
-    }
-
-    private func rawData(from key: SymmetricKey) -> Data {
-        key.withUnsafeBytes { Data($0) }
-    }
 }
 
 

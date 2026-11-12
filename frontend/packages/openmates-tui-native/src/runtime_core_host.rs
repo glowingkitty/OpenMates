@@ -73,6 +73,8 @@ impl TerminalSink {
         Ok(match event {
             ViewEvent::Session(SessionEvent::SignedOut) => Some(View::SignedOut),
             ViewEvent::Session(SessionEvent::Restored { display_name }) => display_name.map(View::Greeting),
+            // Reported as the typed error; its message asks to verify or sign in again.
+            ViewEvent::Session(SessionEvent::VerificationRequired(_)) => return Err(Error::VerificationRequired),
             // The terminal paints a send's turn from its stream updates.
             ViewEvent::ChatList { .. } | ViewEvent::ChatWindow { .. } if self.send.is_some() => None,
             ViewEvent::Stream { event, .. } => Some(View::Stream(update_from_stream(event)?)),
@@ -89,6 +91,10 @@ impl TerminalSink {
             }
             ViewEvent::ChatUnavailable { chat_id } => Some(View::ChatUnavailable(chat_id)),
             ViewEvent::Done => Some(View::Done),
+            // The terminal never calls `ViewCore::forward_unowned_frames`:
+            // every feature it has runs in the core, so no socket frame is
+            // forwarded to it. Ignored should one arrive.
+            ViewEvent::UnownedSocketFrame { .. } | ViewEvent::UnownedSocketFramesDropped { .. } => None,
             _ => return Err(Error::Invalid("This view event is not routed by the terminal.")),
         })
     }

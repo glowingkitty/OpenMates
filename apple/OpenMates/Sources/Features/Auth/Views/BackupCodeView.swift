@@ -105,8 +105,7 @@ struct BackupCodeView: View {
                 try await authManager.loginWithBackupCode(
                     email: email,
                     password: password,
-                    backupCode: backupCode,
-                    userEmailSalt: userEmailSalt
+                    backupCode: backupCode
                 )
             } catch let error as APIError {
                 errorMessage = error.localizedDescription

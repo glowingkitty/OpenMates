@@ -7,6 +7,7 @@
 //! field order and the fallback/branch rules reproduce the deployed TypeScript
 //! web client byte for byte, so enabling the Rust path changes neither the
 //! request sequence nor the cookies. Behaviour changes ship separately.
+use crate::client::SessionVerification;
 use crate::crypto::{self, Key};
 use crate::error::{Error, Result};
 use base64::{Engine as _, engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD}};
@@ -79,13 +80,20 @@ fn text<'a>(value: &'a Value, key: &str) -> Option<&'a str> { value.get(key).and
 
 // ---------------------------------------------------------------- password ---
 
+/// Second-factor kind of a password login (`code_type` on `/v1/auth/login`),
+/// shared by the web sans-IO step and the native `Client` login.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TfaCodeType { Otp, Backup }
 impl TfaCodeType {
+    /// Parse the web form's `code_type` value.
+    ///
+    /// # Errors
+    /// `Invalid("code_type")` for any other value.
     pub fn parse(value: &str) -> Result<Self> {
         match value { "otp" => Ok(Self::Otp), "backup" => Ok(Self::Backup), _ => Err(Error::Invalid("code_type")) }
     }
-    fn wire(self) -> &'static str { match self { Self::Otp => "otp", Self::Backup => "backup" } }
+    /// Wire value of `code_type`.
+    pub(crate) fn wire(self) -> &'static str { match self { Self::Otp => "otp", Self::Backup => "backup" } }
 }
 
 /// Password-step input as captured by the login form. `user_email_salt` and
@@ -293,11 +301,13 @@ pub fn classify_session(reply: HttpReply) -> SessionDecision {
         return SessionDecision::Unreachable { status: reply.status };
     };
     let success = truthy(data.get("success"));
-    if !success && let Some(kind @ ("2fa" | "passkey")) = text(&data, "re_auth_required") {
-        let fallback = kind == "passkey" && data.get("password_fallback_available") == Some(&Value::Bool(true));
+    // One device-verification rule for web and native (client/session_verification.rs).
+    // A bare re-auth request stays `Unauthenticated` here, as deployed.
+    let device = if success { None } else { SessionVerification::of_unsuccessful_session(&data) };
+    if let Some(SessionVerification::Device { method, reason, password_fallback_available: fallback }) = device {
         return SessionDecision::DeviceVerification {
-            verification: kind.to_owned(),
-            reason: text(&data, "re_auth_reason").filter(|r| !r.is_empty()).unwrap_or("new_device").to_owned(),
+            verification: method.wire().to_owned(),
+            reason,
             password_fallback_available: fallback,
             password_credential_version: if fallback { data.get("password_credential_version").cloned().unwrap_or(Value::Null) } else { Value::Null },
             data,

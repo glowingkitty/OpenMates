@@ -6,8 +6,9 @@
 use crate::core::CoreCancellation;
 use crate::view_core::{ViewModelCore, lock};
 use crate::{CoreError, view_records::ChatWindowViewRecord};
-use openmates_sdk::view_model::{self, RequestId, SendCancelHandle};
+use openmates_sdk::view_model::{self, RequestId, SendCancelHandle, ViewHost};
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 
 #[uniffi::export]
 impl ViewModelCore {
@@ -36,8 +37,14 @@ impl ViewModelCore {
     ) -> Result<ChatWindowViewRecord, CoreError> {
         let (shared, token) = (self.shared.clone(), self.foreground(cancellation));
         self.run(async move {
+            let memory_writes = shared.memory_write_jobs.load(Ordering::SeqCst);
+            let region = crate::view_region::preference_of(
+                shared.server_region_global.load(Ordering::SeqCst),
+            );
             let record = shared
                 .signed_in(token, move |host, sink, cancel| {
+                    host.core_mut().set_memory_write_jobs(memory_writes);
+                    host.core_mut().set_server_region(region);
                     view_model::send(host, RequestId(request), chat_id, text, sink, cancel)
                 })
                 .await?;

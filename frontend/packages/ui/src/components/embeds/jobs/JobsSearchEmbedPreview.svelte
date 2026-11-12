@@ -1,3 +1,8 @@
+<!--
+  frontend/packages/ui/src/components/embeds/jobs/JobsSearchEmbedPreview.svelte
+
+  Native Swift counterparts: apple/OpenMates/Sources/Features/Embeds/Renderers/JobsEmbedRenderers.swift
+-->
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';

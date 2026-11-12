@@ -1,5 +1,7 @@
 <!--
   frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+  Native Swift counterparts: apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    (EmbedFullscreenTopBar; Enhance state: Features/Embeds/Views/EmbedVersionEditControls.swift)
 
   Action button row rendered at the top of every embed fullscreen view.
   Overlays the scrollable header and content. Shared overlap detection switches

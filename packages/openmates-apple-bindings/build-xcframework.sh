@@ -32,6 +32,14 @@
 #   --debug              cargo dev profile instead of release (faster, larger)
 #   --framework-dir DIR  where OpenMatesCoreFFI.xcframework is written
 #                        (default: <repo>/target/apple-core)
+#
+# Test fixtures (opt-in, Debug unit/UI-test builds only):
+#   --test-support, or OPENMATES_CORE_TEST_SUPPORT=YES in the environment (an
+#   xcodebuild build setting reaches the --xcode-phase this way), builds the
+#   library with `--features test-support` (C seed for the Swift glue compiled
+#   with -DOPENMATES_CORE_TEST_SUPPORT). Refused for a non-Debug --xcode-phase
+#   (Release, archive, TestFlight) and for --update-bindings/--check-bindings,
+#   so neither a release library nor the committed bindings carry them.
 set -euo pipefail
 # Stays bash 3.2 compatible (macOS /bin/bash in Xcode phases): possibly empty
 # arrays expand as ${a[@]+"${a[@]}"} under `set -u`, and no command substitution
@@ -55,6 +63,11 @@ intel=false
 profile=release
 framework_dir="$repo_dir/target/apple-core"
 swift_out=""
+case "${OPENMATES_CORE_TEST_SUPPORT:-}" in
+  ''|NO|0) test_support=false ;;
+  YES|1) test_support=true ;;
+  *) echo "OPENMATES_CORE_TEST_SUPPORT must be YES or NO." >&2; exit 2 ;;
+esac
 while (($#)); do
   case "$1" in
     --xcode-phase) mode=xcode-phase ;;
@@ -64,8 +77,9 @@ while (($#)); do
     --watch) watch=true ;;
     --intel) intel=true ;;
     --debug) profile=debug ;;
+    --test-support) test_support=true ;;
     --framework-dir) shift; framework_dir="${1:?--framework-dir needs a directory}" ;;
-    -h|--help) sed -n '2,35p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,42p' "$0"; exit 0 ;;
     -*) echo "Unknown option: $1" >&2; exit 2 ;;
     *) [[ -z "$swift_out" ]] || { echo "Only one output directory is accepted." >&2; exit 2; }; swift_out="$1" ;;
   esac
@@ -81,6 +95,22 @@ case "$mode" in
     [[ -z "$swift_out" ]] || { echo "--$mode takes no output directory." >&2; exit 2; }
     ;;
 esac
+# Test fixtures never reach a release library or the committed bindings (which
+# every app build, Release included, compiles against).
+if "$test_support"; then
+  case "$mode" in
+    update-bindings|check-bindings)
+      echo "--test-support is refused for --$mode: the committed bindings are product-only." >&2; exit 2 ;;
+    xcode-phase)
+      if [[ "${CONFIGURATION:-}" != Debug ]]; then
+        echo "--test-support is refused for the ${CONFIGURATION:-unknown} configuration; only Debug unit-test builds may carry test fixtures." >&2
+        exit 2
+      fi ;;
+  esac
+fi
+feature_flag=()
+if "$test_support"; then feature_flag=(--features test-support); fi
+
 # The phase must never ship a dev-profile core; generation only needs metadata,
 # so it shares the dev-profile build of the uniffi-bindgen run.
 case "$mode" in
@@ -129,19 +159,21 @@ profile_flag=()
 build_lib() {
   local target="$1" source_std="${2:-false}" target_flag=()
   [[ -n "$target" ]] && target_flag=(--target "$target")
-  echo "== openmates-apple-bindings ${target:-host} ($profile)"
+  echo "== openmates-apple-bindings ${target:-host} ($profile${feature_flag[@]+, test-support})"
   if "$source_std"; then
     # arm64_32 and x86_64 watchOS are Rust tier-3: rustup ships no std. Build
     # std from the pinned nightly source for this slice only.
     rustup toolchain install "$watch_legacy_toolchain" --profile minimal --component rust-src --no-self-update >/dev/null
     cargo "+$watch_legacy_toolchain" build -Zbuild-std=std,panic_abort -p openmates-apple-bindings \
-      --lib --locked ${profile_flag[@]+"${profile_flag[@]}"} ${target_flag[@]+"${target_flag[@]}"} --quiet
+      --lib --locked ${profile_flag[@]+"${profile_flag[@]}"} ${target_flag[@]+"${target_flag[@]}"} \
+      ${feature_flag[@]+"${feature_flag[@]}"} --quiet
   else
     if [[ -n "$target" ]] && command -v rustup >/dev/null 2>&1; then
       rustup target add "$target" --toolchain "$rust_toolchain" >/dev/null
     fi
     cargo ${cargo_tc[@]+"${cargo_tc[@]}"} build -p openmates-apple-bindings --lib --locked \
-      ${profile_flag[@]+"${profile_flag[@]}"} ${target_flag[@]+"${target_flag[@]}"} --quiet
+      ${profile_flag[@]+"${profile_flag[@]}"} ${target_flag[@]+"${target_flag[@]}"} \
+      ${feature_flag[@]+"${feature_flag[@]}"} --quiet
   fi
 }
 

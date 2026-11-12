@@ -168,6 +168,7 @@ fn draft_refusal(error: openmates_sdk::Error) -> JsValue {
         Error::Locked => "locked",
         Error::Offline => "offline",
         Error::Expired => "expired",
+        Error::VerificationRequired => "verification_required",
         Error::Cancelled => "cancelled",
         Error::Io => "io",
         Error::Protocol => "protocol",

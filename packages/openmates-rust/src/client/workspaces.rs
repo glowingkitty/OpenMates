@@ -13,6 +13,21 @@ impl Client {
         proof: FreshChatInventory,
         cancel: &CancellationToken,
     ) -> Result<Vec<Item>> {
+        self.list_with_fresh_chat_inventory_marked(workspace, proof, cancel)
+            .await
+            .map(|(items, _)| items)
+    }
+
+    /// As [`Self::list_with_fresh_chat_inventory`], and reports whether the
+    /// proof was current so the rows are the complete chat inventory of the
+    /// scope (`true`) or came from the ordinary list path (`false`). View
+    /// shells use the flag to publish a `Complete` chat list.
+    pub async fn list_with_fresh_chat_inventory_marked(
+        &mut self,
+        workspace: Workspace,
+        proof: FreshChatInventory,
+        cancel: &CancellationToken,
+    ) -> Result<(Vec<Item>, bool)> {
         self.require_canonical_read_profile()?;
         if cancel.is_cancelled() || self.operation_cancel.is_cancelled() {
             return Err(Error::Cancelled);
@@ -24,12 +39,12 @@ impl Client {
             }
             self.require_canonical_read_profile()?;
             self.record_complete_chat_list(&proof);
-            return Ok(items.into_inner());
+            return Ok((items.into_inner(), true));
         }
         tokio::select! {
             biased;
             _ = cancel.cancelled() => Err(Error::Cancelled),
-            result = self.list(workspace) => result,
+            result = self.list(workspace) => result.map(|items| (items, false)),
         }
     }
 

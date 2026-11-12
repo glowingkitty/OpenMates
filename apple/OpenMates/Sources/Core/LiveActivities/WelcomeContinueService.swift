@@ -1,7 +1,11 @@
 // Web: services/continueCarouselService.ts; ActiveChat.loadPriorityContinueItems.
 // Specification: specifications/features/continue-carousel/specification.yml
 // Assertions: continue-carousel.saved-item.start-time-gated, continue-carousel.chat.reminder-gated
-// Decrypted memory content remains in this account-scoped RAM cache only.
+// Decrypted saved-item content remains in this account-scoped RAM cache only.
+// Saved items reach `accept(_:)` as snapshots. The typed saved-memory source
+// was removed (app-memories.typed.removed); the web now lists embeds carrying
+// the encrypted saved flag (app-memories.saved-items.not-memories), which this
+// client cannot read yet, so today only reminders produce Continue items.
 import Foundation
 import Combine
 
@@ -115,10 +119,6 @@ final class WelcomeContinueService: ObservableObject {
     private var loading: Task<Void, Never>?
     private var syncObserver: AnyCancellable?
     private var boundaryTask: Task<Void, Never>?
-    private lazy var memories = SettingsMemoryService(observesSync: false, liveActivitySnapshot: { [weak self] snapshot in
-        self?.accept(snapshot)
-        UpcomingMemoryLiveActivityBridge.shared.accept(snapshot)
-    })
     init(observesSync: Bool = true) {
         guard observesSync else { return }
         syncObserver = NotificationCenter.default.publisher(for: .wsSyncEvent).sink { [weak self] _ in
@@ -128,7 +128,7 @@ final class WelcomeContinueService: ObservableObject {
     func configure(accountID: String?, server: ServerProfile, generation: UUID, team: APIRequestTeamContext, authenticated: Bool) {
         let next = authenticated ? accountID.map { UpcomingMemorySnapshotScope(accountID: $0, server: server, scope: generation, team: team) } : nil
         guard next != scope else { return }
-        loading?.cancel(); loading = nil; boundaryTask?.cancel(); boundaryTask = nil; memories.cancel()
+        loading?.cancel(); loading = nil; boundaryTask?.cancel(); boundaryTask = nil
         entries = []; reminders = []; revision = 0; items = []; scope = next
         if foreground { refresh() }
     }
@@ -143,7 +143,7 @@ final class WelcomeContinueService: ObservableObject {
         project()
     }
     func becameActive() { foreground = true; project(); refresh() }
-    func becameInactive() { foreground = false; loading?.cancel(); loading = nil; boundaryTask?.cancel(); boundaryTask = nil; memories.cancel() }
+    func becameInactive() { foreground = false; loading?.cancel(); loading = nil; boundaryTask?.cancel(); boundaryTask = nil }
     private func project() {
         now = Date()
         items = WelcomeContinuePolicy.items(entries: scope?.teamID == nil ? entries : [], reminders: reminders, now: now)
@@ -183,8 +183,6 @@ final class WelcomeContinueService: ObservableObject {
         guard let expected = scope, loading == nil else { return }
         loading = Task { [weak self] in
             guard let self else { return }
-            await self.memories.load()
-            guard !Task.isCancelled, self.scope == expected else { return }
             do {
                 let data: Data = try await APIClient.shared.request(.get,
                     path: "/v1/settings/reminders?include_recent_fired=true&upcoming_hours=24&recent_hours=12",
@@ -194,7 +192,7 @@ final class WelcomeContinueService: ObservableObject {
                 let response = try JSONDecoder().decode(Response.self, from: data)
                 guard !Task.isCancelled, self.scope == expected else { return }
                 self.reminders = response.reminders
-            } catch { /* Keep accepted scoped memories when optional reminders are unavailable. */ }
+            } catch { /* Keep accepted scoped saved items when optional reminders are unavailable. */ }
             guard !Task.isCancelled, self.scope == expected else { return }
             self.project(); self.loading = nil
         }

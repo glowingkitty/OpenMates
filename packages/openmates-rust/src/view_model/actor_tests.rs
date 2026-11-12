@@ -245,7 +245,10 @@ async fn start_emits_cached_list_from_the_index_before_admission_and_network() {
         events[0],
         ViewEvent::Session(SessionEvent::Restored { display_name: None })
     );
-    let ViewEvent::ChatList { rows, completeness } = &events[1] else {
+    let ViewEvent::ChatList {
+        rows, completeness, ..
+    } = &events[1]
+    else {
         panic!("cached chat list expected: {events:?}");
     };
     assert_eq!(*completeness, ListCompleteness::Cached);
@@ -414,4 +417,25 @@ fn chat_list_event_refuses_a_malformed_row_instead_of_defaulting_it() {
             .chat_list_event(vec![malformed], ListCompleteness::Partial),
         Err(Error::Protocol)
     );
+}
+
+#[test]
+fn a_proven_inventory_publishes_a_complete_list_and_anything_else_a_partial_one() {
+    use super::actor_flows::network_list_completeness;
+    assert_eq!(network_list_completeness(true), ListCompleteness::Complete);
+    assert_eq!(network_list_completeness(false), ListCompleteness::Partial);
+    let f = fixture();
+    let event = f
+        .host
+        .core()
+        .chat_list_event(Vec::new(), network_list_completeness(true))
+        .unwrap();
+    assert!(matches!(
+        event,
+        ViewEvent::ChatList {
+            completeness: ListCompleteness::Complete,
+            total_count: None,
+            ..
+        }
+    ));
 }

@@ -42,9 +42,9 @@ pub struct ChatListRow {
     pub category: String,
     /// Draft or locked state.
     pub status: ChatRowStatus,
-    /// Creation time in unix milliseconds, when the row carries one.
+    /// Creation time in unix seconds (the server chat-row unit), when the row carries one.
     pub created_at: Option<i64>,
-    /// Last update in unix milliseconds, when the row carries one.
+    /// Last update in unix seconds (the server chat-row unit), when the row carries one.
     pub updated_at: Option<i64>,
     /// Server message version, when the row carries one.
     pub messages_v: Option<u64>,
@@ -58,6 +58,8 @@ pub struct ChatListRow {
     pub has_draft: bool,
     /// Home-card footer such as a reminder countdown.
     pub footer: Option<String>,
+    /// The row is a saved-item home entry (an embed card), not a chat.
+    pub is_saved_item: bool,
     /// Further facts of the held chat row (icon, sub-chat, budget, draft).
     pub metadata: ChatRowMetadata,
 }

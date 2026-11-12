@@ -1,4 +1,8 @@
-<!-- Shared result-detail structure; specialized editors retain their own layout. -->
+<!--
+  Shared result-detail structure; specialized editors retain their own layout.
+
+  Native Swift counterparts: apple/OpenMates/Sources/Features/Embeds/Renderers/ImageGenerateEmbedRenderer.swift
+-->
 <script lang="ts">
   import { getContext, onDestroy, type Snippet, type ComponentProps } from "svelte";
   import { get } from "svelte/store";

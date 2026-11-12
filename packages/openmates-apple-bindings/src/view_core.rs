@@ -6,7 +6,9 @@
 //! `SwitchTeam`, `Logout`, the chat window commands (`OpenChat`, `LoadOlder`,
 //! `CloseChat`, `MarkRead`) and the fresh-session begin after a login. Send
 //! lives in `view_send.rs`, the core-performed login in `view_login.rs`,
-//! session state and auth loss in `view_session.rs`.
+//! session state and auth loss in `view_session.rs`, the user payload and
+//! device verification in `view_account.rs`, the Keychain adapter in
+//! `view_vault.rs`.
 //! Swift supplies the Keychain (`CredentialStore`) and receives events
 //! (`ViewListener`). Bindings only marshal; the hooks below are the minimal
 //! Apple `ViewHost`. Plan `apple-client-core-migration` lane L8
@@ -20,28 +22,27 @@ use openmates_sdk::{
     Client, ClientIdentity, ClientOptions,
     client::{CredentialSnapshot, FreshChatInventory},
     error::{Error, Result},
-    local_cache::{
-        ByteStoreError, CacheEngine, CacheStore, FileByteStore, FixedContext, NoScope,
-        OrderedBlocking,
-    },
+    local_cache::{CacheEngine, CacheStore, FileByteStore, FixedContext, NoScope, OrderedBlocking},
     session::Session,
     shell_session::{
-        AcknowledgedCredentials, CredentialPersistence, CredentialVault, FreshSessionAdmission,
-        ShellSession, session_cache_context,
+        AcknowledgedCredentials, CredentialPersistence, FreshSessionAdmission, ShellSession,
+        session_cache_context,
     },
     view_model::{
         self, ListRecovery, RequestId, RevocationHandle, SendCancelHandle, SessionEvent,
-        ViewCommand, ViewCore, ViewEvent, ViewHost, ViewSink,
+        UnownedFrameSender, ViewCommand, ViewCore, ViewEvent, ViewHost, ViewSink,
     },
 };
 use std::future::Future;
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex as StdMutex, MutexGuard, PoisonError};
 use std::time::Duration;
 use tokio::runtime::{Handle, Runtime};
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
-use zeroize::Zeroizing;
+
+pub(crate) use crate::view_vault::{VaultBridge, store_open_error};
 
 pub(crate) type Bytes = FileByteStore;
 
@@ -78,52 +79,8 @@ pub trait ViewListener: Send + Sync {
     fn on_event(&self, event: ViewEventRecord);
 }
 
-/// Classification of a Swift store failure for the core. The Keychain can
-/// only report "locked" or a store failure; anything else is a store failure.
-fn store_error(error: CoreError) -> Error {
-    match error {
-        CoreError::Locked => Error::Locked,
-        CoreError::Cancelled => Error::Cancelled,
-        _ => Error::Io,
-    }
-}
-
-/// Classification of a cache directory open failure: configuration mistakes
-/// (relative or non-normalized container, a name that is not one plain
-/// component) are `Invalid`; file-system failures keep the core mapping (`Io`).
-fn store_open_error(error: ByteStoreError) -> CoreError {
-    let message = match error {
-        ByteStoreError::RelativePath => "The cache container must be an absolute path.",
-        ByteStoreError::NonNormalizedPath => "The cache container must be a normalized path.",
-        ByteStoreError::InvalidName => "The cache directory name must be one plain path component.",
-        other => return Error::from(other).into(),
-    };
-    CoreError::Invalid {
-        message: message.to_owned(),
-    }
-}
-
-/// The Swift `CredentialStore` as the core's `CredentialVault`.
-pub(crate) struct VaultBridge(pub(crate) Arc<dyn CredentialStore>);
-
-impl CredentialVault for VaultBridge {
-    fn load(&self) -> Result<Option<Zeroizing<Vec<u8>>>> {
-        Ok(self.0.load().map_err(store_error)?.map(Zeroizing::new))
-    }
-
-    fn credentials_changed(&self, revision: u64, payload: &[u8]) {
-        self.0.credentials_changed(CredentialSnapshotRecord {
-            revision,
-            payload: payload.to_vec(),
-        });
-    }
-
-    fn delete(&self) -> Result<()> {
-        self.0.delete().map_err(store_error)
-    }
-}
-
 /// Delivers core events to the Swift listener, mapped 1:1.
+#[derive(Clone)]
 pub(crate) struct ListenerSink(Arc<dyn ViewListener>);
 
 impl ViewSink for ListenerSink {
@@ -195,6 +152,9 @@ impl ViewHost<Bytes> for AppleHost {
                 .unwrap_or("OpenMates")
                 .to_owned();
             drop(admission);
+            // The admitted payload is what an offline restore shows next
+            // (`userProfile`, `view_account.rs`); stored before `Admitted`.
+            shell.save_admitted_user(self.core.client()).await?;
             let expires_at = self
                 .core
                 .client()
@@ -235,6 +195,13 @@ impl ViewHost<Bytes> for AppleHost {
     }
 }
 
+impl AppleHost {
+    /// Forward unowned socket frames of this actor into `sink`.
+    pub(crate) fn enable_unowned_forwarding(&mut self, sink: &ListenerSink) {
+        self.core.forward_unowned_frames(Arc::new(sink.clone()));
+    }
+}
+
 pub(crate) fn lock<T>(mutex: &StdMutex<T>) -> MutexGuard<'_, T> {
     // A poisoned lock only means a panic elsewhere; the value stays valid.
     mutex.lock().unwrap_or_else(PoisonError::into_inner)
@@ -254,8 +221,21 @@ pub(crate) struct Shared {
     pub(crate) revocation: StdMutex<Option<RevocationHandle<Bytes>>>,
     /// Cancels the running send without waiting for the actor.
     pub(crate) send_cancel: StdMutex<Option<SendCancelHandle>>,
+    /// Raw-frame sender of the signed-in actor (`view_unowned.rs`).
+    pub(crate) unowned_sender: StdMutex<Option<UnownedFrameSender>>,
+    /// Swift opted in to unowned socket frames; kept across sessions.
+    pub(crate) forward_unowned: AtomicBool,
+    /// Swift opted sends in to assistant Memory writes (`view_memories.rs`);
+    /// kept across sessions and applied to each send (`view_send.rs`).
+    pub(crate) memory_write_jobs: AtomicBool,
+    /// Swift chose the Global server region (`view_region.rs`); kept across
+    /// sessions and applied to each send (`view_send.rs`).
+    pub(crate) server_region_global: AtomicBool,
     /// The client of a running pair login (signed out only); see `view_login.rs`.
     pub(crate) pairing: Mutex<Option<crate::view_login::PendingPair>>,
+    /// The core's continuation of a begun passkey login or passkey device
+    /// verification (`view_login_passkey.rs`); never handed to Swift.
+    pub(crate) passkey: Mutex<Option<openmates_sdk::client::PasskeyContinuation>>,
 }
 
 impl Shared {
@@ -283,6 +263,7 @@ impl Shared {
             *host = None;
             *lock(&self.revocation) = None;
             *lock(&self.send_cancel) = None;
+            *lock(&self.unowned_sender) = None;
             return self
                 .sink
                 .emit(ViewEvent::Session(SessionEvent::SignedOut))
@@ -301,6 +282,10 @@ impl Shared {
         core.set_eager_cached_content(false);
         *lock(&self.revocation) = Some(core.revocation_handle());
         *lock(&self.send_cancel) = Some(core.send_cancel_handle());
+        *lock(&self.unowned_sender) = Some(core.unowned_frame_sender());
+        if self.forward_unowned.load(Ordering::SeqCst) {
+            core.forward_unowned_frames(Arc::new(self.sink.clone()));
+        }
         let current = host.insert(AppleHost {
             core,
             api_url: self.api_url.clone(),
@@ -367,6 +352,7 @@ impl Shared {
             *host = None;
             *lock(&self.revocation) = None;
             *lock(&self.send_cancel) = None;
+            *lock(&self.unowned_sender) = None;
             return result;
         }
         // Signed out already: still make revocation durable and wipe stored
@@ -448,7 +434,12 @@ impl ViewModelCore {
                 host: Mutex::new(None),
                 revocation: StdMutex::new(None),
                 send_cancel: StdMutex::new(None),
+                unowned_sender: StdMutex::new(None),
+                forward_unowned: AtomicBool::new(false),
+                memory_write_jobs: AtomicBool::new(false),
+                server_region_global: AtomicBool::new(false),
                 pairing: Mutex::new(None),
+                passkey: Mutex::new(None),
             }),
             foreground: StdMutex::new(shutdown.child_token()),
             shutdown,

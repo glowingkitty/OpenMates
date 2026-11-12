@@ -2,13 +2,15 @@
 //! credentials plus the protected cache index), cache-first Chat open, fresh
 //! session admission, persistence with durable receipts, logout, and the
 //! fresh-session fence after a login (`begin`) and the hand-over of a core
-//! password or pair login to an acknowledging shell (`login`).
+//! password or pair login to an acknowledging shell (`login`), and the
+//! cached admitted user payload for offline restores (`account_profile`).
 //!
 //! Moved from the TUI `session_runtime.rs` (lane L4 of
 //! `docs/plans/apple-client-core-migration/a2-design.md`); shells keep only
 //! their credential backend behind [`CredentialPersistence`]. Native targets
 //! only (needs the blocking queue of `local_cache::CacheStore`). Spec:
 //! `client-core.cache` and the credential rules in `client-core`.
+mod account_profile;
 mod acknowledged;
 mod admission;
 mod begin;

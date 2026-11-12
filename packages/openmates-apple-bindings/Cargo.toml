@@ -25,7 +25,8 @@ required-features = ["bindgen"]
 
 [features]
 bindgen = ["uniffi/cli"]
-# Test fixtures exported to Swift (`test_support_seed_cached_account`). Off in
+# Test fixtures (`test_support_seed_cached_account`, the C entry
+# `openmates_test_support_seed_chat_list` of the Swift UI-test glue). Off in
 # product builds; binding generation and the test build enable it together.
 test-support = []
 

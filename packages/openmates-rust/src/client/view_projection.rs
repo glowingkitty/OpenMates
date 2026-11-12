@@ -69,6 +69,8 @@ fn pii_mappings(row: &Value, key: &[u8; 32]) -> Result<Vec<PiiMapping>> {
 pub(crate) fn message_metadata(row: &Value, key: &[u8; 32]) -> Result<MessageMetadata> {
     Ok(MessageMetadata {
         created_at: timestamp(row, "created_at")?,
+        updated_at: timestamp(row, "updated_at")?,
+        app_id: string(row, "app_id")?.filter(|id| !id.is_empty()),
         server_message_id: string(row, "message_id")?,
         client_message_id: string(row, "client_message_id")?,
         user_message_id: string(row, "user_message_id")?,
@@ -88,7 +90,21 @@ pub(crate) fn message_metadata(row: &Value, key: &[u8; 32]) -> Result<MessageMet
 
 /// The plain (not encrypted) facts of a chat row.
 fn plain_row_metadata(row: &Value) -> Result<ChatRowMetadata> {
+    let settings = row
+        .get("sub_chat_settings")
+        .filter(|value| !value.is_null());
+    if settings.is_some_and(|value| !value.is_object()) {
+        return Err(Error::Protocol);
+    }
+    let setting = |name: &str| settings.map_or(Ok(None), |value| boolean(value, name));
     Ok(ChatRowMetadata {
+        is_shared_by_others: boolean(row, "is_shared_by_others")?,
+        last_visible_message_id: string(row, "last_visible_message_id")?
+            .filter(|id| !id.is_empty()),
+        app_id: string(row, "app_id")?.filter(|id| !id.is_empty()),
+        sub_chat_wait_for_completion: setting("wait_for_completion")?,
+        sub_chat_report_trigger: settings
+            .map_or(Ok(None), |value| string(value, "report_trigger"))?,
         parent_id: string(row, "parent_id")?.filter(|id| !id.is_empty()),
         is_sub_chat: boolean(row, "is_sub_chat")?,
         is_shared: boolean(row, "is_shared")?,
@@ -104,6 +120,13 @@ fn plain_row_metadata(row: &Value) -> Result<ChatRowMetadata> {
 }
 
 impl Client {
+    /// Account chat count the server reported with the last recent-chats
+    /// phase of this scope, `None` until one arrived (or after a scope
+    /// switch). Shells use it to decide whether more chats exist than listed.
+    pub fn chat_total_count(&self) -> Option<u64> {
+        self.chat_total_count
+    }
+
     /// The chat key of a held row, or `None` when the current scope cannot
     /// read it (`Forbidden`: locked row; a personal draft-only row has none).
     fn projection_key(&self, row: &Value) -> Result<Option<Key>> {

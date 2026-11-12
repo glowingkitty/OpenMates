@@ -12,6 +12,11 @@
 // Mirrors the web app's dual-phase send protocol: WebSocket plaintext for AI
 // processing, then client-encrypted metadata/messages for permanent storage.
 // Subscribes to StreamingClient for real-time AI response chunks.
+// Saved chats read their messages from the Rust core's chat window
+// (`ChatViewModel+CoreWindow.swift`); the local loader below serves only chat
+// shapes the core refuses (incognito, anonymous, local fixtures).
+// Specification: specifications/architecture/client-core/specification.yml
+// Assertions: client-core.viewmodel.capability-contract, client-core.viewmodel.stream-updates
 // Specification: specifications/features/message-input/specification.yml
 // Assertions: message-input.embeds.gated-send, message-input.send.ownership, message-input.privacy-context, message-input.recording.lifecycle, message-input.drafts.preview-persistence
 // Specification: specifications/features/chats/specification.yml
@@ -706,7 +711,7 @@ final class ChatViewModel: ObservableObject {
     @Published private(set) var updatingQueuedMessageIDs = Set<String>()
     @Published private(set) var queuedFollowupError: String?
     private var queuedTerminalMessageIDs = Set<String>()
-    private var pendingQueuedEvents: [String: [String: Any]] = [:]
+    var pendingQueuedEvents: [String: [String: Any]] = [:]
     private var queuedEventOperations: [String: UUID] = [:]
     private var queuedHistoryFlights: [String: UUID] = [:]
     private var retainedQueuedRequests: [String: (request: ChatQueuedRevisionRequest, input: String)] = [:]
@@ -743,7 +748,7 @@ final class ChatViewModel: ObservableObject {
     }
 
     /// Loaded history: a full local snapshot or the bounded remote pages visited.
-    private var allMessages: [Message] = [] { didSet { memoryAssociationRevision &+= 1; hydrateQueuedFollowupsFromHistory() } }
+    var allMessages: [Message] = [] { didSet { memoryAssociationRevision &+= 1; hydrateQueuedFollowupsFromHistory() } }
     private var memoryAssociationRevision: UInt64 = 0
     private var cachedMemoryAssociations: (revision: UInt64, pending: ChatTransientAssistantResponse?, users: [String: String], result: ChatMemoryAssociations)?
     /// The scope that supplied saved rows is also the completion authority.
@@ -765,13 +770,13 @@ final class ChatViewModel: ObservableObject {
     private var foregroundDeletionRevision = 0
     private var deletedForegroundMessageIds = Set<String>()
     /// Index in `allMessages` where the currently-rendered message window starts.
-    private var visibleWindowStartIndex = 0
-    private var visibleWindowEndIndex = 0
+    var visibleWindowStartIndex = 0
+    var visibleWindowEndIndex = 0
     private(set) var windowRequestGeneration = 0
-    private var explicitWindowNavigationGeneration = 0
+    var explicitWindowNavigationGeneration = 0
     @Published private(set) var hasNewerMessages = false
     @Published private(set) var newerMessageCount = 0
-    @Published private(set) var historyWindowRevision = 0
+    @Published var historyWindowRevision = 0
     /// Whether there are older messages above the currently visible window.
     @Published var hasOlderMessages = false
     @Published var isLoadingOlder = false
@@ -785,7 +790,7 @@ final class ChatViewModel: ObservableObject {
     private let api = APIClient.shared
     private let sendPipeline = ChatSendPipeline()
     private weak var wsManager: WebSocketManager?
-    private weak var chatStore: ChatStore?
+    private(set) weak var chatStore: ChatStore?
     private var queuedMessageClearTask: Task<Void, Never>?
     private var streamTask: Task<Void, Never>?
     private var streamSubscriptionIdentity = ChatStreamSubscriptionIdentity()
@@ -794,13 +799,13 @@ final class ChatViewModel: ObservableObject {
         id: UUID, task: Task<ChatContentBatchPayload, Error>)?
     private let contentBatchFetcher: (@MainActor (String) async throws -> ChatContentBatchPayload)?
     private let messageWindowFetcher: @MainActor (String, String?, ChatMessageWindowQuery) async throws -> ChatMessageWindowPage
-    private var olderMessagesTask: Task<Void, Never>?
-    private var loadGeneration = 0
+    var olderMessagesTask: Task<Void, Never>?
+    private(set) var loadGeneration = 0
     private var notificationCatchUpInFlight: UUID?
     private var notificationCatchUpAttempt: (id: UUID, session: StreamingSessionGeneration, count: Int)?
     private let messageDecryptor: @MainActor ([Message], String) async -> [Message]
     private let accountScopeGeneration: @MainActor () -> UUID
-    private let offlineStore: OfflineStore
+    let offlineStore: OfflineStore
     private let processingCoordinator: ActiveChatsCoordinator
     private var diskHistoryChatID: String?
     private var diskHasOlderMessages = false
@@ -813,6 +818,9 @@ final class ChatViewModel: ObservableObject {
     private var anonymousFeatureNoticeInserted = false
     nonisolated(unsafe) private var embedRefreshObserver: Any?
     nonisolated(unsafe) private var chatLifecycleObserver: Any?
+    /// Saved chats read their messages from the core window (`ChatViewModel+CoreWindow.swift`).
+    let coreWindow: CoreChatWindow
+    var coreBinding = ChatCoreWindowBinding()
 
     init(
         messageDecryptor: @escaping @MainActor ([Message], String) async -> [Message] = {
@@ -822,6 +830,7 @@ final class ChatViewModel: ObservableObject {
         contentBatchFetcher: (@MainActor (String) async throws -> ChatContentBatchPayload)? = nil,
         offlineStore: OfflineStore = .shared,
         processingCoordinator: ActiveChatsCoordinator = .shared,
+        coreWindow: CoreChatWindow = .shared,
         messageWindowFetcher: @escaping @MainActor (String, String?, ChatMessageWindowQuery) async throws -> ChatMessageWindowPage = {
             try await ChatMessageWindowClient.fetch(chatId: $0, teamId: $1, query: $2)
         }
@@ -841,6 +850,7 @@ final class ChatViewModel: ObservableObject {
         self.accountScopeGeneration = accountScopeGeneration
         self.offlineStore = offlineStore
         self.processingCoordinator = processingCoordinator
+        self.coreWindow = coreWindow
         self.messageWindowFetcher = messageWindowFetcher
         #if DEBUG
         let args = ProcessInfo.processInfo.arguments
@@ -901,7 +911,6 @@ final class ChatViewModel: ObservableObject {
         remoteHistory = nil
         failedRemoteWindowRequest = nil
         deletedForegroundMessageIds.removeAll()
-        let readFence = remoteReadFence(chatId: id, generation: generation)
         diskHistoryChatID = nil
         diskHasOlderMessages = false
         diskHasNewerMessages = false
@@ -915,7 +924,14 @@ final class ChatViewModel: ObservableObject {
         error = nil
 
         if loadPublicChat(id: id) {
+            detachCoreWindow(closing: true)
             isLoading = false
+            return
+        }
+
+        // Saved chats: messages from the core window. Only a chat shape the
+        // core refuses (incognito, anonymous, local fixtures) reads the local copy.
+        if await openThroughCore(id: id, initialChat: initialChat, initialEmbeds: initialEmbeds, generation: generation) {
             return
         }
 
@@ -923,57 +939,9 @@ final class ChatViewModel: ObservableObject {
             await loadSyncedChat(initialChat, messages: initialMessages, embeds: initialEmbeds, generation: generation)
             return
         }
-
-        do {
-            var loadedChat: Chat = try await api.request(.get, path: "/v1/chats/\(id)")
-
-            // Ensure chat key is loaded (may not be if chat was opened via deep link)
-            await ensureChatKey(for: loadedChat)
-
-            loadedChat = await decryptMetadata(for: loadedChat)
-            let storedFollowUps = await decryptFollowUpSuggestions(for: loadedChat)
-            guard isCurrentRemoteRead(readFence) else { return }
-            chat = loadedChat
-
-            let page = try await fetchRemoteWindow(chatId: id, teamId: loadedChat.teamId,
-                query: initialRemoteQuery(anchor: loadedChat.lastVisibleMessageId), generation: generation)
-            guard generation == loadGeneration else { return }
-            remoteHistory = RemoteHistory(page)
-            allMessages = mergeForegroundMessages(foregroundPageMessages(page), preserving: chatStore?.messages(for: id) ?? [], chatId: id)
-            rawHistoryReadFence = readFence
-            let visibleRawMessages = visibleWindow(from: allMessages, anchorMessageId: loadedChat.lastVisibleMessageId)
-            let decryptedMessages = await decryptMessages(visibleRawMessages, chatId: id)
-            guard isCurrentRemoteRead(readFence) else { return }
-            let embedded = PublicChatContent.attachEmbeds(to: decryptedMessages)
-            embedRecords = embedded.records
-            followUpSuggestions = ChatFollowUpSuggestionPolicy.restore(
-                stored: storedFollowUps,
-                hasStoredCiphertext: loadedChat.encryptedFollowUpRequestSuggestions != nil,
-                legacyExtracted: extractFollowUpSuggestions(from: embedded.messages)
-            )
-
-            messages = embedded.messages
-            refreshWindowBoundaries()
-            historyWindowRevision += 1
-
-            // Start listening for streaming events and embed updates
-            subscribeToStream(chatId: id)
-            subscribeToEmbedUpdates(chatId: id)
-            subscribeToChatLifecycle(chatId: id)
-            isLoading = false
-            scheduleEmbedHydration(
-                syncedEmbeds: [],
-                referencedIds: Set(embedded.messages.flatMap { $0.embedRefs?.map(\.id) ?? [] }),
-                chatId: id,
-                generation: generation,
-                existingRecords: embedRecords,
-                source: "rest"
-            )
-        } catch {
-            guard isCurrentRemoteRead(readFence) else { return }
-            self.error = error is ChatMessageWindowError ? AppStrings.genericProcessingError : error.localizedDescription
-            isLoading = false
-        }
+        // Neither the core nor a local copy holds this chat.
+        error = AppStrings.genericProcessingError
+        isLoading = false
     }
 
     func applySynced(chat syncedChat: Chat?, messages syncedMessages: [Message], embeds syncedEmbeds: [EmbedRecord] = []) async {
@@ -982,6 +950,10 @@ final class ChatViewModel: ObservableObject {
         if !syncedMessages.isEmpty && syncedMessages.allSatisfy({ $0.chatId != currentId }) { return }
         let nextChat = syncedChat ?? chat
         guard let nextChat else { return }
+        if ownsCoreWindow(currentId) {
+            await applySyncedHeaderToCoreWindow(nextChat, embeds: syncedEmbeds)
+            return
+        }
         let destination: ChatHistoryWindowDestination = hasNewerMessages
             ? messages.first.map { .preserve(firstMessage: $0.id) } ?? .latest
             : .latest
@@ -1002,6 +974,9 @@ final class ChatViewModel: ObservableObject {
 
     func refreshNotificationCompletion(chatID: String, messageID: String?, intentID: UUID,
                                        renewAttempts: Bool = false, isCurrent: @escaping @MainActor () -> Bool) async -> Bool {
+        if ownsCoreWindow(chatID) {
+            return await refreshCoreWindowForNotification(chatID: chatID, messageID: messageID, isCurrent: isCurrent)
+        }
         guard let currentChat = chat, currentChat.id == chatID, !isLoading,
               notificationCatchUpInFlight == nil, isCurrent() else { return false }
         let targetMessageID = messageID ?? (streamingLifecycle.isActive
@@ -1273,7 +1248,7 @@ final class ChatViewModel: ObservableObject {
         )
     }
 
-    private func scheduleEmbedHydration(
+    func scheduleEmbedHydration(
         syncedEmbeds: [EmbedRecord],
         referencedIds: Set<String>,
         chatId: String,
@@ -1341,7 +1316,7 @@ final class ChatViewModel: ObservableObject {
     }
 
     /// Header metadata through the batched core decrypt (only a missing title is filled).
-    private func decryptMetadata(for chat: Chat) async -> Chat {
+    func decryptMetadata(for chat: Chat) async -> Chat {
         await ChatKeyManager.shared.decryptMetadata(of: chat, replaceEmptyTitle: false)
     }
 
@@ -1371,7 +1346,7 @@ final class ChatViewModel: ObservableObject {
     }
 
     /// Ensure the chat key is available (load from master key if not cached).
-    private func ensureChatKey(for chat: Chat) async {
+    func ensureChatKey(for chat: Chat) async {
         guard !ChatKeyManager.shared.hasKey(for: chat.id),
               let userId = await AuthManager.currentUserId(),
               let masterKey = try? await CryptoManager.shared.loadMasterKey(for: userId) else { return }
@@ -1872,6 +1847,7 @@ final class ChatViewModel: ObservableObject {
             }
         }
         #endif
+        if let chatId = chat?.id, ownsCoreWindow(chatId) { return loadCoreMessageWindow(destination) }
         guard !isLoading, let chatId = chat?.id else { return nil }
         if destination == .older && (!hasOlderMessages || isLoadingOlder) { return nil }
         if destination == .newer && (!hasNewerMessages || isLoadingOlder) { return nil }
@@ -1941,8 +1917,9 @@ final class ChatViewModel: ObservableObject {
         cancelOlderMessagesLoad()
     }
 
-    private func refreshWindowBoundaries() {
+    func refreshWindowBoundaries() {
         hasOlderMessages = visibleWindowStartIndex > 0 || diskHasOlderMessages || remoteHistory?.hasOlder == true
+            || coreWindowHasOlderMessages
         newerMessageCount = max(0, allMessages.count - visibleWindowEndIndex) + diskNewerMessageCount
         hasNewerMessages = newerMessageCount > 0 || diskHasNewerMessages || remoteHistory?.hasNewer == true
     }
@@ -1987,7 +1964,7 @@ final class ChatViewModel: ObservableObject {
         refreshDiskHistoryBoundaries(allMessages, chatId: chatId)
     }
 
-    private func cancelOlderMessagesLoad() {
+    func cancelOlderMessagesLoad() {
         windowRequestGeneration += 1
         olderMessagesTask?.cancel()
         olderMessagesTask = nil
@@ -2675,7 +2652,7 @@ final class ChatViewModel: ObservableObject {
 
     // MARK: - Streaming subscription
 
-    private func subscribeToStream(chatId: String, replayBufferedState: Bool = true) {
+    func subscribeToStream(chatId: String, replayBufferedState: Bool = true) {
         let sessionGeneration = StreamingClient.shared.sessionGeneration
         guard let subscriptionToken = streamSubscriptionIdentity.begin(
             chatID: chatId, session: sessionGeneration) else { return }
@@ -3008,7 +2985,7 @@ final class ChatViewModel: ObservableObject {
         chatStore?.appendMessage(message, to: message.chatId)
     }
 
-    private func appendOrReplaceTransientMessage(_ message: Message) {
+    func appendOrReplaceTransientMessage(_ message: Message) {
         let wasAtTail = !hasNewerMessages
         let originalFirst = messages.first?.id
         if upsertRawHistoryMessage(message) { cancelOlderMessagesLoad() }
@@ -3068,7 +3045,7 @@ final class ChatViewModel: ObservableObject {
     // MARK: - Embed update subscription
 
     /// Listen for WebSocket embed updates and reload embeds for this chat.
-    private func subscribeToEmbedUpdates(chatId: String) {
+    func subscribeToEmbedUpdates(chatId: String) {
         if let observer = embedRefreshObserver {
             NotificationCenter.default.removeObserver(observer)
             embedRefreshObserver = nil
@@ -3083,7 +3060,7 @@ final class ChatViewModel: ObservableObject {
         }
     }
 
-    private func subscribeToChatLifecycle(chatId: String) {
+    func subscribeToChatLifecycle(chatId: String) {
         Task { @MainActor [weak self] in await self?.refreshQueuedFollowups() }
         subChatProgress = nil
         subChatApprovalRequest = nil
@@ -3175,7 +3152,7 @@ final class ChatViewModel: ObservableObject {
         await flushPendingSubChatSpawns()
     }
 
-    private func flushPendingSubChatSpawns() async {
+    func flushPendingSubChatSpawns() async {
         guard !isFlushingSubChatSpawns, !pendingSubChatSpawns.isEmpty else { return }
         isFlushingSubChatSpawns = true
         defer { isFlushingSubChatSpawns = false }
@@ -3258,7 +3235,7 @@ final class ChatViewModel: ObservableObject {
         }
     }
 
-    private func flushPendingSubChatCompletions() async {
+    func flushPendingSubChatCompletions() async {
         let scope = accountScopeGeneration()
         pendingSubChatCompletions = pendingSubChatCompletions.filter { $0.value.scope == scope }
         for (_, pending) in Array(pendingSubChatCompletions) {
@@ -3842,7 +3819,7 @@ final class ChatViewModel: ObservableObject {
         )
     }
 
-    private func extractFollowUpSuggestions(from messages: [Message]) -> [String] {
+    func extractFollowUpSuggestions(from messages: [Message]) -> [String] {
         guard let content = messages.last(where: { $0.role == .assistant })?.content else { return [] }
         let lines = content.components(separatedBy: .newlines)
         guard let start = lines.lastIndex(where: { $0.trimmingCharacters(in: .whitespacesAndNewlines).localizedCaseInsensitiveContains("next steps") }) else {
@@ -3860,7 +3837,7 @@ final class ChatViewModel: ObservableObject {
             .map { String($0) }
     }
 
-    private func decryptFollowUpSuggestions(for chat: Chat) async -> [String] {
+    func decryptFollowUpSuggestions(for chat: Chat) async -> [String] {
         guard let encrypted = chat.encryptedFollowUpRequestSuggestions,
               let plaintext = await ChatKeyManager.shared.decryptChatField(
                 chatId: chat.id,

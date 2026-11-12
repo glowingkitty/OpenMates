@@ -11,6 +11,8 @@ pub(crate) enum Reply {
     Json(Value),
     /// `200` with this JSON body and a refresh-token cookie.
     JsonWithCookie(Value),
+    /// This HTTP status with this JSON body (typed server refusals).
+    Status(u16, Value),
     /// Close without an answer (the server is "offline" for it).
     Close,
     /// Hold the connection this long, then close without an answer.
@@ -64,6 +66,8 @@ where
                         "\r\nSet-Cookie: auth_refresh_token=synthetic-refresh; Path=/\r\n",
                         1,
                     ),
+                    Reply::Status(status, value) => respond(&value)
+                        .replacen("200 OK", &format!("{status} Refused"), 1),
                     Reply::Close => return,
                     Reply::Hang(duration) => {
                         tokio::time::sleep(duration).await;

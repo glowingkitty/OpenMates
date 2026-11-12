@@ -38,6 +38,9 @@ MAX_UI_SPECS = 40
 TEST_ALLOWANCE_SECONDS = 300  # per test; the longest real UI flow waits about 90 s
 XCODE_MODES = ("apple-unit", "apple-ui")
 RESULT_BUNDLES = {"apple-unit": "OpenMatesTests.xcresult", "apple-ui": "OpenMatesUITests.xcresult"}
+# Core test fixtures: the Rust feature (Xcode phase) and the Swift compilation condition.
+TEST_SUPPORT_SETTING = "OPENMATES_CORE_TEST_SUPPORT=YES"
+TEST_SUPPORT_SWIFT_FLAGS = "OTHER_SWIFT_FLAGS=$(inherited) -DOPENMATES_CORE_TEST_SUPPORT"
 RUST_TEST_FLAGS = ["--locked", "--lib", "--bins", "--tests"]
 
 Step = tuple[str, list[str], dict, str]
@@ -156,6 +159,12 @@ def xcode_plan(mode: str, results: Path, specs: list[str]) -> list[Step]:
     # The script phases (OpenMatesCore, LocalModelBridge) run cargo and read repository
     # files, which Xcode's script sandbox denies; the TestFlight build passes the same override.
     command += ["CODE_SIGNING_ALLOWED=NO", "CODE_SIGN_IDENTITY=", "ENABLE_USER_SCRIPT_SANDBOXING=NO"]
+    # Both test lanes build the Debug app with the core's test fixtures: the OpenMatesCore phase
+    # adds `--features test-support` (build-xcframework.sh refuses it outside Debug), and the
+    # Swift condition of the same name compiles the fixture glue that links against it (the UI
+    # fixtures seed the core's cached chat list). They are always set together; a Release build
+    # with the condition fails to compile. The core and TestFlight lanes never set either.
+    command += [TEST_SUPPORT_SETTING, TEST_SUPPORT_SWIFT_FLAGS]
     return [
         (
             "design tokens and locales",

@@ -6,6 +6,9 @@
      Saves stamp created_at (first save) and updated_at (every save). An unsaved suggestion
      (deep link) is applied on top of its memory and saved only when the user clicks Save.
      Spec: specifications/features/app-memories.
+     Native Swift counterparts:
+     - apple/OpenMates/Sources/Features/Settings/Memories/SettingsMemoryDocuments.swift
+     - apple/OpenMates/Sources/Features/Settings/Views/SettingsMemoriesFull.swift
 -->
 <script module lang="ts">
   import { writable } from 'svelte/store';

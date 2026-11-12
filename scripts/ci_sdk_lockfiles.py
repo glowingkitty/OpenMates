@@ -26,8 +26,16 @@ TARGET = "sdk-lockfiles"
 BUDGET = 1200
 # Root Cargo workspace members. One root Cargo.toml/Cargo.lock; the patched
 # third-party crates referenced by the root [patch.crates-io] are inputs too.
-ROOTS = ("packages/openmates-rust", "packages/openmates-session-bindings",
-         "frontend/packages/openmates-tui-native", "packages/openmates-browser-bindings")
+RUST = "packages/openmates-rust"
+SESSION = "packages/openmates-session-bindings"
+CLI = "frontend/packages/openmates-tui-native"
+BROWSER = "packages/openmates-browser-bindings"
+APPLE = "packages/openmates-apple-bindings"
+ROOTS = (RUST, SESSION, CLI, BROWSER, APPLE)
+# Library members (src/lib.rs required); the CLI member is a binary crate.
+LIB_ROOTS = (RUST, SESSION, BROWSER, APPLE)
+# Extra manifest-declared target files at a member root that Cargo needs to load it.
+MEMBER_ROOT_FILES = {APPLE: frozenset({"uniffi-bindgen.rs"})}
 WORKSPACE_FILES = ("Cargo.toml", "Cargo.lock")
 THIRD_PARTY = "packages/third_party"
 SCOPES = (*ROOTS, *WORKSPACE_FILES, THIRD_PARTY)
@@ -57,7 +65,7 @@ def owned(name):
     for root in ROOTS:
         if name.startswith(root + "/"):
             tail = Path(name[len(root) + 1:])
-            return (tail.as_posix() in {"Cargo.toml", "build.rs"}
+            return (tail.as_posix() in {"Cargo.toml", "build.rs", *MEMBER_ROOT_FILES.get(root, ())}
                     or (tail.parts[0] in {"src", "tests", "fixtures", "examples", "assets"}
                         and tail.suffix in {".rs", ".json", ".txt", ".md", ".yaml", ".yml", ".toml"}))
     return False
@@ -102,8 +110,8 @@ def source_inputs_from_git(root, source):
         rows[name] = sdk.sha(blobs[start:offset - 1])
     sdk.require(offset == len(blobs), "source")
     sdk.require(all(root + "/Cargo.toml" in rows and root + "/src/lib.rs" in rows
-                    for root in (ROOTS[0], ROOTS[1], ROOTS[3]))
-                and ROOTS[2] + "/src/main.rs" in rows
+                    for root in LIB_ROOTS)
+                and CLI + "/src/main.rs" in rows
                 and all(name in rows for name in ORIGINAL_LOCKS), "source")
     return rows
 

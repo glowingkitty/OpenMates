@@ -3,6 +3,9 @@
 
   Preview card for Weather / Rain radar skill embeds.
   Shows a deterministic still based on the +10 minute preview frame metadata.
+
+  Native Swift counterparts: apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+  (WeatherRainRadarEmbedRenderer, RainRadarPreview)
 -->
 
 <script lang="ts">

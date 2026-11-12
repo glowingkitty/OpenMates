@@ -4,6 +4,9 @@
      icon; second line Private/Project and the modified date), Renew for expired memories
      and the character budget. Rows open the memory's own page.
      Spec: specifications/features/app-memories. Preview: /dev/preview/settings/MemoryList
+     Native Swift counterparts:
+     - apple/OpenMates/Sources/Features/Settings/Views/SettingsMemoriesFull.swift
+     - apple/OpenMates/Sources/Features/Settings/Memories/SettingsMemoryDocuments.swift
 -->
 <script lang="ts">
   import { locale } from 'svelte-i18n';

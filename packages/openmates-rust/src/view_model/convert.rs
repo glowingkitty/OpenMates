@@ -100,6 +100,7 @@ pub fn chat_list_row_from_item(item: &Item) -> Result<ChatListRow, ViewModelErro
         archived: flag(fields, "archived")?,
         has_draft: flag(fields, "has_draft")?,
         footer: optional_text(fields, "footer")?,
+        is_saved_item: item.id.starts_with(super::arrange::SAVED_ITEM_ID_PREFIX),
         metadata: ChatRowMetadata::default(),
     })
 }

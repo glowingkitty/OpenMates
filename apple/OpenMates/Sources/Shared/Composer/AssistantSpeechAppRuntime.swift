@@ -1,5 +1,7 @@
 // Specification: specifications/features/video-call/specification.yml
-// Assertions: video-call.audio.single-owner, video-call.lifecycle.recovery-and-billing
+// Assertions: video-call.audio.single-owner, video-call.lifecycle.recovery-and-billing,
+// video-call.audio.spoken-rich-response
+// Web source: frontend/packages/ui/src/services/assistantSpeechController.ts
 // Specification: specifications/features/assistant-response-speech/specification.yml
 // Assertions: assistant-speech.surface.semantic-parity
 // Specification: specifications/features/apple-local-model-lab/specification.yml
@@ -37,6 +39,17 @@ final class AssistantSpeechAppRuntime {
     private var liveCallState: (@MainActor @Sendable (Bool, Bool, String?, String?, String, String) async -> Void)?
     private var callSpeechSubscription: AnyCancellable?
     private var liveCallReservation: (id: UUID, invalidate: @MainActor @Sendable () -> Void)?
+    /// Live-call speech arrives as `assistant_speech_audio` MP3 frames
+    /// (mp3_turn_stream_v2); the call's audio engine plays them.
+    let liveSpeech = NativeVoiceCallSpeechReceiver()
+    func attachLiveCallSpeechOutput(_ output: NativeVoiceCallSpeechSink) {
+        guard liveCallReservation != nil else { return }
+        liveSpeech.sink = output
+    }
+    func detachLiveCallSpeechOutput(_ output: NativeVoiceCallSpeechSink) {
+        guard liveSpeech.sink === output else { return }
+        liveSpeech.stop(); liveSpeech.sink = nil
+    }
 
     /// UI and recorder entry points must use this before capture. Existing
     /// beginRecording remains source-compatible; migrated callers use the
@@ -88,6 +101,7 @@ final class AssistantSpeechAppRuntime {
         }
         player.stop()
         heardBoundaryStage.reset()
+        liveSpeech.setCallOwner(chatID: nil, callID: nil)
         callSpeechSubscription = nil; liveCallState = nil; liveCallChatID = nil; liveCallID = nil; liveCallTaskID = nil
         liveCallReservation = nil
     }
@@ -107,19 +121,28 @@ final class AssistantSpeechAppRuntime {
             Task { @MainActor [weak self] in await Task.yield(); await self?.publishLiveCallSpeech() }
         }
     }
-    func bindLiveCallID(_ id: String?) { liveCallID = id }
+    func bindLiveCallID(_ id: String?) {
+        liveCallID = id
+        if liveCallReservation != nil { liveSpeech.setCallOwner(chatID: liveCallChatID, callID: id) }
+    }
     private func publishLiveCallSpeech() async {
         guard liveCallReservation != nil, let chatID = liveCallChatID, let control = controllers[chatID] else { return }
-        let id = control.currentMessageID
+        // Call-tagged statuses go to liveSpeech, which then names the response.
+        let id = control.currentMessageID ?? liveSpeech.messageID
         let text = store?.messages(for: chatID).first(where: { $0.id == id })?.content ?? ""
-        await liveCallState?(control.playbackStatus == .playing, control.playbackStatus == .waitingForSegment || (id == nil && (liveCallTaskID != nil || outgoing[chatID] != nil)), id, liveCallTaskID, String(text.suffix(4_000)), localLanguage)
+        let speaking = control.playbackStatus == .playing || liveSpeech.speaking
+        let settled = id.map { liveSpeech.isSettled(messageID: $0) } ?? false
+        let awaitingSpeech = !liveSpeech.speaking && !settled
+            && (control.playbackStatus == .waitingForSegment || (id != nil && id == liveSpeech.messageID))
+        await liveCallState?(speaking, awaitingSpeech || (id == nil && (liveCallTaskID != nil || outgoing[chatID] != nil)), id, liveCallTaskID, String(text.suffix(4_000)), localLanguage)
     }
     func interruptLiveCallSpeech(chatID: String, messageID: String?, taskID: String?) async -> Bool {
         guard liveCallReservation != nil, liveCallChatID == chatID, let control = controllers[chatID],
-              control.currentMessageID == messageID,
+              control.currentMessageID == messageID || (messageID != nil && liveSpeech.messageID == messageID),
               messageID != nil || (taskID != nil && liveCallTaskID == taskID) else { return false }
-        heardBoundaryStage.stage(control.heardBoundary())
+        heardBoundaryStage.stage(liveSpeech.heardBoundary(messageID: messageID) ?? control.heardBoundary())
         liveCallTaskID = nil; outgoing.removeValue(forKey: chatID); earlyEvents.removeValue(forKey: chatID)
+        liveSpeech.stop()
         await control.stop()
         await publishLiveCallSpeech()
         return true
@@ -279,6 +302,17 @@ final class AssistantSpeechAppRuntime {
         player.onInterrupted = { [weak self] in
             guard let self, let id = activeChatID else { return }
             controllers[id]?.pause()
+        }
+        liveSpeech.onChange = { [weak self] in
+            Task { @MainActor [weak self] in await self?.publishLiveCallSpeech() }
+        }
+        liveSpeech.cancelResponse = { [weak self] chatID, messageID in
+            guard let self, let socket, let scope = scope(for: chatID) else { return }
+            Task { [weak self] in
+                guard self?.current(scope) == true else { return }
+                try? await socket.send(.init(type: "assistant_speech", payload: ["action": "cancel",
+                    "chat_id": chatID, "assistant_message_id": messageID]))
+            }
         }
     }
     func configure(store: ChatStore, socket: WebSocketManager) {
@@ -498,6 +532,8 @@ final class AssistantSpeechAppRuntime {
         if let voiceCallTurn {
             liveCallID = voiceCallTurn.callID; liveCallTaskID = nil
             guard liveCallReservation != nil, liveCallChatID == chat.id else { throw NativeVoiceCallError.scopeChanged }
+            liveSpeech.setCallOwner(chatID: chat.id, callID: voiceCallTurn.callID)
+            liveSpeech.stop()
             await control.stop()
             control.setVoiceCallMode(true)
         }
@@ -513,6 +549,11 @@ final class AssistantSpeechAppRuntime {
         guard self.socket === socket, scopeGeneration == OfflineStore.shared.scopeGeneration,
               let chatID = fields["chat_id"] as? String, let scope = scope(for: chatID) else { return }
         if !NativeVoiceCallSpeechAdmission.permits(taggedCallID: fields["voice_call_id"] as? String, activeCallID: liveCallID) { return }
+        if liveCallReservation != nil, liveCallChatID == chatID {
+            // Call speech is server-push only; it never reaches the stored-asset controller.
+            if type == "assistant_speech_audio" { liveSpeech.receiveAudio(fields); return }
+            if type == "assistant_speech_status", fields["voice_call_id"] is String { liveSpeech.receiveStatus(fields); return }
+        }
         if type == "ai_task_initiated", liveCallChatID == chatID,
            fields["user_message_id"] as? String == outgoing[chatID], let taskID = fields["task_id"] as? String {
             liveCallTaskID = taskID
@@ -590,6 +631,7 @@ final class AssistantSpeechAppRuntime {
         let invalidatedCall = liveCallReservation
         liveCallReservation = nil
         heardBoundaryStage.reset()
+        liveSpeech.setCallOwner(chatID: nil, callID: nil); liveSpeech.sink = nil
         callSpeechSubscription = nil; liveCallState = nil; liveCallChatID = nil; liveCallID = nil; liveCallTaskID = nil
         invalidatedCall?.invalidate()
         localPreparation?.cancel(); localPreparation = nil; localSpeech.unload()

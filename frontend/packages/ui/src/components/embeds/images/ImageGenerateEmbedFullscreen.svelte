@@ -1,5 +1,9 @@
 <!--
   frontend/packages/ui/src/components/embeds/images/ImageGenerateEmbedFullscreen.svelte
+
+  Native Swift counterparts: apple/OpenMates/Sources/Features/Embeds/Renderers/ImageGenerateEmbedRenderer.swift
+    Enhance and version restore: apple/OpenMates/Sources/Features/Embeds/Views/EmbedVersionEditControls.swift,
+    apple/OpenMates/Sources/Core/CoreBridge/CoreEmbedVersions.swift
   
   Fullscreen view for Image Generate embeds.
   Uses UnifiedEmbedFullscreen as base and provides image-specific content.

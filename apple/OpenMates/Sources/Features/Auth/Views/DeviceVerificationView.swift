@@ -1,5 +1,9 @@
 // Device verification — shown when logging in from a new device.
-// Supports 2FA OTP verification. Mirrors VerifyDevice2FA.svelte.
+// Supports 2FA OTP verification (VerifyDevice2FA.svelte) and passkey
+// verification, both answered by the Rust core (`AuthManager`); Swift runs
+// only the system passkey ceremony.
+// Specification: specifications/features/auth/specification.yml
+// Assertions: auth.session.risk-reauth, auth.login.method-convergence
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/Login.svelte
@@ -37,55 +41,110 @@ struct DeviceVerificationView: View {
                     .fontWeight(.semibold)
                     .foregroundStyle(Color.fontPrimary)
 
-                Text(LocalizationManager.shared.text("auth.verify_device_description"))
+                Text(LocalizationManager.shared.text(isPasskey
+                    ? "login.verify_device_passkey_prompt" : "auth.verify_device_description"))
                     .font(.omSmall)
                     .foregroundStyle(Color.fontSecondary)
                     .multilineTextAlignment(.center)
 
-                VStack(spacing: .spacing4) {
-                    TextField(LocalizationManager.shared.text("auth.six_digit_code"), text: $code)
-                        .textFieldStyle(OMTextFieldStyle())
-                        #if os(iOS)
-                        .keyboardType(.numberPad)
-                        #endif
-                        .focused($isFocused)
-                        .onSubmit { verify() }
-                        .onChange(of: code) { _, newValue in
-                            if newValue.count == 6 { verify() }
-                        }
-                        .accessibleInput(
-                            LocalizationManager.shared.text("auth.six_digit_code"),
-                            hint: LocalizationManager.shared.text("auth.enter_6_digit_code_auto_submit")
-                        )
-
-                    if let errorMessage {
-                        Text(errorMessage)
-                            .font(.omXs)
-                            .foregroundStyle(Color.error)
-                    }
-                }
-
-                Button(action: verify) {
-                    Group {
-                        if isLoading {
-                            ProgressView()
-                                .tint(.fontButton)
-                        } else {
-                            Text(LocalizationManager.shared.text("auth.verify"))
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(OMPrimaryButtonStyle())
-                .disabled(code.count != 6 || isLoading)
-                .accessibleButton(
-                    LocalizationManager.shared.text("auth.verify"),
-                    hint: LocalizationManager.shared.text("auth.verify_device_hint")
-                )
+                if isPasskey { passkeyControls } else { codeControls }
             }
             .padding(.horizontal, .spacing8)
         }
-        .onAppear { isFocused = true }
+        .onAppear { isFocused = !isPasskey }
+    }
+
+    private var isPasskey: Bool { verificationType == "passkey" }
+
+    private var passkeyControls: some View {
+        VStack(spacing: .spacing4) {
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.omXs)
+                    .foregroundStyle(Color.error)
+            }
+            Button(action: verifyWithPasskey) {
+                Group {
+                    if isLoading {
+                        ProgressView()
+                            .tint(.fontButton)
+                    } else {
+                        Text(LocalizationManager.shared.text("login.verify_device_passkey_button"))
+                    }
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(OMPrimaryButtonStyle())
+            .disabled(isLoading)
+            .accessibleButton(
+                LocalizationManager.shared.text("login.verify_device_passkey_button"),
+                hint: LocalizationManager.shared.text("auth.verify_device_hint")
+            )
+        }
+    }
+
+    private var codeControls: some View {
+        VStack(spacing: .spacing6) {
+            VStack(spacing: .spacing4) {
+                TextField(LocalizationManager.shared.text("auth.six_digit_code"), text: $code)
+                    .textFieldStyle(OMTextFieldStyle())
+                    #if os(iOS)
+                    .keyboardType(.numberPad)
+                    #endif
+                    .focused($isFocused)
+                    .onSubmit { verify() }
+                    .onChange(of: code) { _, newValue in
+                        if newValue.count == 6 { verify() }
+                    }
+                    .accessibleInput(
+                        LocalizationManager.shared.text("auth.six_digit_code"),
+                        hint: LocalizationManager.shared.text("auth.enter_6_digit_code_auto_submit")
+                    )
+
+                if let errorMessage {
+                    Text(errorMessage)
+                        .font(.omXs)
+                        .foregroundStyle(Color.error)
+                }
+            }
+
+            Button(action: verify) {
+                Group {
+                    if isLoading {
+                        ProgressView()
+                            .tint(.fontButton)
+                    } else {
+                        Text(LocalizationManager.shared.text("auth.verify"))
+                    }
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(OMPrimaryButtonStyle())
+            .disabled(code.count != 6 || isLoading)
+            .accessibleButton(
+                LocalizationManager.shared.text("auth.verify"),
+                hint: LocalizationManager.shared.text("auth.verify_device_hint")
+            )
+        }
+    }
+
+    private func verifyWithPasskey() {
+        isLoading = true
+        errorMessage = nil
+        Task {
+            do {
+                try await PasskeyLoginCoordinator.verifyDevice(authManager: authManager)
+            } catch is CancellationError {
+                // The view went away; the coordinator already forgot the request.
+            } catch PasskeyError.cancelled {
+                // Dismissing the system sheet is no error; the button stays.
+            } catch {
+                let msg = LocalizationManager.shared.text("login.verify_device_passkey_error")
+                errorMessage = msg
+                AccessibilityAnnouncement.announce(msg)
+            }
+            isLoading = false
+        }
     }
 
     private func verify() {

@@ -262,6 +262,7 @@ fn client_error_code(error: &Error) -> &'static str {
         Error::Forbidden => "forbidden",
         Error::Conflict => "conflict",
         Error::Expired => "session_expired",
+        Error::VerificationRequired => "verification_required",
         Error::Cancelled => "cancelled",
         Error::Io => "local_io_failed",
         Error::Protocol => "invalid_server_response",

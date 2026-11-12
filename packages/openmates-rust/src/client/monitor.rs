@@ -25,6 +25,15 @@ const MAX_HINTS: usize = 100;
 
 #[path="monitor_hint_work.rs"]
 mod hint_work;
+#[path="monitor_error_frames.rs"]
+mod error_frames;
+// The view-model actor (native only) is its one caller.
+#[cfg(not(target_arch = "wasm32"))]
+#[path="monitor_draft_versions.rs"]
+mod draft_versions;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path="monitor_test_peer.rs"]
+pub(crate) mod test_peer;
 pub(in crate::client) use hint_work::{RecoveryHintKind,RecoveryHintManifest};
 use hint_work::RecoveryHintJobs;
 
@@ -85,6 +94,9 @@ struct Changes {
     send_lane: Option<Arc<super::ScopedSendGate>>,
     pending: Mutex<Pending>,
     wake: Notify,
+    // Frames the core does not own and raw shell frames (temporary strangler
+    // seam of `view_model::socket_passthrough`, removed with A5/A6).
+    passthrough: Arc<crate::view_model::SocketPassthrough>,
 }
 struct MonitorFence {
     owner: Arc<super::project_task_watch::WatchAuthority>,
@@ -512,6 +524,10 @@ impl ChatMonitor {
     pub fn close(&self) {
         self.fence.cancel.cancel();
         self.changes.wake.notify_waiters();
+    }
+    /// This socket's shell passthrough (`view_model::socket_passthrough`).
+    pub(crate) fn socket_passthrough(&self) -> Arc<crate::view_model::SocketPassthrough> {
+        self.changes.passthrough.clone()
     }
 }
 impl Drop for ChatMonitor {
@@ -1198,10 +1214,16 @@ async fn monitor_socket_mode(
             _ = cancel.cancelled() => break None,
             _ = events.closed() => break None,
             result = async {
-                if changes.is_some() { transport::receive_monitor(&mut socket).await }
-                else { transport::receive(&mut socket).await }
+                if changes.is_some() { transport::receive_monitor_frame(&mut socket).await }
+                else { transport::receive(&mut socket).await.map(|(kind,payload)| transport::MonitorFrame::Frame(kind,payload)) }
             } => match result {
-                Ok((kind,payload)) => {
+                // No core read is in flight here: an error answering a shell
+                // frame reaches the shell and the socket stays up; any other
+                // error frame retires the socket as before.
+                Ok(transport::MonitorFrame::Error(payload)) => {
+                    if !error_frames::forward_shell_error(changes.as_ref(), None, &payload) { break Some(Error::Offline); }
+                }
+                Ok(transport::MonitorFrame::Frame(kind,payload)) => {
                     if let Err(error) = observe_frame(&kind, &payload, changes.as_ref(), fence.as_ref(), team_hash.as_deref()) { break Some(error); }
                     if let Some(receiver) = &mut read_commands {
                         if let Err(error) = receiver.observe_startup(&kind, &payload) { break Some(error); }
@@ -1224,6 +1246,15 @@ async fn monitor_socket_mode(
                     }
                 }
             }
+            frame = async {
+                match &changes { Some(changes) => changes.passthrough.next_outbound().await, None => std::future::pending().await }
+            } => {
+                let (Some(frame), Some(shell)) = (frame, changes.as_ref()) else { continue; };
+                // No shell write on an expired or revoked session; the frame
+                // is dropped unwritten and its sender settles `Disconnected`.
+                if fence.as_ref().is_some_and(|f| !f.valid()) { drop(frame); break Some(Error::Expired); }
+                if write_shell_frame(&mut socket, shell, frame).await.is_err() { break Some(Error::Offline); }
+            }
             _ = heartbeat.tick() => {
                 if fence.as_ref().is_some_and(|f| !f.valid()) { break Some(Error::Expired); }
                 let sent = tokio::select! {
@@ -1237,6 +1268,8 @@ async fn monitor_socket_mode(
     };
     // Fail all queued read tickets before any optional error-channel reporting.
     drop(read_commands);
+    // Settle waiting shell frames and end forwarding of this socket's frames.
+    if let Some(changes) = &changes { changes.passthrough.close().await; }
     // Invalidate queued refresh/publication before independently reporting any
     // transport/security failure. Coalescer fullness never blocks socket reads.
     if let Some(error @ (Error::Expired | Error::Forbidden)) = failure
@@ -1289,7 +1322,25 @@ fn observe_frame(kind: &str, payload: &Value, changes: Option<&Arc<Changes>>, fe
     if let Some(changes) = changes { record_change(changes, kind, payload)?; }
     if kind=="project_remote_access_revoked" && payload["context_type"]=="team"
         && team_hash.is_some_and(|team| payload["context_id_hash"].as_str()==Some(team)) { return Err(Error::Forbidden); }
+    // Last, after the core accepted the frame: only types the core does not
+    // own reach the shell (`view_model::classify_socket_event`); never blocks.
+    if let Some(changes) = changes { changes.passthrough.observe(kind, payload); }
     Ok(())
+}
+/// Write one raw shell frame between the core's own frames, bounded like the
+/// heartbeat. A frame whose sender gave up is skipped unwritten. Marked before
+/// the write, so a server error answering it is attributed to the shell even
+/// when it arrives before the write settles.
+async fn write_shell_frame(socket: &mut Socket, changes: &Changes, frame: crate::view_model::OutboundFrame) -> Result<()> {
+    if frame.abandoned() { return Ok(()); }
+    let (kind, payload, reply) = frame.into_parts();
+    changes.passthrough.note_shell_write();
+    let result = match crate::platform::time::timeout(Duration::from_secs(10), transport::send(socket, &kind, payload)).await {
+        Ok(result) => result,
+        Err(_) => Err(Error::Offline),
+    };
+    reply.settle(result);
+    result
 }
 async fn close(socket: &mut Socket) {
     let _ = crate::platform::time::timeout(Duration::from_secs(2), socket.close(None)).await;
@@ -1349,6 +1400,7 @@ mod tests {
             send_lane: None,
             pending: Mutex::new(Pending::default()),
             wake: Notify::new(),
+            passthrough: Default::default(),
         };
         record_change(&changes, "chat_read_status_updated", &json!({"chat_id":id,"unread_count":1})).unwrap();
         let pending = changes.pending.lock().unwrap();
@@ -1572,6 +1624,9 @@ mod membership_tests {
 #[cfg(test)]
 #[path = "monitor_live_tests.rs"]
 mod live_tests;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "monitor_passthrough_tests.rs"]
+mod passthrough_tests;
 
 // Source-unit regression seam constructs the exact existing live fence without
 // opening a product socket. No production authority import/API is introduced.

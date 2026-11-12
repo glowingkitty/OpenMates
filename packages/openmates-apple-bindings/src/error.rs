@@ -50,6 +50,11 @@ pub enum CoreError {
     /// The session expired.
     #[error("Session expired.")]
     Expired,
+    /// The server kept the session but asks to verify this device or to sign
+    /// in again; the detail is the event `Session(VerificationRequired)` and
+    /// `ViewModelCore.pendingVerification()`. Stored credentials stay.
+    #[error("Device verification or a new sign-in is required.")]
+    VerificationRequired,
     /// The core aborted the operation (also: stale credential revision).
     #[error("Cancelled.")]
     Cancelled,
@@ -63,6 +68,16 @@ pub enum CoreError {
     /// The object changed; read its latest state before retrying.
     #[error("Conflict.")]
     Conflict,
+    /// A Memory operation was refused (`view_memories.rs`). `code` is the web
+    /// client's stable code (`ruleDocumentService.ts`): `rule_not_found`,
+    /// `rule_exists`, `rule_changed`, `rule_not_undoable`,
+    /// `invalid_rule_document`, `rule_catalog_limit`,
+    /// `rule_settings_unavailable` or `rule_save_failed`.
+    #[error("Memory refused: {code}")]
+    Memory {
+        /// Stable lowercase code.
+        code: String,
+    },
     /// Binding failure (runtime task panicked or the core was shut down).
     #[error("Internal binding failure: {reason}")]
     Internal {
@@ -89,6 +104,7 @@ impl From<SdkError> for CoreError {
             SdkError::Offline => Self::Offline,
             SdkError::Forbidden => Self::Forbidden,
             SdkError::Expired => Self::Expired,
+            SdkError::VerificationRequired => Self::VerificationRequired,
             SdkError::Cancelled => Self::Cancelled,
             SdkError::Io => Self::Io,
             SdkError::Protocol => Self::Protocol,

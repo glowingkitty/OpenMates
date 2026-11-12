@@ -91,7 +91,7 @@ enum EmbedVisualSkillIcon {
              "app:code:search_repos", "app:design:search_icons",
              "app:electronics:search_components", "electronics-component",
              "app:events:search", "app:fitness:search_locations", "app:fitness:search_classes",
-             "app:home:search", "app:images:search", "app:maps:search",
+             "app:home:search", "app:images:search", "app:jobs:search", "app:maps:search",
              "app:models3d:search", "app:news:search", "app:nutrition:search_recipes",
              "nutrition-recipe", "app:shopping:search_products", "shopping-product",
              "app:social_media:search", "app:tasks:search",
@@ -111,6 +111,7 @@ enum EmbedVisualSkillIcon {
         case "home-listing": return fullscreen ? "home" : "search"
         case "app:images:generate", "app:images:generate_draft", "app:music:generate": return "ai"
         case "image", "images-image-result": return "image"
+        case "jobs-job-result": return "jobs"
         case "app:mail:search", "mail-email": return "mail"
         case "maps", "maps-place": return "pin"
         case "app:math:calculate", "math-plot": return "math"
@@ -933,7 +934,7 @@ struct EmbedPreviewCard: View {
         let appId = embed.appId ?? embed.rawData?["app_id"]?.value as? String ?? "web"
         let skillId = embed.skillId ?? embed.rawData?["skill_id"]?.value as? String ?? "search"
         switch (appId, skillId) {
-        case ("events", "search"), ("web", "search"), ("news", "search"), ("images", "search"), ("videos", "search"):
+        case ("events", "search"), ("web", "search"), ("news", "search"), ("images", "search"), ("videos", "search"), ("jobs", "search"):
             return LocalizationManager.shared.text("common.search")
         case ("videos", "get_transcript"), ("videos", "get-transcript"):
             return AppStrings.videoGetTranscript

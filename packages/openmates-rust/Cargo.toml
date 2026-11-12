@@ -54,7 +54,7 @@ yrs = "=0.28.1"
 tempfile = "3"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-tokio = { version = "=1.54.1", features = ["rt-multi-thread", "macros", "sync", "time", "io-util", "net"] }
+tokio = { version = "=1.54.1", features = ["rt-multi-thread", "macros", "sync", "time", "io-util", "net", "fs"] }
 rustix = { version = "1", features = ["fs", "process"] }
 
 # TLS stack (rustls over ring) on every target except the 32-bit (ILP32)

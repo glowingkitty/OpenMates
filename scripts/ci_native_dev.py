@@ -51,6 +51,7 @@ ROOTS = (CLI, SDK)
 # the patched third-party crates must be present for Cargo to load it.
 try:
     from scripts.ci_sdk_lockfiles import (
+        MEMBER_ROOT_FILES,
         ROOTS as MEMBERS,
         SCOPES,
         THIRD_PARTY,
@@ -59,6 +60,7 @@ try:
     )
 except ModuleNotFoundError:
     from ci_sdk_lockfiles import (
+        MEMBER_ROOT_FILES,
         ROOTS as MEMBERS,
         SCOPES,
         THIRD_PARTY,
@@ -389,7 +391,7 @@ def owned(name):
             tail = Path(name[len(root) + 1 :])
             return (
                 tail.as_posix()
-                in {"Cargo.toml", "README.md", "LICENSE", "NOTICE"}
+                in {"Cargo.toml", "README.md", "LICENSE", "NOTICE", *MEMBER_ROOT_FILES.get(root, ())}
                 or (
                     tail.parts[0] in {"src", "tests", "examples"}
                     and tail.suffix in {".rs", ".json", ".txt", ".md", ".toml"}
