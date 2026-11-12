@@ -27,9 +27,8 @@ import threading
 import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
-from uuid import uuid4
 
-from code_run_real_test import ROOT, personal_test_environment
+from code_run_real_test import ROOT, personal_dev_leases, personal_test_environment
 from personal_dev_draft_guard import API_URL, DraftGuard, DraftGuardError, record_leftovers
 from workflow_schedule_real_test import ProofError, sessions, write_receipt
 
@@ -73,19 +72,8 @@ def installed_chromium() -> Path:
 
 
 def acquire_leases(session_id: str, timeout: int) -> list[tuple[str, str, set[str], str]]:
-    """Shared dev-stack lease plus the exclusive personal account lease; waits up to ``timeout``."""
-    owner, leases = f"repository-session-{session_id}", []
-    try:
-        for name, resources, mode in (("stack", {sessions.DOCKER_RESOURCE_DEV_STACK}, "shared"),
-                                      ("account", {"playwright-account:personal-dev"}, "exclusive")):
-            lease_id = f"embroidery-web-{name}-{uuid4().hex[:12]}"
-            sessions.acquire_test_resource_lease(lease_id, owner, resources, mode=mode, timeout=timeout)
-            leases.append((lease_id, owner, resources, mode))
-        return leases
-    except BaseException:
-        for lease_id, *_ in reversed(leases):
-            sessions.release_test_resource_lease(lease_id)
-        raise
+    """Exclusive personal account lease, then the shared dev-stack lease; waits up to ``timeout``."""
+    return personal_dev_leases("embroidery-web", session_id, timeout=timeout)
 
 
 def require_runtime_revision(revision: str) -> None:

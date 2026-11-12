@@ -60,22 +60,34 @@ def personal_test_environment() -> dict[str, str]:
     return env
 
 
-def personal_test_leases(session_id: str) -> list[tuple[str, str, set[str], str]]:
+def personal_dev_leases(prefix: str, session_id: str, *, timeout: int) -> list[tuple[str, str, set[str], str]]:
+    """Lease the exclusive personal-dev account first, then the shared dev stack.
+
+    Waiting for the single personal-dev account while already holding the shared
+    dev-stack lease keeps dev restarts from draining, and a queued restart refuses
+    every new lease, so the whole dev stack stalls for all chats. Restarts never
+    need the account, so holding only the account while waiting for the stack is
+    safe. On failure every lease taken so far is released before re-raising.
+    """
     owner = f"repository-session-{session_id}"
     leases: list[tuple[str, str, set[str], str]] = []
     try:
         for name, resources, mode in (
-            ("stack", {sessions.DOCKER_RESOURCE_DEV_STACK}, "shared"),
             ("account", {"playwright-account:personal-dev"}, "exclusive"),
+            ("stack", {sessions.DOCKER_RESOURCE_DEV_STACK}, "shared"),
         ):
-            lease_id = f"code-run-personal-{name}-{uuid4().hex[:12]}"
-            sessions.acquire_test_resource_lease(lease_id, owner, resources, mode=mode, timeout=120)
+            lease_id = f"{prefix}-{name}-{uuid4().hex[:12]}"
+            sessions.acquire_test_resource_lease(lease_id, owner, resources, mode=mode, timeout=timeout)
             leases.append((lease_id, owner, resources, mode))
         return leases
     except BaseException:
         for lease_id, *_ in reversed(leases):
             sessions.release_test_resource_lease(lease_id)
         raise
+
+
+def personal_test_leases(session_id: str) -> list[tuple[str, str, set[str], str]]:
+    return personal_dev_leases("code-run-personal", session_id, timeout=120)
 
 
 def fnv1a(text: str) -> str:
