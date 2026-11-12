@@ -117,8 +117,11 @@ assertions:
     skill's own request model; for a skill with a flat tool schema the whole validated tool input is that one
     item and the results are returned in the skill's original response shape. Its output is a list of JSON objects that the server bounds structurally (count,
     depth, string and total size, http(s)-only URL fields) and attributes to the provider. A request item may
-    select installed providers by id or name; otherwise all of them run, and their results are interleaved
-    round-robin in a stable provider order.
+    select installed providers by id or name through a provider filter that the public request schema of such a
+    skill always declares; otherwise all of them run, and their results are interleaved
+    round-robin in a stable provider order. Duplicate installed-provider results of one request (identical
+    apart from provider attribution, or carrying the same provider-chosen dedupe_key) are returned once, keeping
+    the result with the highest dedupe_priority.
   depends_on:
   - models.ProviderInvocation
   - examples.contract

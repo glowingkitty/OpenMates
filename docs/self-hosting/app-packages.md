@@ -166,7 +166,10 @@ removed. `provider` and `provider_id` are always set by the server. When
 several installed providers serve the same skill, their results are interleaved
 (first result of each, then the second of each, ...). A request can pick
 providers by id or name with `provider`, `providers` or `provider_platform`;
-otherwise all of them run. Ids such as `auto`, `all`, `any`, `none` and
+otherwise all of them run. Results that are identical apart from the provider are
+returned once. Providers that list the same thing with different details can
+set the same `dedupe_key` string on it; the result with the highest integer
+`dedupe_priority` is kept (for example the one that has a price). Ids such as `auto`, `all`, `any`, `none` and
 `default` are reserved.
 
 Build statically linked executables. The runner provides no language runtime,

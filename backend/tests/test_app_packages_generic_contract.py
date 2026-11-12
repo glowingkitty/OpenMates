@@ -285,6 +285,37 @@ async def test_delegate_runs_only_selected_provider(monkeypatch, two_providers, 
 
 
 # contract-test: direct surface=rest_api assertions=instance-app-packages.provider-contract
+def test_overlay_declares_provider_filter_in_request_item_schema():
+    item = {"type": "object", "properties": {"query": {"type": "string"}}}
+    skill = {"tool_schema": {"type": "object", "properties": {"requests": {"type": "array", "items": item}}}}
+    overlay.ensure_provider_selector(skill, [FIRST, SECOND])
+    declared = item["properties"]["providers"]
+    assert declared["type"] == "array" and declared["items"] == {"type": "string", "enum": [FIRST, SECOND]}
+    flat = {"tool_schema": {"type": "object", "properties": {"query": {"type": "string"}}}}
+    overlay.ensure_provider_selector(flat, [FIRST])
+    assert flat["tool_schema"]["properties"]["providers"]["items"]["enum"] == [FIRST]
+    # A schema that already has a selector is left as authored.
+    authored = {"tool_schema": {"type": "object", "properties": {"provider": {"type": "string"}}}}
+    overlay.ensure_provider_selector(authored, [FIRST])
+    assert list(authored["tool_schema"]["properties"]) == ["provider"]
+
+
+# contract-test: direct surface=rest_api assertions=instance-app-packages.provider-contract
+@pytest.mark.anyio
+async def test_delegate_returns_duplicate_results_once(monkeypatch, two_providers):
+    keyed = {"dedupe_key": "Listing-1", "dedupe_priority": 0}
+    first = [_result("same"), _result("same"), {**_result("a without price"), **keyed}]
+    second = [_result("same"), {**_result("b with price"), **keyed, "dedupe_priority": 5,
+                                "dedupe_key": "listing-1"}, _result("only b")]
+    _fake_runner(monkeypatch, {FIRST: RunnerResult(ok=True, results=first),
+                               SECOND: RunnerResult(ok=True, results=second)})
+    group = (await _delegate().execute([VALID_ITEM]))["results"][0]
+    assert [(r["title"], r["provider_id"]) for r in group["results"]] == [
+        ("same", FIRST), ("b with price", SECOND), ("only b", SECOND)]
+    assert all("dedupe_key" not in r and "dedupe_priority" not in r for r in group["results"])
+
+
+# contract-test: direct surface=rest_api assertions=instance-app-packages.provider-contract
 @pytest.mark.anyio
 async def test_delegate_unknown_selector_runs_every_provider(monkeypatch, two_providers):
     calls = _fake_runner(monkeypatch, {FIRST: RunnerResult(ok=True, results=[]),

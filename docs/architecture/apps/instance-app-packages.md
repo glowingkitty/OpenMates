@@ -251,12 +251,23 @@ concurrently, at most 10 items per call:
 2. Provider selection: values of `provider`, `providers` (list) and
    `provider_platform` in the raw item that equal an installed provider id or
    display name (case-insensitive) select only those providers; otherwise every
-   installed provider of the skill runs.
+   installed provider of the skill runs. When the public request schema declares
+   none of these fields, the overlay adds `providers` (array of installed
+   provider ids) to it, because REST and tool callers reach the delegate through
+   models built from that schema and undeclared fields are dropped there.
 3. Each selected provider runs concurrently through the runner with stdin
    `{"protocol": 1, "contract": "skill.requests@1", "provider": "<id>", "input": {<item>}, "secrets": {...}}`.
 4. Results are merged round-robin across providers in registry order (sorted by
    package id, then manifest order): first result of each provider, then the
    second, and so on. No server-side caps beyond the validator or sorting.
+5. Duplicates are returned once per request item, for every contract
+   (`provider_dispatch.drop_duplicate_results`): results whose content is
+   identical apart from `provider` / `provider_id`, and generic results that
+   carry the same optional `dedupe_key` (string, at most 300 characters,
+   compared case-insensitively; a provider-chosen identity such as a normalized
+   listing URL or a departure). Of several results with one key the highest
+   integer `dedupe_priority` wins (default 0; ties keep the first in provider
+   order). Both fields are removed from the returned results.
 
 **Flat schemas** (`InstalledProviderFlatSkill`, set as `class_path` instead).
 The tool input (call arguments named by the public `tool_schema` properties;
