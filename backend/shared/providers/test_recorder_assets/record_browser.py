@@ -387,8 +387,36 @@ def finalize(raw: dict, run_dir: Path, work: Path, preview_step: Optional[str], 
     return notes
 
 
+def template_playwright_version(capture_dir: str) -> str:
+    """Version of the `playwright` package the template installed (the one that owns the browsers)."""
+    manifest = Path(capture_dir) / "node_modules" / "playwright" / "package.json"
+    return json.loads(manifest.read_text())["version"]
+
+
+def resolved_playwright_test_version(cwd: Path, run=subprocess.run) -> Optional[str]:
+    """Version of `@playwright/test` that resolves from cwd, or None when it does not resolve."""
+    probe = "process.stdout.write(require('@playwright/test/package.json').version)"
+    result = run(["node", "-e", probe], cwd=cwd, capture_output=True, text=True)
+    return (result.stdout.strip() or None) if result.returncode == 0 else None
+
+
+def ensure_playwright_test(cwd: Path, capture_dir: str, run=subprocess.run) -> bool:
+    """Make `@playwright/test` resolve to the template's playwright version; True when it does.
+
+    Installs the exact version (without touching package.json) when it is missing or
+    different, so a version requested by the project cannot break browser discovery.
+    """
+    wanted = template_playwright_version(capture_dir)
+    found = resolved_playwright_test_version(cwd, run)
+    if found == wanted:
+        return True
+    log(f"@playwright/test resolves to {found or 'nothing'}; installing {wanted} to match the template's browsers")
+    result = run(["npm", "install", "--no-save", "--no-audit", "--no-fund", f"@playwright/test@{wanted}"], cwd=cwd)
+    return result.returncode == 0
+
+
 def parse_args(argv: list) -> tuple:
-    preview = root = None
+    preview = root = capture = None
     i = 0
     while i < len(argv) and argv[i] != "--":
         if argv[i] == "--preview-step" and i + 1 < len(argv):
@@ -397,16 +425,21 @@ def parse_args(argv: list) -> tuple:
         elif argv[i] == "--workspace-root" and i + 1 < len(argv):
             root = argv[i + 1]
             i += 2
+        elif argv[i] == "--capture-dir" and i + 1 < len(argv):
+            capture = argv[i + 1]
+            i += 2
         else:
             raise SystemExit(f"unknown recorder argument: {argv[i]}")
-    return preview, root, argv[i + 1:]
+    return preview, root, capture, argv[i + 1:]
 
 
 def main(argv: list) -> int:
-    preview_step, root, command = parse_args(argv)
+    preview_step, root, capture_dir, command = parse_args(argv)
     if not command:
         raise SystemExit("no test command given")
     cwd = Path.cwd()
+    if capture_dir and not ensure_playwright_test(cwd, capture_dir):
+        log("could not install a matching @playwright/test; the test command may fail to resolve it")
     workspace = Path(root) if root and Path(root).is_dir() else cwd
     run_dir_env = os.environ.get("OPENMATES_TEST_RUN_DIR", "outputs/test-run")
     run_dir = Path(run_dir_env) if os.path.isabs(run_dir_env) else workspace / run_dir_env

@@ -13,6 +13,7 @@ import json
 import zlib
 from pathlib import Path
 
+from backend.shared.providers.e2b_application_preview import APPLICATION_CAPTURE_DIRECTORY
 from backend.shared.providers.e2b_code_runner import WORKSPACE_DIR
 from backend.shared.python_schemas.code_test_run import TestRunSpec
 
@@ -39,7 +40,7 @@ def recorder_payload() -> str:
 
 def browser_recorder_wrapper(spec: TestRunSpec) -> list[str]:
     """argv replacing spec.test_command.argv for kind == "browser"."""
-    args = ["--workspace-root", WORKSPACE_DIR]
+    args = ["--workspace-root", WORKSPACE_DIR, "--capture-dir", APPLICATION_CAPTURE_DIRECTORY]
     if spec.preview_step:
         args += ["--preview-step", spec.preview_step]
     return ["python3", "-c", _BOOTSTRAP, recorder_payload(), *args, "--", *spec.test_command.argv]

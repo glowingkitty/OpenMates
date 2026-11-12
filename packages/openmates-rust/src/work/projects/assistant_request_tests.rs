@@ -157,9 +157,11 @@ pub(crate) async fn rest_fixture(
                 .unwrap_or(Value::Null);
             let reply = handler(&line, &body, &state);
             seen.lock().unwrap().push((line, body));
+            // A handler can answer an error status through `__status`.
+            let status = reply["__status"].as_u64().unwrap_or(200);
             let reply = reply.to_string();
             socket
-                .write_all(format!("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{reply}", reply.len()).as_bytes())
+                .write_all(format!("HTTP/1.1 {status} X\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{reply}", reply.len()).as_bytes())
                 .await
                 .unwrap();
         }
@@ -232,6 +234,42 @@ async fn creates_an_apply_and_show_project_and_activates_its_default_focus() {
 }
 
 #[tokio::test]
+async fn taken_slug_retries_with_a_numbered_slug_and_keeps_the_name() {
+    let inner = rest_handler(true);
+    let posts = Arc::new(Mutex::new(0));
+    let count = posts.clone();
+    let handler: Handler = Box::new(move |line, body, stored| {
+        if line == "POST /v1/projects" {
+            let mut n = count.lock().unwrap();
+            *n += 1;
+            if *n == 1 {
+                return json!({"__status": 409, "detail": "PROJECT_SLUG_CONFLICT"});
+            }
+        }
+        inner(line, body, stored)
+    });
+    let (api, log, _) = rest_fixture(handler).await;
+    let mut c = client(&api);
+    let record = c.projects().create_for_request(&request()).await.unwrap();
+    let log = log.lock().unwrap();
+    let creates: Vec<&Value> = log
+        .iter()
+        .filter(|(line, _)| line == "POST /v1/projects")
+        .map(|(_, body)| body)
+        .collect();
+    assert_eq!(creates.len(), 2, "one retry after the conflict");
+    assert_ne!(
+        creates[0]["slug_lookup_hash"], creates[1]["slug_lookup_hash"],
+        "the retry asks for a different slug"
+    );
+    assert_eq!(creates[1]["project_id"], record.project_id);
+    assert_eq!(
+        record.name, "Recipe Manager",
+        "the shown name stays as asked"
+    );
+}
+
+#[tokio::test]
 async fn failed_focus_activation_deletes_the_new_project_and_reports_the_error() {
     let (api, log, stored) = rest_fixture(rest_handler(false)).await;
     let mut c = client(&api);
@@ -240,12 +278,11 @@ async fn failed_focus_activation_deletes_the_new_project_and_reports_the_error()
         stored.lock().unwrap().is_none(),
         "no half-created Project remains"
     );
-    assert!(
-        log.lock()
-            .unwrap()
-            .iter()
-            .any(|(line, _)| line.starts_with("DELETE /v1/projects/"))
-    );
+    assert!(log
+        .lock()
+        .unwrap()
+        .iter()
+        .any(|(line, _)| line.starts_with("DELETE /v1/projects/")));
 }
 
 #[tokio::test]
@@ -282,14 +319,12 @@ async fn created_project_is_found_again_after_reload_and_undo_removes_it() {
         deactivate < delete,
         "focus is deactivated before the Project is deleted"
     );
-    assert!(
-        reloaded
-            .projects()
-            .created_for_chat(CHAT)
-            .await
-            .unwrap()
-            .is_none()
-    );
+    assert!(reloaded
+        .projects()
+        .created_for_chat(CHAT)
+        .await
+        .unwrap()
+        .is_none());
 }
 
 #[tokio::test]
@@ -300,10 +335,9 @@ async fn undo_refuses_a_project_the_assistant_did_not_create_for_the_chat() {
         c.projects().undo_created(CHAT).await.unwrap_err(),
         Error::Forbidden
     );
-    assert!(
-        log.lock()
-            .unwrap()
-            .iter()
-            .all(|(l, _)| !l.starts_with("DELETE"))
-    );
+    assert!(log
+        .lock()
+        .unwrap()
+        .iter()
+        .all(|(l, _)| !l.starts_with("DELETE")));
 }

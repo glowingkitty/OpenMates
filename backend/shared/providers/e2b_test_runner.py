@@ -105,6 +105,7 @@ def build_result_from_run(
     artifacts: list[dict[str, object]],
     error: str | None,
     timed_out: bool = False,
+    file_paths: list[str] | None = None,
 ) -> TestRunResult:
     """Merge command steps with the recorder report and evidence into one result.
 
@@ -155,6 +156,7 @@ def build_result_from_run(
         exit_code=exit_code,
         duration_ms=duration_ms,
         revisions=list(spec.revisions),
+        file_paths=sorted(file_paths or []),
         passed=passed,
         failed=failed,
         skipped=skipped,
@@ -248,6 +250,7 @@ def run_tests_in_e2b(
                 spec, target="e2b", exit_code=exit_code, duration_ms=_ms(started),
                 command_steps=steps, report_text=report_text, artifacts=artifacts,
                 error=error, timed_out=timed_out,
+                file_paths=sorted(file_paths),
             )
             return TestRunOutcome(result, artifacts, skipped, sandbox_id, time.monotonic() - started, truncated)
 

@@ -26,6 +26,8 @@ pub const PROJECT_CREATE_VERSION: u64 = 1;
 /// Plaintext proposal limits from the contract.
 const MAX_NAME_CHARS: usize = 120;
 const MAX_DESCRIPTION_CHARS: usize = 400;
+/// Slug tries for one assistant request: the name, then "<name> 2" to "<name> 5".
+const SLUG_ATTEMPTS: u32 = 5;
 
 /// A validated creation request. Built only by [`ProjectCreateRequest::parse`].
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -232,11 +234,57 @@ impl Projects<'_> {
         request: &ProjectCreateRequest,
     ) -> Result<CreatedProjectRecord> {
         let focus = default_focus(&request.name);
+        // The slug comes from the name, and a person often asks twice for the
+        // same kind of app ("Recipe Keeper"). The server answers 409 for a taken
+        // slug (the Project id is always fresh), so retry with a numbered slug
+        // instead of failing the whole request. The displayed name stays as asked.
+        let mut attempt = 1;
+        let project_id = loop {
+            match self.post_assistant_project(request, &focus, attempt).await {
+                Err(Error::Conflict) if attempt < SLUG_ATTEMPTS => attempt += 1,
+                other => break other?,
+            }
+        };
+        let activation = self
+            .activate_exact_focus(&project_id, &request.chat_id, &focus)
+            .await;
+        if let Err(error) = activation {
+            // Best effort: the original error is what the report carries.
+            let _ = self.delete(&project_id, true).await;
+            return Err(error);
+        }
+        Ok(CreatedProjectRecord {
+            request_id: request.request_id.clone(),
+            chat_id: request.chat_id.clone(),
+            project_id,
+            focus_id: focus.focus_id,
+            name: request.name.clone(),
+            kind: request.kind.clone(),
+            subfolder: request.subfolder.clone(),
+            team_id: request.team_id.clone(),
+            undo_available: true,
+        })
+    }
+
+    /// One encrypted `POST /v1/projects` for an assistant request; returns the
+    /// new Project id. `attempt` 1 derives the slug from the name, later attempts
+    /// use "<name> <attempt>" so a taken slug does not fail the request.
+    ///
+    /// # Errors
+    /// `Error::Conflict` when the server reports the slug as taken; any other
+    /// transport or crypto error unchanged.
+    async fn post_assistant_project(
+        &mut self,
+        request: &ProjectCreateRequest,
+        focus: &ProjectDefaultFocus,
+        attempt: u32,
+    ) -> Result<String> {
         let input = ProjectCreate {
             name: request.name.clone(),
             description: request.description.clone(),
             write_mode: Some(ProjectWriteMode::ApplyAndShow),
             default_focus: Some(focus.clone()),
+            slug: (attempt > 1).then(|| format!("{} {attempt}", request.name.trim())),
             ..Default::default()
         };
         let (mut payload, key) = self.prepare_create(input).await?;
@@ -266,25 +314,7 @@ impl Projects<'_> {
         if data["project"]["project_id"] != project_id {
             return Err(Error::Forbidden);
         }
-        let activation = self
-            .activate_exact_focus(&project_id, &request.chat_id, &focus)
-            .await;
-        if let Err(error) = activation {
-            // Best effort: the original error is what the report carries.
-            let _ = self.delete(&project_id, true).await;
-            return Err(error);
-        }
-        Ok(CreatedProjectRecord {
-            request_id: request.request_id.clone(),
-            chat_id: request.chat_id.clone(),
-            project_id,
-            focus_id: focus.focus_id,
-            name: request.name.clone(),
-            kind: request.kind.clone(),
-            subfolder: request.subfolder.clone(),
-            team_id: request.team_id.clone(),
-            undo_available: true,
-        })
+        Ok(project_id)
     }
 
     async fn activate_exact_focus(

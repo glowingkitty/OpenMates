@@ -197,6 +197,7 @@ class TestRunResult(BaseModel):
     exit_code: int | None = None
     duration_ms: int = Field(default=0, ge=0)
     revisions: list[ProjectFileRevision] = Field(default_factory=list)
+    file_paths: list[str] = Field(default_factory=list)  # Project snapshot paths the run executed
     passed: int = 0
     failed: int = 0
     skipped: int = 0

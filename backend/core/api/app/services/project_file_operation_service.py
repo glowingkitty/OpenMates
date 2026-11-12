@@ -29,6 +29,7 @@ PROJECT_FILE_OPERATION_ARGUMENT_MAX_BYTES = 512 * 1024
 PROJECT_FILE_CONFLICT_RECOVERY_LIMIT = 3
 PROJECT_FILE_OPERATIONS = {
     "list", "search", "read_text", "create_file", "update_file", "rename_file", "delete_file",
+    "commit",
 }
 PROJECT_FILE_MUTATIONS = {"create_file", "update_file", "rename_file", "delete_file"}
 _RELEASE_LOCK_SCRIPT = """
@@ -611,6 +612,16 @@ class ProjectFileOperationService:
             if (not new_path or len(new_path) > 2048 or normalized_new.startswith("/") or "\x00" in new_path
                     or ".." in normalized_new.split("/") or normalized_new == path.replace("\\", "/")):
                 raise ProjectFileOperationError("invalid_rename_file_arguments")
+        if operation == "commit":
+            message = arguments.get("message")
+            if (
+                set(arguments) != {"message"}
+                or not isinstance(message, str)
+                or not message.strip()
+                or len(message) > 200
+                or any(ord(ch) < 32 for ch in message)
+            ):
+                raise ProjectFileOperationError("invalid_commit_arguments")
         if operation == "delete_file" and (set(arguments) != {"path"} or not isinstance(path, str)):
             raise ProjectFileOperationError("invalid_delete_file_arguments")
 

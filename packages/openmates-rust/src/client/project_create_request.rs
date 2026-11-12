@@ -9,7 +9,7 @@
 //! server error after creation rolls the Project back before reporting `failed`.
 //! Contract: `docs/plans/cloud-project-development/contracts/project-create-request.md`.
 use super::plaintext::Wipe;
-use super::transport::{Socket, send};
+use super::transport::{send, Socket};
 use super::*;
 use crate::work::{
     CreatedProjectRecord, ProjectCreateLocation, ProjectCreateRefusal, ProjectCreateRequest,
@@ -180,6 +180,7 @@ fn failure_code(error: Error) -> &'static str {
     match error {
         Error::Crypto => "PROJECT_KEY_WRAP_FAILED",
         Error::Forbidden => "PROJECT_CREATE_FORBIDDEN",
+        Error::Conflict => "PROJECT_SLUG_CONFLICT",
         Error::Offline => "PROJECT_CREATE_OFFLINE",
         Error::Authentication | Error::Expired => "PROJECT_CREATE_UNAUTHENTICATED",
         _ => "PROJECT_CREATE_FAILED",

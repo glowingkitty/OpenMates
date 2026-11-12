@@ -1,4 +1,3 @@
-// proof-video: not_required reason=real_inference_dev_only (CLI JSON contract plus web screenshots; never run in CI)
 /** Real inference acceptance: hosted recipe app through the native Rust CLI. Held out of isolated CI. */
 import { test, expect, chromium, type Page, type TestInfo } from '@playwright/test';
 import fs from 'node:fs';
@@ -11,6 +10,29 @@ const { generateTotp } = require('./signup-flow-helpers');
 const { createRustHome, runRust, rustEnv } = require('./helpers/rust-cli-terminal');
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- shared CommonJS helpers
 const { parseJson, pickString } = require('./helpers/cli-native-fixtures');
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- shared CommonJS helpers
+const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
+
+const proofContract = defineVideoProof({
+  id: 'cli-native-agentic-app-real',
+  title: 'A recipe app request builds a hosted Project, records a browser test and commits',
+  surface: 'web',
+  devices: ['web-laptop'],
+  domain: 'app.dev.openmates.org',
+  transcript: [
+    { id: 'app-built', text: 'The chat shows the recipe app built by the assistant in a new Project.', checkpoint: 'agentic-app-embed-visible', devices: ['web-laptop'] },
+    { id: 'test-recorded', text: 'The recorded browser test opens with its video beside the step timeline.', checkpoint: 'agentic-test-result-visible', devices: ['web-laptop'] },
+    { id: 'preview-running', text: 'The app runs in the live preview.', checkpoint: 'agentic-preview-running', devices: ['web-laptop'] },
+    { id: 'project-files', text: 'The Project folder web-app holds the application card and its files.', checkpoint: 'agentic-project-files', devices: ['web-laptop'] },
+  ],
+  assertions: [
+    { id: 'agentic_app.embed_visible', checkpoint: 'agentic-app-embed-visible', visual: 'An application card from the code app is visible in the chat.', devices: ['web-laptop'] },
+    { id: 'agentic_app.test_result', checkpoint: 'agentic-test-result-visible', visual: 'The test result fullscreen shows a video and a step timeline.', devices: ['web-laptop'] },
+    { id: 'agentic_app.preview', checkpoint: 'agentic-preview-running', visual: 'The preview frame shows the recipe app, not a blank page.', devices: ['web-laptop'] },
+    { id: 'agentic_app.project_files', checkpoint: 'agentic-project-files', visual: 'The web-app folder lists the application card and files.', devices: ['web-laptop'] },
+  ],
+  tutorial: { readingWordsPerSecond: 2.5, minimumHoldMs: 1800, maximumHoldMs: 5000 },
+});
 
 // playwright-account: required reason=real_ai_personal_dev_only
 const enabled = process.env.AGENTIC_APP_REAL_AI_DEV === '1';
@@ -18,6 +40,8 @@ const APP = 'https://app.dev.openmates.org';
 const API = 'https://api.dev.openmates.org';
 const PROMPT =
   '@Gemini-3.8-Flash Build me a simple recipe web app where I can add recipes with ingredients and steps and see them in a list. Keep it small.';
+const TEST_PROMPT =
+  'Add a browser test that adds one recipe and checks it appears in the list, run it, and commit when it passes.';
 test.describe.configure({ mode: 'serial', retries: 0, timeout: 1_200_000 });
 test.skip(!enabled, 'Requires explicit dev-only real-inference execution and the personal account lease.');
 
@@ -35,6 +59,31 @@ function collect(value: unknown, keys: string[], out: string[] = []): string[] {
   return out;
 }
 
+/** Every number under `keys` anywhere in a decoded JSON value. */
+function numbersUnder(value: unknown, keys: string[], out: number[] = []): number[] {
+  if (Array.isArray(value)) value.forEach((entry) => numbersUnder(entry, keys, out));
+  else if (value && typeof value === 'object') {
+    for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+      if (keys.includes(key) && typeof entry === 'number') out.push(entry);
+      else numbersUnder(entry, keys, out);
+    }
+  }
+  return out;
+}
+
+/** Ids of embeds whose type field equals `type`, anywhere in a decoded JSON value. */
+function embedIdsOfType(value: unknown, type: string, out: string[] = []): string[] {
+  if (Array.isArray(value)) value.forEach((entry) => embedIdsOfType(entry, type, out));
+  else if (value && typeof value === 'object') {
+    const row = value as Record<string, unknown>;
+    const kind = row.type ?? row.embed_type ?? row.embedType ?? row.skill_id ?? row.skillId;
+    const id = row.embed_id ?? row.embedId;
+    if (kind === type && typeof id === 'string' && !out.includes(id)) out.push(id);
+    Object.values(row).forEach((entry) => embedIdsOfType(entry, type, out));
+  }
+  return out;
+}
+
 // contract-test: direct surface=cli assertions=projects.files.application-single-source,projects.files.adopt-embed
 // eslint-disable-next-line no-empty-pattern -- Playwright requires an object pattern; this test launches its own browser
 test('real Gemini turn builds a hosted recipe app into a new Project via the native CLI', async ({}, info: TestInfo) => {
@@ -43,7 +92,9 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
   const binary = process.env.OPENMATES_NATIVE_CLI || '';
   expect(binary && fs.existsSync(binary), 'OPENMATES_NATIVE_CLI must name the native CLI binary').toBeTruthy();
   for (const key of ['EMAIL', 'PASSWORD', 'OTP_KEY']) expect(process.env[`OPENMATES_PERSONAL_TEST_ACOUNT_${key}`]).toBeTruthy();
-  const context = await browser.newContext({ baseURL: APP, viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 2 });
+  // Records the web part (chat, test result fullscreen, preview, Project folder) as the result video.
+  const context = await browser.newContext({ baseURL: APP, viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 2,
+    recordVideo: { dir: info.outputPath('video'), size: { width: 1440, height: 1000 } } });
   // Never let this run touch a non-dev API host.
   await context.route('**/v1/**', (route) => {
     const host = new URL(route.request().url()).hostname;
@@ -51,6 +102,13 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
       ? route.abort('blockedbyclient') : route.continue();
   });
   const page: Page = await context.newPage();
+  const proof = createVideoProofRuntime(proofContract, {
+    device: 'web-laptop', attach: info.attach.bind(info), captureFrame: () => page.screenshot({ type: 'png' }),
+  });
+  // Soft-asserted flows may skip a checkpoint; a missing one shows in the proof, not as a crash.
+  const checkpoint = (id: string) => proof.checkpoint(id).catch((error: unknown) => {
+    Object.assign(evidence, { [`checkpoint_${id}`]: String(error).slice(0, 200) });
+  });
   const home = createRustHome('agentic-app-real');
   const env = { ...rustEnv(home, API, APP), OPENMATES_TEST_SEND_PHASE_DIAGNOSTIC: '1' };
   const evidence: Record<string, unknown> = { target: APP };
@@ -135,6 +193,11 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
     if (created.length) {
       listed = collect(await run(['projects', 'hosted', 'list', created[0], '--json']), ['path']);
     }
+    // Card status and error code only (no names): explains a creation that failed.
+    const creationOutcomes = (creations as Array<Record<string, unknown>>).map((card) => ({
+      status: card.status, errorCode: card.errorCode ?? card.error_code, location: card.location,
+    }));
+    Object.assign(evidence, { creationOutcomes });
     Object.assign(evidence, { status: turn.status, models, creations: creations.length, projectIds: created.length,
       adoptions: adoptions.map(({ kind, path, status, code }) => ({ kind, path, status, code })), listed });
     const focusPersisted = collect(creations, []).length === 0
@@ -159,6 +222,39 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
         JSON.stringify(await run(['chats', 'show', chatId, '--json'])), { mode: 0o600 });
     }
 
+    // Second turn: the assistant writes a browser test, runs it in E2B with a
+    // recording, and commits the Project once it is green.
+    let testResultId = '';
+    if (created.length) {
+      const commitsBefore = collect(await run(['projects', 'commits', 'list', created[0], '--json']), ['commit_id', 'commitId']);
+      const testTurn = await run(['chats', 'send', '--chat', chatId, TEST_PROMPT, '--json'], 900_000);
+      const shown = await run(['chats', 'show', chatId, '--json']);
+      const testResults = embedIdsOfType(shown, 'test_result');
+      testResultId = testResults[testResults.length - 1] || '';
+      let result: Record<string, unknown> = {};
+      if (testResultId) {
+        const numbers = numbersUnder(await run(['embeds', 'versions', 'list', testResultId, '--json']), ['version_number', 'versionNumber']);
+        const latest = String(numbers.length ? Math.max(...numbers) : 1);
+        result = await run(['embeds', 'test-result', testResultId, '--version', latest, '--json']);
+      }
+      const typed = (result.test_result ?? {}) as Record<string, unknown>;
+      const assets = collect(typed, ['asset_id', 'assetId', 'path']);
+      const commitsAfter = collect(await run(['projects', 'commits', 'list', created[0], '--json']), ['commit_id', 'commitId']);
+      const listedAfter = collect(await run(['projects', 'hosted', 'list', created[0], '--json']), ['path']);
+      Object.assign(evidence, { testTurn: { status: testTurn.status, testResults: testResults.length,
+        kind: typed.kind, outcome: typed.status ?? typed.run_status ?? typed.outcome,
+        videoEvidence: assets.some((value) => /\.webm$/i.test(value)) || JSON.stringify(typed).includes('video'),
+        steps: Array.isArray(typed.steps) ? typed.steps.length : 0,
+        commitsBefore: commitsBefore.length, commitsAfter: commitsAfter.length,
+        testFiles: listedAfter.filter((path) => /tests?\//.test(path)) } });
+      expect.soft(testTurn.status).toBe('completed');
+      expect.soft(testResultId, 'a test_result embed in the chat').not.toBe('');
+      expect.soft(typed.kind, 'browser test').toBe('browser');
+      expect.soft(JSON.stringify(typed), 'recorded video evidence').toMatch(/webm|video/i);
+      expect.soft(listedAfter.some((path) => /^web-app\/.*tests?\//.test(path)), 'test file stored as a Project file').toBe(true);
+      expect.soft(commitsAfter.length, 'a Project commit after green tests').toBeGreaterThan(commitsBefore.length);
+    }
+
     // Reload first so the web client syncs the CLI-created chat, then open it.
     await page.goto(`${APP}/`);
     await page.reload();
@@ -169,6 +265,7 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
     const toggle = page.getByTestId('assistant-activity-toggle').first();
     await expect.soft(toggle).toHaveAttribute('title', /Created project/, { timeout: 30_000 });
     await page.screenshot({ path: info.outputPath('chat-with-application-embed.png'), fullPage: true });
+    await checkpoint('agentic-app-embed-visible');
     await toggle.click();
     await expect.soft(page.getByTestId('project-created-card').first()).toBeVisible({ timeout: 30_000 });
     await page.screenshot({ path: info.outputPath('chat-activity-expanded.png'), fullPage: true });
@@ -198,8 +295,33 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
         });
       }
       await page.screenshot({ path: info.outputPath('application-preview-running.png'), fullPage: true });
+      await checkpoint('agentic-preview-running');
       const stop = page.getByTestId('application-stop-preview');
       if (await stop.isVisible() && await stop.isEnabled()) await stop.click();
+    }
+
+    // The recorded browser test in the web chat: fullscreen with video and step timeline.
+    if (testResultId) {
+      await page.goto(`${APP}/#chat-id=${chatId}`);
+      const card = page.locator('[data-testid="embed-preview"][data-skill-id="test_result"]').last();
+      await expect.soft(card, 'test result card in chat').toBeVisible({ timeout: 90_000 });
+      if (await card.isVisible()) {
+        await card.scrollIntoViewIfNeeded();
+        await page.screenshot({ path: info.outputPath('chat-test-result-card.png') });
+        await card.getByTestId('result-preview-expand').click();
+        const body = page.getByTestId('test-result-fullscreen-body');
+        await expect.soft(body).toBeVisible({ timeout: 30_000 });
+        await expect.soft(page.getByTestId('test-result-video'), 'recorded test video').toBeVisible({ timeout: 60_000 });
+        await expect.soft(page.getByTestId('test-result-timeline')).toBeVisible();
+        const video = page.getByTestId('test-result-video');
+        if (await video.isVisible()) {
+          await video.evaluate((el: HTMLVideoElement) => { el.muted = true; return el.play(); }).catch(() => undefined);
+          await page.waitForTimeout(4_000);
+        }
+        await page.screenshot({ path: info.outputPath('test-result-fullscreen.png') });
+        await checkpoint('agentic-test-result-visible');
+        await page.keyboard.press('Escape');
+      }
     }
 
     if (created.length) {
@@ -216,12 +338,13 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
         // The application card must resolve to its real preview, not stay on the loading tile.
         await expect.soft(page.getByTestId('project-item-card').first(), 'application card in folder').toContainText(/files/, { timeout: 60_000 });
         await page.screenshot({ path: info.outputPath('project-web-app-folder.png'), fullPage: true });
+        await checkpoint('agentic-project-files');
       }
     }
   } finally {
     const failures: string[] = [];
     const attempt = async (label: string, args: string[]) => {
-      const r = await runRust(binary, env, args, 120_000).catch((error) => ({ code: -1, stdout: '', stderr: String(error) }));
+      const r = await runRust(binary, env, args, 120_000).catch((error: unknown) => ({ code: -1, stdout: '', stderr: String(error) }));
       if (r.code !== 0) failures.push(`${label}: exit ${r.code} ${r.stderr.slice(0, 300)}`);
       return r;
     };

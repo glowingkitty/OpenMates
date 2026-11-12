@@ -527,7 +527,15 @@ skills:
       unprompted reruns. The sandbox installs supported dependency manifests,
       executes the selected file, streams terminal status, and returns safe
       artifact metadata. The inline files are saved as code embeds and executed
-      automatically; no separate auto-execute flag is needed. A processing result
+      automatically; no separate auto-execute flag is needed. Test runs
+      (test_run) are the exception: their files are the Project snapshot and are
+      never saved as new code embeds. After creating or changing a hosted web app
+      Project, write one Playwright test under web-app/tests/ covering the main
+      user action, run it with test_run (target e2b, kind browser, pass the
+      Project files with their exact revisions), then fix and rerun until it is
+      green within the per-turn budget. Only when it is green call project_commit
+      with a one-line message describing the change; never commit while tests fail.
+      A processing result
       only acknowledges dispatch. Use the completed execution's checked terminal
       output, exit code, and artifacts to explain the actual result; never claim
       success or invent output while the execution is pending. Pricing is 5
@@ -812,7 +820,10 @@ skills:
             For target e2b pass the Project snapshot in files and the same paths with their
             exact revisions in revisions. target is optional: it defaults to remote_source when
             the active Project focus has a connected source with run_command, otherwise e2b.
-            Remote test runs accept only test_command for now.
+            Remote test runs accept only test_command for now. Files are not saved as
+            chat code embeds; the test result records their paths and revisions.
+            Hosted web apps: one Playwright test under web-app/tests/, kind browser,
+            green before project_commit.
           properties:
             kind:
               type: string

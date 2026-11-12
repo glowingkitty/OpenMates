@@ -192,3 +192,50 @@ def test_end_to_end_finalize_with_fixture_video_is_repeatable(tmp_path: Path) ->
         assert preview == 0 and steps[0].is_preview
     assert frames[0] == frames[1] and len(frames[0]) > 0
     assert json.loads((tmp_path / "a" / "report.json").read_text())["notes"]
+
+
+def _fake_run(versions: dict, calls: list):
+    """Stand-in for subprocess.run: `node` reports versions['resolved'], `npm install` is recorded."""
+    def run(argv, **kwargs):
+        calls.append(argv)
+        if argv[0] == "node":
+            resolved = versions.get("resolved")
+            return subprocess.CompletedProcess(argv, 0 if resolved else 1, stdout=resolved or "", stderr="")
+        return subprocess.CompletedProcess(argv, versions.get("install_code", 0))
+    return run
+
+
+def _template(tmp_path: Path, version: str) -> str:
+    manifest = tmp_path / "node_modules" / "playwright" / "package.json"
+    manifest.parent.mkdir(parents=True)
+    manifest.write_text(json.dumps({"name": "playwright", "version": version}))
+    return str(tmp_path)
+
+
+# contract-test: supporting surface=rest_api assertions=code-run.tests.recorded-evidence
+def test_playwright_test_matching_template_version_is_not_reinstalled(tmp_path: Path) -> None:
+    calls: list = []
+    assert rb.ensure_playwright_test(tmp_path, _template(tmp_path, "1.60.0"), _fake_run({"resolved": "1.60.0"}, calls))
+    assert [c[0] for c in calls] == ["node"]
+
+
+# contract-test: supporting surface=rest_api assertions=code-run.tests.recorded-evidence
+@pytest.mark.parametrize("resolved", [None, "1.49.1"])
+def test_missing_or_mismatched_playwright_test_installs_template_version(tmp_path: Path, resolved) -> None:
+    calls: list = []
+    assert rb.ensure_playwright_test(tmp_path, _template(tmp_path, "1.60.0"), _fake_run({"resolved": resolved}, calls))
+    install = calls[-1]
+    assert install[:2] == ["npm", "install"] and "--no-save" in install and install[-1] == "@playwright/test@1.60.0"
+
+
+# contract-test: supporting surface=rest_api assertions=code-run.tests.recorded-evidence
+def test_failed_install_is_reported_to_the_caller(tmp_path: Path) -> None:
+    assert not rb.ensure_playwright_test(tmp_path, _template(tmp_path, "1.60.0"), _fake_run({"install_code": 1}, []))
+
+
+# contract-test: supporting surface=rest_api assertions=code-run.tests.recorded-evidence
+def test_wrapper_passes_template_capture_directory() -> None:
+    from backend.shared.providers.e2b_application_preview import APPLICATION_CAPTURE_DIRECTORY
+    spec = TestRunSpec(kind="browser", test_command={"argv": ["npx", "playwright", "test"]})
+    argv = browser_recorder_wrapper(spec)
+    assert argv[argv.index("--capture-dir") + 1] == APPLICATION_CAPTURE_DIRECTORY

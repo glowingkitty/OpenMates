@@ -62,6 +62,10 @@ impl JobRunner for Fake {
         self.executed.push((job.operation_id, approved));
         self.outcome.clone()
     }
+    async fn commit(&mut self, _: &Focus, _: &str, message: String) -> HostedResult<Value> {
+        self.executed.push((format!("commit:{message}"), false));
+        Ok(json!({"commit_id": "c1", "message": message, "file_count": 2}))
+    }
 }
 
 fn request(operation: &str, expires: u64) -> Value {
@@ -217,6 +221,9 @@ async fn a_lease_that_runs_out_during_execution_is_failed() {
             tokio::time::sleep(Duration::from_secs(30)).await;
             Ok(json!({}))
         }
+        async fn commit(&mut self, _: &Focus, _: &str, _: String) -> HostedResult<Value> {
+            Ok(json!({}))
+        }
     }
     let sent = job_frames(
         &mut Slow,
@@ -348,4 +355,35 @@ async fn always_ask_runs_when_the_shell_approves() {
     assert_eq!(sent.len(), 1);
     assert_eq!(sent[0].1["status"], "completed");
     assert_eq!(fake.executed, vec![("op-1".to_owned(), true)]);
+}
+
+#[tokio::test]
+async fn a_commit_job_records_the_message_and_reports_id_and_file_count() {
+    let mut fake = Fake::new(false);
+    let mut event = request("commit", NOW + 60);
+    event["arguments"] = json!({"message": " Add recipes page "});
+    let sent = run(&mut fake, REQUEST, &event, &mut FileJobState::default()).await;
+    assert_eq!(sent[0].1["status"], "completed");
+    assert_eq!(sent[0].1["result"]["commit_id"], "c1");
+    assert_eq!(sent[0].1["result"]["file_count"], 2);
+    assert_eq!(fake.executed[0].0, "commit:Add recipes page");
+}
+
+#[tokio::test]
+async fn a_commit_job_with_a_bad_message_is_refused_without_committing() {
+    for arguments in [
+        json!({}),
+        json!({"message": ""}),
+        json!({"message": "two\nlines"}),
+        json!({"message": "x".repeat(201)}),
+        json!({"message": "ok", "extra": 1}),
+    ] {
+        let mut fake = Fake::new(false);
+        let mut event = request("commit", NOW + 60);
+        event["arguments"] = arguments;
+        let sent = run(&mut fake, REQUEST, &event, &mut FileJobState::default()).await;
+        assert_eq!(sent[0].1["status"], "failed");
+        assert_eq!(sent[0].1["result"]["code"], "invalid_commit_arguments");
+        assert!(fake.executed.is_empty());
+    }
 }

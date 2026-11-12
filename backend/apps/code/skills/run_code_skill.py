@@ -612,7 +612,9 @@ class RunCodeSkill(BaseSkill):
             credits=credits,
         )
 
-        if request.files:
+        # Test runs execute the Project snapshot; it must not be duplicated as chat code embeds.
+        # The test_result embed records the paths (and revisions) instead.
+        if request.files and request.test_run is None:
             target_embed_id, created_embed_ids = await create_code_embeds_for_assistant(
                 files=files,
                 target_path=target_path,
@@ -624,7 +626,7 @@ class RunCodeSkill(BaseSkill):
                 directus_service=directus_service,
                 encryption_service=encryption_service,
             )
-        else:
+        elif not request.files:
             files, target_path = await collect_code_files_for_assistant(
                 chat_id=str(chat_id),
                 target_embed_id=target_embed_id,

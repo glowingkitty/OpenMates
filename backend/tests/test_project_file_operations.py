@@ -697,3 +697,21 @@ async def test_conflict_recovery_budget_is_per_turn_source_and_opaque_file() -> 
             continuation_task_id=operation_id, message_id=message_id,
             operation_id=operation_id, now=131,
         )
+
+
+# contract-test: supporting surface=rest_api assertions=projects.files.chat-focus-required
+def test_project_commit_tool_is_client_executed_with_a_one_line_message() -> None:
+    from backend.apps.ai.processing.project_file_tools import (
+        PROJECT_FILE_TOOL_TO_OPERATION,
+        build_project_file_tools,
+    )
+    from backend.core.api.app.services.project_file_operation_service import PROJECT_FILE_MUTATIONS
+
+    tools = {tool["function"]["name"]: tool["function"] for tool in build_project_file_tools()}
+    assert PROJECT_FILE_TOOL_TO_OPERATION["project_commit"] == "commit"
+    assert tools["project_commit"]["parameters"]["required"] == ["message"]
+    assert "commit" not in PROJECT_FILE_MUTATIONS
+    ProjectFileOperationService._validate_arguments("commit", {"message": "Add recipes page"})
+    for arguments in ({}, {"message": ""}, {"message": "a\nb"}, {"message": "x" * 201}, {"message": "ok", "x": 1}):
+        with pytest.raises(ProjectFileOperationError, match="invalid_commit_arguments"):
+            ProjectFileOperationService._validate_arguments("commit", arguments)
