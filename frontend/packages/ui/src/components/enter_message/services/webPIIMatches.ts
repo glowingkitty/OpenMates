@@ -19,11 +19,12 @@ export const WEB_PII_LABELS = [...Object.keys(LABEL_TYPES), 'IP_ADDRESS'];
 // A city or state on its own is general knowledge ("the history of Berlin"),
 // not personal data. It is only part of an address next to a street, building
 // number, unit or postal code, e.g. "Hauptstr. 5, 10115 Berlin".
-/** Everyday words the model mislabels as given names when capitalised at a sentence start. Never add real first names (Will, Grace). */
+/** Everyday words (interjections, determiners, pronouns, question words, sentence starters) the model mislabels as a lone given name when capitalised at a sentence start ("Same question."). Never add words that are also given names (will, may, mark, hope, grace, bill, rose, joy, april, june, art, pat, sue). Mirrors NON_NAME_STANDALONE_WORDS in web_pii.rs. */
 export const NON_NAME_STANDALONE_WORDS = new Set([
   'awesome', 'great', 'perfect', 'okay', 'ok', 'nice', 'cool', 'thanks', 'thank', 'hello', 'hi', 'hey', 'sure', 'wonderful',
   'excellent', 'amazing', 'fine', 'good', 'yes', 'no', 'yeah', 'right', 'sorry', 'please', 'welcome', 'fantastic', 'brilliant',
   'lovely', 'super', 'sweet', 'absolutely', 'definitely', 'exactly', 'indeed', 'well', 'alright', 'bye', 'goodbye', 'cheers',
+  'same', 'this', 'that', 'these', 'those', 'what', 'which', 'who', 'why', 'how', 'when', 'where', 'your', 'my', 'our', 'their', 'his', 'her', 'its', 'also', 'again', 'another', 'other', 'both', 'each', 'every', 'any', 'some', 'none', 'all', 'many', 'more', 'most', 'now', 'then', 'here', 'there', 'maybe',
 ]);
 const NAME_LABELS = new Set(['GIVEN_NAME', 'SURNAME']);
 const NAME_PART_MAX_GAP = 1;

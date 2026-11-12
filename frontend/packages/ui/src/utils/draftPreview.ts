@@ -1,3 +1,5 @@
+import { convertMentionSyntaxToDisplayName } from "./mentionDisplay";
+
 /** Turn serialized embed references in saved draft previews into readable labels. */
 const EMBED_LABELS: Record<string, string> = {
   image: "Image",
@@ -46,5 +48,5 @@ export function formatDraftPreview(value: string | null | undefined): string {
     return labelForReference(trimmed);
   }
 
-  return withLabels.replace(/\s+/g, " ").trim();
+  return convertMentionSyntaxToDisplayName(withLabels.replace(/\s+/g, " ").trim());
 }

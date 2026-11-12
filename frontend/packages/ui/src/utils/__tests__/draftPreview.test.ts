@@ -1,7 +1,28 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("../../data/modelsMetadata", () => ({
+  modelsMetadata: [{ id: "claude-sonnet-5", name: "Claude Sonnet 5" }],
+}));
+vi.mock("../../data/matesMetadata", () => ({ matesMetadata: [] }));
+vi.mock("../../stores/appSkillsStore", () => ({ appSkillsStore: { apps: {} } }));
+
 import { formatDraftPreview } from "../draftPreview";
 
 describe("formatDraftPreview", () => {
+  // contract-test: supporting surface=gui.web assertions=drafts.draft-only.presentation
+  it("shows an ai-model mention with provider suffix as its display name", () => {
+    expect(formatDraftPreview("@ai-model:claude-sonnet-5:anthropic Is a hot dog a sandwich? One sentence.")).toBe(
+      "@Claude-Sonnet-5 Is a hot dog a sandwich? One sentence.",
+    );
+  });
+
+  // contract-test: supporting surface=gui.web assertions=drafts.draft-only.presentation
+  it("falls back to a readable name when model metadata is missing", () => {
+    expect(formatDraftPreview("@ai-model:unknown-model:acme hi @best-model:fast go")).toBe(
+      "@Unknown-Model hi @Fast go",
+    );
+  });
+
   // contract-test: supporting surface=gui.web assertions=drafts.draft-only.presentation,drafts.persistence.local-first-encrypted
   it("replaces saved embed references while preserving surrounding text and order", () => {
     const preview = 'Look at this ```json\n{"type":"image","embed_id":"image-1"}\n``` and ```json\n{"type":"audio-recording","embed_id":"audio-1"}\n```';

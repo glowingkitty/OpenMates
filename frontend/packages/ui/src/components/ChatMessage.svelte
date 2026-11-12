@@ -16,6 +16,7 @@
   import { bodyEmbedRefResolver, bodyEmbedSyncChildLookup, enforceBodyEmbedPolicy, pendingBodySkillParents } from '../message_parsing/bodyEmbedPolicy';
   import { recoverGeneratedImages } from '../services/rustCore/parse/imageRecoveryBranch';
   import type { AssistantDocument } from '../message_parsing/assistantActivityRuns';
+  import { shouldShowEmbedErrorBanner } from '../utils/embedErrorBanner';
   import { activeTeamId } from '../stores/teamStore';
   import { classifyAssistantSkillPhase } from '../message_parsing/assistantActivityStatus';
   import EmbedContextMenu from './embeds/EmbedContextMenu.svelte';
@@ -315,6 +316,11 @@
   const legacySubChatActivityId = $derived(activityRuns?.find((run) => assistantActivityItems(run.document).some((item) => item.type === 'focus-mode-activation'))?.id ?? firstSkillActivityId);
   const legacySubChatsActive = $derived(subChatsOfThisMessage.some((chat) => ['thinking', 'waiting', 'queued'].includes(getSubChatCardStatus(chat).state)));
   const responseActive = $derived(role === 'assistant' && (assistantTurnActive ?? (status === 'processing' || status === 'streaming')));
+  // A failed skill shows on its own card; the message banner is only for a finished turn without an answer.
+  const showEmbedErrorBanner = $derived(shouldShowEmbedErrorBanner({
+    role, hasEmbedErrors, responseActive, status,
+    content: typeof original_message?.content === 'string' ? original_message.content : content,
+  }));
   // Typed call text is shown as Sending only until the live model accepts it.
   // Spoken transcript rows carry the same local outbox, without typed_pending.
   const callMessageOrigin = $derived((original_message as (Partial<Message> & {
@@ -3886,7 +3892,7 @@
         </button>
       </div>
     {/if}
-    {#if role === 'assistant' && hasEmbedErrors}
+    {#if showEmbedErrorBanner}
       <div class="embed-error-banner" data-testid="embed-error-banner">
         <span class="embed-error-text">
           {$text('chat.embed_error.message')}

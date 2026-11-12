@@ -1726,19 +1726,37 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                           'type': 'string'},
                                                                                 'type': 'array',
                                                                                 'x-ui': {'basic': False}},
-                                                                  'query': {'description': 'Optional '
-                                                                                           'session '
+                                                                  'query': {'description': 'Event '
                                                                                            'topic '
-                                                                                           'within '
-                                                                                           'the '
-                                                                                           'requested '
-                                                                                           'known '
-                                                                                           'conference. '
-                                                                                           'Omit '
+                                                                                           'to '
+                                                                                           'search '
                                                                                            'for '
+                                                                                           '(e.g. '
+                                                                                           "'AI', "
+                                                                                           "'security'). "
+                                                                                           'Required '
+                                                                                           'for '
+                                                                                           'every '
+                                                                                           'request '
+                                                                                           'unless '
+                                                                                           'conference '
+                                                                                           'is set '
+                                                                                           'to a '
+                                                                                           'known '
+                                                                                           'conference; '
+                                                                                           'then '
+                                                                                           'omit '
+                                                                                           'it for '
                                                                                            'the '
                                                                                            'full '
-                                                                                           'schedule.',
+                                                                                           'schedule. '
+                                                                                           'Location '
+                                                                                           'or '
+                                                                                           'dates '
+                                                                                           'alone '
+                                                                                           'are '
+                                                                                           'not a '
+                                                                                           'query.',
                                                                             'type': 'string',
                                                                             'x-ui': {'basic': True}},
                                                                   'radius_miles': {'default': 25,

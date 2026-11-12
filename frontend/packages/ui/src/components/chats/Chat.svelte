@@ -34,9 +34,8 @@
     getLucideIcon
   } from '../../utils/categoryUtils';
   import { modelsMetadata } from '../../data/modelsMetadata'; // For model name lookup in mentions
-  import { matesMetadata } from '../../data/matesMetadata'; // For mate name lookup in mentions
   import { mateDisplayName } from '../../utils/mateDisplayName';
-  import { appSkillsStore } from '../../stores/appSkillsStore'; // For skill/focus/memory name lookup in mentions
+  import { convertMentionSyntaxToDisplayName } from '../../utils/mentionDisplay'; // Shared mention display names
   import { skillPreviewService } from '../../services/skillPreviewService'; // For tracking skill usage in background chats
   import { settingsDeepLink } from '../../stores/settingsDeepLinkStore'; // For opening settings to specific page (share)
   import { settingsMenuVisible } from '../Settings.svelte'; // For controlling Settings visibility
@@ -186,85 +185,6 @@
       console.error('Error extracting text from Tiptap content:', error);
       return '';
     }
-  }
-
-  /**
-   * Convert a name to hyphenated format for mention display.
-   * e.g., "Claude 4.5 Opus" -> "Claude-4.5-Opus"
-   */
-  function toHyphenatedName(name: string): string {
-    return name.replace(/\s+/g, '-');
-  }
-
-  /**
-   * Capitalize first letter of each word for display.
-   * e.g., "get-docs" -> "Get-Docs"
-   */
-  function capitalizeWords(str: string): string {
-    return str.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join('-');
-  }
-
-  /**
-   * Convert backend mention syntax to human-readable display names.
-   * This ensures draft previews show "@Claude-4.5-Opus" instead of "@ai-model:claude-4-sonnet"
-   */
-  function convertMentionSyntaxToDisplayName(text: string): string {
-    // Replace @ai-model:{id} with @Model-Name
-    text = text.replace(/@ai-model:([^\s]+)/g, (match, modelId) => {
-      const model = modelsMetadata.find(m => m.id === modelId);
-      if (model) {
-        return `@${toHyphenatedName(model.name)}`;
-      }
-      return match;
-    });
-    
-    // Replace @mate:{id} with @MateName
-    text = text.replace(/@mate:([^\s]+)/g, (match, mateId) => {
-      const mate = matesMetadata.find(m => m.id === mateId);
-      if (mate) {
-        const displayName = capitalizeWords(mate.search_names[0] || mate.id);
-        return `@${displayName}`;
-      }
-      return match;
-    });
-    
-    // Replace @skill:{app_id}:{skill_id} with @App-Skill-Name
-    text = text.replace(/@skill:([^:]+):([^\s]+)/g, (match, appId, skillId) => {
-      const apps = appSkillsStore.apps;
-      const app = apps[appId];
-      if (app) {
-        const skill = app.skills.find(s => s.id === skillId);
-        if (skill) {
-          const appDisplayName = capitalizeWords(appId);
-          const skillDisplayName = capitalizeWords(skillId.replace(/_/g, '-'));
-          return `@${appDisplayName}-${skillDisplayName}`;
-        }
-      }
-      return match;
-    });
-    
-    // Replace @focus:{app_id}:{focus_id} with @App-Focus-Name
-    text = text.replace(/@focus:([^:]+):([^\s]+)/g, (match, appId, focusId) => {
-      const apps = appSkillsStore.apps;
-      const app = apps[appId];
-      if (app) {
-        const focusMode = app.focus_modes.find(f => f.id === focusId);
-        if (focusMode) {
-          const appDisplayName = capitalizeWords(appId);
-          const focusDisplayName = capitalizeWords(focusId.replace(/_/g, '-'));
-          return `@${appDisplayName}-${focusDisplayName}`;
-        }
-      }
-      return match;
-    });
-    
-    // Replace @memory:{app_id}:{memory_id}:{type} with @App-Memory-Name
-    text = text.replace(/@memory:([^:]+):([^:]+):([^\s]+)/g, (match, appId, memoryId) => {
-      if (appId === 'openmates' && memoryId === 'memories') return '@Openmates-Memories';
-      return match;
-    });
-    
-    return text;
   }
 
   /**

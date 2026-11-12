@@ -18,10 +18,18 @@ const MAX_UNIT_CHARS: usize = 64;
 const NAME_PART_MAX_GAP: i64 = 1;
 const ADDRESS_PART_MAX_GAP: i64 = 8;
 
+/// Everyday words the model mislabels as a lone GIVEN_NAME when capitalised at a
+/// sentence start ("Same question. Your take?"): interjections, determiners,
+/// pronouns, question words and sentence starters. A lone entity with one of
+/// these texts is dropped; next to another name part it stays protected
+/// ("Same Smith"). Never add words that are also given names (will, may, mark,
+/// hope, grace, bill, rose, joy, april, june, art, pat, sue). Mirrored in
+/// `NON_NAME_STANDALONE_WORDS` in `webPIIMatches.ts`.
 const NON_NAME_STANDALONE_WORDS: &[&str] = &[
     "awesome", "great", "perfect", "okay", "ok", "nice", "cool", "thanks", "thank", "hello", "hi", "hey", "sure", "wonderful",
     "excellent", "amazing", "fine", "good", "yes", "no", "yeah", "right", "sorry", "please", "welcome", "fantastic", "brilliant",
     "lovely", "super", "sweet", "absolutely", "definitely", "exactly", "indeed", "well", "alright", "bye", "goodbye", "cheers",
+    "same", "this", "that", "these", "those", "what", "which", "who", "why", "how", "when", "where", "your", "my", "our", "their", "his", "her", "its", "also", "again", "another", "other", "both", "each", "every", "any", "some", "none", "all", "many", "more", "most", "now", "then", "here", "there", "maybe",
 ];
 const ADDRESS_ANCHORS: &[&str] = &["STREET_NAME", "BUILDING_NUMBER", "SECONDARY_ADDRESS", "ZIP_CODE"];
 const MANDATORY_CATEGORIES: &[&str] = &["api_keys", "generic_secrets", "private_keys", "jwt_tokens"];

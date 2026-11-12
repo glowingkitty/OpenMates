@@ -366,6 +366,15 @@ assertions:
   - models.AssistantRenderDocument
   - models.ChatStreamDelivery
   - examples.assistant_rendering
+- id: chats.rendering.skill-failure-banner
+  type: behavior
+  must: A failed app skill is shown on its own embed card. The message-level error banner with the report link never
+    appears while the assistant turn is still streaming, processing or running skills, nor on a finished assistant
+    message that has answer text; it appears only on a finished assistant turn whose skills failed and left no
+    answer text.
+  depends_on:
+  - models.AssistantRenderDocument
+  - examples.assistant_rendering
 - id: chats.rendering.inline-entity-interaction
   type: behavior
   must: Authored embed and wiki links render readable display text at their Markdown positions during streaming

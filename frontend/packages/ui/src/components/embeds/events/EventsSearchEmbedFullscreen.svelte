@@ -76,6 +76,7 @@
   let localProviders = $state<string[]>([]);
   let localStartDate = $state('');
   let localEndDate = $state('');
+  let localError = $state('');
   let localStatus   = $state<'processing' | 'finished' | 'error' | 'cancelled'>('finished');
   let embedIdsOverride = $state<string | string[] | undefined>(undefined);
   let embedIdsValue    = $derived(embedIdsOverride ?? embedIds);
@@ -95,6 +96,8 @@
       ? data.decodedContent.end_date
       : typeof data.embedData?.end_date === 'string' ? data.embedData.end_date : '';
     localStatus   = normalizeStatus(data.embedData?.status ?? data.decodedContent?.status);
+    const failure = data.decodedContent?.error ?? data.embedData?.error;
+    localError = typeof failure === 'string' ? failure : '';
   });
 
   let query    = $derived(localQuery);
@@ -159,12 +162,15 @@
     const c = data.decodedContent;
     if (typeof c.query    === 'string') localQuery    = c.query;
     if (typeof c.provider === 'string') localProvider = c.provider;
+    if (typeof c.error === 'string') localError = c.error;
     if (Array.isArray(c.providers)) localProviders = c.providers as string[];
     if (typeof c.start_date === 'string') localStartDate = c.start_date;
     if (typeof c.end_date === 'string') localEndDate = c.end_date;
     if (c.embed_ids) embedIdsOverride = c.embed_ids as string | string[];
   }
 </script>
+
+{#snippet failureReason()}<p data-testid="events-search-error">{localError}</p>{/snippet}
 
 <SearchResultsTemplate
   appId="events"
@@ -180,6 +186,7 @@
   {legacyResults}
   legacyResultTransformer={transformLegacyResults}
   status={localStatus}
+  errorContent={localError ? failureReason : undefined}
   onEmbedDataUpdated={handleEmbedDataUpdated}
   {initialChildEmbedId}
   {hasPreviousEmbed}
@@ -190,6 +197,11 @@
   {showChatButton}
   {onShowChat}
 >
+  {#snippet emptyContent()}
+    {#if localError}{@render failureReason()}
+    {:else}<p data-testid="search-no-results-message">{$text('embeds.search_no_results')}</p>{/if}
+  {/snippet}
+
   {#snippet resultCard({ result, onSelect })}
     <EventEmbedPreview
       id={result.embed_id}

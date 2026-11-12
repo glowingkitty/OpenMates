@@ -194,4 +194,12 @@ describe('browser model PII span adaptation', () => {
     const will = 'Will called me.';
     expect(mergeWebPIIMatches(will, [entity(will, 'Will')]).map(match => match.match)).toEqual(['Will']);
   });
+
+  // contract-test: infrastructure
+  it('drops a lone common word the model labels as a given name but keeps it next to a surname', () => {
+    const text = 'Same question. Your take?';
+    expect(mergeWebPIIMatches(text, [entity(text, 'Same'), entity(text, 'Your')])).toEqual([]);
+    const full = 'Same Smith wrote to Anna.';
+    expect(mergeWebPIIMatches(full, [entity(full, 'Same'), entity(full, 'Smith', 'SURNAME'), entity(full, 'Anna')]).map(match => match.match)).toEqual(['Same', 'Smith', 'Anna']);
+  });
 });

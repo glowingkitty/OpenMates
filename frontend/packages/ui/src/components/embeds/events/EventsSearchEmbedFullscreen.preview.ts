@@ -95,4 +95,18 @@ export const variants = {
     results: [],
     onClose: () => {},
   },
+
+  /** The request failed before any source was asked: the reason is shown instead of a blank page */
+  requestError: {
+    data: {
+      decodedContent: {
+        query: "Events in Berlin",
+        embed_ids: [],
+        error:
+          "Request 1 (id: berlin-events) is missing the required 'query' field. Retry with 'query' set to the event topic (for example 'AI' or 'hackathon'); 'query' may be omitted only when 'conference' names a known conference schedule.",
+      },
+      embedData: { status: "error" },
+    },
+    onClose: () => {},
+  },
 };

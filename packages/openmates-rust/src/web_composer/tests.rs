@@ -87,6 +87,27 @@ fn model_match_merge_equals_typescript() {
     }
 }
 
+fn merged_texts(text: &str, entities: Value) -> Vec<String> {
+    let got = web_pii::merge_matches_json(&json!({"text": text, "entities": entities, "nonce": "aaaaaaaabbbbcccc"}).to_string()).expect("merge");
+    let units: Vec<u16> = text.encode_utf16().collect();
+    parse(&got).as_array().expect("spans").iter().map(|m| {
+        let (s, e) = (m["startIndex"].as_u64().expect("start") as usize, m["endIndex"].as_u64().expect("end") as usize);
+        String::from_utf16_lossy(&units[s..e])
+    }).collect()
+}
+
+fn name_entity(label: &str, original: &str, start: usize) -> Value {
+    json!({"label": label, "original": original, "start": start, "end": start + original.len(), "confidence": 1})
+}
+
+#[test]
+fn lone_common_word_given_name_is_dropped_but_full_names_stay() {
+    let lone = merged_texts("Same question. Your take?", json!([name_entity("GIVEN_NAME", "Same", 0), name_entity("GIVEN_NAME", "Your", 15)]));
+    assert!(lone.is_empty(), "{lone:?}");
+    let full = merged_texts("Same Smith wrote to Anna.", json!([name_entity("GIVEN_NAME", "Same", 0), name_entity("SURNAME", "Smith", 5), name_entity("GIVEN_NAME", "Anna", 20)]));
+    assert_eq!(full, ["Same", "Smith", "Anna"]);
+}
+
 #[test]
 fn malformed_payloads_are_protocol_errors() {
     assert_eq!(paste::classify_pasted_content_json("{").unwrap_err(), "protocol");

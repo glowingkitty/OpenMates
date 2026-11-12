@@ -1809,7 +1809,7 @@ export const APP_SKILL_METADATA = [
                   "basic": true
                 },
                 "type": "string",
-                "description": "Optional session topic within the requested known conference. Omit for the full schedule."
+                "description": "Event topic to search for (e.g. 'AI', 'security'). Required for every request unless conference is set to a known conference; then omit it for the full schedule. Location or dates alone are not a query."
               },
               "location": {
                 "x-ui": {

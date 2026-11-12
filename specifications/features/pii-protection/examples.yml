@@ -69,6 +69,12 @@ city_names:
     when: A user types "Send it to Hauptstrasse 5, 10115 Berlin".
     then: The street, number, postal code and Berlin are highlighted and replaced with address placeholders when sent.
 
+  - id: sentence-starter-not-a-name
+    assertion_ids: [pii.composer.city-not-personal]
+    given: Enhanced protection is on and the on-device model labels the capitalised sentence starter "Same" as a given name.
+    when: A user types "Same question. Your take?" after a model mention chip and sends it.
+    then: The word "Same" is not highlighted and the message is sent unchanged. Next to a surname ("Same Smith") the name stays protected.
+
 mention_labels:
   - id: project-name-with-number
     assertion_ids: [pii.composer.mention-labels-not-scanned]

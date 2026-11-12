@@ -47,6 +47,8 @@ class SearchRequestItem(BaseModel):
         default=None,
         description="Topic or theme of events to search for (e.g. 'AI', 'Python', 'hackathon', "
         "'startup', 'networking') within a known conference schedule. "
+        "Required for every request unless 'conference' names a known conference "
+        "(then omit it for the full schedule). Location or dates alone are not a query. "
         "Use the session topic without platform names."
     )
     location: Optional[str] = Field(
@@ -667,7 +669,11 @@ class SearchSkill(BaseSkill):
                 return [], [], error
 
             if not req.get("query"):
-                error_message = f"Request {i + 1} (id: {request_id}) is missing required 'query' field"
+                error_message = (
+                    f"Request {i + 1} (id: {request_id}) is missing the required 'query' field. "
+                    "Retry with 'query' set to the event topic (for example 'AI' or 'hackathon'); "
+                    "'query' may be omitted only when 'conference' names a known conference schedule."
+                )
                 logger.warning("[events:search] %s; preserving as per-request error", error_message)
                 invalid_results.append({
                     "id": request_id,

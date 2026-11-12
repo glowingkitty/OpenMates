@@ -556,10 +556,20 @@ export const variants = {
 		containerWidth: 800
 	},
 
-	/** Message with embed errors */
+	/** Finished turn whose only skill failed and left no answer text: shows the error banner */
 	withEmbedErrors: {
 		role: 'assistant' as const,
-		content: 'I tried to search for that but encountered some issues.',
+		content: '',
+		status: 'synced' as const,
+		hasEmbedErrors: true,
+		messageParts: [],
+		containerWidth: 800
+	},
+
+	/** One of several skills failed but the finished answer has text: no error banner */
+	withPartialEmbedErrors: {
+		role: 'assistant' as const,
+		content: 'The weather in Berlin is sunny, and I found two train connections for Friday.',
 		status: 'synced' as const,
 		hasEmbedErrors: true,
 		messageParts: [],

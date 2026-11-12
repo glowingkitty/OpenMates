@@ -656,7 +656,7 @@ specifications:
     version: 7
     status: draft
     path: features/chats
-    fingerprint: 4a2afaea9965789b099f92cd495f775314509b7ab8ae1f6f29ef9ec46703f8d1
+    fingerprint: 272efc1849dd817806b05d63771637f43d6d3718a0209905eac67970ce97decd
     required_applies_to:
     - cli
     - gui.web
@@ -840,7 +840,7 @@ specifications:
     version: 4
     status: draft
     path: features/pii-protection
-    fingerprint: bc0031240502253ff4759941ba3740fc110ebb1ecf42aa2e17052197fb644afd
+    fingerprint: 2295e0ad970fbff2c5908c5808fb4c21ca6cd0ea6aeb36b20d9c67d21d8f8450
     required_applies_to:
     - cli
     - gui.web
@@ -8641,6 +8641,15 @@ assertions:
     - cli
     - gui.web
     - gui.apple
+  chats.rendering.skill-failure-banner:
+    specification: feature.chats@7
+    specification_id: feature.chats
+    type: behavior
+    fingerprint: 6d982167ebdad0a511d549d02a977982857949915a76ac4fa72d4ab3eb48acce
+    required_applies_to:
+    - cli
+    - gui.web
+    - gui.apple
   chats.rendering.inline-entity-interaction:
     specification: feature.chats@7
     specification_id: feature.chats
@@ -10699,7 +10708,7 @@ assertions:
     specification: feature.pii-protection@4
     specification_id: feature.pii-protection
     type: privacy
-    fingerprint: a1da3fbfa67b7b06fbaf9542fc19f2c96ecad5a88a7f9b648225c9e6e97a5342
+    fingerprint: 2245d40326a223c58bd9d84013a353b79d515a8fd2d68b368db51602a94501b8
     required_applies_to:
     - cli
     - gui.web
