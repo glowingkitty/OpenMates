@@ -11,6 +11,7 @@ fn load(root: &Path, state: &Path, targets: &[&str], nested: bool) -> PathPolicy
             trusted_private: &[],
             targets,
             discover_nested: nested,
+            policy_source: None,
         },
     )
     .expect("policy loads")

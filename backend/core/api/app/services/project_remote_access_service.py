@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import re
 import secrets
 import time
 from contextlib import asynccontextmanager
@@ -35,6 +36,8 @@ STATE_LOCK_WAIT_SECONDS = 5
 WRITE_OPERATIONS = {"create_file", "update_file"}
 USER_FILE_OPERATIONS = {"copy_entries", "move_entries"}
 ALLOWED_OPERATIONS = {"list", "search", "read_text", "read_image_chunk", "read_file_chunk", *WRITE_OPERATIONS, *USER_FILE_OPERATIONS}
+WORKSPACE_CHAT_ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}")
+MAX_CHAT_ANCESTRY_DEPTH = 16
 RELEASE_LOCK_SCRIPT = """
 if redis.call('GET', KEYS[1]) == ARGV[1] then
   return redis.call('DEL', KEYS[1])
@@ -50,6 +53,40 @@ class ProjectRemoteAccessError(RuntimeError):
         super().__init__(code)
         self.code = code
         self.status_code = status_code
+
+
+async def resolve_root_chat_id(
+    directus_service: Any, user_id: str, chat_id: str, team_id: str | None = None
+) -> str:
+    """Return the root ancestor of a chat, verifying ownership at every hop.
+
+    Sub-chats point at their parent through ``parent_id``. The client-supplied
+    id is only a starting point: each chat is read from Directus and must belong
+    to the requester (or the team), so the host never receives a foreign id.
+    """
+
+    expected_owner = _hash(user_id)
+    expected_team = _hash(team_id) if team_id else None
+    current = chat_id
+    visited: set[str] = set()
+    for _ in range(MAX_CHAT_ANCESTRY_DEPTH):
+        if current in visited:
+            raise ProjectRemoteAccessError("chat_ancestry_invalid", status_code=409)
+        visited.add(current)
+        chat = await directus_service.chat.get_chat_metadata(current, admin_required=True)
+        if not chat:
+            raise ProjectRemoteAccessError("chat_not_found", status_code=404)
+        if team_id:
+            owned = chat.get("hashed_team_id") == expected_team
+        else:
+            owned = chat.get("hashed_team_id") is None and chat.get("hashed_user_id") == expected_owner
+        if not owned:
+            raise ProjectRemoteAccessError("chat_not_found", status_code=404)
+        parent = chat.get("parent_id")
+        if not parent:
+            return current
+        current = str(parent)
+    raise ProjectRemoteAccessError("chat_ancestry_invalid", status_code=409)
 
 
 class ProjectRemoteAccessService:
@@ -369,8 +406,11 @@ class ProjectRemoteAccessService:
         operation_id: str | None = None,
         proposal_digest: str | None = None,
         user_initiated: bool = False,
+        workspace_chat_id: str | None = None,
     ) -> dict[str, Any]:
         _validate_envelope(encrypted_envelope)
+        if workspace_chat_id is not None and not WORKSPACE_CHAT_ID_PATTERN.fullmatch(workspace_chat_id):
+            raise ProjectRemoteAccessError("invalid_workspace_chat_id")
         if operation not in ALLOWED_OPERATIONS:
             raise ProjectRemoteAccessError("unsupported_operation")
         if operation in WRITE_OPERATIONS and not (chat_id and operation_id and proposal_digest):
@@ -444,6 +484,8 @@ class ProjectRemoteAccessService:
                 request.update(chat_id=chat_id, operation_id=operation_id, proposal_digest=proposal_digest)
             if operation in USER_FILE_OPERATIONS:
                 request["user_initiated"] = True
+            if workspace_chat_id is not None:
+                request["workspace_chat_id"] = workspace_chat_id
             await self.cache.set(request_key, request, ttl=REQUEST_CACHE_TTL_SECONDS)
             if status == "delivered":
                 in_flight.append(request_id)
@@ -786,6 +828,8 @@ class ProjectRemoteAccessService:
             )
         if request["operation"] in USER_FILE_OPERATIONS:
             payload["user_initiated"] = True
+        if request.get("workspace_chat_id") is not None:
+            payload["workspace_chat_id"] = request["workspace_chat_id"]
         if request["context_type"] == "team":
             payload["routing_identity"] = self._routing_identity(request)
         published = await self.cache.publish_event(

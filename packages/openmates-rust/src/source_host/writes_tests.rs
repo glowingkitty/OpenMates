@@ -61,6 +61,7 @@ async fn run(f: &Fixture, mutation: &Value, authority: &mut Counting) -> HostRes
         WriteRequest {
             root: &f.root,
             state_dir: &f.state,
+            policy_source: None,
             mutation: &mutation,
             scope: "project:p1/source:s1/chat:c1",
             journal_root: Some(f.journal.clone()),

@@ -89,6 +89,11 @@ pub(crate) struct PolicyOptions<'a> {
     pub(crate) targets: &'a [&'a str],
     /// Load every nested ignore file (search only).
     pub(crate) discover_nested: bool,
+    /// For a chat worktree root: the connected source root. Its configured
+    /// private paths are added to the worktree's own, and the sticky private
+    /// state stays keyed on it, so a path that is private in the source stays
+    /// private in every chat worktree of that source.
+    pub(crate) policy_source: Option<&'a Path>,
 }
 
 struct Scope {
@@ -134,13 +139,18 @@ impl PathPolicy {
     pub(crate) fn load(root: &Path, options: &PolicyOptions<'_>) -> HostResult<Self> {
         let policy_root = git_policy_root(root);
         let prefix = relative_posix(&policy_root, root).map_err(|e| policy_error(e.message))?;
-        let configured = crate::remote_command::load_remote_command_permissions(root)
-            .map_err(|e| policy_error(e.message))?
-            .map(|p| p.file_access.private_paths)
-            .unwrap_or_default();
-        let mut additions = configured;
+        let configured = |dir: &Path| -> HostResult<Vec<String>> {
+            Ok(crate::remote_command::load_remote_command_permissions(dir)
+                .map_err(|e| policy_error(e.message))?
+                .map(|p| p.file_access.private_paths)
+                .unwrap_or_default())
+        };
+        let mut additions = configured(root)?;
+        if let Some(source) = options.policy_source {
+            additions.extend(configured(source)?);
+        }
         additions.extend(options.trusted_private.iter().cloned());
-        let sticky = update_sticky(root, &additions, options.state_dir)?;
+        let sticky = update_sticky(options.policy_source.unwrap_or(root), &additions, options.state_dir)?;
         let mut patterns: Vec<String> = Vec::new();
         for raw in PROJECT_CREDENTIAL_GLOBS
             .iter()

@@ -16,6 +16,7 @@
 //!   no plaintext diagnostic reaches the relay.
 
 use super::reads::{self, HostRoot};
+use super::worktrees::WorktreeArea;
 use super::writes::{self, Mutation, WriteRequest};
 use super::{HostError, HostResult, search};
 use crate::client::{
@@ -58,6 +59,69 @@ pub(crate) struct HostedSource {
     pub(crate) source_id: String,
     pub(crate) team_id: Option<String>,
     pub(crate) root: HostRoot,
+    /// Per-source target branch for chat worktrees; `None` uses the branch
+    /// checked out in the source root when the worktree is created.
+    pub(crate) target_branch: Option<String>,
+}
+
+/// Which root a request runs in (`projects.sources.chat-worktrees`):
+/// - no workspace chat id (old requesters): the source root, edited live;
+/// - a write with a workspace chat id in a Git source: the chat worktree,
+///   created on the first write;
+/// - a read/search with a workspace chat id: the chat worktree once it
+///   exists, else the source root;
+/// - a plain (non-Git) folder: always the source root.
+///
+/// Inside a worktree the source root's private paths and sticky private
+/// state still apply (`HostRoot::policy_source`).
+///
+/// # Errors
+/// An unavailable source root, invalid ids or worktree/Git failures.
+pub(crate) fn request_root(
+    source: &HostedSource,
+    workspace_chat_id: Option<&str>,
+    write: bool,
+    now_ms: u64,
+) -> HostResult<HostRoot> {
+    let Some(chat_id) = workspace_chat_id else {
+        return Ok(source.root.clone());
+    };
+    let source_root = source.root.canonical()?;
+    let area = WorktreeArea::new(&source.root.state_dir);
+    let worktree = if write {
+        area.ensure(
+            &source_root,
+            &source.source_id,
+            chat_id,
+            source.target_branch.as_deref(),
+            now_ms,
+        )?
+    } else {
+        area.resolve_existing(&source_root, &source.source_id, chat_id, now_ms)?
+    };
+    Ok(match worktree {
+        Some(worktree) => HostRoot {
+            root: worktree.root,
+            state_dir: source.root.state_dir.clone(),
+            policy_source: Some(source_root),
+        },
+        None => source.root.clone(),
+    })
+}
+
+/// [`request_root`] off the async worker (it may spawn Git).
+async fn request_root_blocking(
+    source: &HostedSource,
+    context: &RequestContext,
+    write: bool,
+) -> HostResult<HostRoot> {
+    let source = source.clone();
+    let chat = context.workspace_chat_id.clone();
+    tokio::task::spawn_blocking(move || {
+        request_root(&source, chat.as_deref(), write, crate::client::now_ms())
+    })
+    .await
+    .map_err(|_| HostError::failed("Host operation was interrupted"))?
 }
 
 fn operation_name(operation: SourceHostOperation) -> &'static str {
@@ -153,6 +217,7 @@ pub(crate) async fn handle(
         source_id: frame.source_id.clone(),
         request_id: frame.request_id.clone(),
         chat_id: frame.chat_id.clone(),
+        workspace_chat_id: frame.workspace_chat_id.clone(),
         operation_id: frame.operation_id.clone(),
         proposal_digest: frame.proposal_digest.clone(),
         source_session_id: frame.source_session_id.clone(),
@@ -177,6 +242,7 @@ struct RequestContext {
     source_id: String,
     request_id: String,
     chat_id: Option<String>,
+    workspace_chat_id: Option<String>,
     operation_id: Option<String>,
     proposal_digest: Option<String>,
     source_session_id: String,
@@ -202,19 +268,26 @@ async fn execute(
             if args["include_content"] == true {
                 require_read_and_search(client, source).await?;
             }
-            blocking(source.root.clone(), move |root| search::search(&root, &args)).await
+            let root = request_root_blocking(source, context, false).await?;
+            blocking(root, move |root| search::search(&root, &args)).await
         }
-        SourceHostOperation::List => blocking(source.root.clone(), move |root| reads::list(&root, &args)).await,
+        SourceHostOperation::List => {
+            let root = request_root_blocking(source, context, false).await?;
+            blocking(root, move |root| reads::list(&root, &args)).await
+        }
         SourceHostOperation::ReadText => {
             let requested = args["path"].as_str().unwrap_or(".").to_owned();
             let approved = ignored_read_approved(key, bootstrap, context, &requested);
-            blocking(source.root.clone(), move |root| reads::read_text(&root, &args, approved)).await
+            let root = request_root_blocking(source, context, false).await?;
+            blocking(root, move |root| reads::read_text(&root, &args, approved)).await
         }
         SourceHostOperation::ReadImageChunk => {
-            blocking(source.root.clone(), move |root| reads::read_image_chunk(&root, &args)).await
+            let root = request_root_blocking(source, context, false).await?;
+            blocking(root, move |root| reads::read_image_chunk(&root, &args)).await
         }
         SourceHostOperation::ReadFileChunk => {
-            blocking(source.root.clone(), move |root| reads::read_file_chunk(&root, &args)).await
+            let root = request_root_blocking(source, context, false).await?;
+            blocking(root, move |root| reads::read_file_chunk(&root, &args)).await
         }
     }
 }
@@ -364,6 +437,8 @@ async fn write(
         .filter(|s| !s.is_empty())
         .ok_or_else(denied)?
         .to_owned();
+    // Only an authorized write may create the chat worktree.
+    let root = request_root_blocking(source, context, true).await?;
     let mut authority = BackendWriteAuthority {
         client,
         route,
@@ -373,8 +448,9 @@ async fn write(
     };
     writes::execute(
         WriteRequest {
-            root: &source.root.root,
-            state_dir: &source.root.state_dir,
+            root: &root.root,
+            state_dir: &root.state_dir,
+            policy_source: root.policy_source.as_deref(),
             mutation: &mutation,
             scope: &scope,
             journal_root: None,

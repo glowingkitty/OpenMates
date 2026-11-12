@@ -21,6 +21,8 @@ mod runner;
 mod search;
 mod search_rg;
 mod store;
+mod worktrees;
+mod worktrees_git;
 mod writes;
 mod writes_journal;
 
@@ -36,6 +38,8 @@ mod reads_tests;
 mod search_tests;
 #[cfg(test)]
 mod store_tests;
+#[cfg(test)]
+mod worktrees_tests;
 #[cfg(test)]
 mod writes_tests;
 

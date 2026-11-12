@@ -25,6 +25,7 @@ import { activeChatStore } from "../../../../stores/activeChatStore";
 import { chatMetadataCache } from "../../../../services/chatMetadataCache";
 import { chatDB } from "../../../../services/db";
 import { activateProjectFocusAfterConsent } from "../../../../services/projectFocusSendPreflight";
+import { createdProjectIsGone, createdProjectUndoAvailable, undoCreatedProject } from "../../../../services/projectCreatedUndo";
 import { deactivateProjectFocus, getActiveProjectFocus } from "../../../../services/projectService";
 import { webSocketService } from "../../../../services/websocketService";
 import { pendingFocusActivationStore } from "../../../../stores/pendingFocusActivationStore";
@@ -83,7 +84,7 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
     }
 
     // Persisted content of an assistant-created Project activation (no countdown).
-    let created: { projectId: string; projectName: string } | null = null;
+    let created: { projectId: string; projectName: string; undone: boolean } | null = null;
     try {
       const embed = (context.decodedContent ? { content: null } : attrs.id ? await resolveEmbed(attrs.id) : null) as { content?: unknown } | null;
       const fields = context.decodedContent
@@ -92,6 +93,7 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
         created = {
           projectId: fields.project_id,
           projectName: typeof fields.project_name === "string" ? fields.project_name : "",
+          undone: createdProjectUndoAvailable() && await createdProjectIsGone(fields.project_id),
         };
         alreadyActive = true;
       }
@@ -146,8 +148,11 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
                 projectCreated: true,
                 projectId: created.projectId,
                 projectName: created.projectName,
-                // onUndoCreatedProject is intentionally not wired: the client core's
-                // undo_created has no web Worker binding yet.
+                projectCreationUndone: created.undone,
+                // The Rust core decides the undo (projectUndoCreatedGuard); offered only with it.
+                ...(createdProjectUndoAvailable() && !created.undone && chatId
+                  ? { onUndoCreatedProject: () => undoCreatedProject(chatId, created.projectId) }
+                  : {}),
                 onOpenProject: (id: string) => {
                   window.location.hash = `project-id=${encodeURIComponent(id)}`;
                 },

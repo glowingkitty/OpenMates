@@ -156,7 +156,11 @@ pub async fn run_source_host(
             root: HostRoot {
                 root: s.root.clone(),
                 state_dir: run.state_dir.clone(),
+                policy_source: None,
             },
+            // The per-source target-branch setting is not stored yet; chat
+            // worktrees default to the branch checked out in the source root.
+            target_branch: None,
         })
         .collect();
     on_event(SourceHostEvent::Connecting { attempt: 0 });

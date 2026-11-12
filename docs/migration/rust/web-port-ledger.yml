@@ -692,6 +692,8 @@ slices:
     functions: [assessProjectAuthoring, history]
   - file: frontend/packages/ui/src/services/projectCreationNavigation.ts
     functions: [saveRemote, saveWorkflowToProjectTarget]
+  - file: frontend/packages/ui/src/services/projectCreatedUndo.ts
+    functions: [undoCreatedProject.answer]
   - file: frontend/packages/ui/src/services/projectFocusSendPreflight.ts
     functions: [activateProjectDefaultFocus]
   - file: frontend/packages/ui/src/services/projectReadme.ts

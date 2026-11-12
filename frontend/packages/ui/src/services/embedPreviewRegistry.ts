@@ -1014,6 +1014,29 @@ const codeResolver: PreviewResolver = async ({
     },
   };
 };
+// Hosted application card (chat mounts it through GroupRenderer; Projects use this resolver).
+resolvers.set("code-application", async ({ embedId, decodedContent, embedData, onFullscreen }) => {
+  const { default: component } =
+    await import("../components/embeds/code/ApplicationEmbedPreview.svelte");
+  return {
+    component,
+    props: {
+      id: embedId,
+      name: decodedContent.name || decodedContent.title,
+      framework: decodedContent.framework,
+      runtime: decodedContent.runtime,
+      file_refs: Array.isArray(decodedContent.file_refs) ? decodedContent.file_refs : [],
+      entrypoints: Array.isArray(decodedContent.entrypoints) ? decodedContent.entrypoints : [],
+      latest_screenshot_url: decodedContent.latest_screenshot_url,
+      latest_screenshot: decodedContent.latest_screenshot,
+      status: normalizeStatus(embedData.status),
+      taskId: decodedContent.task_id,
+      isMobile: false,
+      onFullscreen,
+    },
+  };
+});
+
 // All known type strings that mean "code embed"
 resolvers.set("code-code", codeResolver);
 resolvers.set("code", codeResolver); // legacy server type

@@ -9,10 +9,10 @@ flag:
   default: 'off'
   flag_off_behavior: original TypeScript path, byte-identical build output (guarded in CI)
 summary:
-  total: 107775
-  done: 8440
+  total: 107821
+  done: 8441
   partial: 0
-  missing: 99335
+  missing: 99380
   percent: 7.8
 worker_namespaces_installed_not_progress:
   installed: 18
@@ -20,16 +20,16 @@ worker_namespaces_installed_not_progress:
   note: 'Worker namespaces installed (not progress): a namespace can be installed while most of its TS still runs.'
 port_ledger:
   unit: TS code lines
-  portable_files: 456
-  portable_code_lines: 107775
-  ported_code_lines: 8440
+  portable_files: 457
+  portable_code_lines: 107821
+  ported_code_lines: 8441
   percent: 7.8
   ported_by_proof:
-    e2e-flag-on: 4237
+    e2e-flag-on: 4238
     vectors: 3966
     none: 237
-  files_with_ported_code: 94
-  routing_functions: 369
+  files_with_ported_code: 95
+  routing_functions: 370
   functions_counted_at_decision_sites_only: 45
   non_portable:
     files: 55
@@ -324,8 +324,8 @@ port_ledger:
     commit: 9d439dc408
     date: '2026-11-08'
     proof: e2e-flag-on
-    functions: 27
-    ts_code_lines: 839
+    functions: 28
+    ts_code_lines: 840
   - id: billing-context-and-referral-request-decisions-i-b486911
     commit: b486911f98
     date: '2026-11-08'

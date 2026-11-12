@@ -13,7 +13,7 @@
 //!   `rename` after a near-write re-read, and the journal makes replays
 //!   idempotent (`replayed` / `already_applied`).
 
-use super::fs_safe::canonical_root;
+use super::fs_safe::{canonical_root, canonical_worktree_root};
 use super::patch::{apply, create_diff};
 use super::path_policy::{PathPolicy, PolicyOptions};
 use super::writes_journal::{
@@ -162,7 +162,7 @@ fn strict_path(value: &str) -> HostResult<()> {
 }
 
 /// npm `enforcePathPolicy`.
-fn enforce_policy(root: &Path, state_dir: &Path, path: &str) -> HostResult<()> {
+fn enforce_policy(root: &Path, state_dir: &Path, policy_source: Option<&Path>, path: &str) -> HostResult<()> {
     if path.split('/').any(|p| p == ".git")
         || path == ".openmates/permissions.yml"
         || is_protected_read_path(path)
@@ -174,6 +174,7 @@ fn enforce_policy(root: &Path, state_dir: &Path, path: &str) -> HostResult<()> {
         trusted_private: &[],
         targets: &[path],
         discover_nested: false,
+        policy_source,
     };
     PathPolicy::load(root, &options)
         .and_then(|policy| policy.assert_writable(path))
@@ -409,6 +410,9 @@ fn assert_identity(journal: &Value, m: &Mutation, scope: &str, payload: &str) ->
 pub(crate) struct WriteRequest<'a> {
     pub(crate) root: &'a Path,
     pub(crate) state_dir: &'a Path,
+    /// The connected source root when `root` is a chat worktree (its private
+    /// paths and sticky state apply inside the worktree).
+    pub(crate) policy_source: Option<&'a Path>,
     pub(crate) mutation: &'a Mutation,
     /// Trusted origin scope returned by the backend authorization.
     pub(crate) scope: &'a str,
@@ -437,9 +441,12 @@ pub(crate) async fn execute<A: WriteAuthority>(
     if request.scope.is_empty() || request.scope.len() > 2048 {
         return Err(HostError::invalid_path("Operation scope is missing or invalid"));
     }
-    let root = canonical_root(request.root, request.state_dir)
-        .map_err(|_| HostError::invalid_path("Source root is unavailable or protected"))?;
-    enforce_policy(&root, request.state_dir, &m.path)?;
+    let root = match request.policy_source {
+        Some(_) => canonical_worktree_root(request.root, request.state_dir),
+        None => canonical_root(request.root, request.state_dir),
+    }
+    .map_err(|_| HostError::invalid_path("Source root is unavailable or protected"))?;
+    enforce_policy(&root, request.state_dir, request.policy_source, &m.path)?;
     let journal_root = private_state_directory(&request.journal_root.clone().unwrap_or_else(journal_root))?;
     let real_journal = std::fs::canonicalize(&journal_root).map_err(|e| HostError::io("Journal", &e))?;
     if real_journal.starts_with(&root) {

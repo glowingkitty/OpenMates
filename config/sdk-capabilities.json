@@ -11960,6 +11960,7 @@
             "client.source_host.SourceHostRequestFrame.source_id",
             "client.source_host.SourceHostRequestFrame.source_session_id",
             "client.source_host.SourceHostRequestFrame.user_initiated",
+            "client.source_host.SourceHostRequestFrame.workspace_chat_id",
             "client.source_host.SourceHostRoutingIdentity",
             "client.source_host.SourceHostRoutingIdentity.context_id_hash",
             "client.source_host.SourceHostRoutingIdentity.context_type",

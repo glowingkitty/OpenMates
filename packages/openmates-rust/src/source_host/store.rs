@@ -58,13 +58,13 @@ pub fn npm_state_dir(
     if let Some(dir) = state_dir.map(str::trim).filter(|d| !d.is_empty()) {
         if !Path::new(dir).is_absolute() {
             return Err(HostError::failed(
-                "OPENMATES_STATE_DIR must be an absolute path.",
+                "The state directory must be an absolute path.",
             ));
         }
         return Ok(PathBuf::from(dir));
     }
     let home = home.ok_or_else(|| {
-        HostError::failed("The home directory is unavailable; set OPENMATES_STATE_DIR.")
+        HostError::failed("The home directory is unavailable; set an explicit state directory.")
     })?;
     let Some(profile) = profile.map(str::trim).filter(|p| !p.is_empty()) else {
         return Ok(home.join(".openmates"));

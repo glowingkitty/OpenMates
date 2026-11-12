@@ -184,7 +184,7 @@
 {:else if viewMode === 'tile' && item.item_type === 'embed'}
   <!-- The shared preview is the complete project tile. It already owns the
        details body, identity footer, focus treatment, and fullscreen click. -->
-  <article class="browser-item tile" data-testid="project-item-card" data-item-type={item.item_type}>
+  <article class="browser-item tile" data-testid="project-item-card" data-item-type={item.item_type} data-embed-result-context="results">
     {#if isLoading}
       <div class="embed-preview-fallback">Loading preview...</div>
     {:else if previewComponent}

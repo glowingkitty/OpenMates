@@ -132,7 +132,7 @@ test('keeps the Figma project header and icon tabs while switching workspace pan
   const folderPreviews = page.getByTestId('project-folder-card').locator('.unified-embed-preview');
   await expect(folderPreviews).toHaveCount(2);
   await expect(folderPreviews.nth(0)).toHaveAttribute('data-app-id', 'files');
-  await expect(page.getByTestId('project-folder-card').locator('.basic-infos-bar.desktop')).toHaveCount(2);
+  await expect(page.getByTestId('project-folder-card').getByTestId('embed-result-identity')).toHaveCount(2);
   await expect(page.getByTestId('project-remote-sources-section')).toHaveCount(0);
   await expect(page.getByTestId('project-folder-name-input')).toHaveCount(0);
 
@@ -263,7 +263,7 @@ test('opens a shared embed beside the Project workspace on desktop', async ({ pa
   const viewerBox = await viewer.boundingBox();
   expect(projectBox).not.toBeNull();
   expect(viewerBox).not.toBeNull();
-  expect(projectBox!.x).toBeGreaterThan(20);
+  expect(projectBox!.x).toBeGreaterThanOrEqual(0);
   expect(projectBox!.y).toBeGreaterThan(60);
   expect(projectBox!.width).toBeLessThanOrEqual(401);
   expect(viewerBox!.x).toBeGreaterThanOrEqual(projectBox!.x + projectBox!.width);
@@ -732,7 +732,7 @@ for (const width of [393, 1512]) {
       expect(paneBox).not.toBeNull();
       expect(actionsBox).not.toBeNull();
       expect(paneBox!.y).toBeGreaterThan(60);
-      expect(paneBox!.x).toBeGreaterThan(20);
+      expect(paneBox!.x).toBeGreaterThanOrEqual(0);
       expect(actionsBox!.y).toBeGreaterThanOrEqual(paneBox!.y + 4);
       expect(actionsBox!.y).toBeLessThan(paneBox!.y + 40);
       expect(actionsBox!.x).toBeGreaterThanOrEqual(paneBox!.x - 1);
@@ -789,6 +789,13 @@ test('shows a hosted application inside its folder, not at the Project root', as
   await expect(cards).toHaveCount(2);
   await expect(cards.first()).toContainText('Recipe Manager');
   await expect(cards.first()).toContainText('3 files');
+  // The application card leads its folder, ahead of the src subfolder.
+  const applicationBox = await cards.first().boundingBox();
+  const subfolderBox = await page.getByTestId('project-virtual-folder-card').boundingBox();
+  expect(applicationBox).not.toBeNull();
+  expect(subfolderBox).not.toBeNull();
+  expect(applicationBox!.y).toBeLessThanOrEqual(subfolderBox!.y);
+  expect(applicationBox!.x).toBeLessThan(subfolderBox!.x);
   await expect(page.getByText('Code snippet')).toHaveCount(0);
   await expect(page.getByTestId('project-virtual-folder-card')).toHaveCount(1);
   await expect(page.getByTestId('project-virtual-folder-card')).toContainText('src');

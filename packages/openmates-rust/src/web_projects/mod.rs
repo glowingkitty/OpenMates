@@ -12,6 +12,7 @@
 //! refusals (`{remoteError}`, `{focusError}`) are plain data. Parity is proven by
 //! `web_projects_ts_vectors.json` (`web_projects_tests.rs`, `projectStateVectors.test.ts`).
 
+mod created_undo;
 mod focus;
 mod hosted_files;
 #[cfg(test)]
@@ -74,6 +75,8 @@ pub(crate) const OPS: &[&str] = &[
     "projectHostedPaths",
     "projectHostedList",
     "projectHostedSearchPlan",
+    // Rust-only decision (no TS rule): Undo of an assistant-created Project.
+    "projectUndoCreatedGuard",
 ];
 
 /// Why a rule did not produce its normal document.
@@ -151,6 +154,7 @@ fn dispatch(op: &str, input: &Value) -> Outcome {
         "projectUploadRoute" => records::upload_route(input),
         "projectUploadEmbedType" => records::upload_embed_type(input),
         "projectFileHead" => records::file_head(input),
+        "projectUndoCreatedGuard" => created_undo::guard(input),
         "projectFocusIntent" => focus::intent(input),
         "projectDefaultFocusRead" => focus::default_focus_read(input),
         "projectReadmeFind" => readme::find(input),

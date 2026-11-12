@@ -36,6 +36,35 @@ pub(crate) fn canonical_root(root: &Path, state_dir: &Path) -> HostResult<PathBu
     Ok(canonical)
 }
 
+/// Canonicalize a chat worktree root. Unlike [`canonical_root`] the root must
+/// lie strictly inside `<state_dir>/worktrees/` (the host-owned worktree
+/// area, see `worktrees.rs`); it still must never contain the state directory
+/// itself, so the private policy state, journal and credentials stay
+/// unreachable. Path confinement inside the root then applies unchanged.
+///
+/// # Errors
+/// `invalid_path` when missing or not a directory; `protected_path` when the
+/// root is outside the worktree area or contains private state.
+pub(crate) fn canonical_worktree_root(root: &Path, state_dir: &Path) -> HostResult<PathBuf> {
+    let canonical =
+        std::fs::canonicalize(root).map_err(|e| HostError::io("Chat worktree root", &e))?;
+    let metadata =
+        std::fs::metadata(&canonical).map_err(|e| HostError::io("Chat worktree root", &e))?;
+    if !metadata.is_dir() {
+        return Err(HostError::invalid_path(
+            "Chat worktree root is not a directory",
+        ));
+    }
+    let state = canonical_potential_path(state_dir)?;
+    let area = state.join(super::worktrees::WORKTREE_DIRECTORY);
+    if canonical == area || !canonical.starts_with(&area) || state.starts_with(&canonical) {
+        return Err(HostError::protected(
+            "Chat worktree root is outside the OpenMates worktree area",
+        ));
+    }
+    Ok(canonical)
+}
+
 /// npm `canonicalizePotentialPath`: realpath of the deepest existing ancestor
 /// plus the missing suffix, without creating anything.
 pub(crate) fn canonical_potential_path(value: &Path) -> HostResult<PathBuf> {

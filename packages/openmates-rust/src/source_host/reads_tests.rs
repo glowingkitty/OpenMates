@@ -30,6 +30,7 @@ fn fixture() -> Fixture {
         host: HostRoot {
             root,
             state_dir: state.path().to_path_buf(),
+            policy_source: None,
         },
         _source: source,
         _state: state,

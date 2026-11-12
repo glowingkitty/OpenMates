@@ -10,6 +10,7 @@ Spec: docs/specs/cli-remote-access-live-bridge/spec.yml
 
 from __future__ import annotations
 
+import hashlib
 import time
 from types import SimpleNamespace
 from typing import Any
@@ -1202,3 +1203,71 @@ async def test_team_request_revokes_stale_host_before_delivery_and_marks_sources
         await service.get_active_binding(
             "requester-1", "project-1", "source-1", team_id="team-1", now=now
         )
+
+
+class _ChatStub:
+    def __init__(self, chats: dict[str, dict[str, Any]]) -> None:
+        self.chats = chats
+
+    async def get_chat_metadata(self, chat_id: str, admin_required: bool = False):
+        return self.chats.get(chat_id)
+
+
+def _chat(user_id: str, parent_id: str | None = None) -> dict[str, Any]:
+    return {
+        "hashed_user_id": hashlib.sha256(user_id.encode()).hexdigest(),
+        "hashed_team_id": None,
+        "parent_id": parent_id,
+    }
+
+
+@pytest.mark.anyio
+async def test_root_chat_id_resolves_through_sub_chats_and_rejects_foreign_chats() -> None:
+    from backend.core.api.app.services.project_remote_access_service import resolve_root_chat_id
+
+    directus = SimpleNamespace(chat=_ChatStub({
+        "root-1": _chat("user-1"),
+        "sub-1": _chat("user-1", "root-1"),
+        "sub-2": _chat("user-1", "sub-1"),
+        "foreign": _chat("user-2"),
+        "loop-a": _chat("user-1", "loop-b"),
+        "loop-b": _chat("user-1", "loop-a"),
+    }))
+    assert await resolve_root_chat_id(directus, "user-1", "sub-2") == "root-1"
+    assert await resolve_root_chat_id(directus, "user-1", "root-1") == "root-1"
+    for bad in ("foreign", "missing", "loop-a"):
+        with pytest.raises(ProjectRemoteAccessError):
+            await resolve_root_chat_id(directus, "user-1", bad)
+
+
+@pytest.mark.anyio
+async def test_workspace_chat_id_is_published_for_reads_and_omitted_without_chat() -> None:
+    cache = MemoryCache()
+    service = ProjectRemoteAccessService(cache)
+    await service.register_session(
+        user_id="user-1", device_fingerprint_hash="connection-cli",
+        source_session_id="session-1", bindings=[binding()],
+        confirmed_takeover=False, now=2_000,
+    )
+    common = dict(
+        user_id="user-1", project_id="project-1", source_id="source-1",
+        requesting_client_id="browser-1", operation="read_text", key_epoch=1,
+        encrypted_envelope="opaque", now=2_001,
+    )
+    await service.create_request(request_id="r-1", workspace_chat_id="0a1b-2c3d", **common)
+    await service.create_request(request_id="r-2", **common)
+    assert cache.published[-2][1]["payload"]["workspace_chat_id"] == "0a1b-2c3d"
+    assert "workspace_chat_id" not in cache.published[-1][1]["payload"]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("bad", ["", "../x", "a/b", "-lead", "a b", "x" * 129])
+async def test_invalid_workspace_chat_id_is_rejected_not_sanitised(bad: str) -> None:
+    service = ProjectRemoteAccessService(MemoryCache())
+    with pytest.raises(ProjectRemoteAccessError) as exc:
+        await service.create_request(
+            user_id="user-1", project_id="project-1", source_id="source-1",
+            request_id="r-1", requesting_client_id="browser-1", operation="list",
+            key_epoch=1, encrypted_envelope="opaque", now=2_001, workspace_chat_id=bad,
+        )
+    assert exc.value.code == "invalid_workspace_chat_id"

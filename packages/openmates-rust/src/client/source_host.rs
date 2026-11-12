@@ -109,6 +109,11 @@ pub struct SourceHostRequestFrame {
     pub proposal_digest: Option<String>,
     pub user_initiated: Option<bool>,
     pub routing_identity: Option<SourceHostRoutingIdentity>,
+    /// Workspace chat (the root parent chat of the requesting chat, resolved
+    /// by the backend). Selects the chat worktree of a Git source; optional so
+    /// older backends that omit it keep live source-root edits.
+    #[serde(default)]
+    pub workspace_chat_id: Option<String>,
 }
 pub enum SourceHostPoll {
     Idle,
@@ -589,6 +594,9 @@ impl SourceHostSession {
             if !frame.proposal_digest.as_deref().is_some_and(canonical_hash) {
                 return Err(Error::Protocol);
             }
+        }
+        if let Some(workspace) = frame.workspace_chat_id.as_deref() {
+            identifier(workspace)?;
         }
         if matches!(
             frame.operation,

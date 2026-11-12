@@ -25,6 +25,7 @@ from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.services.project_remote_access_service import (
     ProjectRemoteAccessError,
     ProjectRemoteAccessService,
+    resolve_root_chat_id,
     WRITE_OPERATIONS,
     USER_FILE_OPERATIONS,
 )
@@ -1114,6 +1115,10 @@ async def create_project_remote_access_request(
         )
 
     try:
+        workspace_chat_id = (
+            await resolve_root_chat_id(directus_service, current_user.id, body.chat_id, team_id)
+            if body.chat_id else None
+        )
         return await service.create_request(
             user_id=current_user.id,
             team_id=team_id,
@@ -1132,6 +1137,7 @@ async def create_project_remote_access_request(
             operation_id=body.operation_id,
             proposal_digest=body.proposal_digest,
             user_initiated=body.user_initiated,
+            workspace_chat_id=workspace_chat_id,
         )
     except ProjectRemoteAccessError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.code) from exc

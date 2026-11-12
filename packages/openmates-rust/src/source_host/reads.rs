@@ -9,7 +9,7 @@
 //! the canonical root, so a policy edit applies to the next request.
 
 use super::fs_safe::{
-    canonical_root, ctime_ms, mtime_ms, open_inside, refuse_hardlink, relative_posix,
+    canonical_root, canonical_worktree_root, ctime_ms, mtime_ms, open_inside, refuse_hardlink, relative_posix,
     resolve_approved,
 };
 use super::path_policy::{PathPolicy, PolicyOptions};
@@ -42,11 +42,17 @@ pub(crate) const BINARY_EXTENSIONS: &[&str] = &[
 pub(crate) struct HostRoot {
     pub(crate) root: PathBuf,
     pub(crate) state_dir: PathBuf,
+    /// Set when `root` is a chat worktree: the connected source root whose
+    /// private-path configuration and sticky private state also apply.
+    pub(crate) policy_source: Option<PathBuf>,
 }
 
 impl HostRoot {
     pub(crate) fn canonical(&self) -> HostResult<PathBuf> {
-        canonical_root(&self.root, &self.state_dir)
+        match self.policy_source {
+            Some(_) => canonical_worktree_root(&self.root, &self.state_dir),
+            None => canonical_root(&self.root, &self.state_dir),
+        }
     }
     pub(crate) fn policy(
         &self,
@@ -61,6 +67,7 @@ impl HostRoot {
                 trusted_private: &[],
                 targets,
                 discover_nested: nested,
+                policy_source: self.policy_source.as_deref(),
             },
         )
     }

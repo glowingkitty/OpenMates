@@ -2250,7 +2250,7 @@
                 {/if}
               {/each}
               {#each virtualFolderTrail as folder, index (folder.path)}
-                <span class="breadcrumb-separator">/</span>
+                {#if index > 0}<span class="breadcrumb-separator">/</span>{/if}
                 {#if index === virtualFolderTrail.length - 1}
                   <span class="breadcrumb-current" aria-current="page">{folder.name}</span>
                 {:else}
@@ -2376,6 +2376,26 @@
                 <p>{normalizedFolderSearch ? 'Try a different search.' : 'Upload a file or use “Add to project” from chats and embed fullscreen views.'}</p>
               </div>
             {/if}
+            {#snippet storedItemEntry(item: (typeof pageBrowserItems)[number])}
+              <div class="stored-item-entry" class:selected={storedItemSelected(item.project_item_id)}
+                onclickcapture={(event) => handleStoredSelectionClick(event, item)}
+                oncontextmenucapture={(event) => openStoredContextMenu(event, item)}>
+              <ProjectBrowserItem
+                projectId={selectedProject.project_id}
+                teamId={selectedProject.teamId}
+                {item}
+                {viewMode}
+                displayName={projectBrowserItemName(item)}
+                chatPresentation={previewState?.chatPresentations?.[item.target_id]}
+                loadProjectEmbed={loadProjectEmbed}
+                onOpenFullscreen={openStoredFullscreen}
+              />
+              </div>
+            {/snippet}
+            <!-- The application card leads its folder, ahead of subfolders and files. -->
+            {#each pageBrowserItems.filter((item) => !!projectApplicationFolder(item)) as item (item.project_item_id)}
+              {@render storedItemEntry(item)}
+            {/each}
             {#each pageBrowserFolders as folder (folder.folder_id)}
               {@const cardEntries = folderCardEntries(folder)}
               {#if viewMode === 'tile'}
@@ -2455,21 +2475,8 @@
                 </button>
               {/if}
             {/each}
-            {#each pageBrowserItems as item (item.project_item_id)}
-              <div class="stored-item-entry" class:selected={storedItemSelected(item.project_item_id)}
-                onclickcapture={(event) => handleStoredSelectionClick(event, item)}
-                oncontextmenucapture={(event) => openStoredContextMenu(event, item)}>
-              <ProjectBrowserItem
-                projectId={selectedProject.project_id}
-                teamId={selectedProject.teamId}
-                {item}
-                {viewMode}
-                displayName={projectBrowserItemName(item)}
-                chatPresentation={previewState?.chatPresentations?.[item.target_id]}
-                loadProjectEmbed={loadProjectEmbed}
-                onOpenFullscreen={openStoredFullscreen}
-              />
-              </div>
+            {#each pageBrowserItems.filter((item) => !projectApplicationFolder(item)) as item (item.project_item_id)}
+              {@render storedItemEntry(item)}
             {/each}
             {#each pageBrowserSources as source (source.source_id)}
               {#if viewMode === 'tile'}

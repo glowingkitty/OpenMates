@@ -13,6 +13,12 @@
 //! (`creation`), and the chat's active focus binding finds the Project again.
 use super::*;
 
+/// Whether a Project's encrypted `settings.creation` marks it as created by the
+/// assistant for `chat_id`. The one rule behind Undo for every shell.
+pub(crate) fn is_creation_record(creation: &Value, chat_id: &str) -> bool {
+    creation["origin"] == "assistant_request" && creation["chat_id"] == chat_id
+}
+
 /// Contract name every request must carry.
 pub const PROJECT_CREATE_CONTRACT: &str = "openmates.project_create_request";
 /// Contract version this core implements.
@@ -291,7 +297,7 @@ impl Projects<'_> {
         };
         let settings = self.settings(&project_id).await?;
         let creation = &settings["settings"]["creation"];
-        if creation["origin"] != "assistant_request" || creation["chat_id"] != chat_id {
+        if !is_creation_record(creation, chat_id) {
             return Ok(None);
         }
         let project = self.show(&project_id).await?;

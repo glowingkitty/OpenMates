@@ -149,6 +149,13 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
     expect.soft(listed.some((path) => path.startsWith('web-app/')), 'Project files under web-app/').toBe(true);
     expect.soft(applications).toHaveLength(1);
     for (const row of files) expect.soft(listed).toContain(row.path);
+    // A runnable app needs a script entry; keep the raw turn privately when one is missing.
+    const hasScript = listed.some((path) => /\.(jsx?|tsx?|svelte|vue)$/.test(path) && !/vite\.config\./.test(path));
+    expect.soft(hasScript, `a script source among Project files: ${listed.join(', ')}`).toBe(true);
+    if (!hasScript) {
+      fs.writeFileSync(info.outputPath('turn-without-script.private.json'),
+        JSON.stringify(await run(['chats', 'show', chatId, '--json'])), { mode: 0o600 });
+    }
 
     // Reload first so the web client syncs the CLI-created chat, then open it.
     await page.goto(`${APP}/`);
@@ -163,6 +170,31 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
     await toggle.click();
     await expect.soft(page.getByTestId('project-created-card').first()).toBeVisible({ timeout: 30_000 });
     await page.screenshot({ path: info.outputPath('chat-activity-expanded.png'), fullPage: true });
+
+    // Start the live preview from the chat's application card and wait for the running app.
+    if (await embed.isVisible()) {
+      await toggle.click();
+      await embed.click();
+      const start = page.getByTestId('application-start-preview');
+      const frame = page.getByTestId('application-preview-iframe');
+      await expect.soft(start.or(frame).first()).toBeVisible({ timeout: 30_000 });
+      if (await start.isVisible() && await start.isEnabled()) await start.click();
+      await expect.soft(frame, 'running application preview').toBeVisible({ timeout: 300_000 });
+      if (await frame.isVisible()) {
+        // The app renders inside the frame; a blank body means it did not boot.
+        const body = page.frameLocator('[data-testid="application-preview-iframe"]').locator('body');
+        await expect.soft(body).not.toBeEmpty({ timeout: 60_000 });
+        Object.assign(evidence, { previewText: ((await body.innerText().catch(() => '')) || '').slice(0, 300) });
+      } else {
+        Object.assign(evidence, {
+          previewStatus: await page.getByTestId('application-preview-status').innerText().catch(() => ''),
+          previewLogs: (await page.getByTestId('application-preview-logs').innerText().catch(() => '')).slice(-1500),
+        });
+      }
+      await page.screenshot({ path: info.outputPath('application-preview-running.png'), fullPage: true });
+      const stop = page.getByTestId('application-stop-preview');
+      if (await stop.isVisible() && await stop.isEnabled()) await stop.click();
+    }
 
     if (created.length) {
       await page.goto(`${APP}/#project-id=${created[0]}`);
