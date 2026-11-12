@@ -873,6 +873,7 @@ OpenMates start page. Shop names and page contents stay out of this record.
 | 6 | `6c3a3da` | 5/6 | Search form passes with the cap fix; shop flow reached the product category but ended `needs_user`. |
 | 7 | `b22835a` | 5/6 | Shop answer: 15 values matched, 0 unmatched, pruned answer invalid (schema keyword `type`). |
 | 9 | `65cc40a` | 5/6 | Shown prices now become numbers, but the shop answer still failed `type`. |
+| 10 | `3f05217` | 6/6 | Shop flow completed: 19 matched values, five kits with prices, legal notice in the reply, 39 credits. |
 
 Run 5 per-flow cost and time (one browse run each unless noted):
 

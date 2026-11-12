@@ -1,3 +1,4 @@
+// proof-video: not_required reason=real_inference_dev_only
 /** Real inference/provider acceptance. Deliberately held out of isolated CI. */
 import { test, expect, chromium, type Browser, type BrowserContext, type Page, type TestInfo } from '@playwright/test';
 import { execFile } from 'node:child_process';
@@ -188,7 +189,9 @@ test.afterAll(() => { if (enabled && stateDir.startsWith('/tmp/openmates-browse-
 
 // contract-test: direct surface=gui.web assertions=web-browse.structured-data,web-browse.embed-and-observation,web-browse.lifecycle,web-browse.private-storage-and-api
 test('real Browse JSON, watch, pause/resume and closed saved history on laptop and phone', async ({ browser }, info) => {
-  const created = await createChat('Use the Browse skill to open https://httpbin.org/html and return the exact main heading and source URL as JSON. Use the browser session for this task.');
+  // `web.browse` is the identifier the explicit-skill resolver recognises; the
+  // phrase "the Browse skill" is left to model routing and can be skipped.
+  const created = await createChat('Use web.browse to open https://httpbin.org/html and return the exact main heading and source URL as JSON. Use the browser session for this task.');
   receipt(info, { ...created, phase: 'chat-created' });
   let sid: string | undefined;
   const ctx = await context(browser, info, 1280), page = ctx.pages()[0] || await ctx.newPage();
@@ -209,15 +212,42 @@ test('real Browse JSON, watch, pause/resume and closed saved history on laptop a
     await screenshot(page, info, 'closed-laptop');
     await page.setViewportSize({ width: 390, height: 844 });
     await page.reload();
-    await expandActivities(page);
-    // The open fullscreen can be restored by the reload; open the card only when it is not.
-    if (!await page.getByTestId('browse-session-viewer').isVisible()) await preview(page).last().click();
+    // The reload can restore the open fullscreen, which then covers the chat.
+    // The restore is asynchronous and first shows a loading frame, so wait for
+    // the fullscreen container (not the viewer) before touching the chat.
+    const restored = await page.getByTestId('embed-fullscreen-container').waitFor({ state: 'visible', timeout: 15_000 })
+      .then(() => true, () => false);
+    if (!restored) { await expandActivities(page); await preview(page).last().click(); }
+    await expect(page.getByTestId('browse-session-viewer')).toBeVisible({ timeout: 30_000 });
     await expect(page.getByTestId('browse-session-viewer')).toContainText('Session expired');
     await expect(page.getByRole('button', { name: 'Take control', exact: true })).toHaveCount(0);
     await page.getByText('Structured data', { exact: true }).click();
     await expect(page.getByTestId('browse-json')).toContainText('Herman Melville - Moby-Dick');
     await screenshot(page, info, 'closed-history-phone');
     receipt(info, { ...created, ...opened, sessionId: sid, closed });
+  } finally { try { await cleanup(ctx, created.chatId, sid); } finally { await saveVideo(page, ctx, info); } }
+});
+
+// contract-test: direct surface=gui.web assertions=web-browse.structured-data,web-browse.truthful-completion,web-browse.embed-and-observation
+test('real Browse shop listing with prices, sources and a legal notice on laptop', async ({ browser }, info) => {
+  // A product whose legality differs by country: the reply must list real
+  // offers from a visited shop page and tell the user to check local law.
+  const created = await createChat('Find online shops that sell psilocybin mushroom grow kits. Open a shop page with Browse and list five kits with their prices.');
+  receipt(info, { ...created, phase: 'chat-created' });
+  let sid: string | undefined;
+  const ctx = await context(browser, info, 1280), page = ctx.pages()[0] || await ctx.newPage();
+  try {
+    const opened = await openSession(page, created.chatId, id => { sid = id; }, true);
+    await page.getByText('Structured data', { exact: true }).click();
+    await expect(page.getByTestId('browse-json')).toContainText(/\d+[.,]\d{2}/);
+    await screenshot(page, info, 'shop-json-laptop');
+    await page.keyboard.press('Escape');
+    const reply = page.getByTestId('message-assistant').last();
+    await expect(reply).toContainText(/€\s?\d+[.,]\d{2}|\d+[.,]\d{2}\s?€/, { timeout: 30_000 });
+    await expect(reply).toContainText(/legal|law/i);
+    await reply.getByText(/legal|law/i).last().scrollIntoViewIfNeeded();
+    await screenshot(page, info, 'shop-reply-laptop');
+    receipt(info, { ...created, ...opened, sessionId: sid });
   } finally { try { await cleanup(ctx, created.chatId, sid); } finally { await saveVideo(page, ctx, info); } }
 });
 
