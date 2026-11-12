@@ -32,7 +32,7 @@ REQUIRED_SNIPPETS: dict[str, list[str]] = {
     ],
     "docs/architecture/infrastructure/cronjobs.md": [
         "sessions.py worktree expire --max-age-hours 24",
-        "sessions.py worktree reconcile --target origin/dev --idle-hours 48 --apply-safe",
+        "sessions.py worktree reconcile --target origin/dev --apply-safe",
         "source-free manifests for 30 days",
         "worktree-reconciliation-setup.sh",
     ],
@@ -48,7 +48,7 @@ REQUIRED_SNIPPETS: dict[str, list[str]] = {
         "EXECUTION_ROOT",
         "worktree expire --max-age-hours 24",
         "git fetch origin dev",
-        "worktree reconcile --target origin/dev --idle-hours 48 --apply-safe",
+        "worktree reconcile --target origin/dev --apply-safe",
         "OnUnitActiveSec=1h",
     ],
     "scripts/safe_bash_guard.py": [

@@ -117,7 +117,7 @@ Read the real current runtime definitions before changing any retained schedule.
 The independent `worktree-reconciliation-setup.sh` service runs from the
 control-plane checkout by default. It uses
 `sessions.py worktree expire --max-age-hours 24` and
-`sessions.py worktree reconcile --target origin/dev --idle-hours 48 --apply-safe`
+`sessions.py worktree reconcile --target origin/dev --apply-safe`
 operations. Expiry removes a worktree only when its session, its worktree and
 the owning chat's transcript have all been inactive for 24 hours; unique
 changes (patches, untracked files, unmerged commits) are archived and verified
