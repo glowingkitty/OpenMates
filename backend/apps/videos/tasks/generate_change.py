@@ -8,7 +8,10 @@ revision mechanism (``backend/shared/python_utils/media_revision.py``, the one
 images.generate uses):
 
 - ``edit`` of a composed video: the author model gets the kept composition and
-  the kept copies of the original pictures, and renders again from them;
+  the kept copies of the original pictures, and renders again from them; the kept
+  audio clips are offered for reuse by content hash, so only new or changed clips are
+  generated and billed (a composed video is never trimmed by code, so its sound
+  always goes through this path);
 - ``edit`` of a video made of generated clips: structured trims and removals
   are applied by code and rendered as a clip join (no author call, see
   change_edits); any other edit goes to the author with the clip join as its
@@ -126,6 +129,11 @@ class _Context:
             raise ChangeFailed(ERROR_CHANGE_UNAVAILABLE, NOT_KEPT_MESSAGE)
         return data
 
+    async def audio_stage(self, kinds: Any) -> None:
+        """Publish the audio stage with the kinds about to be generated."""
+        if self.progress is not None:
+            await self.progress.on_audio(kinds)
+
     async def stage(self, stage: str) -> None:
         """Publish one processing update on the card of this change call (never stored)."""
         if self.progress is not None:
@@ -219,13 +227,18 @@ def _check_prompt(prompt: str) -> None:
 async def _ensure_headroom(context: _Context, *, extend_seconds: int, still: bool, author: bool = False) -> None:
     from backend.apps.videos.composed.author import COMPOSE_AUTHOR_MODELS
     from backend.apps.videos.tasks.generate_billing import estimate_composed_credits, omni_clip_credits
-    from backend.shared.python_utils.billing_utils import BillingError, ensure_credit_headroom
 
     estimate = await estimate_composed_credits(picture_count=len(context.kept.inputs) if author else 0,
                                                author_model=COMPOSE_AUTHOR_MODELS[0])
     if extend_seconds:
         estimate += omni_clip_credits(context.kept.resolution, extend_seconds)
     estimate += OPENING_STILL_CREDITS if still else 0
+    await _ensure_estimate(context, estimate)
+
+
+async def _ensure_estimate(context: _Context, estimate: int) -> None:
+    from backend.shared.python_utils.billing_utils import BillingError, ensure_credit_headroom
+
     team_id = context.arguments.get("team_id")
     try:
         if team_id:
@@ -341,6 +354,13 @@ async def _author_edit(context: _Context) -> _Made:
     from backend.apps.videos.composed.models import ComposedInput, ComposedInputError, ComposedRequest, ComposeFailure
     from backend.apps.videos.composed.source import build_clip_join_source
 
+    from backend.apps.videos.tasks.generate_billing import composed_credits
+    from backend.apps.videos.tasks.video_audio import recall_audio
+
+    async def afford(estimate: int, usage: Any, sandbox_seconds: Any) -> None:
+        running, _ = await composed_credits(usage=usage, sandbox_seconds=sandbox_seconds)
+        await _ensure_estimate(context, running + estimate)
+
     kept = context.kept
     if kept.clips is not None:
         inputs = tuple(KeptInput(stored=clip.stored, name=f"clip-{index}.mp4", mime_type="video/mp4",
@@ -362,15 +382,20 @@ async def _author_edit(context: _Context) -> _Made:
         video = await compose_video(
             ComposedRequest(instructions=context.request.instructions, aspect_ratio=kept.aspect_ratio,
                             duration_seconds=context.request.duration_seconds, inputs=composed_inputs,
-                            previous_source=source),
+                            previous_source=source, previous_audio=await recall_audio(kept.audio, context.read)),
             secrets_manager=context.task._secrets_manager, task_id=str(context.task.request.id),
-            on_stage=context.stage,
+            on_stage=context.stage, on_audio=context.audio_stage, afford_audio=afford,
         )
     except ComposedInputError as exc:
         raise ChangeFailed(ERROR_INVALID_INPUT, f"The video could not be changed: {exc}. Nothing was charged.") \
             from exc
     except ComposeFailure as exc:
         logger.warning("%s Authored change failed (%s): %s", context.log_prefix, exc.code, exc.message)
+        if exc.code == "audio_rejected":
+            raise ChangeFailed(ERROR_SAFETY, f"{exc.message} Nothing was charged.") from exc
+        if exc.code == "audio_failed":
+            raise ChangeFailed(exc.code, "The sound for the changed video could not be made, so nothing was "
+                                         "charged.") from exc
         raise ChangeFailed(exc.code, "The changed video could not be made, so nothing was charged.") from exc
     return _Made(video=video, made_by=kept.made_by, clips=None, inputs=inputs)
 

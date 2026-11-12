@@ -1699,7 +1699,7 @@
           "text": "Açıklamandan ve sohbetteki görsellerden yapay zeka çekimi ya da birebir oluşturulmuş kısa bir video yap."
         },
         "pricing_note": {
-          "text": "Üretilen klipler: saniye başına 34,5 (360p), 105 (720p), 156 (1080p) veya 313,5 (4K) kredi. Oluşturulan videolar: yazan modelin kullandığı token'lar artı başlanan her render dakikası için 5 kredi. Değişiklikler yalnızca ekledikleri kadar ücretlendirilir. Video teslim edilmezse ücret alınmaz."
+          "text": "Üretilen klipler: saniye başına 35 (360p), 105 (720p), 160 (1080p) veya 315 (4K) kredi. Oluşturulan videolar: yazan modelin kullandığı token'lar artı başlanan her render dakikası için 10 kredi. Değişiklikler yalnızca ekledikleri kadar ücretlendirilir. Video teslim edilmezse ücret alınmaz. Oluşturulan videolarda ses: anlatım için saniyede 2 kredi, ses efekti için saniyede 15 kredi ve müzik parçası başına 120 kredi; yalnızca bir sürüm için yeni üretilen klipler ücretlendirilir."
         }
       },
       "create": {
@@ -8317,6 +8317,42 @@
       "progress_generating": {
         "text": "Klip oluşturuluyor…"
       },
+      "progress_audio_speech": {
+        "text": "Seslendirme kaydediliyor…"
+      },
+      "progress_audio_sound": {
+        "text": "Ses efektleri oluşturuluyor…"
+      },
+      "progress_audio_music": {
+        "text": "Müzik besteleniyor…"
+      },
+      "progress_audio_unknown": {
+        "text": "Ses oluşturuluyor…"
+      },
+      "progress_audio_several": {
+        "text": "{kinds} oluşturuluyor…"
+      },
+      "audio_noun_speech": {
+        "text": "seslendirme"
+      },
+      "audio_noun_sound": {
+        "text": "ses efektleri"
+      },
+      "audio_noun_music": {
+        "text": "müzik"
+      },
+      "audio_list_and": {
+        "text": "{head} ve {last}"
+      },
+      "timeline_audio_speech": {
+        "text": "Ses"
+      },
+      "timeline_audio_sound": {
+        "text": "Efekt"
+      },
+      "timeline_audio_music": {
+        "text": "Müzik"
+      },
       "prompt": {
         "text": "İstem"
       },
@@ -8412,6 +8448,18 @@
       "view_video": {
         "text": "Video"
       }
+    },
+    "progress_searching_sources": {
+      "text": "{done}/{total} kaynak"
+    },
+    "progress_searching": {
+      "text": "Aranıyor…"
+    },
+    "progress_results": {
+      "text": "{count} sonuç"
+    },
+    "progress_result_one": {
+      "text": "1 sonuç"
     }
   },
   "embeds_input": {},

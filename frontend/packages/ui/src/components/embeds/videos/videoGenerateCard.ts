@@ -13,8 +13,10 @@ import { hasMediaEncryptionMetadata } from '../../../services/encryption/mediaEn
 import { decodeToonContent, resolveEmbed } from '../../../services/embedResolver';
 import { createImageUrlOwner, fetchAndDecryptImage, getCachedImageUrl } from '../images/imageEmbedCrypto';
 
-export const VIDEO_PROGRESS_STAGES = ['deciding', 'writing', 'rendering', 'correcting', 'generating'] as const;
+export const VIDEO_PROGRESS_STAGES = ['deciding', 'writing', 'rendering', 'correcting', 'generating', 'audio'] as const;
 export type VideoProgressStage = (typeof VIDEO_PROGRESS_STAGES)[number];
+export const VIDEO_AUDIO_KINDS = ['speech', 'sound', 'music'] as const;
+export type VideoAudioKind = (typeof VIDEO_AUDIO_KINDS)[number];
 export const VIDEO_CHANGES = ['edit', 'extend_start', 'extend_end'] as const;
 export type VideoChange = (typeof VIDEO_CHANGES)[number];
 
@@ -22,6 +24,8 @@ export interface VideoProgress {
   stage?: VideoProgressStage;
   /** 1-based round of the stage (a correction counts the rounds). */
   attempt?: number;
+  /** Kinds of sound being made during the `audio` stage, in speech, sound, music order. */
+  audio?: VideoAudioKind[];
   change?: VideoChange;
   /** Embed id of the video being changed. */
   sourceEmbedId?: string;
@@ -51,6 +55,12 @@ function isStage(value: unknown): value is VideoProgressStage {
   return typeof value === 'string' && (VIDEO_PROGRESS_STAGES as readonly string[]).includes(value);
 }
 
+/** The known sound kinds of a `progress_audio` list, deduplicated and in a fixed order. */
+export function readAudioKinds(value: unknown): VideoAudioKind[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  return VIDEO_AUDIO_KINDS.filter((kind) => value.includes(kind));
+}
+
 function isChange(value: unknown): value is VideoChange {
   return typeof value === 'string' && (VIDEO_CHANGES as readonly string[]).includes(value);
 }
@@ -65,17 +75,18 @@ export function readVideoProgress(
   const attempt = typeof content.progress_attempt === 'number' && content.progress_attempt >= 1
     ? Math.floor(content.progress_attempt)
     : (stage === prev.stage ? prev.attempt : undefined);
+  const audio = Array.isArray(content.progress_audio) ? readAudioKinds(content.progress_audio) : prev.audio;
   const change = isChange(content.change) ? content.change : prev.change;
   const sourceEmbedId = typeof content.source_embed_id === 'string' && content.source_embed_id
     ? content.source_embed_id
     : prev.sourceEmbedId;
-  return { stage, attempt, change, sourceEmbedId };
+  return { stage, attempt, audio, change, sourceEmbedId };
 }
 
 /** Card props of decoded generated_video content beyond the shared media fields (maker, progress, change). */
 export function videoGenerateCardProps(content: Record<string, unknown> | null | undefined): {
   authorModel?: string; madeBy?: string; progressStage?: VideoProgressStage; progressAttempt?: number;
-  change?: VideoChange; sourceEmbedId?: string;
+  progressAudio?: VideoAudioKind[]; change?: VideoChange; sourceEmbedId?: string;
 } {
   const progress = readVideoProgress(content);
   return {
@@ -83,9 +94,22 @@ export function videoGenerateCardProps(content: Record<string, unknown> | null |
     madeBy: typeof content?.made_by === 'string' ? content.made_by : undefined,
     progressStage: progress.stage,
     progressAttempt: progress.attempt,
+    progressAudio: progress.audio,
     change: progress.change,
     sourceEmbedId: progress.sourceEmbedId,
   };
+}
+
+/** Label of the sound step from the kinds being made: one kind by name, several composed into a list. */
+export function videoAudioStageText(kinds: readonly VideoAudioKind[] | undefined, t: Translate): string {
+  const present = VIDEO_AUDIO_KINDS.filter((kind) => kinds?.includes(kind));
+  if (present.length === 0) return t('embeds.video_generate.progress_audio_unknown');
+  if (present.length === 1) return t(`embeds.video_generate.progress_audio_${present[0]}`);
+  const nouns = present.map((kind) => t(`embeds.video_generate.audio_noun_${kind}`));
+  const list = nouns.length === 2
+    ? t('embeds.video_generate.audio_list_and', { values: { head: nouns[0], last: nouns[1] } })
+    : t('embeds.video_generate.audio_list_and', { values: { head: nouns.slice(0, -1).join(', '), last: nouns[nouns.length - 1] } });
+  return t('embeds.video_generate.progress_audio_several', { values: { kinds: list } });
 }
 
 /** Translated label of the current step, or undefined before the first step is known. */
@@ -94,6 +118,7 @@ export function videoStageText(progress: VideoProgress, t: Translate): string | 
   if (progress.stage === 'correcting' && progress.attempt) {
     return t('embeds.video_generate.progress_correcting_round', { values: { round: String(progress.attempt) } });
   }
+  if (progress.stage === 'audio') return videoAudioStageText(progress.audio, t);
   return t(`embeds.video_generate.progress_${progress.stage}`);
 }
 

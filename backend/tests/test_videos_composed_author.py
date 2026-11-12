@@ -348,9 +348,9 @@ def test_first_valid_composition_is_rendered_and_billed():
     assert video.filename == "Composition.tsx" and video.attempts == 1
     assert (video.fps, video.width, video.height, video.duration_in_frames) == (30, 1280, 720, 240)
     assert video.timeline["tracks"][0]["parts"][1]["texts"] == [{"id": "caption", "value": "Hi"}]
-    assert video.author_model == "openai/gpt-6.1-sol"
+    assert video.author_model == "google/gemini-3.8-flash"
     assert [(u.model, u.provider, u.input_tokens, u.output_tokens) for u in video.usage] == [
-        ("openai/gpt-6.1-sol", "openai", 1200, 900)]
+        ("google/gemini-3.8-flash", "google", 1200, 900)]
     assert video.sandbox_seconds == (42.0,)
     assert session.frames == [45] and session.killed
     call = stream.calls[0]
@@ -412,10 +412,10 @@ def test_answers_without_a_module_fail_as_no_valid_composition():
 
 # contract-test: supporting surface=gui.web assertions=videos-generate.composed.author-writes-composition
 def test_provider_failure_falls_back_to_the_next_model():
-    stream = _stream(GOOD, fail_models=("openai/gpt-6.1-sol",))
+    stream = _stream(GOOD, fail_models=("google/gemini-3.8-flash",))
     video, _stages = _compose(_request(), stream, FakeSession())
-    assert video.author_model == "anthropic/claude-haiku-5-5"
-    assert [(u.model, u.provider) for u in video.usage] == [("anthropic/claude-haiku-5-5", "anthropic")]
+    assert video.author_model == "openai/gpt-6.1-sol"
+    assert [(u.model, u.provider) for u in video.usage] == [("openai/gpt-6.1-sol", "openai")]
 
 
 # contract-test: supporting surface=gui.web assertions=videos-generate.composed.author-writes-composition

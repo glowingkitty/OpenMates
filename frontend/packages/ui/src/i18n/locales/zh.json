@@ -1699,7 +1699,7 @@
           "text": "根据你的描述和聊天中的图片制作短视频，可以是 AI 生成画面，也可以是精确排版的合成视频。"
         },
         "pricing_note": {
-          "text": "生成的片段:每秒 34.5(360p)、105(720p)、156(1080p)或 313.5(4K)积分。合成视频:编写模型使用的 token,加上每开始一分钟渲染 5 积分。修改只按新增的部分计费。如果没有交付视频,则不收费。"
+          "text": "生成的片段:每秒 35(360p)、105(720p)、160(1080p)或 315(4K)积分。合成视频:编写模型使用的 token,加上每开始一分钟渲染 10 积分。修改只按新增的部分计费。如果没有交付视频,则不收费。合成视频中的声音:旁白每秒 2 积分,音效每秒 15 积分,每首音乐 120 积分;只对某个版本新生成的音频收费。"
         }
       },
       "create": {
@@ -8317,6 +8317,42 @@
       "progress_generating": {
         "text": "正在生成片段…"
       },
+      "progress_audio_speech": {
+        "text": "正在录制旁白…"
+      },
+      "progress_audio_sound": {
+        "text": "正在制作音效…"
+      },
+      "progress_audio_music": {
+        "text": "正在创作音乐…"
+      },
+      "progress_audio_unknown": {
+        "text": "正在制作声音…"
+      },
+      "progress_audio_several": {
+        "text": "正在制作{kinds}…"
+      },
+      "audio_noun_speech": {
+        "text": "旁白"
+      },
+      "audio_noun_sound": {
+        "text": "音效"
+      },
+      "audio_noun_music": {
+        "text": "音乐"
+      },
+      "audio_list_and": {
+        "text": "{head}和{last}"
+      },
+      "timeline_audio_speech": {
+        "text": "人声"
+      },
+      "timeline_audio_sound": {
+        "text": "音效"
+      },
+      "timeline_audio_music": {
+        "text": "音乐"
+      },
       "prompt": {
         "text": "提示词"
       },
@@ -8412,6 +8448,18 @@
       "view_video": {
         "text": "视频"
       }
+    },
+    "progress_searching_sources": {
+      "text": "{done}/{total} 个来源"
+    },
+    "progress_searching": {
+      "text": "正在搜索…"
+    },
+    "progress_results": {
+      "text": "{count} 个结果"
+    },
+    "progress_result_one": {
+      "text": "1 个结果"
     }
   },
   "embeds_input": {},

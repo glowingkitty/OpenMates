@@ -8,7 +8,9 @@ also writes one kept record (assertion videos-generate.change.same-video-next-ve
 - the stored MP4 of this version (to take its first or last frame);
 - a composed video: its composition source and encrypted copies of the input
   pictures (with names, kinds, titles and the original embed ids/refs), so a
-  change renders again from the original pictures even after an upload window;
+  change renders again from the original pictures even after an upload window,
+  and the generated audio clips (encrypted, with content hash, kind, measured
+  length and mime type), so a change generates only new or changed clips;
 - a generative video: its clips in play order, each an encrypted stored MP4
   with its full length and the frames trimmed at its start and end.
 
@@ -53,6 +55,19 @@ class KeptInput:
 
 
 @dataclass(frozen=True)
+class KeptAudio:
+    """One generated audio clip of a composed video, identified by the hash of its defining content."""
+
+    stored: StoredObject
+    hash: str
+    kind: str  # "speech" | "sound" | "music"
+    duration_seconds: float
+    mime_type: str
+    provider: str = ""
+    model: str = ""
+
+
+@dataclass(frozen=True)
 class KeptClip:
     """One generated clip of a generative video, in play order."""
 
@@ -80,11 +95,12 @@ class KeptVideo:
     source: Optional[str] = None
     inputs: tuple[KeptInput, ...] = field(default_factory=tuple)
     clips: Optional[tuple[KeptClip, ...]] = None  # None once the clips were replaced by an authored composition
+    audio: tuple[KeptAudio, ...] = field(default_factory=tuple)  # one per distinct clip content
 
     def object_keys(self) -> list[str]:
         """Every stored file the record refers to (all are in the embed's file index)."""
         keys = [self.video.s3_key, *(item.stored.s3_key for item in self.inputs),
-                *(clip.stored.s3_key for clip in self.clips or ())]
+                *(clip.stored.s3_key for clip in self.clips or ()), *(item.stored.s3_key for item in self.audio)]
         return list(dict.fromkeys(keys))
 
 
@@ -104,6 +120,9 @@ def _to_json(kept: KeptVideo) -> str:
             {"stored": clip.stored.to_json(), "duration_in_frames": clip.duration_in_frames,
              "trim_before_frames": clip.trim_before_frames, "trim_after_frames": clip.trim_after_frames,
              "label": clip.label, "model": clip.model} for clip in kept.clips],
+        "audio": [{"stored": item.stored.to_json(), "hash": item.hash, "kind": item.kind,
+                   "duration_seconds": item.duration_seconds, "mime_type": item.mime_type,
+                   "provider": item.provider, "model": item.model} for item in kept.audio],
     })
 
 
@@ -128,6 +147,11 @@ def _from_json(text: str) -> KeptVideo:
                 trim_before_frames=int(clip["trim_before_frames"]), trim_after_frames=int(clip["trim_after_frames"]),
                 label=str(clip.get("label") or ""), model=str(clip.get("model") or ""),
             ) for clip in clips),
+            audio=tuple(KeptAudio(
+                stored=StoredObject.from_json(item["stored"]), hash=str(item["hash"]), kind=str(item["kind"]),
+                duration_seconds=float(item["duration_seconds"]), mime_type=str(item["mime_type"]),
+                provider=str(item.get("provider") or ""), model=str(item.get("model") or ""),
+            ) for item in data.get("audio") or []),
         )
     except (ValueError, KeyError, TypeError) as exc:
         raise KeptVideoError("The kept material of this video is unreadable") from exc

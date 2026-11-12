@@ -144,6 +144,69 @@ for (const [variant, label] of [
 }
 
 // contract-test: supporting surface=gui.web assertions=videos-generate.progress.shown-while-running
+for (const [variant, parentVariant, label, kinds] of [
+  ['processingAudioSpeech', 'processingAudioSpeech', 'Recording the voice-over…', 'speech'],
+  ['processingAudioAll', 'processingAudioAll', 'Creating voice-over, sound effects and music…', 'speech,sound,music'],
+] as const) {
+  test(`a running request names the sound being made: ${variant}`, async ({ page }, testInfo) => {
+    // contract-test: supporting surface=gui.web assertions=videos-generate.progress.shown-while-running
+    const card = await open(page, variant, 700);
+    const stage = card.getByTestId('video-generate-stage');
+    await expect(stage).toHaveText(label);
+    await expect(stage).toHaveAttribute('data-stage', 'audio');
+    await expect(stage).toHaveAttribute('data-video-audio-kinds', kinds);
+    await attach(testInfo, page, `${variant}-card`);
+    const request = await open(page, parentVariant, 700, PARENT);
+    const requestStage = request.getByTestId('image-generate-request-model');
+    await expect(requestStage).toHaveText(label);
+    await expect(requestStage).toHaveAttribute('data-video-stage', 'audio');
+    await expect(requestStage).toHaveAttribute('data-video-audio-kinds', kinds);
+    await attach(testInfo, page, `${variant}-request-card`);
+  });
+}
+
+async function openFullscreen(page: Page, variant: string) {
+  await page.setViewportSize({ width: 1100, height: 900 });
+  await page.goto(`${FULLSCREEN}&variant=${variant}&width=1100`);
+  await waitForComponentPreview(page);
+  await waitForComponentMotion(page.getByTestId('embed-fullscreen-overlay'));
+  await expect(page.getByTestId('video-timeline')).toBeVisible();
+}
+
+// contract-test: supporting surface=gui.web assertions=videos-generate.result.video-with-timeline
+test('the fullscreen timeline shows voice, sound and music rows with bars inside the timeline', async ({ page }, testInfo) => {
+  await openFullscreen(page, 'withAudio');
+  const timeline = page.getByTestId('video-timeline');
+  await expect(timeline.getByTestId('video-timeline-audio-row')).toHaveCount(3);
+  for (const [kind, count, name] of [['speech', 2, 'Voice'], ['sound', 1, 'Sound'], ['music', 1, 'Music']] as const) {
+    const row = timeline.locator(`[data-testid="video-timeline-audio-row"][data-kind="${kind}"]`);
+    await expect(row).toHaveCount(1);
+    await expect(row.getByTestId('video-timeline-audio')).toHaveCount(count);
+    await expect(timeline.getByText(name, { exact: true })).toBeVisible();
+    const rowBox = (await row.boundingBox())!;
+    for (const bar of await row.getByTestId('video-timeline-audio').all()) {
+      const box = (await bar.boundingBox())!;
+      expect(box.width).toBeGreaterThan(2);
+      // A bar is a filled block, not a label floating in the row.
+      const fill = await bar.evaluate((node) => getComputedStyle(node).backgroundColor);
+      expect(fill, `fill of a ${kind} bar`).not.toMatch(/rgba\(0, 0, 0, 0\)|transparent/);
+      expect(box.x).toBeGreaterThanOrEqual(rowBox.x - 0.5);
+      expect(box.x + box.width).toBeLessThanOrEqual(rowBox.x + rowBox.width + 0.5);
+    }
+  }
+  await expect(timeline.getByText('Intro line')).toBeVisible();
+  await expect(timeline.getByTestId('video-timeline-part')).toHaveCount(7);
+  await testInfo.attach('fullscreen-with-audio', { body: await timeline.screenshot({ animations: 'disabled' }), contentType: 'image/png' });
+});
+
+// contract-test: supporting surface=gui.web assertions=videos-generate.result.video-with-timeline
+test('a composed video without generated sound shows no audio rows', async ({ page }) => {
+  await openFullscreen(page, 'composed');
+  await expect(page.getByTestId('video-timeline-audio-row')).toHaveCount(0);
+  await expect(page.getByTestId('video-timeline-audio')).toHaveCount(0);
+});
+
+// contract-test: supporting surface=gui.web assertions=videos-generate.progress.shown-while-running
 test('a running change shows the changed video, the kind of change and the instruction', async ({ page }, testInfo) => {
   for (const [variant, label, instruction, resolved] of [
     ['changeEdit', 'Editing video', 'Make the headline of the budget scene bigger and use a warmer color', true],

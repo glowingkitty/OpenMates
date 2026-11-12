@@ -189,6 +189,7 @@ async def test_svg_is_authored_by_default_and_charged_from_reported_tokens(monke
     ))
     prices = {
         "openai/gpt-6.1-sol": {"tokens": {"input": {"per_credit_unit": 100}, "output": {"per_credit_unit": 30}}},
+        "google/gemini-3.8-flash": {"tokens": {"input": {"per_credit_unit": 100}, "output": {"per_credit_unit": 30}}},
         "typesafe/jev-1.14": {"tokens": {"input": {"per_credit_unit": 9000}, "output": {"per_credit_unit": 0}}},
     }
     monkeypatch.setattr(producer, "generate_vector_recraft", recraft)
@@ -234,6 +235,7 @@ async def test_recraft_svg_failing_a_requirement_gets_an_llm_follow_up_and_both_
     ))
     prices = {
         "openai/gpt-6.1-sol": {"tokens": {"input": {"per_credit_unit": 100}, "output": {"per_credit_unit": 30}}},
+        "google/gemini-3.8-flash": {"tokens": {"input": {"per_credit_unit": 100}, "output": {"per_credit_unit": 30}}},
         "typesafe/jev-1.14": {"tokens": {"input": {"per_credit_unit": 9000}, "output": {"per_credit_unit": 0}}},
         "recraft/recraftv4_1_vector": {"per_unit": {"credits": 100}},
     }

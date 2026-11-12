@@ -45,7 +45,7 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 
 const MODEL_QUERY = 'gemini-3.8-flash';
 const MODEL_NAME = /Gemini 3\.8 Flash/i;
-const SEARCH_PROMPT = 'Search the web for the newest Mars rover discoveries and show me the results.';
+const SEARCH_PROMPT = 'Search the web for the Mars rover Perseverance and its discoveries and show me the results.';
 const COMPOSED_PROMPT =
 	'Based on the web results, create a short video for me: about 15 seconds, one result per scene with its headline and picture.';
 const GENERATIVE_PROMPT =
@@ -53,6 +53,8 @@ const GENERATIVE_PROMPT =
 const PICTURES_PROMPT = 'Generate two pictures: a red fox in fresh snow, and a blue jay on a pine branch.';
 const PICTURES_VIDEO_PROMPT =
 	'Make a short video from these two pictures: about 8 seconds, each picture in its own scene with a caption naming the animal.';
+const NARRATED_PROMPT =
+	'Make a 12 second explainer video with three short scenes about how bees make honey. Add a spoken voice-over for each scene, a soft whoosh sound at each scene change and calm instrumental background music.';
 const FINISHED_IMAGE_CARD = '[data-testid="embed-preview"][data-app-id="images"][data-status="finished"]';
 const EXTEND_TEXT = 'the camera rises above the fog and reveals a lake';
 const NEW_TEXT = 'Mars rover news';
@@ -243,10 +245,15 @@ test.describe('videos.generate chat', () => {
 			await expectReplyFromGemini(page, log, SEARCH_TIMEOUT);
 			await screenshot(page, 'web-results-found');
 			// Without a finished search there are no results whose pictures and texts could reach the video.
+			// The search cards sit in the collapsed "Used the … apps" group of the answer.
+			const activityToggle = page.getByTestId('assistant-activity-toggle').first();
+			await activityToggle.click();
 			await expect(
-				page.locator('[data-skill-id="search"][data-status="finished"]').first(),
+				page.locator('[data-testid="embed-preview"][data-skill-id="search"][data-status="finished"]').first(),
 				'the search returned results (a rate-limited search proves nothing about result pictures)'
 			).toBeVisible({ timeout: 30_000 });
+			await screenshot(page, 'search-cards');
+			await activityToggle.click();
 
 			await sendWithGemini(page, COMPOSED_PROMPT, log, screenshot, 'video');
 			await screenshotProgress(page, screenshot, 'video-progress', log);
@@ -392,7 +399,7 @@ test.describe('videos.generate chat', () => {
 		await note.scrollIntoViewIfNeeded();
 		const text = (await note.innerText()).replace(/\s+/g, ' ');
 		log(`price note: ${text}`);
-		for (const price of ['34.5', '105', '156', '313.5', '5 credits per started minute']) {
+		for (const price of ['35 (360p)', '105', '160', '315', '10 credits per started minute', '2 credits per second of narration', '15 credits per second of sound effect', '120 credits per music track']) {
 			expect(text, `the note names ${price}`).toContain(price);
 		}
 		await screenshot(page, 'skill-price');
@@ -429,6 +436,49 @@ test.describe('videos.generate chat', () => {
 			await parts.nth(1).click();
 			await screenshot(page, 'pictures-video-fullscreen', { fullPage: false });
 			await saveVideo(page, overlay, 'composed-pictures.mp4', log);
+		} finally {
+			if (process.env.KEEP_VIDEOS_CHAT !== '1') {
+				await closeOverlay(page, overlay);
+				await deleteActiveChat(page, log);
+			}
+		}
+	});
+
+	// contract-test: supporting surface=gui.web assertions=videos-generate.composed.sound,videos-generate.progress.shown-while-running
+	test('composed video with voice-over, sound effects and music', async ({ page }) => {
+		test.setTimeout(1_800_000);
+		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+		const log = createSignupLogger('videos-generate-sound');
+		const screenshot = createStepScreenshotter(log, { filenamePrefix: 'videos-generate-sound' });
+		attachConsoleListeners(page);
+		attachNetworkListeners(page);
+
+		await loginToTestAccount(page, log, screenshot);
+		await startNewChat(page, log);
+		let overlay = page.getByTestId('embed-fullscreen-overlay').last();
+		try {
+			await sendWithGemini(page, NARRATED_PROMPT, log, screenshot, 'narrated');
+			// The request card names the sound step and what is being made while the clips are generated.
+			const soundStep = page.locator('[data-testid="image-generate-request-model"][data-video-stage="audio"]').last();
+			await expect(soundStep, 'the request card shows the sound step').toBeVisible({ timeout: COMPOSED_TIMEOUT });
+			const kinds = await soundStep.getAttribute('data-video-audio-kinds');
+			log(`sound step shown: ${kinds} / ${(await soundStep.textContent())?.trim()}`);
+			expect(kinds ?? '', 'the sound step names the voice-over').toContain('speech');
+			await screenshot(page, 'sound-step', { fullPage: false });
+
+			await expect(page.locator(FINISHED_VIDEO_CARD).first()).toBeVisible({ timeout: COMPOSED_TIMEOUT });
+			await expectReplyFromGemini(page, log, COMPOSED_TIMEOUT);
+			await screenshot(page, 'narrated-video-card');
+
+			overlay = await openNewestVideo(page);
+			await expect(overlay.getByTestId('video-generate-fullscreen')).toHaveAttribute('data-made-by', 'composed');
+			const timeline = overlay.getByTestId('video-timeline');
+			const voiceBars = timeline.locator('[data-testid="video-timeline-audio"][data-kind="speech"]');
+			await expect(voiceBars.first(), 'the timeline shows the voice-over').toBeVisible({ timeout: 30_000 });
+			log(`audio bars: voice ${await voiceBars.count()}, sound ${await timeline.locator('[data-testid="video-timeline-audio"][data-kind="sound"]').count()}, music ${await timeline.locator('[data-testid="video-timeline-audio"][data-kind="music"]').count()}`);
+			await timeline.scrollIntoViewIfNeeded();
+			await screenshot(page, 'narrated-video-fullscreen', { fullPage: false });
+			await saveVideo(page, overlay, 'composed-narrated.mp4', log);
 		} finally {
 			if (process.env.KEEP_VIDEOS_CHAT !== '1') {
 				await closeOverlay(page, overlay);

@@ -16,6 +16,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
+from backend.apps.videos.tasks.video_audio import audio_extra, kept_audio
 from backend.apps.videos.tasks.video_kept import KeptVideo
 
 logger = logging.getLogger(__name__)
@@ -29,9 +30,10 @@ def _hash(value: str) -> str:
 
 async def _credits(made: Any, resolution: str) -> tuple[int, dict[str, Any]]:
     """Everything the change used: added clip seconds, opening still, author calls and the sandbox render."""
-    from backend.apps.videos.tasks.generate_billing import composed_credits, omni_clip_credits
+    from backend.apps.videos.tasks.generate_billing import add_audio_credits, composed_credits, omni_clip_credits
 
     credits, details = await composed_credits(usage=made.video.usage, sandbox_seconds=made.video.sandbox_seconds)
+    credits, details = add_audio_credits(credits, details, made.video.audio_generated)
     clip_credits = omni_clip_credits(resolution, made.clip_seconds) if made.new_clip else 0
     details = {**details, "added_clip_seconds": made.clip_seconds, "added_clip_credits": clip_credits,
                "opening_still_credits": made.still_credits, "resolution": resolution}
@@ -49,7 +51,7 @@ def _kept_record(context: Any, made: Any, stored: Any) -> KeptVideo:
         version=context.target.next_version, made_by=made.made_by, aspect_ratio=kept.aspect_ratio,
         resolution=kept.resolution, width=made.video.width, height=made.video.height,
         video=stored.object("original"), source=made.video.source if clips is None else None,
-        inputs=made.inputs if clips is None else (), clips=clips,
+        inputs=made.inputs if clips is None else (), clips=clips, audio=kept_audio(stored, made.video.audio),
     )
 
 
@@ -92,7 +94,8 @@ async def deliver_change(context: Any, made: Any) -> dict[str, Any]:
         task, s3_service=context.s3_service, bucket_name=context.bucket, user_id=context.user_id, mp4=video.mp4,
         thumbnail=video.thumbnail_png, thumbnail_format="png", vault_key_id=context.vault_key_id,
         label=f"video_v{target.next_version}",
-        extra={NEW_CLIP: (made.new_clip, "mp4", "video/mp4")} if made.new_clip else None,
+        extra={**({NEW_CLIP: (made.new_clip, "mp4", "video/mp4")} if made.new_clip else {}),
+               **audio_extra(made.video.audio)},
     )
     event_id = billing_event_id(target.embed_id, target.next_version, target.change_id)
     team_id = str(context.arguments["team_id"]) if context.arguments.get("team_id") else None

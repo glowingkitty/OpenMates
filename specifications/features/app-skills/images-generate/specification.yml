@@ -59,7 +59,7 @@ models:
     author_models:
       type: ordered_model_list
       required: true
-      values: [openai/gpt-6.1-sol, anthropic/claude-haiku-5-5, google/gemini-3.8-flash]
+      values: [google/gemini-3.8-flash, openai/gpt-6.1-sol, anthropic/claude-haiku-5-5]
     review_model:
       type: decision_model
       required: true

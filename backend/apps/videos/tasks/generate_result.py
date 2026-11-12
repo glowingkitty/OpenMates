@@ -8,6 +8,9 @@ fields of both routes (assertion videos-generate.result.content)::
     "routing_model"), source_titles, input_embed_ids, files.original
     (+ files.thumbnail), can_extend_end / can_extend_start (generative videos made of clips)
 
+``has_audio`` is true when the timeline lists sound (``timeline.audio``: ``{id, kind, label, from,
+durationInFrames, text?}`` per clip, frames at the timeline fps).
+
 A composed result also carries ``remotion_source``, ``filename``, ``attempts``
 and ``author_model``. The MP4 and its PNG thumbnail are encrypted with one AES
 key, uploaded to chatfiles and indexed in the owner's generated-asset index,
@@ -21,6 +24,7 @@ import math
 from datetime import datetime, timezone
 from typing import Any, Mapping, Sequence
 
+from backend.apps.videos.tasks.video_audio import audio_extra
 from backend.apps.videos.tasks.video_storage import StoredVideo, delete_video_files, index_video, \
     upload_video_files
 
@@ -34,7 +38,7 @@ _RESOLUTION_SHORT_SIDE = {"480p": 480, "720p": 720, "1080p": 1080, "4k": 2160}
 ASSISTANT_FIELDS = (
     "prompt", "made_by", "routing_decided_by", "model", "provider", "author_model", "duration_seconds",
     "aspect_ratio", "resolution", "width", "height", "fps", "filename", "attempts", "source_titles",
-    "input_embed_ids", "version", "billing_status", "generated_at",
+    "input_embed_ids", "version", "billing_status", "generated_at", "has_audio",
 )
 COMPOSED_PROVENANCE = {
     "ai_generated": True,
@@ -109,15 +113,17 @@ def aspect_ratio_of(width: int, height: int) -> str:
 
 async def store_composed_video(
     task: Any, *, s3_service: Any, bucket_name: str, user_id: str, embed_id: str, mp4: bytes, thumbnail_png: bytes,
-    vault_key_id: str, filename: str, log_prefix: str, inputs: Sequence[Any] = (),
+    vault_key_id: str, filename: str, log_prefix: str, inputs: Sequence[Any] = (), audio: Sequence[Any] = (),
 ) -> StoredVideo:
-    """Encrypt, upload and index the MP4, its thumbnail and copies of the input pictures (kept for changes).
+    """Encrypt, upload and index the MP4, its thumbnail, copies of the input pictures and the generated audio clips
+    (``audio``: ``UsedClip`` items; both kept for changes).
 
     ``filename`` is the composition file name (shown on the result); uploaded
     objects are removed when a later step fails.
     """
     extra = {f"input-{index}": (item.content, item.name.rsplit(".", 1)[-1], item.mime_type)
              for index, item in enumerate(inputs, start=1)}
+    extra.update(audio_extra(audio))
     stored = await upload_video_files(
         task, s3_service=s3_service, bucket_name=bucket_name, user_id=user_id, mp4=mp4, thumbnail=thumbnail_png,
         thumbnail_format="png", vault_key_id=vault_key_id, label="composed", extra=extra,
@@ -161,6 +167,7 @@ def composed_content(
         "remotion_source": video.source,
         "filename": video.filename,
         "attempts": video.attempts,
+        "has_audio": bool(video.timeline.get("audio")),
         "author_model": video.author_model,
         "model": model if model is not None else (video.author_model.split("/")[-1] if video.author_model else ""),
         "provider": provider,

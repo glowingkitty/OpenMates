@@ -140,15 +140,15 @@ async def test_first_model_draws_reports_drafts_and_records_usage(monkeypatch):
     )
     assert review_fn.seen[0]["requirements"] == REQUIREMENTS
 
-    assert (result.svg, result.model_id, result.attempts, result.review_status) == (GOOD, "openai/gpt-6.1-sol", 1, "accepted")
+    assert (result.svg, result.model_id, result.attempts, result.review_status) == (GOOD, "google/gemini-3.8-flash", 1, "accepted")
     assert result.usage == [
-        VectorUsage("drawing", "openai/gpt-6.1-sol", 100, 400),
+        VectorUsage("drawing", "google/gemini-3.8-flash", 100, 400),
         VectorUsage("review", "typesafe/jev-1.14", 900, 0),
     ]
     call = stream_fn.calls[0]
     assert call["system_prompt"] == vector_author.SYSTEM_PROMPT
     assert call["message_history"] == [{"role": "user", "content": call["message_history"][0]["content"]}]
-    assert call["requested_reasoning_level"] == "MEDIUM"
+    assert call["requested_reasoning_level"] == "LOW"
     drawing = [draft for draft in drafts if draft[1] == "drawing"]
     assert len(drawing) >= 2 and all(len(a[0]) < len(b[0]) for a, b in zip(drawing, drawing[1:]))
     assert drafts[-1] == (GOOD, "checking", 1)
@@ -214,13 +214,13 @@ async def test_unavailable_review_delivers_the_valid_drawing_without_review_cost
 
 # contract-test: direct surface=rest_api assertions=images-generate.vector.skill-authors-svg
 async def test_next_model_takes_over_when_the_first_fails_and_all_failing_raises():
-    stream_fn, review_fn = _stream(GOOD, fail_models=("openai/gpt-6.1-sol",)), _review(ACCEPT)
+    stream_fn, review_fn = _stream(GOOD, fail_models=("google/gemini-3.8-flash",)), _review(ACCEPT)
     stream_fn.failed = 1
 
     result = await author_svg(task_id="t", prompt="a square", stream_fn=stream_fn, review_fn=review_fn)
 
-    assert result.model_id == "anthropic/claude-haiku-5-5"
-    assert [call["model_id"] for call in stream_fn.calls] == ["openai/gpt-6.1-sol", "anthropic/claude-haiku-5-5"]
+    assert result.model_id == "openai/gpt-6.1-sol"
+    assert [call["model_id"] for call in stream_fn.calls] == ["google/gemini-3.8-flash", "openai/gpt-6.1-sol"]
 
     with pytest.raises(VectorAuthorError, match="no valid SVG after 3 attempts"):
         await author_svg(
@@ -289,8 +289,8 @@ def test_svg_is_drawn_by_the_author_unless_recraft_is_requested():
     assert generate_task._resolve_vector_engine("anything") == "llm"
     assert generate_task._resolve_vector_engine("Recraft") == "recraft"
     assert generate_task._resolve_vector_engine("script") == "script"
-    assert generate_task._resolve_image_billing_model_ref(None, "svg", "default", False, "script") == "openai/gpt-6.1-sol"
-    assert generate_task._resolve_image_billing_model_ref(None, "svg", "default", False, "llm") == "openai/gpt-6.1-sol"
+    assert generate_task._resolve_image_billing_model_ref(None, "svg", "default", False, "script") == "google/gemini-3.8-flash"
+    assert generate_task._resolve_image_billing_model_ref(None, "svg", "default", False, "llm") == "google/gemini-3.8-flash"
     assert generate_task._resolve_image_billing_model_ref(None, "svg", "max", False, "recraft").startswith("recraft/")
 
 

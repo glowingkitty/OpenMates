@@ -1699,7 +1699,7 @@
           "text": "Vytvoř krátké video z popisu a obrázků v chatu, jako AI záběry nebo přesně sestavené video."
         },
         "pricing_note": {
-          "text": "Generované klipy: 34,5 (360p), 105 (720p), 156 (1080p) nebo 313,5 (4K) kreditu za sekundu. Složená videa: tokeny, které použije píšící model, plus 5 kreditů za každou započatou minutu renderování. Změny se účtují jen za to, co přidávají. Pokud není doručeno žádné video, nic se neúčtuje."
+          "text": "Generované klipy: 35 (360p), 105 (720p), 160 (1080p) nebo 315 (4K) kreditu za sekundu. Složená videa: tokeny, které použije píšící model, plus 10 kreditů za každou započatou minutu renderování. Změny se účtují jen za to, co přidávají. Pokud není doručeno žádné video, nic se neúčtuje. Zvuk ve složených videích: 2 kredity za sekundu vyprávění, 15 kreditů za sekundu zvukového efektu a 120 kreditů za hudební skladbu; účtují se jen klipy nově vytvořené pro danou verzi."
         }
       },
       "create": {
@@ -8317,6 +8317,42 @@
       "progress_generating": {
         "text": "Generuji klip…"
       },
+      "progress_audio_speech": {
+        "text": "Nahrávám komentář…"
+      },
+      "progress_audio_sound": {
+        "text": "Vytvářím zvukové efekty…"
+      },
+      "progress_audio_music": {
+        "text": "Skládám hudbu…"
+      },
+      "progress_audio_unknown": {
+        "text": "Vytvářím zvuk…"
+      },
+      "progress_audio_several": {
+        "text": "Vytvářím: {kinds}…"
+      },
+      "audio_noun_speech": {
+        "text": "komentář"
+      },
+      "audio_noun_sound": {
+        "text": "zvukové efekty"
+      },
+      "audio_noun_music": {
+        "text": "hudba"
+      },
+      "audio_list_and": {
+        "text": "{head} a {last}"
+      },
+      "timeline_audio_speech": {
+        "text": "Hlas"
+      },
+      "timeline_audio_sound": {
+        "text": "Zvuk"
+      },
+      "timeline_audio_music": {
+        "text": "Hudba"
+      },
       "prompt": {
         "text": "Prompt"
       },
@@ -8412,6 +8448,18 @@
       "view_video": {
         "text": "Video"
       }
+    },
+    "progress_searching_sources": {
+      "text": "{done}/{total} zdrojů"
+    },
+    "progress_searching": {
+      "text": "Vyhledávání…"
+    },
+    "progress_results": {
+      "text": "{count} výsledků"
+    },
+    "progress_result_one": {
+      "text": "1 výsledek"
     }
   },
   "embeds_input": {},

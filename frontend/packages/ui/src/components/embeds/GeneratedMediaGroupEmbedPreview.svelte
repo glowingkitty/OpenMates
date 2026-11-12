@@ -18,7 +18,7 @@
   import { generatedMediaChildIds } from './generatedMediaGroup';
   import { pinnedEmbedsOf } from '../../services/rustCore/embeds/messageEmbedVersion';
   import VideoSourceThumbnail from './videos/VideoSourceThumbnail.svelte';
-  import { readVideoProgress, videoChangeText, videoStageText, type VideoChange, type VideoProgress, type VideoProgressStage } from './videos/videoGenerateCard';
+  import { readVideoProgress, videoChangeText, videoStageText, type VideoAudioKind, type VideoChange, type VideoProgress, type VideoProgressStage } from './videos/videoGenerateCard';
 
   interface Props {
     id: string;
@@ -34,6 +34,7 @@
     progressStage?: VideoProgressStage;
     /** 1-based round of the current videos.generate step. */
     progressAttempt?: number;
+    progressAudio?: VideoAudioKind[];
     /** Kind of change of an earlier video (edit, extend_start, extend_end). */
     change?: VideoChange;
     /** Embed id of the video being changed. */
@@ -44,7 +45,7 @@
   }
 
   let {
-    id, appId, skillId, status, resultCount, childEmbedIds = [], prompt: promptProp, error = '', progressStage, progressAttempt, change, sourceEmbedId,
+    id, appId, skillId, status, resultCount, childEmbedIds = [], prompt: promptProp, error = '', progressStage, progressAttempt, progressAudio, change, sourceEmbedId,
     taskId, isMobile = false, onFullscreen,
   }: Props = $props();
   // The card is mounted once; later status changes of the parent arrive as updates.
@@ -68,7 +69,7 @@
   // itself when both share one id); a change of an earlier video also names the
   // kind of change and the video being changed.
   let videoProgress = $state<VideoProgress>(untrack(() => readVideoProgress({
-    progress_stage: progressStage, progress_attempt: progressAttempt, change, source_embed_id: sourceEmbedId,
+    progress_stage: progressStage, progress_attempt: progressAttempt, progress_audio: progressAudio, change, source_embed_id: sourceEmbedId,
   })));
   const translate = (key: string, options?: { values: Record<string, string> }) => $text(key, options);
   const videoStageLabel = $derived(appId === 'videos' ? videoStageText(videoProgress, translate) : undefined);
@@ -171,7 +172,7 @@
                 {#if videoChangeLabel}
                   <span class="request-change" data-testid="video-generate-request-change" data-change={videoProgress.change}>{videoChangeLabel}</span>
                 {/if}
-                <span class="request-model shimmer" data-testid="image-generate-request-model" data-video-stage={videoProgress.stage}>
+                <span class="request-model shimmer" data-testid="image-generate-request-model" data-video-stage={videoProgress.stage} data-video-audio-kinds={videoProgress.stage === 'audio' ? (videoProgress.audio ?? []).join(',') : undefined}>
                   {draftStageLabelKey ? $text(draftStageLabelKey)
                     : videoStageLabel ? videoStageLabel
                     : modelLabel ? `${$text('embeds.image_generate.generating_via')} ${modelLabel}` : skillName}

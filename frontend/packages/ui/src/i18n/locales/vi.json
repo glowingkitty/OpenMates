@@ -1699,7 +1699,7 @@
           "text": "Tạo video ngắn từ mô tả của bạn và hình ảnh trong cuộc trò chuyện, dưới dạng cảnh quay AI hoặc video dựng chính xác."
         },
         "pricing_note": {
-          "text": "Clip được tạo: 34,5 (360p), 105 (720p), 156 (1080p) hoặc 313,5 (4K) credit mỗi giây. Video dựng bằng mã: token mà mô hình viết sử dụng cộng 5 credit cho mỗi phút kết xuất đã bắt đầu. Thay đổi chỉ bị tính phí cho phần được thêm. Không bị tính phí nếu không có video nào được giao."
+          "text": "Clip được tạo: 35 (360p), 105 (720p), 160 (1080p) hoặc 315 (4K) credit mỗi giây. Video dựng bằng mã: token mà mô hình viết sử dụng cộng 10 credit cho mỗi phút kết xuất đã bắt đầu. Thay đổi chỉ bị tính phí cho phần được thêm. Không bị tính phí nếu không có video nào được giao. Âm thanh trong video dựng bằng mã: 2 credit mỗi giây lời thuyết minh, 15 credit mỗi giây hiệu ứng âm thanh và 120 credit mỗi bản nhạc; chỉ các clip mới được tạo cho một phiên bản mới bị tính phí."
         }
       },
       "create": {
@@ -8317,6 +8317,42 @@
       "progress_generating": {
         "text": "Đang tạo clip…"
       },
+      "progress_audio_speech": {
+        "text": "Đang thu giọng thuyết minh…"
+      },
+      "progress_audio_sound": {
+        "text": "Đang tạo hiệu ứng âm thanh…"
+      },
+      "progress_audio_music": {
+        "text": "Đang sáng tác nhạc…"
+      },
+      "progress_audio_unknown": {
+        "text": "Đang tạo âm thanh…"
+      },
+      "progress_audio_several": {
+        "text": "Đang tạo {kinds}…"
+      },
+      "audio_noun_speech": {
+        "text": "giọng thuyết minh"
+      },
+      "audio_noun_sound": {
+        "text": "hiệu ứng âm thanh"
+      },
+      "audio_noun_music": {
+        "text": "nhạc"
+      },
+      "audio_list_and": {
+        "text": "{head} và {last}"
+      },
+      "timeline_audio_speech": {
+        "text": "Giọng nói"
+      },
+      "timeline_audio_sound": {
+        "text": "Âm thanh"
+      },
+      "timeline_audio_music": {
+        "text": "Nhạc"
+      },
       "prompt": {
         "text": "Câu lệnh"
       },
@@ -8412,6 +8448,18 @@
       "view_video": {
         "text": "Video"
       }
+    },
+    "progress_searching_sources": {
+      "text": "{done}/{total} nguồn"
+    },
+    "progress_searching": {
+      "text": "Đang tìm kiếm…"
+    },
+    "progress_results": {
+      "text": "{count} kết quả"
+    },
+    "progress_result_one": {
+      "text": "1 kết quả"
     }
   },
   "embeds_input": {},

@@ -1699,7 +1699,7 @@
           "text": "Crea un video corto a partir de tu descripción y de imágenes del chat, como metraje de IA o como video compuesto exacto."
         },
         "pricing_note": {
-          "text": "Clips generados: 34,5 (360p), 105 (720p), 156 (1080p) o 313,5 (4K) créditos por segundo. Vídeos compuestos: los tokens que usa el modelo de redacción más 5 créditos por minuto de renderizado iniciado. Los cambios solo se cobran por lo que añaden. No se cobra si no se entrega ningún vídeo."
+          "text": "Clips generados: 35 (360p), 105 (720p), 160 (1080p) o 315 (4K) créditos por segundo. Vídeos compuestos: los tokens que usa el modelo de redacción más 10 créditos por minuto de renderizado iniciado. Los cambios solo se cobran por lo que añaden. No se cobra si no se entrega ningún vídeo. Sonido en vídeos compuestos: 2 créditos por segundo de narración, 15 créditos por segundo de efecto de sonido y 120 créditos por pista de música; solo se cobran los clips creados de nuevo para una versión."
         }
       },
       "create": {
@@ -8344,6 +8344,42 @@
       "progress_generating": {
         "text": "Generando el clip…"
       },
+      "progress_audio_speech": {
+        "text": "Grabando la voz en off…"
+      },
+      "progress_audio_sound": {
+        "text": "Creando efectos de sonido…"
+      },
+      "progress_audio_music": {
+        "text": "Componiendo la música…"
+      },
+      "progress_audio_unknown": {
+        "text": "Creando el sonido…"
+      },
+      "progress_audio_several": {
+        "text": "Creando {kinds}…"
+      },
+      "audio_noun_speech": {
+        "text": "voz en off"
+      },
+      "audio_noun_sound": {
+        "text": "efectos de sonido"
+      },
+      "audio_noun_music": {
+        "text": "música"
+      },
+      "audio_list_and": {
+        "text": "{head} y {last}"
+      },
+      "timeline_audio_speech": {
+        "text": "Voz"
+      },
+      "timeline_audio_sound": {
+        "text": "Sonido"
+      },
+      "timeline_audio_music": {
+        "text": "Música"
+      },
       "prompt": {
         "text": "Prompt"
       },
@@ -8439,6 +8475,18 @@
       "view_video": {
         "text": "Vídeo"
       }
+    },
+    "progress_searching_sources": {
+      "text": "{done}/{total} fuentes"
+    },
+    "progress_searching": {
+      "text": "Buscando…"
+    },
+    "progress_results": {
+      "text": "{count} resultados"
+    },
+    "progress_result_one": {
+      "text": "1 resultado"
     }
   },
   "embeds_input": {},

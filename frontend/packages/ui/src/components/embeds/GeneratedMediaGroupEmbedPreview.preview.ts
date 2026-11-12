@@ -23,6 +23,14 @@ export const variants = {
     ...defaultProps, appId: 'videos', status: 'processing' as const, resultCount: 0, childEmbedIds: [],
     prompt: 'A 20 second recap of this week\'s news', progressStage: 'correcting', progressAttempt: 2,
   },
+  processingAudioSpeech: {
+    ...defaultProps, appId: 'videos', status: 'processing' as const, resultCount: 0, childEmbedIds: [],
+    prompt: 'A 20 second recap of this week\'s news', progressStage: 'audio', progressAudio: ['speech'],
+  },
+  processingAudioAll: {
+    ...defaultProps, appId: 'videos', status: 'processing' as const, resultCount: 0, childEmbedIds: [],
+    prompt: 'A 20 second recap of this week\'s news', progressStage: 'audio', progressAudio: ['speech', 'sound', 'music'],
+  },
   videoChange: {
     ...defaultProps, appId: 'videos', status: 'processing' as const, resultCount: 0, childEmbedIds: [],
     prompt: 'Make the headline of the budget scene bigger and use a warmer color', progressStage: 'writing',

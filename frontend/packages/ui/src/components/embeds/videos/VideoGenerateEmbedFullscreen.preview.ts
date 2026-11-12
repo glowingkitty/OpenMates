@@ -28,6 +28,18 @@ const composedTimeline = {
   ],
 };
 
+const audioEntry = (id: string, kind: string, label: string, from: number, duration: number, text?: string) =>
+  ({ id, kind, label, from, durationInFrames: duration, ...(text ? { text } : {}) });
+const composedWithAudio = {
+  ...composedTimeline,
+  audio: [
+    audioEntry('voice-1', 'speech', 'Intro line', 0, 150, 'This week in the city'),
+    audioEntry('voice-2', 'speech', 'Budget line', 150, 240, 'The council approved the budget with a vote of seven to two.'),
+    audioEntry('sound-1', 'sound', 'Gavel', 240, 45),
+    audioEntry('music-1', 'music', 'Calm news bed', 0, 600),
+  ],
+};
+
 const generativeTimeline = {
   fps: 30, duration_in_frames: 240, width: 1280, height: 720,
   tracks: [{ id: 'video', name: 'Video', kind: 'visual', parts: [
@@ -68,6 +80,8 @@ export default defaultProps;
 export const variants = {
   loading: fixture({ ...composed, previewVideoUrl: '' }),
   composed: fixture(composed),
+  /** Composed video with generated sound: two voice lines, one sound effect, one music bed. */
+  withAudio: fixture({ ...composed, timeline: composedWithAudio }),
   generative: fixture(generative),
   generativeNoExtend: fixture({ ...generative, can_extend_start: false, can_extend_end: false }),
   /** Extend at the end only (a model that cannot lead into a given frame). */

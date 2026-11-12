@@ -59,8 +59,8 @@ const generative = {
   onFullscreen,
 };
 
-const processing = (progressStage: string, progressAttempt = 1) => ({
-  ...composed, status: 'processing' as const, previewImageUrl: '', durationSeconds: undefined, progressStage, progressAttempt,
+const processing = (progressStage: string, progressAttempt = 1, progressAudio?: string[]) => ({
+  ...composed, status: 'processing' as const, previewImageUrl: '', durationSeconds: undefined, progressStage, progressAttempt, progressAudio,
 });
 
 const defaultProps = generative;
@@ -79,6 +79,8 @@ export const variants = {
   processingWriting: processing('writing'),
   processingRendering: processing('rendering'),
   processingCorrecting: processing('correcting', 2),
+  processingAudioSpeech: processing('audio', 1, ['speech']),
+  processingAudioAll: processing('audio', 1, ['speech', 'sound', 'music']),
   processingGenerating: { ...processing('generating'), madeBy: 'generative', model: 'gemini-omni-1.2-flash', prompt: 'Sunrise over an alpine meadow' },
   changeEdit: {
     ...processing('writing'), prompt: 'Make the headline of the budget scene bigger and use a warmer color',

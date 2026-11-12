@@ -11,12 +11,14 @@ from unittest.mock import AsyncMock
 import pytest
 
 from backend.apps.videos.composed import author as author_module
+from backend.apps.videos.composed.audio_clips import GeneratedClip
+from backend.apps.videos.composed.audio_step import UsedClip
 from backend.apps.videos.composed import source as source_module
 from backend.apps.videos.composed.models import ComposedVideo
 from backend.apps.videos.generate_request import parse_generate_request
 from backend.apps.videos.tasks import change_edits, generate_billing, generate_change, generate_pipeline
 from backend.apps.videos.tasks import video_kept, video_storage
-from backend.apps.videos.tasks.video_kept import KeptClip, KeptInput, KeptVideo
+from backend.apps.videos.tasks.video_kept import KeptAudio, KeptClip, KeptInput, KeptVideo
 from backend.apps.videos.tasks.video_storage import StoredObject
 from backend.shared.providers.google import gemini_image, omni_video
 from backend.shared.python_utils import billing_utils, media_revision, storage_availability, video_frames
@@ -479,3 +481,35 @@ def test_non_change_progress_content_is_unchanged():
                                  stage="writing", attempt=1)
     assert set(content) == {"app_id", "skill_id", "type", "status", "prompt", "input_embed_ids", "progress_stage",
                             "progress_attempt"}
+
+
+# contract-test: supporting surface=rest_api assertions=videos-generate.change.same-video-next-version
+@pytest.mark.asyncio
+async def test_edit_offers_the_kept_audio_clips_for_reuse_and_keeps_new_ones(world):
+    kept = _composed()
+    world.kept = KeptVideo(**{**kept.__dict__, "audio": (
+        KeptAudio(stored=_stored("user-1/v1_audio-1.mp3"), hash="h-speech", kind="speech", duration_seconds=3.0,
+                  mime_type="audio/mpeg", provider="ElevenLabs", model="eleven_v4"),)})
+    made = GeneratedClip("knock", "sound", b"knock-bytes", "audio/mpeg", 2.0, "ElevenLabs", "sound", 2.0)
+    reused = UsedClip("h-speech", GeneratedClip("voice-1", "speech", b"bytes:user-1/v1_audio-1.mp3", "audio/mpeg",
+                                                3.0, "ElevenLabs", "eleven_v4", 3.0))
+    rendered = _rendered(240, author="anthropic/claude-haiku-5-5")
+    world.compose.return_value = ComposedVideo(
+        **{**rendered.__dict__, "audio": (reused, UsedClip("h-sound", made)), "audio_generated": (made,),
+           "timeline": {**rendered.timeline, "audio": [{"id": "knock", "kind": "sound", "label": "door",
+                                                          "from": 0, "durationInFrames": 60}]}})
+    await _run(world, "edit", "Add a door knock at the start")
+
+    request = world.compose.await_args.args[0]
+    [offered] = request.previous_audio
+    assert (offered.hash, offered.clip.kind, offered.clip.data, offered.clip.duration_seconds) == (
+        "h-speech", "speech", b"bytes:user-1/v1_audio-1.mp3", 3.0)
+    assert world.compose.await_args.kwargs["afford_audio"] is not None
+    # Only the clip generated in this change is charged; the stored version keeps both clips.
+    charged = world.charge.await_args.kwargs
+    assert charged["credits"] == 5 + 30 and charged["usage_details"]["audio_credits"]["sound"] == 30
+    assert world.published[0]["content"]["has_audio"] is True
+    uploaded = [key for _bucket, key, _content in world.s3.uploads]
+    assert sum("audio-" in key for key in uploaded) == 2
+    record = next(content for _b, key, content in world.s3.uploads if key.endswith("/v2.json"))
+    assert record  # the kept record of version 2 was written, encrypted

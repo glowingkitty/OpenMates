@@ -1699,7 +1699,7 @@
           "text": "Buat video pendek dari deskripsimu dan gambar di obrolan, sebagai rekaman AI atau video susunan yang tepat."
         },
         "pricing_note": {
-          "text": "Klip yang dihasilkan: 34,5 (360p), 105 (720p), 156 (1080p) atau 313,5 (4K) kredit per detik. Video komposisi: token yang dipakai model penulis ditambah 5 kredit per menit rendering yang dimulai. Perubahan hanya dikenai biaya untuk yang ditambahkannya. Tidak ada biaya jika tidak ada video yang dikirim."
+          "text": "Klip yang dihasilkan: 35 (360p), 105 (720p), 160 (1080p) atau 315 (4K) kredit per detik. Video komposisi: token yang dipakai model penulis ditambah 10 kredit per menit rendering yang dimulai. Perubahan hanya dikenai biaya untuk yang ditambahkannya. Tidak ada biaya jika tidak ada video yang dikirim. Suara dalam video komposisi: 2 kredit per detik narasi, 15 kredit per detik efek suara, dan 120 kredit per lagu musik; hanya klip yang baru dibuat untuk suatu versi yang dikenai biaya."
         }
       },
       "create": {
@@ -8317,6 +8317,42 @@
       "progress_generating": {
         "text": "Membuat klip…"
       },
+      "progress_audio_speech": {
+        "text": "Merekam narasi…"
+      },
+      "progress_audio_sound": {
+        "text": "Membuat efek suara…"
+      },
+      "progress_audio_music": {
+        "text": "Menggubah musik…"
+      },
+      "progress_audio_unknown": {
+        "text": "Membuat suara…"
+      },
+      "progress_audio_several": {
+        "text": "Membuat {kinds}…"
+      },
+      "audio_noun_speech": {
+        "text": "narasi"
+      },
+      "audio_noun_sound": {
+        "text": "efek suara"
+      },
+      "audio_noun_music": {
+        "text": "musik"
+      },
+      "audio_list_and": {
+        "text": "{head} dan {last}"
+      },
+      "timeline_audio_speech": {
+        "text": "Suara"
+      },
+      "timeline_audio_sound": {
+        "text": "Efek"
+      },
+      "timeline_audio_music": {
+        "text": "Musik"
+      },
       "prompt": {
         "text": "Prompt"
       },
@@ -8412,6 +8448,18 @@
       "view_video": {
         "text": "Video"
       }
+    },
+    "progress_searching_sources": {
+      "text": "{done}/{total} sumber"
+    },
+    "progress_searching": {
+      "text": "Mencari…"
+    },
+    "progress_results": {
+      "text": "{count} hasil"
+    },
+    "progress_result_one": {
+      "text": "1 hasil"
     }
   },
   "embeds_input": {},

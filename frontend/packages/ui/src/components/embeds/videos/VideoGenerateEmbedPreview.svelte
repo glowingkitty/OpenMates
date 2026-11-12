@@ -21,7 +21,7 @@
   import { createImageUrlOwner } from '../images/imageEmbedCrypto';
   import { formatSeconds } from './videoTimelineModel';
   import {
-    EMPTY_VIDEO_PROGRESS, loadVideoThumbnail, readVideoProgress, videoChangeText, videoMakerName, videoStageText,
+    EMPTY_VIDEO_PROGRESS, type VideoAudioKind, loadVideoThumbnail, readVideoProgress, videoChangeText, videoMakerName, videoStageText,
     type VideoChange, type VideoFiles, type VideoProgress, type VideoProgressStage,
   } from './videoGenerateCard';
 
@@ -47,6 +47,7 @@
     error?: string;
     progressStage?: VideoProgressStage;
     progressAttempt?: number;
+    progressAudio?: VideoAudioKind[];
     change?: VideoChange;
     sourceEmbedId?: string;
     taskId?: string;
@@ -56,7 +57,7 @@
 
   let {
     id, prompt = '', model = '', authorModel = '', madeBy = '', durationSeconds, resolution = '', s3BaseUrl = '', files,
-    aesKey = '', aesNonce = '', previewImageUrl = '', status, error = '', progressStage, progressAttempt, change,
+    aesKey = '', aesNonce = '', previewImageUrl = '', status, error = '', progressStage, progressAttempt, progressAudio, change,
     sourceEmbedId, taskId, isMobile = false, onFullscreen,
   }: Props = $props();
 
@@ -88,7 +89,7 @@
   const currentPreviewImageUrl = $derived(pick('previewImageUrl', 'string', pick('preview_image_url', 'string', previewImageUrl)));
   const currentError = $derived(pick('error', 'string', error));
   const progress = $derived(updatedProgress ?? readVideoProgress({
-    progress_stage: progressStage, progress_attempt: progressAttempt, change, source_embed_id: sourceEmbedId,
+    progress_stage: progressStage, progress_attempt: progressAttempt, progress_audio: progressAudio, change, source_embed_id: sourceEmbedId,
   }, EMPTY_VIDEO_PROGRESS));
 
   const translate = (key: string, options?: { values: Record<string, string> }) => $text(key, options);
@@ -176,7 +177,7 @@
             <span class="error-text" data-testid="video-generate-error">{metaLine}</span>
           {/if}
           {#if stageText}
-            <span class="stage" data-testid="video-generate-stage" data-stage={progress.stage}>{stageText}</span>
+            <span class="stage" data-testid="video-generate-stage" data-stage={progress.stage} data-video-audio-kinds={progress.stage === 'audio' ? (progress.audio ?? []).join(',') : undefined}>{stageText}</span>
           {/if}
         </div>
       {/snippet}

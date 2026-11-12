@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readVideoProgress, videoChangeText, videoGenerateCardProps, videoMakerName, videoStageText } from '../videoGenerateCard';
+import { readAudioKinds, readVideoProgress, videoAudioStageText, videoChangeText, videoGenerateCardProps, videoMakerName, videoStageText } from '../videoGenerateCard';
 
 const t = (key: string, options?: { values: Record<string, string> }) =>
   options ? `${key}(${Object.entries(options.values).map(([k, v]) => `${k}=${v}`).join(',')})` : key;
@@ -31,5 +31,28 @@ describe('videoGenerateCard helpers', () => {
     expect(videoMakerName({ madeBy: 'composed', model: 'gpt-6.1-sol' })).toBe('GPT-6.1 Sol');
     expect(videoMakerName({ madeBy: 'generative', model: 'gemini-omni-1.2-flash' })).toBe('Gemini Omni 1.2 Flash');
     expect(videoMakerName({ madeBy: 'composed', model: 'composed' })).toBeUndefined();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=videos-generate.progress.shown-while-running
+  it('names the sound being made from the kinds present', () => {
+    expect(videoAudioStageText(['speech'], t)).toBe('embeds.video_generate.progress_audio_speech');
+    expect(videoAudioStageText(['music'], t)).toBe('embeds.video_generate.progress_audio_music');
+    expect(videoAudioStageText(['sound'], t)).toBe('embeds.video_generate.progress_audio_sound');
+    expect(videoAudioStageText([], t)).toBe('embeds.video_generate.progress_audio_unknown');
+    expect(videoAudioStageText(undefined, t)).toBe('embeds.video_generate.progress_audio_unknown');
+    expect(videoAudioStageText(['music', 'speech'], t))
+      .toBe('embeds.video_generate.progress_audio_several(kinds=embeds.video_generate.audio_list_and(head=embeds.video_generate.audio_noun_speech,last=embeds.video_generate.audio_noun_music))');
+    expect(videoAudioStageText(['speech', 'sound', 'music'], t)).toContain('head=embeds.video_generate.audio_noun_speech, embeds.video_generate.audio_noun_sound');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=videos-generate.progress.shown-while-running
+  it('reads the audio kinds of a processing update, drops unknown kinds and keeps earlier kinds', () => {
+    expect(readAudioKinds(['music', 'bogus', 'speech', 'speech'])).toEqual(['speech', 'music']);
+    expect(readAudioKinds('speech')).toBeUndefined();
+    const first = readVideoProgress({ progress_stage: 'audio', progress_audio: ['speech', 'sound'] });
+    expect(first.stage).toBe('audio');
+    expect(first.audio).toEqual(['speech', 'sound']);
+    expect(readVideoProgress({ progress_stage: 'audio' }, first).audio).toEqual(['speech', 'sound']);
+    expect(videoStageText(first, t)).toContain('progress_audio_several');
   });
 });

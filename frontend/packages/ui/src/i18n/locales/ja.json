@@ -1699,7 +1699,7 @@
           "text": "説明とチャット内の画像から、AI映像または正確に構成された動画として短い動画を作成します。"
         },
         "pricing_note": {
-          "text": "生成クリップ:1秒あたり 34.5(360p)、105(720p)、156(1080p)、313.5(4K)クレジット。構成動画:執筆モデルが使うトークンに加え、レンダリング開始した1分ごとに5クレジット。変更は追加分のみ課金されます。動画が届かなかった場合は課金されません。"
+          "text": "生成クリップ:1秒あたり 35(360p)、105(720p)、160(1080p)、315(4K)クレジット。構成動画:執筆モデルが使うトークンに加え、レンダリング開始した1分ごとに10クレジット。変更は追加分のみ課金されます。動画が届かなかった場合は課金されません。構成動画の音声:ナレーションは1秒あたり2クレジット、効果音は1秒あたり15クレジット、音楽は1曲あたり120クレジット。バージョンのために新しく作られたクリップのみ課金されます。"
         }
       },
       "create": {
@@ -8317,6 +8317,42 @@
       "progress_generating": {
         "text": "クリップを生成しています…"
       },
+      "progress_audio_speech": {
+        "text": "ナレーションを録音しています…"
+      },
+      "progress_audio_sound": {
+        "text": "効果音を作成しています…"
+      },
+      "progress_audio_music": {
+        "text": "音楽を作曲しています…"
+      },
+      "progress_audio_unknown": {
+        "text": "サウンドを作成しています…"
+      },
+      "progress_audio_several": {
+        "text": "{kinds}を作成しています…"
+      },
+      "audio_noun_speech": {
+        "text": "ナレーション"
+      },
+      "audio_noun_sound": {
+        "text": "効果音"
+      },
+      "audio_noun_music": {
+        "text": "音楽"
+      },
+      "audio_list_and": {
+        "text": "{head}、{last}"
+      },
+      "timeline_audio_speech": {
+        "text": "音声"
+      },
+      "timeline_audio_sound": {
+        "text": "効果音"
+      },
+      "timeline_audio_music": {
+        "text": "音楽"
+      },
       "prompt": {
         "text": "プロンプト"
       },
@@ -8412,6 +8448,18 @@
       "view_video": {
         "text": "動画"
       }
+    },
+    "progress_searching_sources": {
+      "text": "{done}/{total} 件のソース"
+    },
+    "progress_searching": {
+      "text": "検索中…"
+    },
+    "progress_results": {
+      "text": "{count} 件の結果"
+    },
+    "progress_result_one": {
+      "text": "1 件の結果"
     }
   },
   "embeds_input": {},

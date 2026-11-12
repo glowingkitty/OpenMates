@@ -89,6 +89,9 @@ SANDBOX_LIFETIME_SECONDS = 1800  # E2B kills the sandbox by itself after this, e
 RENDER_CONCURRENCY = 3
 MAX_INPUTS = 12
 MAX_INPUT_BYTES = 20 * 1024 * 1024
+MAX_AUDIO_FILES = 21
+MAX_AUDIO_BYTES = 15 * 1024 * 1024
+AUDIO_TRACKS_FILE = "audio-tracks.json"
 MAX_SOURCE_CHARS = 60_000
 MAX_OUTPUT_BYTES = 300 * 1024 * 1024
 MAX_ERROR_CHARS = 3000
@@ -106,8 +109,9 @@ _ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 INDEX_TS = "import {registerRoot} from 'remotion';\nimport {Root} from './Root';\n\nregisterRoot(Root);\n"
 
 ROOT_TSX = """import React from 'react';
-import {Composition} from 'remotion';
+import {Audio, Composition, Sequence, interpolate, staticFile} from 'remotion';
 import Main, {parts, video} from './Composition';
+import * as Module from './Composition';
 
 if (!video || typeof video !== 'object') {
   throw new Error('Composition.tsx must export const video = {fps, durationInFrames, width, height}');
@@ -119,15 +123,44 @@ if (typeof Main !== 'function') {
   throw new Error('Composition.tsx must export default the React component');
 }
 
+type Track = {file: string; from: number; durationInFrames: number; volume: number; fadeOutFrames: number; loop: boolean};
+
+// The renderer, never the author, adds the sound tracks: one <Audio> per generated clip, passed as input props.
+const WithAudio: React.FC<Record<string, unknown>> = (props) => {
+  const tracks = (props.openmatesAudio as Track[] | undefined) ?? [];
+  return (
+    <>
+      <Main {...props} />
+      {tracks.map((track) => (
+        <Sequence key={track.file} from={track.from} durationInFrames={track.durationInFrames}>
+          <Audio
+            src={staticFile(track.file)}
+            loop={track.loop}
+            volume={(frame: number) =>
+              track.volume *
+              (track.fadeOutFrames > 0
+                ? interpolate(frame, [track.durationInFrames - track.fadeOutFrames, track.durationInFrames], [1, 0],
+                    {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'})
+                : 1)}
+          />
+        </Sequence>
+      ))}
+    </>
+  );
+};
+
 export const Root: React.FC = () => (
   <Composition
     id="Main"
-    component={Main as React.FC<Record<string, unknown>>}
+    component={WithAudio}
     fps={video.fps}
     durationInFrames={video.durationInFrames}
     width={video.width}
     height={video.height}
-    defaultProps={{openmatesParts: JSON.parse(JSON.stringify(parts))}}
+    defaultProps={{
+      openmatesParts: JSON.parse(JSON.stringify(parts)),
+      openmatesAudioPlan: JSON.parse(JSON.stringify((Module as Record<string, unknown>).audio ?? null)),
+    }}
   />
 );
 """
@@ -167,16 +200,19 @@ async function check() {{
     video: {{fps: composition.fps, durationInFrames: composition.durationInFrames,
              width: composition.width, height: composition.height}},
     parts: (composition.defaultProps || {{}}).openmatesParts ?? null,
+    audio: (composition.defaultProps || {{}}).openmatesAudioPlan ?? null,
   }};
   fs.writeFileSync(path.join(root, 'out/meta.json'), JSON.stringify(meta));
 }}
 
 async function render(thumbnailFrame, concurrency) {{
-  const composition = await selectComposition({{serveUrl, id: 'Main', onBrowserLog, logLevel: 'error'}});
+  const tracksFile = path.join(root, 'audio-tracks.json');
+  const inputProps = {{openmatesAudio: fs.existsSync(tracksFile) ? JSON.parse(fs.readFileSync(tracksFile, 'utf8')) : []}};
+  const composition = await selectComposition({{serveUrl, id: 'Main', inputProps, onBrowserLog, logLevel: 'error'}});
   const video = path.join(root, 'out/video.mp4');
   const thumbnail = path.join(root, 'out/thumbnail.png');
   await renderMedia({{
-    composition, serveUrl, codec: 'h264', outputLocation: video, concurrency, x264Preset: 'veryfast',
+    composition, serveUrl, inputProps, codec: 'h264', outputLocation: video, concurrency, x264Preset: 'veryfast',
     timeoutInMilliseconds: 60000, onBrowserLog, logLevel: 'error', overwrite: true,
   }});
   await renderStill({{
@@ -207,11 +243,12 @@ class RemotionAsset:
 
 @dataclass(frozen=True)
 class RemotionCheck:
-    """What the bundled module declares: ``video`` and ``parts`` exactly as exported."""
+    """What the bundled module declares: ``video``, ``parts`` and ``audio`` (None when absent) as exported."""
 
     video: dict[str, Any]
     parts: Any
     seconds: float
+    audio: Any = None
 
 
 @dataclass(frozen=True)
@@ -287,6 +324,21 @@ def validate_assets(assets: Sequence[RemotionAsset]) -> None:
             raise RemotionSandboxError("invalid_input", f"the input {asset.name!r} is empty or larger than "
                                                         f"{MAX_INPUT_BYTES // 1048576} MB")
 
+
+def validate_audio_assets(assets: Sequence[RemotionAsset]) -> None:
+    """Same checks as ``validate_assets`` with the audio caps (own limits, picture input cap untouched)."""
+    if len(assets) > MAX_AUDIO_FILES:
+        raise RemotionSandboxError("invalid_input", f"at most {MAX_AUDIO_FILES} audio files can be used")
+    seen: set[str] = set()
+    for asset in assets:
+        if not SAFE_INPUT_NAME.match(asset.name) or ".." in asset.name:
+            raise RemotionSandboxError("invalid_input", f"the audio file name {asset.name!r} is not allowed")
+        if asset.name in seen:
+            raise RemotionSandboxError("invalid_input", f"the audio file name {asset.name!r} is used twice")
+        seen.add(asset.name)
+        if not asset.data or len(asset.data) > MAX_AUDIO_BYTES:
+            raise RemotionSandboxError("invalid_input", f"the audio {asset.name!r} is empty or larger than "
+                                                        f"{MAX_AUDIO_BYTES // 1048576} MB")
 
 class RemotionSession:
     """One sandbox for every round of one composed video.
@@ -385,6 +437,29 @@ class RemotionSession:
             raise RemotionSandboxError("sandbox_failed", "The inputs could not be uploaded to the renderer.") from exc
         self._uploaded = digest
 
+    async def upload_audio(self, assets: Sequence[RemotionAsset], tracks: Sequence[dict[str, Any]]) -> None:
+        """Upload generated audio to ``public/audio/`` and the track list the renderer mixes in.
+
+        Call after a successful ``check`` and before ``render``; every ``check`` clears the audio again, so a
+        corrected composition needs a new call. ``tracks`` entries (see ``composed/audio_clips.py``) name their
+        file as ``audio/<asset name>``. No call means a silent video.
+        """
+        sandbox = self._require()
+        if not self._checked:
+            raise RuntimeError("check must succeed before upload_audio")
+        validate_audio_assets(assets)
+        from e2b import SandboxException
+
+        # The bundle holds its own copy of public/, so the files go to both places for this render.
+        files = [{"path": f"{REMOTION_WORKDIR}/{prefix}audio/{asset.name}", "data": asset.data}
+                 for asset in assets for prefix in ("public/", "build/public/")]
+        files.append({"path": f"{REMOTION_WORKDIR}/{AUDIO_TRACKS_FILE}",
+                      "data": json.dumps(list(tracks)).encode("utf-8")})
+        try:
+            await asyncio.to_thread(sandbox.files.write_files, files)
+        except SandboxException as exc:
+            raise RemotionSandboxError("sandbox_failed", "The audio could not be uploaded to the renderer.") from exc
+
     async def _run(self, stage: str, command: str, limit: int) -> float:
         sandbox = self._require()
         from e2b import CommandExitException, SandboxException, TimeoutException
@@ -431,7 +506,7 @@ class RemotionSession:
             ])
         except SandboxException as exc:
             raise RemotionSandboxError("sandbox_failed", "The composition could not be uploaded.") from exc
-        command = (f"cd {shlex.quote(REMOTION_WORKDIR)} && rm -rf out && mkdir out && "
+        command = (f"cd {shlex.quote(REMOTION_WORKDIR)} && rm -rf out public/audio {AUDIO_TRACKS_FILE} && mkdir out && "
                    f"timeout -s KILL {self._check_limit}s node runner.mjs check")
         seconds = await self._run("check", command, self._check_limit)
         raw = await self._read("out/meta.json")
@@ -444,7 +519,7 @@ class RemotionSession:
         if not isinstance(meta, dict) or not isinstance(meta.get("video"), dict):
             raise RemotionSandboxError("sandbox_failed", "The renderer returned inconsistent metadata.")
         self._checked = True
-        return RemotionCheck(video=meta["video"], parts=meta.get("parts"), seconds=seconds)
+        return RemotionCheck(video=meta["video"], parts=meta.get("parts"), seconds=seconds, audio=meta.get("audio"))
 
     async def render(self, thumbnail_frame: int) -> RemotionRender:
         """Render the checked composition to MP4 plus a PNG thumbnail of ``thumbnail_frame``."""

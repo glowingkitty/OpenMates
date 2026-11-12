@@ -585,10 +585,10 @@ skills:
       images-generate with reference_images instead.
     class_path: |
       backend.apps.images.skills.modify_skill.ModifySkill
-    full_model_reference: openai/gpt-6.1-sol
+    full_model_reference: google/gemini-3.8-flash
     providers:
-      - name: openai
-        display_name: OpenAI
+      - name: google
+        display_name: Google
       - name: e2b
         display_name: E2B
     # Model tokens of every author and review call at the model's price plus the per_minute price per started sandbox minute.

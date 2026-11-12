@@ -1699,7 +1699,7 @@
           "text": "설명과 채팅 속 이미지로 AI 영상 또는 정확하게 구성된 영상 형태의 짧은 비디오를 만듭니다."
         },
         "pricing_note": {
-          "text": "생성된 클립: 초당 34.5(360p), 105(720p), 156(1080p) 또는 313.5(4K) 크레딧. 구성형 영상: 작성 모델이 사용한 토큰에 더해 렌더링 시작한 1분마다 5크레딧. 변경은 추가된 부분에 대해서만 청구됩니다. 영상이 전달되지 않으면 청구되지 않습니다."
+          "text": "생성된 클립: 초당 35(360p), 105(720p), 160(1080p) 또는 315(4K) 크레딧. 구성형 영상: 작성 모델이 사용한 토큰에 더해 렌더링 시작한 1분마다 10크레딧. 변경은 추가된 부분에 대해서만 청구됩니다. 영상이 전달되지 않으면 청구되지 않습니다.구성형 영상의 사운드: 내레이션 초당 2크레딧, 효과음 초당 15크레딧, 음악 트랙당 120크레딧. 해당 버전을 위해 새로 만든 클립만 청구됩니다."
         }
       },
       "create": {
@@ -8317,6 +8317,42 @@
       "progress_generating": {
         "text": "클립 생성 중…"
       },
+      "progress_audio_speech": {
+        "text": "내레이션 녹음 중…"
+      },
+      "progress_audio_sound": {
+        "text": "효과음 만드는 중…"
+      },
+      "progress_audio_music": {
+        "text": "음악 작곡 중…"
+      },
+      "progress_audio_unknown": {
+        "text": "사운드 만드는 중…"
+      },
+      "progress_audio_several": {
+        "text": "{kinds} 만드는 중…"
+      },
+      "audio_noun_speech": {
+        "text": "내레이션"
+      },
+      "audio_noun_sound": {
+        "text": "효과음"
+      },
+      "audio_noun_music": {
+        "text": "음악"
+      },
+      "audio_list_and": {
+        "text": "{head} 및 {last}"
+      },
+      "timeline_audio_speech": {
+        "text": "음성"
+      },
+      "timeline_audio_sound": {
+        "text": "효과음"
+      },
+      "timeline_audio_music": {
+        "text": "음악"
+      },
       "prompt": {
         "text": "프롬프트"
       },
@@ -8412,6 +8448,18 @@
       "view_video": {
         "text": "동영상"
       }
+    },
+    "progress_searching_sources": {
+      "text": "{done}/{total}개 소스"
+    },
+    "progress_searching": {
+      "text": "검색 중…"
+    },
+    "progress_results": {
+      "text": "결과 {count}개"
+    },
+    "progress_result_one": {
+      "text": "결과 1개"
     }
   },
   "embeds_input": {},

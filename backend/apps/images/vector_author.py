@@ -40,12 +40,17 @@ from backend.shared.python_utils.llm_stream_usage import stream_usage_tokens
 logger = logging.getLogger(__name__)
 
 # Ordered: the first model that produces a valid drawing answers, later ones are fallbacks.
+# Gemini 3.8 Flash leads: in the author benchmark (backend/scripts/benchmark_app_skill_author_models.py)
+# it matched GPT-6.1 Sol in result quality and reliability, while the larger Gemini 4 models cost three
+# to four times as much per run and timed out on several requests.
 VECTOR_AUTHOR_MODELS: tuple[str, ...] = (
+    "google/gemini-3.8-flash",
     "openai/gpt-6.1-sol",
     "anthropic/claude-haiku-5-5",
-    "google/gemini-3.8-flash",
 )
-VECTOR_AUTHOR_REASONING = {"default": "MEDIUM", "max": "HIGH"}
+# LOW by default: with MEDIUM the lead model spent 8-14k thinking tokens and one to two minutes on a
+# simple drawing; LOW gave drawings of the same quality in 7-24 seconds (author benchmark).
+VECTOR_AUTHOR_REASONING = {"default": "LOW", "max": "HIGH"}
 VECTOR_AUTHOR_TEMPERATURE = 0.4
 VECTOR_AUTHOR_MAX_OUTPUT_TOKENS = 32_000
 VECTOR_REVIEW_MODEL = "typesafe/jev-1.14"

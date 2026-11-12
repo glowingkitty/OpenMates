@@ -1699,7 +1699,7 @@
           "text": "Twórz krótkie wideo z opisu i obrazów z czatu, jako ujęcia AI lub dokładnie złożone wideo."
         },
         "pricing_note": {
-          "text": "Generowane klipy: 34,5 (360p), 105 (720p), 156 (1080p) lub 313,5 (4K) kredytu za sekundę. Wideo komponowane: tokeny modelu piszącego plus 5 kredytów za każdą rozpoczętą minutę renderowania. Zmiany są rozliczane tylko za to, co dodają. Nie pobieramy opłaty, jeśli nie dostarczono wideo."
+          "text": "Generowane klipy: 35 (360p), 105 (720p), 160 (1080p) lub 315 (4K) kredytu za sekundę. Wideo komponowane: tokeny modelu piszącego plus 10 kredytów za każdą rozpoczętą minutę renderowania. Zmiany są rozliczane tylko za to, co dodają. Nie pobieramy opłaty, jeśli nie dostarczono wideo. Dźwięk w wideo komponowanym: 2 kredyty za sekundę narracji, 15 kredytów za sekundę efektu dźwiękowego i 120 kredytów za utwór muzyczny; rozliczane są tylko klipy nowo utworzone dla danej wersji."
         }
       },
       "create": {
@@ -8317,6 +8317,42 @@
       "progress_generating": {
         "text": "Generuję klip…"
       },
+      "progress_audio_speech": {
+        "text": "Nagrywam lektora…"
+      },
+      "progress_audio_sound": {
+        "text": "Tworzę efekty dźwiękowe…"
+      },
+      "progress_audio_music": {
+        "text": "Komponuję muzykę…"
+      },
+      "progress_audio_unknown": {
+        "text": "Tworzę dźwięk…"
+      },
+      "progress_audio_several": {
+        "text": "Tworzę: {kinds}…"
+      },
+      "audio_noun_speech": {
+        "text": "lektora"
+      },
+      "audio_noun_sound": {
+        "text": "efekty dźwiękowe"
+      },
+      "audio_noun_music": {
+        "text": "muzykę"
+      },
+      "audio_list_and": {
+        "text": "{head} i {last}"
+      },
+      "timeline_audio_speech": {
+        "text": "Głos"
+      },
+      "timeline_audio_sound": {
+        "text": "Dźwięk"
+      },
+      "timeline_audio_music": {
+        "text": "Muzyka"
+      },
       "prompt": {
         "text": "Prompt"
       },
@@ -8412,6 +8448,18 @@
       "view_video": {
         "text": "Wideo"
       }
+    },
+    "progress_searching_sources": {
+      "text": "{done}/{total} źródeł"
+    },
+    "progress_searching": {
+      "text": "Wyszukiwanie…"
+    },
+    "progress_results": {
+      "text": "{count} wyników"
+    },
+    "progress_result_one": {
+      "text": "1 wynik"
     }
   },
   "embeds_input": {},

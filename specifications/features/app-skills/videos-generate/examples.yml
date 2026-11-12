@@ -48,6 +48,31 @@ composed:
     when: The author model receives the request.
     then: The description arrives inside a delimited source block marked as untrusted data; the author uses it only as content of the video and follows no instruction in it.
 
+sound:
+  - id: narrated-recap-with-music
+    given: Lena asks for "a 20 second recap of these three news results with a voice-over and calm background music".
+    when: The author writes the composition and declares three narration lines, one "whoosh" effect at the first scene change and one music track "calm ambient piano, instrumental" for the whole length at low volume.
+    then: >
+      The card shows "Creating voice-over, sound effects and music", then "Rendering". The five clips are generated at
+      the same time. The finished video plays the narration over each scene with the music underneath, and its
+      timeline shows the rows Voice, Sound and Music.
+  - id: pronunciation-hint
+    given: A narration line "The Kantstraße bike lane opens in May" with the hint Kantstraße = "ˈkantˌʃtʁaːsə".
+    when: The line is sent to the speech provider.
+    then: The word is replaced by its IPA transcription between slashes, the form the speech model reads as a pronunciation, and the caption on screen still shows "Kantstraße".
+  - id: narration-too-long-for-the-video
+    given: A 10 second composition with a narration line of 320 characters starting at second 2.
+    when: The declaration is checked.
+    then: No provider is called; the author is told the line needs about 21 seconds but only 8 remain, and writes a shorter line or a longer video.
+  - id: correction-keeps-the-sound
+    given: The narrated recap, whose first render fails with a build error after its sound was generated.
+    when: The author corrects the composition without changing the sound declaration.
+    then: No sound is generated again; the corrected video is delivered with the same clips, and they are charged once.
+  - id: silent-by-default
+    given: Tom asks for "a bar chart animation of these four numbers".
+    when: The author writes the composition without a sound declaration.
+    then: The video is silent, the card never shows the sound step, and nothing is charged for sound.
+
 correct:
   - id: build-error-then-corrected
     given: The news recap composition imports a component that does not exist.
@@ -88,9 +113,9 @@ result:
     when: Tom opens it.
     then: He sees the player, "Generated video · 8 s · 1280 x 720" and a timeline with one clip.
   - id: card-in-the-chat
-    given: A finished composed video written by GPT-6.1 Sol.
+    given: A finished composed video written by Gemini 3.8 Flash.
     when: The chat shows its card.
-    then: The card shows a frame of the video with a play button, the title, "Created by GPT-6.1 Sol" once and the length; no player. Pressing play opens the video and it starts playing.
+    then: The card shows a frame of the video with a play button, the title, "Created by Gemini 3.8 Flash" once and the length; no player. Pressing play opens the video and it starts playing.
 
 timeline:
   - id: click-seeks
@@ -138,10 +163,14 @@ change:
     then: The video stays at version 1, the assistant says the change could not be made, and nothing is charged.
 
 billing:
+  - id: composed-with-narration-and-music
+    given: A composed video with one author call, one render of 48 seconds, 14 seconds of generated narration and one music track.
+    when: The video is delivered.
+    then: The user is charged the author tokens, one render minute, 14 seconds of narration at the speech price and one music track at the music price.
   - id: composed-one-round
     given: A composed video with one author call and one sandbox render of 48 seconds.
     when: The video is delivered.
-    then: The user is charged the credits for that author call's reported tokens plus 5 credits.
+    then: The user is charged the credits for that author call's reported tokens plus the price of one render minute.
   - id: generative-eight-seconds
     given: An 8 second generative clip.
     when: The video is delivered.
@@ -149,4 +178,4 @@ billing:
   - id: price-shown-in-settings
     given: The Videos app page in the settings.
     when: The user opens the Generate skill.
-    then: It shows 105 credits per second and 5 credits per minute, and the note that clips cost 34.5 (360p), 105 (720p), 156 (1080p) or 313.5 (4K) credits per second, composed videos the writing model's tokens plus 5 credits per started render minute, and changes only what they add.
+    then: It shows 105 credits per second and 10 credits per minute, and the note that clips cost 35 (360p), 105 (720p), 160 (1080p) or 315 (4K) credits per second, composed videos the writing model's tokens plus 10 credits per started render minute, sound at 2 credits per second of narration, 15 per second of sound effect and 120 per music track, and changes only what they add.

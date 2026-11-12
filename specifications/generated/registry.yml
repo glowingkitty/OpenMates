@@ -295,7 +295,7 @@ specifications:
     version: 1
     status: draft
     path: features/app-skills/images-generate
-    fingerprint: 18f36b42cd81653ffd83eeaabb422c20d63efdb5886d27e8d3595e4789f61262
+    fingerprint: 8e3b43b24f7527050329f6d14b6a2f3f3ffeba68c33b022a1ffefcd971034477
     required_applies_to:
     - rest_api
     - cli
@@ -399,7 +399,7 @@ specifications:
     version: 1
     status: draft
     path: features/app-skills/videos-generate
-    fingerprint: 34dcc4cc8348e794b5e7eac4e45311bb6d3b28e3cc570b5f7bc19be46a2d9459
+    fingerprint: c764461c05c58c995031b53bb84c54913eb244b6065e8bc3262a0a048604fc25
     required_applies_to:
     - rest_api
     - cli
@@ -4839,7 +4839,7 @@ assertions:
     specification: feature.app-skill.images-generate@1
     specification_id: feature.app-skill.images-generate
     type: behavior
-    fingerprint: 60badd9dd886cea51c20c0e74ad0a9fa39045911ea41fcf3be176c3d93e29e8f
+    fingerprint: 2cb005c81e6db6e6d77c843dc13f72f8adbe83cd09499feea83c9eb8b00ca374
     required_applies_to:
     - rest_api
     - cli
@@ -4875,7 +4875,7 @@ assertions:
     specification: feature.app-skill.images-generate@1
     specification_id: feature.app-skill.images-generate
     type: behavior
-    fingerprint: 47ad3563fdd77f101229bd9d4d86043a8c6f917375be3f9055a1f2310991517d
+    fingerprint: c0f81553eb6c7d179665f7bb05ea3b21e4a317228886719a70ca18ee3a24768b
     required_applies_to:
     - rest_api
     - cli
@@ -4887,7 +4887,7 @@ assertions:
     specification: feature.app-skill.images-generate@1
     specification_id: feature.app-skill.images-generate
     type: invariant
-    fingerprint: 9e679921448e3be419ce432ec18ede11028bb8cf11a213fa25ccffd38c5589cd
+    fingerprint: 9ac81921e6f6ab0d08df4b3bd37903710fad56d7149bcc02f00e1e84dfce8110
     required_applies_to:
     - rest_api
     - cli
@@ -4959,7 +4959,7 @@ assertions:
     specification: feature.app-skill.images-generate@1
     specification_id: feature.app-skill.images-generate
     type: invariant
-    fingerprint: debf78a971e338fcb86e7c99b9ccd658d5d84db59f076df8dbdba2c1ffda0a01
+    fingerprint: f804b106f1d3d1898e27cc8ee5812b55feb269c18eace5f5f5848754e019bc6d
     required_applies_to:
     - rest_api
     - cli
@@ -5568,7 +5568,19 @@ assertions:
     specification: feature.app-skill.videos-generate@1
     specification_id: feature.app-skill.videos-generate
     type: behavior
-    fingerprint: efe1a6d9780c6bc6610c57c49f6909629e73c93715d1d4c7f2ffabe4dc335c29
+    fingerprint: 0bad18086463f232008222f93c2b9fd3bd9fabc5c28487573817549709415783
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  videos-generate.composed.sound:
+    specification: feature.app-skill.videos-generate@1
+    specification_id: feature.app-skill.videos-generate
+    type: behavior
+    fingerprint: fee9e75b308f086998abacbfcc7948abd122994af10c682c616f3ee9e602cd1e
     required_applies_to:
     - rest_api
     - cli
@@ -5580,7 +5592,7 @@ assertions:
     specification: feature.app-skill.videos-generate@1
     specification_id: feature.app-skill.videos-generate
     type: invariant
-    fingerprint: 77d07ed0e1547d5cf4d22741813f7421a8f9e5aca3d39a87fc87af9b7f0b54e6
+    fingerprint: da8de95f51f79ebc1e8229d6258ec7fd6f3cd1e889606b88e19123cf74ce2c31
     required_applies_to:
     - rest_api
     - cli
@@ -5604,7 +5616,7 @@ assertions:
     specification: feature.app-skill.videos-generate@1
     specification_id: feature.app-skill.videos-generate
     type: behavior
-    fingerprint: f7e3cd41ec9bf767dc0b90a747959d961660847a0cdcae5728a12c2d6f8fc368
+    fingerprint: f386fc2814a4d50278f8f3dee60117580c30450666b4fa37c14179efad325fda
     required_applies_to:
     - rest_api
     - cli
@@ -5616,7 +5628,7 @@ assertions:
     specification: feature.app-skill.videos-generate@1
     specification_id: feature.app-skill.videos-generate
     type: behavior
-    fingerprint: cb7ac467b60cb8d40df28dcd4d63806a2b0e439787327822705e18895a89e216
+    fingerprint: 92ffb7ca542a994d970f82f86cf0234d94b842c4e06e7802727fe32c28f8b880
     required_applies_to:
     - rest_api
     - cli
@@ -5676,7 +5688,7 @@ assertions:
     specification: feature.app-skill.videos-generate@1
     specification_id: feature.app-skill.videos-generate
     type: privacy
-    fingerprint: b82a1c0fff619c609b6edb2542b7c30af9dedee2bca6561610bf8a0fe6451d52
+    fingerprint: 68f744f2d860cd53917762ceed708a25e6cf05be023d858f46640b2881698bf4
     required_applies_to:
     - rest_api
     - cli
@@ -5688,7 +5700,7 @@ assertions:
     specification: feature.app-skill.videos-generate@1
     specification_id: feature.app-skill.videos-generate
     type: invariant
-    fingerprint: 827c7e4b07f3df27fe118e01e950aba253463da7e7099985c07a620a0c6f0c43
+    fingerprint: 27c616d2c7be9583d644b6d740c375de998db68bfd6692b8e6b46650cb0bba59
     required_applies_to:
     - rest_api
     - cli
@@ -5700,7 +5712,7 @@ assertions:
     specification: feature.app-skill.videos-generate@1
     specification_id: feature.app-skill.videos-generate
     type: parity
-    fingerprint: d907924917d1b5a36382e5687664ad1dd35c9a47faf3703507afa2d0db3f05dc
+    fingerprint: 2ca546507169097e805534a103bb539801a1ec63cbd878ec725d7f6631361e4e
     required_applies_to:
     - rest_api
     - cli

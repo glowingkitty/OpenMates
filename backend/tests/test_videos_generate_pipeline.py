@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import uuid
 from dataclasses import dataclass, field
 from types import SimpleNamespace
@@ -17,6 +18,8 @@ from typing import Any
 import pytest
 from unittest.mock import AsyncMock
 
+from backend.apps.videos.composed.audio_clips import GeneratedClip
+from backend.apps.videos.composed.audio_step import UsedClip
 from backend.apps.videos.composed.models import AuthorUsage, ComposedInput, ComposedSource, ComposedVideo, \
     ComposeFailure
 from backend.apps.videos.routing import RoutingUnavailable
@@ -56,6 +59,7 @@ class World:
     reviewed_frames: list[bytes] = field(default_factory=list)
     kept: list[dict] = field(default_factory=list)
     store_kwargs: list[dict] = field(default_factory=list)
+    video: ComposedVideo | None = None
 
 
 class _Task:
@@ -133,7 +137,7 @@ def world(monkeypatch) -> World:
             await on_stage(stage)
         if state.compose_error:
             raise state.compose_error
-        return _video()
+        return state.video or _video()
 
     async def decide(**kwargs: Any) -> Any:
         if state.route_error:
@@ -387,3 +391,79 @@ async def test_change_request_checks_the_output_guard_before_any_work(world: Wor
             images=[], image_embed_ids=[], input_embed_ids=[], mode="auto"))
     guard.assert_awaited_once()
     run_change.assert_not_awaited()
+
+
+def _audio_video() -> ComposedVideo:
+    clips = (GeneratedClip("voice-1", "speech", b"s", "audio/mpeg", 3.0, "ElevenLabs", "eleven_v4", 3.0),
+             GeneratedClip("knock", "sound", b"k", "audio/mpeg", 2.0, "ElevenLabs", "sound", 2.0),
+             GeneratedClip("bed", "music", b"m", "audio/mpeg", 4.0, "Google Vertex AI", "lyria", 1.0))
+    timeline = {**TIMELINE, "audio": [
+        {"id": "voice-1", "kind": "speech", "label": "Hello", "from": 0, "durationInFrames": 90, "text": "Hello"}]}
+    return dataclasses.replace(_video(), timeline=timeline,
+                               audio=tuple(UsedClip(f"h{index}", clip) for index, clip in enumerate(clips)),
+                               audio_generated=clips)
+
+
+# contract-test: supporting surface=rest_api assertions=videos-generate.billing.metered
+@pytest.mark.asyncio
+async def test_charge_is_author_tokens_plus_sandbox_plus_the_generated_audio(world: World) -> None:
+    world.video = _audio_video()
+    await pipeline.run_generate(_Task(), "videos", "generate", _arguments())
+    [charge] = world.charges
+    # 42 for the author and the sandbox (see the test above), 3 s speech 6, 2 s sound 30, one music track 120.
+    assert charge["credits"] == 42 + 6 + 30 + 120
+    details = charge["usage_details"]
+    assert details["audio_credits"] == {"speech": 6, "sound": 30, "music": 120, "total": 156}
+    assert details["sandbox_runs"] == 2
+    assert [step["step"] for step in details["provider_calls"]][-3:] == ["audio_speech", "audio_sound", "audio_music"]
+    child = world.published[0]
+    assert child["has_audio"] is True and child["timeline"]["audio"][0]["durationInFrames"] == 90
+    assert len(world.store_kwargs[0]["audio"]) == 3
+
+
+# contract-test: supporting surface=rest_api assertions=videos-generate.billing.metered
+@pytest.mark.asyncio
+async def test_a_video_without_sound_has_no_audio_charge_and_says_so(world: World) -> None:
+    await pipeline.run_generate(_Task(), "videos", "generate", _arguments())
+    assert world.charges[0]["credits"] == 42 and "audio_credits" not in world.charges[0]["usage_details"]
+    assert world.published[0]["has_audio"] is False
+
+
+# contract-test: supporting surface=rest_api assertions=videos-generate.billing.metered
+@pytest.mark.asyncio
+async def test_rejected_narration_is_a_safety_failure_without_charge(world: World) -> None:
+    world.compose_error = ComposeFailure("audio_rejected", "This narration is not allowed.")
+    result = await pipeline.run_generate(_Task(), "videos", "generate", _arguments())
+    assert world.charges == [] and world.stored == 0
+    assert result["status"] == "failed" and result["error_code"] == "safety_rejected"
+    assert "This narration is not allowed." in result["error"] and "charged" in result["error"]
+
+
+# contract-test: supporting surface=rest_api assertions=videos-generate.billing.metered
+@pytest.mark.asyncio
+async def test_audio_provider_failure_fails_the_request_without_charge(world: World) -> None:
+    world.compose_error = ComposeFailure("audio_failed", "speech clip 'voice-1' could not be generated")
+    result = await pipeline.run_generate(_Task(), "videos", "generate", _arguments())
+    assert world.charges == [] and result["error_code"] == "audio_failed"
+    assert "sound" in result["error"] and world.published[0]["status"] == "error"
+
+
+# contract-test: supporting surface=rest_api assertions=videos-generate.billing.metered
+@pytest.mark.asyncio
+async def test_audio_balance_check_adds_the_estimate_to_the_cost_so_far(world: World, monkeypatch) -> None:
+    seen: list[int] = []
+
+    async def headroom(**kwargs: Any) -> None:
+        seen.append(kwargs["estimated_credits"])
+
+    monkeypatch.setattr(pipeline, "ensure_credit_headroom", headroom)
+    afford = pipeline._audio_afford(_Task(), user_id="user-1", team_id=None, log_prefix="[t]")
+    await afford(172, _video().usage, _video().sandbox_seconds)
+    assert seen == [42 + 172]
+    async def refuse(**_kwargs: Any) -> None:
+        raise pipeline.BillingError("not enough credits")
+
+    monkeypatch.setattr(pipeline, "ensure_credit_headroom", refuse)
+    with pytest.raises(pipeline.VideoFailure) as failure:
+        await afford(172, _video().usage, _video().sandbox_seconds)
+    assert failure.value.code == "insufficient_credits"

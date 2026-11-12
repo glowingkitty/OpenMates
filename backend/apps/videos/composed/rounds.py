@@ -6,7 +6,10 @@ checks the static contract, bundles the module in the sandbox, validates the
 exported timeline and renders the MP4 and thumbnail. A failure caused by the
 composition raises ``RoundFailed`` with the stage and the error text for the
 author; a failure of the sandbox itself raises ``ComposeFailure``
-("sandbox_unavailable"). ``close`` always kills the sandbox.
+("sandbox_unavailable"). After a successful check the declared ``audio`` is validated into a plan (a
+bad plan is a failed round, stage "audio"); clips missing from the request's cache are generated
+(``audio_step.AudioStep``), uploaded, and only then is the video rendered. A refused or failed audio
+clip ends the request (``ComposeFailure`` "audio_rejected" / "audio_failed"). ``close`` always kills the sandbox.
 """
 
 from __future__ import annotations
@@ -16,6 +19,9 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Callable, Optional, Sequence
 
+from backend.apps.videos.composed.audio_clips import AudioGenerationError, AudioRejectedError
+from backend.apps.videos.composed.audio_plan import build_audio_plan
+from backend.apps.videos.composed.audio_step import AudioStep, UsedClip, timeline_audio
 from backend.apps.videos.composed.contract import (
     InvalidCompositionError,
     build_timeline,
@@ -37,7 +43,7 @@ SessionFactory = Callable[[], Any]
 
 
 class RoundFailed(Exception):
-    """The composition failed at ``stage`` ("static" | "check" | "timeline" | "render")."""
+    """The composition failed at ``stage`` ("static" | "check" | "timeline" | "audio" | "render")."""
 
     def __init__(self, stage: str, error: str) -> None:
         super().__init__(f"{stage}: {error[:300]}")
@@ -49,6 +55,7 @@ class RoundFailed(Exception):
 class RoundResult:
     timeline: dict[str, Any]
     render: RemotionRender
+    audio: tuple[UsedClip, ...] = ()
 
 
 def default_session_factory(secrets_manager: Any) -> SessionFactory:
@@ -58,8 +65,9 @@ def default_session_factory(secrets_manager: Any) -> SessionFactory:
 class SandboxRunner:
     """Starts one sandbox in the background; every round waits for it; ``close`` always kills it."""
 
-    def __init__(self, session_factory: SessionFactory, inputs: Sequence[ComposedInput]) -> None:
+    def __init__(self, session_factory: SessionFactory, inputs: Sequence[ComposedInput], audio: AudioStep) -> None:
         self._session = session_factory()
+        self._audio = audio
         self._assets = [RemotionAsset(name=item.name, data=item.content) for item in inputs]
         self._names = frozenset(item.name for item in inputs)
         self._entered = False
@@ -98,6 +106,22 @@ class SandboxRunner:
             except InvalidCompositionError as exc:
                 raise RoundFailed("timeline", str(exc)) from exc
             try:
+                plan = build_audio_plan(checked.audio, checked.video)
+            except InvalidCompositionError as exc:
+                raise RoundFailed("audio", str(exc)) from exc
+            used: tuple[UsedClip, ...] = ()
+            if not plan.is_empty:
+                try:
+                    prepared = await self._audio.prepare(plan)
+                except AudioRejectedError as exc:
+                    raise ComposeFailure("audio_rejected", exc.reason) from exc
+                except AudioGenerationError as exc:
+                    logger.warning("Composed-video audio failed: %s", exc)
+                    raise ComposeFailure("audio_failed", str(exc)) from exc
+                await self._session.upload_audio(prepared.assets, prepared.tracks)
+                timeline = {**timeline, "audio": timeline_audio(prepared)}
+                used = prepared.used
+            try:
                 rendered = await self._session.render(thumbnail_frame(timeline))
                 seconds += rendered.seconds
             except RemotionCompositionError as exc:
@@ -108,7 +132,7 @@ class SandboxRunner:
         finally:
             if seconds > 0:
                 self.sandbox_seconds.append(seconds)
-        return RoundResult(timeline=timeline, render=rendered)
+        return RoundResult(timeline=timeline, render=rendered, audio=used)
 
     async def close(self) -> None:
         # The start runs in a worker thread and cannot be cancelled; wait for it so the sandbox is killed.

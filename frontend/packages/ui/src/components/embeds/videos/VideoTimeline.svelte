@@ -15,8 +15,8 @@
 <script lang="ts">
   import { text } from '../../../i18n/translations';
   import {
-    EMPTY_EDITS, formatSeconds, isRemoved, trimOf,
-    type PendingEdits, type VideoPart, type VideoTimelineModel,
+    EMPTY_EDITS, VIDEO_AUDIO_ENTRY_KINDS, formatSeconds, isRemoved, trimOf,
+    type PendingEdits, type VideoAudioEntry, type VideoPart, type VideoTimelineModel,
   } from './videoTimelineModel';
 
   interface Props {
@@ -50,7 +50,11 @@
   const totalSeconds = $derived(total / timeline.fps);
   const playheadPct = $derived(Math.min(Math.max(currentTime / totalSeconds, 0), 1) * 100);
   const showExtend = $derived(!compact && (canExtendStart || canExtendEnd) && !!onExtend);
-  const showTrackNames = $derived(!compact && timeline.tracks.length > 1);
+  // Generated sound (read-only): one row per kind that has entries, below the tracks.
+  const audioRows = $derived(compact ? [] : VIDEO_AUDIO_ENTRY_KINDS
+    .map((kind) => ({ kind, entries: (timeline.audio ?? []).filter((entry) => entry.kind === kind) }))
+    .filter((row) => row.entries.length > 0));
+  const showTrackNames = $derived(!compact && (timeline.tracks.length > 1 || audioRows.length > 0));
   const marks = $derived.by(() => {
     const step = [1, 2, 5, 10, 15, 30, 60, 120, 300].find((s) => totalSeconds / s <= 8) ?? 600;
     return Array.from({ length: Math.floor(totalSeconds / step) + 1 }, (_, i) => i * step);
@@ -101,6 +105,14 @@
     event.preventDefault();
     if (selectable) onSelectPart?.(next.id);
     root?.querySelector<HTMLElement>(`[data-part-id="${CSS.escape(next.id)}"]`)?.focus();
+  }
+  function audioLabel(entry: VideoAudioEntry): string {
+    const start = formatSeconds(entry.from / timeline.fps);
+    const end = formatSeconds((entry.from + entry.durationInFrames) / timeline.fps);
+    return $text('embeds.video_generate.part_aria', { values: { label: entry.text ?? entry.label, start, end } });
+  }
+  function onAudioClick(event: MouseEvent, entry: VideoAudioEntry) {
+    if (event.detail === 0) onSeek?.(entry.from / timeline.fps);
   }
   const pct = (frames: number) => (frames / total) * 100;
 </script>
@@ -154,6 +166,25 @@
           aria-label={$text('embeds.video_generate.extend_end')} title={$text('embeds.video_generate.extend_end')}
           onclick={() => onExtend?.('end')}>+</button>
       {/if}
+    {/each}
+
+    {#each audioRows as row, rowIndex (row.kind)}
+      {@const gridRow = timeline.tracks.length + rowIndex + 2}
+      <div class="row" style="grid-row: {gridRow}">
+        <span class="track-name" title={$text(`embeds.video_generate.timeline_audio_${row.kind}`)}>{$text(`embeds.video_generate.timeline_audio_${row.kind}`)}</span>
+      </div>
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div class="bar" style="grid-row: {gridRow}" data-testid="video-timeline-audio-row" data-kind={row.kind}
+        onpointerdown={onPointerDown} onpointermove={onPointerMove} onpointerup={onPointerEnd} onpointercancel={onPointerEnd}>
+        {#each row.entries as entry (entry.id)}
+          {@const widthPct = pct(entry.durationInFrames)}
+          <button type="button" class="part track-audio audio-{entry.kind}" style="left: {pct(entry.from)}%; width: {widthPct}%"
+            data-testid="video-timeline-audio" data-kind={entry.kind} data-audio-id={entry.id}
+            aria-label={audioLabel(entry)} title={audioLabel(entry)} onclick={(event) => onAudioClick(event, entry)}>
+            {#if widthPct >= 7}<span class="part-label">{entry.label}</span>{/if}
+          </button>
+        {/each}
+      </div>
     {/each}
 
     <div class="playhead-layer" style="grid-row: 1 / -1" aria-hidden="true">
@@ -217,7 +248,9 @@
     cursor: pointer; transition: filter 0.12s;
   }
   .part.track-text { background: var(--color-grey-30); color: var(--color-font-primary); }
-  .part.track-audio { background: var(--color-grey-40); color: var(--color-font-primary); }
+  /* Solid greys: the app colour token is a gradient and cannot be mixed into a colour. */
+  .part.track-audio { background: var(--color-grey-30); color: var(--color-font-primary); }
+  .part.audio-music { background: var(--color-grey-40); }
   .part:hover { filter: brightness(1.08); }
   .part:focus-visible { outline: 2px solid var(--color-font-primary); outline-offset: -3px; z-index: 2; }
   .part.selected { outline: 2px solid var(--color-button-primary); outline-offset: -2px; z-index: 1; }

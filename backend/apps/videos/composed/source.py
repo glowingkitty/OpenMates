@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 from typing import Any, Optional, Sequence
 
+from backend.apps.videos.composed.audio_step import AudioStep
 from backend.apps.videos.composed.contract import FPS, FORMATS, MAX_FRAMES, MAX_LABEL_CHARS
 from backend.apps.videos.composed.models import ComposedInput, ComposedInputError, ComposedVideo, ComposeFailure
 from backend.apps.videos.composed.rounds import RoundFailed, SandboxRunner, SessionFactory, default_session_factory
@@ -97,7 +98,8 @@ async def render_source_directly(
     session_factory: Optional[SessionFactory] = None,
 ) -> ComposedVideo:
     """Render an existing composition once, with no author call and no correction."""
-    runner = SandboxRunner(session_factory or default_session_factory(secrets_manager), inputs)
+    runner = SandboxRunner(session_factory or default_session_factory(secrets_manager), inputs,
+                           AudioStep(secrets_manager=secrets_manager))
     try:
         result = await runner.run(source, aspect_ratio=None, duration_seconds=None)
     except RoundFailed as exc:

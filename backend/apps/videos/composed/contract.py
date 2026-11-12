@@ -3,7 +3,8 @@
 A composition is one TSX module that imports only ``remotion``, ``react`` and
 the first-party ``@remotion/*`` packages installed in the template, exports
 ``video`` (plain literals: fps 30, at most 60 s, one of the fixed sizes),
-``parts`` (plain timeline data whose ``texts`` the component renders) and a
+``parts`` (plain timeline data whose ``texts`` the component renders), optionally ``audio``
+(plain data validated by ``audio_plan.py``; the renderer, not the author, plays it) and a
 default React component, and reads pictures only through
 ``staticFile("inputs/<name>")``. The static check here is cheap and runs
 before any sandbox time; it is not the security boundary - the offline
@@ -43,6 +44,7 @@ _TEMPLATE_LITERAL = re.compile(r"`([^`]*)`")
 _URL = re.compile(r"\b(?:https?|wss?|ftp)://[^\s'\"`)]+", re.IGNORECASE)
 _ALLOWED_URL_PREFIXES = ("http://www.w3.org/",)  # SVG/XLink namespaces only
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
+ID_PATTERN = _ID  # shared with audio_plan.py
 _FORBIDDEN: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\bfetch\s*\("), "network requests (fetch) are not allowed; use only the given input files"),
     (re.compile(r"\bXMLHttpRequest\b|\bWebSocket\b|\bEventSource\b|\bsendBeacon\b"),
@@ -60,6 +62,11 @@ _FORBIDDEN: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\b(?:animation|transition)\s*:\s*['\"`][^'\"`]*\d+m?s"),
      "CSS animations and transitions are not rendered frame by frame; use interpolate() or spring()"),
 )
+
+
+_AUDIO_HINT = "declare sound in the `audio` export (voice-over, sound effects, music); the renderer plays it"
+_AUDIO_USE = re.compile(r"<\s*(?:Html5Audio|Audio|audio)\b|\bnew\s+Audio\s*\(|"
+                        r"\bimport\s*\{[^}]*\b(?:Html5Audio|Audio|useAudioData|visualizeAudio)\b[^}]*\}")
 
 
 class InvalidCompositionError(ValueError):
@@ -177,6 +184,12 @@ def _check_static_files(code: str, names: frozenset[str]) -> None:
                 raise InvalidCompositionError(f"staticFile path `{template[:60]}` must start with inputs/ ({known})")
 
 
+def _check_no_author_audio(code: str) -> None:
+    """The renderer plays sound from the ``audio`` export; a composition must not add its own Audio elements."""
+    if _AUDIO_USE.search(code):
+        raise InvalidCompositionError(f"do not use Audio, <audio> or audio imports in the composition: {_AUDIO_HINT}")
+
+
 def validate_source(code: str, *, input_names: Iterable[str], aspect_ratio: Optional[str],
                     duration_seconds: Optional[int]) -> dict[str, int]:
     """Check the module contract without running it; return the declared ``video``."""
@@ -194,6 +207,7 @@ def validate_source(code: str, *, input_names: Iterable[str], aspect_ratio: Opti
         if _package_of(specifier) not in COMPOSITION_PACKAGES:
             allowed = ", ".join(sorted(COMPOSITION_PACKAGES))
             raise InvalidCompositionError(f"import of {specifier!r} is not allowed; use only {allowed}")
+    _check_no_author_audio(uncommented)
     for pattern, message in _FORBIDDEN:
         if pattern.search(code):
             raise InvalidCompositionError(message)

@@ -1699,7 +1699,7 @@
           "text": "Skapa en kort video från din beskrivning och bilder i chatten, som AI-filmklipp eller som exakt sammansatt video."
         },
         "pricing_note": {
-          "text": "Genererade klipp: 34,5 (360p), 105 (720p), 156 (1080p) eller 313,5 (4K) krediter per sekund. Komponerade videor: de tokens som skrivmodellen använder plus 5 krediter per påbörjad renderingsminut. Ändringar debiteras bara för det de lägger till. Ingen debitering sker om ingen video levereras."
+          "text": "Genererade klipp: 35 (360p), 105 (720p), 160 (1080p) eller 315 (4K) krediter per sekund. Komponerade videor: de tokens som skrivmodellen använder plus 10 krediter per påbörjad renderingsminut. Ändringar debiteras bara för det de lägger till. Ingen debitering sker om ingen video levereras. Ljud i komponerade videor: 2 krediter per sekund berättarröst, 15 krediter per sekund ljudeffekt och 120 krediter per musikspår; bara klipp som nyskapats för en version debiteras."
         }
       },
       "create": {
@@ -8317,6 +8317,42 @@
       "progress_generating": {
         "text": "Genererar klippet…"
       },
+      "progress_audio_speech": {
+        "text": "Spelar in berättarrösten…"
+      },
+      "progress_audio_sound": {
+        "text": "Skapar ljudeffekter…"
+      },
+      "progress_audio_music": {
+        "text": "Komponerar musiken…"
+      },
+      "progress_audio_unknown": {
+        "text": "Skapar ljudet…"
+      },
+      "progress_audio_several": {
+        "text": "Skapar {kinds}…"
+      },
+      "audio_noun_speech": {
+        "text": "berättarröst"
+      },
+      "audio_noun_sound": {
+        "text": "ljudeffekter"
+      },
+      "audio_noun_music": {
+        "text": "musik"
+      },
+      "audio_list_and": {
+        "text": "{head} och {last}"
+      },
+      "timeline_audio_speech": {
+        "text": "Röst"
+      },
+      "timeline_audio_sound": {
+        "text": "Ljud"
+      },
+      "timeline_audio_music": {
+        "text": "Musik"
+      },
       "prompt": {
         "text": "Prompt"
       },
@@ -8412,6 +8448,18 @@
       "view_video": {
         "text": "Video"
       }
+    },
+    "progress_searching_sources": {
+      "text": "{done}/{total} källor"
+    },
+    "progress_searching": {
+      "text": "Söker…"
+    },
+    "progress_results": {
+      "text": "{count} resultat"
+    },
+    "progress_result_one": {
+      "text": "1 resultat"
     }
   },
   "embeds_input": {},

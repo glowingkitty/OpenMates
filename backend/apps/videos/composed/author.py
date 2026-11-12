@@ -15,6 +15,11 @@ the first composition is written and is always killed at the end.
 Every author call is recorded in ``ComposedVideo.usage`` and every sandbox
 round in ``sandbox_seconds`` so the task can bill exactly what was used. A
 request without a video raises ``ComposeFailure`` and nothing is charged.
+
+Sound: a round that declares ``audio`` generates its clips between check and render (``audio_step.py``). One
+``AudioStep`` lives for the whole request, so a correction round never generates an equal clip twice and a change
+starts from the clips of the previous version; ``ComposedVideo.audio_generated`` lists what this request generated,
+for billing.
 """
 
 from __future__ import annotations
@@ -24,6 +29,8 @@ import time
 from typing import Any, AsyncIterator, Awaitable, Callable, Optional, Sequence
 
 from backend.apps.images.vector_author import VECTOR_AUTHOR_MODELS
+from backend.apps.videos.composed.audio_clips import generate_audio
+from backend.apps.videos.composed.audio_step import AudioStep, KindsCallback
 from backend.apps.videos.composed.contract import extract_source, frame_size
 from backend.apps.videos.composed.models import (
     INPUT_KINDS,
@@ -62,6 +69,8 @@ STAGE_CORRECTING = "correcting"
 
 StageCallback = Callable[[str], Awaitable[None]]
 StreamFunction = Callable[..., AsyncIterator[Any]]
+# (audio estimate in credits, author usage so far, sandbox seconds so far) -> raises when it cannot be afforded
+AudioAfford = Callable[[int, tuple[AuthorUsage, ...], tuple[float, ...]], Awaitable[None]]
 
 
 def _validate_request(request: ComposedRequest) -> str:
@@ -129,8 +138,14 @@ async def compose_video(
     request: ComposedRequest, *, secrets_manager: Any, task_id: str, on_stage: Optional[StageCallback] = None,
     stream_fn: Optional[StreamFunction] = None, session_factory: Optional[SessionFactory] = None,
     models: Sequence[str] = COMPOSE_AUTHOR_MODELS, max_attempts: int = MAX_CORRECTION_ROUNDS + 1,
+    on_audio: Optional[KindsCallback] = None, afford_audio: Optional[AudioAfford] = None,
+    audio_generate: Callable[..., Awaitable[Any]] = generate_audio,
 ) -> ComposedVideo:
-    """Write a composition, render it in the sandbox and correct it from build or render errors."""
+    """Write a composition, render it in the sandbox and correct it from build or render errors.
+
+    ``on_audio(kinds)`` fires once before clips are generated; ``afford_audio(estimate, usage, sandbox_seconds)`` must
+    raise when the user cannot pay the audio estimate on top of the cost so far.
+    """
     instructions = _validate_request(request)
     previews = _previews(request)
     if stream_fn is None:
@@ -150,7 +165,13 @@ async def compose_video(
         if on_stage:
             await on_stage(name)
 
-    runner = SandboxRunner(session_factory or default_session_factory(secrets_manager), request.inputs)
+    async def afford(estimate: int) -> None:
+        if afford_audio:
+            await afford_audio(estimate, tuple(usage), tuple(runner.sandbox_seconds))
+
+    audio = AudioStep(secrets_manager=secrets_manager, previous=request.previous_audio, afford=afford,
+                      on_kinds=on_audio, resume=lambda: stage(STAGE_RENDERING), generate=audio_generate)
+    runner = SandboxRunner(session_factory or default_session_factory(secrets_manager), request.inputs, audio)
     try:
         calls = 0  # one budget for the whole request: first try plus corrections, across every model
         for model_id in models:
@@ -194,7 +215,8 @@ async def compose_video(
                         filename=SOURCE_FILENAME, timeline=timeline, fps=timeline["fps"], width=timeline["width"],
                         height=timeline["height"], duration_in_frames=timeline["duration_in_frames"],
                         attempts=calls, author_model=model_id, usage=tuple(usage),
-                        sandbox_seconds=tuple(runner.sandbox_seconds),
+                        sandbox_seconds=tuple(runner.sandbox_seconds), audio=result.audio,
+                        audio_generated=tuple(audio.generated.values()),
                     )
                 if calls >= max_attempts:
                     failures.append(f"{model_id}: no valid composition after {calls} attempts "

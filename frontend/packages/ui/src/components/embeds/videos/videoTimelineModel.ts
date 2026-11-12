@@ -23,6 +23,18 @@ export interface VideoPart {
   kind: VideoPartKind;
   texts: VideoPartText[];
 }
+export type VideoAudioEntryKind = 'speech' | 'sound' | 'music';
+/** One generated sound on the timeline: narration line, sound effect or music bed. */
+export interface VideoAudioEntry {
+  id: string;
+  kind: VideoAudioEntryKind;
+  label: string;
+  from: number;
+  durationInFrames: number;
+  /** The narration line of a speech entry. */
+  text?: string;
+}
+export const VIDEO_AUDIO_ENTRY_KINDS: readonly VideoAudioEntryKind[] = ['speech', 'sound', 'music'];
 export interface VideoTrack { id: string; name: string; kind: VideoTrackKind; parts: VideoPart[] }
 export interface VideoTimelineModel {
   fps: number;
@@ -31,6 +43,8 @@ export interface VideoTimelineModel {
   height: number;
   madeBy: VideoMadeBy;
   tracks: VideoTrack[];
+  /** Generated sound of a composed video; read-only. */
+  audio?: VideoAudioEntry[];
 }
 
 /** Edits are made in steps of half a second; a part never gets shorter than one step. */
@@ -68,6 +82,24 @@ function normalizePart(raw: unknown): VideoPart | undefined {
   return { id: raw.id, label: typeof raw.label === 'string' && raw.label ? raw.label : raw.id, from, durationInFrames: duration, kind, texts };
 }
 
+function normalizeAudio(raw: unknown): VideoAudioEntry[] {
+  if (!Array.isArray(raw)) return [];
+  const entries: VideoAudioEntry[] = [];
+  for (const item of raw) {
+    if (!isRecord(item) || typeof item.id !== 'string') continue;
+    const kind = VIDEO_AUDIO_ENTRY_KINDS.find((k) => k === item.kind);
+    const from = nonNegativeInt(item.from);
+    const duration = positiveInt(item.durationInFrames ?? item.duration_in_frames);
+    if (!kind || from === undefined || duration === undefined) continue;
+    entries.push({
+      id: item.id, kind, from, durationInFrames: duration,
+      label: typeof item.label === 'string' && item.label ? item.label : item.id,
+      text: typeof item.text === 'string' && item.text ? item.text : undefined,
+    });
+  }
+  return entries.sort((a, b) => a.from - b.from);
+}
+
 /** The stored timeline of decoded embed content, or undefined when there is none (older videos). */
 export function normalizeTimeline(content: Record<string, unknown>): VideoTimelineModel | undefined {
   const raw = content.timeline;
@@ -82,7 +114,8 @@ export function normalizeTimeline(content: Record<string, unknown>): VideoTimeli
     if (parts.length > 0) tracks.push({ id: track.id, name: typeof track.name === 'string' ? track.name : track.id, kind, parts });
   }
   if (tracks.length === 0) return undefined;
-  const end = Math.max(...tracks.flatMap((t) => t.parts.map((p) => p.from + p.durationInFrames)));
+  const audio = normalizeAudio(raw.audio);
+  const end = Math.max(...tracks.flatMap((t) => t.parts.map((p) => p.from + p.durationInFrames)), ...audio.map((a) => a.from + a.durationInFrames));
   return {
     fps,
     durationInFrames: Math.max(positiveInt(raw.duration_in_frames) ?? 0, end),
@@ -90,6 +123,7 @@ export function normalizeTimeline(content: Record<string, unknown>): VideoTimeli
     height: positiveInt(raw.height) ?? positiveInt(content.height) ?? 0,
     madeBy: madeByOf(content),
     tracks,
+    audio: audio.length > 0 ? audio : undefined,
   };
 }
 
