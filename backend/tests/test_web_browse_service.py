@@ -1821,3 +1821,25 @@ async def test_browsers_under_the_users_control_are_never_paused_to_make_room(se
         await run(service, chat_id="fourth chat", message_id="fourth chat")
     assert exc.value.status_code == 409
     assert [service.store.records[i]["status"] for i in ids] == ["user", "user", "user"]
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.truthful-completion
+@pytest.mark.asyncio
+async def test_an_answer_that_breaks_its_schema_records_only_the_schema_keyword(
+    service,
+):
+    service.driver.observation["text"] = "Kit A costs 20,00 €"
+
+    class WrongType(Models):
+        verified = False
+        # Every value is on the page, but the price is text where the schema
+        # asks for a number.
+        extracted = {"data": {"products": [{"name": "Kit A", "price": "20,00 €"}]}}
+
+    service.models_factory = WrongType
+    result = await run(service, arguments(output_schema=SHOP_SCHEMA))
+    assert result.status == "needs_user" and result.data is None
+    counts = result.metrics["verification"]
+    assert counts["answer_unmatched_values"] == 0.0
+    assert counts["answer_pruned_valid"] == 0.0
+    assert counts["answer_schema_error"] == "type"

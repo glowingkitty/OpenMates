@@ -36,6 +36,7 @@ from typing import Any, TYPE_CHECKING
 import uuid
 
 from jsonschema import Draft202012Validator
+from jsonschema.exceptions import best_match
 
 from backend.core.api.app.services.web_browse_evidence import (
     accept_notes,
@@ -62,6 +63,25 @@ RUNTIME_PROTOCOL = "preboot-v2"
 STEP_HISTORY = 80
 # Fixed rejection reasons of the browser runtime (`STEP_DENIED` and the robots
 # refusal); any other detail text is dropped before the planner sees it.
+SCHEMA_ERROR_KEYWORDS = frozenset(
+    {
+        "type",
+        "required",
+        "minItems",
+        "maxItems",
+        "minLength",
+        "maxLength",
+        "enum",
+        "const",
+        "pattern",
+        "format",
+        "additionalProperties",
+        "minimum",
+        "maximum",
+        "anyOf",
+        "oneOf",
+    }
+)
 REJECTION_DETAILS = frozenset(
     {"Target is stale, hidden or covered", "Crawler access denied"}
 )
@@ -558,6 +578,13 @@ class BrowseRun:
                     data is not None and validator.is_valid(check.pruned)
                 ),
             )
+            if data is not None and not validator.is_valid(check.pruned):
+                # Only a fixed JSON Schema keyword, never schema or answer text.
+                error = best_match(validator.iter_errors(check.pruned))
+                keyword = error.validator if error is not None else None
+                verification["answer_schema_error"] = (
+                    keyword if keyword in SCHEMA_ERROR_KEYWORDS else "other"
+                )
         if verified:
             if getattr(self.models, "no_results", False):
                 self.finish("no_results", "The page reported no matching results.")
