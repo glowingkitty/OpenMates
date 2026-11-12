@@ -72,6 +72,8 @@ storage of the core's credential snapshots.
 - Migration order and per-capability status: `docs/plans/client-core-one-core-three-shells/plan.yml`
   (bridge, crypto+keys, sync+cache, send/stream/recovery, drafts/search/settings/projects).
   Each step deletes the Swift it replaces and the web-parity tests of that subject.
+- Compile check first: `ci_coordinator.py submit --mode apple-build --spec all` (all Swift
+  errors of the app and test targets in one run; `apple-unit`/`apple-ui` need it green).
 - XCTest/XCUITest run on GitHub `macos-26` (`ci_coordinator.py --mode apple-unit`,
   `--mode apple-core`). The Mac is for TestFlight, device/APNs and real-account tests.
 - Rules: `.claude/rules/client-core.md`; contract: `specifications/architecture/client-core/`.

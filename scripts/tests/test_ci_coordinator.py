@@ -1063,3 +1063,30 @@ def test_web_rust_core_supersede_keeps_flag_variants_separate(tmp_path):
     assert q.supersede_pending(newer) == 1
     states = {r["id"]: r["state"] for r in q.status()}
     assert states[rust["id"]] == "cancelled" and states[plain["id"]] == "queued"
+
+
+def test_apple_test_lanes_need_a_passed_compile_check_for_the_source(tmp_path):
+    import pytest
+
+    queue = Queue(tmp_path / "queue.db")
+    source, other = "a" * 40, "b" * 40
+    for mode, specs in (
+        ("apple-unit", ["OpenMatesTests/A"]),
+        ("apple-ui", ["OpenMatesUITests/A"]),
+    ):
+        with pytest.raises(ValueError, match="apple-build"):
+            queue.enqueue("owner", source, specs, mode=mode)
+    build = queue.enqueue("owner", source, ["all"], mode="apple-build")
+    # A queued or failed compile check does not admit the test lanes.
+    with pytest.raises(ValueError, match="apple-build"):
+        queue.enqueue("owner", source, ["OpenMatesTests/A"], mode="apple-unit")
+    db = queue.connect()
+    db.execute("UPDATE jobs SET state='success' WHERE id=?", (build["id"],))
+    db.commit()
+    db.close()
+    assert queue.enqueue("owner", source, ["OpenMatesTests/A"], mode="apple-unit")["id"]
+    assert queue.enqueue("owner", source, ["OpenMatesUITests/A"], mode="apple-ui")["id"]
+    with pytest.raises(ValueError, match="apple-build"):
+        queue.enqueue("owner", other, ["OpenMatesTests/A"], mode="apple-unit")
+    # The core lane is not gated: it does not compile the Swift app.
+    assert queue.enqueue("owner", other, ["all"], mode="apple-core")["id"]

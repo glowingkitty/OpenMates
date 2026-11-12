@@ -74,3 +74,32 @@ def test_apple_core_plan_builds_core_and_the_watch_as_its_own_late_step():
 def test_the_core_lane_never_builds_test_fixtures():
     joined = " ".join(" ".join(cmd) for _, cmd, *_ in ci_apple.core_plan(Path("/src"), Path("/out")))
     assert "test-support" not in joined and "OPENMATES_CORE_TEST_SUPPORT" not in joined
+
+
+def test_apple_build_plan_compiles_all_targets_and_keeps_going():
+    assert ci_apple.validate_specs("apple-build", ["all"]) == ["all"]
+    with pytest.raises(ValueError):
+        ci_apple.validate_specs("apple-build", ["OpenMatesTests/A"])
+    name, command, *_ = ci_apple.xcode_plan("apple-build", Path("/out"), ["all"])[-1]
+    assert name == "xcodebuild build-for-testing"
+    assert command[:2] == ["xcodebuild", "build-for-testing"]
+    assert "-IDEBuildingContinueBuildingAfterErrors=YES" in command
+    assert "-only-testing" not in command and "-test-timeouts-enabled" not in command
+    assert "/out/OpenMatesBuild.xcresult" in command
+    # Same build inputs as the test lanes, so a green build means the test lanes compile.
+    assert "OPENMATES_CORE_TEST_SUPPORT=YES" in command
+    assert "OTHER_SWIFT_FLAGS=$(inherited) -DOPENMATES_CORE_TEST_SUPPORT" in command
+
+
+def test_swift_errors_are_unique_relative_and_complete():
+    log = [
+        "/w/subject/apple/A.swift:3:5: error: cannot find 'x' in scope",
+        "    let y = x",
+        "/w/subject/apple/A.swift:3:5: error: cannot find 'x' in scope",
+        "/w/subject/apple/B.swift:10:1: warning: unused",
+        "/w/subject/apple/Tests/C.swift:7:9: error: missing argument",
+    ]
+    assert ci_apple.swift_errors(log, Path("/w/subject")) == [
+        "apple/A.swift:3:5: error: cannot find 'x' in scope",
+        "apple/Tests/C.swift:7:9: error: missing argument",
+    ]

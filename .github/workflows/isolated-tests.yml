@@ -36,7 +36,7 @@ on:
         default: ''
       mode:
         type: choice
-        options: [prepare, backend-probe, component, e2e, artifact, codex, pytest, vitest, selfhost, visual-smoke, sdk-conformance, sdk-lockfiles, rust-wasm, rust-native-dev, rust-check, apple-core, apple-unit, apple-ui]
+        options: [prepare, backend-probe, component, e2e, artifact, codex, pytest, vitest, selfhost, visual-smoke, sdk-conformance, sdk-lockfiles, rust-wasm, rust-native-dev, rust-check, apple-core, apple-build, apple-unit, apple-ui]
         default: e2e
       preparation_key:
         description: Exact immutable preparation identity supplied by the coordinator
@@ -1159,7 +1159,7 @@ jobs:
     # Apple lanes run on GitHub-hosted arm64 macOS with the Xcode the release Mac uses (26.6);
     # the older 26.2 rejects code that Xcode compiles there (stricter `sending` checks).
     # They use no secrets, accounts or runtime seeds; macOS minutes are free for this public repo.
-    # apple-unit and apple-ui share the Xcode steps (every `inputs.mode != 'apple-core'` step).
+    # apple-build, apple-unit and apple-ui share the Xcode steps (every `inputs.mode != 'apple-core'` step).
     if: github.event_name == 'workflow_dispatch' && startsWith(inputs.mode, 'apple-')
     runs-on: macos-26
     timeout-minutes: ${{ inputs.mode != 'apple-core' && 120 || 100 }}
@@ -1345,6 +1345,8 @@ jobs:
           path: |
             subject/test-results/ci-results.json
             subject/test-results/apple-core/rows/
+            subject/test-results/apple-build/rows/
+            subject/test-results/apple-build/swift-errors.txt
             subject/test-results/apple-unit/rows/
             subject/test-results/apple-ui/rows/
             subject/test-results/apple-unit/OpenMatesTests.xcresult

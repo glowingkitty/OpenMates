@@ -1,4 +1,4 @@
-"""Apple lanes for the isolated GitHub runner (`ci_coordinator.py submit --mode apple-core|apple-unit|apple-ui`).
+"""Apple lanes for the isolated GitHub runner (`ci_coordinator.py submit --mode apple-core|apple-build|apple-unit|apple-ui`).
 
 All modes run on a GitHub-hosted `macos-26` arm64 runner with Xcode 26.6 (the
 version the release Mac builds with), never on the shared dev host.
@@ -8,6 +8,11 @@ version the release Mac builds with), never on the shared dev host.
                UniFFI bindings in apple/OpenMatesCore are fresh, build the
                OpenMatesCoreFFI xcframework (iOS, simulator, macOS) and then, as its own
                step, the Watch slices; print the sizes.
+  apple-build  target `all`: compile only. `xcodebuild build-for-testing` of the OpenMates_iOS
+               scheme (app, unit-test and UI-test targets) that keeps building after an error,
+               so one run lists the Swift errors of every file it could reach. A target that
+               imports a module which failed to compile is not reached. The coordinator
+               admits apple-unit and apple-ui for a source only after this passed for it.
   apple-unit   targets `all` or `OpenMatesTests[/<Class>[/<test>]]`: generate the design tokens and locales the project
                references, fetch the pinned Whistle link inputs, then `xcodebuild test` the
                OpenMates_iOS scheme limited to the OpenMatesTests unit target
@@ -36,8 +41,15 @@ UNIT_SPEC = re.compile(r"OpenMatesTests(?:/[A-Za-z_][A-Za-z0-9_]*){0,2}")
 UI_SPEC = re.compile(r"OpenMatesUITests(?:/[A-Za-z_][A-Za-z0-9_]*){1,2}")
 MAX_UI_SPECS = 40
 TEST_ALLOWANCE_SECONDS = 300  # per test; the longest real UI flow waits about 90 s
-XCODE_MODES = ("apple-unit", "apple-ui")
-RESULT_BUNDLES = {"apple-unit": "OpenMatesTests.xcresult", "apple-ui": "OpenMatesUITests.xcresult"}
+XCODE_MODES = ("apple-build", "apple-unit", "apple-ui")
+RESULT_BUNDLES = {
+    "apple-build": "OpenMatesBuild.xcresult",
+    "apple-unit": "OpenMatesTests.xcresult",
+    "apple-ui": "OpenMatesUITests.xcresult",
+}
+# Compiler diagnostics of the build lane: `<path>.swift:<line>:<column>: error: <text>`.
+SWIFT_ERROR = re.compile(r"^(?P<path>/\S[^:]*\.swift):(?P<line>\d+):(?P<column>\d+): error: (?P<text>.+)$")
+MAX_SWIFT_ERRORS = 400
 # Core test fixtures: the Rust feature (Xcode phase) and the Swift compilation condition.
 TEST_SUPPORT_SETTING = "OPENMATES_CORE_TEST_SUPPORT=YES"
 TEST_SUPPORT_SWIFT_FLAGS = "OTHER_SWIFT_FLAGS=$(inherited) -DOPENMATES_CORE_TEST_SUPPORT"
@@ -51,6 +63,10 @@ def validate_specs(mode: str, specs: list[str]) -> list[str]:
     if mode == "apple-core":
         if specs != [ALL]:
             raise ValueError("apple-core takes exactly one target: 'all'")
+        return [ALL]
+    if mode == "apple-build":
+        if specs != [ALL]:
+            raise ValueError("apple-build takes exactly one target: 'all'")
         return [ALL]
     if mode == "apple-unit":
         if not specs or not all(
@@ -132,10 +148,11 @@ def core_plan(root: Path, results: Path) -> list[Step]:
 
 
 def xcode_plan(mode: str, results: Path, specs: list[str]) -> list[Step]:
-    """Ordered steps for apple-unit and apple-ui: generated inputs, then the selected tests."""
-    only = [UNIT_TARGET] if specs == [ALL] else specs
+    """Ordered steps for the Xcode lanes: generated inputs, then the build or the selected tests."""
+    build_only = mode == "apple-build"
+    only = [] if build_only else [UNIT_TARGET] if specs == [ALL] else specs
     command = [
-        "xcodebuild", "test",
+        "xcodebuild", "build-for-testing" if build_only else "test",
         "-project", "apple/OpenMates.xcodeproj",
         "-scheme", "OpenMates_iOS",
         "-destination", f"platform=iOS Simulator,name={SIMULATOR}",
@@ -146,11 +163,16 @@ def xcode_plan(mode: str, results: Path, specs: list[str]) -> list[Step]:
     ]
     # A test that never returns (for example audio playback without an output device on the
     # runner) is failed after its allowance instead of stalling the lane until the job timeout.
-    command += [
-        "-test-timeouts-enabled", "YES",
-        "-default-test-execution-time-allowance", str(TEST_ALLOWANCE_SECONDS),
-        "-maximum-test-execution-time-allowance", str(TEST_ALLOWANCE_SECONDS),
-    ]
+    if build_only:
+        # Xcode's "Continue building after errors": every reachable file is compiled, so
+        # one run reports all Swift errors instead of the first failing batch.
+        command += ["-IDEBuildingContinueBuildingAfterErrors=YES"]
+    else:
+        command += [
+            "-test-timeouts-enabled", "YES",
+            "-default-test-execution-time-allowance", str(TEST_ALLOWANCE_SECONDS),
+            "-maximum-test-execution-time-allowance", str(TEST_ALLOWANCE_SECONDS),
+        ]
     if mode == "apple-ui":
         # One simulator, one test at a time: UI tests share the app's on-device state.
         command += ["-parallel-testing-enabled", "NO"]
@@ -181,8 +203,23 @@ def xcode_plan(mode: str, results: Path, specs: list[str]) -> list[Step]:
             {},
             "",
         ),
-        (f"xcodebuild test {' '.join(only)}"[:160], command, {}, ""),
+        (
+            "xcodebuild build-for-testing" if build_only else f"xcodebuild test {' '.join(only)}"[:160],
+            command, {}, "",
+        ),
     ]
+
+
+def swift_errors(lines: list[str], root: Path) -> list[str]:
+    """Unique Swift compiler errors of a build log, repository-relative, in first-seen order."""
+    prefix = f"{root}/"
+    seen: dict[str, None] = {}
+    for line in lines:
+        match = SWIFT_ERROR.match(line.strip())
+        if match:
+            path = match["path"].removeprefix(prefix)
+            seen.setdefault(f"{path}:{match['line']}:{match['column']}: error: {match['text']}"[:300])
+    return list(seen)[:MAX_SWIFT_ERRORS]
 
 
 def run(root: Path, results: list[dict], mode: str, specs: list[str]) -> None:
@@ -215,12 +252,20 @@ def run(root: Path, results: list[dict], mode: str, specs: list[str]) -> None:
                 else:
                     os.environ[key] = value
         row = checks.load_rows()[-1]
+        failures = [line[:300] for line in row["excerpt"][:40]]
+        if mode == "apple-build" and code != 0 and command[0] == "xcodebuild":
+            log = out / "rows" / f"{checks.slug(name)}.log"
+            found = swift_errors(log.read_text(errors="replace").splitlines(), root) if log.is_file() else []
+            if found:
+                (out / "swift-errors.txt").write_text("\n".join(found) + "\n")
+                print(f"::group::Swift errors ({len(found)})\n" + "\n".join(found) + "\n::endgroup::", flush=True)
+                failures = found
         results.append(
             {
                 "suite": f"{mode}:{name}", "target": specs[0],
                 "command": " ".join(command), "exit_code": code,
                 "seconds": row["seconds"], "diagnostics": row["diagnostics"],
-                "failures": [line[:300] for line in row["excerpt"][:40]],
+                "failures": failures,
             }
         )
         if mode in XCODE_MODES and code != 0:

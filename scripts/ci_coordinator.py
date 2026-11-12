@@ -31,7 +31,9 @@ OCCUPANCY_CACHE_SECONDS = 120
 MAX_OCCUPANCY_REQUESTS = 80
 ACTIVE_RUN_LOOKBACK_DAYS = 70
 LIGHTWEIGHT_MODES = frozenset({"component", "pytest", "vitest", "codex", "rust-check"})
-APPLE_MODES = frozenset({"apple-core", "apple-unit", "apple-ui"})  # macos-26 runners, never lightweight
+# Test lanes admitted only after `apple-build` passed for the same source.
+APPLE_BUILD_GATED_MODES = frozenset({"apple-unit", "apple-ui"})
+APPLE_MODES = frozenset({"apple-core", "apple-build", "apple-unit", "apple-ui"})  # macos-26 runners, never lightweight
 RATE_RESERVE = 100
 ERROR_BACKOFF = 60
 UNCERTAIN_SECONDS = 600
@@ -530,6 +532,22 @@ class Queue:
         db.row_factory = sqlite3.Row
         return db
 
+    def _require_apple_build(self, source: str) -> None:
+        """Refuse Apple test lanes for a source whose compile-only lane has not passed."""
+        db = self.connect()
+        try:
+            passed = db.execute(
+                "SELECT 1 FROM jobs WHERE mode='apple-build' AND source=? AND state='success' LIMIT 1",
+                (source,),
+            ).fetchone()
+        finally:
+            db.close()
+        if not passed:
+            raise ValueError(
+                "apple-unit and apple-ui need a passed compile check for this source: "
+                "submit --mode apple-build --spec all, wait for it, then submit the tests"
+            )
+
     def enqueue(
         self,
         owner: str,
@@ -566,6 +584,7 @@ class Queue:
             "rust-native-dev",
             "rust-check",
             "apple-core",
+            "apple-build",
             "apple-unit",
             "apple-ui",
         ):
@@ -654,6 +673,8 @@ class Queue:
             specs = _validate_apple(
                 mode, specs, preparation, runtime_seed_job, capacity_configuration, case_title
             )
+        if mode in APPLE_BUILD_GATED_MODES:
+            self._require_apple_build(source)
         if mode == "pytest":
             try:
                 from scripts.ci_pytest_targets import validate_pytest_targets
@@ -711,6 +732,7 @@ class Queue:
                 "rust-native-dev",
                 "rust-check",
                 "apple-core",
+                "apple-build",
                 "apple-unit",
                 "apple-ui",
                 "selfhost",
@@ -1767,6 +1789,7 @@ def main():
             "rust-native-dev",
             "rust-check",
             "apple-core",
+            "apple-build",
             "apple-unit",
             "apple-ui",
         ],
@@ -1930,6 +1953,7 @@ def main():
                 "rust-native-dev",
                 "rust-check",
                 "apple-core",
+                "apple-build",
                 "apple-unit",
                 "apple-ui",
             },

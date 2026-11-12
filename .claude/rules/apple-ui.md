@@ -35,6 +35,11 @@ xcrun simctl install booted <path-to-.app>
 xcrun simctl launch booted org.openmates.app
 ```
 
+Compile first: `ci_coordinator.py submit --mode apple-build --spec all` builds the app
+and both test targets without stopping at the first error and lists every Swift error
+(`failures` in the result, `swift-errors.txt`). `apple-unit` and `apple-ui` are refused for
+a source until it passed. Fix all listed errors in one round; no static compile-review lanes.
+
 XCTest/XCUITest run first on GitHub `macos-26` (`ci_coordinator.py submit --mode
 apple-unit|apple-core`, XCUITest: `--mode apple-ui --spec
 OpenMatesUITests/<Class>[/<test>]`); the Mac is for TestFlight, device/APNs and real-account
