@@ -1422,3 +1422,108 @@ async def test_run_command_from_sub_chat_resolves_to_parent_workspace() -> None:
         "root-1": _chat("user-1"), "sub-1": _chat("user-1", "root-1"),
     }))
     assert await resolve_root_chat_id(directus, "user-1", "sub-1") == "root-1"
+
+
+async def _git_service(capabilities: list[str]) -> tuple[ProjectRemoteAccessService, "MemoryCache"]:
+    cache = MemoryCache()
+    service = ProjectRemoteAccessService(cache)
+    await service.register_session(
+        user_id="user-1", device_fingerprint_hash="connection-cli",
+        stable_device_fingerprint_hash="stable-cli", source_session_id="session-1",
+        bindings=[{**binding(), "capabilities": capabilities}],
+        confirmed_takeover=False, now=2_000,
+    )
+    return service, cache
+
+
+def _git_common(operation: str) -> dict:
+    return dict(
+        user_id="user-1", project_id="project-1", source_id="source-1",
+        requesting_client_id="chat-client", operation=operation, key_epoch=1,
+        encrypted_envelope="opaque", now=2_001,
+    )
+
+
+@pytest.mark.anyio
+async def test_registration_accepts_run_command_capability() -> None:
+    service, _ = await _git_service(["read", "run_command"])
+    active = await service.get_active_binding("user-1", "project-1", "source-1", now=2_001)
+    assert "run_command" in active["capabilities"]
+
+
+@pytest.mark.anyio
+async def test_git_status_is_read_class_without_authorization_context() -> None:
+    service, cache = await _git_service(["read"])
+    await service.create_request(
+        request_id="gs-1", workspace_chat_id="root-1", **_git_common("git_status"),
+    )
+    payload = cache.published[-1][1]["payload"]
+    assert payload["operation"] == "git_status"
+    assert payload["workspace_chat_id"] == "root-1"
+    assert "operation_id" not in payload
+    denied, _ = await _git_service(["write_request", "run_command"])
+    with pytest.raises(ProjectRemoteAccessError, match="source_capability_denied"):
+        await denied.create_request(request_id="gs-2", **_git_common("git_status"))
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("operation", ["git_commit", "git_land"])
+async def test_git_write_operations_need_write_context_and_write_capability(operation: str) -> None:
+    service, cache = await _git_service(["read", "write_request"])
+    with pytest.raises(ProjectRemoteAccessError, match="write_context_required"):
+        await service.create_request(request_id="g-0", **_git_common(operation))
+    await service.create_request(
+        request_id="g-1", chat_id="sub-1", operation_id="op-git-1",
+        proposal_digest=DIGEST_RUN, workspace_chat_id="root-1", **_git_common(operation),
+    )
+    payload = cache.published[-1][1]["payload"]
+    assert payload["operation"] == operation
+    assert (payload["chat_id"], payload["operation_id"], payload["proposal_digest"]) == (
+        "sub-1", "op-git-1", DIGEST_RUN,
+    )
+    assert payload["workspace_chat_id"] == "root-1"
+    delivery = await service.require_remote_write_request(
+        host_user_id="user-1", project_id="project-1", source_id="source-1",
+        source_session_id="session-1", request_id="g-1",
+        stable_device_fingerprint_hash="stable-cli", now=2_002,
+    )
+    assert delivery["operation"] == operation
+    read_only, _ = await _git_service(["read", "run_command"])
+    with pytest.raises(ProjectRemoteAccessError, match="source_capability_denied"):
+        await read_only.create_request(
+            request_id="g-2", chat_id="c", operation_id="o", proposal_digest=DIGEST_RUN,
+            **_git_common(operation),
+        )
+
+
+def test_git_operations_are_single_use_and_modelled() -> None:
+    from backend.core.api.app.services.project_remote_access_service import (
+        SINGLE_USE_OPERATIONS,
+        WRITE_OPERATIONS,
+    )
+
+    assert {"git_commit", "git_land", "run_command"} <= SINGLE_USE_OPERATIONS
+    assert "git_status" not in WRITE_OPERATIONS
+    ProjectRemoteAccessRequestCreate(
+        request_id="r", requesting_client_id="c", operation="git_status",
+        key_epoch=1, encrypted_envelope="opaque",
+    )
+    with pytest.raises(ValidationError):
+        ProjectRemoteAccessRequestCreate(
+            request_id="r", requesting_client_id="c", operation="git_commit",
+            key_epoch=1, encrypted_envelope="opaque",
+        )
+
+
+@pytest.mark.anyio
+async def test_git_commit_approval_is_consumed_once() -> None:
+    from backend.core.api.app.services.project_write_authorization_service import (
+        ProjectWriteAuthorizationError,
+    )
+
+    authorizer = _command_authorizer(_ConsumableCache(), "always_ask")
+    await _approve_command(authorizer)
+    assert (await _authorize(authorizer, DIGEST_RUN, consume=True))["approval"] == "consumed"
+    with pytest.raises(ProjectWriteAuthorizationError) as reused:
+        await _authorize(authorizer, DIGEST_RUN, consume=True)
+    assert reused.value.code == "PROJECT_OPERATION_ALREADY_USED"

@@ -2,7 +2,7 @@
 use super::*;
 use crate::work::tasks::tests::client;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-const PROJECT: &str = "bbaaccdd-1111-4111-8111-aabbccddeeff";
+pub(in crate::work::projects) const PROJECT: &str = "bbaaccdd-1111-4111-8111-aabbccddeeff";
 
 fn raw() -> Value {
     encode_create(
@@ -43,7 +43,9 @@ async fn read_request(socket: &mut tokio::net::TcpStream) -> String {
 /// A loopback relay plus simulated source host: it opens the requester's
 /// Project-key envelope, completes the authenticated handshake as the source
 /// and seals `reply` for the exact request.
-async fn host(reply: Value) -> (String, tokio::task::JoinHandle<Vec<String>>) {
+pub(in crate::work::projects) async fn host(
+    reply: Value,
+) -> (String, tokio::task::JoinHandle<Vec<String>>) {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let api = format!("http://{}", listener.local_addr().unwrap());
     let handle = tokio::spawn(async move {
@@ -60,10 +62,12 @@ async fn host(reply: Value) -> (String, tokio::task::JoinHandle<Vec<String>>) {
             {
                 (
                     200,
-                    json!({"sources":[{"source_id":"src","status":"connected","source_session_id":"sess","key_epoch":1,"capabilities":["read"]}]}),
+                    json!({"sources":[{"source_id":"src","status":"connected","source_session_id":"sess","key_epoch":1,"capabilities":["read","run_command"]}]}),
                 )
             } else if line.starts_with(&format!("GET /v1/projects/{PROJECT} ")) {
                 (200, json!({"project":raw()}))
+            } else if line.starts_with(&format!("POST /v1/projects/{PROJECT}/write-approvals ")) {
+                (200, json!({"stored":true}))
             } else if line.starts_with("POST /v1/auth/session ") {
                 (
                     200,

@@ -17,6 +17,7 @@ from contextvars import ContextVar
 from datetime import datetime, timezone
 
 from toon_format import encode, decode
+from backend.apps.code.application_identity import derive_application_identity
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.cache_reminder_mixin import EMBED_CACHE_EXTENDED_TTL
 from backend.core.api.app.services.directus import DirectusService
@@ -2442,9 +2443,19 @@ class EmbedService(SlidesEmbedMixin):
             role = "dependency_manifest" if planned_file.path in APPLICATION_ARTIFACT_DEPENDENCY_MANIFESTS else "source"
             child_refs.append({"path": planned_file.path, "embed_id": child_embed_id, "role": role})
 
+        manifest_file = next(
+            (file for file in plan.files if file.path.rsplit("/", 1)[-1] == "package.json"),
+            None,
+        )
+        derived_name, derived_framework = derive_application_identity(
+            given_name=name,
+            given_framework=framework,
+            package_json_content=manifest_file.content if manifest_file else None,
+            paths=paths,
+        )
         return await self.create_application_embed(
-            name=name or "Generated application",
-            framework=framework or "web",
+            name=derived_name,
+            framework=derived_framework,
             runtime=runtime or "node",
             file_refs=child_refs,
             entrypoints=plan.start_commands,

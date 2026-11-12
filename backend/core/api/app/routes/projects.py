@@ -26,6 +26,7 @@ from backend.core.api.app.services.project_remote_access_service import (
     ProjectRemoteAccessError,
     ProjectRemoteAccessService,
     resolve_root_chat_id,
+    SINGLE_USE_OPERATIONS,
     WRITE_OPERATIONS,
     USER_FILE_OPERATIONS,
 )
@@ -402,7 +403,7 @@ class ProjectRemoteAccessRequestCreate(BaseModel):
 
     request_id: str = Field(min_length=1, max_length=128)
     requesting_client_id: str = Field(min_length=1, max_length=128)
-    operation: Literal["list", "search", "read_text", "read_image_chunk", "read_file_chunk", "create_file", "update_file", "run_command", "copy_entries", "move_entries"]
+    operation: Literal["list", "search", "read_text", "read_image_chunk", "read_file_chunk", "create_file", "update_file", "run_command", "git_status", "git_commit", "git_land", "copy_entries", "move_entries"]
     key_epoch: int = Field(ge=1)
     encrypted_envelope: str = Field(min_length=1, max_length=350_000)
     chat_id: str | None = Field(default=None, min_length=1, max_length=128)
@@ -1096,7 +1097,7 @@ async def create_project_remote_access_request(
                 requester_user_id=current_user.id, chat_id=body.chat_id,
                 project_id=project_id, operation_id=body.operation_id,
                 proposal_digest=body.proposal_digest, team_id=team_id,
-                single_use=body.operation == "run_command",
+                single_use=body.operation in SINGLE_USE_OPERATIONS,
             )
         except ProjectWriteAuthorizationError as exc:
             raise HTTPException(status_code=exc.status_code, detail=exc.code) from exc
@@ -1174,7 +1175,7 @@ async def authorize_project_remote_write(
             requester_user_id=delivery["requester_user_id"], chat_id=delivery["chat_id"],
             project_id=project_id, operation_id=delivery["operation_id"],
             proposal_digest=delivery["proposal_digest"], team_id=team_id,
-            consume_approval=True, single_use=delivery["operation"] == "run_command",
+            consume_approval=True, single_use=delivery["operation"] in SINGLE_USE_OPERATIONS,
         )
     except (ProjectRemoteAccessError, ProjectWriteAuthorizationError) as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.code) from exc

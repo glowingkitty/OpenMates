@@ -96,6 +96,11 @@ pub use remote_files::{
     ProjectFileOperation, ProjectRequesterError, remote_error_message, safe_relative_path,
     select_source,
 };
+mod remote_ops;
+pub use remote_ops::{
+    GitChangedFile, GitCommitResult, GitLandOutcome, GitStatusResult, RemoteCommand,
+    RemoteCommandResult, RemoteOpCode, RemoteOpError,
+};
 mod items;
 mod selector;
 pub(crate) use selector::is_canonical_uuid;

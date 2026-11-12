@@ -36,9 +36,12 @@ STATE_LOCK_WAIT_SECONDS = 5
 RUN_COMMAND_OPERATION = "run_command"
 # Write-class: needs chat/operation/digest context and the exact-approval path.
 # The digest is the client-computed Project-key HMAC; the server never sees argv.
-WRITE_OPERATIONS = {"create_file", "update_file", RUN_COMMAND_OPERATION}
+GIT_STATUS_OPERATION = "git_status"
+GIT_WRITE_OPERATIONS = {"git_commit", "git_land"}
+WRITE_OPERATIONS = {"create_file", "update_file", RUN_COMMAND_OPERATION, *GIT_WRITE_OPERATIONS}
+SINGLE_USE_OPERATIONS = {RUN_COMMAND_OPERATION, *GIT_WRITE_OPERATIONS}
 USER_FILE_OPERATIONS = {"copy_entries", "move_entries"}
-ALLOWED_OPERATIONS = {"list", "search", "read_text", "read_image_chunk", "read_file_chunk", *WRITE_OPERATIONS, *USER_FILE_OPERATIONS}
+ALLOWED_OPERATIONS = {"list", "search", "read_text", "read_image_chunk", "read_file_chunk", GIT_STATUS_OPERATION, *WRITE_OPERATIONS, *USER_FILE_OPERATIONS}
 WORKSPACE_CHAT_ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}")
 MAX_CHAT_ANCESTRY_DEPTH = 16
 RELEASE_LOCK_SCRIPT = """

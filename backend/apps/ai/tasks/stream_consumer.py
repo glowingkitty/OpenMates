@@ -47,6 +47,7 @@ from backend.shared.providers.e2b_application_preview import (
 )
 
 
+from backend.apps.code.application_identity import derive_application_identity
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
 from backend.apps.ai.assistant_speech.projection import (
     build_app_use_announcement,
@@ -6019,6 +6020,7 @@ def _strip_generated_application_source_text(response_text: str) -> str:
 
 def _build_application_manifest_from_code_embeds(
     code_embeds: List[Dict[str, str]],
+    package_json_content: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     seen_paths: set[str] = set()
     file_refs: List[Dict[str, str]] = []
@@ -6037,13 +6039,16 @@ def _build_application_manifest_from_code_embeds(
     if not has_manifest or not has_source:
         return None
 
-    framework = "svelte" if any(ref["path"].endswith(".svelte") for ref in file_refs) else "web"
+    name, framework = derive_application_identity(
+        package_json_content=package_json_content,
+        paths=[ref["path"] for ref in file_refs],
+    )
     main_file = next((path for path in APPLICATION_PREVIEW_MAIN_FILES if path in seen_paths), None)
     if not main_file:
         main_file = next((ref["path"] for ref in file_refs if ref["role"] == "source"), "")
 
     return {
-        "name": "Generated application",
+        "name": name,
         "framework": framework,
         "runtime": "node",
         "file_refs": file_refs,
@@ -6271,6 +6276,27 @@ async def _infer_generated_code_file_embeds_from_response(
     return inferred
 
 
+async def _read_generated_package_json(
+    code_embeds: List[Dict[str, str]],
+    embed_service: Any,
+    user_vault_key_id: str,
+    log_prefix: str,
+) -> Optional[str]:
+    """Return the cached package.json source of the generated app, if it has one."""
+    from toon_format import decode
+
+    for code_embed in code_embeds:
+        path = _normalize_generated_app_file_path(code_embed.get("filename"))
+        if not path or path.rsplit("/", 1)[-1] != "package.json" or not code_embed.get("embed_id"):
+            continue
+        toon = await embed_service._get_cached_embed_toon(code_embed["embed_id"], user_vault_key_id, log_prefix)
+        decoded = decode(toon) if toon else None
+        code = decoded.get("code") if isinstance(decoded, dict) else None
+        if isinstance(code, str):
+            return _strip_code_file_header_from_content(code)[0]
+    return None
+
+
 async def _create_application_parent_embed_reference(
     *,
     generated_code_file_embeds: List[Dict[str, str]],
@@ -6320,6 +6346,15 @@ async def _create_application_parent_embed_reference(
         from backend.core.api.app.services.embed_service import EmbedService
 
         embed_service = EmbedService(cache_service, directus_service, encryption_service)
+    package_json_content = await _read_generated_package_json(
+        generated_code_file_embeds, embed_service, user_vault_key_id, log_prefix
+    )
+    application_manifest["name"], application_manifest["framework"] = derive_application_identity(
+        given_name=application_manifest["name"],
+        given_framework=application_manifest["framework"],
+        package_json_content=package_json_content,
+        paths=[ref["path"] for ref in application_manifest["file_refs"]],
+    )
     application_embed_data = await embed_service.create_application_embed(
         name=application_manifest["name"],
         framework=application_manifest["framework"],
