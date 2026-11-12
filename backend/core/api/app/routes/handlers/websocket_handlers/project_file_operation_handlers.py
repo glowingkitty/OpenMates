@@ -243,6 +243,22 @@ async def handle_project_file_operation_result(
         # Project file text is trusted only as tool data in this continuation;
         # avoid a second LLM scan of private file contents here.
         validated_result = outcome.get("result", submitted.result)
+        if outcome["job"].get("operation") == "snapshot" and submitted.status == "completed":
+            # Snapshot files go to a short-lived cache for the repeated code-run
+            # call; the model only sees a compact result, never file contents.
+            from backend.apps.ai.processing.project_test_snapshot import (
+                compact_snapshot_result, store_snapshot,
+            )
+            snapshot_files = validated_result.get("files")
+            snapshot_files = snapshot_files if isinstance(snapshot_files, list) else []
+            truncated = bool(validated_result.get("truncated"))
+            await store_snapshot(
+                cache_service, user_id=user_id, chat_id=submitted.chat_id,
+                project_id=submitted.project_id, files=snapshot_files, truncated=truncated,
+            )
+            validated_result = compact_snapshot_result(
+                submitted.operation_id, snapshot_files, truncated
+            )
         await dispatch_async_skill_continuation(
             cache_service=cache_service,
             async_task_id=continuation_id,

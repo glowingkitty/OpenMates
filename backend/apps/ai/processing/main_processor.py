@@ -9417,6 +9417,58 @@ async def handle_main_processing(
                             f"Next iteration will force tool_choice='none' to generate final answer."
                         )
                 
+                # --- Hosted-Project code-run: the Project snapshot comes from the client ---
+                if app_id == "code" and skill_id == "run" and isinstance(parsed_args, dict):
+                    from backend.apps.ai.processing import project_test_snapshot as _pts
+                    if _pts.needs_snapshot(parsed_args) and active_project_focus and cache_service:
+                        _snapshot = await _pts.take_snapshot(
+                            cache_service,
+                            user_id=request_data.user_id,
+                            chat_id=request_data.chat_id,
+                            project_id=str(active_project_focus.get("project_id") or ""),
+                        )
+                        if _snapshot is not None:
+                            parsed_args = _pts.inject_snapshot(parsed_args, _snapshot)
+                        elif project_file_tools_enabled and not pending_project_operation_id:
+                            try:
+                                pending_project_operation_id = await _pts.dispatch_snapshot_operation(
+                                    cache_service=cache_service,
+                                    directus_service=directus_service,
+                                    request_data=request_data,
+                                    active_project_focus=active_project_focus,
+                                    skill_config_dict=skill_config_dict,
+                                    task_id=task_id,
+                                    preprocessing_results=preprocessing_results,
+                                    prefix=_pts.snapshot_prefix(parsed_args),
+                                )
+                                request_data.awaiting_async_skill_continuation = True
+                                _snapshot_tool_result = {
+                                    "status": "processing",
+                                    "message": (
+                                        "Collecting the Project snapshot from the authorized client; "
+                                        "the test run continues when it is ready."
+                                    ),
+                                }
+                            except (PermissionError, RuntimeError, KeyError, ValueError) as snapshot_error:
+                                logger.warning(
+                                    "%s Project snapshot dispatch failed: %s",
+                                    log_prefix, snapshot_error, exc_info=True,
+                                )
+                                _snapshot_tool_result = {
+                                    "status": "rejected",
+                                    "reason": "Project snapshot authorization or dispatch failed.",
+                                }
+                            current_message_history.append(
+                                {
+                                    "role": "tool",
+                                    "tool_call_id": tool_call_id,
+                                    "name": tool_name,
+                                    "content": json.dumps(_snapshot_tool_result),
+                                }
+                            )
+                            completed_skill_calls[call_hash] = _snapshot_tool_result
+                            continue
+
                 # --- Handle system tools (focus mode activation/deactivation) ---
                 # System tools are special tools that modify the chat state rather than executing skills
                 # They use app_id="system" to distinguish from regular app skills

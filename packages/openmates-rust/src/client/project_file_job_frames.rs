@@ -16,7 +16,10 @@ const MAX_LEASE_SECONDS: u64 = 600;
 const COMMIT_OPERATION: &str = "commit";
 /// Longest accepted commit message of the assistant tool (one line).
 const COMMIT_MESSAGE_MAX_CHARS: usize = 200;
-const OPERATIONS: [&str; 8] = [
+/// Wire name of the read-only `snapshot` job: all text files of the Project,
+/// see [`super::snapshot`].
+const SNAPSHOT_OPERATION: &str = "snapshot";
+const OPERATIONS: [&str; 9] = [
     "list",
     "search",
     "read_text",
@@ -25,6 +28,7 @@ const OPERATIONS: [&str; 8] = [
     "rename_file",
     "delete_file",
     COMMIT_OPERATION,
+    SNAPSHOT_OPERATION,
 ];
 
 /// The chat's active Project focus: the authority a job is resolved against.
@@ -54,6 +58,9 @@ pub(super) trait JobRunner {
     ) -> HostedResult<Value>;
     /// Record a native Project commit authored by the assistant for `chat`.
     async fn commit(&mut self, focus: &Focus, chat: &str, message: String) -> HostedResult<Value>;
+    /// Read-only snapshot (decrypted text and revision) of the Project's
+    /// hosted text files under `prefix`; the body of [`super::snapshot`].
+    async fn snapshot(&mut self, focus: &Focus, prefix: Option<String>) -> HostedResult<Value>;
 }
 
 /// The validated one-line message of a `commit` job.
@@ -116,6 +123,36 @@ async fn commit_frames<R: JobRunner>(
             ));
             Ok(vec![result_frame(job, "completed", body)])
         }
+    }
+}
+
+/// Result frames of a `snapshot` job: the bounded plaintext files.
+async fn snapshot_frames<R: JobRunner>(
+    runner: &mut R,
+    job: &Value,
+    focus: &Focus,
+    remaining: Duration,
+    state: &mut FileJobState,
+) -> Result<Vec<(&'static str, Value)>> {
+    let operation = job["operation_id"].as_str().unwrap_or_default().to_owned();
+    let prefix = match super::snapshot::snapshot_prefix(&job["arguments"]) {
+        Ok(prefix) => prefix,
+        Err(error) => {
+            state.finish(&operation);
+            return Ok(vec![error_frame(job, &error)]);
+        }
+    };
+    let outcome = crate::platform::time::timeout(remaining, runner.snapshot(focus, prefix)).await;
+    state.finish(&operation);
+    match outcome {
+        Err(_) => Ok(vec![result_frame(
+            job,
+            "failed",
+            json!({"code": "lease_expired"}),
+        )]),
+        Ok(Err(HostedFileError::Core(Error::Cancelled))) => Err(Error::Cancelled),
+        Ok(Err(error)) => Ok(vec![error_frame(job, &error)]),
+        Ok(Ok(body)) => Ok(vec![result_frame(job, "completed", body)]),
     }
 }
 
@@ -256,8 +293,13 @@ pub(super) async fn job_frames<R: JobRunner>(
         )]);
     }
     let is_commit = job["operation"] == COMMIT_OPERATION;
-    let hosted = if is_commit { None } else { job_of(job) };
-    if hosted.is_none() && !is_commit {
+    let is_snapshot = job["operation"] == SNAPSHOT_OPERATION;
+    let hosted = if is_commit || is_snapshot {
+        None
+    } else {
+        job_of(job)
+    };
+    if hosted.is_none() && !is_commit && !is_snapshot {
         return Ok(Vec::new());
     }
     let focus = match runner.focus(chat).await {
@@ -276,6 +318,9 @@ pub(super) async fn job_frames<R: JobRunner>(
         Err(error) => return Ok(vec![error_frame(job, &HostedFileError::Core(error))]),
     };
     let Some(hosted) = hosted else {
+        if is_snapshot {
+            return snapshot_frames(runner, job, &focus, remaining, state).await;
+        }
         return commit_frames(runner, job, &focus, chat, remaining, state).await;
     };
     let proposal = match runner.proposal(&focus, &hosted).await {
@@ -402,6 +447,56 @@ impl JobRunner for Client {
             json!({"commit_id": commit.commit_id, "message": commit.message,
             "file_count": commit.files.len()}),
         )
+    }
+
+    async fn snapshot(&mut self, focus: &Focus, prefix: Option<String>) -> HostedResult<Value> {
+        let mut source = ClientSnapshot {
+            client: self,
+            focus,
+        };
+        super::snapshot::build_snapshot(&mut source, prefix.as_deref()).await
+    }
+}
+
+/// [`super::snapshot::SnapshotSource`] over the real Project: listing and
+/// reading reuse the hosted `list` and `read_text` paths (policy, decryption).
+struct ClientSnapshot<'a> {
+    client: &'a mut Client,
+    focus: &'a Focus,
+}
+
+impl super::snapshot::SnapshotSource for ClientSnapshot<'_> {
+    async fn paths(&mut self) -> HostedResult<Vec<String>> {
+        let listed = self
+            .client
+            .projects()
+            .with_filters(filters(self.focus))
+            .hosted_files_list(&self.focus.project_id, None)
+            .await?;
+        Ok(listed["entries"]
+            .as_array()
+            .map(Vec::as_slice)
+            .unwrap_or_default()
+            .iter()
+            .filter(|entry| entry["kind"] == "file")
+            .filter_map(|entry| entry["path"].as_str().map(str::to_owned))
+            .collect())
+    }
+
+    async fn read(&mut self, path: &str) -> HostedResult<Option<(String, Value)>> {
+        let read = self
+            .client
+            .projects()
+            .with_filters(filters(self.focus))
+            .hosted_file_read(&self.focus.project_id, path, false)
+            .await;
+        match read {
+            Ok(file) => Ok(file["content"]
+                .as_str()
+                .map(|code| (code.to_owned(), file["revision"].clone()))),
+            Err(HostedFileError::Refused("unsupported_file_content")) => Ok(None),
+            Err(error) => Err(error),
+        }
     }
 }
 

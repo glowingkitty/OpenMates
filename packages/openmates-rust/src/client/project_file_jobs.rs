@@ -54,3 +54,7 @@ impl Wipe for FileJobState {
 #[cfg(all(feature = "workflow-yaml", unix))]
 #[path = "project_file_job_frames.rs"]
 mod frames;
+
+#[cfg(all(feature = "workflow-yaml", unix))]
+#[path = "project_file_job_snapshot.rs"]
+mod snapshot;

@@ -29,7 +29,7 @@ PROJECT_FILE_OPERATION_ARGUMENT_MAX_BYTES = 512 * 1024
 PROJECT_FILE_CONFLICT_RECOVERY_LIMIT = 3
 PROJECT_FILE_OPERATIONS = {
     "list", "search", "read_text", "create_file", "update_file", "rename_file", "delete_file",
-    "commit",
+    "commit", "snapshot",
 }
 PROJECT_FILE_MUTATIONS = {"create_file", "update_file", "rename_file", "delete_file"}
 _RELEASE_LOCK_SCRIPT = """
@@ -612,6 +612,21 @@ class ProjectFileOperationService:
             if (not new_path or len(new_path) > 2048 or normalized_new.startswith("/") or "\x00" in new_path
                     or ".." in normalized_new.split("/") or normalized_new == path.replace("\\", "/")):
                 raise ProjectFileOperationError("invalid_rename_file_arguments")
+        if operation == "snapshot":
+            prefix = arguments.get("prefix")
+            if set(arguments) - {"prefix"}:
+                raise ProjectFileOperationError("invalid_snapshot_arguments")
+            if prefix is not None:
+                normalized_prefix = prefix.replace("\\", "/") if isinstance(prefix, str) else ""
+                if (
+                    not isinstance(prefix, str)
+                    or not prefix
+                    or len(prefix) > 512
+                    or "\x00" in prefix
+                    or normalized_prefix.startswith("/")
+                    or ".." in normalized_prefix.split("/")
+                ):
+                    raise ProjectFileOperationError("invalid_snapshot_arguments")
         if operation == "commit":
             message = arguments.get("message")
             if (

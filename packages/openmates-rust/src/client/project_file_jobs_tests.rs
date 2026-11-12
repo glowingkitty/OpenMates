@@ -11,6 +11,7 @@ struct Fake {
     requires_approval: bool,
     outcome: HostedResult<Value>,
     executed: Vec<(String, bool)>,
+    files: Vec<(String, Option<String>)>,
 }
 
 impl Fake {
@@ -23,6 +24,7 @@ impl Fake {
             requires_approval,
             outcome: Ok(json!({"path": "index.html", "revision": 1, "created": true})),
             executed: Vec::new(),
+            files: Vec::new(),
         }
     }
 }
@@ -65,6 +67,24 @@ impl JobRunner for Fake {
     async fn commit(&mut self, _: &Focus, _: &str, message: String) -> HostedResult<Value> {
         self.executed.push((format!("commit:{message}"), false));
         Ok(json!({"commit_id": "c1", "message": message, "file_count": 2}))
+    }
+    async fn snapshot(&mut self, _: &Focus, prefix: Option<String>) -> HostedResult<Value> {
+        self.executed.push((format!("snapshot:{prefix:?}"), false));
+        let mut source = Files(self.files.clone());
+        super::super::snapshot::build_snapshot(&mut source, prefix.as_deref()).await
+    }
+}
+
+/// In-memory snapshot source: `(path, text)`; a `None` text is binary.
+struct Files(Vec<(String, Option<String>)>);
+
+impl super::super::snapshot::SnapshotSource for Files {
+    async fn paths(&mut self) -> HostedResult<Vec<String>> {
+        Ok(self.0.iter().map(|(path, _)| path.clone()).collect())
+    }
+    async fn read(&mut self, path: &str) -> HostedResult<Option<(String, Value)>> {
+        let found = self.0.iter().find(|(p, _)| p == path);
+        Ok(found.and_then(|(_, text)| text.clone().map(|text| (text, json!(7)))))
     }
 }
 
@@ -129,16 +149,14 @@ async fn available_is_claimed_with_the_scope_and_a_request_completes_with_the_co
         vec!["Project file created: index.html".to_owned()]
     );
     // A repeated frame for a finished operation does nothing.
-    assert!(
-        run(
-            &mut fake,
-            REQUEST,
-            &request("create_file", NOW + 90),
-            &mut state
-        )
-        .await
-        .is_empty()
-    );
+    assert!(run(
+        &mut fake,
+        REQUEST,
+        &request("create_file", NOW + 90),
+        &mut state
+    )
+    .await
+    .is_empty());
     assert_eq!(fake.executed.len(), 1);
 }
 
@@ -222,6 +240,9 @@ async fn a_lease_that_runs_out_during_execution_is_failed() {
             Ok(json!({}))
         }
         async fn commit(&mut self, _: &Focus, _: &str, _: String) -> HostedResult<Value> {
+            Ok(json!({}))
+        }
+        async fn snapshot(&mut self, _: &Focus, _: Option<String>) -> HostedResult<Value> {
             Ok(json!({}))
         }
     }
@@ -384,6 +405,80 @@ async fn a_commit_job_with_a_bad_message_is_refused_without_committing() {
         let sent = run(&mut fake, REQUEST, &event, &mut FileJobState::default()).await;
         assert_eq!(sent[0].1["status"], "failed");
         assert_eq!(sent[0].1["result"]["code"], "invalid_commit_arguments");
+        assert!(fake.executed.is_empty());
+    }
+}
+
+fn snapshot_event(arguments: Value) -> Value {
+    let mut event = request("snapshot", NOW + 60);
+    event["arguments"] = arguments;
+    event
+}
+
+fn text(path: &str, code: &str) -> (String, Option<String>) {
+    (path.to_owned(), Some(code.to_owned()))
+}
+
+#[tokio::test]
+async fn a_snapshot_lists_prefixed_text_files_sorted_and_skips_binary() {
+    let mut fake = Fake::new(false);
+    fake.files = vec![
+        text("web-app/src/b.js", "b"),
+        text("web-app/src/App.jsx", "app"),
+        ("web-app/logo.png".to_owned(), None),
+        text("docs/readme.md", "doc"),
+    ];
+    let event = snapshot_event(json!({"prefix": "web-app/"}));
+    let sent = run(&mut fake, REQUEST, &event, &mut FileJobState::default()).await;
+    assert_eq!(sent[0].1["status"], "completed");
+    assert_eq!(
+        sent[0].1["result"],
+        json!({"files": [
+            {"path": "web-app/src/App.jsx", "code": "app", "revision": 7},
+            {"path": "web-app/src/b.js", "code": "b", "revision": 7}],
+            "truncated": false, "source_id": null})
+    );
+    let mut other = request("snapshot", NOW + 60);
+    other["operation_id"] = json!("op-2");
+    other["arguments"] = json!({});
+    let sent = run(&mut fake, REQUEST, &other, &mut FileJobState::default()).await;
+    assert_eq!(sent[0].1["result"]["files"].as_array().unwrap().len(), 3);
+}
+
+#[tokio::test]
+async fn a_snapshot_stops_at_the_file_and_byte_limits_and_marks_truncated() {
+    let mut fake = Fake::new(false);
+    fake.files = (0..201)
+        .map(|i| text(&format!("f/{i:03}.txt"), "x"))
+        .collect();
+    let event = snapshot_event(json!({}));
+    let sent = run(&mut fake, REQUEST, &event, &mut FileJobState::default()).await;
+    assert_eq!(sent[0].1["result"]["files"].as_array().unwrap().len(), 200);
+    assert_eq!(sent[0].1["result"]["truncated"], true);
+
+    let mut fake = Fake::new(false);
+    let big = "y".repeat(300_000);
+    fake.files = vec![text("a", &big), text("b", &big)];
+    let sent = run(&mut fake, REQUEST, &event, &mut FileJobState::default()).await;
+    assert_eq!(sent[0].1["result"]["files"].as_array().unwrap().len(), 1);
+    assert_eq!(sent[0].1["result"]["truncated"], true);
+}
+
+#[tokio::test]
+async fn a_snapshot_with_invalid_arguments_is_refused_without_reading() {
+    for arguments in [
+        json!({"prefix": 3}),
+        json!({"prefix": "/abs"}),
+        json!({"prefix": "a/../b"}),
+        json!({"prefix": "x".repeat(513)}),
+        json!({"prefix": "a", "extra": 1}),
+        json!({"other": 1}),
+    ] {
+        let mut fake = Fake::new(false);
+        let event = snapshot_event(arguments);
+        let sent = run(&mut fake, REQUEST, &event, &mut FileJobState::default()).await;
+        assert_eq!(sent[0].1["status"], "failed");
+        assert_eq!(sent[0].1["result"]["code"], "invalid_snapshot_arguments");
         assert!(fake.executed.is_empty());
     }
 }

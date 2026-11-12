@@ -16,6 +16,7 @@ ProjectFileOperation = Literal[
     "rename_file",
     "delete_file",
     "commit",
+    "snapshot",
 ]
 
 
