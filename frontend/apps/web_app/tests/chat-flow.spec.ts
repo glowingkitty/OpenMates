@@ -1084,7 +1084,9 @@ test('logs in and sends a chat message', async ({ page }: { page: any }, testInf
 	// After Phase 4.5 we're on the home page; a plain reload would reload `/`
 	// which doesn't include the chat hash. So we set the URL first, then reload.
 	await page.goto(`${baseUrl}/#chat-id=${chatId}`);
-	await page.reload({ waitUntil: 'networkidle' });
+	// The app keeps a WebSocket and periodic telemetry requests open, so the network never goes
+	// idle; readiness is asserted below on the rendered messages and header instead.
+	await page.reload({ waitUntil: 'domcontentloaded' });
 	logChatCheckpoint('Page reloaded with chat hash. Waiting for messages...');
 
 	// Wait for the chat messages to render (key derivation + sync after reload)
