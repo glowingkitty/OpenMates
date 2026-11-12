@@ -18,8 +18,13 @@ the canonical checkout through cron and opens each chat as its own tab
 
 ```bash
 zellij --session claude action new-tab --name "<title>" -- \
-  claude --remote-control "<title>" --model claude-sonnet-5-5 --effort high --permission-mode auto "<prompt>"
+  claude --remote-control "<title>" --model <model> --effort <effort> --permission-mode auto "<prompt>"
 ```
+
+Issue chats run on `claude-fable-5-2` at `medium` effort
+(`CLAUDE_DISPATCH_ISSUE_MODEL`, `CLAUDE_DISPATCH_ISSUE_EFFORT`). Production
+chat-failure chats run on `claude-sonnet-5-5` at `high` effort
+(`CLAUDE_DISPATCH_MODEL`, `CLAUDE_DISPATCH_EFFORT`).
 
 Chats are interactive sessions, not `claude --bg` jobs. Background jobs are
 retired after about 8 hours idle at a prompt, so a chat waiting for the admin's

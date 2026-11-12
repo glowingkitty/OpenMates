@@ -157,6 +157,18 @@ def test_launch_opens_persistent_remote_control_tab_with_sonnet_5_5_high(monkeyp
 
 
 # contract-test: supporting surface=tooling assertions=issue-reporting.automation.admin-dev-claude-chat
+def test_issue_chat_runs_on_fable_5_2_at_medium_effort(isolated_state, monkeypatch):
+    calls = _fake_zellij(monkeypatch, "claude [Created 1h ago] \n")
+    _queue(isolated_state, "issue-ABCDE.json",
+           {"kind": "issue", "issue_id": ISSUE_ID, "short_issue_id": "ABCDE"})
+    results = dispatch.dispatch_issues()
+    assert results[0]["status"] == "launched"
+    chat = calls[-1][calls[-1].index("--") + 1:]
+    assert chat[chat.index("--model") + 1] == "claude-fable-5-2"
+    assert chat[chat.index("--effort") + 1] == "medium"
+
+
+# contract-test: supporting surface=tooling assertions=issue-reporting.automation.admin-dev-claude-chat
 def test_launched_chat_gets_user_bin_folders_first_on_path(tmp_path, monkeypatch):
     monkeypatch.setattr(dispatch.Path, "home", classmethod(lambda cls: tmp_path))
     monkeypatch.setenv("PATH", "/usr/bin:/bin")

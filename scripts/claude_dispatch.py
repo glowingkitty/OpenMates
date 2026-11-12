@@ -11,7 +11,8 @@ Two cron-driven entry points (see docs/architecture/infrastructure/claude-dispat
                dev api container (deterministic, server-generated signals only)
                and opens one investigation chat for new failure fingerprints.
 
-Each chat runs ``claude --remote-control <title> --model claude-sonnet-5-5 --effort high <prompt>``
+Each chat runs ``claude --remote-control <title> --model <model> --effort <effort> <prompt>``
+(issue chats: claude-fable-5-2 at medium effort; prod-errors chats: claude-sonnet-5-5 at high effort)
 in its own tab of the persistent zellij session ``claude`` (created on demand,
 with a ``claude remote-control`` bridge tab), from the canonical checkout. It
 appears in the owner's Claude app and stays online while it waits for the
@@ -44,6 +45,8 @@ PROD_STATE_FILE = STATE_ROOT / "prod-errors-state.json"
 LAUNCH_LOG = STATE_ROOT / "launches.jsonl"
 CLAUDE_MODEL = os.getenv("CLAUDE_DISPATCH_MODEL", "claude-sonnet-5-5")
 CLAUDE_EFFORT = os.getenv("CLAUDE_DISPATCH_EFFORT", "high")
+ISSUE_CLAUDE_MODEL = os.getenv("CLAUDE_DISPATCH_ISSUE_MODEL", "claude-fable-5-2")
+ISSUE_CLAUDE_EFFORT = os.getenv("CLAUDE_DISPATCH_ISSUE_EFFORT", "medium")
 
 
 def resolve_claude_bin() -> str:
@@ -135,7 +138,7 @@ def ensure_zellij_session() -> None:
             "--cwd", str(REPO_ROOT), "--", *_chat_command("remote-control"))
 
 
-def launch_claude_chat(title: str, prompt: str) -> str:
+def launch_claude_chat(title: str, prompt: str, model: str = CLAUDE_MODEL, effort: str = CLAUDE_EFFORT) -> str:
     """Open the chat as an interactive Remote Control session in its own tab of the
     persistent zellij session; returns `<session>/<tab title>`.
 
@@ -147,8 +150,8 @@ def launch_claude_chat(title: str, prompt: str) -> str:
     _zellij(
         "--session", ZELLIJ_SESSION, "action", "new-tab", "--name", title, "--cwd", str(REPO_ROOT),
         "--", *_chat_command(
-            "--remote-control", title, "--model", CLAUDE_MODEL,
-            "--effort", CLAUDE_EFFORT, "--permission-mode", "auto", prompt,
+            "--remote-control", title, "--model", model,
+            "--effort", effort, "--permission-mode", "auto", prompt,
         ),
     )
     return f"{ZELLIJ_SESSION}/{title}"
@@ -161,6 +164,12 @@ def _record_launch(entry: dict[str, Any]) -> None:
 
 
 # ── Admin issue reports (dev) ────────────────────────────────────────────────
+
+def launch_issue_chat(title: str, prompt: str) -> str:
+    """Issue chats investigate and fix a reported issue end to end, so they run on
+    the issue model and effort instead of the dispatcher default."""
+    return launch_claude_chat(title, prompt, model=ISSUE_CLAUDE_MODEL, effort=ISSUE_CLAUDE_EFFORT)
+
 
 def parse_issue_request(raw: str) -> tuple[str, str]:
     data = json.loads(raw)
@@ -188,7 +197,7 @@ def issue_prompt(issue_id: str, short_id: str) -> str:
     )
 
 
-def dispatch_issues(launcher: Launcher = launch_claude_chat, dry_run: bool = False) -> list[dict[str, Any]]:
+def dispatch_issues(launcher: Launcher = launch_issue_chat, dry_run: bool = False) -> list[dict[str, Any]]:
     QUEUE_DIR.mkdir(parents=True, exist_ok=True)
     results: list[dict[str, Any]] = []
     for path in sorted(QUEUE_DIR.glob("issue-*.json"))[:MAX_ISSUE_LAUNCHES_PER_RUN]:
