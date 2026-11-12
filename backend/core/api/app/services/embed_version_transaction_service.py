@@ -73,8 +73,14 @@ async def requires_atomic_project_embed_write(directus_service: Any, embed_id: s
     return isinstance(rows, list) and bool(rows)
 
 
+# Catalog markers (app_id, skill_id) of generated media children that take producer
+# revisions; the same set as ``media_revision.REVISABLE_CHILD_MARKERS`` and the
+# transaction extension's list.
+GENERATED_MEDIA_CHILD_MARKERS = frozenset({("images", "generated_image"), ("videos", "generated_video")})
+
+
 def is_generated_image_child(embed_id: object, head: Mapping[str, Any] | None) -> bool:
-    """A generated image keeps one UUIDv5 child embed whose versions are written as history rows.
+    """A generated image or video keeps one UUIDv5 child embed whose versions are written as history rows.
 
     Mirrors ``isGeneratedImageChild`` of the embed-version-transaction extension,
     which stays the authority: it re-checks this under the embed lock and still
@@ -84,8 +90,7 @@ def is_generated_image_child(embed_id: object, head: Mapping[str, Any] | None) -
         is_hosted_project_embed_id(embed_id)
         and isinstance(head, Mapping)
         and bool(head.get("parent_embed_id"))
-        and head.get("app_id") == "images"
-        and head.get("skill_id") == "generated_image"
+        and (head.get("app_id"), head.get("skill_id")) in GENERATED_MEDIA_CHILD_MARKERS
     )
 
 

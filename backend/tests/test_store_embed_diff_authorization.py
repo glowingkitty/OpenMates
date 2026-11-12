@@ -413,3 +413,24 @@ async def test_store_embed_diff_keeps_refusing_other_reserved_ids(head):
 
     assert directus.rows == []
     assert manager.personal_messages[-1][0]["type"] == "error"
+
+
+# contract-test: supporting surface=rest_api assertions=videos-generate.change.same-video-next-version
+@pytest.mark.asyncio
+async def test_store_embed_diff_accepts_version_row_of_generated_video_child():
+    manager, directus = await _store_image_child_row(
+        image_child_head(app_id="videos", skill_id="generated_video")
+    )
+
+    assert [(row["version_number"], row["encrypted_snapshot"]) for row in directus.rows] == [
+        (2, "encrypted-version-2")
+    ]
+    assert manager.personal_messages[-1][0]["type"] != "error"
+
+
+# contract-test: supporting surface=rest_api assertions=videos-generate.change.same-video-next-version
+def test_python_gate_knows_every_revisable_media_child():
+    from backend.core.api.app.services.embed_version_transaction_service import GENERATED_MEDIA_CHILD_MARKERS
+    from backend.shared.python_utils.media_revision import REVISABLE_CHILD_MARKERS
+
+    assert GENERATED_MEDIA_CHILD_MARKERS == REVISABLE_CHILD_MARKERS
