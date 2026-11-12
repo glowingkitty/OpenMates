@@ -122,7 +122,9 @@ export function installMemoryWriteJobRunner(): () => void {
     return [kind, handler] as const;
   });
   setMemoryWriteJobsCapabilityEnabled(true);
-  if (webSocketService.isConnected()) webSocketService.forceReconnect('Memory write job runner installed');
+  // Also while connecting: that attempt's URL was built without the capability,
+  // and the server would then drop every assistant Memory write of the session.
+  if (webSocketService.isConnectedOrConnecting()) webSocketService.forceReconnect('Memory write job runner installed');
   return () => {
     for (const [kind, handler] of handlers) webSocketService.off(kind, handler);
     setMemoryWriteJobsCapabilityEnabled(false);

@@ -37,3 +37,35 @@ fn late_memory_job_acks_of_this_chat_route_to_the_job_machine() {
         "chat"
     ));
 }
+
+#[test]
+fn focus_continuation_refusal_ends_only_this_turn() {
+    let frame = json!({
+        "chat_id": "chat", "message_id": "user-1", "task_id": "cont-task",
+        "terminal_failure_code": "focus_continuation_unavailable",
+    });
+    let earlier = vec!["orig-task".to_string()];
+    let refusal = terminal_refusal("ai_typing_ended", &frame, "chat", "user-1", "cont-task", &earlier);
+    assert!(matches!(
+        refusal,
+        Some(Error::Unavailable { code: "focus_continuation_unavailable", .. })
+    ));
+    let by_task = json!({
+        "chat_id": "chat", "message_id": "other", "task_id": "orig-task",
+        "terminal_failure_code": "focus_continuation_unavailable",
+    });
+    assert!(terminal_refusal("ai_typing_ended", &by_task, "chat", "user-1", "cont-task", &earlier).is_some());
+    let other_chat = json!({
+        "chat_id": "other", "message_id": "user-1", "task_id": "cont-task",
+        "terminal_failure_code": "focus_continuation_unavailable",
+    });
+    assert!(terminal_refusal("ai_typing_ended", &other_chat, "chat", "user-1", "cont-task", &earlier).is_none());
+    let other_turn = json!({
+        "chat_id": "chat", "message_id": "user-2", "task_id": "x",
+        "terminal_failure_code": "focus_continuation_unavailable",
+    });
+    assert!(terminal_refusal("ai_typing_ended", &other_turn, "chat", "user-1", "cont-task", &earlier).is_none());
+    let plain = json!({"chat_id": "chat", "message_id": "user-1", "terminal_failure_code": ""});
+    assert!(terminal_refusal("ai_typing_ended", &plain, "chat", "user-1", "cont-task", &earlier).is_none());
+    assert!(terminal_refusal("ai_message_update", &frame, "chat", "user-1", "cont-task", &earlier).is_none());
+}

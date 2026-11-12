@@ -25,8 +25,6 @@ fn documents() -> Vec<PersonalMemoryDocument> {
     ]
 }
 
-// Header parsing needs the YAML parser (native CLI/TUI builds).
-#[cfg(feature = "workflow-yaml")]
 #[test]
 fn catalog_lists_only_in_window_auto_and_ask_memories_as_backend_rows() {
     let catalog = build_memory_catalog(&documents(), NOW).unwrap();
@@ -37,8 +35,6 @@ fn catalog_lists_only_in_window_auto_and_ask_memories_as_backend_rows() {
     );
 }
 
-// Header parsing needs the YAML parser (native CLI/TUI builds).
-#[cfg(feature = "workflow-yaml")]
 #[test]
 fn catalog_reads_folded_yaml_like_the_web_parser() {
     // `yaml.stringify` folds long plain scalars onto continuation lines.
@@ -50,8 +46,6 @@ fn catalog_reads_folded_yaml_like_the_web_parser() {
     );
 }
 
-// Header parsing needs the YAML parser (native CLI/TUI builds).
-#[cfg(feature = "workflow-yaml")]
 #[test]
 fn catalog_skips_memories_beyond_the_character_budget() {
     let big = format!("---\ntitle: Big\n---\n{}\n", "x".repeat(19_000));
@@ -62,8 +56,6 @@ fn catalog_skips_memories_beyond_the_character_budget() {
     assert_eq!(catalog.len(), 3);
 }
 
-// Header parsing needs the YAML parser (native CLI/TUI builds).
-#[cfg(feature = "workflow-yaml")]
 #[test]
 fn one_unreadable_document_makes_the_send_catalog_unavailable() {
     let bad = "---\ntitle: Bad\nload_mode: sometimes\n---\nBody.\n";
@@ -79,8 +71,6 @@ fn one_unreadable_document_makes_the_send_catalog_unavailable() {
     assert_eq!(send_memory_catalog(&settings, NOW)[0].id, "personal:a");
 }
 
-// Header parsing needs the YAML parser (native CLI/TUI builds).
-#[cfg(feature = "workflow-yaml")]
 #[test]
 fn header_refuses_what_parse_rule_document_refuses() {
     for bad in [
@@ -116,8 +106,6 @@ fn request_keys_strip_only_the_memory_prefix_and_dedupe() {
     assert!(is_memory_request_key("memory-x") && !is_memory_request_key("memory-"));
 }
 
-// Header parsing needs the YAML parser (native CLI/TUI builds).
-#[cfg(feature = "workflow-yaml")]
 #[test]
 fn request_decision_uses_the_local_mode_and_withholds_the_rest() {
     let ids: Vec<String> = [
@@ -155,22 +143,36 @@ fn request_decision_uses_the_local_mode_and_withholds_the_rest() {
     assert!(!item.fields.to_string().contains("Senior Rust engineer"));
 }
 
-#[cfg(not(feature = "workflow-yaml"))]
 #[test]
-fn without_the_yaml_parser_headers_are_refused_and_no_catalog_is_sent() {
-    // Documented contract of `parse_memory_header`: builds without the
-    // `workflow-yaml` feature refuse every header with a core error, so a send
-    // offers no personal Memories and every request is withheld.
-    assert!(matches!(
-        parse_memory_header(AUTO),
-        Err(MemoryDocumentError::Core(super::super::Error::Invalid(_)))
-    ));
+fn assistant_saved_ask_first_memory_is_offered_in_every_build() {
+    // A document as the core writes it (quoted scalars, save stamps) is read
+    // by the YAML-free reader, so browser and Apple builds offer it too.
+    let mut fields = super::super::memory_document_fields::MemoryDocumentFields::default();
+    fields.title = "Favourite test colour".into();
+    fields.when_to_use = "When colours or visual preferences matter.".into();
+    fields.body = "The user's favourite test colour is teal.".into();
+    fields.load_mode = Some(MemoryLoadMode::AskFirst);
+    fields.created_at = Some(1_793_000_000);
+    fields.updated_at = Some(1_793_000_000);
+    let document =
+        super::super::memory_document_fields::serialize_memory_document(&fields).unwrap();
     let settings = serde_json::to_string(
-        &json!({"memory_documents":[{"id":"personal:auto","document":AUTO}]}),
+        &json!({"memory_documents":[{"id":"personal:colour","document":document.as_str()}]}),
     )
     .unwrap();
-    assert!(send_memory_catalog(&settings, NOW).is_empty());
-    let decision = decide_memory_request(&["personal:auto".to_owned()], &documents(), NOW);
-    assert!(decision.auto.is_empty() && decision.ask.is_empty());
-    assert_eq!(decision.withheld, ["personal:auto"]);
+    let catalog = send_memory_catalog(&settings, NOW);
+    assert_eq!(catalog.len(), 1);
+    assert_eq!(
+        (
+            catalog[0].id.as_str(),
+            catalog[0].title.as_str(),
+            catalog[0].load_mode
+        ),
+        ("personal:colour", "Favourite test colour", "ask_first")
+    );
+    let ids = memory_request_ids([&"memory-personal:colour".to_owned()]);
+    let decision = decide_memory_request(&ids, &[doc("personal:colour", &document)], NOW);
+    assert!(decision.auto.is_empty() && decision.withheld.is_empty());
+    assert_eq!(decision.ask[0].key(), "memory-personal:colour");
+    assert_eq!(decision.ask[0].document.as_str(), document.as_str());
 }

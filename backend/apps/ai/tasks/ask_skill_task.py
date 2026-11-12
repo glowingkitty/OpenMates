@@ -3046,6 +3046,18 @@ async def _async_process_ai_skill_ask_task(
             except Exception:
                 pass
                 
+        from backend.shared.python_utils.focus_continuation_history import (
+            FocusContinuationAuthorityError,
+        )
+        if isinstance(e, FocusContinuationAuthorityError) and cache_service_instance:
+            # The refusal stands (the continuation does not run), but the client
+            # must learn the turn ended instead of waiting for a stream.
+            await _publish_typing_ended(
+                cache_service_instance, task_id, request_data.chat_id,
+                request_data.user_id, request_data.user_id_hash, request_data.message_id,
+                terminal_failure_code=e.terminal_failure_code,
+            )
+
         if isinstance(e, RequiredRecoveryOutputError):
             raise
         raise RuntimeError(f"Service initialization failed: {e}")

@@ -717,6 +717,7 @@
         "web-rust-core-chatstate-message-highlights.spec.ts",
         "web-rust-core-composer.spec.ts",
         "web-rust-core-projects-flow.spec.ts",
+        "memory-reuse.spec.ts",
         "web-rust-core-projects-remote-sources.spec.ts",
         "web-rust-core-chat-recommendations-flow.spec.ts",
         "memory-write-undo.spec.ts",

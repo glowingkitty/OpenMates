@@ -1,0 +1,70 @@
+{
+  "fixture_id": "memory_reuse_save",
+  "recorded_at": "2026-11-11T12:00:00Z",
+  "speed_profile": "instant",
+  "initial_delay_ms": 1500,
+  "user_message_snippet": "Please save my career profile as a memory.",
+  "preprocessing": {
+    "can_proceed": true,
+    "category": "general_knowledge",
+    "title": "Career profile",
+    "icon_names": [
+      "brain"
+    ],
+    "selected_model_id": "anthropic/claude-sonnet-4-20250514",
+    "selected_model_name": "Claude Sonnet",
+    "mate_id": "default",
+    "chat_summary": "User asked the assistant to remember their career profile.",
+    "chat_tags": [
+      "memory"
+    ],
+    "relevant_app_skills": [],
+    "llm_response_temp": 0.7,
+    "complexity": "simple",
+    "steps": [
+      {
+        "step": "title_generated",
+        "data": {
+          "title": "Career profile"
+        }
+      },
+      {
+        "step": "mate_selected",
+        "data": {
+          "mate_id": "default"
+        }
+      },
+      {
+        "step": "model_selected",
+        "data": {
+          "model_name": "Claude Sonnet",
+          "provider_name": "Anthropic"
+        }
+      }
+    ]
+  },
+  "typing_started": {
+    "category": "general_knowledge",
+    "model_name": "Claude Sonnet",
+    "provider_name": "Anthropic",
+    "server_region": "EU"
+  },
+  "memory_writes": [
+    {
+      "action": "create",
+      "title": "Career profile",
+      "when_to_use": "When the user asks about their career, CV or work history.",
+      "load_mode": "ask_first",
+      "content": "The user works as a sales lead at Example Retail GmbH."
+    }
+  ],
+  "response": "Saved your career profile.",
+  "skill_executions": [],
+  "thinking_content": null,
+  "usage": {
+    "prompt_tokens": 32,
+    "completion_tokens": 10,
+    "total_credits": 2,
+    "model_name": "Claude Sonnet"
+  }
+}

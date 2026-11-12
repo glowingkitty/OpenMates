@@ -574,6 +574,8 @@ async def _trigger_continuation(
             # recovery_task_id stays unset: only the original task claims inference.
             "recovery_inference_task_id": pending_context.get("recovery_inference_task_id"),
             "recovery_preflight_id": pending_context.get("recovery_preflight_id"),
+            # Inherited root admission of a turn admitted without a recovery turn.
+            "root_legacy_cutover_task_id": pending_context.get("root_legacy_cutover_task_id"),
             "recovery_turn_id": pending_context.get("recovery_turn_id"),
             "recovery_public_key": pending_context.get("recovery_public_key"),
             "chat_key_version": pending_context.get("chat_key_version"),

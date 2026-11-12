@@ -226,7 +226,8 @@ def run_profile_reuse(cli: str, out: Path, timeout: int) -> dict:
             raise ProofError("created_chat_id_missing")
         chats.append(second["chatId"])
         result["second_status"] = second.get("status")
-        shown = command(cli, ["chats", "show", second["chatId"], "--personal"])
+        shown = command(cli, ["chats", "show", second["chatId"], "--personal"],
+                        diagnostic_path=out / "profile-reuse-use-show-transport.json")
         write_receipt(out / "profile-reuse-use-chat.json", shown)
         text = json.dumps(shown).lower()
         result["profile_used"] = "example retail" in text and "15" in text

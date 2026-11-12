@@ -93,7 +93,7 @@ from backend.apps.ai.processing.native_history_cache import (
 from backend.core.api.app.utils.text_sanitization import sanitize_text_simple
 from backend.apps.ai.processing import agentic_context
 from backend.apps.ai.processing.rule_context import (
-    applied_rule_receipt, approved_memory_definitions, memory_catalog_snapshot, personal_catalog,
+    applied_rule_receipt, approved_memory_definitions, memory_catalog_snapshot,
     request_memory_catalog,
 )
 from backend.shared.python_utils.rule_loader import rules_prompt
@@ -1203,42 +1203,6 @@ def _resolve_app_skill_model_override(
 
     return model_ref
 
-
-def _build_pending_app_settings_memories_context(
-    request_data: AskSkillRequest,
-    request_id: str,
-    missing_keys: List[str],
-    task_id: str,
-) -> Dict[str, Any]:
-    """Build the request context needed to restart after memory permission."""
-    return {
-        "request_id": request_id,
-        "chat_id": request_data.chat_id,
-        "message_id": request_data.message_id,
-        "user_id": request_data.user_id,
-        "user_id_hash": request_data.user_id_hash,
-        "mate_id": request_data.mate_id,
-        "active_focus_id": request_data.active_focus_id,
-        "chat_has_title": request_data.chat_has_title,
-        "current_chat_title": request_data.current_chat_title,
-        "is_incognito": request_data.is_incognito,
-        "user_preferences": request_data.user_preferences or {},
-        "embed_file_path_index": request_data.embed_file_path_index,
-        "has_image_upload_embed": getattr(request_data, "has_image_upload_embed", False),
-        "requested_keys": missing_keys,
-        "task_id": task_id,
-        # Resume the authorized turn without claiming a second inference identity.
-        # See docs/architecture/core/chat-encryption-implementation.md.
-        "recovery_inference_task_id": (
-            getattr(request_data, "recovery_task_id", None)
-            or getattr(request_data, "recovery_inference_task_id", None)
-        ),
-        "recovery_preflight_id": getattr(request_data, "recovery_preflight_id", None),
-        "recovery_turn_id": getattr(request_data, "recovery_turn_id", None),
-        "recovery_public_key": getattr(request_data, "recovery_public_key", None),
-        "chat_key_version": getattr(request_data, "chat_key_version", None),
-        "preprocessing_resume_ref": getattr(request_data, "preprocessing_resume_ref", None),
-    }
 
 # Four tool-enabled passes followed by one answer-only pass. Recovery first
 # retries the same model with clean evidence, then permits one configured alternate.
@@ -4177,11 +4141,6 @@ async def handle_main_processing(
     if preprocessing_results.load_app_settings_and_memories and cache_service:
         logger.debug(f"{log_prefix} Preprocessing requested app settings/memories: {preprocessing_results.load_app_settings_and_memories}")
         try:
-            # Import helper function for creating requests
-            from backend.core.api.app.utils.app_settings_memories_request import (
-                create_app_settings_memories_request_message
-            )
-            
             requested_keys = [
                 key
                 for key in preprocessing_results.load_app_settings_and_memories
@@ -4274,74 +4233,20 @@ async def handle_main_processing(
 
             if missing_keys:
                 logger.info(f"{log_prefix} Creating new app settings/memories request for {len(missing_keys)} missing keys")
-                # Create new system message request in chat history
-                # Client will encrypt with chat key and store it
-                # When user confirms, client will send app settings/memories as separate data (like embeds)
-                # and server will store them in cache for future use
-                request_id = await create_app_settings_memories_request_message(
-                    chat_id=request_data.chat_id,
-                    requested_keys=missing_keys,
-                    cache_service=cache_service,
-                    connection_manager=None,  # Celery tasks run in separate processes, can't access WebSocket manager directly
-                    user_id=request_data.user_id,
-                    device_fingerprint_hash=None,  # Will use first available device connection
-                    message_id=request_data.message_id,  # User message that triggered this request (for UI display)
-                    memory_titles={
-                        entry.id: entry.title
-                        for entry in personal_catalog(request_memory_catalog(request_data))
-                        if f"memory:{entry.id}" in missing_keys
-                    },
+                from backend.apps.ai.processing.memory_permission_request import (
+                    issue_memory_permission_request,
                 )
-                
+                request_id = await issue_memory_permission_request(
+                    request_data=request_data,
+                    missing_keys=missing_keys,
+                    task_id=task_id,
+                    cache_service=cache_service,
+                    encryption_service=encryption_service,
+                    user_vault_key_id=user_vault_key_id,
+                    log_prefix=log_prefix,
+                )
+
                 if request_id:
-                    logger.info(f"{log_prefix} Created app settings/memories request {request_id} - storing pending context and returning")
-                    # IMPORTANT: Store the pending request context so we can re-trigger processing
-                    # when user confirms or rejects. The confirmation/rejection acts as a trigger
-                    # for a NEW AI processing pass - not a continuation of this task.
-                    #
-                    # Flow:
-                    # 1. This task completes (no LLM response)
-                    # 2. Client shows permission dialog
-                    # 3. User confirms/rejects (could be seconds or hours later)
-                    # 4. Server receives confirmation → triggers NEW ask_skill task
-                    # 5. New task finds data in cache (if confirmed) → normal LLM response
-                    #
-                    # NOTE: We only store minimal context here - NOT the message_history!
-                    # The chat history is already cached on the server (recent chat).
-                    # When continuing, we retrieve the chat from cache.
-                    try:
-                        # Store MINIMAL context needed to re-trigger processing
-                        # Do NOT store message_history - it's already in the chat cache
-                        pending_context = _build_pending_app_settings_memories_context(
-                            request_data=request_data,
-                            request_id=request_id,
-                            missing_keys=missing_keys,
-                            task_id=task_id,
-                        )
-                        # Metadata-only catalog snapshot (no bodies), vault-encrypted,
-                        # so the continuation never depends on the client resending it.
-                        if user_vault_key_id and encryption_service and any(
-                            key.startswith("memory:") for key in missing_keys
-                        ):
-                            snapshot_json = json.dumps(
-                                memory_catalog_snapshot(personal_catalog(request_memory_catalog(request_data))),
-                                separators=(",", ":"), ensure_ascii=True,
-                            )
-                            pending_context["memory_catalog_ciphertext"], _ = (
-                                await encryption_service.encrypt_with_user_key(
-                                    plaintext=snapshot_json, key_id=user_vault_key_id,
-                                )
-                            )
-                        await cache_service.store_pending_app_settings_memories_request(
-                            chat_id=request_data.chat_id,
-                            context=pending_context,
-                            ttl=86400 * 7  # 7 days - user can confirm/reject within a week
-                        )
-                        logger.info(f"{log_prefix} Stored pending context for request {request_id}")
-                    except Exception as e:
-                        logger.error(f"{log_prefix} Failed to store pending context: {e}", exc_info=True)
-                        # Continue without storing - user will need to send a new message
-                    
                     # CRITICAL: Yield a special marker to signal that we're awaiting user permission.
                     # The stream_consumer.py will detect this marker and NOT send an error message.
                     # Without this marker, the empty stream would be treated as an error.

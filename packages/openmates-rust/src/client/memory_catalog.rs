@@ -1,15 +1,18 @@
 //! Personal Memory catalog of a send and the local answer to server Memory
-//! requests, in the shared core (CLI/TUI today; Apple and web bind it later).
+//! requests, in the shared core (every shell; headers are read without a YAML
+//! library by `memory_document_fields`).
 //!
 //! Mirrors `frontend/packages/ui/src/utils/memoryCatalog.ts` (`buildMemoryCatalog`),
 //! `services/memoryDocumentRequest.ts` (`decideMemoryRequest`, `memory-<id>` keys)
 //! and the header fields of `utils/ruleDocuments.ts` (`parseRuleDocument`,
 //! `isMemoryActive`). Spec: `features.app-memories` (`app-memories.load-modes`).
+pub(super) use super::memory_document_fields::MemoryLoadMode;
+use super::memory_document_fields::{iso_millis, parse_memory_document};
 use super::memory_documents::{
     MAX_CATALOG_CHARS, MAX_DOCUMENTS, MemoryDocumentError, MemoryResult, PersonalMemoryDocument,
-    decode_memory_documents, validate_memory_document,
+    decode_memory_documents,
 };
-use crate::chat_state::js::{js_trim, utf16_len};
+use crate::chat_state::js::utf16_len;
 use serde::Serialize;
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
@@ -23,27 +26,6 @@ pub(super) const MEMORY_REQUEST_KEY_PREFIX: &str = "memory-";
 /// (`item_key` is the Memory id) and in response categories.
 pub(super) const MEMORY_RESPONSE_APP_ID: &str = "memory";
 
-/// The Memory's `load_mode` header (absent means `AutoInclude`).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum MemoryLoadMode {
-    /// Offered in the catalog and answered without asking.
-    AutoInclude,
-    /// Offered in the catalog; answered only after the user approves.
-    AskFirst,
-    /// Never offered or answered; only an explicit mention loads it.
-    MentionOnly,
-}
-
-impl MemoryLoadMode {
-    fn wire(self) -> &'static str {
-        match self {
-            Self::AutoInclude => "auto_include",
-            Self::AskFirst => "ask_first",
-            Self::MentionOnly => "mention_only",
-        }
-    }
-}
-
 /// Header fields the catalog and the request answer need. Title and
 /// when-to-use are trimmed exactly like the web parser, so the server's
 /// "body matches its catalog metadata" check accepts the answered document.
@@ -52,6 +34,7 @@ pub(super) struct MemoryHeader {
     pub(super) title: String,
     /// Empty when absent ("always considered").
     pub(super) when_to_use: String,
+    /// `AutoInclude` when the document names no load mode.
     pub(super) load_mode: MemoryLoadMode,
     pub(super) valid_from_ms: Option<i64>,
     pub(super) valid_until_ms: Option<i64>,
@@ -76,96 +59,29 @@ impl MemoryHeader {
 
 /// Header of a stored Memory document.
 ///
-/// Parses the YAML frontmatter with the crate's YAML parser (`workflow-yaml`
-/// feature, enabled by the native CLI/TUI). Dates follow JavaScript
-/// `Date.parse` except that a zone-less date-time counts as UTC rather than
-/// device-local time.
+/// Reads the document with [`parse_memory_document`], the core's YAML-free
+/// reader of the frontmatter subset Memory documents use, so every build
+/// (native, browser wasm, Apple) offers the same catalog. Dates follow
+/// JavaScript `Date.parse` for ISO 8601, except that a zone-less date-time
+/// counts as UTC rather than device-local time.
 ///
 /// # Errors
-/// `InvalidDocument` for anything `parseRuleDocument` refuses; without the
-/// `workflow-yaml` feature every document is `Core(Error::Invalid)`.
+/// `InvalidDocument` for anything `parseRuleDocument` refuses.
 pub(super) fn parse_memory_header(document: &str) -> MemoryResult<MemoryHeader> {
-    validate_memory_document(document)?;
-    let header = frontmatter(document).ok_or(MemoryDocumentError::InvalidDocument)?;
-    header_fields(&yaml_mapping(header)?)
-}
-
-fn frontmatter(document: &str) -> Option<&str> {
-    static FENCE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
-    // Same expression as `validate_memory_document` and the web parser.
-    let fence = FENCE.get_or_init(|| {
-        regex::Regex::new(r"(?s)\A---\r?\n(.*?)\r?\n---(?:\r?\n|\z)(.*)\z")
-            .expect("static frontmatter expression")
-    });
-    let source = document.strip_prefix('\u{FEFF}').unwrap_or(document);
-    fence
-        .captures(source)
-        .map(|c| c.get(1).map_or("", |m| m.as_str()))
-}
-
-#[cfg(feature = "workflow-yaml")]
-fn yaml_mapping(header: &str) -> MemoryResult<serde_json::Map<String, Value>> {
-    match serde_yaml::from_str::<Value>(header) {
-        Ok(Value::Object(map)) => Ok(map),
-        _ => Err(MemoryDocumentError::InvalidDocument),
-    }
-}
-
-#[cfg(not(feature = "workflow-yaml"))]
-fn yaml_mapping(_header: &str) -> MemoryResult<serde_json::Map<String, Value>> {
-    Err(MemoryDocumentError::Core(super::Error::Invalid(
-        "Memory headers need the workflow-yaml feature of the client core.",
-    )))
-}
-
-fn header_fields(record: &serde_json::Map<String, Value>) -> MemoryResult<MemoryHeader> {
-    let text = |field: &str, max: usize| -> MemoryResult<Option<String>> {
-        match record.get(field) {
-            None => Ok(None),
-            Some(Value::String(value)) => {
-                let trimmed = js_trim(value);
-                if trimmed.is_empty() || utf16_len(trimmed) > max {
-                    return Err(MemoryDocumentError::InvalidDocument);
-                }
-                Ok(Some(trimmed.to_owned()))
-            }
-            Some(_) => Err(MemoryDocumentError::InvalidDocument),
-        }
+    let fields = parse_memory_document(document)?;
+    // The reader already refused unparsable dates; a refusal here would be a
+    // reader defect and still fails closed.
+    let millis = |value: Option<&str>| -> MemoryResult<Option<i64>> {
+        value
+            .map(|date| iso_millis(date).ok_or(MemoryDocumentError::InvalidDocument))
+            .transpose()
     };
-    let title = text("title", 180)?.ok_or(MemoryDocumentError::InvalidDocument)?;
-    let when_to_use = text("when_to_use", 1200)?.unwrap_or_default();
-    text("description", 1200)?;
-    let load_mode = match record.get("load_mode") {
-        None => MemoryLoadMode::AutoInclude,
-        Some(Value::String(mode)) => match mode.as_str() {
-            "auto_include" => MemoryLoadMode::AutoInclude,
-            "ask_first" => MemoryLoadMode::AskFirst,
-            "mention_only" => MemoryLoadMode::MentionOnly,
-            _ => return Err(MemoryDocumentError::InvalidDocument),
-        },
-        Some(_) => return Err(MemoryDocumentError::InvalidDocument),
-    };
-    let date = |field: &str| -> MemoryResult<Option<i64>> {
-        match record.get(field) {
-            None => Ok(None),
-            Some(value @ Value::String(_)) => super::overview::parse_time(Some(value), 0)
-                .map(Some)
-                .ok_or(MemoryDocumentError::InvalidDocument),
-            Some(_) => Err(MemoryDocumentError::InvalidDocument),
-        }
-    };
-    let (valid_from_ms, valid_until_ms) = (date("valid_from")?, date("valid_until")?);
-    if let (Some(from), Some(until)) = (valid_from_ms, valid_until_ms)
-        && from > until
-    {
-        return Err(MemoryDocumentError::InvalidDocument);
-    }
     Ok(MemoryHeader {
-        title,
-        when_to_use,
-        load_mode,
-        valid_from_ms,
-        valid_until_ms,
+        title: fields.title.clone(),
+        when_to_use: fields.when_to_use.clone(),
+        load_mode: fields.load_mode.unwrap_or(MemoryLoadMode::AutoInclude),
+        valid_from_ms: millis(fields.valid_from.as_deref())?,
+        valid_until_ms: millis(fields.valid_until.as_deref())?,
     })
 }
 
@@ -218,7 +134,7 @@ pub(super) fn build_memory_catalog(
             id: document.id.clone(),
             title: header.title,
             when_to_use: header.when_to_use,
-            load_mode: header.load_mode.wire(),
+            load_mode: header.load_mode.as_str(),
             source: "personal",
         });
     }
@@ -385,7 +301,7 @@ impl super::Client {
 #[path = "memory_catalog_tests.rs"]
 mod tests;
 
-// The consent flow reads Memory headers, which need the YAML parser.
-#[cfg(all(test, feature = "workflow-yaml", not(target_arch = "wasm32")))]
+// Real-socket tests; the browser build has no tokio test socket.
+#[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "memory_consent_tests.rs"]
 mod consent_tests;

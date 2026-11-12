@@ -486,3 +486,71 @@ def test_fixture_memory_writes_dispatch_only_for_capable_clients(monkeypatch) ->
     assert len(calls) == 1
     assert calls[0]["arguments"]["action"] == "create"
     assert calls[0]["approved_memories"] == []
+
+
+def _memory_reuse_request(**overrides):
+    values = dict(
+        chat_id="chat-1", message_id="message-1", user_id="user-1", user_id_hash="hash-1",
+        message_history=[], chat_has_title=True, mate_id="default",
+        memory_catalog=[
+            {"id": "career-1", "title": "Career profile", "when_to_use": "Career questions",
+             "load_mode": "ask_first", "source": "personal"},
+            {"id": "proj-1", "title": "Project note", "when_to_use": "",
+             "load_mode": "ask_first", "source": "project"},
+        ],
+    )
+    values.update(overrides)
+    return AskSkillRequest(**values)
+
+
+# contract-test: supporting surface=rest_api assertions=app-memories.load-modes
+def test_memory_reuse_fixtures_follow_the_browser_spec_contract() -> None:
+    save = mock_replay.load_fixture("memory_reuse_save")
+    load = mock_replay.load_fixture("memory_reuse_load")
+    write = save["memory_writes"][0]
+    assert "Saved your career profile." in save["response"]
+    assert (write["title"], write["load_mode"], write["action"]) == ("Career profile", "ask_first", "create")
+    assert "Example Retail GmbH" in write["content"]
+    assert load["memory_request"] == {"title": "Career profile"}
+    assert load["response"] == (
+        "Based on your career profile at Example Retail GmbH, here is a short introduction."
+    )
+
+
+# contract-test: supporting surface=rest_api assertions=app-memories.load-modes
+def test_memory_request_fixture_resolves_personal_row_key_and_fails_on_missing_title() -> None:
+    fixture = mock_replay.load_fixture("memory_reuse_load")
+    assert mock_replay._fixture_memory_request_key(fixture, _memory_reuse_request()) == "memory:career-1"
+    with pytest.raises(RuntimeError, match="Career profile"):
+        mock_replay._fixture_memory_request_key(fixture, _memory_reuse_request(memory_catalog=[
+            {"id": "proj-1", "title": "Career profile", "when_to_use": "",
+             "load_mode": "ask_first", "source": "project"},
+        ]))
+
+
+# contract-test: supporting surface=rest_api assertions=app-memories.load-modes
+def test_memory_request_fixture_replays_reply_in_the_continuation_turn() -> None:
+    fixture = mock_replay.load_fixture("memory_reuse_load")
+    request = _memory_reuse_request(is_app_settings_memories_continuation=True, memory_catalog=[])
+    assert mock_replay._fixture_memory_request_key(fixture, request) is None
+
+
+# contract-test: supporting surface=rest_api assertions=app-memories.load-modes
+def test_memory_request_fixture_issues_request_and_ends_turn_without_reply(monkeypatch) -> None:
+    from backend.apps.ai.processing import memory_permission_request as permission
+
+    calls = []
+
+    async def fake_issue(**kwargs):
+        calls.append(kwargs)
+        return "request-1"
+
+    monkeypatch.setattr(permission, "issue_memory_permission_request", fake_issue)
+    cache = _StubCacheService()
+    result = asyncio.run(replay_fixture(
+        fixture_id="memory_reuse_load", task_id="task-1", request_data=_memory_reuse_request(),
+        cache_service=cache, speed_override="instant",
+    ))
+    assert [call["missing_keys"] for call in calls] == [["memory:career-1"]]
+    assert result["aggregated_final_response"] == ""
+    assert result["main_processor_debug_metadata"]["user_task_blocked_reason_code"] == "permission_required"

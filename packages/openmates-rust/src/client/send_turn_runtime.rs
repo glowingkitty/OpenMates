@@ -397,6 +397,9 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
             {
                 return Err(Error::Protocol);
             }
+            if let Some(refusal) = terminal_refusal(&kind, &p, id, message, &task_id, &earlier_tasks) {
+                return Err(refusal);
+            }
             if !wait_ai && admitted && confirmed {
                 chat.messages.push(Message {
                     id: message.into(),
@@ -648,6 +651,39 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
         phases.check(turn_scope,id,generation).await?;
         Ok(outcome.into_inner())
 
+}
+/// Error for an `ai_typing_ended` frame that carries `terminal_failure_code`
+/// and belongs to this turn: same chat and either the user message id or one of
+/// the turn's task ids (a continuation task has its own id, and the frame
+/// carries no `user_message_id`). A refused focus-mode continuation is
+/// `Unavailable`; any other terminal code is a protocol failure.
+fn terminal_refusal(
+    kind: &str,
+    p: &Value,
+    chat: &str,
+    message: &str,
+    task_id: &str,
+    earlier_tasks: &[String],
+) -> Option<Error> {
+    let code = text(p, "terminal_failure_code");
+    if kind != "ai_typing_ended" || code.is_empty() || text(p, "chat_id") != chat {
+        return None;
+    }
+    let frame_task = text(p, "task_id");
+    let ours = text(p, "message_id") == message
+        || (!frame_task.is_empty()
+            && (frame_task == task_id || earlier_tasks.iter().any(|t| t == frame_task)));
+    if !ours {
+        return None;
+    }
+    Some(if code == "focus_continuation_unavailable" {
+        Error::Unavailable {
+            code: "focus_continuation_unavailable",
+            reason: "focus continuation refused",
+        }
+    } else {
+        Error::Protocol
+    })
 }
 #[cfg(test)]
 #[path = "send_turn_runtime_tests.rs"]
