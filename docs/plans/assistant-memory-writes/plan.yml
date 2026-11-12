@@ -2,23 +2,23 @@ schema_version: 2
 id: assistant-memory-writes
 title: Assistant saves and updates Memories directly, with undo
 status: draft
-goal: 'The main processor can fully create or update a personal Memory through a tool call, with no review step,
-  and the user can easily undo that change. Workflows keep their existing direct create-or-modify skill. Post-processor
-  memory and workflow suggestions stay as additional suggestions, but never suggest what the main response already
-  created or updated in the same turn.
+goal: 'The main processor can fully create or update a personal Memory through a tool call, with no review step, and the user
+  can easily undo that change. Workflows keep their existing direct create-or-modify skill. Post-processor memory and workflow
+  suggestions stay as additional suggestions, but never suggest what the main response already created or updated in the same
+  turn.
 
   '
 scope:
   in:
   - Internal main-processor tool save_memory (create or update one personal Memory document).
-  - Client-applied write job. The server validates and forwards cleartext only to the requesting client; the client
-    encrypts and stores. No durable backend plaintext.
+  - Client-applied write job. The server validates and forwards cleartext only to the requesting client; the client encrypts
+    and stores. No durable backend plaintext.
   - Memory document create, update and delete in the Rust client core, used by web and CLI/TUI.
-  - Chat history notice "Memory created/updated" marked as written by the assistant, with Undo (delete the new Memory
-    or restore the previous document).
+  - Chat history notice "Memory created/updated" marked as written by the assistant, with Undo (delete the new Memory or restore
+    the previous document).
   - Post-processor receives which memory and workflow writes the main turn made and omits matching recommendations.
-  - Job-search focus modes use the tool after the user agrees; real chat proof that a saved career profile is reused
-    without re-asking.
+  - Job-search focus modes use the tool after the user agrees; real chat proof that a saved career profile is reused without
+    re-asking.
   out:
   - Apple UI for the notice and Undo (Apple has no recommendations card yet; it keeps reading Memory documents).
   - Team and Project Memories written by the assistant.
@@ -32,8 +32,7 @@ scenarios:
   when:
   - The user asks to remember something, or agrees to the assistant's offer to save a profile.
   then:
-  - The Memory exists encrypted in the account, the chat shows a notice with Open and Undo, and no review step was
-    required.
+  - The Memory exists encrypted in the account, the chat shows a notice with Open and Undo, and no review step was required.
 - id: S-2
   title: Undo
   given:
@@ -61,8 +60,8 @@ scenarios:
 acceptance_criteria:
 - id: AC-1
   scenario: S-1
-  text: save_memory create and update produce a canonical validated document; secrets, oversize and non-canonical
-    documents are rejected; the tool is absent without the client capability.
+  text: save_memory create and update produce a canonical validated document; secrets, oversize and non-canonical documents
+    are rejected; the tool is absent without the client capability.
   required: true
   status: pending
   coverage_status: covered
@@ -90,8 +89,7 @@ acceptance_criteria:
   - T-UNDO
 - id: AC-4
   scenario: S-3
-  text: With a memory or workflow write in the turn, the post-processor output contains no recommendation for that
-    entry.
+  text: With a memory or workflow write in the turn, the post-processor output contains no recommendation for that entry.
   required: true
   status: pending
   coverage_status: covered
@@ -100,8 +98,7 @@ acceptance_criteria:
   - T-POST
 - id: AC-5
   scenario: S-4
-  text: Real dev chats show a saved career profile being used in Create or update CV and Write application without
-    re-asking.
+  text: Real dev chats show a saved career profile being used in Create or update CV and Write application without re-asking.
   required: true
   status: pending
   coverage_status: covered
@@ -128,7 +125,16 @@ tests:
   green_phase:
     required: true
     expected: pass
-    evidence: {}
+    evidence:
+      status: passed
+      command: python3 scripts/ci_coordinator.py submit --session 3bb9 --source 39e5f6d82fa52d2a241866bb431c5b88e2dc485d --mode
+        pytest --spec backend/tests/test_memory_write_tool.py --no-prepared-builds
+      run_id: 08c4c8dd9f3cf4a8c6cffa5ee1e6a99e360c8f6d765a80c65fdaae5dc29b78e7
+      subject_commit: bd80112de1a1a789e8d274fc5fcd3f42fd4ffef7
+      timestamp: '2026-11-12T18:00:00Z'
+      execution_environment: isolated_github_ci
+      harness_commit: 39e5f6d82fa52d2a241866bb431c5b88e2dc485d
+      profile: pytest
 - id: T-POST
   type: pytest
   file: backend/tests/test_postprocessing_recommendations.py
@@ -146,7 +152,16 @@ tests:
   green_phase:
     required: true
     expected: pass
-    evidence: {}
+    evidence:
+      status: passed
+      command: python3 scripts/ci_coordinator.py submit --session 3bb9 --source 39e5f6d82fa52d2a241866bb431c5b88e2dc485d --mode
+        pytest --spec backend/tests/test_postprocessing_recommendations.py --no-prepared-builds
+      run_id: d09095b2f457da1c0a0ae47d8c028dc332acf049c565c797766740be6fd1643f
+      subject_commit: bd80112de1a1a789e8d274fc5fcd3f42fd4ffef7
+      timestamp: '2026-11-12T18:00:00Z'
+      execution_environment: isolated_github_ci
+      harness_commit: 39e5f6d82fa52d2a241866bb431c5b88e2dc485d
+      profile: pytest
 - id: T-CLI
   type: playwright
   file: frontend/apps/web_app/tests/cli-memory-write.spec.ts
@@ -185,12 +200,23 @@ tests:
   green_phase:
     required: true
     expected: pass
-    evidence: {}
+    evidence:
+      status: passed
+      command: python3 scripts/ci_coordinator.py submit --session 3bb9 --source 39e5f6d82fa52d2a241866bb431c5b88e2dc485d --mode
+        e2e --spec memory-write-undo.spec.ts
+      run_id: b36a39872f04964bfc08a1d7889c0b0e3621a8542e9c932f1c4fa1b204d06e49
+      subject_commit: bd80112de1a1a789e8d274fc5fcd3f42fd4ffef7
+      timestamp: '2026-11-12T18:00:00Z'
+      execution_environment: isolated_github_ci
+      harness_commit: 39e5f6d82fa52d2a241866bb431c5b88e2dc485d
+      profile: e2e
+      artifacts:
+      - https://github.com/glowingkitty/OpenMates/actions/runs/43272105074/artifacts/13968668881
 - id: T-REAL
   type: manual
   file: scripts/jobs_focus_real_test.py
-  command: python3 scripts/jobs_focus_real_test.py --session 3bb9 --state-dir /tmp/jobs-focus-state-UNIQUE --output-dir
-    /tmp/jobs-focus-UNIQUE --allow-paid-dev-inference --case profile-reuse
+  command: python3 scripts/jobs_focus_real_test.py --session 3bb9 --state-dir /tmp/jobs-focus-state-UNIQUE --output-dir /tmp/jobs-focus-UNIQUE
+    --allow-paid-dev-inference --case profile-reuse
   execution_environment: dev
   target: dev
   assertions:
@@ -291,7 +317,7 @@ tasks:
     files: *id004
     shared_files: []
 implementation_state:
-  subject_commit: fb934cdabe3cd83a20b6ad5c44f851cd830f0d2f
+  subject_commit: bd80112de1a1a789e8d274fc5fcd3f42fd4ffef7
 approvals:
   specification:
     status: pending
@@ -302,8 +328,8 @@ approvals:
 decisions:
 - id: D-1
   status: active
-  decision: The server never writes Memories; save_memory publishes a client-applied job gated by a client capability,
-    as task updates and project files do.
+  decision: The server never writes Memories; save_memory publishes a client-applied job gated by a client capability, as
+    task updates and project files do.
   reason: Memories are client-encrypted; the Specification forbids durable backend plaintext.
   decided_at: '2026-11-10'
 - id: D-2
@@ -318,8 +344,8 @@ decisions:
   decided_at: '2026-11-10'
 - id: D-4
   status: active
-  decision: Main processor writes without a review step and with Undo; post-processor suggestions remain additional
-    and exclude entries written in the turn.
+  decision: Main processor writes without a review step and with Undo; post-processor suggestions remain additional and exclude
+    entries written in the turn.
   reason: Requested by the user on 2026-11-10.
   decided_at: '2026-11-10'
 attempts:
