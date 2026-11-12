@@ -385,6 +385,11 @@ async function loginWithAccount(account, options) {
     }
   }
 
+  if (loginResult.data?.message === "login.code_wrong" && account.otpKey) {
+    // Accounts created by current signup clients hold only v2 password
+    // credentials, which this legacy v1 lookup-hash login cannot prove.
+    return loginWithCliClient(account, options);
+  }
   if (!loginResult.response.ok || !loginResult.data?.success || loginResult.data?.tfa_required) {
     throw new Error(`Login failed with HTTP ${loginResult.response.status}: ${loginResult.data?.message || "unknown error"}`);
   }
@@ -417,6 +422,63 @@ async function loginWithAccount(account, options) {
     userIdHash: user.id ? createHash("sha256").update(user.id).digest("hex").slice(0, 12) : null,
     cookies: Object.keys(loginResult.cookies).sort(),
   };
+}
+
+const CLI_CLIENT_LOGIN_PROGRAM = `
+import { OpenMatesClient } from './frontend/packages/openmates-cli/src/client.ts';
+const client = new OpenMatesClient({ apiUrl: process.env.OPENMATES_API_URL });
+let login;
+for (const tfaCode of JSON.parse(process.env.OPENMATES_LOGIN_TOTP_CODES)) {
+  login = await client.loginWithPassword({
+    email: process.env.OPENMATES_LOGIN_EMAIL, password: process.env.OPENMATES_LOGIN_PASSWORD, tfaCode,
+  });
+  if (login.status === 'authenticated') break;
+}
+if (login?.status !== 'authenticated') throw new Error('CLI client password login did not authenticate');
+process.stdout.write(JSON.stringify({ credentialVersion: login.credentialVersion ?? null }));
+`;
+
+/**
+ * Log in through the CLI's own client (v2 password proof, v1 fallback). The
+ * client persists the session in OPENMATES_STATE_DIR exactly as the CLI reads it.
+ */
+function cliSourceRoot() {
+  const hasDeps = (root) => existsSync(join(root, "frontend/packages/openmates-cli/node_modules/hash-wasm"));
+  if (hasDeps(REPO_ROOT)) return REPO_ROOT;
+  // Lane worktrees carry no node_modules; the shared checkout behind them does.
+  const common = spawnSync("git", ["-C", REPO_ROOT, "rev-parse", "--path-format=absolute", "--git-common-dir"], {
+    encoding: "utf8",
+  });
+  const shared = common.status === 0 ? dirname(common.stdout.trim()) : "";
+  if (shared && hasDeps(shared)) return shared;
+  throw new Error("CLI client login needs installed openmates-cli dependencies");
+}
+
+function loginWithCliClient(account, options) {
+  const codes = [0, -1, 1].map((offset) => generateTotp(account.otpKey, offset));
+  const result = spawnSync(
+    process.execPath,
+    ["--experimental-strip-types", "--loader", "./frontend/packages/openmates-cli/tests/loader.mjs",
+      "--input-type=module", "-e", CLI_CLIENT_LOGIN_PROGRAM],
+    {
+      cwd: cliSourceRoot(),
+      encoding: "utf8",
+      timeout: 120_000,
+      env: {
+        ...process.env,
+        OPENMATES_API_URL: options.apiUrl,
+        OPENMATES_LOGIN_EMAIL: account.email,
+        OPENMATES_LOGIN_PASSWORD: account.password,
+        OPENMATES_LOGIN_TOTP_CODES: JSON.stringify(codes),
+      },
+    },
+  );
+  if (result.status !== 0) {
+    const lastLine = (result.stderr || "").trim().split("\n").filter(Boolean).pop() || `exit ${result.status}`;
+    throw new Error(`CLI client login failed: ${lastLine.replace(/[\w.%+-]+@[\w.-]+/g, "<email>").slice(0, 200)}`);
+  }
+  const { credentialVersion } = parseCliJson(result.stdout);
+  return { success: true, apiUrl: options.apiUrl, slot: account.slot, credentialVersion, cookies: [] };
 }
 
 function runCli(args, apiUrl) {

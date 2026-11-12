@@ -71,10 +71,13 @@ paths:
   via the session helper first, use disposable Projects and isolated
   CLI state, select `@Gemini-3.8-Flash` (unless the user names another model)
   and fail if the persisted assistant model differs. Record revision + results.
-  Account: the personal dev test account only (`OPENMATES_PERSONAL_TEST_ACOUNT_*`,
-  lease `playwright-account:personal-dev`); numbered `OPENMATES_TEST_ACCOUNT_<n>_*`
-  slots are CI accounts and may not exist on dev. If its login fails, stop and
-  report; never sign up or repair accounts. Details: `docs/contributing/guides/testing.md`.
+  Account: the personal dev test account (`OPENMATES_PERSONAL_TEST_ACOUNT_*`,
+  lease `playwright-account:personal-dev`); when that lease is busy,
+  `scripts/dev_test_account.py` creates a throwaway account for the test, backs
+  up its chats to `~/.openmates/test-chat-backups` (kept 7 days) and deletes it.
+  Numbered `OPENMATES_TEST_ACCOUNT_<n>_*` slots are CI accounts and may not exist
+  on dev. If a login fails, stop and report; never sign up or repair accounts by
+  hand. Details: `docs/contributing/guides/testing.md`.
 - Choose checks for the changed behavior and affected clients; a web-only fix
   does not trigger Apple verification.
 - Client-core capability work (`.claude/rules/client-core.md`): core contract tests

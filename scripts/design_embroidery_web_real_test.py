@@ -76,6 +76,11 @@ def acquire_leases(session_id: str, timeout: int) -> list[tuple[str, str, set[st
     return personal_dev_leases("embroidery-web", session_id, timeout=timeout)
 
 
+def spec_name(spec: str) -> str:
+    """Short backup-folder label derived from the spec file name."""
+    return re.sub(r"[^a-z0-9]+", "-", Path(spec).name.lower()).strip("-")[:40] or "web-real-test"
+
+
 def require_runtime_revision(revision: str) -> None:
     """The backend runtime checkout serves ``revision``: same commit, or an ancestor with identical backend files.
 
@@ -156,6 +161,8 @@ def main(spec: str = SPEC, title: str = "Design embroidery", doc: str | None = N
     parser.add_argument("--output-dir", required=True, type=Path)
     parser.add_argument("--personal-dev-test-account", action="store_true", required=True)
     parser.add_argument("--allow-paid-dev-inference", action="store_true")
+    parser.add_argument("--personal-only", action="store_true",
+                        help="Wait for the personal account instead of using a throwaway account when it is busy")
     parser.add_argument("--timeout-seconds", type=int, default=1500, help="Whole Playwright run")
     parser.add_argument("--lease-timeout-seconds", type=int, default=1800, help="Wait for the account lease")
     if grep_option:
@@ -174,6 +181,7 @@ def main(spec: str = SPEC, title: str = "Design embroidery", doc: str | None = N
     receipt: dict = {"status": "started", "target": APP_URL, "session": args.session, "spec": spec,
                      "deployed_revision": args.revision, "started_at": datetime.now(UTC).isoformat()}
     leases: list = []
+    real_account = None
     draft_guard = None
     cli_state = out / "cli-state"
     stop, errors = threading.Event(), []
@@ -199,7 +207,17 @@ def main(spec: str = SPEC, title: str = "Design embroidery", doc: str | None = N
             base=json.dumps(str(WEB_APP / "playwright.config.ts")), test_dir=json.dumps(str(WEB_APP / "tests")),
             results=json.dumps(str(out / "results")), report=json.dumps(str(out / "report.json")),
             chrome=json.dumps(str(chrome))))
-        leases = acquire_leases(args.session, args.lease_timeout_seconds)
+        import dev_test_account
+
+        real_account = dev_test_account.acquire_real_test_account(
+            "embroidery-web", args.session, spec_name(spec), stack_timeout=args.lease_timeout_seconds,
+            allow_throwaway=not args.personal_only)
+        leases = real_account.leases
+        receipt["account_role"] = "personal_dev_test" if real_account.kind == "personal" else "throwaway_dev_test"
+        env = real_account.environment
+        for suffix in ("EMAIL", "PASSWORD", "OTP_KEY"):
+            env.pop(f"OPENMATES_TEST_ACCOUNT_1_{suffix}", None)
+        env.update(PLAYWRIGHT_TEST_BASE_URL=APP_URL, PLAYWRIGHT_VIDEO_MODE="on")
 
         def renew() -> None:
             while not stop.wait(sessions.DOCKER_TEST_LEASE_RENEW_INTERVAL_SECONDS):
@@ -212,7 +230,7 @@ def main(spec: str = SPEC, title: str = "Design embroidery", doc: str | None = N
 
         heartbeat = threading.Thread(target=renew, daemon=True)
         heartbeat.start()
-        draft_guard = start_draft_guard(env, cli_state, receipt)
+        draft_guard = start_draft_guard(env, cli_state, receipt) if real_account.kind == "personal" else None
         cli = WEB_APP / "node_modules/@playwright/test/cli.js"
         command = [sys.executable, str(ROOT / "scripts/heavy_slot.py"), "run", "--", "node", str(cli), "test",
                    "--config", str(config), "--trace", "off", spec,
@@ -236,11 +254,10 @@ def main(spec: str = SPEC, title: str = "Design embroidery", doc: str | None = N
         stop.set()
         if heartbeat:
             heartbeat.join(timeout=2)
-        for lease_id, *_ in reversed(leases):
-            try:
-                sessions.release_test_resource_lease(lease_id)
-            except RuntimeError:
-                receipt.setdefault("cleanup", {})["lease"] = "failed"
+        if real_account is not None:
+            account_receipt = dev_test_account.finish_real_test_account(real_account)
+            receipt.setdefault("cleanup", {})["account"] = account_receipt
+            if account_receipt.get("lease_release_failed") or account_receipt.get("delete", {}).get("status") == "failed":
                 receipt["status"] = "failed"
         if created_link:
             link.unlink()

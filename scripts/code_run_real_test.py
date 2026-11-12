@@ -376,6 +376,8 @@ def main() -> int:
     parser.add_argument("--slot", type=int, choices=range(1, 14))
     parser.add_argument("--personal-dev-test-account", action="store_true",
                         help="Use the documented personal dev-test account in fresh isolated CLI state")
+    parser.add_argument("--personal-only", action="store_true",
+                        help="Wait for the personal account instead of using a throwaway account when it is busy")
     parser.add_argument("--case", action="append", choices=("python-math", "rust-fibonacci", "rust-word-count"),
                         help="Run only the selected case; repeat to select more than one")
     parser.add_argument("--timeout-seconds", type=int, default=600, help="Bounded continuation wait per flow")
@@ -407,7 +409,7 @@ def main() -> int:
     receipt = {"status": "started", "target": API_URL, "session": args.session,
                "deployed_revision": args.revision, "started_at": datetime.now(UTC).isoformat(),
                "cases": [], "cleanup": {}, "cli": cli, "sdk_module": str(sdk_module)}
-    leases, project_id, created_state, draft_guard = [], None, False, None
+    leases, project_id, created_state, draft_guard, real_account = [], None, False, None, None
     stop, errors = threading.Event(), []
     heartbeat = None
     old_umask = os.umask(0o077)
@@ -421,9 +423,14 @@ def main() -> int:
         if args.personal_dev_test_account:
             if args.slot:
                 raise ProofError("personal_account_cannot_use_numbered_slot")
-            login_env = personal_test_environment()
-            leases, slot = personal_test_leases(args.session), ""
-            receipt["account_role"] = "personal_dev_test"
+            import dev_test_account
+
+            real_account = dev_test_account.acquire_real_test_account(
+                "code-run-personal", args.session, "code-run", stack_timeout=120,
+                allow_throwaway=not args.personal_only)
+            login_env, leases, slot = real_account.environment, real_account.leases, ""
+            receipt["account_role"] = ("personal_dev_test" if real_account.kind == "personal"
+                                       else "throwaway_dev_test")
         else:
             login_env = test_account_environment()
             leases, slot = acquire_leases(args.session, args.slot)
@@ -448,7 +455,7 @@ def main() -> int:
         if login.returncode:
             receipt["bootstrap_failure"] = safe_failure(login.stderr)
             raise ProofError("disposable_account_bootstrap_failed")
-        if args.personal_dev_test_account:
+        if args.personal_dev_test_account and real_account.kind == "personal":
             # The personal account is shared: a run must not leave drafts there.
             try:
                 draft_guard = DraftGuard.start(cli, api_url=API_URL)
@@ -539,12 +546,23 @@ def main() -> int:
         stop.set()
         if heartbeat:
             heartbeat.join(timeout=2)
-        for lease_id, *_ in reversed(leases):
-            try:
-                sessions.release_test_resource_lease(lease_id)
-            except RuntimeError:
+        if real_account is not None:
+            import dev_test_account
+
+            account_receipt = dev_test_account.finish_real_test_account(real_account)
+            receipt["cleanup"]["account"] = account_receipt
+            if account_receipt.get("lease_release_failed"):
                 receipt["cleanup"]["lease"] = "failed"
                 receipt["status"] = "failed"
+            if account_receipt.get("delete", {}).get("status") == "failed":
+                receipt["status"] = "failed"
+        else:
+            for lease_id, *_ in reversed(leases):
+                try:
+                    sessions.release_test_resource_lease(lease_id)
+                except RuntimeError:
+                    receipt["cleanup"]["lease"] = "failed"
+                    receipt["status"] = "failed"
         receipt["finished_at"] = datetime.now(UTC).isoformat()
         write_receipt(receipt_path, receipt)
         if created_state:

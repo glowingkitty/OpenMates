@@ -58,16 +58,27 @@ python3 scripts/ci_coordinator.py wait <id>      # then: result <id> for failure
 Real AI, speech and provider checks run only against dev, after the candidate is
 deployed and the affected services restarted with `sessions.py docker restart`.
 
-- **Account:** use only the personal dev test account. Its credentials are the
+- **Account:** by default the personal dev test account. Its credentials are the
   three `OPENMATES_PERSONAL_TEST_ACOUNT_{EMAIL,PASSWORD,OTP_KEY}` keys in the
   canonical root `.env` (the `ACOUNT` spelling is intentional). Map only those
-  keys in process; never print or source the whole `.env`. Hold the
-  `playwright-account:personal-dev` lease (exclusive) and the `dev-stack` lease
-  (shared) for the whole run; `scripts/code_run_real_test.py` shows the pattern.
+  keys in process; never print or source the whole `.env`. Take the
+  `playwright-account:personal-dev` lease (exclusive) before the `dev-stack`
+  lease (shared) and hold both for the whole run.
+- **Throwaway fallback:** when the personal account lease is busy,
+  `scripts/dev_test_account.py` (`acquire_real_test_account` /
+  `finish_real_test_account`) signs up a fresh dev account for that one test,
+  gives it credits and holds only the shared `dev-stack` lease. After the run it
+  downloads every chat (Markdown + YAML) to
+  `~/.openmates/test-chat-backups/<date>/<test>-<id>/` and deletes the account
+  with all its data. An hourly user timer
+  (`scripts/dev-test-account-sweep-setup.sh`) cleans up accounts left by
+  crashed runs and deletes backups older than 7 days. Pass `--personal-only`
+  to wait for the personal account instead. `scripts/code_run_real_test.py`
+  shows the pattern.
 - **Not these accounts:** numbered `OPENMATES_TEST_ACCOUNT_<n>_*` slots belong to
   isolated CI backends and are not guaranteed to exist on dev (a failed OTP login
-  or "user not found" is expected there). Do not sign up, provision or repair
-  accounts to work around a missing login; stop and report instead.
+  or "user not found" is expected there). Do not sign up or repair accounts by
+  hand to work around a missing login; stop and report instead.
 - **CLI state:** log in through `scripts/openmates_cli_test_account.mjs login
   --slot PERSONAL` with a temporary `HOME` and `OPENMATES_STATE_DIR`, so the
   global engineering CLI login is never replaced
