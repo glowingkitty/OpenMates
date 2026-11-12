@@ -196,3 +196,25 @@ def test_manifest_accepts_regions(monkeypatch, tmp_path):
     _install(monkeypatch, tmp_path, [_entry(FIRST, "Example provider", regions=["DE", "AT"])])
     [provider] = loader.get_installed_packages().for_skill(APP, SKILL)
     assert provider.regions == ("DE", "AT")
+
+
+@pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=investors.request
+async def test_executor_keeps_country_list_in_one_investor_search(monkeypatch):
+    # A list of regions is one search, not one request per country.
+    from backend.apps.ai.processing import skill_executor
+
+    captured = []
+
+    async def execute(app_id, skill_id, arguments, *_args, **_kwargs):
+        captured.append(arguments)
+        return {"status": "ok"}
+
+    monkeypatch.setattr(skill_executor, "execute_skill", execute)
+    arguments = {"query": "open source privacy AI", "regions": ["DE", "FR", "NL", "GB", "SE"],
+                 "stages": ["pre_seed", "seed"], "ticket_min": 10000, "ticket_max": 50000}
+    result = await skill_executor.execute_skill_with_multiple_requests(
+        "business", "search_investors", arguments, max_retries=0,
+    )
+    assert result == [{"status": "ok"}]
+    assert captured == [arguments]

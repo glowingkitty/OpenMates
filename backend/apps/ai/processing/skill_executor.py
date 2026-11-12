@@ -628,12 +628,14 @@ async def execute_skill_with_multiple_requests(
     # A Code Run file/dependency/argv list belongs to one execution bundle.
     # Legacy expansion would wrap the bundle in requests and move private Vault
     # context off the top level, so RunCodeSkill cannot validate or execute it.
-    # Names, regions and classes likewise belong to one trademark search.
+    # Names, regions and classes likewise belong to one trademark search, and
+    # regions, investor types and stages to one investor search.
     # PDF read/view take one file plus a page list. Splitting the list into one
     # request per page would also move the server-injected file index and Vault
     # key off the top level, so the skill could no longer resolve its PDF.
     if should_keep_tasks_create_payload_as_single_request(app_id, skill_id, arguments) or (
         (app_id, skill_id) in {
+            ("business", "search_investors"),
             ("business", "search_trademarks"),
             ("code", "run"),
             ("pdf", "read"),
