@@ -20028,3 +20028,368 @@ progress_result_one:
   he: "תוצאה אחת"
   verified_by_human: []
 
+business.search_investors.result_count:
+  context: Number of investors found; neutral label supports any count
+  en: "Investors: {count}"
+  de: "Investoren: {count}"
+  verified_by_human: []
+
+business.search_investors.type:
+  context: Label for the investor type
+  en: "Type"
+  de: "Typ"
+  verified_by_human: []
+
+business.search_investors.stages:
+  context: Label for financing stages an investor invests in
+  en: "Stages"
+  de: "Phasen"
+  verified_by_human: []
+
+business.search_investors.ticket_size:
+  context: Label for the investment size range per investor
+  en: "Ticket size"
+  de: "Ticketgröße"
+  verified_by_human: []
+
+business.search_investors.regions:
+  context: Label for countries an investor covers
+  en: "Regions"
+  de: "Regionen"
+  verified_by_human: []
+
+business.search_investors.sectors:
+  context: Label for sectors an investor focuses on
+  en: "Sectors"
+  de: "Branchen"
+  verified_by_human: []
+
+business.search_investors.thesis:
+  context: Label for the investor's own investment thesis
+  en: "Thesis"
+  de: "Investmentthese"
+  verified_by_human: []
+
+business.search_investors.example_investments:
+  context: Label for example investments listed by the investor
+  en: "Example investments"
+  de: "Beispielinvestments"
+  verified_by_human: []
+
+business.search_investors.contact:
+  context: Label for how to contact the investor
+  en: "Contact"
+  de: "Kontakt"
+  verified_by_human: []
+
+business.search_investors.open_profile:
+  context: Link to the investor's public profile
+  en: "Open profile"
+  de: "Profil öffnen"
+  verified_by_human: []
+
+business.search_investors.empty:
+  context: Shown when the search returned no investors
+  en: "No investors found for this search."
+  de: "Für diese Suche wurden keine Investoren gefunden."
+  verified_by_human: []
+
+business.search_investors.limitation:
+  context: Notice that results are public self-descriptions, not a recommendation
+  en: "Public self-descriptions of investors, not a recommendation. Portfolios and ticket sizes are not verified."
+  de: "Öffentliche Selbstbeschreibungen von Investoren, keine Empfehlung. Portfolios und Ticketgrößen sind nicht geprüft."
+  verified_by_human: []
+
+business.search_investors.partial:
+  context: Notice that some sources were skipped or failed
+  en: "Partial results: some sources were not searched."
+  de: "Teilergebnisse: Einige Quellen wurden nicht durchsucht."
+  verified_by_human: []
+
+business.search_investors.unavailable:
+  context: Shown when no investor source is available on this server
+  en: "Investor search is not available on this server."
+  de: "Die Investorensuche ist auf diesem Server nicht verfügbar."
+  verified_by_human: []
+
+business.search_investors.failed:
+  context: Shown when the investor search failed
+  en: "Investor data unavailable"
+  de: "Investorendaten nicht verfügbar"
+  verified_by_human: []
+
+business.search_investors.skipped_sources:
+  context: Heading above the list of skipped sources
+  en: "Sources not searched"
+  de: "Nicht durchsuchte Quellen"
+  verified_by_human: []
+
+business.search_investors.source:
+  context: Label for the directory an investor entry came from
+  en: "Source"
+  de: "Quelle"
+  verified_by_human: []
+
+business.search_investors.open_website:
+  context: Link to the investor website
+  en: "Open website"
+  de: "Website öffnen"
+  verified_by_human: []
+
+business.search_investors.show_more:
+  context: Expand a long text
+  en: "Show more"
+  de: "Mehr anzeigen"
+  verified_by_human: []
+
+business.search_investors.show_less:
+  context: Collapse a long text
+  en: "Show less"
+  de: "Weniger anzeigen"
+  verified_by_human: []
+
+business.search_investors.more_investors:
+  context: Count of investors not shown in the preview
+  en: "+{count} more"
+  de: "+{count} weitere"
+  verified_by_human: []
+
+business.search_investors.type_angel:
+  context: Investor type label
+  en: "Angel"
+  de: "Business Angel"
+  verified_by_human: []
+
+business.search_investors.type_angel_network:
+  context: Investor type label
+  en: "Angel network"
+  de: "Angel-Netzwerk"
+  verified_by_human: []
+
+business.search_investors.type_vc:
+  context: Investor type label
+  en: "Venture capital"
+  de: "Wagniskapital"
+  verified_by_human: []
+
+business.search_investors.type_family_office:
+  context: Investor type label
+  en: "Family office"
+  de: "Family Office"
+  verified_by_human: []
+
+business.search_investors.type_accelerator:
+  context: Investor type label
+  en: "Accelerator"
+  de: "Accelerator"
+  verified_by_human: []
+
+business.search_investors.type_public_funding:
+  context: Investor type label
+  en: "Public funding"
+  de: "Öffentliche Förderung"
+  verified_by_human: []
+
+business.search_investors.stage_pre_seed:
+  context: Financing stage label
+  en: "Pre-seed"
+  de: "Pre-Seed"
+  verified_by_human: []
+
+business.search_investors.stage_seed:
+  context: Financing stage label
+  en: "Seed"
+  de: "Seed"
+  verified_by_human: []
+
+business.search_investors.stage_series_a:
+  context: Financing stage label
+  en: "Series A"
+  de: "Series A"
+  verified_by_human: []
+
+business.search_investors.stage_later:
+  context: Financing stage label
+  en: "Later stage"
+  de: "Spätphase"
+  verified_by_human: []
+
+business.company_ownership.result_count:
+  context: Number of subjects found; neutral label supports any count
+  en: "Results: {count}"
+  de: "Ergebnisse: {count}"
+  verified_by_human: []
+
+business.company_ownership.owners_count:
+  context: Owner count on the preview
+  en: "Owners: {count}"
+  de: "Eigentümer: {count}"
+  verified_by_human: []
+
+business.company_ownership.holdings_count:
+  context: Holdings count on the preview
+  en: "Holdings: {count}"
+  de: "Beteiligungen: {count}"
+  verified_by_human: []
+
+business.company_ownership.officers_count:
+  context: Officers count on the preview
+  en: "Officers: {count}"
+  de: "Organe: {count}"
+  verified_by_human: []
+
+business.company_ownership.more_records:
+  context: Hint that further records are in the fullscreen
+  en: "+{count} more in fullscreen"
+  de: "+{count} weitere im Vollbild"
+  verified_by_human: []
+
+business.company_ownership.type_company:
+  context: Badge for a company subject
+  en: "Company"
+  de: "Unternehmen"
+  verified_by_human: []
+
+business.company_ownership.type_person:
+  context: Badge for a person subject
+  en: "Person"
+  de: "Person"
+  verified_by_human: []
+
+business.company_ownership.country:
+  context: Label for the register country
+  en: "Country"
+  de: "Land"
+  verified_by_human: []
+
+business.company_ownership.legal_form:
+  context: Label for the legal form of a company
+  en: "Legal form"
+  de: "Rechtsform"
+  verified_by_human: []
+
+business.company_ownership.status:
+  context: Label for the register status of a company
+  en: "Status"
+  de: "Status"
+  verified_by_human: []
+
+business.company_ownership.register_id:
+  context: Label for the register number
+  en: "Register number"
+  de: "Registernummer"
+  verified_by_human: []
+
+business.company_ownership.city:
+  context: Label for the registered city
+  en: "City"
+  de: "Ort"
+  verified_by_human: []
+
+business.company_ownership.owners:
+  context: Section heading for owners and shareholders
+  en: "Owners"
+  de: "Eigentümer"
+  verified_by_human: []
+
+business.company_ownership.holdings:
+  context: Section heading for companies a person holds or directs
+  en: "Holdings and positions"
+  de: "Beteiligungen und Positionen"
+  verified_by_human: []
+
+business.company_ownership.officers:
+  context: Section heading for directors and officers
+  en: "Officers"
+  de: "Organe und Geschäftsführung"
+  verified_by_human: []
+
+business.company_ownership.name:
+  context: Table column for the owner name
+  en: "Name"
+  de: "Name"
+  verified_by_human: []
+
+business.company_ownership.share:
+  context: Table column for the ownership share
+  en: "Share"
+  de: "Anteil"
+  verified_by_human: []
+
+business.company_ownership.relation:
+  context: Table column for the kind of ownership relation
+  en: "Relation"
+  de: "Beziehung"
+  verified_by_human: []
+
+business.company_ownership.since:
+  context: Label for the start date of an ownership or role
+  en: "Since"
+  de: "Seit"
+  verified_by_human: []
+
+business.company_ownership.ended:
+  context: Badge for a holding or role that has ended
+  en: "Ended"
+  de: "Beendet"
+  verified_by_human: []
+
+business.company_ownership.source:
+  context: Label for the data source
+  en: "Source"
+  de: "Quelle"
+  verified_by_human: []
+
+business.company_ownership.open_source:
+  context: Link text for the register entry
+  en: "Open register entry"
+  de: "Registereintrag öffnen"
+  verified_by_human: []
+
+business.company_ownership.candidates:
+  context: Heading above ambiguous lookup candidates
+  en: "Possible matches. Name one by its register number to look it up."
+  de: "Mögliche Treffer. Nenne einen per Registernummer, um ihn nachzuschlagen."
+  verified_by_human: []
+
+business.company_ownership.empty:
+  context: Shown when the lookup found nothing
+  en: "No ownership data found."
+  de: "Keine Eigentümerdaten gefunden."
+  verified_by_human: []
+
+business.company_ownership.failed:
+  context: Shown when the lookup failed
+  en: "The ownership lookup failed."
+  de: "Die Abfrage der Eigentumsverhältnisse ist fehlgeschlagen."
+  verified_by_human: []
+
+business.company_ownership.error_ambiguous:
+  context: "Lookup error, several register entries match"
+  en: "Several matches. Please pick one."
+  de: "Mehrere Treffer. Bitte einen auswählen."
+  verified_by_human: []
+
+business.company_ownership.error_coverage_gap:
+  context: "Lookup error, country not covered"
+  en: "This country is not covered."
+  de: "Dieses Land wird nicht abgedeckt."
+  verified_by_human: []
+
+business.company_ownership.error_not_found:
+  context: "Lookup error, nothing found in the register"
+  en: "Not found in the register."
+  de: "Im Register nicht gefunden."
+  verified_by_human: []
+
+business.company_ownership.error_other:
+  context: "Lookup error, any other failure"
+  en: "The lookup failed."
+  de: "Die Abfrage ist fehlgeschlagen."
+  verified_by_human: []
+
+business.company_ownership.skipped_sources:
+  context: Heading above skipped lookups and warnings
+  en: "Skipped lookups"
+  de: "Übersprungene Abfragen"
+  verified_by_human: []

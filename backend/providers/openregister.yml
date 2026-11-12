@@ -1,0 +1,11 @@
+# backend/providers/openregister.yml
+#
+# Metadata for OpenRegister, the German commercial register API used by
+# business.company_ownership (shareholders, holdings, officers). Needs an API key.
+
+provider_id: openregister
+name: OpenRegister
+description: German commercial register data (Handelsregister) with shareholders, holdings and officers.
+logo_svg: icons/business.svg
+region: DE
+privacy_policy: https://openregister.de/privacy # verified 2026-11-12

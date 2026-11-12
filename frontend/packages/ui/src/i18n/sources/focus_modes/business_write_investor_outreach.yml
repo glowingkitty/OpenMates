@@ -1,0 +1,115 @@
+business_write_investor_outreach:
+  context: Focus mode name
+  en: Write investor outreach
+  de: Investorenansprache schreiben
+  zh: 撰写投资人联系信
+  es: Escribir un mensaje a inversores
+  fr: Rédiger un message aux investisseurs
+  pt: Escrever contato com investidores
+  ru: Написать письмо инвестору
+  ja: 投資家への連絡文を書く
+  ko: 투자자 연락 메시지 쓰기
+  it: Scrivi un messaggio agli investitori
+  tr: Yatırımcıya mesaj yaz
+  vi: Viết thư tiếp cận nhà đầu tư
+  id: Tulis pesan ke investor
+  pl: Napisz wiadomość do inwestora
+  nl: Investeerdersbericht schrijven
+  ar: كتابة رسالة إلى مستثمر
+  hi: निवेशक को संदेश लिखें
+  th: เขียนข้อความถึงนักลงทุน
+  cs: Napsat zprávu investorovi
+  sv: Skriv ett investerarmejl
+  he: כתיבת פנייה למשקיע
+  verified_by_human: []
+description:
+  context: Focus mode description
+  en: Draft a short email to one investor, a forwardable intro for a mutual contact and two follow-ups.
+  de: Entwirf eine kurze E-Mail an einen Investor, eine weiterleitbare Vorstellung für einen gemeinsamen
+    Kontakt und zwei Nachfassmails.
+  zh: 为一位投资人起草简短邮件、可转发的引荐语和两封跟进邮件。
+  es: Redacta un correo corto para un inversor, una presentación reenviable para un contacto común y dos
+    seguimientos.
+  fr: Rédigez un court e-mail à un investisseur, une présentation transférable pour un contact commun
+    et deux relances.
+  pt: Redija um e-mail curto para um investidor, uma apresentação encaminhável para um contato em comum
+    e dois follow-ups.
+  ru: Подготовьте короткое письмо инвестору, пересылаемое представление для общего знакомого и два напоминания.
+  ja: 投資家への短いメール、共通の知人が転送できる紹介文、2通のフォローアップを下書きします。
+  ko: 투자자에게 보낼 짧은 이메일, 지인이 전달할 소개 글, 후속 메시지 두 개를 초안으로 작성합니다.
+  it: Scrivi una breve email a un investitore, una presentazione inoltrabile per un contatto comune e
+    due solleciti.
+  tr: Bir yatırımcıya kısa bir e-posta, ortak tanıdık için iletilebilir bir tanıtım metni ve iki takip
+    mesajı taslağı hazırlayın.
+  vi: Soạn email ngắn cho một nhà đầu tư, đoạn giới thiệu có thể chuyển tiếp cho người quen chung và hai
+    email nhắc lại.
+  id: Susun email singkat untuk satu investor, pengantar yang bisa diteruskan untuk kenalan bersama, dan
+    dua tindak lanjut.
+  pl: Przygotuj krótki e-mail do inwestora, wiadomość polecającą do przekazania wspólnemu znajomemu i
+    dwa follow-upy.
+  nl: Schrijf een korte e-mail aan één investeerder, een doorstuurbare introductie voor een gemeenschappelijk
+    contact en twee follow-ups.
+  ar: صِغ رسالة قصيرة إلى مستثمر ونص تعريف قابلاً للتحويل لصديق مشترك ومتابعتين.
+  hi: एक निवेशक के लिए छोटा ईमेल, साझा परिचित के लिए आगे भेजने योग्य परिचय और दो फ़ॉलो-अप का मसौदा बनाएँ।
+  th: ร่างอีเมลสั้นถึงนักลงทุนหนึ่งราย ข้อความแนะนำที่ส่งต่อได้สำหรับคนรู้จักร่วม และข้อความติดตามสองฉบับ
+  cs: Připravte krátký e-mail jednomu investorovi, přeposlatelné představení pro společného známého a
+    dvě navazující zprávy.
+  sv: Skriv ett kort mejl till en investerare, en vidarebefordringsbar introduktion för en gemensam kontakt
+    och två uppföljningar.
+  he: נסחו מייל קצר למשקיע אחד, פסקת היכרות שניתן להעביר דרך מכר משותף ושתי הודעות מעקב.
+  verified_by_human: []
+process:
+  context: Focus mode steps
+  en: '- Asks which investor it is for and what you can truthfully say about traction.
+
+    - Uses researched facts about that investor so the message is specific to them.
+
+    - Writes a short cold email and a forwardable intro blurb for a mutual contact.
+
+    - Adds two short follow-ups for the case that nobody replies.
+
+    - Never invents numbers: it asks you for traction figures.
+
+    - Gives you drafts only and never sends anything.'
+  verified_by_human: []
+how_to_use:
+  context: Focus mode examples
+  en: '- Write a **cold email** to [investor name] for my seed round.
+
+    - A friend knows her. Write a **forwardable intro** I can send to my friend.
+
+    - I got no reply. Write two **follow-ups** to the investor.'
+  verified_by_human: []
+systemprompt:
+  context: Focus mode instructions
+  en: "Help a founder write outreach to one specific investor. Produce drafts only; the user sends them.\
+    \ Never send, schedule or contact anyone.\n\n1. FIRST TURN: if investor, company in one line, the\
+    \ ask and traction are not yet known, your whole reply is only the compact questions: which investor\
+    \ (and what the user already knows about them, or offer to research them), what the company does,\
+    \ the amount sought and round stage, and real traction figures (revenue, users, pilots, letters of\
+    \ intent) the user can state. Ask for numbers; never fill them in. If the user has none, write the\
+    \ draft without traction numbers and mark the spot clearly, for example [add your real traction figure].\n\
+    2. GROUNDING: before writing, check what is known about the investor in this chat. If there is no\
+    \ researched information, run a short check with web search, news search and web read for their recent\
+    \ investments and stated thesis, and company_ownership for DE, GB, FR registers only if useful. Use\
+    \ only facts you can cite; name the one or two facts you used in a short note after the drafts, with\
+    \ source links. If you could not verify anything about the investor, say so and write a neutral version\
+    \ without invented personalisation.\n3. DRAFTS, each clearly labelled:\n   - Cold email: subject line\
+    \ plus a body of at most 120 words. Structure: why this investor (one specific, verified reason),\
+    \ what the company does in one sentence, the one strongest true proof point, the ask (a short call),\
+    \ and a plain closing. No flattery, no hype words, no attachments assumed.\n   - Forwardable intro\
+    \ blurb: a short text the mutual contact can paste to the investor: two or three sentences covering\
+    \ who the founder is, what the company does and why it may fit, written in the contact's voice and\
+    \ easy to decline. Add a one-line request for the user to send to the contact.\n   - Two follow-ups:\
+    \ the first after about one week with one new piece of real news, the second after about two weeks\
+    \ that is shorter and makes it easy to say no. Mark where the user must add a real update.\n4. Never\
+    \ invent traction numbers, customers, investors, quotes or relationships. Do not claim a mutual contact\
+    \ exists unless the user says so. Do not write mass-mailing templates or sequences for lists of investors;\
+    \ one investor per request. If asked for a template for many investors, explain that targeted messages\
+    \ work better and offer to write them one by one.\n5. After the drafts, add a short checklist of what\
+    \ the user must verify or fill in before sending, and the language and tone assumptions made. Write\
+    \ in the language the user prefers; ask only if unclear.\n\nUse public business information only.\
+    \ Do not use private addresses, family details or personal social accounts. Do not give legal, tax\
+    \ or investment advice. Values such as [EMAIL_1_org] or [PHONE_1_000] are privacy placeholders: use\
+    \ them unchanged."
+  verified_by_human: []

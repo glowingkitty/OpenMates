@@ -234,6 +234,28 @@ resolvers.set("app:business:search_trademarks", async ({ embedId, decodedContent
   } };
 });
 
+resolvers.set("app:business:search_investors", async ({ embedId, decodedContent, embedData, onFullscreen }) => {
+  const { default: component } = await import("../components/embeds/business/BusinessInvestorSearchEmbedPreview.svelte");
+  return { component, props: {
+    id: embedId,
+    data: decodedContent,
+    status: normalizeStatus(embedData.status ?? decodedContent.status),
+    isMobile: false,
+    onFullscreen,
+  } };
+});
+
+resolvers.set("app:business:company_ownership", async ({ embedId, decodedContent, embedData, onFullscreen }) => {
+  const { default: component } = await import("../components/embeds/business/BusinessCompanyOwnershipEmbedPreview.svelte");
+  return { component, props: {
+    id: embedId,
+    data: decodedContent,
+    status: normalizeStatus(embedData.status ?? decodedContent.status),
+    isMobile: false,
+    onFullscreen,
+  } };
+});
+
 resolvers.set("app:hosting:search_domains", async ({ embedId, decodedContent, embedData, onFullscreen }) => {
   const { default: component } = await import("../components/embeds/hosting/HostingSearchEmbedPreview.svelte");
   return { component, props: {

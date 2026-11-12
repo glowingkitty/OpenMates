@@ -1,0 +1,80 @@
+schema_version: 1
+id: feature.app-skill.company-ownership
+version: 1
+status: draft
+title: Company Ownership from Official Registers
+summary: Founders see who owns and runs a named company, or which companies a named person holds or directs, from
+  the official company register of Germany, the United Kingdom or France, with private personal data removed.
+
+inherits: [architecture.app-skill-execution@1, architecture.platform-parity@1]
+scope:
+  includes:
+  - A Business skill with one to five lookups per call, each naming a company or person and the register country.
+  - Official register providers for DE (OpenRegister), GB (Companies House) and FR (Annuaire des Entreprises).
+  - One saved result with owners, holdings or positions, officers, sources, warnings and per-lookup errors.
+  excludes:
+  - Countries without a connected official register, credit checks and contact details.
+  - Investment, legal or tax advice.
+
+assertions:
+- id: ownership.request
+  type: validation
+  must: Each lookup needs a query of 1-160 characters and a two-letter country code; subject is company (default) or
+    person and include is any of owners, holdings and officers (default owners). At most five lookups run per call.
+    Unknown fields and malformed values are rejected before any register is called.
+  depends_on:
+  - examples.company_ownership
+- id: ownership.routing
+  type: invariant
+  must: Each lookup runs only in the register of its own country. A country without a connected register returns a
+    coverage gap for that lookup and never falls back to another country's register; other lookups in the same call
+    still return their results.
+  depends_on:
+  - examples.company_ownership
+- id: ownership.privacy
+  type: security
+  must: Results carry public business facts only. Birth dates, birth months and years, private addresses,
+    nationality, residence, occupation and identity data from any register never reach the assistant, the saved
+    result or the screen, and requests to registers carry no OpenMates user identifier.
+  depends_on:
+  - examples.company_ownership
+- id: ownership.budget
+  type: invariant
+  must: Each lookup calls the register only for the facts it asks for, and an identical successful lookup is
+    answered from a 7-day cache without a new register call. Failed lookups are not cached.
+  depends_on:
+  - examples.company_ownership
+- id: ownership.results
+  type: behavior
+  must: A matched lookup shows the subject (name, country, register number, legal form, status, city, source link),
+    the requested owners with exact share or ownership band, holdings or positions with ended ones marked, and
+    officers. A query matching several entries returns up to five candidates to choose from instead of guessing.
+    Facts a register does not publish are named in a warning, never invented.
+  depends_on:
+  - examples.company_ownership
+- id: ownership.unconfigured
+  type: behavior
+  must: A register that needs an API key and has none on this server answers its lookups with "not configured"
+    while registers without a key keep working.
+  depends_on:
+  - examples.company_ownership
+
+applies_to:
+  rest_api: {required: true}
+  cli: {required: true}
+  sdks:
+    required: true
+    parity: strict
+    implementations:
+      npm: {required: true}
+      pip: {required: true}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: false, reason: Native ownership renderer follows web after confirmation.}
+examples:
+  file: examples.yml
+  required_groups:
+  - company_ownership

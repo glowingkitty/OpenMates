@@ -222,6 +222,17 @@ specifications:
     - sdks.pip
     - gui.web
     - gui.apple
+  feature.app-skill.company-ownership:
+    version: 1
+    status: draft
+    path: features/app-skills/company-ownership
+    fingerprint: 3ee88e05dbc597a3b69020093dd0fe40aeb28d00ef609b81216c3659da66723f
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   feature.app-skill.design-embroidery:
     version: 1
     status: draft
@@ -314,6 +325,17 @@ specifications:
     - sdks.pip
     - gui.web
     - gui.apple
+  feature.app-skill.investor-search:
+    version: 1
+    status: draft
+    path: features/app-skills/investor-search
+    fingerprint: 9dedf7a2b34a921b5effec67e3947e0b0ee68690043a88d6ed43a205dd7ca8f1
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   feature.app-skill.maps-search:
     version: 1
     status: draft
@@ -724,7 +746,7 @@ specifications:
     version: 1
     status: draft
     path: features/instance-app-packages
-    fingerprint: 77fa07b87b388dd76a7bead771bdcc4f38abee836899ba2bcf0f67bbe4ba617d
+    fingerprint: 1aea133cfe7b2d391cca15c1b0d947c618c89b580f572b197051410ec85a4e19
     required_applies_to:
     - rest_api
     - cli
@@ -4263,6 +4285,72 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  ownership.request:
+    specification: feature.app-skill.company-ownership@1
+    specification_id: feature.app-skill.company-ownership
+    type: validation
+    fingerprint: 31bcafc2f4d13abd2400727813fc154bf5d007800ff7ea0013afbb280a51e5b5
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  ownership.routing:
+    specification: feature.app-skill.company-ownership@1
+    specification_id: feature.app-skill.company-ownership
+    type: invariant
+    fingerprint: 61224b8bbbec99855af5501e0b7c9fe7bacb44559fc120af4a7fccc8fe7433c4
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  ownership.privacy:
+    specification: feature.app-skill.company-ownership@1
+    specification_id: feature.app-skill.company-ownership
+    type: security
+    fingerprint: abe6074ac843424afe72e3ffa16524fb232228a6b1842f7c8c80b12da623a994
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  ownership.budget:
+    specification: feature.app-skill.company-ownership@1
+    specification_id: feature.app-skill.company-ownership
+    type: invariant
+    fingerprint: 1eecdebbd977473e8acf48ae428c6a71df908f3a7cba44c4c60d5b72a0da38c6
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  ownership.results:
+    specification: feature.app-skill.company-ownership@1
+    specification_id: feature.app-skill.company-ownership
+    type: behavior
+    fingerprint: da5b181b70e42568e9ecfd51d8abf1bd05935752867d64a77267870d460b5b4f
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  ownership.unconfigured:
+    specification: feature.app-skill.company-ownership@1
+    specification_id: feature.app-skill.company-ownership
+    type: behavior
+    fingerprint: 2d821ae4e06c441364d0a95e645f74138705a7c2465fcb836fe8399def2cf06f
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   design-embroidery.request.vector-source:
     specification: feature.app-skill.design-embroidery@1
     specification_id: feature.app-skill.design-embroidery
@@ -5079,6 +5167,61 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  investors.request:
+    specification: feature.app-skill.investor-search@1
+    specification_id: feature.app-skill.investor-search
+    type: validation
+    fingerprint: 35ea099e400ae4b0c7d1b8b737d9678c89c08a56bd141a7303fde3c38a48b9bb
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  investors.regions:
+    specification: feature.app-skill.investor-search@1
+    specification_id: feature.app-skill.investor-search
+    type: invariant
+    fingerprint: de1d67c4449a907b008f9a0339b04e89387cad9c7cd2550e0269d1102cce8c0b
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  investors.unavailable:
+    specification: feature.app-skill.investor-search@1
+    specification_id: feature.app-skill.investor-search
+    type: behavior
+    fingerprint: 43a79047ef41bc5660d2b3cadfc0161e74f9be301e4e306bd8b66516c6d7ddba
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  investors.results:
+    specification: feature.app-skill.investor-search@1
+    specification_id: feature.app-skill.investor-search
+    type: behavior
+    fingerprint: 17e97b4bb0ab0efbdfb92bc93aaac8d99177194493d407ac37be7f0d3c5d577a
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  investors.limits:
+    specification: feature.app-skill.investor-search@1
+    specification_id: feature.app-skill.investor-search
+    type: security
+    fingerprint: ef63cb0b3c7d59bd75e302801a004b84a14b5ea63f75081a7bea15f88d211099
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   maps-search.discovery.bounded-provider-routing:
     specification: feature.app-skill.maps-search@1
     specification_id: feature.app-skill.maps-search
@@ -9438,7 +9581,7 @@ assertions:
     specification: feature.instance-app-packages@1
     specification_id: feature.instance-app-packages
     type: behavior
-    fingerprint: e2c929df2457fab4663d67f8325886c7b0c4c8219589ce0ec73fa169e8e11bac
+    fingerprint: 3e8c4eca27c2bc3844b24802eb15b8ed091a59baef669d10f4843259cbe4d1ad
     required_applies_to:
     - rest_api
     - cli
@@ -9447,7 +9590,7 @@ assertions:
     specification: feature.instance-app-packages@1
     specification_id: feature.instance-app-packages
     type: behavior
-    fingerprint: 44111b7562bde45a6b686eb2c5b1eebfe4f332ac1d1979206cfbd086a666cbe9
+    fingerprint: a6556e2aa4a006c2fd0667491eca5805e435462ae5805f5daa51823886e923d6
     required_applies_to:
     - rest_api
     - cli

@@ -112,7 +112,12 @@ assertions:
     do not state the filtered value. The skill merges, deduplicates, filters and renders installed-provider results with the
     same rules and cards as built-in provider results and labels each result with the installed provider name.
     Results violating the contract are discarded, and a failing provider yields a safe per-request error without
-    affecting other providers in the same request. Every built-in skill that is paused because it has no provider
+    affecting other providers in the same request. A provider contribution may declare the regions it covers
+    (1-60 unique ISO 3166-1 alpha-2 codes; absent means worldwide); a generic-contract request that names regions
+    through country, countries, region or regions runs such a provider only when one of its regions is named or
+    WORLDWIDE is requested, lists every skipped provider in its warnings, and when no provider is left starts no
+    provider process and reports that no installed provider covers the requested regions. Every built-in skill
+    that is paused because it has no provider
     (provider_required with no built-in providers and no declared contract) also accepts the generic contract
     skill.requests@1 without any per-skill contract or code. Its input is one request item validated by the
     skill's own request model; for a skill with a flat tool schema the whole validated tool input is that one

@@ -94,3 +94,304 @@ price_products.description:
   sv: "Räkna ut vad du ska ta betalt för handgjorda produkter eller småserier, med ett live-ark du kan redigera."
   he: "חשבו כמה לגבות על מוצרים בעבודת יד או בייצור קטן, עם גיליון חי שאפשר לערוך."
   verified_by_human: []
+find_business_angels:
+  context: Focus mode name
+  en: Find business angels
+  de: Business Angels finden
+  zh: 寻找商业天使
+  es: Encontrar business angels
+  fr: Trouver des business angels
+  pt: Encontrar investidores-anjo
+  ru: Найти бизнес-ангелов
+  ja: ビジネスエンジェルを探す
+  ko: 비즈니스 엔젤 찾기
+  it: Trova business angel
+  tr: Melek yatırımcı bul
+  vi: Tìm nhà đầu tư thiên thần
+  id: Temukan angel investor
+  pl: Znajdź business angels
+  nl: Business angels vinden
+  ar: العثور على مستثمرين ملائكة
+  hi: बिज़नेस एंजेल खोजें
+  th: หานักลงทุนเทวดา
+  cs: Najít byznys anděly
+  sv: Hitta affärsänglar
+  he: מציאת משקיעי אנג'ל
+  verified_by_human: []
+find_business_angels.description:
+  context: Focus mode description
+  en: Build a ranked list of business angels for your round, with evidence of fit and a way to reach each
+    one.
+  de: Erstelle eine gerankte Liste von Business Angels für deine Runde, mit Belegen für die Passung und
+    einem Weg zum Kontakt.
+  zh: 为你的融资轮次建立天使投资人排序清单，附契合依据和联系方式。
+  es: Crea una lista ordenada de business angels para tu ronda, con pruebas de encaje y una vía de contacto.
+  fr: Établissez une liste classée de business angels pour votre levée, avec preuves d'adéquation et moyen
+    de les contacter.
+  pt: Monte uma lista ranqueada de investidores-anjo para sua rodada, com evidências de afinidade e como
+    contatá-los.
+  ru: Составьте ранжированный список бизнес-ангелов для вашего раунда с подтверждением соответствия и
+    способом связи.
+  ja: ラウンドに合うビジネスエンジェルを順位付きでリスト化し、適合の根拠と連絡方法を示します。
+  ko: 라운드에 맞는 비즈니스 엔젤을 순위별로 정리하고 적합성 근거와 연락 방법을 제공합니다.
+  it: Crea un elenco ordinato di business angel per il tuo round, con prove di affinità e come contattarli.
+  tr: Turunuz için sıralı bir melek yatırımcı listesi oluşturun; uyum kanıtı ve ulaşma yolu ile.
+  vi: Lập danh sách nhà đầu tư thiên thần được xếp hạng cho vòng gọi vốn, kèm bằng chứng phù hợp và cách
+    liên hệ.
+  id: Susun daftar angel investor berperingkat untuk putaran kamu, lengkap dengan bukti kecocokan dan
+    cara menghubungi.
+  pl: Stwórz uszeregowaną listę business angels dla swojej rundy, z dowodami dopasowania i sposobem kontaktu.
+  nl: Maak een gerangschikte lijst van business angels voor je ronde, met bewijs van match en een manier
+    om ze te bereiken.
+  ar: أنشئ قائمة مرتبة بالمستثمرين الملائكة لجولتك مع أدلة الملاءمة وطريقة الوصول إلى كل منهم.
+  hi: अपने राउंड के लिए रैंक की गई एंजेल निवेशकों की सूची बनाएँ, उपयुक्तता के प्रमाण और संपर्क के तरीके
+    के साथ।
+  th: สร้างรายชื่อนักลงทุนเทวดาจัดอันดับสำหรับรอบของคุณ พร้อมหลักฐานความเหมาะสมและช่องทางติดต่อ
+  cs: Sestavte seřazený seznam byznys andělů pro své kolo, s důkazy o shodě a způsobem, jak je oslovit.
+  sv: Bygg en rankad lista över affärsänglar för din runda, med belägg för passform och ett sätt att nå
+    dem.
+  he: בנו רשימה מדורגת של משקיעי אנג'ל לסבב שלכם, עם ראיות להתאמה ודרך ליצור קשר.
+  verified_by_human: []
+research_investor:
+  context: Focus mode name
+  en: Research an investor
+  de: Investor recherchieren
+  zh: 调研投资人
+  es: Investigar a un inversor
+  fr: Se renseigner sur un investisseur
+  pt: Pesquisar um investidor
+  ru: Изучить инвестора
+  ja: 投資家をリサーチする
+  ko: 투자자 조사하기
+  it: Fai ricerche su un investitore
+  tr: Yatırımcıyı araştır
+  vi: Tìm hiểu một nhà đầu tư
+  id: Riset seorang investor
+  pl: Sprawdź inwestora
+  nl: Een investeerder onderzoeken
+  ar: البحث عن مستثمر
+  hi: निवेशक की जाँच करें
+  th: ค้นคว้าข้อมูลนักลงทุน
+  cs: Prověřit investora
+  sv: Undersök en investerare
+  he: מחקר על משקיע
+  verified_by_human: []
+research_investor.description:
+  context: Focus mode description
+  en: Check one investor or firm before you approach them, with verified facts, red flags and ways to
+    get introduced.
+  de: 'Prüfe einen Investor oder eine Firma vor der Ansprache: mit verifizierten Fakten, Warnzeichen und
+    Wegen zur Vorstellung.'
+  zh: 接触前先调研某位投资人或机构，含已核实事实、风险信号和引荐途径。
+  es: Investiga a un inversor o firma antes de contactarlo, con hechos verificados, señales de alerta
+    y vías de presentación.
+  fr: 'Renseignez-vous sur un investisseur ou un fonds avant de le contacter : faits vérifiés, signaux
+    d''alerte et pistes d''introduction.'
+  pt: Pesquise um investidor ou firma antes de abordá-lo, com fatos verificados, alertas e caminhos para
+    apresentação.
+  ru: 'Изучите инвестора или фонд перед обращением: проверенные факты, тревожные признаки и пути знакомства.'
+  ja: 連絡する前に投資家やファームを調べ、検証済みの事実、懸念点、紹介ルートを確認します。
+  ko: 접근하기 전에 투자자나 투자사를 조사하세요. 검증된 사실, 위험 신호, 소개 경로를 제공합니다.
+  it: 'Informati su un investitore o una società prima di contattarli: fatti verificati, segnali d''allarme
+    e vie di presentazione.'
+  tr: 'Yaklaşmadan önce bir yatırımcıyı veya firmayı inceleyin: doğrulanmış bilgiler, uyarı işaretleri
+    ve tanışma yolları.'
+  vi: Tìm hiểu một nhà đầu tư hoặc quỹ trước khi tiếp cận, với thông tin đã xác minh, dấu hiệu cảnh báo
+    và cách được giới thiệu.
+  id: Periksa satu investor atau firma sebelum mendekati mereka, dengan fakta terverifikasi, tanda bahaya,
+    dan jalur perkenalan.
+  pl: 'Sprawdź inwestora lub fundusz przed kontaktem: zweryfikowane fakty, sygnały ostrzegawcze i drogi
+    do poleconego kontaktu.'
+  nl: Onderzoek een investeerder of firma voordat je contact zoekt, met geverifieerde feiten, waarschuwingssignalen
+    en manieren om geïntroduceerd te worden.
+  ar: 'ابحث عن مستثمر أو شركة قبل التواصل معهم: حقائق موثقة وإشارات تحذير وطرق للتعارف.'
+  hi: 'संपर्क करने से पहले किसी निवेशक या फर्म की जाँच करें: सत्यापित तथ्य, चेतावनी संकेत और परिचय के
+    रास्ते।'
+  th: ตรวจสอบนักลงทุนหรือบริษัทก่อนติดต่อ พร้อมข้อเท็จจริงที่ยืนยันแล้ว สัญญาณเตือน และช่องทางให้คนแนะนำ
+  cs: 'Prověřte investora nebo firmu před oslovením: ověřená fakta, varovné signály a cesty k seznámení.'
+  sv: Undersök en investerare eller firma innan du kontaktar dem, med verifierade fakta, varningssignaler
+    och vägar till introduktion.
+  he: בדקו משקיע או קרן לפני הפנייה, עם עובדות מאומתות, דגלים אדומים ודרכי היכרות.
+  verified_by_human: []
+write_investor_outreach:
+  context: Focus mode name
+  en: Write investor outreach
+  de: Investorenansprache schreiben
+  zh: 撰写投资人联系信
+  es: Escribir un mensaje a inversores
+  fr: Rédiger un message aux investisseurs
+  pt: Escrever contato com investidores
+  ru: Написать письмо инвестору
+  ja: 投資家への連絡文を書く
+  ko: 투자자 연락 메시지 쓰기
+  it: Scrivi un messaggio agli investitori
+  tr: Yatırımcıya mesaj yaz
+  vi: Viết thư tiếp cận nhà đầu tư
+  id: Tulis pesan ke investor
+  pl: Napisz wiadomość do inwestora
+  nl: Investeerdersbericht schrijven
+  ar: كتابة رسالة إلى مستثمر
+  hi: निवेशक को संदेश लिखें
+  th: เขียนข้อความถึงนักลงทุน
+  cs: Napsat zprávu investorovi
+  sv: Skriv ett investerarmejl
+  he: כתיבת פנייה למשקיע
+  verified_by_human: []
+write_investor_outreach.description:
+  context: Focus mode description
+  en: Draft a short email to one investor, a forwardable intro for a mutual contact and two follow-ups.
+  de: Entwirf eine kurze E-Mail an einen Investor, eine weiterleitbare Vorstellung für einen gemeinsamen
+    Kontakt und zwei Nachfassmails.
+  zh: 为一位投资人起草简短邮件、可转发的引荐语和两封跟进邮件。
+  es: Redacta un correo corto para un inversor, una presentación reenviable para un contacto común y dos
+    seguimientos.
+  fr: Rédigez un court e-mail à un investisseur, une présentation transférable pour un contact commun
+    et deux relances.
+  pt: Redija um e-mail curto para um investidor, uma apresentação encaminhável para um contato em comum
+    e dois follow-ups.
+  ru: Подготовьте короткое письмо инвестору, пересылаемое представление для общего знакомого и два напоминания.
+  ja: 投資家への短いメール、共通の知人が転送できる紹介文、2通のフォローアップを下書きします。
+  ko: 투자자에게 보낼 짧은 이메일, 지인이 전달할 소개 글, 후속 메시지 두 개를 초안으로 작성합니다.
+  it: Scrivi una breve email a un investitore, una presentazione inoltrabile per un contatto comune e
+    due solleciti.
+  tr: Bir yatırımcıya kısa bir e-posta, ortak tanıdık için iletilebilir bir tanıtım metni ve iki takip
+    mesajı taslağı hazırlayın.
+  vi: Soạn email ngắn cho một nhà đầu tư, đoạn giới thiệu có thể chuyển tiếp cho người quen chung và hai
+    email nhắc lại.
+  id: Susun email singkat untuk satu investor, pengantar yang bisa diteruskan untuk kenalan bersama, dan
+    dua tindak lanjut.
+  pl: Przygotuj krótki e-mail do inwestora, wiadomość polecającą do przekazania wspólnemu znajomemu i
+    dwa follow-upy.
+  nl: Schrijf een korte e-mail aan één investeerder, een doorstuurbare introductie voor een gemeenschappelijk
+    contact en twee follow-ups.
+  ar: صِغ رسالة قصيرة إلى مستثمر ونص تعريف قابلاً للتحويل لصديق مشترك ومتابعتين.
+  hi: एक निवेशक के लिए छोटा ईमेल, साझा परिचित के लिए आगे भेजने योग्य परिचय और दो फ़ॉलो-अप का मसौदा बनाएँ।
+  th: ร่างอีเมลสั้นถึงนักลงทุนหนึ่งราย ข้อความแนะนำที่ส่งต่อได้สำหรับคนรู้จักร่วม และข้อความติดตามสองฉบับ
+  cs: Připravte krátký e-mail jednomu investorovi, přeposlatelné představení pro společného známého a
+    dvě navazující zprávy.
+  sv: Skriv ett kort mejl till en investerare, en vidarebefordringsbar introduktion för en gemensam kontakt
+    och två uppföljningar.
+  he: נסחו מייל קצר למשקיע אחד, פסקת היכרות שניתן להעביר דרך מכר משותף ושתי הודעות מעקב.
+  verified_by_human: []
+prepare_investor_pitch:
+  context: Focus mode name
+  en: Prepare your pitch
+  de: Pitch vorbereiten
+  zh: 准备你的路演
+  es: Prepara tu pitch
+  fr: Préparer votre pitch
+  pt: Prepare seu pitch
+  ru: Подготовить питч
+  ja: ピッチを準備する
+  ko: 피치 준비하기
+  it: Prepara il tuo pitch
+  tr: Sunumunu hazırla
+  vi: Chuẩn bị bài pitch
+  id: Siapkan pitch kamu
+  pl: Przygotuj swój pitch
+  nl: Je pitch voorbereiden
+  ar: جهّز عرضك للمستثمرين
+  hi: अपनी पिच तैयार करें
+  th: เตรียมพิตช์ของคุณ
+  cs: Připravit pitch
+  sv: Förbered din pitch
+  he: הכנת הפיץ' שלך
+  verified_by_human: []
+prepare_investor_pitch.description:
+  context: Focus mode description
+  en: Build your deck storyline, find the weak spots, then rehearse hard investor questions one at a time.
+  de: Baue die Story deines Decks, finde die Schwachstellen und übe dann harte Investorenfragen, eine
+    nach der anderen.
+  zh: 搭建路演文稿故事线，找出薄弱环节，再逐个演练投资人的难题。
+  es: Construye el guion de tu deck, detecta los puntos débiles y ensaya preguntas difíciles de inversores,
+    una a una.
+  fr: Construisez le fil de votre deck, repérez les points faibles, puis répétez les questions difficiles
+    des investisseurs, une par une.
+  pt: Monte a narrativa do seu deck, encontre os pontos fracos e ensaie perguntas difíceis de investidores,
+    uma por vez.
+  ru: Постройте сюжет презентации, найдите слабые места и отрепетируйте трудные вопросы инвесторов по
+    одному.
+  ja: デックのストーリーを組み立て、弱点を見つけ、投資家の厳しい質問を1つずつ練習します。
+  ko: 덱의 스토리라인을 만들고 약점을 찾은 뒤 투자자의 까다로운 질문을 하나씩 연습하세요.
+  it: Costruisci la storia del tuo deck, individua i punti deboli e prova le domande difficili degli investitori,
+    una alla volta.
+  tr: Sunumunuzun hikâyesini kurun, zayıf noktaları bulun, sonra yatırımcıların zor sorularını tek tek
+    prova edin.
+  vi: Xây dựng mạch kể cho bộ slide, tìm điểm yếu rồi tập trả lời từng câu hỏi khó của nhà đầu tư.
+  id: Susun alur cerita deck kamu, temukan titik lemah, lalu latih pertanyaan sulit investor satu per
+    satu.
+  pl: Zbuduj opowieść swojego decku, znajdź słabe punkty, a potem przećwicz trudne pytania inwestorów,
+    jedno po drugim.
+  nl: Bouw het verhaal van je deck, vind de zwakke plekken en oefen lastige investeerdersvragen, één voor
+    één.
+  ar: ابنِ قصة عرضك، واكتشف نقاط الضعف، ثم تدرّب على أسئلة المستثمرين الصعبة واحداً تلو الآخر.
+  hi: अपने डेक की कहानी बनाएँ, कमज़ोर बिंदु खोजें, फिर निवेशकों के कठिन सवालों का एक-एक करके अभ्यास करें।
+  th: สร้างเรื่องราวของเด็ค หาจุดอ่อน แล้วซ้อมตอบคำถามยากของนักลงทุนทีละข้อ
+  cs: Vytvořte příběh svého decku, najděte slabá místa a pak si nacvičte těžké otázky investorů, jednu
+    po druhé.
+  sv: Bygg storyn i din deck, hitta svagheterna och öva sedan svåra investerarfrågor, en i taget.
+  he: בנו את סיפור המצגת, מצאו נקודות חולשה ואז תרגלו שאלות קשות של משקיעים, אחת בכל פעם.
+  verified_by_human: []
+plan_funding_round:
+  context: Focus mode name
+  en: Plan a funding round
+  de: Finanzierungsrunde planen
+  zh: 规划融资轮次
+  es: Planificar una ronda de financiación
+  fr: Planifier une levée de fonds
+  pt: Planejar uma rodada de investimento
+  ru: Спланировать раунд финансирования
+  ja: 資金調達ラウンドを計画する
+  ko: 투자 라운드 계획하기
+  it: Pianifica un round di finanziamento
+  tr: Yatırım turu planla
+  vi: Lập kế hoạch vòng gọi vốn
+  id: Rencanakan putaran pendanaan
+  pl: Zaplanuj rundę finansowania
+  nl: Een financieringsronde plannen
+  ar: التخطيط لجولة تمويل
+  hi: फंडिंग राउंड की योजना बनाएँ
+  th: วางแผนรอบระดมทุน
+  cs: Naplánovat kolo financování
+  sv: Planera en finansieringsrunda
+  he: תכנון סבב גיוס
+  verified_by_human: []
+plan_funding_round.description:
+  context: Focus mode description
+  en: Work out how much to raise, which instrument fits, the dilution and a timeline, with a cap-table
+    sheet you can edit.
+  de: Ermittle, wie viel du aufnimmst, welches Instrument passt, die Verwässerung und einen Zeitplan,
+    mit editierbarer Cap-Table.
+  zh: 算出该融多少、选哪种工具、股权稀释和时间表，并附可编辑的股权结构表。
+  es: Calcula cuánto captar, qué instrumento encaja, la dilución y un calendario, con una hoja de cap
+    table editable.
+  fr: Déterminez le montant à lever, l'instrument adapté, la dilution et un calendrier, avec un tableau
+    de capitalisation modifiable.
+  pt: Calcule quanto captar, qual instrumento se encaixa, a diluição e um cronograma, com uma planilha
+    de cap table editável.
+  ru: Рассчитайте, сколько привлечь, какой инструмент подходит, размывание доли и сроки, с редактируемой
+    таблицей капитализации.
+  ja: 調達額、適した手段、希薄化、スケジュールを整理し、編集できるキャップテーブルも作ります。
+  ko: 얼마를 조달할지, 어떤 수단이 맞는지, 지분 희석과 일정을 정리하고 수정 가능한 지분표를 만듭니다.
+  it: Calcola quanto raccogliere, quale strumento è adatto, la diluizione e le tempistiche, con una cap
+    table modificabile.
+  tr: Ne kadar fon toplanacağını, hangi aracın uygun olduğunu, hisse seyrelmesini ve zaman çizelgesini
+    düzenlenebilir bir hisse tablosuyla hesaplayın.
+  vi: Tính cần huy động bao nhiêu, công cụ nào phù hợp, mức pha loãng và lộ trình, kèm bảng cổ phần có
+    thể chỉnh sửa.
+  id: Hitung berapa dana yang dihimpun, instrumen yang cocok, dilusi, dan jadwal, lengkap dengan lembar
+    cap table yang bisa diedit.
+  pl: Ustal, ile pozyskać, jaki instrument pasuje, jakie będzie rozwodnienie i harmonogram, z edytowalnym
+    arkuszem cap table.
+  nl: Bepaal hoeveel je ophaalt, welk instrument past, de verwatering en een tijdlijn, met een bewerkbare
+    cap-tablesheet.
+  ar: احسب المبلغ المطلوب والأداة المناسبة والتخفيف وجدولاً زمنياً مع جدول ملكية قابل للتعديل.
+  hi: तय करें कितना जुटाना है, कौन-सा साधन उपयुक्त है, डाइल्यूशन और समयरेखा, संपादन योग्य कैप-टेबल शीट
+    के साथ।
+  th: คำนวณว่าควรระดมทุนเท่าไร เครื่องมือแบบไหนเหมาะ การเจือจางหุ้น และไทม์ไลน์ พร้อมชีต cap table ที่แก้ไขได้
+  cs: Spočítejte, kolik získat, jaký nástroj se hodí, ředění podílu a časový plán, s upravitelnou tabulkou
+    kapitalizace.
+  sv: Räkna ut hur mycket du ska ta in, vilket instrument som passar, utspädningen och en tidsplan, med
+    ett redigerbart cap table-ark.
+  he: חשבו כמה לגייס, איזה מכשיר מתאים, את ההדילול ולוח זמנים, עם גיליון קאפ טייבל שאפשר לערוך.
+  verified_by_human: []

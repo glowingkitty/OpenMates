@@ -1,0 +1,74 @@
+schema_version: 1
+id: feature.app-skill.investor-search
+version: 1
+status: draft
+title: Investor Search by Topic and Region
+summary: Founders find business angels, angel networks and early-stage investors by topic and region from
+  operator-installed providers; without an installed provider the skill is paused and says so.
+
+inherits: [architecture.app-skill-execution@1, architecture.platform-parity@1]
+scope:
+  includes:
+  - A paused Business skill without any built-in provider, served by operator-installed providers through the generic
+    skill.requests@1 flat contract.
+  - A typed request with topic, required regions, optional investor kinds, stages, ticket range and currency.
+  - Region-aware provider selection and saved investor results with explicit limits.
+  excludes:
+  - Paid investor databases and any source without an official documented API in this repository.
+  - Contact enrichment, automated outreach and investment, legal or tax advice.
+
+assertions:
+- id: investors.request
+  type: validation
+  must: The request requires a topic of 1-200 characters and 1-10 regions, each an upper-case ISO 3166-1 alpha-2 code
+    or WORLDWIDE. Investor kinds, stages, ticket range, currency (default EUR) and a result limit of 1-30
+    (default 15) are optional. Unknown fields and malformed regions are rejected before any provider runs.
+  depends_on:
+  - examples.investor_search
+- id: investors.regions
+  type: invariant
+  must: The assistant passes only the countries the user named and uses WORLDWIDE only on request. An installed
+    provider that declares regions and covers none of the requested ones is not searched, and the user sees which
+    sources were skipped. When every provider is skipped the user sees that no installed provider covers the
+    requested regions.
+  depends_on:
+  - examples.investor_search
+- id: investors.unavailable
+  type: behavior
+  must: Without an installed provider the skill reports that the capability is unavailable, makes no provider call,
+    and names no sources and claims no completed search.
+  depends_on:
+  - examples.investor_search
+- id: investors.results
+  type: behavior
+  must: Providers return investor objects that are shown inside one saved search result with the query, regions,
+    provider names, count, warnings and partial state. A failed provider is reported as a warning while others
+    still contribute. Zero investors is a valid result.
+  depends_on:
+  - examples.investor_search
+- id: investors.limits
+  type: security
+  must: Results are shown as public self-descriptions of investors, never as a recommendation or a verified
+    portfolio, ticket size or activity, and unknown facts stay unknown.
+  depends_on:
+  - examples.investor_search
+
+applies_to:
+  rest_api: {required: true}
+  cli: {required: true}
+  sdks:
+    required: true
+    parity: strict
+    implementations:
+      npm: {required: true}
+      pip: {required: true}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: false, reason: Native investor search renderer follows web after confirmation.}
+examples:
+  file: examples.yml
+  required_groups:
+  - investor_search

@@ -159,6 +159,16 @@ impl BusinessSkills<'_> {
             .run_skill("business", "search_trademarks", input)
             .await
     }
+    pub async fn search_investors(&self, input: Value) -> Result<Value> {
+        self.sdk
+            .run_skill("business", "search_investors", input)
+            .await
+    }
+    pub async fn company_ownership(&self, input: Value) -> Result<Value> {
+        self.sdk
+            .run_skill("business", "company_ownership", input)
+            .await
+    }
     pub async fn company_financials(&self, input: Value) -> Result<Value> {
         self.sdk
             .run_skill("business", "company_financials", input)

@@ -105,6 +105,36 @@
         "description": {
           "text": "Bereken wat je vraagt voor handgemaakte producten of kleine series, met een live sheet die je kunt bewerken."
         }
+      },
+      "find_business_angels": {
+        "text": "Business angels vinden",
+        "description": {
+          "text": "Maak een gerangschikte lijst van business angels voor je ronde, met bewijs van match en een manier om ze te bereiken."
+        }
+      },
+      "research_investor": {
+        "text": "Een investeerder onderzoeken",
+        "description": {
+          "text": "Onderzoek een investeerder of firma voordat je contact zoekt, met geverifieerde feiten, waarschuwingssignalen en manieren om geïntroduceerd te worden."
+        }
+      },
+      "write_investor_outreach": {
+        "text": "Investeerdersbericht schrijven",
+        "description": {
+          "text": "Schrijf een korte e-mail aan één investeerder, een doorstuurbare introductie voor een gemeenschappelijk contact en twee follow-ups."
+        }
+      },
+      "prepare_investor_pitch": {
+        "text": "Je pitch voorbereiden",
+        "description": {
+          "text": "Bouw het verhaal van je deck, vind de zwakke plekken en oefen lastige investeerdersvragen, één voor één."
+        }
+      },
+      "plan_funding_round": {
+        "text": "Een financieringsronde plannen",
+        "description": {
+          "text": "Bepaal hoeveel je ophaalt, welk instrument past, de verwatering en een tijdlijn, met een bewerkbare cap-tablesheet."
+        }
       }
     },
     "code": {
@@ -597,6 +627,18 @@
         "text": "Handelsmerken zoeken",
         "description": {
           "text": "Zoek merknamen per regio met bronnen en dekkingsgrenzen."
+        }
+      },
+      "search_investors": {
+        "text": "Investeerders zoeken",
+        "description": {
+          "text": "Vind business angels, angelnetwerken en investeerders in de beginfase op thema en regio."
+        }
+      },
+      "company_ownership": {
+        "text": "Eigendom van bedrijven",
+        "description": {
+          "text": "Zoek op wie een bedrijf bezit of leidt, of welke bedrijven een persoon bezit, in de officiële registers van Duitsland, het Verenigd Koninkrijk en Frankrijk."
         }
       }
     },
@@ -10609,10 +10651,40 @@
         "text": "- Begrijp de vraag\n- selecteer namen\n- controleer finalisten\n- vergelijk bewijs"
       }
     },
+    "business_find_business_angels": {
+      "text": "Business angels vinden",
+      "description": {
+        "text": "Maak een gerangschikte lijst van business angels voor je ronde, met bewijs van match en een manier om ze te bereiken."
+      }
+    },
+    "business_plan_funding_round": {
+      "text": "Een financieringsronde plannen",
+      "description": {
+        "text": "Bepaal hoeveel je ophaalt, welk instrument past, de verwatering en een tijdlijn, met een bewerkbare cap-tablesheet."
+      }
+    },
+    "business_prepare_investor_pitch": {
+      "text": "Je pitch voorbereiden",
+      "description": {
+        "text": "Bouw het verhaal van je deck, vind de zwakke plekken en oefen lastige investeerdersvragen, één voor één."
+      }
+    },
     "business_price_products": {
       "text": "Je producten prijzen",
       "description": {
         "text": "Bereken wat je vraagt voor handgemaakte producten of kleine series, met een live sheet die je kunt bewerken."
+      }
+    },
+    "business_research_investor": {
+      "text": "Een investeerder onderzoeken",
+      "description": {
+        "text": "Onderzoek een investeerder of firma voordat je contact zoekt, met geverifieerde feiten, waarschuwingssignalen en manieren om geïntroduceerd te worden."
+      }
+    },
+    "business_write_investor_outreach": {
+      "text": "Investeerdersbericht schrijven",
+      "description": {
+        "text": "Schrijf een korte e-mail aan één investeerder, een doorstuurbare introductie voor een gemeenschappelijk contact en twee follow-ups."
       }
     },
     "code_analyze_logs": {

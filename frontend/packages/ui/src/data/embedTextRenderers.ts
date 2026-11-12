@@ -80,6 +80,8 @@ import { renderSlidesDeck } from '../components/embeds/slides/slidesEmbedText';
 import { renderSocialMediaGetPosts, renderSocialMediaPost, renderSocialMediaSearch } from '../components/embeds/social_media/socialMediaEmbedText';
 import { renderWeatherDay, renderWeatherForecast, renderWeatherRainRadar } from '../components/embeds/weather/weatherEmbedText';
 import { renderCompanyFinancialResult, renderCompanyFinancials, renderTrademarkSearch } from '../components/embeds/business/businessEmbedText';
+import { renderInvestorSearchText } from '../components/embeds/business/investorSearchContent';
+import { renderCompanyOwnershipText } from '../components/embeds/business/companyOwnershipContent';
 import { normalizeFinanceOverview } from '../components/embeds/finance/financeCheckAccountsContent';
 import { renderMindMapText } from '../components/embeds/mindmaps/mindMapContent';
 import { renderDiagramText } from '../components/embeds/diagrams/diagramHtmlContent';
@@ -271,6 +273,8 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:weather:rain_radar': renderWeatherRainRadar,
 	'app:business:company_financials': renderCompanyFinancials,
 	'app:business:search_trademarks': renderTrademarkSearch,
+	'app:business:search_investors': renderInvestorSearchText,
+	'app:business:company_ownership': renderCompanyOwnershipText,
 	'app:finance:check_accounts': renderFinanceCheckAccounts,
 	'app:tasks:create': renderTasksParent,
 	'app:tasks:search': renderTasksParent,

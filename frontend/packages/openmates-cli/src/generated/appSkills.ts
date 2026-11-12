@@ -830,6 +830,317 @@ export const APP_SKILL_METADATA = [
   },
   {
     "app_id": "business",
+    "skill_id": "search_investors",
+    "app_namespace_ts": "business",
+    "skill_method_ts": "searchInvestors",
+    "app_namespace_py": "business",
+    "skill_method_py": "search_investors",
+    "description_key": "app_skills.business.search_investors.description",
+    "description": "This capability is currently unavailable because no permitted provider is configured.",
+    "schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "query": {
+          "x-ui": {
+            "basic": true
+          },
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Topic, sector or investment thesis keywords describing the company, for example \"climate software seed\". Do not include confidential company details."
+        },
+        "regions": {
+          "x-ui": {
+            "basic": true
+          },
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10,
+          "uniqueItems": true,
+          "description": "Countries the user wants investors from, as upper-case ISO 3166-1 alpha-2 codes. Pass exactly the countries the user named; never widen silently to other countries. Use WORLDWIDE only when the user asks for it.",
+          "items": {
+            "type": "string",
+            "pattern": "^([A-Z]{2}|WORLDWIDE)$"
+          }
+        },
+        "investor_types": {
+          "x-ui": {
+            "basic": false
+          },
+          "type": "array",
+          "maxItems": 6,
+          "uniqueItems": true,
+          "description": "Optional investor kinds; omit to search all kinds.",
+          "items": {
+            "type": "string",
+            "enum": [
+              "angel",
+              "angel_network",
+              "vc",
+              "family_office",
+              "accelerator",
+              "public_funding"
+            ]
+          }
+        },
+        "stages": {
+          "x-ui": {
+            "basic": false
+          },
+          "type": "array",
+          "maxItems": 4,
+          "uniqueItems": true,
+          "description": "Optional financing stages the company is at; omit when unknown.",
+          "items": {
+            "type": "string",
+            "enum": [
+              "pre_seed",
+              "seed",
+              "series_a",
+              "later"
+            ]
+          }
+        },
+        "ticket_min": {
+          "x-ui": {
+            "basic": false
+          },
+          "type": "number",
+          "minimum": 0,
+          "description": "Optional minimum investment size per investor, in the given currency."
+        },
+        "ticket_max": {
+          "x-ui": {
+            "basic": false
+          },
+          "type": "number",
+          "minimum": 0,
+          "description": "Optional maximum investment size per investor, in the given currency."
+        },
+        "currency": {
+          "x-ui": {
+            "basic": false
+          },
+          "type": "string",
+          "pattern": "^[A-Z]{3}$",
+          "default": "EUR",
+          "description": "ISO 4217 currency of ticket_min and ticket_max."
+        },
+        "max_results": {
+          "x-ui": {
+            "basic": false
+          },
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 30,
+          "default": 15
+        }
+      },
+      "required": [
+        "query",
+        "regions"
+      ]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "result_count": {
+          "type": "integer",
+          "x-ui": {
+            "basic": true
+          }
+        },
+        "investors": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          },
+          "x-ui": {
+            "basic": true
+          }
+        },
+        "regions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-ui": {
+            "basic": true
+          }
+        },
+        "provider": {
+          "type": "string",
+          "x-ui": {
+            "basic": false
+          }
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-ui": {
+            "basic": true
+          }
+        },
+        "partial": {
+          "type": "boolean",
+          "x-ui": {
+            "basic": true
+          }
+        },
+        "limitation": {
+          "type": "string",
+          "x-ui": {
+            "basic": true
+          }
+        },
+        "error": {
+          "type": "string",
+          "x-ui": {
+            "basic": false
+          }
+        }
+      }
+    }
+  },
+  {
+    "app_id": "business",
+    "skill_id": "company_ownership",
+    "app_namespace_ts": "business",
+    "skill_method_ts": "companyOwnership",
+    "app_namespace_py": "business",
+    "skill_method_py": "company_ownership",
+    "description_key": "app_skills.business.company_ownership.description",
+    "description": "Look up who owns or runs a named company, or which companies a named person holds or directs, in the official company register of Germany (DE), the United Kingdom (GB) or France (FR). Use to research investors, shareholders and directors; not for other countries, credit checks, private contact details or legal advice.",
+    "schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "requests": {
+          "x-ui": {
+            "basic": true
+          },
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 5,
+          "description": "One entry per company or person to look up. Each runs only in the register of its own country.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "query": {
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 160,
+                "description": "Exact company name or register number (for example \"Example GmbH\", \"12345678\", a 9-digit SIREN), or a person's full name."
+              },
+              "subject": {
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "string",
+                "enum": [
+                  "company",
+                  "person"
+                ],
+                "default": "company",
+                "description": "company to see owners and officers; person to see which companies they hold or direct."
+              },
+              "country": {
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "string",
+                "pattern": "^[A-Z]{2}$",
+                "description": "Upper-case ISO 3166-1 alpha-2 code of the register to search (DE, GB or FR). Never guess a different country."
+              },
+              "include": {
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "array",
+                "uniqueItems": true,
+                "maxItems": 3,
+                "default": [
+                  "owners"
+                ],
+                "description": "Which facts to fetch. Ask only for what the user needs; each extra value costs a separate register call.",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "owners",
+                    "holdings",
+                    "officers"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "query",
+              "country"
+            ]
+          }
+        }
+      },
+      "required": [
+        "requests"
+      ]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "result_count": {
+          "type": "integer",
+          "x-ui": {
+            "basic": true
+          }
+        },
+        "records": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          },
+          "x-ui": {
+            "basic": true
+          }
+        },
+        "providers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-ui": {
+            "basic": false
+          }
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-ui": {
+            "basic": true
+          }
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          },
+          "x-ui": {
+            "basic": false
+          }
+        }
+      }
+    }
+  },
+  {
+    "app_id": "business",
     "skill_id": "company_financials",
     "app_namespace_ts": "business",
     "skill_method_ts": "companyFinancials",
@@ -9894,6 +10205,22 @@ export class BusinessAppSkills {
    */
   async companyFinancials<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
     return this.runSkill<T>("business", "company_financials", input, options);
+  }
+  /**
+   * Look up who owns or runs a named company, or which companies a named person holds or directs, in the official company register of Germany (DE), the United Kingdom (GB) or France (FR). Use to research investors, shareholders and directors; not for other countries, credit checks, private contact details or legal advice.
+   * Description key: app_skills.business.company_ownership.description
+   * Skill: business/company_ownership
+   */
+  async companyOwnership<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("business", "company_ownership", input, options);
+  }
+  /**
+   * This capability is currently unavailable because no permitted provider is configured.
+   * Description key: app_skills.business.search_investors.description
+   * Skill: business/search_investors
+   */
+  async searchInvestors<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("business", "search_investors", input, options);
   }
   /**
    * This capability is currently unavailable because no permitted provider is configured.

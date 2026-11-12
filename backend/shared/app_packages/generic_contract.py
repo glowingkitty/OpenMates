@@ -11,7 +11,10 @@ contract. No per-skill contract or code exists in the repository:
   flat schema (no ``requests`` property) passes its whole validated tool input as
   the single item (``delegate_flat_skill``);
 - output: a list of JSON objects. The server validates them structurally only
-  (``validate_generic_result``) and stamps ``provider`` / ``provider_id``.
+  (``validate_generic_result``) and stamps ``provider`` / ``provider_id``;
+- regions: a provider may declare ``regions`` (ISO 3166-1 alpha-2); the delegates
+  skip it when the request names regions (``country``, ``countries``, ``region``,
+  ``regions``) it does not cover (``filter_providers_by_region``).
 
 Architecture: docs/architecture/apps/instance-app-packages.md ("Generic contract").
 """
@@ -19,7 +22,7 @@ from __future__ import annotations
 
 import math
 import re
-from typing import Any, Dict, FrozenSet, Optional, Tuple
+from typing import Any, Dict, FrozenSet, List, Optional, Sequence, Tuple
 from urllib.parse import urlsplit
 
 SKILL_REQUESTS_V1 = "skill.requests@1"
@@ -34,6 +37,52 @@ PROVIDER_SELECTOR_FIELDS: Tuple[str, ...] = ("provider", "providers", "provider_
 GENERIC_RESERVED_PROVIDER_IDS: FrozenSet[str] = frozenset({
     "auto", "all", "any", "none", "default", "unavailable", "multi",
 })
+
+# Request fields that name the regions a request is about (string or list of strings).
+REGION_FIELDS: Tuple[str, ...] = ("country", "countries", "region", "regions")
+WORLDWIDE_REGION = "WORLDWIDE"
+
+
+def requested_regions(item: Any) -> List[str]:
+    """Upper-cased, trimmed, unique region values the raw request item names."""
+    if not isinstance(item, dict):
+        return []
+    found: List[str] = []
+    for field in REGION_FIELDS:
+        value = item.get(field)
+        for entry in value if isinstance(value, list) else [value]:
+            if isinstance(entry, str) and entry.strip():
+                found.append(entry.strip().upper())
+    return list(dict.fromkeys(found))
+
+
+def filter_providers_by_region(
+    provider_ids: Sequence[str], providers: Sequence[Any], item: Any,
+) -> Tuple[List[str], List[str], Optional[str]]:
+    """Drop selected providers that declare regions the request does not name.
+
+    Returns (kept ids, one warning per skipped provider, error when every
+    selected provider was skipped). Providers without declared regions always
+    stay; a request with no region or ``WORLDWIDE`` keeps everything.
+    """
+    regions = requested_regions(item)
+    if not regions or WORLDWIDE_REGION in regions:
+        return list(provider_ids), [], None
+    by_id = {provider.provider_id: provider for provider in providers}
+    joined = ", ".join(regions)
+    kept: List[str] = []
+    warnings: List[str] = []
+    for provider_id in provider_ids:
+        provider = by_id.get(provider_id)
+        declared = getattr(provider, "regions", ()) if provider is not None else ()
+        if not declared or set(declared) & set(regions):
+            kept.append(provider_id)
+        else:
+            warnings.append(f"{provider.name} was not searched: it does not cover {joined}.")
+    if provider_ids and not kept:
+        return [], [], f"No installed provider covers {joined}."
+    return kept, warnings, None
+
 
 MAX_DEPTH = 6                      # the result object itself is depth 1
 MAX_KEYS_PER_OBJECT = 100

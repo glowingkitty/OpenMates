@@ -1,0 +1,11 @@
+# backend/providers/companies_house.yml
+#
+# Metadata for the official UK Companies House public data API used by
+# business.company_ownership. Free API key, 600 requests per 5 minutes.
+
+provider_id: companies_house
+name: Companies House
+description: Official UK company register with people with significant control, officers and appointments.
+logo_svg: icons/business.svg
+region: GB
+privacy_policy: https://www.gov.uk/government/organisations/companies-house/about/personal-information-charter # verified 2026-11-12

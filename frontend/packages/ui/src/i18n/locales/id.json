@@ -105,6 +105,36 @@
         "description": {
           "text": "Hitung harga jual produk buatan tangan atau produksi kecil dengan lembar langsung yang bisa kamu edit."
         }
+      },
+      "find_business_angels": {
+        "text": "Temukan angel investor",
+        "description": {
+          "text": "Susun daftar angel investor berperingkat untuk putaran kamu, lengkap dengan bukti kecocokan dan cara menghubungi."
+        }
+      },
+      "research_investor": {
+        "text": "Riset seorang investor",
+        "description": {
+          "text": "Periksa satu investor atau firma sebelum mendekati mereka, dengan fakta terverifikasi, tanda bahaya, dan jalur perkenalan."
+        }
+      },
+      "write_investor_outreach": {
+        "text": "Tulis pesan ke investor",
+        "description": {
+          "text": "Susun email singkat untuk satu investor, pengantar yang bisa diteruskan untuk kenalan bersama, dan dua tindak lanjut."
+        }
+      },
+      "prepare_investor_pitch": {
+        "text": "Siapkan pitch kamu",
+        "description": {
+          "text": "Susun alur cerita deck kamu, temukan titik lemah, lalu latih pertanyaan sulit investor satu per satu."
+        }
+      },
+      "plan_funding_round": {
+        "text": "Rencanakan putaran pendanaan",
+        "description": {
+          "text": "Hitung berapa dana yang dihimpun, instrumen yang cocok, dilusi, dan jadwal, lengkap dengan lembar cap table yang bisa diedit."
+        }
       }
     },
     "code": {
@@ -597,6 +627,18 @@
         "text": "Cari merek dagang",
         "description": {
           "text": "Cari merek menurut wilayah dengan sumber dan batas cakupan."
+        }
+      },
+      "search_investors": {
+        "text": "Cari investor",
+        "description": {
+          "text": "Temukan angel investor, jaringan angel, dan investor tahap awal berdasarkan topik dan wilayah."
+        }
+      },
+      "company_ownership": {
+        "text": "Kepemilikan perusahaan",
+        "description": {
+          "text": "Cari tahu siapa pemilik atau pengurus sebuah perusahaan, atau perusahaan mana yang dimiliki seseorang, di register resmi Jerman, Inggris, dan Prancis."
         }
       }
     },
@@ -10609,10 +10651,40 @@
         "text": "- Pahami kebutuhan\n- pilih nama\n- periksa kandidat akhir\n- bandingkan bukti"
       }
     },
+    "business_find_business_angels": {
+      "text": "Temukan angel investor",
+      "description": {
+        "text": "Susun daftar angel investor berperingkat untuk putaran kamu, lengkap dengan bukti kecocokan dan cara menghubungi."
+      }
+    },
+    "business_plan_funding_round": {
+      "text": "Rencanakan putaran pendanaan",
+      "description": {
+        "text": "Hitung berapa dana yang dihimpun, instrumen yang cocok, dilusi, dan jadwal, lengkap dengan lembar cap table yang bisa diedit."
+      }
+    },
+    "business_prepare_investor_pitch": {
+      "text": "Siapkan pitch kamu",
+      "description": {
+        "text": "Susun alur cerita deck kamu, temukan titik lemah, lalu latih pertanyaan sulit investor satu per satu."
+      }
+    },
     "business_price_products": {
       "text": "Tentukan harga produkmu",
       "description": {
         "text": "Hitung harga jual produk buatan tangan atau produksi kecil dengan lembar langsung yang bisa kamu edit."
+      }
+    },
+    "business_research_investor": {
+      "text": "Riset seorang investor",
+      "description": {
+        "text": "Periksa satu investor atau firma sebelum mendekati mereka, dengan fakta terverifikasi, tanda bahaya, dan jalur perkenalan."
+      }
+    },
+    "business_write_investor_outreach": {
+      "text": "Tulis pesan ke investor",
+      "description": {
+        "text": "Susun email singkat untuk satu investor, pengantar yang bisa diteruskan untuk kenalan bersama, dan dua tindak lanjut."
       }
     },
     "code_analyze_logs": {

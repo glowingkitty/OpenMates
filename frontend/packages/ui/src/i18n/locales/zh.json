@@ -105,6 +105,36 @@
         "description": {
           "text": "借助可编辑的实时表格，算出手工或小批量产品该定什么价。"
         }
+      },
+      "find_business_angels": {
+        "text": "寻找商业天使",
+        "description": {
+          "text": "为你的融资轮次建立天使投资人排序清单，附契合依据和联系方式。"
+        }
+      },
+      "research_investor": {
+        "text": "调研投资人",
+        "description": {
+          "text": "接触前先调研某位投资人或机构，含已核实事实、风险信号和引荐途径。"
+        }
+      },
+      "write_investor_outreach": {
+        "text": "撰写投资人联系信",
+        "description": {
+          "text": "为一位投资人起草简短邮件、可转发的引荐语和两封跟进邮件。"
+        }
+      },
+      "prepare_investor_pitch": {
+        "text": "准备你的路演",
+        "description": {
+          "text": "搭建路演文稿故事线，找出薄弱环节，再逐个演练投资人的难题。"
+        }
+      },
+      "plan_funding_round": {
+        "text": "规划融资轮次",
+        "description": {
+          "text": "算出该融多少、选哪种工具、股权稀释和时间表，并附可编辑的股权结构表。"
+        }
       }
     },
     "code": {
@@ -597,6 +627,18 @@
         "text": "搜索商标",
         "description": {
           "text": "按地区搜索商标名称，显示来源和覆盖范围限制。"
+        }
+      },
+      "search_investors": {
+        "text": "搜索投资人",
+        "description": {
+          "text": "按主题和地区查找天使投资人、天使网络和早期投资机构。"
+        }
+      },
+      "company_ownership": {
+        "text": "公司所有权",
+        "description": {
+          "text": "在德国、英国和法国的官方登记册中查询公司的所有者和管理人员，或某人持有哪些公司。"
         }
       }
     },
@@ -10609,10 +10651,40 @@
         "text": "- 了解需求\n- 筛选名称\n- 检查最终候选\n- 比较证据。"
       }
     },
+    "business_find_business_angels": {
+      "text": "寻找商业天使",
+      "description": {
+        "text": "为你的融资轮次建立天使投资人排序清单，附契合依据和联系方式。"
+      }
+    },
+    "business_plan_funding_round": {
+      "text": "规划融资轮次",
+      "description": {
+        "text": "算出该融多少、选哪种工具、股权稀释和时间表，并附可编辑的股权结构表。"
+      }
+    },
+    "business_prepare_investor_pitch": {
+      "text": "准备你的路演",
+      "description": {
+        "text": "搭建路演文稿故事线，找出薄弱环节，再逐个演练投资人的难题。"
+      }
+    },
     "business_price_products": {
       "text": "为你的产品定价",
       "description": {
         "text": "借助可编辑的实时表格，算出手工或小批量产品该定什么价。"
+      }
+    },
+    "business_research_investor": {
+      "text": "调研投资人",
+      "description": {
+        "text": "接触前先调研某位投资人或机构，含已核实事实、风险信号和引荐途径。"
+      }
+    },
+    "business_write_investor_outreach": {
+      "text": "撰写投资人联系信",
+      "description": {
+        "text": "为一位投资人起草简短邮件、可转发的引荐语和两封跟进邮件。"
       }
     },
     "code_analyze_logs": {

@@ -105,6 +105,36 @@
         "description": {
           "text": "Tính giá bán cho sản phẩm thủ công hoặc sản xuất số lượng nhỏ với bảng tính trực tiếp có thể chỉnh sửa."
         }
+      },
+      "find_business_angels": {
+        "text": "Tìm nhà đầu tư thiên thần",
+        "description": {
+          "text": "Lập danh sách nhà đầu tư thiên thần được xếp hạng cho vòng gọi vốn, kèm bằng chứng phù hợp và cách liên hệ."
+        }
+      },
+      "research_investor": {
+        "text": "Tìm hiểu một nhà đầu tư",
+        "description": {
+          "text": "Tìm hiểu một nhà đầu tư hoặc quỹ trước khi tiếp cận, với thông tin đã xác minh, dấu hiệu cảnh báo và cách được giới thiệu."
+        }
+      },
+      "write_investor_outreach": {
+        "text": "Viết thư tiếp cận nhà đầu tư",
+        "description": {
+          "text": "Soạn email ngắn cho một nhà đầu tư, đoạn giới thiệu có thể chuyển tiếp cho người quen chung và hai email nhắc lại."
+        }
+      },
+      "prepare_investor_pitch": {
+        "text": "Chuẩn bị bài pitch",
+        "description": {
+          "text": "Xây dựng mạch kể cho bộ slide, tìm điểm yếu rồi tập trả lời từng câu hỏi khó của nhà đầu tư."
+        }
+      },
+      "plan_funding_round": {
+        "text": "Lập kế hoạch vòng gọi vốn",
+        "description": {
+          "text": "Tính cần huy động bao nhiêu, công cụ nào phù hợp, mức pha loãng và lộ trình, kèm bảng cổ phần có thể chỉnh sửa."
+        }
       }
     },
     "code": {
@@ -597,6 +627,18 @@
         "text": "Tìm nhãn hiệu",
         "description": {
           "text": "Tìm nhãn hiệu theo khu vực với nguồn và giới hạn phạm vi tìm kiếm."
+        }
+      },
+      "search_investors": {
+        "text": "Tìm nhà đầu tư",
+        "description": {
+          "text": "Tìm nhà đầu tư thiên thần, mạng lưới thiên thần và nhà đầu tư giai đoạn đầu theo chủ đề và khu vực."
+        }
+      },
+      "company_ownership": {
+        "text": "Quyền sở hữu công ty",
+        "description": {
+          "text": "Tra cứu ai sở hữu hoặc điều hành một công ty, hoặc một người nắm giữ những công ty nào, trong sổ đăng ký chính thức của Đức, Anh và Pháp."
         }
       }
     },
@@ -10609,10 +10651,40 @@
         "text": "- Hiểu nhu cầu\n- chọn tên\n- kiểm tra ứng viên cuối\n- so sánh bằng chứng"
       }
     },
+    "business_find_business_angels": {
+      "text": "Tìm nhà đầu tư thiên thần",
+      "description": {
+        "text": "Lập danh sách nhà đầu tư thiên thần được xếp hạng cho vòng gọi vốn, kèm bằng chứng phù hợp và cách liên hệ."
+      }
+    },
+    "business_plan_funding_round": {
+      "text": "Lập kế hoạch vòng gọi vốn",
+      "description": {
+        "text": "Tính cần huy động bao nhiêu, công cụ nào phù hợp, mức pha loãng và lộ trình, kèm bảng cổ phần có thể chỉnh sửa."
+      }
+    },
+    "business_prepare_investor_pitch": {
+      "text": "Chuẩn bị bài pitch",
+      "description": {
+        "text": "Xây dựng mạch kể cho bộ slide, tìm điểm yếu rồi tập trả lời từng câu hỏi khó của nhà đầu tư."
+      }
+    },
     "business_price_products": {
       "text": "Định giá sản phẩm của bạn",
       "description": {
         "text": "Tính giá bán cho sản phẩm thủ công hoặc sản xuất số lượng nhỏ với bảng tính trực tiếp có thể chỉnh sửa."
+      }
+    },
+    "business_research_investor": {
+      "text": "Tìm hiểu một nhà đầu tư",
+      "description": {
+        "text": "Tìm hiểu một nhà đầu tư hoặc quỹ trước khi tiếp cận, với thông tin đã xác minh, dấu hiệu cảnh báo và cách được giới thiệu."
+      }
+    },
+    "business_write_investor_outreach": {
+      "text": "Viết thư tiếp cận nhà đầu tư",
+      "description": {
+        "text": "Soạn email ngắn cho một nhà đầu tư, đoạn giới thiệu có thể chuyển tiếp cho người quen chung và hai email nhắc lại."
       }
     },
     "code_analyze_logs": {

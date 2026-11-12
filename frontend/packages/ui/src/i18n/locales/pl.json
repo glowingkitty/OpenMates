@@ -105,6 +105,36 @@
         "description": {
           "text": "Ustal, ile brać za produkty rękodzielnicze lub z małych serii, korzystając z edytowalnego arkusza na żywo."
         }
+      },
+      "find_business_angels": {
+        "text": "Znajdź business angels",
+        "description": {
+          "text": "Stwórz uszeregowaną listę business angels dla swojej rundy, z dowodami dopasowania i sposobem kontaktu."
+        }
+      },
+      "research_investor": {
+        "text": "Sprawdź inwestora",
+        "description": {
+          "text": "Sprawdź inwestora lub fundusz przed kontaktem: zweryfikowane fakty, sygnały ostrzegawcze i drogi do poleconego kontaktu."
+        }
+      },
+      "write_investor_outreach": {
+        "text": "Napisz wiadomość do inwestora",
+        "description": {
+          "text": "Przygotuj krótki e-mail do inwestora, wiadomość polecającą do przekazania wspólnemu znajomemu i dwa follow-upy."
+        }
+      },
+      "prepare_investor_pitch": {
+        "text": "Przygotuj swój pitch",
+        "description": {
+          "text": "Zbuduj opowieść swojego decku, znajdź słabe punkty, a potem przećwicz trudne pytania inwestorów, jedno po drugim."
+        }
+      },
+      "plan_funding_round": {
+        "text": "Zaplanuj rundę finansowania",
+        "description": {
+          "text": "Ustal, ile pozyskać, jaki instrument pasuje, jakie będzie rozwodnienie i harmonogram, z edytowalnym arkuszem cap table."
+        }
       }
     },
     "code": {
@@ -597,6 +627,18 @@
         "text": "Szukaj znaków towarowych",
         "description": {
           "text": "Szukaj znaków według regionu ze źródłami i zakresem wyszukiwania."
+        }
+      },
+      "search_investors": {
+        "text": "Szukaj inwestorów",
+        "description": {
+          "text": "Znajdź business angels, sieci aniołów i inwestorów wczesnej fazy według tematu i regionu."
+        }
+      },
+      "company_ownership": {
+        "text": "Własność spółki",
+        "description": {
+          "text": "Sprawdź, kto jest właścicielem lub zarządza spółką albo jakie spółki posiada dana osoba, w oficjalnych rejestrach Niemiec, Wielkiej Brytanii i Francji."
         }
       }
     },
@@ -10609,10 +10651,40 @@
         "text": "- Poznaj potrzeby\n- wybierz nazwy\n- sprawdź finalistów\n- porównaj wyniki"
       }
     },
+    "business_find_business_angels": {
+      "text": "Znajdź business angels",
+      "description": {
+        "text": "Stwórz uszeregowaną listę business angels dla swojej rundy, z dowodami dopasowania i sposobem kontaktu."
+      }
+    },
+    "business_plan_funding_round": {
+      "text": "Zaplanuj rundę finansowania",
+      "description": {
+        "text": "Ustal, ile pozyskać, jaki instrument pasuje, jakie będzie rozwodnienie i harmonogram, z edytowalnym arkuszem cap table."
+      }
+    },
+    "business_prepare_investor_pitch": {
+      "text": "Przygotuj swój pitch",
+      "description": {
+        "text": "Zbuduj opowieść swojego decku, znajdź słabe punkty, a potem przećwicz trudne pytania inwestorów, jedno po drugim."
+      }
+    },
     "business_price_products": {
       "text": "Wyceń swoje produkty",
       "description": {
         "text": "Ustal, ile brać za produkty rękodzielnicze lub z małych serii, korzystając z edytowalnego arkusza na żywo."
+      }
+    },
+    "business_research_investor": {
+      "text": "Sprawdź inwestora",
+      "description": {
+        "text": "Sprawdź inwestora lub fundusz przed kontaktem: zweryfikowane fakty, sygnały ostrzegawcze i drogi do poleconego kontaktu."
+      }
+    },
+    "business_write_investor_outreach": {
+      "text": "Napisz wiadomość do inwestora",
+      "description": {
+        "text": "Przygotuj krótki e-mail do inwestora, wiadomość polecającą do przekazania wspólnemu znajomemu i dwa follow-upy."
       }
     },
     "code_analyze_logs": {

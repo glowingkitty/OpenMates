@@ -105,6 +105,36 @@
         "description": {
           "text": "Déterminez le prix de vos produits faits main ou en petites séries, avec un tableau en direct modifiable."
         }
+      },
+      "find_business_angels": {
+        "text": "Trouver des business angels",
+        "description": {
+          "text": "Établissez une liste classée de business angels pour votre levée, avec preuves d'adéquation et moyen de les contacter."
+        }
+      },
+      "research_investor": {
+        "text": "Se renseigner sur un investisseur",
+        "description": {
+          "text": "Renseignez-vous sur un investisseur ou un fonds avant de le contacter : faits vérifiés, signaux d'alerte et pistes d'introduction."
+        }
+      },
+      "write_investor_outreach": {
+        "text": "Rédiger un message aux investisseurs",
+        "description": {
+          "text": "Rédigez un court e-mail à un investisseur, une présentation transférable pour un contact commun et deux relances."
+        }
+      },
+      "prepare_investor_pitch": {
+        "text": "Préparer votre pitch",
+        "description": {
+          "text": "Construisez le fil de votre deck, repérez les points faibles, puis répétez les questions difficiles des investisseurs, une par une."
+        }
+      },
+      "plan_funding_round": {
+        "text": "Planifier une levée de fonds",
+        "description": {
+          "text": "Déterminez le montant à lever, l'instrument adapté, la dilution et un calendrier, avec un tableau de capitalisation modifiable."
+        }
       }
     },
     "code": {
@@ -597,6 +627,18 @@
         "text": "Rechercher des marques",
         "description": {
           "text": "Recherchez des marques par région avec sources et limites de couverture."
+        }
+      },
+      "search_investors": {
+        "text": "Rechercher des investisseurs",
+        "description": {
+          "text": "Trouvez des business angels, réseaux d'anges et investisseurs early-stage par thème et région."
+        }
+      },
+      "company_ownership": {
+        "text": "Actionnariat d'entreprise",
+        "description": {
+          "text": "Consultez qui détient ou dirige une entreprise, ou quelles entreprises une personne détient, dans les registres officiels de l'Allemagne, du Royaume-Uni et de la France."
         }
       }
     },
@@ -10636,10 +10678,40 @@
         "text": "- Comprendre le projet\n- présélectionner des noms\n- vérifier les finalistes\n- comparer les preuves"
       }
     },
+    "business_find_business_angels": {
+      "text": "Trouver des business angels",
+      "description": {
+        "text": "Établissez une liste classée de business angels pour votre levée, avec preuves d'adéquation et moyen de les contacter."
+      }
+    },
+    "business_plan_funding_round": {
+      "text": "Planifier une levée de fonds",
+      "description": {
+        "text": "Déterminez le montant à lever, l'instrument adapté, la dilution et un calendrier, avec un tableau de capitalisation modifiable."
+      }
+    },
+    "business_prepare_investor_pitch": {
+      "text": "Préparer votre pitch",
+      "description": {
+        "text": "Construisez le fil de votre deck, repérez les points faibles, puis répétez les questions difficiles des investisseurs, une par une."
+      }
+    },
     "business_price_products": {
       "text": "Fixer le prix de vos produits",
       "description": {
         "text": "Déterminez le prix de vos produits faits main ou en petites séries, avec un tableau en direct modifiable."
+      }
+    },
+    "business_research_investor": {
+      "text": "Se renseigner sur un investisseur",
+      "description": {
+        "text": "Renseignez-vous sur un investisseur ou un fonds avant de le contacter : faits vérifiés, signaux d'alerte et pistes d'introduction."
+      }
+    },
+    "business_write_investor_outreach": {
+      "text": "Rédiger un message aux investisseurs",
+      "description": {
+        "text": "Rédigez un court e-mail à un investisseur, une présentation transférable pour un contact commun et deux relances."
       }
     },
     "code_analyze_logs": {

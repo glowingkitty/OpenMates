@@ -89,6 +89,8 @@ import WeatherRainRadarEmbedPreview from "../../../embeds/weather/WeatherRainRad
 import WeatherDayEmbedPreview from "../../../embeds/weather/WeatherDayEmbedPreview.svelte";
 import BusinessCompanyFinancialsEmbedPreview from "../../../embeds/business/BusinessCompanyFinancialsEmbedPreview.svelte";
 import BusinessTrademarkSearchEmbedPreview from "../../../embeds/business/BusinessTrademarkSearchEmbedPreview.svelte";
+import BusinessInvestorSearchEmbedPreview from "../../../embeds/business/BusinessInvestorSearchEmbedPreview.svelte";
+import BusinessCompanyOwnershipEmbedPreview from "../../../embeds/business/BusinessCompanyOwnershipEmbedPreview.svelte";
 import BusinessCompanyFinancialResultEmbedPreview from "../../../embeds/business/BusinessCompanyFinancialResultEmbedPreview.svelte";
 import FinanceCheckAccountsEmbedPreview from "../../../embeds/finance/FinanceCheckAccountsEmbedPreview.svelte";
 import { normalizeFinanceOverview } from "../../../embeds/finance/financeCheckAccountsContent";
@@ -736,6 +738,14 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           decodedContent,
           content,
         );
+      }
+
+      if (appId === "business" && skillId === "company_ownership") {
+        return this.renderCompanyOwnershipComponent(attrs, embedData, decodedContent, content);
+      }
+
+      if (appId === "business" && skillId === "search_investors") {
+        return this.renderInvestorSearchComponent(attrs, embedData, decodedContent, content);
       }
 
       if (appId === "business" && skillId === "search_trademarks") {
@@ -3108,7 +3118,51 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     }
   }
 
-  /** Render the business.company_financials parent preview component. */
+  /** Render the business.company_ownership parent preview component. */
+  private renderCompanyOwnershipComponent(attrs: EmbedNodeAttributes, embedData: any, decodedContent: any, content: HTMLElement): void {
+    const existing = mountedComponents.get(content);
+    if (existing) unmount(existing);
+    disposeEmbedTree(content, false);
+    content.replaceChildren();
+    const payload = decodedContent ?? {};
+    const component = mount(BusinessCompanyOwnershipEmbedPreview, {
+      target: content,
+      props: {
+        id: attrs.contentRef?.replace("embed:", "") || "",
+        data: payload,
+        query: payload.query || (attrs as any).query || "",
+        status: (payload.status || embedData?.status || attrs.status || "processing") as "processing" | "finished" | "error" | "cancelled",
+        onFullscreen: (updated?: Record<string, unknown>) => this.openFullscreen(attrs, embedData, {
+          ...(updated ?? payload), app_id: "business", skill_id: "company_ownership",
+        }),
+      },
+    });
+    mountedComponents.set(content, component);
+  }
+
+  /** Render the business.search_investors parent preview component. */
+  private renderInvestorSearchComponent(attrs: EmbedNodeAttributes, embedData: any, decodedContent: any, content: HTMLElement): void {
+    const existing = mountedComponents.get(content);
+    if (existing) unmount(existing);
+    disposeEmbedTree(content, false);
+    content.replaceChildren();
+    const payload = decodedContent ?? {};
+    const component = mount(BusinessInvestorSearchEmbedPreview, {
+      target: content,
+      props: {
+        id: attrs.contentRef?.replace("embed:", "") || "",
+        data: payload,
+        query: payload.query || (attrs as any).query || "",
+        status: (payload.status || embedData?.status || attrs.status || "processing") as "processing" | "finished" | "error" | "cancelled",
+        onFullscreen: (updated?: Record<string, unknown>) => this.openFullscreen(attrs, embedData, {
+          ...(updated ?? payload), app_id: "business", skill_id: "search_investors",
+        }),
+      },
+    });
+    mountedComponents.set(content, component);
+  }
+
+  /** Render the business.search_trademarks parent preview component. */
   private renderTrademarkSearchComponent(attrs: EmbedNodeAttributes, embedData: any, decodedContent: any, content: HTMLElement): void {
     const existing = mountedComponents.get(content);
     if (existing) unmount(existing);

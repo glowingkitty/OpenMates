@@ -110,6 +110,8 @@ import WeatherRainRadarEmbedPreview from "../../../embeds/weather/WeatherRainRad
 import WeatherDayEmbedPreview from "../../../embeds/weather/WeatherDayEmbedPreview.svelte";
 import BusinessCompanyFinancialsEmbedPreview from "../../../embeds/business/BusinessCompanyFinancialsEmbedPreview.svelte";
 import BusinessTrademarkSearchEmbedPreview from "../../../embeds/business/BusinessTrademarkSearchEmbedPreview.svelte";
+import BusinessInvestorSearchEmbedPreview from "../../../embeds/business/BusinessInvestorSearchEmbedPreview.svelte";
+import BusinessCompanyOwnershipEmbedPreview from "../../../embeds/business/BusinessCompanyOwnershipEmbedPreview.svelte";
 import BusinessCompanyFinancialResultEmbedPreview from "../../../embeds/business/BusinessCompanyFinancialResultEmbedPreview.svelte";
 import FinanceCheckAccountsEmbedPreview from "../../../embeds/finance/FinanceCheckAccountsEmbedPreview.svelte";
 import GenericAppSkillEmbedPreview from "../../../embeds/app_skill/GenericAppSkillEmbedPreview.svelte";
@@ -2476,6 +2478,30 @@ export class GroupRenderer implements EmbedRenderer {
             isMobile: false,
             onFullscreen: handleFullscreen,
           },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "business" && skillId === "company_ownership") {
+        const component = mount(BusinessCompanyOwnershipEmbedPreview, {
+          target,
+          props: {id: embedId, data: decodedContent || {}, query: query || "", status,
+            taskId, onFullscreen: (updated?: Record<string, unknown>) => this.openFullscreen(item, embedData, {
+              ...fullscreenContent, ...(updated ?? {}), app_id: "business", skill_id: "company_ownership",
+            })},
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "business" && skillId === "search_investors") {
+        const component = mount(BusinessInvestorSearchEmbedPreview, {
+          target,
+          props: {id: embedId, data: decodedContent || {}, query: query || "", status,
+            taskId, onFullscreen: (updated?: Record<string, unknown>) => this.openFullscreen(item, embedData, {
+              ...fullscreenContent, ...(updated ?? {}), app_id: "business", skill_id: "search_investors",
+            })},
         });
         mountedComponents.set(target, component);
         return;

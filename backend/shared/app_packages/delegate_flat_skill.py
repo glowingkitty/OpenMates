@@ -39,14 +39,15 @@ from backend.shared.app_packages.delegate_skill import (
     InstalledProviderSkill,
     accepts_payload,
     build_group,
+    covered_providers,
     error_group,
     import_original_skill,
     is_model,
     keep_selectors,
     module_models,
     report_provider,
-    select_provider_ids,
     validate_request_item,
+    with_warnings,
 )
 from backend.shared.app_packages.generic_contract import PROVIDER_SELECTOR_FIELDS
 from backend.apps.skill_progress import SkillProgress
@@ -222,7 +223,11 @@ class InstalledProviderFlatSkill(InstalledProviderSkill):
             return build_flat_response(error_group(None, error or "Invalid request."), providers, models)
         # Selectors are read from the call: the request model may not declare them.
         selectors = {key: kwargs[key] for key in PROVIDER_SELECTOR_FIELDS if key in kwargs}
-        provider_ids = select_provider_ids({**raw, **selectors}, providers)
+        # Providers whose declared regions the call does not name are not started.
+        providers, skipped, coverage_error = covered_providers({**raw, **selectors}, providers)
+        if coverage_error:
+            return build_flat_response(error_group(None, coverage_error), providers, models)
+        provider_ids = [provider.provider_id for provider in providers]
         progress = SkillProgress(self)
         await progress.add_sources(len(provider_ids))
         outcomes = await run_installed_providers(
@@ -230,5 +235,5 @@ class InstalledProviderFlatSkill(InstalledProviderSkill):
             keep_selectors(contract_input, selectors), secrets_manager,
             on_provider_done=report_provider(progress),
         )
-        return build_flat_response(build_group(None, outcomes), providers, models,
+        return build_flat_response(with_warnings(build_group(None, outcomes), skipped), providers, models,
                                    echoed_input_fields(models, contract_input))

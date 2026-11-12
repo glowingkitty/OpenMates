@@ -61,6 +61,12 @@ contract:
   given: Alice asks for events at 39C3 and the installed provider also returns an event for the same talk.
   when: Events search runs both providers for that request.
   then: Alice sees one deduplicated list in the normal event cards, each card labelled with the provider that found it.
+- id: region-provider-skipped
+  assertion_ids: [instance-app-packages.provider-contract]
+  given: An operator installed my_provider declaring regions DE and AT next to a worldwide provider for a paused skill.
+  when: Alice searches with regions US.
+  then: Only the worldwide provider runs and Alice sees that my_provider was not searched because it does not cover US;
+    a search for US alone with only my_provider installed starts no provider and says no installed provider covers US.
 - id: provider-failure-isolated
   assertion_ids: [instance-app-packages.provider-contract]
   given: The installed provider exits with an error for one of two requests.

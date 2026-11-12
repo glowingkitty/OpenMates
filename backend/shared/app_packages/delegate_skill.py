@@ -38,6 +38,7 @@ from backend.apps.skill_progress import SkillProgress
 from backend.shared.app_packages.generic_contract import (
     GENERIC_CONTRACTS,
     PROVIDER_SELECTOR_FIELDS,
+    filter_providers_by_region,
 )
 from backend.shared.app_packages.loader import InstalledProvider, get_installed_providers
 from backend.shared.app_packages.provider_dispatch import InstalledProviderOutcome, run_installed_providers
@@ -284,6 +285,24 @@ def error_group(request_id: Any, message: str) -> Dict[str, Any]:
     return {"id": request_id, "results": [], "providers": [], "error": message}
 
 
+def covered_providers(raw: Dict[str, Any], providers: Sequence[InstalledProvider]
+                      ) -> Tuple[List[InstalledProvider], List[str], Optional[str]]:
+    """The selected providers that cover the request's regions, skip warnings and a coverage error.
+
+    Providers declaring ``regions`` that the request does not name are never started.
+    """
+    selected = select_provider_ids(raw, providers)
+    kept, skipped, coverage_error = filter_providers_by_region(selected, providers, raw)
+    return [provider for provider in providers if provider.provider_id in kept], skipped, coverage_error
+
+
+def with_warnings(group: Dict[str, Any], warnings: Sequence[str]) -> Dict[str, Any]:
+    """The group with extra warnings appended once each."""
+    if warnings:
+        group["warnings"] = list(dict.fromkeys([*group.get("warnings", []), *warnings]))
+    return group
+
+
 def build_response(groups: List[Dict[str, Any]], providers: Sequence[InstalledProvider],
                    response_defaults: Dict[str, Any], provider_objects: bool = False) -> Dict[str, Any]:
     """Standard grouped skill response on top of the original response model defaults."""
@@ -336,6 +355,19 @@ class InstalledProviderSkill(BaseSkill):
 
     def _providers(self) -> List[InstalledProvider]:
         return [p for p in get_installed_providers(self.app_id, self.skill_id) if p.contract in GENERIC_CONTRACTS]
+
+    async def _serve_covered(self, index: int, raw: Any, models: OriginalSkillModels,
+                             providers: Sequence[InstalledProvider], secrets_manager: Any,
+                             progress: Optional[SkillProgress] = None) -> Dict[str, Any]:
+        """Serve one item with only the providers covering its regions; skipped ones become warnings."""
+        if index >= MAX_REQUESTS_PER_CALL or not providers or not isinstance(raw, dict):
+            return await self._serve_item(index, raw, models, providers, secrets_manager, progress)
+        # Selectors and regions are read from the raw item: the item model may not declare them.
+        covered, skipped, coverage_error = covered_providers(raw, providers)
+        if coverage_error:
+            return error_group(raw.get("id") if raw.get("id") is not None else index + 1, coverage_error)
+        return with_warnings(
+            await self._serve_item(index, raw, models, covered, secrets_manager, progress), skipped)
 
     async def _serve_item(self, index: int, raw: Any, models: OriginalSkillModels,
                           providers: Sequence[InstalledProvider], secrets_manager: Any,
@@ -396,7 +428,7 @@ class InstalledProviderSkill(BaseSkill):
         items = [requests] if isinstance(requests, dict) else list(requests or [])
         progress = SkillProgress(self)
         groups = list(await asyncio.gather(*(
-            self._serve_item(index, item, models, providers, secrets_manager, progress)
+            self._serve_covered(index, item, models, providers, secrets_manager, progress)
             for index, item in enumerate(items)
         )))
         return build_response(groups, providers, models.response_defaults, models.provider_objects)

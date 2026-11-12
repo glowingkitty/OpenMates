@@ -41,6 +41,51 @@ embed_types:
       - {name: partial, type: boolean}
       - {name: limitation, type: string}
       - {name: error, type: string}
+  - id: search_investors
+    preview_component: business/BusinessInvestorSearchEmbedPreview.svelte
+    fullscreen_component: business/BusinessInvestorSearchEmbedFullscreen.svelte
+    category: app-skill-use
+    skill_id: search_investors
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    groupable: true
+    icon: business
+    gradient_var: "--color-app-business"
+    i18n_namespace: embeds.business.search_investors
+    content_fields:
+      - {name: query, type: string}
+      - {name: regions, type: object}
+      - {name: provider, type: string}
+      - {name: providers, type: object}
+      - {name: result_count, type: number}
+      - {name: investors, type: object}
+      - {name: warnings, type: object}
+      - {name: partial, type: boolean}
+      - {name: limitation, type: string}
+      - {name: error, type: string}
+  - id: company_ownership
+    preview_component: business/BusinessCompanyOwnershipEmbedPreview.svelte
+    fullscreen_component: business/BusinessCompanyOwnershipEmbedFullscreen.svelte
+    category: app-skill-use
+    skill_id: company_ownership
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    groupable: true
+    icon: business
+    gradient_var: "--color-app-business"
+    i18n_namespace: embeds.business.company_ownership
+    content_fields:
+      - {name: query, type: string}
+      - {name: provider, type: string}
+      - {name: providers, type: object}
+      - {name: result_count, type: number}
+      - {name: records, type: object}
+      - {name: errors, type: object}
+      - {name: warnings, type: object}
+      - {name: limitation, type: string}
+      - {name: error, type: string}
   - id: company_financials
     category: app-skill-use
     skill_id: company_financials
@@ -226,6 +271,185 @@ skills:
           limitation: {type: string, x-ui: {basic: true}}
           summary: {type: string, x-ui: {basic: false}}
           error: {type: string, x-ui: {basic: false}}
+  - id: search_investors
+    name_translation_key: app_skills.business.search_investors
+    description_translation_key: app_skills.business.search_investors.description
+    icon_image: business.svg
+    api_config: {expose_get: true, expose_post: true}
+    preprocessor_hint: >
+      This capability is currently unavailable because no permitted provider is configured.
+    class_path: backend.apps.business.skills.search_investors.SearchInvestorsSkill
+    pricing: {fixed: 1}
+    external_data: true
+    provider_required: true
+    providers: []
+    suggestions_follow_up_requests:
+      - "Narrow to another stage"
+      - "Search another region"
+      - "Draft an outreach note"
+    exclude_fields_for_llm: [profile_url, website_url]
+    tool_schema:
+      type: object
+      additionalProperties: false
+      properties:
+        query:
+          x-ui: {basic: true}
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Topic, sector or investment thesis keywords describing the company, for example "climate software seed". Do not include confidential company details.
+        regions:
+          x-ui: {basic: true}
+          type: array
+          minItems: 1
+          maxItems: 10
+          uniqueItems: true
+          description: Countries the user wants investors from, as upper-case ISO 3166-1 alpha-2 codes. Pass exactly the countries the user named; never widen silently to other countries. Use WORLDWIDE only when the user asks for it.
+          items: {type: string, pattern: "^([A-Z]{2}|WORLDWIDE)$"}
+        investor_types:
+          x-ui: {basic: false}
+          type: array
+          maxItems: 6
+          uniqueItems: true
+          description: Optional investor kinds; omit to search all kinds.
+          items: {type: string, enum: [angel, angel_network, vc, family_office, accelerator, public_funding]}
+        stages:
+          x-ui: {basic: false}
+          type: array
+          maxItems: 4
+          uniqueItems: true
+          description: Optional financing stages the company is at; omit when unknown.
+          items: {type: string, enum: [pre_seed, seed, series_a, later]}
+        ticket_min:
+          x-ui: {basic: false}
+          type: number
+          minimum: 0
+          description: Optional minimum investment size per investor, in the given currency.
+        ticket_max:
+          x-ui: {basic: false}
+          type: number
+          minimum: 0
+          description: Optional maximum investment size per investor, in the given currency.
+        currency:
+          x-ui: {basic: false}
+          type: string
+          pattern: "^[A-Z]{3}$"
+          default: EUR
+          description: ISO 4217 currency of ticket_min and ticket_max.
+        max_results:
+          x-ui: {basic: false}
+          type: integer
+          minimum: 1
+          maximum: 30
+          default: 15
+      required: [query, regions]
+    workflow:
+      available: true
+      execution_mode: sync
+      effect: read
+      unattended: true
+      approval: never
+      binding_requirements: [none]
+      test_allowed: true
+      test_example_input: {query: climate software, regions: [DE], stages: [seed], max_results: 3}
+      output_schema:
+        type: object
+        properties:
+          result_count: {type: integer, x-ui: {basic: true}}
+          investors: {type: array, items: {type: object}, x-ui: {basic: true}}
+          regions: {type: array, items: {type: string}, x-ui: {basic: true}}
+          provider: {type: string, x-ui: {basic: false}}
+          warnings: {type: array, items: {type: string}, x-ui: {basic: true}}
+          partial: {type: boolean, x-ui: {basic: true}}
+          limitation: {type: string, x-ui: {basic: true}}
+          error: {type: string, x-ui: {basic: false}}
+  - id: company_ownership
+    name_translation_key: app_skills.business.company_ownership
+    description_translation_key: app_skills.business.company_ownership.description
+    icon_image: business.svg
+    api_config: {expose_get: true, expose_post: true}
+    preprocessor_hint: >
+      Look up who owns or runs a named company, or which companies a named person
+      holds or directs, in the official company register of Germany (DE), the United
+      Kingdom (GB) or France (FR). Use to research investors, shareholders and
+      directors; not for other countries, credit checks, private contact details or
+      legal advice.
+    class_path: backend.apps.business.skills.company_ownership.CompanyOwnershipSkill
+    pricing: {fixed: 1}
+    external_data: true
+    providers:
+      - name: openregister
+        display_name: OpenRegister
+      - name: companies_house
+        display_name: Companies House
+      - name: recherche_entreprises
+        display_name: Annuaire des Entreprises
+        no_api_key: true
+    suggestions_follow_up_requests:
+      - "Show the companies this person holds"
+      - "List the directors"
+      - "Look up the parent company"
+    exclude_fields_for_llm: [records.subject.source_url, records.holdings.source_url]
+    tool_schema:
+      type: object
+      additionalProperties: false
+      properties:
+        requests:
+          x-ui: {basic: true}
+          type: array
+          minItems: 1
+          maxItems: 5
+          description: One entry per company or person to look up. Each runs only in the register of its own country.
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              query:
+                x-ui: {basic: true}
+                type: string
+                minLength: 1
+                maxLength: 160
+                description: Exact company name or register number (for example "Example GmbH", "12345678", a 9-digit SIREN), or a person's full name.
+              subject:
+                x-ui: {basic: true}
+                type: string
+                enum: [company, person]
+                default: company
+                description: company to see owners and officers; person to see which companies they hold or direct.
+              country:
+                x-ui: {basic: true}
+                type: string
+                pattern: "^[A-Z]{2}$"
+                description: Upper-case ISO 3166-1 alpha-2 code of the register to search (DE, GB or FR). Never guess a different country.
+              include:
+                x-ui: {basic: false}
+                type: array
+                uniqueItems: true
+                maxItems: 3
+                default: [owners]
+                description: Which facts to fetch. Ask only for what the user needs; each extra value costs a separate register call.
+                items: {type: string, enum: [owners, holdings, officers]}
+            required: [query, country]
+      required: [requests]
+    workflow:
+      available: true
+      execution_mode: sync
+      effect: read
+      unattended: true
+      approval: never
+      binding_requirements: [none]
+      test_allowed: true
+      test_example_input:
+        requests:
+          - {query: Mistral AI, country: FR, include: [officers]}
+      output_schema:
+        type: object
+        properties:
+          result_count: {type: integer, x-ui: {basic: true}}
+          records: {type: array, items: {type: object}, x-ui: {basic: true}}
+          providers: {type: array, items: {type: string}, x-ui: {basic: false}}
+          warnings: {type: array, items: {type: string}, x-ui: {basic: true}}
+          errors: {type: array, items: {type: object}, x-ui: {basic: false}}
   - id: company_financials
     pricing: {fixed: 1} # Preserves the existing minimum-credit fallback.
     anonymous_access: inline
@@ -461,6 +685,66 @@ focuses:
       break-even. Do not select for company valuation,
       taxes or accounting, stock-market questions, or comparing shop
       prices when buying.
+  - id: find_business_angels
+    icon_image: business.svg
+    name_translation_key: business.find_business_angels
+    description_translation_key: business.find_business_angels.description
+    process_translation_key: focus_modes.business_find_business_angels.process
+    systemprompt_translation_key: focus_modes.business_find_business_angels.systemprompt
+    how_to_use:
+      - Find business angels in Germany for my B2B software startup. We seek 500k EUR pre-seed.
+      - Who invested in comparable rounds to mine in the UK? I build tools for dentists.
+      - I need angels who know climate hardware, in France and Germany only.
+    preprocessor_hint: >
+      Select when a founder wants to find business angels or early investors for their company: find angels for my round, who could invest in my startup, angel investors in specific countries, comparable rounds and who backed them. Do not select for researching one named investor, writing outreach, pitch preparation, planning the round itself, researching a company as a customer or employer, stock investing, or personal finance.
+  - id: research_investor
+    icon_image: business.svg
+    name_translation_key: business.research_investor
+    description_translation_key: business.research_investor.description
+    process_translation_key: focus_modes.business_research_investor.process
+    systemprompt_translation_key: focus_modes.business_research_investor.systemprompt
+    how_to_use:
+      - Research this investor before I email them.
+      - Is this angel still active? What did they back, and do they conflict with my space?
+      - Find out how I could get a warm introduction to this firm.
+    preprocessor_hint: >
+      Select when a founder wants background on one named investor, angel or investment firm before approaching them: what they invested in, their thesis, whether they are active, red flags, likely questions and warm-intro paths. Do not select for finding a list of investors, writing outreach, pitch preparation, planning a round, researching a company as a customer or employer, stock investing, or personal finance.
+  - id: write_investor_outreach
+    icon_image: business.svg
+    name_translation_key: business.write_investor_outreach
+    description_translation_key: business.write_investor_outreach.description
+    process_translation_key: focus_modes.business_write_investor_outreach.process
+    systemprompt_translation_key: focus_modes.business_write_investor_outreach.systemprompt
+    how_to_use:
+      - Write a cold email to this investor for my seed round.
+      - A friend knows her. Write a forwardable intro I can send to my friend.
+      - I got no reply. Write two follow-ups to the investor.
+    preprocessor_hint: >
+      Select when a founder wants to write messages to an investor or angel: a cold email, an intro blurb a mutual contact can forward, or follow-ups after no reply. Do not select for finding investors, researching an investor in depth, pitch rehearsal, planning the round, job applications, newsletters or mass email campaigns, stock investing, or personal finance.
+  - id: prepare_investor_pitch
+    icon_image: business.svg
+    name_translation_key: business.prepare_investor_pitch
+    description_translation_key: business.prepare_investor_pitch.description
+    process_translation_key: focus_modes.business_prepare_investor_pitch.process
+    systemprompt_translation_key: focus_modes.business_prepare_investor_pitch.systemprompt
+    how_to_use:
+      - Build the pitch storyline for my seed round. I attach my current deck.
+      - What is missing or weak in my pitch? Here are my numbers.
+      - "Let's rehearse: ask me the hard questions an angel would ask."
+    preprocessor_hint: >
+      Select when a founder wants to build or improve an investor pitch or deck storyline, check what evidence is missing, or rehearse answering investor questions. Do not select for finding or researching investors, writing outreach emails, planning the round terms, sales presentations to customers, school or conference talks, job interviews, stock investing, or personal finance.
+  - id: plan_funding_round
+    icon_image: business.svg
+    name_translation_key: business.plan_funding_round
+    description_translation_key: business.plan_funding_round.description
+    process_translation_key: focus_modes.business_plan_funding_round.process
+    systemprompt_translation_key: focus_modes.business_plan_funding_round.systemprompt
+    how_to_use:
+      - How much should I raise for my seed round? I burn 30k EUR a month.
+      - "Convertible loan or equity round: what is better for my startup?"
+      - Show me the dilution and a cap table if I sell 15% for 600k.
+    preprocessor_hint: >
+      Select when a founder wants to plan raising money from investors: how much to raise, runway, equity round vs convertible loan vs SAFE-style, valuation or cap range, dilution, a cap table, or the timeline and process of a round. Do not select for finding investors, researching one investor, writing outreach, pitch rehearsal, bank loans or grants alone, company valuation for a sale, stock investing, or personal finance.
 
 marketing_discovery:
   skills:

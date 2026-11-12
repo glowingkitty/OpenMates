@@ -1013,6 +1013,8 @@
             "generated.BooksSkills.translate",
             "generated.BusinessSkills",
             "generated.BusinessSkills.company_financials",
+            "generated.BusinessSkills.company_ownership",
+            "generated.BusinessSkills.search_investors",
             "generated.BusinessSkills.search_trademarks",
             "generated.CodeSkills",
             "generated.CodeSkills.add_issue",

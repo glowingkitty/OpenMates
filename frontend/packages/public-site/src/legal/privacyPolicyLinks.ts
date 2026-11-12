@@ -83,6 +83,9 @@ export const privacyPolicyLinks = {
 
   // Group J3 — Public company data
   secEdgar: "https://www.sec.gov/about/privacy-information",
+  openregister: "https://openregister.de/privacy",
+  companiesHouse: "https://www.gov.uk/government/organisations/companies-house/about/personal-information-charter",
+  rechercheEntreprises: "https://annuaire-entreprises.data.gouv.fr/donnees-personnelles",
 
   // Group J4 — Weather
   openMeteo: "https://open-meteo.com/en/terms",

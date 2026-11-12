@@ -105,6 +105,36 @@
         "description": {
           "text": "El yapımı veya küçük seri ürünler için ne kadar isteyeceğini düzenlenebilir canlı bir tabloyla hesapla."
         }
+      },
+      "find_business_angels": {
+        "text": "Melek yatırımcı bul",
+        "description": {
+          "text": "Turunuz için sıralı bir melek yatırımcı listesi oluşturun; uyum kanıtı ve ulaşma yolu ile."
+        }
+      },
+      "research_investor": {
+        "text": "Yatırımcıyı araştır",
+        "description": {
+          "text": "Yaklaşmadan önce bir yatırımcıyı veya firmayı inceleyin: doğrulanmış bilgiler, uyarı işaretleri ve tanışma yolları."
+        }
+      },
+      "write_investor_outreach": {
+        "text": "Yatırımcıya mesaj yaz",
+        "description": {
+          "text": "Bir yatırımcıya kısa bir e-posta, ortak tanıdık için iletilebilir bir tanıtım metni ve iki takip mesajı taslağı hazırlayın."
+        }
+      },
+      "prepare_investor_pitch": {
+        "text": "Sunumunu hazırla",
+        "description": {
+          "text": "Sunumunuzun hikâyesini kurun, zayıf noktaları bulun, sonra yatırımcıların zor sorularını tek tek prova edin."
+        }
+      },
+      "plan_funding_round": {
+        "text": "Yatırım turu planla",
+        "description": {
+          "text": "Ne kadar fon toplanacağını, hangi aracın uygun olduğunu, hisse seyrelmesini ve zaman çizelgesini düzenlenebilir bir hisse tablosuyla hesaplayın."
+        }
       }
     },
     "code": {
@@ -597,6 +627,18 @@
         "text": "Marka ara",
         "description": {
           "text": "Bölgeye göre markaları kaynaklar ve kapsam sınırlarıyla arayın."
+        }
+      },
+      "search_investors": {
+        "text": "Yatırımcı ara",
+        "description": {
+          "text": "Konu ve bölgeye göre melek yatırımcıları, melek ağlarını ve erken aşama yatırımcıları bulun."
+        }
+      },
+      "company_ownership": {
+        "text": "Şirket sahipliği",
+        "description": {
+          "text": "Almanya, Birleşik Krallık ve Fransa'nın resmi sicillerinde bir şirketin sahiplerini ve yöneticilerini ya da bir kişinin hangi şirketlere sahip olduğunu sorgulayın."
         }
       }
     },
@@ -10609,10 +10651,40 @@
         "text": "- İhtiyaçları anlayın\n- adları seçin\n- finalistleri kontrol edin\n- bulguları karşılaştırın"
       }
     },
+    "business_find_business_angels": {
+      "text": "Melek yatırımcı bul",
+      "description": {
+        "text": "Turunuz için sıralı bir melek yatırımcı listesi oluşturun; uyum kanıtı ve ulaşma yolu ile."
+      }
+    },
+    "business_plan_funding_round": {
+      "text": "Yatırım turu planla",
+      "description": {
+        "text": "Ne kadar fon toplanacağını, hangi aracın uygun olduğunu, hisse seyrelmesini ve zaman çizelgesini düzenlenebilir bir hisse tablosuyla hesaplayın."
+      }
+    },
+    "business_prepare_investor_pitch": {
+      "text": "Sunumunu hazırla",
+      "description": {
+        "text": "Sunumunuzun hikâyesini kurun, zayıf noktaları bulun, sonra yatırımcıların zor sorularını tek tek prova edin."
+      }
+    },
     "business_price_products": {
       "text": "Ürünlerini fiyatlandır",
       "description": {
         "text": "El yapımı veya küçük seri ürünler için ne kadar isteyeceğini düzenlenebilir canlı bir tabloyla hesapla."
+      }
+    },
+    "business_research_investor": {
+      "text": "Yatırımcıyı araştır",
+      "description": {
+        "text": "Yaklaşmadan önce bir yatırımcıyı veya firmayı inceleyin: doğrulanmış bilgiler, uyarı işaretleri ve tanışma yolları."
+      }
+    },
+    "business_write_investor_outreach": {
+      "text": "Yatırımcıya mesaj yaz",
+      "description": {
+        "text": "Bir yatırımcıya kısa bir e-posta, ortak tanıdık için iletilebilir bir tanıtım metni ve iki takip mesajı taslağı hazırlayın."
       }
     },
     "code_analyze_logs": {

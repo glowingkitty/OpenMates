@@ -105,6 +105,36 @@
         "description": {
           "text": "編集できるライブシートで、手作りや少量生産の商品の価格を割り出します。"
         }
+      },
+      "find_business_angels": {
+        "text": "ビジネスエンジェルを探す",
+        "description": {
+          "text": "ラウンドに合うビジネスエンジェルを順位付きでリスト化し、適合の根拠と連絡方法を示します。"
+        }
+      },
+      "research_investor": {
+        "text": "投資家をリサーチする",
+        "description": {
+          "text": "連絡する前に投資家やファームを調べ、検証済みの事実、懸念点、紹介ルートを確認します。"
+        }
+      },
+      "write_investor_outreach": {
+        "text": "投資家への連絡文を書く",
+        "description": {
+          "text": "投資家への短いメール、共通の知人が転送できる紹介文、2通のフォローアップを下書きします。"
+        }
+      },
+      "prepare_investor_pitch": {
+        "text": "ピッチを準備する",
+        "description": {
+          "text": "デックのストーリーを組み立て、弱点を見つけ、投資家の厳しい質問を1つずつ練習します。"
+        }
+      },
+      "plan_funding_round": {
+        "text": "資金調達ラウンドを計画する",
+        "description": {
+          "text": "調達額、適した手段、希薄化、スケジュールを整理し、編集できるキャップテーブルも作ります。"
+        }
       }
     },
     "code": {
@@ -597,6 +627,18 @@
         "text": "商標を検索",
         "description": {
           "text": "地域別に商標名を検索し、情報源と検索範囲の限界を表示します。"
+        }
+      },
+      "search_investors": {
+        "text": "投資家を検索",
+        "description": {
+          "text": "テーマと地域でビジネスエンジェル、エンジェルネットワーク、アーリーステージ投資家を探します。"
+        }
+      },
+      "company_ownership": {
+        "text": "企業の所有関係",
+        "description": {
+          "text": "ドイツ、英国、フランスの公的登記簿で、企業の所有者や役員、個人が保有する企業を調べます。"
         }
       }
     },
@@ -10609,10 +10651,40 @@
         "text": "- 目的を理解\n- 名前を絞る\n- 最終候補を確認\n- 証拠を比較。"
       }
     },
+    "business_find_business_angels": {
+      "text": "ビジネスエンジェルを探す",
+      "description": {
+        "text": "ラウンドに合うビジネスエンジェルを順位付きでリスト化し、適合の根拠と連絡方法を示します。"
+      }
+    },
+    "business_plan_funding_round": {
+      "text": "資金調達ラウンドを計画する",
+      "description": {
+        "text": "調達額、適した手段、希薄化、スケジュールを整理し、編集できるキャップテーブルも作ります。"
+      }
+    },
+    "business_prepare_investor_pitch": {
+      "text": "ピッチを準備する",
+      "description": {
+        "text": "デックのストーリーを組み立て、弱点を見つけ、投資家の厳しい質問を1つずつ練習します。"
+      }
+    },
     "business_price_products": {
       "text": "商品の価格を決める",
       "description": {
         "text": "編集できるライブシートで、手作りや少量生産の商品の価格を割り出します。"
+      }
+    },
+    "business_research_investor": {
+      "text": "投資家をリサーチする",
+      "description": {
+        "text": "連絡する前に投資家やファームを調べ、検証済みの事実、懸念点、紹介ルートを確認します。"
+      }
+    },
+    "business_write_investor_outreach": {
+      "text": "投資家への連絡文を書く",
+      "description": {
+        "text": "投資家への短いメール、共通の知人が転送できる紹介文、2通のフォローアップを下書きします。"
       }
     },
     "code_analyze_logs": {

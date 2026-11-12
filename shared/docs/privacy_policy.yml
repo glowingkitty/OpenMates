@@ -914,8 +914,8 @@ provider_groups:
   # =====================================================================
   business_data:
     description: >
-      This public-data provider is used only when you request company financial information
-      through the supported company-data skill.
+      These public-data providers are used only when you request company financial
+      information or a company ownership lookup through the supported company-data skills.
     providers:
       sec_edgar:
         privacy_policy: https://www.sec.gov/about/privacy-information
@@ -925,6 +925,30 @@ provider_groups:
         data_shared:
           - Explicit company name, ticker, or CIK and the filing/period fields needed for the lookup
           - Note: Shared server-side without OpenMates user identifiers
+      openregister:
+        privacy_policy: https://openregister.de/privacy # verified 2026-11-12
+        location: DE
+        used_for:
+          - German commercial register lookups of company shareholders, holdings and officers
+        data_shared:
+          - The company name, register number, or person name you ask to look up
+          - Note: Shared server-side without OpenMates user identifiers; birth dates and addresses in the reply are discarded
+      companies_house:
+        privacy_policy: https://www.gov.uk/government/organisations/companies-house/about/personal-information-charter # verified 2026-11-12
+        location: GB
+        used_for:
+          - UK company register lookups of people with significant control, officers and appointments
+        data_shared:
+          - The company name, company number, or officer name you ask to look up
+          - Note: Shared server-side without OpenMates user identifiers; birth dates and addresses in the reply are discarded
+      recherche_entreprises:
+        privacy_policy: https://annuaire-entreprises.data.gouv.fr/donnees-personnelles # verified 2026-11-12
+        location: FR
+        used_for:
+          - French company directory lookups of companies and their directors
+        data_shared:
+          - The company name, SIREN, or person name you ask to look up
+          - Note: Shared server-side without OpenMates user identifiers; birth years and nationality in the reply are discarded
 
   # =====================================================================
   # Group J4 — Weather. Only used when a weather forecast or radar skill is

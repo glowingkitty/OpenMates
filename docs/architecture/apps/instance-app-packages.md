@@ -36,6 +36,7 @@ contributes:
       entrypoint: bin/{target}/provider  # {target} = uname -m of the runner (aarch64, x86_64)
       secrets: [api_key]               # optional; operator sets SECRET__MY_EVENTS__API_KEY
       optional_secrets: [proxy_url]    # optional; passed only when set, never affects availability
+      regions: [DE, AT]                # optional; ISO 3166-1 alpha-2 codes the source covers (1-60, unique); absent = worldwide
       skill_hint: >-                   # optional; replaces the skill's routing hint
         Search concerts, meetups and other events in a city.
 ```
@@ -313,6 +314,17 @@ under the same name, or as the singular of a list input (`queries` -> `query`,
 joined with ", "), are echoed, never execution fields such as `status`, `success`
 or `error`; `provider`, `providers`, `error`, `warnings` and, when declared,
 `result_count`, `success` and `partial` are set.
+
+**Region filter** (`filter_providers_by_region`, both delegates). A provider
+contribution may declare `regions`. The request's `country`, `countries`,
+`region` and `regions` values name the requested regions. A provider with
+declared regions runs only when the request names no region, names `WORLDWIDE`,
+or names at least one of its regions; a provider without `regions` always runs.
+Each skipped provider adds the warning "<name> was not searched: it does not
+cover <regions>." When every selected provider is skipped, no runner call is
+made and the group error is "No installed provider covers <regions>." The CLI
+installer validates the same rule before upload and shows `regions` in
+`apps inspect`.
 
 **Result validation** (`validate_generic_result`): each result must be a JSON
 object; at most 50 results per provider call; keys must match

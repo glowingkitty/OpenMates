@@ -56,8 +56,11 @@ PROVIDER_ID_RE = re.compile(r"^[a-z0-9_]{2,40}$")
 SECRET_NAME_RE = re.compile(r"^[a-z0-9_]{1,64}$")
 CONTRACT_RE = re.compile(r"^[a-z0-9_]+\.[a-z0-9_]+@[1-9][0-9]*$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+REGION_CODE_RE = re.compile(r"^[A-Z]{2}$")
+MAX_PROVIDER_REGIONS = 60
 PROVIDER_KEYS = frozenset({
     "app", "skill", "contract", "id", "name", "runtime", "entrypoint", "secrets", "optional_secrets", "skill_hint",
+    "regions",
 })
 MANIFEST_KEYS = frozenset({"format", "format_version", "id", "version", "name", "description", "contributes"})
 
@@ -79,6 +82,8 @@ class InstalledProvider:
     skill_hint: Optional[str]
     # Passed only when configured; never affect availability (for example a proxy URL).
     optional_secrets: Tuple[str, ...] = ()
+    # ISO 3166-1 alpha-2 codes the provider covers; empty means worldwide.
+    regions: Tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -243,6 +248,16 @@ def _secret_names(value: Any, field: str) -> List[str]:
     return names
 
 
+def _regions(value: Any) -> List[str]:
+    if value is None:
+        return []
+    _require(isinstance(value, list) and 0 < len(value) <= MAX_PROVIDER_REGIONS
+             and all(isinstance(code, str) and REGION_CODE_RE.match(code) for code in value),
+             f"provider regions must be a list of 1-{MAX_PROVIDER_REGIONS} ISO 3166-1 alpha-2 codes (e.g. DE)")
+    _require(len(set(value)) == len(value), "provider regions must be unique")
+    return value
+
+
 def _validate_provider(raw: Any, package: Dict[str, str], targets: _BuiltinTargets) -> InstalledProvider:
     _require(isinstance(raw, dict), "provider contribution must be a mapping")
     unknown = set(raw) - PROVIDER_KEYS
@@ -278,6 +293,7 @@ def _validate_provider(raw: Any, package: Dict[str, str], targets: _BuiltinTarge
         entrypoint=raw["entrypoint"], secrets=tuple(secrets),
         skill_hint=_optional_text(raw.get("skill_hint"), "skill_hint", MAX_SKILL_HINT_LENGTH),
         optional_secrets=tuple(optional_secrets),
+        regions=tuple(_regions(raw.get("regions"))),
     )
 
 

@@ -1,0 +1,138 @@
+business_plan_funding_round:
+  context: Focus mode name
+  en: Plan a funding round
+  de: Finanzierungsrunde planen
+  zh: 规划融资轮次
+  es: Planificar una ronda de financiación
+  fr: Planifier une levée de fonds
+  pt: Planejar uma rodada de investimento
+  ru: Спланировать раунд финансирования
+  ja: 資金調達ラウンドを計画する
+  ko: 투자 라운드 계획하기
+  it: Pianifica un round di finanziamento
+  tr: Yatırım turu planla
+  vi: Lập kế hoạch vòng gọi vốn
+  id: Rencanakan putaran pendanaan
+  pl: Zaplanuj rundę finansowania
+  nl: Een financieringsronde plannen
+  ar: التخطيط لجولة تمويل
+  hi: फंडिंग राउंड की योजना बनाएँ
+  th: วางแผนรอบระดมทุน
+  cs: Naplánovat kolo financování
+  sv: Planera en finansieringsrunda
+  he: תכנון סבב גיוס
+  verified_by_human: []
+description:
+  context: Focus mode description
+  en: Work out how much to raise, which instrument fits, the dilution and a timeline, with a cap-table
+    sheet you can edit.
+  de: Ermittle, wie viel du aufnimmst, welches Instrument passt, die Verwässerung und einen Zeitplan,
+    mit editierbarer Cap-Table.
+  zh: 算出该融多少、选哪种工具、股权稀释和时间表，并附可编辑的股权结构表。
+  es: Calcula cuánto captar, qué instrumento encaja, la dilución y un calendario, con una hoja de cap
+    table editable.
+  fr: Déterminez le montant à lever, l'instrument adapté, la dilution et un calendrier, avec un tableau
+    de capitalisation modifiable.
+  pt: Calcule quanto captar, qual instrumento se encaixa, a diluição e um cronograma, com uma planilha
+    de cap table editável.
+  ru: Рассчитайте, сколько привлечь, какой инструмент подходит, размывание доли и сроки, с редактируемой
+    таблицей капитализации.
+  ja: 調達額、適した手段、希薄化、スケジュールを整理し、編集できるキャップテーブルも作ります。
+  ko: 얼마를 조달할지, 어떤 수단이 맞는지, 지분 희석과 일정을 정리하고 수정 가능한 지분표를 만듭니다.
+  it: Calcola quanto raccogliere, quale strumento è adatto, la diluizione e le tempistiche, con una cap
+    table modificabile.
+  tr: Ne kadar fon toplanacağını, hangi aracın uygun olduğunu, hisse seyrelmesini ve zaman çizelgesini
+    düzenlenebilir bir hisse tablosuyla hesaplayın.
+  vi: Tính cần huy động bao nhiêu, công cụ nào phù hợp, mức pha loãng và lộ trình, kèm bảng cổ phần có
+    thể chỉnh sửa.
+  id: Hitung berapa dana yang dihimpun, instrumen yang cocok, dilusi, dan jadwal, lengkap dengan lembar
+    cap table yang bisa diedit.
+  pl: Ustal, ile pozyskać, jaki instrument pasuje, jakie będzie rozwodnienie i harmonogram, z edytowalnym
+    arkuszem cap table.
+  nl: Bepaal hoeveel je ophaalt, welk instrument past, de verwatering en een tijdlijn, met een bewerkbare
+    cap-tablesheet.
+  ar: احسب المبلغ المطلوب والأداة المناسبة والتخفيف وجدولاً زمنياً مع جدول ملكية قابل للتعديل.
+  hi: तय करें कितना जुटाना है, कौन-सा साधन उपयुक्त है, डाइल्यूशन और समयरेखा, संपादन योग्य कैप-टेबल शीट
+    के साथ।
+  th: คำนวณว่าควรระดมทุนเท่าไร เครื่องมือแบบไหนเหมาะ การเจือจางหุ้น และไทม์ไลน์ พร้อมชีต cap table ที่แก้ไขได้
+  cs: Spočítejte, kolik získat, jaký nástroj se hodí, ředění podílu a časový plán, s upravitelnou tabulkou
+    kapitalizace.
+  sv: Räkna ut hur mycket du ska ta in, vilket instrument som passar, utspädningen och en tidsplan, med
+    ett redigerbart cap table-ark.
+  he: חשבו כמה לגייס, איזה מכשיר מתאים, את ההדילול ולוח זמנים, עם גיליון קאפ טייבל שאפשר לערוך.
+  verified_by_human: []
+process:
+  context: Focus mode steps
+  en: '- Asks for your country, current finances, monthly costs and goals for the money.
+
+    - Works out the amount to raise and the runway it buys.
+
+    - Compares instruments: equity round, convertible loan and SAFE-style notes, with trade-offs.
+
+    - Shows a valuation or cap range and the dilution it means for you.
+
+    - Builds a cap-table sheet you can edit, plus a timeline and process.
+
+    - Looks up country-specific rules and grants on the web instead of stating them from memory.
+
+    - Explains concepts and says when you need a lawyer or tax advisor.'
+  verified_by_human: []
+how_to_use:
+  context: Focus mode examples
+  en: '- How much should I **raise** for my seed round? I burn 30k EUR a month.
+
+    - **Convertible loan or equity** round: what is better for my startup?
+
+    - Show me the **dilution** and a **cap table** if I sell 15% for 600k.'
+  verified_by_human: []
+systemprompt:
+  context: Focus mode instructions
+  en: 'Help a founder plan a funding round: amount and runway, instrument, valuation or cap range, dilution,
+    a cap table and the timeline. You explain concepts and trade-offs. You are not a lawyer, tax advisor
+    or investment advisor, and you say so clearly in the first answer and whenever the question turns
+    to binding terms, taxes or securities law, naming when a lawyer or tax advisor is needed (for example,
+    before signing a term sheet or convertible, issuing shares, or using any tax-privileged scheme).
+
+
+    1. FIRST TURN: your whole reply is only compact questions, unless the user already gave the facts
+    or asks to skip. Always ask for the user''s country (and the company''s legal form and country, if
+    different) before stating any country-specific rule, grant, tax treatment or legal form. Also ask:
+    current cash and monthly costs, planned hires or spending, existing shareholders and their percentages,
+    previous funding, traction in words, what the money should achieve in 12 to 24 months, and any preferred
+    amount or valuation. Give an example answer so the user can reply once.
+
+    2. COUNTRY RULES: never state country-specific rules, grants, tax advantages, share-transfer formalities
+    or standard instruments from memory. Verify them with web search and web read on official or reputable
+    sources and cite the links; if you cannot verify something, say so and tell the user to ask a lawyer
+    or tax advisor. Concepts that apply broadly may be explained, labelled as general.
+
+    3. AMOUNT AND RUNWAY: from the user''s inputs only, compute months of runway and a suggested range,
+    usually enough for 18 to 24 months to the next milestone. State assumptions and mark them. Do not
+    state market valuation benchmarks from memory; if you give benchmarks, verify them by search with
+    links and give them as ranges with the date and source.
+
+    4. INSTRUMENTS: compare equity round, convertible loan and SAFE-style notes (only if relevant in the
+    user''s country, verified) in a short table: how it works, speed and cost, valuation set when, control
+    and rights, dilution timing, typical risks. Recommend one for the user''s situation with the reasoning
+    and the key caveat.
+
+    5. SHEET: build a cap-table sheet as ONE Markdown table, preceded by a title comment line such as
+    <!-- title: "Cap table and dilution" -->, not in a code block, with columns Item | Value | Note. INPUTS
+    block first: plain numbers the user can edit (pre-money valuation, amount raised, existing shareholders''
+    share counts, option pool percentage), assumed values noted as "Assumption". FORMULAS block after,
+    using real spreadsheet formulas that refer to input cells by coordinate (columns A/B/C; rows counted
+    over data rows, first row below the header is row 1, and the INPUTS and FORMULAS label rows count):
+    post-money valuation, new investor percentage, founder percentage after the round, price per share,
+    new shares issued and dilution for each existing holder. Never type a computed result as a plain number.
+    Quote a number in prose only exactly as the sheet computes it; otherwise refer to the cell with the
+    cell-link syntax.
+
+    6. TIMELINE AND PROCESS: give a short plan: preparation, building the target list, outreach, meetings,
+    term sheet, due diligence, legal documents, closing, with realistic ranges stated as typical and uncertain.
+    Offer to continue with finding angels, researching an investor, writing outreach or preparing the
+    pitch.
+
+
+    Never invent figures about the user''s company. Do not promise that investors will accept any valuation
+    or terms.'
+  verified_by_human: []

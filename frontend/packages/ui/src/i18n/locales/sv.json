@@ -105,6 +105,36 @@
         "description": {
           "text": "Räkna ut vad du ska ta betalt för handgjorda produkter eller småserier, med ett live-ark du kan redigera."
         }
+      },
+      "find_business_angels": {
+        "text": "Hitta affärsänglar",
+        "description": {
+          "text": "Bygg en rankad lista över affärsänglar för din runda, med belägg för passform och ett sätt att nå dem."
+        }
+      },
+      "research_investor": {
+        "text": "Undersök en investerare",
+        "description": {
+          "text": "Undersök en investerare eller firma innan du kontaktar dem, med verifierade fakta, varningssignaler och vägar till introduktion."
+        }
+      },
+      "write_investor_outreach": {
+        "text": "Skriv ett investerarmejl",
+        "description": {
+          "text": "Skriv ett kort mejl till en investerare, en vidarebefordringsbar introduktion för en gemensam kontakt och två uppföljningar."
+        }
+      },
+      "prepare_investor_pitch": {
+        "text": "Förbered din pitch",
+        "description": {
+          "text": "Bygg storyn i din deck, hitta svagheterna och öva sedan svåra investerarfrågor, en i taget."
+        }
+      },
+      "plan_funding_round": {
+        "text": "Planera en finansieringsrunda",
+        "description": {
+          "text": "Räkna ut hur mycket du ska ta in, vilket instrument som passar, utspädningen och en tidsplan, med ett redigerbart cap table-ark."
+        }
       }
     },
     "code": {
@@ -597,6 +627,18 @@
         "text": "Sök varumärken",
         "description": {
           "text": "Sök varumärken per region med källor och täckningsgränser."
+        }
+      },
+      "search_investors": {
+        "text": "Sök investerare",
+        "description": {
+          "text": "Hitta business angels, ängelnätverk och investerare i tidig fas efter ämne och region."
+        }
+      },
+      "company_ownership": {
+        "text": "Företagsägande",
+        "description": {
+          "text": "Slå upp vem som äger eller leder ett företag, eller vilka företag en person äger, i de officiella registren i Tyskland, Storbritannien och Frankrike."
         }
       }
     },
@@ -10609,10 +10651,40 @@
         "text": "- Förstå uppdraget\n- välj namn\n- kontrollera finalister\n- jämför belägg"
       }
     },
+    "business_find_business_angels": {
+      "text": "Hitta affärsänglar",
+      "description": {
+        "text": "Bygg en rankad lista över affärsänglar för din runda, med belägg för passform och ett sätt att nå dem."
+      }
+    },
+    "business_plan_funding_round": {
+      "text": "Planera en finansieringsrunda",
+      "description": {
+        "text": "Räkna ut hur mycket du ska ta in, vilket instrument som passar, utspädningen och en tidsplan, med ett redigerbart cap table-ark."
+      }
+    },
+    "business_prepare_investor_pitch": {
+      "text": "Förbered din pitch",
+      "description": {
+        "text": "Bygg storyn i din deck, hitta svagheterna och öva sedan svåra investerarfrågor, en i taget."
+      }
+    },
     "business_price_products": {
       "text": "Prissätt dina produkter",
       "description": {
         "text": "Räkna ut vad du ska ta betalt för handgjorda produkter eller småserier, med ett live-ark du kan redigera."
+      }
+    },
+    "business_research_investor": {
+      "text": "Undersök en investerare",
+      "description": {
+        "text": "Undersök en investerare eller firma innan du kontaktar dem, med verifierade fakta, varningssignaler och vägar till introduktion."
+      }
+    },
+    "business_write_investor_outreach": {
+      "text": "Skriv ett investerarmejl",
+      "description": {
+        "text": "Skriv ett kort mejl till en investerare, en vidarebefordringsbar introduktion för en gemensam kontakt och två uppföljningar."
       }
     },
     "code_analyze_logs": {

@@ -1901,3 +1901,45 @@ design.embroidery.2:
   sv: "Rävlapp på stretchigt tyg, 60 mm"
   he: "טלאי שועל על בד אלסטי, 60 מ\"מ"
   verified_by_human: []
+
+business.search_investors.1:
+  context: Query label for a synthetic seed-stage climate software investor search in Germany.
+  en: Seed investors for climate software in Germany
+  de: Seed-Investoren für Klimasoftware in Deutschland
+  verified_by_human: []
+
+business.search_investors.2:
+  context: Query label for a synthetic angel investor search for health startups in Austria.
+  en: Business angels for health startups in Austria
+  de: Business Angels für Gesundheits-Startups in Österreich
+  verified_by_human: []
+
+business.company_ownership.1:
+  context: Query label for a synthetic German company ownership lookup.
+  en: Who owns Example Robotics GmbH?
+  de: Wem gehört die Example Robotics GmbH?
+  verified_by_human: []
+
+business.company_ownership.2:
+  context: Query label for a synthetic UK company ownership lookup.
+  en: Who controls Example Analytics Ltd in the UK?
+  de: Wer kontrolliert die Example Analytics Ltd in Großbritannien?
+  verified_by_human: []
+
+business.company_ownership.3:
+  context: Query label for a synthetic lookup of the companies a person holds.
+  en: Which companies does Jane Example hold?
+  de: Welche Unternehmen hält Jane Example?
+  verified_by_human: []
+
+business.company_ownership.4:
+  context: Query label for a synthetic ambiguous company lookup in France.
+  en: Owners of Example Holding in France
+  de: Eigentümer von Example Holding in Frankreich
+  verified_by_human: []
+
+business.company_ownership.5:
+  context: Query label for a synthetic lookup in a country without register coverage.
+  en: Owners of Example Oy in Finland
+  de: Eigentümer von Example Oy in Finnland
+  verified_by_human: []

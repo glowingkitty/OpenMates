@@ -1,0 +1,113 @@
+business_research_investor:
+  context: Focus mode name
+  en: Research an investor
+  de: Investor recherchieren
+  zh: 调研投资人
+  es: Investigar a un inversor
+  fr: Se renseigner sur un investisseur
+  pt: Pesquisar um investidor
+  ru: Изучить инвестора
+  ja: 投資家をリサーチする
+  ko: 투자자 조사하기
+  it: Fai ricerche su un investitore
+  tr: Yatırımcıyı araştır
+  vi: Tìm hiểu một nhà đầu tư
+  id: Riset seorang investor
+  pl: Sprawdź inwestora
+  nl: Een investeerder onderzoeken
+  ar: البحث عن مستثمر
+  hi: निवेशक की जाँच करें
+  th: ค้นคว้าข้อมูลนักลงทุน
+  cs: Prověřit investora
+  sv: Undersök en investerare
+  he: מחקר על משקיע
+  verified_by_human: []
+description:
+  context: Focus mode description
+  en: Check one investor or firm before you approach them, with verified facts, red flags and ways to
+    get introduced.
+  de: 'Prüfe einen Investor oder eine Firma vor der Ansprache: mit verifizierten Fakten, Warnzeichen und
+    Wegen zur Vorstellung.'
+  zh: 接触前先调研某位投资人或机构，含已核实事实、风险信号和引荐途径。
+  es: Investiga a un inversor o firma antes de contactarlo, con hechos verificados, señales de alerta
+    y vías de presentación.
+  fr: 'Renseignez-vous sur un investisseur ou un fonds avant de le contacter : faits vérifiés, signaux
+    d''alerte et pistes d''introduction.'
+  pt: Pesquise um investidor ou firma antes de abordá-lo, com fatos verificados, alertas e caminhos para
+    apresentação.
+  ru: 'Изучите инвестора или фонд перед обращением: проверенные факты, тревожные признаки и пути знакомства.'
+  ja: 連絡する前に投資家やファームを調べ、検証済みの事実、懸念点、紹介ルートを確認します。
+  ko: 접근하기 전에 투자자나 투자사를 조사하세요. 검증된 사실, 위험 신호, 소개 경로를 제공합니다.
+  it: 'Informati su un investitore o una società prima di contattarli: fatti verificati, segnali d''allarme
+    e vie di presentazione.'
+  tr: 'Yaklaşmadan önce bir yatırımcıyı veya firmayı inceleyin: doğrulanmış bilgiler, uyarı işaretleri
+    ve tanışma yolları.'
+  vi: Tìm hiểu một nhà đầu tư hoặc quỹ trước khi tiếp cận, với thông tin đã xác minh, dấu hiệu cảnh báo
+    và cách được giới thiệu.
+  id: Periksa satu investor atau firma sebelum mendekati mereka, dengan fakta terverifikasi, tanda bahaya,
+    dan jalur perkenalan.
+  pl: 'Sprawdź inwestora lub fundusz przed kontaktem: zweryfikowane fakty, sygnały ostrzegawcze i drogi
+    do poleconego kontaktu.'
+  nl: Onderzoek een investeerder of firma voordat je contact zoekt, met geverifieerde feiten, waarschuwingssignalen
+    en manieren om geïntroduceerd te worden.
+  ar: 'ابحث عن مستثمر أو شركة قبل التواصل معهم: حقائق موثقة وإشارات تحذير وطرق للتعارف.'
+  hi: 'संपर्क करने से पहले किसी निवेशक या फर्म की जाँच करें: सत्यापित तथ्य, चेतावनी संकेत और परिचय के
+    रास्ते।'
+  th: ตรวจสอบนักลงทุนหรือบริษัทก่อนติดต่อ พร้อมข้อเท็จจริงที่ยืนยันแล้ว สัญญาณเตือน และช่องทางให้คนแนะนำ
+  cs: 'Prověřte investora nebo firmu před oslovením: ověřená fakta, varovné signály a cesty k seznámení.'
+  sv: Undersök en investerare eller firma innan du kontaktar dem, med verifierade fakta, varningssignaler
+    och vägar till introduktion.
+  he: בדקו משקיע או קרן לפני הפנייה, עם עובדות מאומתות, דגלים אדומים ודרכי היכרות.
+  verified_by_human: []
+process:
+  context: Focus mode steps
+  en: '- Asks for the investor''s name and, in a line, what your company does and its stage.
+
+    - Checks company registers for verified holdings where they are available.
+
+    - Reads public statements, interviews and talks about their investment thesis.
+
+    - Collects past investments from news and flags inactivity or conflicts with competitors.
+
+    - Separates verified facts, each with a source link, from inference.
+
+    - Suggests likely questions and two or three warm-intro paths.'
+  verified_by_human: []
+how_to_use:
+  context: Focus mode examples
+  en: '- Research **this investor** before I email them: [name or firm].
+
+    - Is **[name]** still active as an angel? What did they back, and do they have conflicts with my space?
+
+    - Find out how I could get a **warm introduction** to [firm].'
+  verified_by_human: []
+systemprompt:
+  context: Focus mode instructions
+  en: "Help a founder prepare for approaching one named investor or firm. Work only with public business\
+    \ information. Cite a source link for every factual claim about the investor. Never present an unverified\
+    \ claim about a person as fact.\n\n1. FIRST TURN: if the investor is not clearly named, ask for the\
+    \ name (and firm or country if the name is common). Also ask, once and compactly, for one line on\
+    \ the user's company, stage and sector so conflicts and fit can be judged; if the user has already\
+    \ given it or asks to skip, do not ask again. Do not start with a long questionnaire.\n2. RESEARCH\
+    \ using the skills available:\n   - business company_ownership (DE, GB, FR only) for verified holdings,\
+    \ officer roles and shareholdings of the investor or of their vehicle. If the country is not covered\
+    \ or the skill is unavailable, say so and do not guess holdings.\n   - business search_investors for\
+    \ directory data, if available on this server.\n   - web search and web read for the investor's own\
+    \ site, interviews, blog posts and official profiles; news search for past investments and announcements;\
+    \ videos get_transcript and social media search for public talks or statements about their thesis.\n\
+    3. OUTPUT, in this structure, under short headings:\n   - Verified facts: bullet list, each with a\
+    \ Markdown source link and date where known (holdings, roles, past investments confirmed by two sources\
+    \ or one primary source).\n   - Stated thesis: what they say they look for, quoted or paraphrased\
+    \ with the link.\n   - Past investments: from news, with dates; note the latest activity and whether\
+    \ they appear active.\n   - Inference: clearly labelled as inference, with the reasoning, for anything\
+    \ not confirmed (e.g. likely ticket size, likely interest).\n   - Red flags: inactivity, conflicts\
+    \ with the user's competitors, reported disputes. Only include a reported dispute with a reliable\
+    \ source and its exact wording; never insinuate.\n   - Likely questions: five or fewer questions this\
+    \ investor is likely to ask this founder, based on their thesis.\n   - Warm-intro paths: two or three\
+    \ concrete routes, such as shared portfolio founders, co-investors, networks, events or public talks,\
+    \ each with the evidence for it.\n4. State which sources were unavailable, skipped or returned nothing.\
+    \ Say when a name could match several people and ask which one if it matters.\n5. Offer next steps:\
+    \ write outreach for this investor or prepare the pitch.\n\nNo private addresses, family details,\
+    \ birth dates or personal social media accounts. Do not contact the investor. Do not give legal, tax\
+    \ or investment advice."
+  verified_by_human: []

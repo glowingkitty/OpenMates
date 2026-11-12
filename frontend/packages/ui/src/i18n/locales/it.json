@@ -105,6 +105,36 @@
         "description": {
           "text": "Calcola quanto far pagare prodotti artigianali o in piccole serie, con un foglio live modificabile."
         }
+      },
+      "find_business_angels": {
+        "text": "Trova business angel",
+        "description": {
+          "text": "Crea un elenco ordinato di business angel per il tuo round, con prove di affinità e come contattarli."
+        }
+      },
+      "research_investor": {
+        "text": "Fai ricerche su un investitore",
+        "description": {
+          "text": "Informati su un investitore o una società prima di contattarli: fatti verificati, segnali d'allarme e vie di presentazione."
+        }
+      },
+      "write_investor_outreach": {
+        "text": "Scrivi un messaggio agli investitori",
+        "description": {
+          "text": "Scrivi una breve email a un investitore, una presentazione inoltrabile per un contatto comune e due solleciti."
+        }
+      },
+      "prepare_investor_pitch": {
+        "text": "Prepara il tuo pitch",
+        "description": {
+          "text": "Costruisci la storia del tuo deck, individua i punti deboli e prova le domande difficili degli investitori, una alla volta."
+        }
+      },
+      "plan_funding_round": {
+        "text": "Pianifica un round di finanziamento",
+        "description": {
+          "text": "Calcola quanto raccogliere, quale strumento è adatto, la diluizione e le tempistiche, con una cap table modificabile."
+        }
       }
     },
     "code": {
@@ -597,6 +627,18 @@
         "text": "Cerca marchi",
         "description": {
           "text": "Cerca marchi per regione con fonti e limiti di copertura."
+        }
+      },
+      "search_investors": {
+        "text": "Cerca investitori",
+        "description": {
+          "text": "Trova business angel, reti di angel e investitori early-stage per tema e regione."
+        }
+      },
+      "company_ownership": {
+        "text": "Proprietà dell'azienda",
+        "description": {
+          "text": "Scopri chi possiede o dirige un'azienda, o quali aziende detiene una persona, nei registri ufficiali di Germania, Regno Unito e Francia."
         }
       }
     },
@@ -10636,10 +10678,40 @@
         "text": "- Comprendere il progetto\n- selezionare nomi\n- verificare i finalisti\n- confrontare le prove"
       }
     },
+    "business_find_business_angels": {
+      "text": "Trova business angel",
+      "description": {
+        "text": "Crea un elenco ordinato di business angel per il tuo round, con prove di affinità e come contattarli."
+      }
+    },
+    "business_plan_funding_round": {
+      "text": "Pianifica un round di finanziamento",
+      "description": {
+        "text": "Calcola quanto raccogliere, quale strumento è adatto, la diluizione e le tempistiche, con una cap table modificabile."
+      }
+    },
+    "business_prepare_investor_pitch": {
+      "text": "Prepara il tuo pitch",
+      "description": {
+        "text": "Costruisci la storia del tuo deck, individua i punti deboli e prova le domande difficili degli investitori, una alla volta."
+      }
+    },
     "business_price_products": {
       "text": "Prezza i tuoi prodotti",
       "description": {
         "text": "Calcola quanto far pagare prodotti artigianali o in piccole serie, con un foglio live modificabile."
+      }
+    },
+    "business_research_investor": {
+      "text": "Fai ricerche su un investitore",
+      "description": {
+        "text": "Informati su un investitore o una società prima di contattarli: fatti verificati, segnali d'allarme e vie di presentazione."
+      }
+    },
+    "business_write_investor_outreach": {
+      "text": "Scrivi un messaggio agli investitori",
+      "description": {
+        "text": "Scrivi una breve email a un investitore, una presentazione inoltrabile per un contatto comune e due solleciti."
       }
     },
     "code_analyze_logs": {

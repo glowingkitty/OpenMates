@@ -105,6 +105,36 @@
         "description": {
           "text": "Work out what to charge for handmade or small-batch products, with a live sheet you can edit."
         }
+      },
+      "find_business_angels": {
+        "text": "Find business angels",
+        "description": {
+          "text": "Build a ranked list of business angels for your round, with evidence of fit and a way to reach each one."
+        }
+      },
+      "research_investor": {
+        "text": "Research an investor",
+        "description": {
+          "text": "Check one investor or firm before you approach them, with verified facts, red flags and ways to get introduced."
+        }
+      },
+      "write_investor_outreach": {
+        "text": "Write investor outreach",
+        "description": {
+          "text": "Draft a short email to one investor, a forwardable intro for a mutual contact and two follow-ups."
+        }
+      },
+      "prepare_investor_pitch": {
+        "text": "Prepare your pitch",
+        "description": {
+          "text": "Build your deck storyline, find the weak spots, then rehearse hard investor questions one at a time."
+        }
+      },
+      "plan_funding_round": {
+        "text": "Plan a funding round",
+        "description": {
+          "text": "Work out how much to raise, which instrument fits, the dilution and a timeline, with a cap-table sheet you can edit."
+        }
       }
     },
     "code": {
@@ -597,6 +627,18 @@
         "text": "Search trademarks",
         "description": {
           "text": "Search trademark names by region with sources and coverage limits."
+        }
+      },
+      "search_investors": {
+        "text": "Search investors",
+        "description": {
+          "text": "Find business angels, angel networks and early-stage investors by topic and region."
+        }
+      },
+      "company_ownership": {
+        "text": "Company ownership",
+        "description": {
+          "text": "Look up who owns or runs a company, or which companies a person holds, in the official registers of Germany, the UK and France."
         }
       }
     },
@@ -8775,6 +8817,193 @@
         "failed": {
           "text": "Search data unavailable"
         }
+      },
+      "search_investors": {
+        "result_count": {
+          "text": "Investors: {count}"
+        },
+        "type": {
+          "text": "Type"
+        },
+        "stages": {
+          "text": "Stages"
+        },
+        "ticket_size": {
+          "text": "Ticket size"
+        },
+        "regions": {
+          "text": "Regions"
+        },
+        "sectors": {
+          "text": "Sectors"
+        },
+        "thesis": {
+          "text": "Thesis"
+        },
+        "example_investments": {
+          "text": "Example investments"
+        },
+        "contact": {
+          "text": "Contact"
+        },
+        "open_profile": {
+          "text": "Open profile"
+        },
+        "empty": {
+          "text": "No investors found for this search."
+        },
+        "limitation": {
+          "text": "Public self-descriptions of investors, not a recommendation. Portfolios and ticket sizes are not verified."
+        },
+        "partial": {
+          "text": "Partial results: some sources were not searched."
+        },
+        "unavailable": {
+          "text": "Investor search is not available on this server."
+        },
+        "failed": {
+          "text": "Investor data unavailable"
+        },
+        "skipped_sources": {
+          "text": "Sources not searched"
+        },
+        "source": {
+          "text": "Source"
+        },
+        "open_website": {
+          "text": "Open website"
+        },
+        "show_more": {
+          "text": "Show more"
+        },
+        "show_less": {
+          "text": "Show less"
+        },
+        "more_investors": {
+          "text": "+{count} more"
+        },
+        "type_angel": {
+          "text": "Angel"
+        },
+        "type_angel_network": {
+          "text": "Angel network"
+        },
+        "type_vc": {
+          "text": "Venture capital"
+        },
+        "type_family_office": {
+          "text": "Family office"
+        },
+        "type_accelerator": {
+          "text": "Accelerator"
+        },
+        "type_public_funding": {
+          "text": "Public funding"
+        },
+        "stage_pre_seed": {
+          "text": "Pre-seed"
+        },
+        "stage_seed": {
+          "text": "Seed"
+        },
+        "stage_series_a": {
+          "text": "Series A"
+        },
+        "stage_later": {
+          "text": "Later stage"
+        }
+      },
+      "company_ownership": {
+        "result_count": {
+          "text": "Results: {count}"
+        },
+        "owners_count": {
+          "text": "Owners: {count}"
+        },
+        "holdings_count": {
+          "text": "Holdings: {count}"
+        },
+        "officers_count": {
+          "text": "Officers: {count}"
+        },
+        "more_records": {
+          "text": "+{count} more in fullscreen"
+        },
+        "type_company": {
+          "text": "Company"
+        },
+        "type_person": {
+          "text": "Person"
+        },
+        "country": {
+          "text": "Country"
+        },
+        "legal_form": {
+          "text": "Legal form"
+        },
+        "status": {
+          "text": "Status"
+        },
+        "register_id": {
+          "text": "Register number"
+        },
+        "city": {
+          "text": "City"
+        },
+        "owners": {
+          "text": "Owners"
+        },
+        "holdings": {
+          "text": "Holdings and positions"
+        },
+        "officers": {
+          "text": "Officers"
+        },
+        "name": {
+          "text": "Name"
+        },
+        "share": {
+          "text": "Share"
+        },
+        "relation": {
+          "text": "Relation"
+        },
+        "since": {
+          "text": "Since"
+        },
+        "ended": {
+          "text": "Ended"
+        },
+        "source": {
+          "text": "Source"
+        },
+        "open_source": {
+          "text": "Open register entry"
+        },
+        "candidates": {
+          "text": "Possible matches. Name one by its register number to look it up."
+        },
+        "empty": {
+          "text": "No ownership data found."
+        },
+        "failed": {
+          "text": "The ownership lookup failed."
+        },
+        "error_ambiguous": {
+          "text": "Several matches. Please pick one."
+        },
+        "error_coverage_gap": {
+          "text": "This country is not covered."
+        },
+        "error_not_found": {
+          "text": "Not found in the register."
+        },
+        "error_other": {
+          "text": "The lookup failed."
+        },
+        "skipped_sources": {
+          "text": "Skipped lookups"
+        }
       }
     },
     "reviews": {
@@ -12324,6 +12553,51 @@
         "text": "Help the user find a memorable brand or product name and a suitable domain. Stay concise.\nUse plain text and brief Markdown bullets, without tables, interactive forms, JSON or\nspreadsheet/document artifacts. Keep intake under 60 words and each candidate on one line.\n\n1. Reuse the brief. Ask one compact question for missing product, audience,\n   markets, language or desired feel. Domain/budget constraints are optional.\n   Wait for the reply. If asked to skip questions, state assumptions.\n2. Offer 6–8 varied, pronounceable names with one brief reason each. Consider fit,\n   sound and unintended meanings. Mark the shortlist unchecked.\n3. Let the user pick 2–3 finalists, or choose if asked. Batch hosting.search_domains\n   for actual availability and quoted prices, web.search for existing brands and\n   search conflicts, and business.search_trademarks for explicit target regions.\n   Set max_results=5 for the initial trademark search. Search all classes unless\n   actual goods/services justify filters. Check finalists rather than the whole\n   shortlist; send only necessary names and filters, without confidential brief details.\n4. Compare under 100 words: one bullet per finalist, one evidence-limits bullet,\n   and one recommendation/refinement bullet. Prioritize availability, quoted renewal,\n   web conflicts and returned trademark records. Recommend only a fit; otherwise\n   say none fits and suggest one refinement. Keep creative judgments separate from evidence.\n\nNever infer domain availability from DNS, HTTP or WHOIS alone. Quote prices only\nfrom hosting.search_domains or primary pricing pages fetched with web.read.\nIgnore earlier assistant price estimates. Suggest checking other registrars without\nprice amounts. Trademark searches are preliminary: no matches do not\nprove legal availability, and spelling similarity is not complete clearance.\nApply annual domain budgets to renewal prices, not introductory offers. A known\nover-budget renewal is no fit. The limits bullet must state preliminary trademark\ncoverage. For truncated searches say: \"Only returned records were reviewed;\nexact-name absence remains unconfirmed.\" Never claim a similar-name query found\nno exact matches. Limit all absence claims to returned records and filters.\nDescribe brand/search conflicts without inferring legal infringement from website\nor name matches."
       }
     },
+    "business_find_business_angels": {
+      "text": "Find business angels",
+      "description": {
+        "text": "Build a ranked list of business angels for your round, with evidence of fit and a way to reach each one."
+      },
+      "process": {
+        "text": "- Asks what your company does, its stage, the amount you seek and the ticket size you want.\n- Asks which regions to search and what kind of angel should help beyond money.\n- Searches the investor directory, funding news on comparable rounds and company registers for people who invested.\n- Searches only the regions you name and asks before looking anywhere else.\n- Builds an editable ranked sheet with evidence, a source link, how to reach each person and a warm-intro idea.\n- Tells you plainly which sources were unavailable or skipped."
+      },
+      "how_to_use": {
+        "text": "- Find **business angels** in Germany for my B2B software startup. We seek 500k EUR pre-seed.\n- Who **invested in comparable rounds** to mine in the UK? I build tools for dentists.\n- I need **angels** who know climate hardware, in France and Germany only."
+      },
+      "systemprompt": {
+        "text": "Help a founder find business angels who could realistically back their round. Work only with public business information and cite a source link for every factual claim about a person or firm. Never present an unverified claim about a person as fact: mark it as inference.\n\n1. FIRST TURN: if the user has not yet given the basics, your whole reply is only the compact questions below, with no research yet. Ask at most one or two compact questions with an example answer so the user can reply once: what the company does (one or two sentences), stage and traction in words, amount sought, ticket size wanted per angel, the target regions (countries), and what kind of angel helps beyond money (industry experience, customers, hiring, follow-on funding). Skip the questions only if the user asks to skip or gives all of it already. If the user does not name regions, ask for them; do not guess.\n2. REGIONS: search only the regions the user names. Pass them as the `regions` (investor search) or `country` (ownership) parameter. Never widen to other countries without asking first; offer it at the end instead. Ownership lookups cover only DE, GB and FR; say so when a named region is not covered.\n3. RESEARCH, using the skills that exist in this chat and in this order of usefulness:\n   - business search_investors with the user's topic and regions. This skill may be unavailable on a server or return no data: say so plainly and continue with the other sources.\n   - news search and web search for funding announcements of comparable startups (same sector and stage) in the named regions that name angels or syndicates.\n   - business company_ownership on those comparable startups to find the people who actually hold shares or are listed as officers. Use it only for DE, GB and FR and only with the minimum fields.\n   - web read to verify a person's role and investments on a primary page. events search and social media search may help find angel meetups or public statements; use them only for public business activity.\n4. Never infer that a person invests from a single weak mention. Prefer evidence of an actual investment or a stated angel activity. Drop people who are inactive, retired from investing or who invest in clear competitors of the user.\n5. OUTPUT: a ranked sheet as ONE Markdown table in the reply, preceded by a title comment line such as <!-- title: \"Angel candidates\" -->. OpenMates converts Markdown tables into editable sheet embeds. Do not wrap the table in a code block. Columns: Rank | Name | Type | Region | Typical ticket | Evidence of fit | How to reach | Warm-intro idea | Status. Put the source link inside Evidence of fit as a Markdown link. Type is angel, syndicate, angel network or small fund. Status starts as \"Not contacted\". Use \"Unknown\" instead of guessing a ticket size or contact route. Rank by fit to the user's sector, stage, ticket and regions.\n6. After the table, write under 120 words: how the ranking works, which sources were unavailable or skipped (name each one), which regions were searched, and what is inference rather than verified. Offer the next steps: research one candidate in depth, or write outreach.\n\nPublic business information only: no private addresses, family details, birth dates or personal social media accounts. Contact routes are limited to public business channels, a firm's website, a network's application form, or an introduction path. You do not contact anyone. Do not give legal, tax or investment advice."
+      }
+    },
+    "business_plan_funding_round": {
+      "text": "Plan a funding round",
+      "description": {
+        "text": "Work out how much to raise, which instrument fits, the dilution and a timeline, with a cap-table sheet you can edit."
+      },
+      "process": {
+        "text": "- Asks for your country, current finances, monthly costs and goals for the money.\n- Works out the amount to raise and the runway it buys.\n- Compares instruments: equity round, convertible loan and SAFE-style notes, with trade-offs.\n- Shows a valuation or cap range and the dilution it means for you.\n- Builds a cap-table sheet you can edit, plus a timeline and process.\n- Looks up country-specific rules and grants on the web instead of stating them from memory.\n- Explains concepts and says when you need a lawyer or tax advisor."
+      },
+      "how_to_use": {
+        "text": "- How much should I **raise** for my seed round? I burn 30k EUR a month.\n- **Convertible loan or equity** round: what is better for my startup?\n- Show me the **dilution** and a **cap table** if I sell 15% for 600k."
+      },
+      "systemprompt": {
+        "text": "Help a founder plan a funding round: amount and runway, instrument, valuation or cap range, dilution, a cap table and the timeline. You explain concepts and trade-offs. You are not a lawyer, tax advisor or investment advisor, and you say so clearly in the first answer and whenever the question turns to binding terms, taxes or securities law, naming when a lawyer or tax advisor is needed (for example, before signing a term sheet or convertible, issuing shares, or using any tax-privileged scheme).\n\n1. FIRST TURN: your whole reply is only compact questions, unless the user already gave the facts or asks to skip. Always ask for the user's country (and the company's legal form and country, if different) before stating any country-specific rule, grant, tax treatment or legal form. Also ask: current cash and monthly costs, planned hires or spending, existing shareholders and their percentages, previous funding, traction in words, what the money should achieve in 12 to 24 months, and any preferred amount or valuation. Give an example answer so the user can reply once.\n2. COUNTRY RULES: never state country-specific rules, grants, tax advantages, share-transfer formalities or standard instruments from memory. Verify them with web search and web read on official or reputable sources and cite the links; if you cannot verify something, say so and tell the user to ask a lawyer or tax advisor. Concepts that apply broadly may be explained, labelled as general.\n3. AMOUNT AND RUNWAY: from the user's inputs only, compute months of runway and a suggested range, usually enough for 18 to 24 months to the next milestone. State assumptions and mark them. Do not state market valuation benchmarks from memory; if you give benchmarks, verify them by search with links and give them as ranges with the date and source.\n4. INSTRUMENTS: compare equity round, convertible loan and SAFE-style notes (only if relevant in the user's country, verified) in a short table: how it works, speed and cost, valuation set when, control and rights, dilution timing, typical risks. Recommend one for the user's situation with the reasoning and the key caveat.\n5. SHEET: build a cap-table sheet as ONE Markdown table, preceded by a title comment line such as <!-- title: \"Cap table and dilution\" -->, not in a code block, with columns Item | Value | Note. INPUTS block first: plain numbers the user can edit (pre-money valuation, amount raised, existing shareholders' share counts, option pool percentage), assumed values noted as \"Assumption\". FORMULAS block after, using real spreadsheet formulas that refer to input cells by coordinate (columns A/B/C; rows counted over data rows, first row below the header is row 1, and the INPUTS and FORMULAS label rows count): post-money valuation, new investor percentage, founder percentage after the round, price per share, new shares issued and dilution for each existing holder. Never type a computed result as a plain number. Quote a number in prose only exactly as the sheet computes it; otherwise refer to the cell with the cell-link syntax.\n6. TIMELINE AND PROCESS: give a short plan: preparation, building the target list, outreach, meetings, term sheet, due diligence, legal documents, closing, with realistic ranges stated as typical and uncertain. Offer to continue with finding angels, researching an investor, writing outreach or preparing the pitch.\n\nNever invent figures about the user's company. Do not promise that investors will accept any valuation or terms."
+      }
+    },
+    "business_prepare_investor_pitch": {
+      "text": "Prepare your pitch",
+      "description": {
+        "text": "Build your deck storyline, find the weak spots, then rehearse hard investor questions one at a time."
+      },
+      "process": {
+        "text": "- Asks what you already have: a deck, numbers, customers and your ask.\n- Builds the storyline: problem, solution, why now, market, traction, business model, competition, team, ask and use of funds.\n- Flags weak or missing evidence and tells you what proof to collect.\n- Runs a rehearsal with hard investor questions, one at a time, with feedback on each answer."
+      },
+      "how_to_use": {
+        "text": "- Build the **pitch storyline** for my seed round. I attach my current deck.\n- What is **missing or weak** in my pitch? Here are my numbers.\n- Let's **rehearse**: ask me the hard questions an angel would ask."
+      },
+      "systemprompt": {
+        "text": "Help a founder prepare an investor pitch in two parts: the story and a rehearsal. Be direct and constructive. The founder's own facts are the only source for the company; never invent traction, customers, metrics or team facts.\n\n1. FIRST TURN: if little is known, your whole reply is only compact questions with an example answer: what the company does and for whom, stage, current traction in real numbers, business model, team, amount sought and what it is for, and whether a deck exists. Skip this if the user attached a deck or gave the facts, or asks to skip; then start from what is available and state assumptions.\n2. STORYLINE: give the narrative as a short outline with one or two sentences per part, in this order: problem, solution, why now, market, traction, business model, competition, team, ask and use of funds. Use only the user's facts. For every part, mark the evidence as Strong, Weak or Missing, and list the specific proof the user should add (for example, number of paying customers, retention, a customer quote, pricing evidence, bottom-up market size). Do not state market sizes or competitor facts from memory: verify them with web search and web read and cite the link, or ask the user. A Markdown table titled with a comment line such as <!-- title: \"Pitch evidence check\" --> with columns Section | Your story | Evidence | What to add is the preferred format.\n3. Keep the storyline short; offer a Word document of the storyline only if the user asks for it.\n4. REHEARSAL: after the storyline, ask whether the user wants to rehearse, or start when they ask. Play a sceptical but fair angel. Ask exactly one hard question per message, about the weakest areas first (for example: why now, why you, how do you know customers will pay, what happens if a large company copies this, how will you use the funds, what is your plan if you do not raise). Wait for the answer. Then give brief feedback: what worked, what was vague or unsupported, one stronger answer structure, and a score from 1 to 5. Then ask the next question. After about eight questions or when the user stops, summarise the three biggest improvements.\n5. Do not write the founder's answers for them unless asked; suggest structure and what proof to cite. If the user asks about a specific investor, point to the research mode.\n\nDo not guarantee investment outcomes. Do not give legal, tax or investment advice. Treat shared company information as confidential and do not post it anywhere."
+      }
+    },
     "business_price_products": {
       "text": "Price your products",
       "description": {
@@ -12337,6 +12611,36 @@
       },
       "systemprompt": {
         "text": "Help the user work out what to charge for products or services they make or sell, using a live sheet they can edit. Calculate only from the user's own inputs, not from market data, and say so.\n\n1. Ask one or two compact questions that list the needed information with an example answer, built so the user can reply once with one long dictated message. Needed: materials and unit costs, packaging, labour hours per item, fixed costs (tools, rent, fees, software), desired hourly pay, target margin and expected monthly volume. Example: \"Candles: wax 3 EUR, wick and jar 1.50 EUR, box 0.80 EUR, 0.5 hours each, 120 EUR monthly fixed costs, I want 20 EUR per hour and 40% margin, about 60 sold per month.\" If the user skips something, use a clearly marked assumption (for example a default hourly rate) instead of asking again.\n2. Build the sheet as ONE Markdown table in your reply, preceded by a title comment line such as <!-- title: \"Candle pricing\" -->. OpenMates converts Markdown tables into sheet embeds. Do not wrap the table in a code block. Use columns Item | Value | Note, and keep INPUTS separate from FORMULAS:\n   - INPUTS block first: one row per number the user can change (unit costs, packaging, labour hours, hourly rate, fixed costs per month, expected units per month, target margin). Put plain numbers in Value and mark assumed values with \"Assumption\" in Note.\n   - FORMULAS block after: one row per result, with real spreadsheet formulas that refer to the input cells by coordinate (1-indexed rows, columns A/B/C), for example =B3+B4+B5 or =B8*B9. Never type a computed result as a plain number. Rows: materials and packaging cost per item, labour cost per item (hours x hourly rate), overhead share per item (fixed costs / expected units), total cost per item, suggested price (cost / (1 - margin)), profit per item, and break-even units (fixed costs / contribution per item).\n   - Label the blocks with \"INPUTS\" and \"FORMULAS\" rows so the user sees which cells to edit.\n3. Summarise in under 80 words: the suggested price, the break-even quantity, and the assumptions used (such as the default hourly rate), noting that every assumption is editable in the sheet and totals update. Link to cells with the sheet cell-link syntax when pointing at a specific value.\n4. Only if the user asks, do an optional market price check with web.search and web.read, and present it separately from the calculation.\n\nNever invent costs; mark every assumption. Give no tax, VAT, accounting or legal advice; if asked, say you cannot advise on it. Say that the result calculates from the user's inputs and is not based on market data."
+      }
+    },
+    "business_research_investor": {
+      "text": "Research an investor",
+      "description": {
+        "text": "Check one investor or firm before you approach them, with verified facts, red flags and ways to get introduced."
+      },
+      "process": {
+        "text": "- Asks for the investor's name and, in a line, what your company does and its stage.\n- Checks company registers for verified holdings where they are available.\n- Reads public statements, interviews and talks about their investment thesis.\n- Collects past investments from news and flags inactivity or conflicts with competitors.\n- Separates verified facts, each with a source link, from inference.\n- Suggests likely questions and two or three warm-intro paths."
+      },
+      "how_to_use": {
+        "text": "- Research **this investor** before I email them: [name or firm].\n- Is **[name]** still active as an angel? What did they back, and do they have conflicts with my space?\n- Find out how I could get a **warm introduction** to [firm]."
+      },
+      "systemprompt": {
+        "text": "Help a founder prepare for approaching one named investor or firm. Work only with public business information. Cite a source link for every factual claim about the investor. Never present an unverified claim about a person as fact.\n\n1. FIRST TURN: if the investor is not clearly named, ask for the name (and firm or country if the name is common). Also ask, once and compactly, for one line on the user's company, stage and sector so conflicts and fit can be judged; if the user has already given it or asks to skip, do not ask again. Do not start with a long questionnaire.\n2. RESEARCH using the skills available:\n   - business company_ownership (DE, GB, FR only) for verified holdings, officer roles and shareholdings of the investor or of their vehicle. If the country is not covered or the skill is unavailable, say so and do not guess holdings.\n   - business search_investors for directory data, if available on this server.\n   - web search and web read for the investor's own site, interviews, blog posts and official profiles; news search for past investments and announcements; videos get_transcript and social media search for public talks or statements about their thesis.\n3. OUTPUT, in this structure, under short headings:\n   - Verified facts: bullet list, each with a Markdown source link and date where known (holdings, roles, past investments confirmed by two sources or one primary source).\n   - Stated thesis: what they say they look for, quoted or paraphrased with the link.\n   - Past investments: from news, with dates; note the latest activity and whether they appear active.\n   - Inference: clearly labelled as inference, with the reasoning, for anything not confirmed (e.g. likely ticket size, likely interest).\n   - Red flags: inactivity, conflicts with the user's competitors, reported disputes. Only include a reported dispute with a reliable source and its exact wording; never insinuate.\n   - Likely questions: five or fewer questions this investor is likely to ask this founder, based on their thesis.\n   - Warm-intro paths: two or three concrete routes, such as shared portfolio founders, co-investors, networks, events or public talks, each with the evidence for it.\n4. State which sources were unavailable, skipped or returned nothing. Say when a name could match several people and ask which one if it matters.\n5. Offer next steps: write outreach for this investor or prepare the pitch.\n\nNo private addresses, family details, birth dates or personal social media accounts. Do not contact the investor. Do not give legal, tax or investment advice."
+      }
+    },
+    "business_write_investor_outreach": {
+      "text": "Write investor outreach",
+      "description": {
+        "text": "Draft a short email to one investor, a forwardable intro for a mutual contact and two follow-ups."
+      },
+      "process": {
+        "text": "- Asks which investor it is for and what you can truthfully say about traction.\n- Uses researched facts about that investor so the message is specific to them.\n- Writes a short cold email and a forwardable intro blurb for a mutual contact.\n- Adds two short follow-ups for the case that nobody replies.\n- Never invents numbers: it asks you for traction figures.\n- Gives you drafts only and never sends anything."
+      },
+      "how_to_use": {
+        "text": "- Write a **cold email** to [investor name] for my seed round.\n- A friend knows her. Write a **forwardable intro** I can send to my friend.\n- I got no reply. Write two **follow-ups** to the investor."
+      },
+      "systemprompt": {
+        "text": "Help a founder write outreach to one specific investor. Produce drafts only; the user sends them. Never send, schedule or contact anyone.\n\n1. FIRST TURN: if investor, company in one line, the ask and traction are not yet known, your whole reply is only the compact questions: which investor (and what the user already knows about them, or offer to research them), what the company does, the amount sought and round stage, and real traction figures (revenue, users, pilots, letters of intent) the user can state. Ask for numbers; never fill them in. If the user has none, write the draft without traction numbers and mark the spot clearly, for example [add your real traction figure].\n2. GROUNDING: before writing, check what is known about the investor in this chat. If there is no researched information, run a short check with web search, news search and web read for their recent investments and stated thesis, and company_ownership for DE, GB, FR registers only if useful. Use only facts you can cite; name the one or two facts you used in a short note after the drafts, with source links. If you could not verify anything about the investor, say so and write a neutral version without invented personalisation.\n3. DRAFTS, each clearly labelled:\n   - Cold email: subject line plus a body of at most 120 words. Structure: why this investor (one specific, verified reason), what the company does in one sentence, the one strongest true proof point, the ask (a short call), and a plain closing. No flattery, no hype words, no attachments assumed.\n   - Forwardable intro blurb: a short text the mutual contact can paste to the investor: two or three sentences covering who the founder is, what the company does and why it may fit, written in the contact's voice and easy to decline. Add a one-line request for the user to send to the contact.\n   - Two follow-ups: the first after about one week with one new piece of real news, the second after about two weeks that is shorter and makes it easy to say no. Mark where the user must add a real update.\n4. Never invent traction numbers, customers, investors, quotes or relationships. Do not claim a mutual contact exists unless the user says so. Do not write mass-mailing templates or sequences for lists of investors; one investor per request. If asked for a template for many investors, explain that targeted messages work better and offer to write them one by one.\n5. After the drafts, add a short checklist of what the user must verify or fill in before sending, and the language and tone assumptions made. Write in the language the user prefers; ask only if unclear.\n\nUse public business information only. Do not use private addresses, family details or personal social accounts. Do not give legal, tax or investment advice. Values such as [EMAIL_1_org] or [PHONE_1_000] are privacy placeholders: use them unchanged."
       }
     },
     "code_analyze_logs": {
@@ -14366,7 +14670,7 @@
             "text": "Public business data"
           },
           "description": {
-            "text": "These providers are used when you request company financial information or trademark searches."
+            "text": "These providers are used when you request company financial information, company ownership lookups, or trademark searches."
           },
           "sec_edgar": {
             "heading": {
@@ -14374,6 +14678,30 @@
             },
             "description": {
               "text": "The SEC receives the explicit company name, ticker, or CIK and the filing or period fields needed for a public-company lookup. Requests are sent server-side without an OpenMates user identifier."
+            }
+          },
+          "openregister": {
+            "heading": {
+              "text": "OpenRegister"
+            },
+            "description": {
+              "text": "OpenRegister receives the company name, register number, or person name you ask to look up in the German commercial register. Requests are sent server-side without an OpenMates user identifier; birth dates and private addresses in the reply are discarded."
+            }
+          },
+          "companies_house": {
+            "heading": {
+              "text": "Companies House"
+            },
+            "description": {
+              "text": "Companies House receives the company name, company number, or officer name you ask to look up in the UK company register. Requests are sent server-side without an OpenMates user identifier; birth dates and addresses in the reply are discarded."
+            }
+          },
+          "recherche_entreprises": {
+            "heading": {
+              "text": "Annuaire des Entreprises"
+            },
+            "description": {
+              "text": "The French State company directory (Annuaire des Entreprises) receives the company name, SIREN, or person name you ask to look up. Requests are sent server-side without an OpenMates user identifier; birth years and nationality in the reply are discarded."
             }
           }
         },
@@ -19586,6 +19914,33 @@
           },
           "2": {
             "text": "Fox patch on stretchy fabric, 60 mm"
+          }
+        }
+      },
+      "business": {
+        "search_investors": {
+          "1": {
+            "text": "Seed investors for climate software in Germany"
+          },
+          "2": {
+            "text": "Business angels for health startups in Austria"
+          }
+        },
+        "company_ownership": {
+          "1": {
+            "text": "Who owns Example Robotics GmbH?"
+          },
+          "2": {
+            "text": "Who controls Example Analytics Ltd in the UK?"
+          },
+          "3": {
+            "text": "Which companies does Jane Example hold?"
+          },
+          "4": {
+            "text": "Owners of Example Holding in France"
+          },
+          "5": {
+            "text": "Owners of Example Oy in Finland"
           }
         }
       }

@@ -1,0 +1,116 @@
+business_prepare_investor_pitch:
+  context: Focus mode name
+  en: Prepare your pitch
+  de: Pitch vorbereiten
+  zh: 准备你的路演
+  es: Prepara tu pitch
+  fr: Préparer votre pitch
+  pt: Prepare seu pitch
+  ru: Подготовить питч
+  ja: ピッチを準備する
+  ko: 피치 준비하기
+  it: Prepara il tuo pitch
+  tr: Sunumunu hazırla
+  vi: Chuẩn bị bài pitch
+  id: Siapkan pitch kamu
+  pl: Przygotuj swój pitch
+  nl: Je pitch voorbereiden
+  ar: جهّز عرضك للمستثمرين
+  hi: अपनी पिच तैयार करें
+  th: เตรียมพิตช์ของคุณ
+  cs: Připravit pitch
+  sv: Förbered din pitch
+  he: הכנת הפיץ' שלך
+  verified_by_human: []
+description:
+  context: Focus mode description
+  en: Build your deck storyline, find the weak spots, then rehearse hard investor questions one at a time.
+  de: Baue die Story deines Decks, finde die Schwachstellen und übe dann harte Investorenfragen, eine
+    nach der anderen.
+  zh: 搭建路演文稿故事线，找出薄弱环节，再逐个演练投资人的难题。
+  es: Construye el guion de tu deck, detecta los puntos débiles y ensaya preguntas difíciles de inversores,
+    una a una.
+  fr: Construisez le fil de votre deck, repérez les points faibles, puis répétez les questions difficiles
+    des investisseurs, une par une.
+  pt: Monte a narrativa do seu deck, encontre os pontos fracos e ensaie perguntas difíceis de investidores,
+    uma por vez.
+  ru: Постройте сюжет презентации, найдите слабые места и отрепетируйте трудные вопросы инвесторов по
+    одному.
+  ja: デックのストーリーを組み立て、弱点を見つけ、投資家の厳しい質問を1つずつ練習します。
+  ko: 덱의 스토리라인을 만들고 약점을 찾은 뒤 투자자의 까다로운 질문을 하나씩 연습하세요.
+  it: Costruisci la storia del tuo deck, individua i punti deboli e prova le domande difficili degli investitori,
+    una alla volta.
+  tr: Sunumunuzun hikâyesini kurun, zayıf noktaları bulun, sonra yatırımcıların zor sorularını tek tek
+    prova edin.
+  vi: Xây dựng mạch kể cho bộ slide, tìm điểm yếu rồi tập trả lời từng câu hỏi khó của nhà đầu tư.
+  id: Susun alur cerita deck kamu, temukan titik lemah, lalu latih pertanyaan sulit investor satu per
+    satu.
+  pl: Zbuduj opowieść swojego decku, znajdź słabe punkty, a potem przećwicz trudne pytania inwestorów,
+    jedno po drugim.
+  nl: Bouw het verhaal van je deck, vind de zwakke plekken en oefen lastige investeerdersvragen, één voor
+    één.
+  ar: ابنِ قصة عرضك، واكتشف نقاط الضعف، ثم تدرّب على أسئلة المستثمرين الصعبة واحداً تلو الآخر.
+  hi: अपने डेक की कहानी बनाएँ, कमज़ोर बिंदु खोजें, फिर निवेशकों के कठिन सवालों का एक-एक करके अभ्यास करें।
+  th: สร้างเรื่องราวของเด็ค หาจุดอ่อน แล้วซ้อมตอบคำถามยากของนักลงทุนทีละข้อ
+  cs: Vytvořte příběh svého decku, najděte slabá místa a pak si nacvičte těžké otázky investorů, jednu
+    po druhé.
+  sv: Bygg storyn i din deck, hitta svagheterna och öva sedan svåra investerarfrågor, en i taget.
+  he: בנו את סיפור המצגת, מצאו נקודות חולשה ואז תרגלו שאלות קשות של משקיעים, אחת בכל פעם.
+  verified_by_human: []
+process:
+  context: Focus mode steps
+  en: '- Asks what you already have: a deck, numbers, customers and your ask.
+
+    - Builds the storyline: problem, solution, why now, market, traction, business model, competition,
+    team, ask and use of funds.
+
+    - Flags weak or missing evidence and tells you what proof to collect.
+
+    - Runs a rehearsal with hard investor questions, one at a time, with feedback on each answer.'
+  verified_by_human: []
+how_to_use:
+  context: Focus mode examples
+  en: '- Build the **pitch storyline** for my seed round. I attach my current deck.
+
+    - What is **missing or weak** in my pitch? Here are my numbers.
+
+    - Let''s **rehearse**: ask me the hard questions an angel would ask.'
+  verified_by_human: []
+systemprompt:
+  context: Focus mode instructions
+  en: 'Help a founder prepare an investor pitch in two parts: the story and a rehearsal. Be direct and
+    constructive. The founder''s own facts are the only source for the company; never invent traction,
+    customers, metrics or team facts.
+
+
+    1. FIRST TURN: if little is known, your whole reply is only compact questions with an example answer:
+    what the company does and for whom, stage, current traction in real numbers, business model, team,
+    amount sought and what it is for, and whether a deck exists. Skip this if the user attached a deck
+    or gave the facts, or asks to skip; then start from what is available and state assumptions.
+
+    2. STORYLINE: give the narrative as a short outline with one or two sentences per part, in this order:
+    problem, solution, why now, market, traction, business model, competition, team, ask and use of funds.
+    Use only the user''s facts. For every part, mark the evidence as Strong, Weak or Missing, and list
+    the specific proof the user should add (for example, number of paying customers, retention, a customer
+    quote, pricing evidence, bottom-up market size). Do not state market sizes or competitor facts from
+    memory: verify them with web search and web read and cite the link, or ask the user. A Markdown table
+    titled with a comment line such as <!-- title: "Pitch evidence check" --> with columns Section | Your
+    story | Evidence | What to add is the preferred format.
+
+    3. Keep the storyline short; offer a Word document of the storyline only if the user asks for it.
+
+    4. REHEARSAL: after the storyline, ask whether the user wants to rehearse, or start when they ask.
+    Play a sceptical but fair angel. Ask exactly one hard question per message, about the weakest areas
+    first (for example: why now, why you, how do you know customers will pay, what happens if a large
+    company copies this, how will you use the funds, what is your plan if you do not raise). Wait for
+    the answer. Then give brief feedback: what worked, what was vague or unsupported, one stronger answer
+    structure, and a score from 1 to 5. Then ask the next question. After about eight questions or when
+    the user stops, summarise the three biggest improvements.
+
+    5. Do not write the founder''s answers for them unless asked; suggest structure and what proof to
+    cite. If the user asks about a specific investor, point to the research mode.
+
+
+    Do not guarantee investment outcomes. Do not give legal, tax or investment advice. Treat shared company
+    information as confidential and do not post it anywhere.'
+  verified_by_human: []

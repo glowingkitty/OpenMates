@@ -105,6 +105,36 @@
         "description": {
           "text": "Descubra quanto cobrar por produtos artesanais ou de pequena produção, com uma planilha ao vivo que você pode editar."
         }
+      },
+      "find_business_angels": {
+        "text": "Encontrar investidores-anjo",
+        "description": {
+          "text": "Monte uma lista ranqueada de investidores-anjo para sua rodada, com evidências de afinidade e como contatá-los."
+        }
+      },
+      "research_investor": {
+        "text": "Pesquisar um investidor",
+        "description": {
+          "text": "Pesquise um investidor ou firma antes de abordá-lo, com fatos verificados, alertas e caminhos para apresentação."
+        }
+      },
+      "write_investor_outreach": {
+        "text": "Escrever contato com investidores",
+        "description": {
+          "text": "Redija um e-mail curto para um investidor, uma apresentação encaminhável para um contato em comum e dois follow-ups."
+        }
+      },
+      "prepare_investor_pitch": {
+        "text": "Prepare seu pitch",
+        "description": {
+          "text": "Monte a narrativa do seu deck, encontre os pontos fracos e ensaie perguntas difíceis de investidores, uma por vez."
+        }
+      },
+      "plan_funding_round": {
+        "text": "Planejar uma rodada de investimento",
+        "description": {
+          "text": "Calcule quanto captar, qual instrumento se encaixa, a diluição e um cronograma, com uma planilha de cap table editável."
+        }
       }
     },
     "code": {
@@ -597,6 +627,18 @@
         "text": "Pesquisar marcas",
         "description": {
           "text": "Pesquise marcas por região com fontes e limites de cobertura."
+        }
+      },
+      "search_investors": {
+        "text": "Pesquisar investidores",
+        "description": {
+          "text": "Encontre business angels, redes de anjos e investidores em fase inicial por tema e região."
+        }
+      },
+      "company_ownership": {
+        "text": "Propriedade de empresas",
+        "description": {
+          "text": "Consulte quem é dono ou dirige uma empresa, ou que empresas uma pessoa detém, nos registos oficiais da Alemanha, do Reino Unido e de França."
         }
       }
     },
@@ -10636,10 +10678,40 @@
         "text": "- Entender o projeto\n- selecionar nomes\n- verificar finalistas\n- comparar evidências"
       }
     },
+    "business_find_business_angels": {
+      "text": "Encontrar investidores-anjo",
+      "description": {
+        "text": "Monte uma lista ranqueada de investidores-anjo para sua rodada, com evidências de afinidade e como contatá-los."
+      }
+    },
+    "business_plan_funding_round": {
+      "text": "Planejar uma rodada de investimento",
+      "description": {
+        "text": "Calcule quanto captar, qual instrumento se encaixa, a diluição e um cronograma, com uma planilha de cap table editável."
+      }
+    },
+    "business_prepare_investor_pitch": {
+      "text": "Prepare seu pitch",
+      "description": {
+        "text": "Monte a narrativa do seu deck, encontre os pontos fracos e ensaie perguntas difíceis de investidores, uma por vez."
+      }
+    },
     "business_price_products": {
       "text": "Definir o preço dos seus produtos",
       "description": {
         "text": "Descubra quanto cobrar por produtos artesanais ou de pequena produção, com uma planilha ao vivo que você pode editar."
+      }
+    },
+    "business_research_investor": {
+      "text": "Pesquisar um investidor",
+      "description": {
+        "text": "Pesquise um investidor ou firma antes de abordá-lo, com fatos verificados, alertas e caminhos para apresentação."
+      }
+    },
+    "business_write_investor_outreach": {
+      "text": "Escrever contato com investidores",
+      "description": {
+        "text": "Redija um e-mail curto para um investidor, uma apresentação encaminhável para um contato em comum e dois follow-ups."
       }
     },
     "code_analyze_logs": {

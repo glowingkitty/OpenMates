@@ -105,6 +105,36 @@
         "description": {
           "text": "Spočítejte, kolik si účtovat za ruční nebo malosériové výrobky, s živou tabulkou, kterou můžete upravovat."
         }
+      },
+      "find_business_angels": {
+        "text": "Najít byznys anděly",
+        "description": {
+          "text": "Sestavte seřazený seznam byznys andělů pro své kolo, s důkazy o shodě a způsobem, jak je oslovit."
+        }
+      },
+      "research_investor": {
+        "text": "Prověřit investora",
+        "description": {
+          "text": "Prověřte investora nebo firmu před oslovením: ověřená fakta, varovné signály a cesty k seznámení."
+        }
+      },
+      "write_investor_outreach": {
+        "text": "Napsat zprávu investorovi",
+        "description": {
+          "text": "Připravte krátký e-mail jednomu investorovi, přeposlatelné představení pro společného známého a dvě navazující zprávy."
+        }
+      },
+      "prepare_investor_pitch": {
+        "text": "Připravit pitch",
+        "description": {
+          "text": "Vytvořte příběh svého decku, najděte slabá místa a pak si nacvičte těžké otázky investorů, jednu po druhé."
+        }
+      },
+      "plan_funding_round": {
+        "text": "Naplánovat kolo financování",
+        "description": {
+          "text": "Spočítejte, kolik získat, jaký nástroj se hodí, ředění podílu a časový plán, s upravitelnou tabulkou kapitalizace."
+        }
       }
     },
     "code": {
@@ -597,6 +627,18 @@
         "text": "Hledat ochranné známky",
         "description": {
           "text": "Hledejte známky podle regionu se zdroji a mezemi pokrytí."
+        }
+      },
+      "search_investors": {
+        "text": "Hledat investory",
+        "description": {
+          "text": "Najděte byznys anděly, andělské sítě a investory raných fází podle tématu a regionu."
+        }
+      },
+      "company_ownership": {
+        "text": "Vlastnictví společnosti",
+        "description": {
+          "text": "Zjistěte, komu společnost patří nebo kdo ji řídí, či které společnosti osoba vlastní, v oficiálních rejstřících Německa, Spojeného království a Francie."
         }
       }
     },
@@ -10609,10 +10651,40 @@
         "text": "- Pochopit zadání\n- vybrat názvy\n- prověřit finalisty\n- porovnat důkazy"
       }
     },
+    "business_find_business_angels": {
+      "text": "Najít byznys anděly",
+      "description": {
+        "text": "Sestavte seřazený seznam byznys andělů pro své kolo, s důkazy o shodě a způsobem, jak je oslovit."
+      }
+    },
+    "business_plan_funding_round": {
+      "text": "Naplánovat kolo financování",
+      "description": {
+        "text": "Spočítejte, kolik získat, jaký nástroj se hodí, ředění podílu a časový plán, s upravitelnou tabulkou kapitalizace."
+      }
+    },
+    "business_prepare_investor_pitch": {
+      "text": "Připravit pitch",
+      "description": {
+        "text": "Vytvořte příběh svého decku, najděte slabá místa a pak si nacvičte těžké otázky investorů, jednu po druhé."
+      }
+    },
     "business_price_products": {
       "text": "Nacenit své produkty",
       "description": {
         "text": "Spočítejte, kolik si účtovat za ruční nebo malosériové výrobky, s živou tabulkou, kterou můžete upravovat."
+      }
+    },
+    "business_research_investor": {
+      "text": "Prověřit investora",
+      "description": {
+        "text": "Prověřte investora nebo firmu před oslovením: ověřená fakta, varovné signály a cesty k seznámení."
+      }
+    },
+    "business_write_investor_outreach": {
+      "text": "Napsat zprávu investorovi",
+      "description": {
+        "text": "Připravte krátký e-mail jednomu investorovi, přeposlatelné představení pro společného známého a dvě navazující zprávy."
       }
     },
     "code_analyze_logs": {

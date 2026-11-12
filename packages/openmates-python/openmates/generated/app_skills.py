@@ -508,6 +508,227 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
  {'app_id': 'business',
   'app_namespace_py': 'business',
   'app_namespace_ts': 'business',
+  'description': 'This capability is currently unavailable because no permitted provider is '
+                 'configured.',
+  'description_key': 'app_skills.business.search_investors.description',
+  'output_schema': {'properties': {'error': {'type': 'string', 'x-ui': {'basic': False}},
+                                   'investors': {'items': {'type': 'object'},
+                                                 'type': 'array',
+                                                 'x-ui': {'basic': True}},
+                                   'limitation': {'type': 'string', 'x-ui': {'basic': True}},
+                                   'partial': {'type': 'boolean', 'x-ui': {'basic': True}},
+                                   'provider': {'type': 'string', 'x-ui': {'basic': False}},
+                                   'regions': {'items': {'type': 'string'},
+                                               'type': 'array',
+                                               'x-ui': {'basic': True}},
+                                   'result_count': {'type': 'integer', 'x-ui': {'basic': True}},
+                                   'warnings': {'items': {'type': 'string'},
+                                                'type': 'array',
+                                                'x-ui': {'basic': True}}},
+                    'type': 'object'},
+  'schema': {'additionalProperties': False,
+             'properties': {'currency': {'default': 'EUR',
+                                         'description': 'ISO 4217 currency of ticket_min and '
+                                                        'ticket_max.',
+                                         'pattern': '^[A-Z]{3}$',
+                                         'type': 'string',
+                                         'x-ui': {'basic': False}},
+                            'investor_types': {'description': 'Optional investor kinds; omit to '
+                                                              'search all kinds.',
+                                               'items': {'enum': ['angel',
+                                                                  'angel_network',
+                                                                  'vc',
+                                                                  'family_office',
+                                                                  'accelerator',
+                                                                  'public_funding'],
+                                                         'type': 'string'},
+                                               'maxItems': 6,
+                                               'type': 'array',
+                                               'uniqueItems': True,
+                                               'x-ui': {'basic': False}},
+                            'max_results': {'default': 15,
+                                            'maximum': 30,
+                                            'minimum': 1,
+                                            'type': 'integer',
+                                            'x-ui': {'basic': False}},
+                            'query': {'description': 'Topic, sector or investment thesis keywords '
+                                                     'describing the company, for example "climate '
+                                                     'software seed". Do not include confidential '
+                                                     'company details.',
+                                      'maxLength': 200,
+                                      'minLength': 1,
+                                      'type': 'string',
+                                      'x-ui': {'basic': True}},
+                            'regions': {'description': 'Countries the user wants investors from, '
+                                                       'as upper-case ISO 3166-1 alpha-2 codes. '
+                                                       'Pass exactly the countries the user named; '
+                                                       'never widen silently to other countries. '
+                                                       'Use WORLDWIDE only when the user asks for '
+                                                       'it.',
+                                        'items': {'pattern': '^([A-Z]{2}|WORLDWIDE)$',
+                                                  'type': 'string'},
+                                        'maxItems': 10,
+                                        'minItems': 1,
+                                        'type': 'array',
+                                        'uniqueItems': True,
+                                        'x-ui': {'basic': True}},
+                            'stages': {'description': 'Optional financing stages the company is '
+                                                      'at; omit when unknown.',
+                                       'items': {'enum': ['pre_seed', 'seed', 'series_a', 'later'],
+                                                 'type': 'string'},
+                                       'maxItems': 4,
+                                       'type': 'array',
+                                       'uniqueItems': True,
+                                       'x-ui': {'basic': False}},
+                            'ticket_max': {'description': 'Optional maximum investment size per '
+                                                          'investor, in the given currency.',
+                                           'minimum': 0,
+                                           'type': 'number',
+                                           'x-ui': {'basic': False}},
+                            'ticket_min': {'description': 'Optional minimum investment size per '
+                                                          'investor, in the given currency.',
+                                           'minimum': 0,
+                                           'type': 'number',
+                                           'x-ui': {'basic': False}}},
+             'required': ['query', 'regions'],
+             'type': 'object'},
+  'skill_id': 'search_investors',
+  'skill_method_py': 'search_investors',
+  'skill_method_ts': 'searchInvestors'},
+ {'app_id': 'business',
+  'app_namespace_py': 'business',
+  'app_namespace_ts': 'business',
+  'description': 'Look up who owns or runs a named company, or which companies a named person '
+                 'holds or directs, in the official company register of Germany (DE), the United '
+                 'Kingdom (GB) or France (FR). Use to research investors, shareholders and '
+                 'directors; not for other countries, credit checks, private contact details or '
+                 'legal advice.',
+  'description_key': 'app_skills.business.company_ownership.description',
+  'output_schema': {'properties': {'errors': {'items': {'type': 'object'},
+                                              'type': 'array',
+                                              'x-ui': {'basic': False}},
+                                   'providers': {'items': {'type': 'string'},
+                                                 'type': 'array',
+                                                 'x-ui': {'basic': False}},
+                                   'records': {'items': {'type': 'object'},
+                                               'type': 'array',
+                                               'x-ui': {'basic': True}},
+                                   'result_count': {'type': 'integer', 'x-ui': {'basic': True}},
+                                   'warnings': {'items': {'type': 'string'},
+                                                'type': 'array',
+                                                'x-ui': {'basic': True}}},
+                    'type': 'object'},
+  'schema': {'additionalProperties': False,
+             'properties': {'requests': {'description': 'One entry per company or person to look '
+                                                        'up. Each runs only in the register of its '
+                                                        'own country.',
+                                         'items': {'additionalProperties': False,
+                                                   'properties': {'country': {'description': 'Upper-case '
+                                                                                             'ISO '
+                                                                                             '3166-1 '
+                                                                                             'alpha-2 '
+                                                                                             'code '
+                                                                                             'of '
+                                                                                             'the '
+                                                                                             'register '
+                                                                                             'to '
+                                                                                             'search '
+                                                                                             '(DE, '
+                                                                                             'GB '
+                                                                                             'or '
+                                                                                             'FR). '
+                                                                                             'Never '
+                                                                                             'guess '
+                                                                                             'a '
+                                                                                             'different '
+                                                                                             'country.',
+                                                                              'pattern': '^[A-Z]{2}$',
+                                                                              'type': 'string',
+                                                                              'x-ui': {'basic': True}},
+                                                                  'include': {'default': ['owners'],
+                                                                              'description': 'Which '
+                                                                                             'facts '
+                                                                                             'to '
+                                                                                             'fetch. '
+                                                                                             'Ask '
+                                                                                             'only '
+                                                                                             'for '
+                                                                                             'what '
+                                                                                             'the '
+                                                                                             'user '
+                                                                                             'needs; '
+                                                                                             'each '
+                                                                                             'extra '
+                                                                                             'value '
+                                                                                             'costs '
+                                                                                             'a '
+                                                                                             'separate '
+                                                                                             'register '
+                                                                                             'call.',
+                                                                              'items': {'enum': ['owners',
+                                                                                                 'holdings',
+                                                                                                 'officers'],
+                                                                                        'type': 'string'},
+                                                                              'maxItems': 3,
+                                                                              'type': 'array',
+                                                                              'uniqueItems': True,
+                                                                              'x-ui': {'basic': False}},
+                                                                  'query': {'description': 'Exact '
+                                                                                           'company '
+                                                                                           'name '
+                                                                                           'or '
+                                                                                           'register '
+                                                                                           'number '
+                                                                                           '(for '
+                                                                                           'example '
+                                                                                           '"Example '
+                                                                                           'GmbH", '
+                                                                                           '"12345678", '
+                                                                                           'a '
+                                                                                           '9-digit '
+                                                                                           'SIREN), '
+                                                                                           'or a '
+                                                                                           "person's "
+                                                                                           'full '
+                                                                                           'name.',
+                                                                            'maxLength': 160,
+                                                                            'minLength': 1,
+                                                                            'type': 'string',
+                                                                            'x-ui': {'basic': True}},
+                                                                  'subject': {'default': 'company',
+                                                                              'description': 'company '
+                                                                                             'to '
+                                                                                             'see '
+                                                                                             'owners '
+                                                                                             'and '
+                                                                                             'officers; '
+                                                                                             'person '
+                                                                                             'to '
+                                                                                             'see '
+                                                                                             'which '
+                                                                                             'companies '
+                                                                                             'they '
+                                                                                             'hold '
+                                                                                             'or '
+                                                                                             'direct.',
+                                                                              'enum': ['company',
+                                                                                       'person'],
+                                                                              'type': 'string',
+                                                                              'x-ui': {'basic': True}}},
+                                                   'required': ['query', 'country'],
+                                                   'type': 'object'},
+                                         'maxItems': 5,
+                                         'minItems': 1,
+                                         'type': 'array',
+                                         'x-ui': {'basic': True}}},
+             'required': ['requests'],
+             'type': 'object'},
+  'skill_id': 'company_ownership',
+  'skill_method_py': 'company_ownership',
+  'skill_method_ts': 'companyOwnership'},
+ {'app_id': 'business',
+  'app_namespace_py': 'business',
+  'app_namespace_ts': 'business',
   'description': 'Get official SEC EDGAR financial filing facts for explicit public company '
                  'tickers, CIKs, or exact company names, including revenue, profit, cash flow, and '
                  'balance sheet data. Use for company performance research and comparisons; do not '
@@ -10297,6 +10518,22 @@ class BusinessAppSkills:
         Skill: business/company_financials
         """
         return self._run_skill("business", "company_financials", input_data, prompt_injection_protection=prompt_injection_protection)
+
+    def company_ownership(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
+        """Look up who owns or runs a named company, or which companies a named person holds or directs, in the official company register of Germany (DE), the United Kingdom (GB) or France (FR). Use to research investors, shareholders and directors; not for other countries, credit checks, private contact details or legal advice.
+
+        Description key: app_skills.business.company_ownership.description
+        Skill: business/company_ownership
+        """
+        return self._run_skill("business", "company_ownership", input_data, prompt_injection_protection=prompt_injection_protection)
+
+    def search_investors(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
+        """This capability is currently unavailable because no permitted provider is configured.
+
+        Description key: app_skills.business.search_investors.description
+        Skill: business/search_investors
+        """
+        return self._run_skill("business", "search_investors", input_data, prompt_injection_protection=prompt_injection_protection)
 
     def search_trademarks(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """This capability is currently unavailable because no permitted provider is configured.

@@ -105,6 +105,36 @@
         "description": {
           "text": "편집 가능한 실시간 시트로 수제품이나 소량 생산 제품의 가격을 정하세요."
         }
+      },
+      "find_business_angels": {
+        "text": "비즈니스 엔젤 찾기",
+        "description": {
+          "text": "라운드에 맞는 비즈니스 엔젤을 순위별로 정리하고 적합성 근거와 연락 방법을 제공합니다."
+        }
+      },
+      "research_investor": {
+        "text": "투자자 조사하기",
+        "description": {
+          "text": "접근하기 전에 투자자나 투자사를 조사하세요. 검증된 사실, 위험 신호, 소개 경로를 제공합니다."
+        }
+      },
+      "write_investor_outreach": {
+        "text": "투자자 연락 메시지 쓰기",
+        "description": {
+          "text": "투자자에게 보낼 짧은 이메일, 지인이 전달할 소개 글, 후속 메시지 두 개를 초안으로 작성합니다."
+        }
+      },
+      "prepare_investor_pitch": {
+        "text": "피치 준비하기",
+        "description": {
+          "text": "덱의 스토리라인을 만들고 약점을 찾은 뒤 투자자의 까다로운 질문을 하나씩 연습하세요."
+        }
+      },
+      "plan_funding_round": {
+        "text": "투자 라운드 계획하기",
+        "description": {
+          "text": "얼마를 조달할지, 어떤 수단이 맞는지, 지분 희석과 일정을 정리하고 수정 가능한 지분표를 만듭니다."
+        }
       }
     },
     "code": {
@@ -597,6 +627,18 @@
         "text": "상표 검색",
         "description": {
           "text": "지역별로 상표명을 검색하고 출처와 검색 범위의 한계를 확인하세요."
+        }
+      },
+      "search_investors": {
+        "text": "투자자 검색",
+        "description": {
+          "text": "주제와 지역별로 비즈니스 엔젤, 엔젤 네트워크, 초기 단계 투자자를 찾아보세요."
+        }
+      },
+      "company_ownership": {
+        "text": "기업 소유 구조",
+        "description": {
+          "text": "독일, 영국, 프랑스의 공식 등기부에서 회사의 소유자와 임원, 개인이 보유한 회사를 조회합니다."
         }
       }
     },
@@ -10609,10 +10651,40 @@
         "text": "- 요구 파악\n- 이름 선정\n- 최종 후보 확인\n- 근거 비교"
       }
     },
+    "business_find_business_angels": {
+      "text": "비즈니스 엔젤 찾기",
+      "description": {
+        "text": "라운드에 맞는 비즈니스 엔젤을 순위별로 정리하고 적합성 근거와 연락 방법을 제공합니다."
+      }
+    },
+    "business_plan_funding_round": {
+      "text": "투자 라운드 계획하기",
+      "description": {
+        "text": "얼마를 조달할지, 어떤 수단이 맞는지, 지분 희석과 일정을 정리하고 수정 가능한 지분표를 만듭니다."
+      }
+    },
+    "business_prepare_investor_pitch": {
+      "text": "피치 준비하기",
+      "description": {
+        "text": "덱의 스토리라인을 만들고 약점을 찾은 뒤 투자자의 까다로운 질문을 하나씩 연습하세요."
+      }
+    },
     "business_price_products": {
       "text": "제품 가격 정하기",
       "description": {
         "text": "편집 가능한 실시간 시트로 수제품이나 소량 생산 제품의 가격을 정하세요."
+      }
+    },
+    "business_research_investor": {
+      "text": "투자자 조사하기",
+      "description": {
+        "text": "접근하기 전에 투자자나 투자사를 조사하세요. 검증된 사실, 위험 신호, 소개 경로를 제공합니다."
+      }
+    },
+    "business_write_investor_outreach": {
+      "text": "투자자 연락 메시지 쓰기",
+      "description": {
+        "text": "투자자에게 보낼 짧은 이메일, 지인이 전달할 소개 글, 후속 메시지 두 개를 초안으로 작성합니다."
       }
     },
     "code_analyze_logs": {

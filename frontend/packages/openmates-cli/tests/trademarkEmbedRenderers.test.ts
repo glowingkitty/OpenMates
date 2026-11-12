@@ -47,3 +47,33 @@ it('terminal fullscreen retains records, filters, failures and safe official lin
   assert.match(failed, /Error: Provider unavailable/);
   assert.doesNotMatch(failed.split('\n')[0], /Completed/);
 });
+
+// contract-test: supporting surface=cli assertions=investors.results
+it('investor search embeds render names, tickets and skipped sources in the terminal', () => {
+  const output = formatEmbedPreviewLines({ id: 'investors', embedId: '12345678-1234-4234-9234-123456789abd',
+    type: 'app_skill_use', appId: 'business', skillId: 'search_investors',
+    content: { query: 'climate', status: 'finished', result_count: 1, regions: ['DE'],
+      investors: [{ name: 'Alex Sample', investor_type: 'angel' }, { city: 'Berlin' }],
+      warnings: ['Example Directory was not searched: it does not cover US.'] } } as DecryptedEmbed).join('\n');
+  assert.match(output, /Investors: 1 · DE/);
+  assert.match(output, /Alex Sample · angel/);
+  assert.match(output, /Skipped: Example Directory/);
+});
+
+// contract-test: supporting surface=cli assertions=ownership.results
+it('company ownership embeds render owners with shares and lookup candidates in the terminal', async () => {
+  const content = { query: 'Example Robotics GmbH', status: 'finished', result_count: 1,
+    records: [{ subject: { name: 'Example Robotics GmbH', country: 'DE', legal_form: 'GmbH' },
+      owners: [{ name: 'Jane Example', share_percent: 42 }, { name: 'Example Holding SAS', share_band: '25-50%' }],
+      holdings: [{ name: 'Sample Labs Ltd', until: '2023-09-30' }], officers: [{ name: 'Sam Sample', role: 'Director' }] }],
+    errors: [{ query: 'Example Holding', country: 'FR', code: 'ambiguous', candidates: [{ name: 'Example Holding SAS', register_id: '123456789' }] }] };
+  const embedFor = (c: Record<string, unknown>) => ({ id: 'ownership', embedId: '12345678-1234-4234-9234-123456789abe',
+    type: 'app_skill_use', appId: 'business', skillId: 'company_ownership', content: c } as DecryptedEmbed);
+  const preview = formatEmbedPreviewLines(embedFor(content)).join('\n');
+  assert.match(preview, /Example Robotics GmbH · DE · GmbH/);
+  assert.match(preview, /Jane Example · 42%/);
+  assert.match(preview, /Example Holding SAS · 25-50%/);
+  const detail = (await formatEmbedFullscreenLines(embedFor(content), {} as never)).join('\n');
+  assert.match(detail, /Holding: Sample Labs Ltd · ended 2023-09-30/);
+  assert.match(detail, /Candidate: Example Holding SAS · 123456789/);
+});

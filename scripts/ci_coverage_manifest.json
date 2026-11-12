@@ -398,6 +398,8 @@
         "components/shared-auxiliary-load-button.spec.ts",
         "components/hosting-domain-search.spec.ts",
         "components/trademark-search.spec.ts",
+        "components/investor-search.spec.ts",
+        "components/company-ownership.spec.ts",
         "components/composer-embed-suggestions.spec.ts",
         "components/composer-public-embed.spec.ts",
         "components/new-chat-embed-suggestions.spec.ts",

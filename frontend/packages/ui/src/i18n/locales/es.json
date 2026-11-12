@@ -105,6 +105,36 @@
         "description": {
           "text": "Calcula cuánto cobrar por productos artesanales o de pequeña tirada, con una hoja en vivo que puedes editar."
         }
+      },
+      "find_business_angels": {
+        "text": "Encontrar business angels",
+        "description": {
+          "text": "Crea una lista ordenada de business angels para tu ronda, con pruebas de encaje y una vía de contacto."
+        }
+      },
+      "research_investor": {
+        "text": "Investigar a un inversor",
+        "description": {
+          "text": "Investiga a un inversor o firma antes de contactarlo, con hechos verificados, señales de alerta y vías de presentación."
+        }
+      },
+      "write_investor_outreach": {
+        "text": "Escribir un mensaje a inversores",
+        "description": {
+          "text": "Redacta un correo corto para un inversor, una presentación reenviable para un contacto común y dos seguimientos."
+        }
+      },
+      "prepare_investor_pitch": {
+        "text": "Prepara tu pitch",
+        "description": {
+          "text": "Construye el guion de tu deck, detecta los puntos débiles y ensaya preguntas difíciles de inversores, una a una."
+        }
+      },
+      "plan_funding_round": {
+        "text": "Planificar una ronda de financiación",
+        "description": {
+          "text": "Calcula cuánto captar, qué instrumento encaja, la dilución y un calendario, con una hoja de cap table editable."
+        }
       }
     },
     "code": {
@@ -597,6 +627,18 @@
         "text": "Buscar marcas",
         "description": {
           "text": "Busca marcas por región con fuentes y límites de cobertura."
+        }
+      },
+      "search_investors": {
+        "text": "Buscar inversores",
+        "description": {
+          "text": "Encuentra business angels, redes de ángeles e inversores en fase inicial por tema y región."
+        }
+      },
+      "company_ownership": {
+        "text": "Propiedad de empresas",
+        "description": {
+          "text": "Consulta quién es propietario o administra una empresa, o qué empresas posee una persona, en los registros oficiales de Alemania, Reino Unido y Francia."
         }
       }
     },
@@ -10636,10 +10678,40 @@
         "text": "- Entender el proyecto\n- preseleccionar nombres\n- comprobar finalistas\n- comparar evidencias"
       }
     },
+    "business_find_business_angels": {
+      "text": "Encontrar business angels",
+      "description": {
+        "text": "Crea una lista ordenada de business angels para tu ronda, con pruebas de encaje y una vía de contacto."
+      }
+    },
+    "business_plan_funding_round": {
+      "text": "Planificar una ronda de financiación",
+      "description": {
+        "text": "Calcula cuánto captar, qué instrumento encaja, la dilución y un calendario, con una hoja de cap table editable."
+      }
+    },
+    "business_prepare_investor_pitch": {
+      "text": "Prepara tu pitch",
+      "description": {
+        "text": "Construye el guion de tu deck, detecta los puntos débiles y ensaya preguntas difíciles de inversores, una a una."
+      }
+    },
     "business_price_products": {
       "text": "Pon precio a tus productos",
       "description": {
         "text": "Calcula cuánto cobrar por productos artesanales o de pequeña tirada, con una hoja en vivo que puedes editar."
+      }
+    },
+    "business_research_investor": {
+      "text": "Investigar a un inversor",
+      "description": {
+        "text": "Investiga a un inversor o firma antes de contactarlo, con hechos verificados, señales de alerta y vías de presentación."
+      }
+    },
+    "business_write_investor_outreach": {
+      "text": "Escribir un mensaje a inversores",
+      "description": {
+        "text": "Redacta un correo corto para un inversor, una presentación reenviable para un contacto común y dos seguimientos."
       }
     },
     "code_analyze_logs": {

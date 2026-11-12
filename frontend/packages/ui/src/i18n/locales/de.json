@@ -105,6 +105,36 @@
         "description": {
           "text": "Ermittle, was du für handgemachte oder Kleinserien-Produkte verlangen solltest – mit einer live bearbeitbaren Tabelle."
         }
+      },
+      "find_business_angels": {
+        "text": "Business Angels finden",
+        "description": {
+          "text": "Erstelle eine gerankte Liste von Business Angels für deine Runde, mit Belegen für die Passung und einem Weg zum Kontakt."
+        }
+      },
+      "research_investor": {
+        "text": "Investor recherchieren",
+        "description": {
+          "text": "Prüfe einen Investor oder eine Firma vor der Ansprache: mit verifizierten Fakten, Warnzeichen und Wegen zur Vorstellung."
+        }
+      },
+      "write_investor_outreach": {
+        "text": "Investorenansprache schreiben",
+        "description": {
+          "text": "Entwirf eine kurze E-Mail an einen Investor, eine weiterleitbare Vorstellung für einen gemeinsamen Kontakt und zwei Nachfassmails."
+        }
+      },
+      "prepare_investor_pitch": {
+        "text": "Pitch vorbereiten",
+        "description": {
+          "text": "Baue die Story deines Decks, finde die Schwachstellen und übe dann harte Investorenfragen, eine nach der anderen."
+        }
+      },
+      "plan_funding_round": {
+        "text": "Finanzierungsrunde planen",
+        "description": {
+          "text": "Ermittle, wie viel du aufnimmst, welches Instrument passt, die Verwässerung und einen Zeitplan, mit editierbarer Cap-Table."
+        }
       }
     },
     "code": {
@@ -597,6 +627,18 @@
         "text": "Marken suchen",
         "description": {
           "text": "Markennamen nach Region mit Quellen und Abdeckungsgrenzen suchen."
+        }
+      },
+      "search_investors": {
+        "text": "Investoren suchen",
+        "description": {
+          "text": "Business Angels, Angel-Netzwerke und Frühphaseninvestoren nach Thema und Region finden."
+        }
+      },
+      "company_ownership": {
+        "text": "Eigentümer von Unternehmen",
+        "description": {
+          "text": "Nachschlagen, wem ein Unternehmen gehört oder wer es leitet, oder welche Unternehmen eine Person hält – in den amtlichen Registern von Deutschland, Großbritannien und Frankreich."
         }
       }
     },
@@ -8746,6 +8788,193 @@
         "failed": {
           "text": "Suchdaten nicht verfügbar"
         }
+      },
+      "search_investors": {
+        "result_count": {
+          "text": "Investoren: {count}"
+        },
+        "type": {
+          "text": "Typ"
+        },
+        "stages": {
+          "text": "Phasen"
+        },
+        "ticket_size": {
+          "text": "Ticketgröße"
+        },
+        "regions": {
+          "text": "Regionen"
+        },
+        "sectors": {
+          "text": "Branchen"
+        },
+        "thesis": {
+          "text": "Investmentthese"
+        },
+        "example_investments": {
+          "text": "Beispielinvestments"
+        },
+        "contact": {
+          "text": "Kontakt"
+        },
+        "open_profile": {
+          "text": "Profil öffnen"
+        },
+        "empty": {
+          "text": "Für diese Suche wurden keine Investoren gefunden."
+        },
+        "limitation": {
+          "text": "Öffentliche Selbstbeschreibungen von Investoren, keine Empfehlung. Portfolios und Ticketgrößen sind nicht geprüft."
+        },
+        "partial": {
+          "text": "Teilergebnisse: Einige Quellen wurden nicht durchsucht."
+        },
+        "unavailable": {
+          "text": "Die Investorensuche ist auf diesem Server nicht verfügbar."
+        },
+        "failed": {
+          "text": "Investorendaten nicht verfügbar"
+        },
+        "skipped_sources": {
+          "text": "Nicht durchsuchte Quellen"
+        },
+        "source": {
+          "text": "Quelle"
+        },
+        "open_website": {
+          "text": "Website öffnen"
+        },
+        "show_more": {
+          "text": "Mehr anzeigen"
+        },
+        "show_less": {
+          "text": "Weniger anzeigen"
+        },
+        "more_investors": {
+          "text": "+{count} weitere"
+        },
+        "type_angel": {
+          "text": "Business Angel"
+        },
+        "type_angel_network": {
+          "text": "Angel-Netzwerk"
+        },
+        "type_vc": {
+          "text": "Wagniskapital"
+        },
+        "type_family_office": {
+          "text": "Family Office"
+        },
+        "type_accelerator": {
+          "text": "Accelerator"
+        },
+        "type_public_funding": {
+          "text": "Öffentliche Förderung"
+        },
+        "stage_pre_seed": {
+          "text": "Pre-Seed"
+        },
+        "stage_seed": {
+          "text": "Seed"
+        },
+        "stage_series_a": {
+          "text": "Series A"
+        },
+        "stage_later": {
+          "text": "Spätphase"
+        }
+      },
+      "company_ownership": {
+        "result_count": {
+          "text": "Ergebnisse: {count}"
+        },
+        "owners_count": {
+          "text": "Eigentümer: {count}"
+        },
+        "holdings_count": {
+          "text": "Beteiligungen: {count}"
+        },
+        "officers_count": {
+          "text": "Organe: {count}"
+        },
+        "more_records": {
+          "text": "+{count} weitere im Vollbild"
+        },
+        "type_company": {
+          "text": "Unternehmen"
+        },
+        "type_person": {
+          "text": "Person"
+        },
+        "country": {
+          "text": "Land"
+        },
+        "legal_form": {
+          "text": "Rechtsform"
+        },
+        "status": {
+          "text": "Status"
+        },
+        "register_id": {
+          "text": "Registernummer"
+        },
+        "city": {
+          "text": "Ort"
+        },
+        "owners": {
+          "text": "Eigentümer"
+        },
+        "holdings": {
+          "text": "Beteiligungen und Positionen"
+        },
+        "officers": {
+          "text": "Organe und Geschäftsführung"
+        },
+        "name": {
+          "text": "Name"
+        },
+        "share": {
+          "text": "Anteil"
+        },
+        "relation": {
+          "text": "Beziehung"
+        },
+        "since": {
+          "text": "Seit"
+        },
+        "ended": {
+          "text": "Beendet"
+        },
+        "source": {
+          "text": "Quelle"
+        },
+        "open_source": {
+          "text": "Registereintrag öffnen"
+        },
+        "candidates": {
+          "text": "Mögliche Treffer. Nenne einen per Registernummer, um ihn nachzuschlagen."
+        },
+        "empty": {
+          "text": "Keine Eigentümerdaten gefunden."
+        },
+        "failed": {
+          "text": "Die Abfrage der Eigentumsverhältnisse ist fehlgeschlagen."
+        },
+        "error_ambiguous": {
+          "text": "Mehrere Treffer. Bitte einen auswählen."
+        },
+        "error_coverage_gap": {
+          "text": "Dieses Land wird nicht abgedeckt."
+        },
+        "error_not_found": {
+          "text": "Im Register nicht gefunden."
+        },
+        "error_other": {
+          "text": "Die Abfrage ist fehlgeschlagen."
+        },
+        "skipped_sources": {
+          "text": "Übersprungene Abfragen"
+        }
       }
     },
     "reviews": {
@@ -12292,10 +12521,40 @@
         "text": "- Anforderungen verstehen\n- Namen auswählen\n- Favoriten prüfen\n- Ergebnisse vergleichen"
       }
     },
+    "business_find_business_angels": {
+      "text": "Business Angels finden",
+      "description": {
+        "text": "Erstelle eine gerankte Liste von Business Angels für deine Runde, mit Belegen für die Passung und einem Weg zum Kontakt."
+      }
+    },
+    "business_plan_funding_round": {
+      "text": "Finanzierungsrunde planen",
+      "description": {
+        "text": "Ermittle, wie viel du aufnimmst, welches Instrument passt, die Verwässerung und einen Zeitplan, mit editierbarer Cap-Table."
+      }
+    },
+    "business_prepare_investor_pitch": {
+      "text": "Pitch vorbereiten",
+      "description": {
+        "text": "Baue die Story deines Decks, finde die Schwachstellen und übe dann harte Investorenfragen, eine nach der anderen."
+      }
+    },
     "business_price_products": {
       "text": "Produkte kalkulieren",
       "description": {
         "text": "Ermittle, was du für handgemachte oder Kleinserien-Produkte verlangen solltest – mit einer live bearbeitbaren Tabelle."
+      }
+    },
+    "business_research_investor": {
+      "text": "Investor recherchieren",
+      "description": {
+        "text": "Prüfe einen Investor oder eine Firma vor der Ansprache: mit verifizierten Fakten, Warnzeichen und Wegen zur Vorstellung."
+      }
+    },
+    "business_write_investor_outreach": {
+      "text": "Investorenansprache schreiben",
+      "description": {
+        "text": "Entwirf eine kurze E-Mail an einen Investor, eine weiterleitbare Vorstellung für einen gemeinsamen Kontakt und zwei Nachfassmails."
       }
     },
     "code_analyze_logs": {
@@ -14271,7 +14530,7 @@
             "text": "Öffentliche Unternehmensdaten"
           },
           "description": {
-            "text": "Diese Anbieter werden verwendet, wenn du Finanzinformationen zu Unternehmen oder Markenrecherchen anforderst."
+            "text": "Diese Anbieter werden verwendet, wenn du Finanzinformationen zu Unternehmen, Eigentümerabfragen zu Unternehmen oder Markenrecherchen anforderst."
           },
           "sec_edgar": {
             "heading": {
@@ -14279,6 +14538,30 @@
             },
             "description": {
               "text": "Die SEC erhält den ausdrücklich angegebenen Unternehmensnamen, das Börsenkürzel oder die CIK sowie die für die Recherche zu einem börsennotierten Unternehmen benötigten Angaben zu Einreichungen oder Zeiträumen. Anfragen werden serverseitig ohne eine OpenMates-Nutzerkennung gesendet."
+            }
+          },
+          "openregister": {
+            "heading": {
+              "text": "OpenRegister"
+            },
+            "description": {
+              "text": "OpenRegister erhält den Unternehmensnamen, die Registernummer oder den Personennamen, den du im deutschen Handelsregister nachschlagen möchtest. Anfragen werden serverseitig ohne eine OpenMates-Nutzerkennung gesendet; Geburtsdaten und private Adressen in der Antwort werden verworfen."
+            }
+          },
+          "companies_house": {
+            "heading": {
+              "text": "Companies House"
+            },
+            "description": {
+              "text": "Companies House erhält den Unternehmensnamen, die Unternehmensnummer oder den Namen der Person, den du im britischen Unternehmensregister nachschlagen möchtest. Anfragen werden serverseitig ohne eine OpenMates-Nutzerkennung gesendet; Geburtsdaten und Adressen in der Antwort werden verworfen."
+            }
+          },
+          "recherche_entreprises": {
+            "heading": {
+              "text": "Annuaire des Entreprises"
+            },
+            "description": {
+              "text": "Das französische staatliche Unternehmensverzeichnis (Annuaire des Entreprises) erhält den Unternehmensnamen, die SIREN oder den Personennamen, den du nachschlagen möchtest. Anfragen werden serverseitig ohne eine OpenMates-Nutzerkennung gesendet; Geburtsjahre und Staatsangehörigkeit in der Antwort werden verworfen."
             }
           }
         },
@@ -18930,6 +19213,33 @@
           },
           "2": {
             "text": "Fuchs-Aufnäher auf dehnbarem Stoff, 60 mm"
+          }
+        }
+      },
+      "business": {
+        "search_investors": {
+          "1": {
+            "text": "Seed-Investoren für Klimasoftware in Deutschland"
+          },
+          "2": {
+            "text": "Business Angels für Gesundheits-Startups in Österreich"
+          }
+        },
+        "company_ownership": {
+          "1": {
+            "text": "Wem gehört die Example Robotics GmbH?"
+          },
+          "2": {
+            "text": "Wer kontrolliert die Example Analytics Ltd in Großbritannien?"
+          },
+          "3": {
+            "text": "Welche Unternehmen hält Jane Example?"
+          },
+          "4": {
+            "text": "Eigentümer von Example Holding in Frankreich"
+          },
+          "5": {
+            "text": "Eigentümer von Example Oy in Finnland"
           }
         }
       }
