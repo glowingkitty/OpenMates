@@ -48,6 +48,14 @@ paths:
   host-wide at once, starts one only when its 6 GB fit in free memory, and runs
   each in a systemd scope capped at 4 CPUs and 6 GB RAM with low priority. One
   heavy command per chat at a time; parallel lanes queue, they never bypass it. `.claude/hooks/bash-guard.sh` blocks direct runs.
+  The same wrapper runs `cargo test/check/clippy` (host target) and `vitest`
+  without `-u` in an E2B sandbox (8 CPUs, 8 GB, no local slot): it uploads the
+  worktree's differences from the template baseline and streams output and exit
+  code back. Write such commands directly (`cargo test -p openmates-sdk`,
+  `pnpm --dir frontend/packages/ui exec vitest run <file>`, or `bash -c "cd DIR &&
+  CMD | tail -N"`); other shell syntax runs locally. If E2B is unavailable it
+  says so and runs locally; `--local` forces a local run. Refresh the template
+  with `heavy_slot.py remote-template` when it reports a stale baseline.
   Prefer isolated GitHub CI (`ci_coordinator.py submit --mode
   rust-check|rust-wasm|rust-native-dev|vitest|pytest`) for full suites.
 - Product REST/WebSocket, CLI/SDK and browser E2E: isolated GitHub CI only (one
