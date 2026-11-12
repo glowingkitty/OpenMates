@@ -10,8 +10,9 @@
 //! `memory_write_job_result_ack`. Shells print [`MemoryJobState::take_notices`]
 //! and read the per-job records. Plan: `docs/plans/assistant-memory-writes/`.
 use super::memory_documents::{
-    MemoryDocumentError, MemoryResult, MemoryWriteMode, PersonalMemoryDocument, document_sha256,
-    validate_memory_document,
+    MemoryDocumentError, MemoryResult, MemoryWriteMode, PersonalMemoryDocument,
+    PreparedMemorySettings, document_sha256, prepare_memory_delete, prepare_memory_write,
+    read_memory_documents, validate_memory_document,
 };
 use super::plaintext::Wipe;
 use super::recommendations::{
@@ -21,6 +22,8 @@ use super::recommendations::{
 };
 use super::transport::{Socket, send, wait};
 use super::*;
+use crate::crypto::master::MasterCapability;
+use serde::Deserialize;
 use serde::Serialize;
 use std::collections::BTreeSet;
 use std::fmt;
@@ -598,6 +601,129 @@ pub fn undo_decision(
     })
 }
 
+/// Encrypted settings that undo the write `event` announces, for a shell that
+/// posts them itself (web Worker); [`Client::undo_assistant_memory_write`] uses
+/// the same step. Reads the current Memories from `ciphertext`, refuses an
+/// edited Memory ([`undo_decision`]) and opens the master-key sealed previous
+/// document of an update only in memory (zeroized on drop).
+///
+/// # Errors
+/// See [`undo_decision`]; `SettingsUnavailable` when the sealed previous
+/// document or the settings cannot be opened; the write/delete errors of
+/// `memory_documents`.
+pub async fn prepare_memory_undo(
+    master: &MasterCapability,
+    ciphertext: Option<&str>,
+    event: &ContextEntryHistoryEvent,
+) -> MemoryResult<(MemoryUndoOutcome, PreparedMemorySettings)> {
+    let documents = read_memory_documents(master, ciphertext).await?;
+    let current = documents.iter().find(|d| d.id == event.entry_id);
+    let outcome = undo_decision(event, current)?;
+    let prepared =
+        match outcome {
+            MemoryUndoOutcome::Deleted => {
+                prepare_memory_delete(master, ciphertext, &event.entry_id).await?
+            }
+            MemoryUndoOutcome::Restored => {
+                let sealed = undo_data(event)?
+                    .encrypted_previous_document
+                    .as_deref()
+                    .ok_or(MemoryDocumentError::NotUndoable)?;
+                let previous = Zeroizing::new(master.decrypt_text(sealed).await.map_err(
+                    |error| match error {
+                        Error::Crypto => MemoryDocumentError::SettingsUnavailable,
+                        other => other.into(),
+                    },
+                )?);
+                prepare_memory_write(
+                    master,
+                    ciphertext,
+                    &event.entry_id,
+                    &previous,
+                    MemoryWriteMode::Update,
+                )
+                .await?
+            }
+        };
+    Ok((outcome, prepared))
+}
+
+/// `type` of the undone marker, a chat-key encrypted `role: system` message.
+pub const MEMORY_WRITE_UNDONE_TYPE: &str = "memory_write_undone";
+
+/// Persisted "this assistant write was undone" marker of one job.
+///
+/// Stored as its own system message ([`memory_write_undone_message_id`]),
+/// because the server never rewrites a stored message (duplicate message ids
+/// are skipped). Shells hide the marker row, show the matching
+/// `context_entry` notice as undone, and never send it to the AI.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MemoryWriteUndoneEvent {
+    /// Always 1.
+    pub schema_version: u8,
+    /// Always [`MEMORY_WRITE_UNDONE_TYPE`].
+    #[serde(rename = "type")]
+    pub event_type: String,
+    /// Job id of the undone write (the notice's `undo.job_id`).
+    pub job_id: String,
+    /// Memory id of the notice.
+    pub entry_id: String,
+    /// Unix seconds of the Undo.
+    pub undone_at: i64,
+}
+
+fn valid_job_id(id: &str) -> bool {
+    !id.is_empty()
+        && id.len() <= 128
+        && id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | ':'))
+}
+
+fn valid_undone(event: &MemoryWriteUndoneEvent) -> bool {
+    event.schema_version == 1
+        && event.event_type == MEMORY_WRITE_UNDONE_TYPE
+        && valid_job_id(&event.job_id)
+        && !event.entry_id.is_empty()
+        && event.entry_id.len() <= 240
+        && event.undone_at >= 0
+}
+
+/// Stable id of the undone marker message of `job_id` (one marker per job).
+pub fn memory_write_undone_message_id(job_id: &str) -> String {
+    format!("context-entry-undone-{job_id}")
+}
+
+/// Content of the undone marker for the notice `event`.
+///
+/// # Errors
+/// `NotUndoable` when `event` carries no valid assistant Undo data.
+pub fn build_memory_write_undone_event(
+    event: &ContextEntryHistoryEvent,
+    undone_at: i64,
+) -> MemoryResult<String> {
+    let undo = undo_data(event)?;
+    let marker = MemoryWriteUndoneEvent {
+        schema_version: 1,
+        event_type: MEMORY_WRITE_UNDONE_TYPE.into(),
+        job_id: undo.job_id.clone(),
+        entry_id: event.entry_id.clone(),
+        undone_at,
+    };
+    if !valid_undone(&marker) {
+        return Err(MemoryDocumentError::NotUndoable);
+    }
+    serde_json::to_string(&marker).map_err(|_| MemoryDocumentError::NotUndoable)
+}
+
+/// The marker of system message content, or `None` for anything else.
+pub fn parse_memory_write_undone_event(content: &str) -> Option<MemoryWriteUndoneEvent> {
+    serde_json::from_str::<MemoryWriteUndoneEvent>(content)
+        .ok()
+        .filter(valid_undone)
+}
+
 impl Client {
     /// Handle one memory write job frame of the turn and send what follows.
     ///
@@ -625,42 +751,16 @@ impl Client {
     /// Memory or restore the previous document of an updated one.
     ///
     /// # Errors
-    /// See [`undo_decision`]; `SettingsUnavailable` when the sealed previous
-    /// document cannot be opened; the save/delete errors of `memory_documents`.
+    /// See [`prepare_memory_undo`]; the save errors of `memory_documents`.
     pub async fn undo_assistant_memory_write(
         &mut self,
         event: &ContextEntryHistoryEvent,
     ) -> MemoryResult<MemoryUndoOutcome> {
-        let documents = self.personal_memory_documents().await?;
-        let current = documents.iter().find(|d| d.id == event.entry_id);
-        let outcome = undo_decision(event, current)?;
-        match outcome {
-            MemoryUndoOutcome::Deleted => {
-                self.delete_personal_memory_document(&event.entry_id)
-                    .await?;
-            }
-            MemoryUndoOutcome::Restored => {
-                let sealed = undo_data(event)?
-                    .encrypted_previous_document
-                    .as_deref()
-                    .ok_or(MemoryDocumentError::NotUndoable)?;
-                let previous = Zeroizing::new(
-                    self.master_capability()?
-                        .decrypt_text(sealed)
-                        .await
-                        .map_err(|error| match error {
-                            Error::Crypto => MemoryDocumentError::SettingsUnavailable,
-                            other => other.into(),
-                        })?,
-                );
-                self.save_personal_memory_document(
-                    &event.entry_id,
-                    &previous,
-                    MemoryWriteMode::Update,
-                )
-                .await?;
-            }
-        }
+        let ciphertext = self.settings_ciphertext().await?;
+        let master = self.master_capability()?;
+        let (outcome, prepared) =
+            prepare_memory_undo(&master, ciphertext.as_deref(), event).await?;
+        self.post_settings(&prepared).await?;
         Ok(outcome)
     }
 

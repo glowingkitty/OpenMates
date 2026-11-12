@@ -1,7 +1,8 @@
 /**
  * Existence check and open action behind the context_entry chat history event
  * (ContextEntryEventNotice): a saved memory opens in Settings > Memories; a workflow
- * is checked with the workflow API (404 means it no longer exists).
+ * is checked with the workflow API (404 means it no longer exists). Undo of an
+ * assistant-written Memory runs in the Rust core (memoryWriteJobRunner.ts).
  * Plan: docs/plans/chat-recommendations/plan.yml (wire_contract.system_event)
  */
 import type { ContextEntryHistoryEvent } from '../types/recommendations';
@@ -34,4 +35,15 @@ export function openContextEntryMemory(event: ContextEntryHistoryEvent): void {
   settingsMenuVisible.set(true);
   panelState.openSettings();
   settingsDeepLink.set(`memories/${encodeURIComponent(event.entry_id)}`);
+}
+
+/**
+ * Undo of an assistant-written Memory (source: assistant) in chat `chatId`, run by the
+ * Rust core; rejects with its code (`rule_changed` when edited since). Flag-off builds
+ * never render assistant notices with Undo and reject here.
+ */
+export async function undoAssistantContextEntry(chatId: string, event: ContextEntryHistoryEvent): Promise<void> {
+  if (import.meta.env.VITE_OPENMATES_RUST_CORE !== '1') throw new Error('rust_core_unavailable');
+  const { undoAssistantMemoryWrite } = await import('./rustCore/memory/memoryWriteJobRunner');
+  await undoAssistantMemoryWrite(chatId, event);
 }

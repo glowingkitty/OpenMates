@@ -458,3 +458,31 @@ def test_mock_mail_fixture_recreates_finished_draft_with_owner_bindings(monkeypa
         assert isinstance(draft[field["name"]], str)
         if field.get("required"):
             assert draft[field["name"]]
+
+
+def test_fixture_memory_writes_dispatch_only_for_capable_clients(monkeypatch) -> None:
+    from backend.apps.ai.processing import memory_write_tool
+
+    calls = []
+
+    async def fake_dispatch(**kwargs):
+        calls.append(kwargs)
+        return {"status": "saved"}
+
+    monkeypatch.setattr(memory_write_tool, "dispatch_save_memory", fake_dispatch)
+    fixture = mock_replay.load_fixture("memory_write_undo")
+    cache = _StubCacheService()
+
+    class _Request:
+        user_id = "user-1"
+        chat_id = "chat-1"
+        message_id = "message-1"
+        client_capabilities: list = []
+
+    asyncio.run(mock_replay._dispatch_fixture_memory_writes(fixture, _Request(), cache))
+    assert calls == []
+    _Request.client_capabilities = ["memory_write_jobs"]
+    asyncio.run(mock_replay._dispatch_fixture_memory_writes(fixture, _Request(), cache))
+    assert len(calls) == 1
+    assert calls[0]["arguments"]["action"] == "create"
+    assert calls[0]["approved_memories"] == []

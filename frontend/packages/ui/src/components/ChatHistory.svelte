@@ -28,8 +28,8 @@ import { storageArchiveFetch } from "../config/api";
   import { dispatchEmbedFullscreen } from '../services/embedFullscreenController';
   import SystemMessageNotice from './SystemMessageNotice.svelte';
   import { RECOMMENDATIONS_IN_BUILD } from '../services/chatRecommendationsPersistence';
-  import { parseContextEntryContent } from '../services/contextEntryEvents';
-  import { contextEntryExists, openContextEntryMemory } from '../services/contextEntryLinks';
+  import { isContextEntryCandidateContent, readContextEntryHistory } from '../services/contextEntryEvents';
+  import { contextEntryExists, openContextEntryMemory, undoAssistantContextEntry } from '../services/contextEntryLinks';
   import type { ContextEntryHistoryEvent } from '../types/recommendations';
   import { fade, slide } from "svelte/transition";
   import type { MessageStatus, ProcessingPhase, ResumeCardImageBubble } from '../types/chat'; // Import global MessageStatus and ProcessingPhase
@@ -1803,6 +1803,8 @@ import { storageArchiveFetch } from "../config/api";
       && !!currentChatId && !isIncognito && !isExampleChat && !isSharedChat && !isPublicChat(currentChatId),
   );
   let contextEntryEvents = $state<Record<string, ContextEntryHistoryEvent>>({});
+  // Job ids of assistant Memory writes with a persisted undone marker (hidden rows).
+  let undoneMemoryJobs = $state<Set<string>>(new Set());
   // Candidate set key: re-parse only when context_entry rows change, not on every stream chunk.
   let contextEntryCandidateKey = $derived(
     ownedRecommendationsView
@@ -1810,13 +1812,14 @@ import { storageArchiveFetch } from "../config/api";
       : '',
   );
   $effect(() => {
-    if (!contextEntryCandidateKey) { contextEntryEvents = {}; return; }
+    if (!contextEntryCandidateKey) { contextEntryEvents = {}; undoneMemoryJobs = new Set(); return; }
     const candidates = untrack(() => candidateDisplayMessages.filter(isContextEntryCandidate));
     let stale = false;
-    void Promise.all(candidates.map(async (msg) => [msg.id, await parseContextEntryContent(systemContentOf(msg))] as const))
-      .then((parsed) => {
+    void readContextEntryHistory(candidates.map((msg) => ({ id: msg.id, content: systemContentOf(msg) })))
+      .then((history) => {
         if (stale) return;
-        contextEntryEvents = Object.fromEntries(parsed.filter((entry): entry is readonly [string, ContextEntryHistoryEvent] => entry[1] !== null));
+        contextEntryEvents = history.events;
+        undoneMemoryJobs = history.undoneJobIds;
       })
       .catch((error) => console.error('[ChatHistory] Could not read context entry events', error));
     return () => { stale = true; };
@@ -1829,7 +1832,7 @@ import { storageArchiveFetch } from "../config/api";
 
   /** Cheap pre-check only; the Rust core validates the event. */
   function isContextEntryCandidate(msg: InternalMessage): boolean {
-    return msg.role === 'system' && systemContentOf(msg).includes('"context_entry"');
+    return msg.role === 'system' && isContextEntryCandidateContent(systemContentOf(msg));
   }
 
   // embed_updated chat events (feature.embed-user-edits): the Rust core folds them.
@@ -3516,7 +3519,9 @@ import { storageArchiveFetch } from "../config/api";
                     {:else if msg.role === 'system' && contextEntryEvents[msg.id]}
                       <div class="context-entry-row">
                         <SystemMessageNotice testId="context-entry-notice">
-                          <ContextEntryEventNotice event={contextEntryEvents[msg.id]} checkExists={contextEntryExists} onOpenMemory={openContextEntryMemory} />
+                          <ContextEntryEventNotice event={contextEntryEvents[msg.id]} checkExists={contextEntryExists} onOpenMemory={openContextEntryMemory}
+                            undone={undoneMemoryJobs.has(contextEntryEvents[msg.id].undo?.job_id ?? '')}
+                            onUndo={(event) => undoAssistantContextEntry(msg.original_message?.chat_id ?? currentChatId ?? '', event)} />
                         </SystemMessageNotice>
                       </div>
                     {:else if msg.role === 'system' && embedUpdated.shownAt[msg.id]}

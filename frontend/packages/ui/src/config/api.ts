@@ -57,6 +57,14 @@ export function setRemoteCommandJobsCapabilityEnabled(enabled: boolean): void {
   remoteCommandJobsCapabilityEnabled = enabled;
 }
 
+// Assistant Memory writes (save_memory): enabled only while the Rust core job
+// runner is installed (assistantMemoryWrites.ts, flag-on builds).
+let memoryWriteJobsCapabilityEnabled = false;
+
+export function setMemoryWriteJobsCapabilityEnabled(enabled: boolean): void {
+  memoryWriteJobsCapabilityEnabled = enabled;
+}
+
 function getBrowserDerivedApiUrl(): string | null {
   if (typeof window === "undefined") {
     return null;
@@ -135,6 +143,7 @@ export function getWebSocketUrl(sessionId?: string, token?: string): string {
     ...(chatMetadataRecoveryCapabilityEnabled ? ["chat_metadata_recovery"] : []),
     ...(projectFileJobsCapabilityEnabled ? ["project_file_jobs"] : []),
     ...(remoteCommandJobsCapabilityEnabled ? ["remote_command_jobs"] : []),
+    ...(memoryWriteJobsCapabilityEnabled ? ["memory_write_jobs"] : []),
     "agentic-storage-v2",
   ];
   if (clientCapabilities.length > 0) {

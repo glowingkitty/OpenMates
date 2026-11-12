@@ -59,7 +59,11 @@ export interface ReconcileRecommendationsInput {
   local_memories: LocalMemoryMetadata[];
 }
 
-/** Plaintext of the encrypted role:system chat message written when the user saves. */
+/**
+ * Plaintext of the encrypted role:system chat message written when the user saves an
+ * entry, or when the assistant saved a Memory itself (`source: 'assistant'`, with Undo
+ * data). Built and validated only by the Rust core (recommendations.rs).
+ */
 export interface ContextEntryHistoryEvent {
   schema_version: 1;
   type: 'context_entry';
@@ -69,4 +73,27 @@ export interface ContextEntryHistoryEvent {
   title: string;
   /** Unix seconds. */
   created_at: number;
+  /** `assistant` when the save_memory tool wrote the entry; absent for user saves. */
+  source?: 'assistant';
+  /** What Undo needs (assistant-written Memories only); opaque to TypeScript. */
+  undo?: ContextEntryUndo;
+}
+
+/** Undo data of an assistant Memory write (memory_write_jobs.rs). */
+export interface ContextEntryUndo {
+  job_id: string;
+  action: 'create' | 'update';
+  written_document_sha256: string;
+  /** Master-key sealed previous document; updates only. */
+  encrypted_previous_document?: string;
+}
+
+/** Persisted marker: the assistant write of `job_id` was undone (hidden system row). */
+export interface MemoryWriteUndoneEvent {
+  schema_version: 1;
+  type: 'memory_write_undone';
+  job_id: string;
+  entry_id: string;
+  /** Unix seconds. */
+  undone_at: number;
 }

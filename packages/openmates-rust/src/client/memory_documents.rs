@@ -479,7 +479,7 @@ pub async fn prepare_memory_delete(
 
 impl Client {
     /// Fresh `encrypted_settings` of the signed-in user (a server round trip).
-    async fn settings_ciphertext(&mut self) -> MemoryResult<Option<String>> {
+    pub(super) async fn settings_ciphertext(&mut self) -> MemoryResult<Option<String>> {
         self.require_session()?;
         self.validate_session().await?;
         match self.user.get("encrypted_settings") {
@@ -493,7 +493,10 @@ impl Client {
     ///
     /// The endpoint replaces the whole record and has no compare-and-swap
     /// token (like the web client); the read-modify-write window is one call.
-    async fn post_settings(&mut self, prepared: &PreparedMemorySettings) -> MemoryResult<()> {
+    pub(super) async fn post_settings(
+        &mut self,
+        prepared: &PreparedMemorySettings,
+    ) -> MemoryResult<()> {
         let response = self
             .request(
                 Method::POST,

@@ -9,6 +9,7 @@
 import type {
 	ChatRecommendation,
 	ContextEntryHistoryEvent,
+	MemoryWriteUndoneEvent,
 	ReconcileRecommendationsInput,
 } from '../../../types/recommendations';
 import { parseCall } from '../parse/parseClient';
@@ -26,4 +27,9 @@ export function buildContextEntryEvent(event: ContextEntryHistoryEvent): Promise
 /** The event, or null when the content is not a valid context_entry event. */
 export function parseContextEntryEvent(content: string): Promise<ContextEntryHistoryEvent | null> {
 	return parseCall('parseContextEntryEvent', { content });
+}
+
+/** The undone marker of an assistant Memory write, or null for any other content. */
+export function parseMemoryWriteUndone(content: string): Promise<MemoryWriteUndoneEvent | null> {
+	return parseCall('parseMemoryWriteUndone', { content });
 }

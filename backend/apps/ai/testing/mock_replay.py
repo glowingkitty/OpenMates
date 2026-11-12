@@ -286,6 +286,32 @@ def _split_response_into_chunks(response: str) -> List[str]:
     return chunks
 
 
+async def _dispatch_fixture_memory_writes(
+    fixture_data: Dict[str, Any],
+    request_data: AskSkillRequest,
+    cache_service: CacheService,
+) -> None:
+    """Run the fixture's `memory_writes` (save_memory arguments) through the real job protocol.
+
+    Mock replay skips the main processor, so without this no client could ever
+    receive a memory_write_job. Each entry is dispatched exactly like a model
+    tool call; only capable, eligible requests (save_memory_enabled) get them.
+    """
+    writes = fixture_data.get("memory_writes") or []
+    if not writes:
+        return
+    from backend.apps.ai.processing.memory_write_tool import dispatch_save_memory, save_memory_enabled
+    if not save_memory_enabled(request_data):
+        logger.info("[MOCK] Fixture declares memory_writes but the client lacks memory_write_jobs")
+        return
+    for arguments in writes:
+        result = await dispatch_save_memory(
+            arguments=arguments, request=request_data, approved_memories=[],
+            cache_service=cache_service, log_prefix="[MOCK]",
+        )
+        logger.info("[MOCK] Fixture memory write status=%s", result.get("status"))
+
+
 async def replay_fixture(
     fixture_id: str,
     task_id: str,
@@ -415,6 +441,9 @@ async def replay_fixture(
     initial_delay = get_fixture_initial_delay_seconds(fixture_data)
     if initial_delay > 0:
         await asyncio.sleep(initial_delay)
+
+    # --- 2b. Assistant Memory writes (save_memory) the fixture declares ---
+    await _dispatch_fixture_memory_writes(fixture_data, request_data, cache_service)
 
     # --- 3. Build skill event schedule ---
     skill_events_by_fraction = _build_skill_event_schedule(fixture_data)

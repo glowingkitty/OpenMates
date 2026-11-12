@@ -7,7 +7,7 @@
  * produced by the page compiler and cross the boundary only as opaque JSON.
  */
 import type { UnitProtocol } from '../host/unitPort';
-import type { ChatRecommendation, ContextEntryHistoryEvent, ReconcileRecommendationsInput } from '../../../types/recommendations';
+import type { ChatRecommendation, ContextEntryHistoryEvent, MemoryWriteUndoneEvent, ReconcileRecommendationsInput } from '../../../types/recommendations';
 
 export type ParsePhase = 'streaming' | 'final';
 export interface ParseBlockRef { id: string; markdown: string }
@@ -44,6 +44,8 @@ export interface ParseUnitProtocol extends UnitProtocol {
 	buildContextEntryEvent: { request: { event: ContextEntryHistoryEvent }; response: string };
 	/** Event object, or null when the content is not a valid context_entry event. */
 	parseContextEntryEvent: { request: { content: string }; response: ContextEntryHistoryEvent | null };
+	/** Undone marker of an assistant Memory write, or null (memory_write_jobs.rs). */
+	parseMemoryWriteUndone: { request: { content: string }; response: MemoryWriteUndoneEvent | null };
 }
 
 /** Worker module exports (snake_case, JSON strings) of browser_parse.rs. */
@@ -56,12 +58,14 @@ export interface ParseBinding {
 	parse_reconcile_recommendations(inputJson: string): string;
 	parse_build_context_entry_event(eventJson: string): string;
 	parse_context_entry_event(content: string): string;
+	parse_memory_write_undone(content: string): string;
 }
 
 const BINDING_EXPORTS: readonly (keyof ParseBinding)[] = [
 	'parse_plan_blocks', 'parse_normalize_plan', 'parse_strip_voice_cues',
 	'parse_image_recovery_parents', 'parse_recover_generated_images',
 	'parse_reconcile_recommendations', 'parse_build_context_entry_event', 'parse_context_entry_event',
+	'parse_memory_write_undone',
 ];
 
 export function isParseBinding(value: unknown): value is ParseBinding {

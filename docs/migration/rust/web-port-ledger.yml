@@ -799,6 +799,18 @@ slices:
   - file: frontend/packages/ui/src/services/contextEntryEvents.ts
     functions: [listenForWorkflowRecommendationSaves, parseContextEntryContent, recordContextEntrySaved, withoutPresentationOnlyEvents,
       writeContextEntryMessage]
+- id: assistant-memory-write-notice-undone
+  commit: null
+  date: '2026-11-11'
+  title: 'feat(memories): assistant-saved Memory notice with Undo reads its undone marker through the shared Rust parse unit'
+  rust: [packages/openmates-rust/src/client/memory_write_jobs.rs, packages/openmates-rust/src/client/memory_write_job_bridge.rs,
+    packages/openmates-rust/src/client/memory_write_job_bridge_tests.rs]
+  vectors: [frontend/packages/ui/src/services/rustCore/__tests__/cryptoUnit.test.ts]
+  e2e: [frontend/apps/web_app/tests/memory-write-undo.spec.ts]
+  notes: The undone marker body and the undo decision live in Rust; the TS function only asks the Worker to parse the marker.
+  ts:
+  - file: frontend/packages/ui/src/services/contextEntryEvents.ts
+    functions: [parseMemoryWriteUndoneContent]
 - id: image-version-synced-head-guard
   commit: 83617a0e8b
   date: '2026-11-10'

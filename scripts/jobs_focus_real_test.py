@@ -6,9 +6,15 @@ Example (after deployment; paid inference requires explicit opt-in):
   python3 scripts/jobs_focus_real_test.py --session ID \
     --state-dir /tmp/jobs-focus-state-UNIQUE --output-dir /tmp/jobs-focus-UNIQUE \
     --allow-paid-dev-inference [--case create-cv]
+  Native Rust CLI built from this checkout (profile-reuse needs it, see below):
+    ... --native-cli /abs/target/debug/openmates \
+        --native-session-import /abs/target/debug/native-cli-session-import
 
 Runs scripted multi-turn conversations through the installed CLI with the
-personal dev-test account in isolated CLI state. Never run in CI. Transcripts
+personal dev-test account in isolated CLI state. With --native-cli the native
+binary runs every chat command; native `login` is browser pairing only, so the
+session is admitted by scripts/native_cli_session_import (shared Rust core
+password login into the same fresh /tmp state) instead of the npm login. Never run in CI. Transcripts
 are synthetic and stay outside the repository; only this run's chats are deleted.
 Each case records whether the expected focus mode activated and simple content
 checks; judging answer quality is left to the reader of the transcripts.
@@ -16,19 +22,80 @@ checks; judging answer quality is left to the reader of the transcripts.
 from __future__ import annotations
 
 import argparse
+import base64
+import hashlib
+import hmac
 import json
 import os
 import shutil
 import subprocess
 import sys
+import struct
 import threading
+import time
 from pathlib import Path
+from uuid import uuid4
 
 from code_run_real_test import command, delete_owned_chat, personal_test_environment, personal_test_leases
 from personal_dev_draft_guard import DraftGuard, DraftGuardError
 from workflow_schedule_real_test import API_URL, ProofError, sessions, write_receipt
 
 ROOT = Path(__file__).resolve().parents[1]
+APP_URL = "https://app.dev.openmates.org"
+NATIVE = {"enabled": False}
+
+
+def totp(secret: str, offset: int = 0) -> str:
+    """RFC 6238 code matching scripts/openmates_cli_test_account.mjs generateTotp."""
+    key = base64.b32decode(secret.replace(" ", "").upper() + "=" * (-len(secret.replace(" ", "")) % 8))
+    digest = hmac.new(key, struct.pack(">Q", int(time.time() // 30) + offset), hashlib.sha1).digest()
+    start = digest[-1] & 0x0F
+    return f"{(struct.unpack('>I', digest[start:start + 4])[0] & 0x7FFFFFFF) % 1_000_000:06d}"
+
+
+def native_login(importer: str, login_env: dict[str, str]) -> None:
+    """Admit a password-login session into the fresh native state; never prints credentials."""
+    for offset in (0, -1, 1):
+        env = dict(login_env, OPENMATES_APP_URL=APP_URL,
+                   OPENMATES_TEST_ACCOUNT_TOTP=totp(login_env["OPENMATES_TEST_ACCOUNT_OTP_KEY"], offset))
+        done = subprocess.run([importer], cwd=ROOT, env=env, capture_output=True, text=True,
+                              check=False, timeout=180)
+        if not done.returncode:
+            return
+    raise ProofError("personal_account_native_login_failed")
+
+
+def admitted_chat_id(transport: Path) -> str | None:
+    """Chat id of a turn the server acknowledged before the native CLI failed."""
+    try:
+        stderr = json.loads(transport.read_text()).get("stderr") or ""
+        error = json.loads(stderr.strip().splitlines()[-1]).get("error") or {}
+    except (OSError, ValueError, IndexError, AttributeError):
+        return None
+    chat_id = error.get("chat_id") if error.get("admitted") else None
+    return chat_id if isinstance(chat_id, str) and chat_id else None
+
+
+def npm_show(chat_id: str) -> dict:
+    """Read-only transcript through the installed npm CLI in its own fresh /tmp state."""
+    reader = NATIVE["npm_reader"]
+    env = dict(os.environ, OPENMATES_STATE_DIR=reader["state"])
+    shown = subprocess.run([reader["cli"], "chats", "show", chat_id, "--personal", "--api-url", API_URL, "--json"],
+                           cwd=ROOT, env=env, capture_output=True, text=True, timeout=120, check=False)
+    try:
+        return {"returncode": shown.returncode, "chat": json.loads(shown.stdout)}
+    except json.JSONDecodeError:
+        return {"returncode": shown.returncode, "stdout": shown.stdout[-2000:], "stderr": shown.stderr[-500:]}
+
+
+def delete_chat(cli: str, chat_id: str) -> None:
+    """npm prints a count line; the native CLI returns {"deleted": [ids]} with --json."""
+    if not NATIVE["enabled"]:
+        delete_owned_chat(cli, chat_id)
+        return
+    deleted = command(cli, ["chats", "delete", chat_id, "--yes", "--personal"])
+    if not isinstance(deleted, dict) or deleted.get("deleted") != [chat_id]:
+        raise ProofError("owned_chat_cleanup_failed")
 
 PERSON = (
     "My details (all synthetic test data): Alex Example, Berlin, alex@example.org, +49 30 0000000. "
@@ -102,7 +169,7 @@ def run_case(cli: str, label: str, case: dict, out: Path, timeout: int) -> dict:
     finally:
         if chat_id:
             try:
-                delete_owned_chat(cli, chat_id)
+                delete_chat(cli, chat_id)
                 result["chat_deleted"] = True
             except (ProofError, subprocess.TimeoutExpired):
                 result["chat_deleted"] = False
@@ -113,8 +180,12 @@ def run_profile_reuse(cli: str, out: Path, timeout: int) -> dict:
     """Chat 1 asks the assistant to save a career profile Memory; chat 2 must use it unprompted."""
     result: dict = {"label": "profile-reuse", "status": "failed"}
     chats: list[str] = []
+    baseline: set[str] = set()
+    slugs: list[str] = []
     flags = ["--personal", "--auto-approve", "--response-timeout-seconds", str(timeout)]
     try:
+        before = command(cli, ["settings", "memories", "list"])
+        baseline = {json.dumps(entry, sort_keys=True) for entry in before} if isinstance(before, list) else set()
         first = command(cli, ["chats", "new", "Please save my career profile as a memory so I never have to "
                               "repeat it. " + PERSON, *flags], timeout=timeout + 30)
         write_receipt(out / "profile-reuse-save.json", first)
@@ -125,29 +196,67 @@ def run_profile_reuse(cli: str, out: Path, timeout: int) -> dict:
         result["memory_writes"] = [{k: w.get(k) for k in ("action", "status", "errorCode", "undoAvailable")}
                                    for w in writes if isinstance(w, dict)]
         result["saved"] = any(w.get("status") == "applied" for w in writes if isinstance(w, dict))
-        second = command(cli, ["chats", "new", "Write a short cover letter in English for this job, using what "
-                               "you know about me. " + POSTING, *flags], timeout=timeout + 30)
+        listed = command(cli, ["settings", "memories", "list"])
+        write_receipt(out / "profile-reuse-memories.json", listed)
+        added = [entry for entry in listed if json.dumps(entry, sort_keys=True) not in baseline] \
+            if isinstance(listed, list) else []
+        result["memories_added"] = len(added)
+        result["memory_listed"] = "example retail" in json.dumps(added).lower()
+        # Assistant-saved Memories load as ask_first; the native CLI approves a
+        # Memory-load consent request only with --auto-approve-memories.
+        second_slug = f"profile-reuse-{uuid4().hex}"
+        slugs.append(second_slug)
+        transport = out / "profile-reuse-use-transport.json"
+        try:
+            second = command(cli, ["chats", "new", "Write a short cover letter in English for this job, using what "
+                                   "you know about me. " + POSTING, "--slug", second_slug, *flags,
+                                   "--auto-approve-memories"], timeout=timeout + 30, diagnostic_path=transport)
+        except ProofError:
+            admitted = admitted_chat_id(transport)
+            if not admitted or not NATIVE.get("npm_reader"):
+                raise
+            # The server acknowledged the turn but the native CLI could not read
+            # the reply; keep the failure and read the transcript for evidence.
+            chats.append(admitted)
+            result["second_native_error"] = "admitted_turn_unreadable"
+            write_receipt(out / "profile-reuse-use-chat-npm.json", npm_show(admitted))
+            raise
         write_receipt(out / "profile-reuse-use.json", second)
         if not isinstance(second, dict) or not second.get("chatId"):
             raise ProofError("created_chat_id_missing")
         chats.append(second["chatId"])
+        result["second_status"] = second.get("status")
         shown = command(cli, ["chats", "show", second["chatId"], "--personal"])
         write_receipt(out / "profile-reuse-use-chat.json", shown)
         text = json.dumps(shown).lower()
         result["profile_used"] = "example retail" in text and "15" in text
-        result["status"] = "passed" if result["saved"] and result["profile_used"] else "failed"
+        result["status"] = ("passed" if result["saved"] and result["memory_listed"] and result["profile_used"]
+                            else "failed")
     except (ProofError, subprocess.TimeoutExpired) as exc:
         result["reason"] = str(exc) if isinstance(exc, ProofError) else "timeout"
     finally:
         if chats and result.get("saved"):
             try:
-                command(cli, ["settings", "memories", "undo", "--chat", chats[0]])
-                result["memory_removed"] = True
+                undone = command(cli, ["settings", "memories", "undo", "--chat", chats[0]])
+                write_receipt(out / "profile-reuse-undo.json", undone)
+                after = command(cli, ["settings", "memories", "list"])
+                write_receipt(out / "profile-reuse-memories-after-undo.json", after)
+                result["memory_removed"] = isinstance(after, list) and not [
+                    entry for entry in after if json.dumps(entry, sort_keys=True) not in baseline]
             except (ProofError, subprocess.TimeoutExpired):
                 result["memory_removed"] = False
+        for slug in slugs[len(chats) - 1:] if chats else []:
+            # A failed send may still have created its chat; find it by its unique slug only.
+            try:
+                found = command(cli, ["chats", "show", slug, "--personal"])
+                chat_id = ((found.get("chat") or {}).get("id") if isinstance(found, dict) else None)
+                if chat_id and chat_id not in chats:
+                    chats.append(chat_id)
+            except (ProofError, subprocess.TimeoutExpired):
+                pass
         for chat_id in chats:
             try:
-                delete_owned_chat(cli, chat_id)
+                delete_chat(cli, chat_id)
             except (ProofError, subprocess.TimeoutExpired):
                 result["chat_deleted"] = False
     return result
@@ -159,6 +268,9 @@ def main() -> int:
     parser.add_argument("--state-dir", required=True, type=Path)
     parser.add_argument("--output-dir", required=True, type=Path)
     parser.add_argument("--cli", default="openmates")
+    parser.add_argument("--native-cli", type=Path, help="Native Rust openmates binary (absolute path)")
+    parser.add_argument("--native-session-import", type=Path,
+                        help="Built scripts/native_cli_session_import binary (required with --native-cli)")
     parser.add_argument("--case", action="append", choices=sorted([*CASES, "profile-reuse"]))
     parser.add_argument("--timeout-seconds", type=int, default=420)
     parser.add_argument("--allow-paid-dev-inference", action="store_true")
@@ -171,10 +283,19 @@ def main() -> int:
     for path in (state, out):
         if path == Path("/tmp") or not path.is_relative_to(Path("/tmp")) or path.exists():
             parser.error("--state-dir and --output-dir must be fresh paths below /tmp")
-    cli = shutil.which(args.cli)
+    if args.native_cli:
+        native_bins = [args.native_cli, args.native_session_import]
+        if not all(path and path.is_absolute() and path.is_file() and os.access(path, os.X_OK)
+                   for path in native_bins):
+            parser.error("--native-cli and --native-session-import must be absolute executable files")
+        cli, importer = str(args.native_cli), str(args.native_session_import)
+        NATIVE["enabled"] = True
+    else:
+        cli, importer = shutil.which(args.cli), None
     if not cli:
         parser.error("installed global openmates executable missing")
-    receipt: dict = {"status": "started", "target": API_URL, "session": args.session, "cases": []}
+    receipt: dict = {"status": "started", "target": API_URL, "session": args.session, "cases": [],
+                     "cli": "native" if importer else "npm"}
     leases, stop, guard = [], threading.Event(), None
     old_umask = os.umask(0o077)
     try:
@@ -183,6 +304,12 @@ def main() -> int:
         os.environ.update(OPENMATES_STATE_DIR=str(state), OPENMATES_PROFILE="", OPENMATES_API_URL=API_URL)
         for key in ("OPENMATES_API_KEY", "OPENMATES_CLI_HOME", "OPENMATES_CLI_SESSION_PATH"):
             os.environ.pop(key, None)
+        if importer:
+            # Same isolation as native CI: no desktop keyring (owner-only file
+            # store inside the fresh state dir), no profile, plain output.
+            os.environ.pop("OPENMATES_PROFILE", None)
+            os.environ.update(DBUS_SESSION_BUS_ADDRESS="unix:path=/nonexistent/openmates-no-bus",
+                              NO_COLOR="1", OPENMATES_APP_URL=APP_URL)
         login_env = personal_test_environment()
         leases = personal_test_leases(args.session)
 
@@ -192,11 +319,26 @@ def main() -> int:
                     sessions.renew_test_resource_lease(lease_id, owner, resources, mode=mode)
 
         threading.Thread(target=renew, daemon=True).start()
-        login = subprocess.run(["node", str(ROOT / "scripts/openmates_cli_test_account.mjs"), "login",
-                                "--slot", "", "--api-url", API_URL], cwd=ROOT, env=login_env,
-                               capture_output=True, text=True, check=False, timeout=180)
-        if login.returncode:
-            raise ProofError("personal_account_login_failed")
+        if importer:
+            native_login(importer, login_env)
+            npm_cli = shutil.which(args.cli)
+            if npm_cli:
+                # Evidence-only reader for turns the native CLI cannot display;
+                # npm session lives in its own subdirectory of the fresh state.
+                npm_state = state / "npm-reader"
+                npm_state.mkdir(mode=0o700)
+                npm_login = subprocess.run(["node", str(ROOT / "scripts/openmates_cli_test_account.mjs"), "login",
+                                            "--slot", "", "--api-url", API_URL], cwd=ROOT,
+                                           env=dict(login_env, OPENMATES_STATE_DIR=str(npm_state)),
+                                           capture_output=True, text=True, check=False, timeout=180)
+                if not npm_login.returncode:
+                    NATIVE["npm_reader"] = {"cli": npm_cli, "state": str(npm_state)}
+        else:
+            login = subprocess.run(["node", str(ROOT / "scripts/openmates_cli_test_account.mjs"), "login",
+                                    "--slot", "", "--api-url", API_URL], cwd=ROOT, env=login_env,
+                                   capture_output=True, text=True, check=False, timeout=180)
+            if login.returncode:
+                raise ProofError("personal_account_login_failed")
         try:
             guard = DraftGuard.start(cli, api_url=API_URL)
         except DraftGuardError as exc:

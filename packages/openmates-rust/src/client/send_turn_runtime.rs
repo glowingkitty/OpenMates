@@ -107,6 +107,13 @@ async fn adopt_turn_embeds<P: SavedTurnClientPhases>(
     }
     Ok(())
 }
+/// True for a Memory write job frame of this turn's chat that this send handles,
+/// in the stream and among the trailing frames alike.
+fn routes_memory_job_frame(options: &SendOptions, kind: &str, frame: &Value, chat: &str) -> bool {
+    options.memory_write_jobs
+        && crate::client::memory_write_jobs::is_job_frame(kind)
+        && text(frame, "chat_id") == chat
+}
 /// Delay between claims while another device of the same owner holds the lease.
 const CLAIM_CONFLICT_RETRY: Duration = Duration::from_millis(500);
 #[allow(clippy::too_many_arguments)]
@@ -278,10 +285,7 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
                     phases.deliver_update(&turn_scope,id,updates,cancel,StreamUpdate::Status(notice)).await?;
                 }
             }
-            if options.memory_write_jobs
-                && crate::client::memory_write_jobs::is_job_frame(&kind)
-                && text(&p, "chat_id") == id
-            {
+            if routes_memory_job_frame(options, &kind, &p, id) {
                 // save_memory waits for our claim and result; the turn resumes afterwards.
                 observed.project_create.memory_jobs.set_chat_key(key);
                 phases.project_create(ws, &kind, &p, id, &mut observed.project_create).await?;
@@ -448,6 +452,17 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
                         &mut streamed_embeds,
                         &mut checkpoints,
                     )?;
+                    // `memory_write_job_result_ack` answers our result on the
+                    // socket directly and can overtake the final chunk, which
+                    // travels through the stream relay. Late job frames take
+                    // the in-stream path so the job record is complete.
+                    if routes_memory_job_frame(options, &kind, &p, id) {
+                        observed.project_create.memory_jobs.set_chat_key(key);
+                        phases.project_create(ws, &kind, &p, id, &mut observed.project_create).await?;
+                        for notice in observed.project_create.memory_jobs.take_notices() {
+                            phases.deliver_update(&turn_scope,id,updates,cancel,StreamUpdate::Status(notice)).await?;
+                        }
+                    }
                 }
                 Some(Err(e)) => return Err(e),
                 None => break,
@@ -632,3 +647,6 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
         Ok(outcome.into_inner())
 
 }
+#[cfg(test)]
+#[path = "send_turn_runtime_tests.rs"]
+mod tests;

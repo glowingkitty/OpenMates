@@ -63,6 +63,7 @@ export function createParseHandlers(binding: ParseBinding): UnitHandlers<ParseUn
 			return content;
 		},
 		parseContextEntryEvent: (payload) => call(() => binding.parse_context_entry_event(text(record(payload).content))),
+		parseMemoryWriteUndone: (payload) => call(() => binding.parse_memory_write_undone(text(record(payload).content))),
 	};
 }
 

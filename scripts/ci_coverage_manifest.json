@@ -262,6 +262,7 @@
     "browser_component_contract": {
       "specs": [
         "components/chat-recommendations-components.spec.ts",
+        "components/context-entry-assistant-memory.spec.ts",
         "components/message-input-url-conversion.spec.ts",
         "components/audio-recording-compact-send.spec.ts",
         "components/results-view-source-validation.spec.ts",
@@ -699,6 +700,7 @@
         "web-rust-core-projects-flow.spec.ts",
         "web-rust-core-projects-remote-sources.spec.ts",
         "web-rust-core-chat-recommendations-flow.spec.ts",
+        "memory-write-undo.spec.ts",
         "web-rust-core-continue-carousel.spec.ts"
       ]
     },

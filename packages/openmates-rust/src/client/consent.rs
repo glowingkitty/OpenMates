@@ -1,5 +1,6 @@
 //! Explicit one-request consent. Neither caller decisions nor buffered frames
 //! replace the original credential/chat scope or authorize another request.
+use super::memory_catalog;
 use super::plaintext::{Plain, Wipe};
 use super::sync_capability::AsyncCryptoScope;
 use super::transport::{Socket, receive, send_plaintext, wait};
@@ -176,6 +177,54 @@ impl Client {
         let scope = AsyncCryptoScope::begin(self)?;
         self.require_browser_owner_guards()?;
         scope.check_chat(self, chat_id)?;
+        // Personal Memory documents (`memory-<id>`) are decided from this
+        // device's stored load mode, never from the server, under the same
+        // owner/chat scope as the answer.
+        let memory_keys = event["requested_keys"]
+            .as_array()
+            .ok_or(Error::Protocol)?
+            .iter()
+            .filter_map(Value::as_str)
+            .filter(|key| memory_catalog::is_memory_request_key(key) && key.len() <= 256)
+            .take(64)
+            .map(str::to_owned)
+            .collect::<BTreeSet<_>>();
+        let decision = Plain::new(self.memory_request_decision(&memory_keys).await?);
+        scope.check_chat(self, chat_id)?;
+        self.memory_consent_decided(
+            ws,
+            &scope,
+            event,
+            chat_id,
+            user_message,
+            key,
+            memories,
+            decision,
+            updates,
+            cancel,
+            policy,
+        )
+        .await
+    }
+    /// [`Self::memory_consent`] once the Memory documents are decided: Auto
+    /// include ones are answered without asking, Ask first ones join the
+    /// consent dialog, and without dialog keys nothing is persisted to approve.
+    #[allow(clippy::too_many_arguments)]
+    pub(super) async fn memory_consent_decided(
+        &mut self,
+        ws: &mut Socket,
+        scope: &AsyncCryptoScope,
+        event: &Value,
+        chat_id: &str,
+        user_message: &str,
+        key: &[u8; 32],
+        memories: &[Value],
+        decision: Plain<memory_catalog::MemoryRequestDecision>,
+        updates: &mpsc::Sender<StreamUpdate>,
+        cancel: &CancellationToken,
+        policy: SendConsentPolicy,
+    ) -> Result<(Vec<(String, Value)>, SendMemoryRequest)> {
+        scope.check_chat(self, chat_id)?;
         let key = zeroize::Zeroizing::new(*key);
         let request_id = Plain::new(
             event
@@ -189,17 +238,36 @@ impl Client {
             keys: BTreeSet::new(),
         });
         for value in event["requested_keys"].as_array().ok_or(Error::Protocol)? {
+            // `memory-<id>` keys carry ids of up to 240 characters.
             let value = value
                 .as_str()
-                .filter(|v| !v.is_empty() && v.len() <= 200)
+                .filter(|v| !v.is_empty() && v.len() <= 256)
                 .ok_or(Error::Protocol)?;
             requested.insert(value.to_owned());
         }
         if requested.keys.len() > 64 {
             return Err(Error::Protocol);
         }
+        let mut dialog = Plain::new(ConsentKeys {
+            keys: requested
+                .keys
+                .iter()
+                .filter(|key| !memory_catalog::is_memory_request_key(key))
+                .cloned()
+                .collect(),
+        });
+        for memory in &decision.ask {
+            dialog.insert(memory.key());
+        }
+        // Only Auto include Memories were requested: answer at once, with no
+        // request/response pair to approve (web `handleRequestAppSettingsMemoriesImpl`).
+        let needs_dialog = !dialog.keys.is_empty();
         let mut items = Plain::new(Vec::<Item>::new());
-        for category in &requested.keys {
+        for category in dialog
+            .keys
+            .iter()
+            .filter(|key| !memory_catalog::is_memory_request_key(key))
+        {
             let mut entries = Plain::new(Vec::<Value>::new());
             for memory in memories
                 .iter()
@@ -215,33 +283,50 @@ impl Client {
                 ..Item::default()
             });
         }
-        let request_content = Plain::new(
-            json!({"type":"app_settings_memories_request","user_message_id":user_message,"request_id":request_id.as_str(),"requested_keys":&requested.keys}),
-        );
-        let request_message = Plain::new(format!(
-            "{user_message}-memory-request-{}",
-            request_id.as_str()
-        ));
-        self.persist_consent_system(
-            ws,
-            &scope,
-            chat_id,
-            &request_message,
-            user_message,
-            &key,
-            request_content,
-            cancel,
-        )
-        .await?;
-        scope.check_chat(self, chat_id)?;
+        for memory in &decision.ask {
+            items.push(memory_catalog::ask_first_item(memory));
+        }
+        if needs_dialog {
+            let mut request_content = Plain::new(
+                json!({"type":"app_settings_memories_request","user_message_id":user_message,"request_id":request_id.as_str(),"requested_keys":&dialog.keys}),
+            );
+            if !decision.auto.is_empty() {
+                // `withAutoMemoryIds`: lets another device re-resolve them.
+                let ids: BTreeSet<&str> = decision.auto.iter().map(|m| m.id.as_str()).collect();
+                request_content["auto_memory_ids"] = json!(ids);
+            }
+            let request_message = Plain::new(format!(
+                "{user_message}-memory-request-{}",
+                request_id.as_str()
+            ));
+            self.persist_consent_system(
+                ws,
+                scope,
+                chat_id,
+                &request_message,
+                user_message,
+                &key,
+                request_content,
+                cancel,
+            )
+            .await?;
+            scope.check_chat(self, chat_id)?;
+        }
         let mut deferred = Plain::new(Vec::<(String, Value)>::new());
-        let mut approved = if policy == SendConsentPolicy::Caller {
+        let mut approved = if !needs_dialog {
+            if cancel.is_cancelled() {
+                return Err(Error::Cancelled);
+            }
+            Plain::new(ConsentKeys {
+                keys: BTreeSet::new(),
+            })
+        } else if policy == SendConsentPolicy::Caller {
             if updates.is_closed() {
                 return Err(Error::Cancelled);
             }
             let delivered = self
                 .deliver_turn_update(
-                    &scope,
+                    scope,
                     chat_id,
                     updates,
                     cancel,
@@ -262,7 +347,7 @@ impl Client {
                 let next = self
                     .consent_input(
                         ws,
-                        &scope,
+                        scope,
                         chat_id,
                         cancel,
                         deadline,
@@ -284,7 +369,7 @@ impl Client {
                         for id in std::mem::take(ids) {
                             selected.insert(id);
                         }
-                        if !selected.keys.is_subset(&requested.keys) {
+                        if !selected.keys.is_subset(&dialog.keys) {
                             return Err(Error::Forbidden);
                         }
                         break selected;
@@ -306,7 +391,7 @@ impl Client {
             }
             Plain::new(ConsentKeys {
                 keys: if policy == SendConsentPolicy::ApproveRequested {
-                    requested.keys.clone()
+                    dialog.keys.clone()
                 } else {
                     BTreeSet::new()
                 },
@@ -314,11 +399,20 @@ impl Client {
         };
         let mut entries = Plain::new(Vec::<Value>::new());
         for memory in memories.iter().filter(|m| {
-            approved
-                .keys
-                .contains(&format!("{}-{}", text(m, "app_id"), text(m, "item_type")))
+            let category = format!("{}-{}", text(m, "app_id"), text(m, "item_type"));
+            !memory_catalog::is_memory_request_key(&category) && approved.keys.contains(&category)
         }) {
             entries.push(json!({"app_id":memory["app_id"],"item_key":memory["item_type"],"content":memory["data"]}));
+        }
+        // Auto include Memories are released by their own mode; Ask first ones
+        // only when approved (a rejection still sends the Auto include ones).
+        let released_ask = decision
+            .ask
+            .iter()
+            .filter(|m| approved.keys.contains(&m.key()))
+            .collect::<Vec<_>>();
+        for memory in decision.auto.iter().chain(released_ask.iter().copied()) {
+            entries.push(memory.response_entry());
         }
         scope.check_chat(self, chat_id)?;
         if cancel.is_cancelled() {
@@ -333,34 +427,50 @@ impl Client {
         scope.check_chat(self, chat_id)?;
         result?;
         let mut categories = Plain::new(Vec::<Value>::new());
-        for category in &approved.keys {
+        for category in approved
+            .keys
+            .iter()
+            .filter(|key| !memory_catalog::is_memory_request_key(key))
+        {
             let matching = memories
                 .iter()
                 .filter(|m| format!("{}-{}", text(m, "app_id"), text(m, "item_type")) == *category)
                 .collect::<Vec<_>>();
             categories.push(json!({"appId":matching.first().map(|m|text(m,"app_id")).unwrap_or(""),"itemType":matching.first().map(|m|text(m,"item_type")).unwrap_or(""),"entryCount":matching.len()}));
         }
-        let response = Plain::new(
-            json!({"type":"app_settings_memories_response","user_message_id":user_message,"action":if entries.is_empty(){"rejected"}else{"included"},"categories":&*categories}),
-        );
-        let response_message = Plain::new(format!(
-            "{user_message}-memory-response-{}",
-            request_id.as_str()
-        ));
-        self.persist_consent_system(
-            ws,
-            &scope,
-            chat_id,
-            &response_message,
-            user_message,
-            &key,
-            response,
-            cancel,
-        )
-        .await?;
-        scope.check_chat(self, chat_id)?;
+        for memory in &released_ask {
+            categories.push(json!({"appId":memory_catalog::MEMORY_RESPONSE_APP_ID,"itemType":memory.id,"entryCount":1}));
+        }
+        if !decision.auto.is_empty() {
+            categories.push(json!({"appId":memory_catalog::MEMORY_RESPONSE_APP_ID,"itemType":"memories","entryCount":decision.auto.len()}));
+        }
+        // The web client stores no response for a silent answer without content.
+        if needs_dialog || !entries.is_empty() {
+            let response = Plain::new(
+                json!({"type":"app_settings_memories_response","user_message_id":user_message,"action":if entries.is_empty(){"rejected"}else{"included"},"categories":&*categories}),
+            );
+            let response_message = Plain::new(format!(
+                "{user_message}-memory-response-{}",
+                request_id.as_str()
+            ));
+            self.persist_consent_system(
+                ws,
+                scope,
+                chat_id,
+                &response_message,
+                user_message,
+                &key,
+                response,
+                cancel,
+            )
+            .await?;
+            scope.check_chat(self, chat_id)?;
+        }
         if cancel.is_cancelled() {
             return Err(Error::Cancelled);
+        }
+        for memory in &decision.auto {
+            approved.insert(memory.key());
         }
         let record = Plain::new(SendMemoryRequest {
             request_id: Some(request_id.into_inner()),

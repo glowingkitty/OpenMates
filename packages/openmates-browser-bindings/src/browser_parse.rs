@@ -51,3 +51,12 @@ pub fn parse_build_context_entry_event(event_json: &str) -> Result<String, JsVal
 pub fn parse_context_entry_event(content: &str) -> String {
     openmates_sdk::client::recommendations::parse_context_entry_event_json(content)
 }
+
+/// Undone marker object of an assistant Memory write, or `null`
+/// (`memory_write_jobs::parse_memory_write_undone_event`).
+#[wasm_bindgen]
+pub fn parse_memory_write_undone(content: &str) -> String {
+    openmates_sdk::client::memory_write_jobs::parse_memory_write_undone_event(content)
+        .and_then(|marker| serde_json::to_string(&marker).ok())
+        .unwrap_or_else(|| "null".into())
+}

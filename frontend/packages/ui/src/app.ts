@@ -16,6 +16,7 @@ import { activeChatStore } from "./stores/activeChatStore";
 import { createBrowserProjectFileExecutor } from "./services/browserProjectFileExecutor";
 import { createBrowserRemoteCommandClient } from "./services/browserRemoteCommandClient";
 import { chatSyncService } from "./services/chatSyncService";
+import { get } from "svelte/store";
 
 let removeProjectAgentClients: (() => void) | null = null;
 let unsubscribeProjectFileExecutorAuth: (() => void) | null = null;
@@ -49,6 +50,34 @@ function initProjectFileExecutorLifecycle(): void {
   });
 }
 
+let removeMemoryWriteJobRunner: (() => void) | null = null;
+let unsubscribeMemoryWriteJobAuth: (() => void) | null = null;
+
+/**
+ * Assistant Memory writes run through the Rust core job runner, so only
+ * VITE_OPENMATES_RUST_CORE builds install it and advertise `memory_write_jobs`.
+ */
+function initMemoryWriteJobLifecycle(): void {
+  if (import.meta.env.VITE_OPENMATES_RUST_CORE !== "1" || unsubscribeMemoryWriteJobAuth) return;
+  let installing = false;
+  unsubscribeMemoryWriteJobAuth = authStore.subscribe(({ isAuthenticated }) => {
+    if (!isAuthenticated) {
+      removeMemoryWriteJobRunner?.();
+      removeMemoryWriteJobRunner = null;
+      return;
+    }
+    if (removeMemoryWriteJobRunner || installing) return;
+    installing = true;
+    void import("./services/rustCore/memory/memoryWriteJobRunner")
+      .then(({ installMemoryWriteJobRunner }) => {
+        // Logged out while the module loaded: install nothing.
+        if (get(authStore).isAuthenticated) removeMemoryWriteJobRunner = installMemoryWriteJobRunner();
+      })
+      .catch((error) => console.error("[App] Could not install the Memory write job runner", error))
+      .finally(() => { installing = false; });
+  });
+}
+
 /**
  * Initialize all application services
  * @param {Object} options - Configuration options
@@ -68,6 +97,7 @@ export async function initializeApp(
     // Install authenticated Project clients before async initialization can
     // delay their capability registration while the composer is already usable.
     initProjectFileExecutorLifecycle();
+    initMemoryWriteJobLifecycle();
 
     // Initialize debug utilities for browser console access
     // These allow inspecting IndexedDB data via window.debugChat(), etc.
