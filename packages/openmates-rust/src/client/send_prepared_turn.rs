@@ -132,6 +132,11 @@ impl Client {
         let mut encrypted = json!({"client_message_id":message,"chat_id":id,"encrypted_content":crypto::encrypt_combined(&prepared.text,key)?,"encrypted_sender_name":crypto::encrypt_combined(&sender,key)?,"role":"user","created_at":created,"updated_at":created});
         if !prepared.mappings.is_empty(){let encoded=Plain::new(serde_json::to_string(&prepared.mappings)?);encrypted["encrypted_pii_mappings"]=json!(crypto::encrypt_combined(&encoded,key)?);}
         let mut inference = Plain::new(json!({"chat_id":id,"client_capabilities":[],"is_incognito":false,"message":{"message_id":message,"chat_id":id,"role":"user","sender_name":"User","status":"sent","content":prepared.text,"created_at":created,"chat_has_title":!new_chat},"turn_id":turn,"recovery_public_key":recovery.public_key,"chat_key_version":1,"custom_memory_documents":[],"app_settings_memories_metadata":memory_metadata,"project_focus_candidates":projects.as_slice()}));
+        if let Some(call) = &options.voice_call {
+            for (name, value) in call.message_fields() {
+                inference["message"][name] = value;
+            }
+        }
         if !memory_catalog.is_empty() {
             inference["memory_catalog"] = Value::Array(std::mem::take(&mut *memory_catalog));
         }

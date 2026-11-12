@@ -15,7 +15,7 @@
 // Specification: specifications/features/message-input/specification.yml
 // Assertions: message-input.layout.responsive-parity, message-input.recording.lifecycle, message-input.embeds.gated-send, message-input.send.ownership, message-input.privacy-context, message-input.suggestions.contextual
 // Specification: specifications/features/chats/specification.yml
-// Assertions: chats.layout.responsive-history, chats.streaming.progressive-presentation, chats.rendering.assistant-document-convergence, chats.surface.semantic-parity
+// Assertions: chats.layout.responsive-history, chats.streaming.progressive-presentation, chats.rendering.assistant-document-convergence, chats.surface.semantic-parity, chats.send.immediate-admission
 // Specification: specifications/features/apple-notifications/specification.yml
 // Assertions: apple-notifications.delivery.idempotent-visible, apple-notifications.action.routing-coherent
 
@@ -722,6 +722,11 @@ struct ChatView: View {
                         AssistantSpeechPlayerHostView(chatID: chatId, viewportWidth: chatContainerWidth)
 
                         messageList
+                            .overlay(alignment: .bottom) {
+                                if authManager.state == .authenticated, !IncognitoChatSession.isIncognitoChatId(chatId) {
+                                    CoreConsentRequestOverlay(chatId: chatId)
+                                }
+                            }
                             .simultaneousGesture(
                                 TapGesture().onEnded {
                                     dismissInputIfNeeded()
@@ -4931,6 +4936,25 @@ struct ChatView: View {
 
         Task { @MainActor in
             do {
+                if CoreChatActions.shared.isAttached {
+                    let options = CoreSendMapping.options(reservedChatId: chat.id)
+                    chatStore.performWithoutPersistence { chatStore.upsertChat(chat) }
+                    let acceptance = await CoreChatActions.shared.startTurn(
+                        .send(text: content, options: options), chatId: nil
+                    ) { _ in }
+                    switch acceptance {
+                    case .accepted:
+                        onOpenChat?(chat.id)
+                        return
+                    case .rejected(let failure):
+                        viewModel.error = CoreChatActions.userMessage(for: failure)
+                        return
+                    case .cancelled:
+                        return
+                    case .noCore:
+                        break
+                    }
+                }
                 let result = try await ChatSendPipeline().sendUserMessage(
                     content: content,
                     in: chat,

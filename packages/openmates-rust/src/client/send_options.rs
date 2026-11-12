@@ -64,6 +64,67 @@ pub enum SendConsentPolicy {
     ApproveRequested,
 }
 
+/// The heard part of the assistant reply a voice call interrupted: which
+/// segments were fully spoken and how far the active one got.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct VoiceHeardBoundary {
+    /// The assistant message that was being spoken.
+    pub assistant_message_id: String,
+    /// Sequence numbers (0..=255) of the fully spoken segments.
+    pub completed_sequences: Vec<u32>,
+    /// The segment being spoken when the user spoke (0..=255), if any.
+    pub active_sequence: Option<u32>,
+    /// Milliseconds of the active segment that were heard (0..=3_600_000).
+    pub active_offset_ms: u32,
+}
+
+/// Marks a turn as the user's utterance of a live voice call
+/// (`voice_call_admission.py` binds it to the authenticated call session).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct VoiceCallTurn {
+    /// The call's id.
+    pub call_id: String,
+    /// The turn id of the transcript (the user message id).
+    pub turn_id: String,
+    /// What the user heard of the previous reply, if it was interrupted.
+    pub heard_boundary: Option<VoiceHeardBoundary>,
+}
+
+impl VoiceCallTurn {
+    /// The message fields of the turn, as the Swift `NativeVoiceCallTurn`.
+    pub(crate) fn message_fields(&self) -> serde_json::Map<String, Value> {
+        let mut fields = serde_json::Map::new();
+        fields.insert("voice_call_id".into(), Value::from(self.call_id.as_str()));
+        fields.insert("voice_turn_id".into(), Value::from(self.turn_id.as_str()));
+        fields.insert("voice_mode".into(), Value::Bool(true));
+        fields.insert("auto_speak_response".into(), Value::Bool(true));
+        fields.insert("assistant_speech_lazy_dispatch".into(), Value::Bool(false));
+        fields.insert("assistant_response_source_revision".into(), Value::from(1));
+        if let Some(heard) = &self.heard_boundary {
+            let mut completed = heard
+                .completed_sequences
+                .iter()
+                .copied()
+                .filter(|n| *n <= 255)
+                .collect::<Vec<_>>();
+            completed.sort_unstable();
+            completed.dedup();
+            let active = heard.active_sequence.filter(|n| *n <= 255);
+            let offset = if active.is_some() {
+                heard.active_offset_ms.min(3_600_000)
+            } else {
+                0
+            };
+            fields.insert(
+                "voice_heard_boundary".into(),
+                serde_json::json!({"assistant_message_id":heard.assistant_message_id,
+                    "completed_sequences":completed,"active_sequence":active,"active_offset_ms":offset}),
+            );
+        }
+        fields
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct SendOptions {
@@ -117,6 +178,10 @@ pub struct SendOptions {
     /// originals; stored encrypted with the message so they restore.
     #[serde(skip)]
     pub pii_mappings: Vec<crate::client::SendPiiMapping>,
+    /// The turn is the user's utterance of a live voice call (native shells
+    /// only; not part of the SDK JSON options). Saved personal turns only.
+    #[serde(skip)]
+    pub voice_call: Option<VoiceCallTurn>,
 }
 impl Default for SendOptions {
     fn default() -> Self {
@@ -139,6 +204,7 @@ impl Default for SendOptions {
             embeds: Vec::new(),
             pii_exclusions: crate::privacy::PiiExclusions::default(),
             pii_mappings: Vec::new(),
+            voice_call: None,
         }
     }
 }
@@ -165,6 +231,17 @@ impl SendOptions {
                 .unwrap_or(true)
         {
             return Err(Error::Invalid("Project ID must be a canonical UUID."));
+        }
+        if let Some(call) = &self.voice_call
+            && (self.incognito
+                || call.call_id.is_empty()
+                || call.call_id.len() > 255
+                || call.turn_id.is_empty()
+                || call.turn_id.len() > 255)
+        {
+            return Err(Error::Invalid(
+                "A voice call turn needs call and turn ids and a saved chat.",
+            ));
         }
         Ok(())
     }
@@ -333,5 +410,61 @@ mod tests {
             outcome.chat.id = "private-native-chat".into();
             assert_eq!(serde_json::to_value(outcome).unwrap(), expected);
         }
+    }
+
+    #[test]
+    fn voice_call_fields_match_the_native_turn_and_clamp_the_heard_boundary() {
+        let turn = VoiceCallTurn {
+            call_id: "call-1".into(),
+            turn_id: "turn-1".into(),
+            heard_boundary: Some(VoiceHeardBoundary {
+                assistant_message_id: "a-1".into(),
+                completed_sequences: vec![3, 1, 300, 1],
+                active_sequence: Some(4),
+                active_offset_ms: 9_000_000,
+            }),
+        };
+        assert_eq!(
+            Value::Object(turn.message_fields()),
+            json!({"voice_call_id":"call-1","voice_turn_id":"turn-1","voice_mode":true,
+                "auto_speak_response":true,"assistant_speech_lazy_dispatch":false,
+                "assistant_response_source_revision":1,
+                "voice_heard_boundary":{"assistant_message_id":"a-1","completed_sequences":[1,3],
+                    "active_sequence":4,"active_offset_ms":3_600_000}})
+        );
+        let bare = VoiceCallTurn {
+            heard_boundary: None,
+            ..turn.clone()
+        };
+        assert!(!bare.message_fields().contains_key("voice_heard_boundary"));
+        let idle = VoiceCallTurn {
+            heard_boundary: Some(VoiceHeardBoundary {
+                assistant_message_id: "a".into(),
+                completed_sequences: vec![],
+                active_sequence: None,
+                active_offset_ms: 500,
+            }),
+            ..turn
+        };
+        assert_eq!(
+            idle.message_fields()["voice_heard_boundary"]["active_offset_ms"],
+            0
+        );
+    }
+
+    #[test]
+    fn voice_call_needs_ids_and_a_saved_chat() {
+        let call = |call_id: &str, incognito: bool| SendOptions {
+            incognito,
+            voice_call: Some(VoiceCallTurn {
+                call_id: call_id.into(),
+                turn_id: "t".into(),
+                heard_boundary: None,
+            }),
+            ..SendOptions::default()
+        };
+        assert!(call("c", false).validate().is_ok());
+        assert!(call("", false).validate().is_err());
+        assert!(call("c", true).validate().is_err());
     }
 }

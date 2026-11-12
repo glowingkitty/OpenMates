@@ -12,9 +12,50 @@ use crate::view_record_details::PiiMappingRecord;
 use crate::view_send::SendSettings;
 use crate::view_send_attachments::{SendEmbedRecord, exclusions, pii_mapping};
 use crate::{CoreError, view_records::ChatWindowViewRecord};
-use openmates_sdk::client::{ReservedTurnIds, SendQueueMode, SendStatus};
+use openmates_sdk::client::{
+    ReservedTurnIds, SendQueueMode, SendStatus, VoiceCallTurn, VoiceHeardBoundary,
+};
 use openmates_sdk::view_model::{RequestId, SendReceipt, SendTurnOptions};
 use std::sync::Arc;
+
+/// What the user heard of the assistant reply a voice call interrupted.
+#[derive(Clone, Debug, PartialEq, Eq, uniffi::Record)]
+pub struct VoiceHeardBoundaryRecord {
+    /// The assistant message that was being spoken.
+    pub assistant_message_id: String,
+    /// Fully spoken segment sequences (0..=255; others are dropped).
+    pub completed_sequences: Vec<u32>,
+    /// The segment being spoken, if any (0..=255).
+    pub active_sequence: Option<u32>,
+    /// Milliseconds heard of the active segment (capped at one hour).
+    pub active_offset_ms: u32,
+}
+
+/// Marks a turn as the user's utterance of a live voice call.
+#[derive(Clone, Debug, PartialEq, Eq, uniffi::Record)]
+pub struct VoiceCallTurnRecord {
+    /// The call's id.
+    pub call_id: String,
+    /// The transcript's turn id (the user message id).
+    pub turn_id: String,
+    /// What the user heard of the previous reply, when it was interrupted.
+    pub heard_boundary: Option<VoiceHeardBoundaryRecord>,
+}
+
+impl From<VoiceCallTurnRecord> for VoiceCallTurn {
+    fn from(record: VoiceCallTurnRecord) -> Self {
+        Self {
+            call_id: record.call_id,
+            turn_id: record.turn_id,
+            heard_boundary: record.heard_boundary.map(|heard| VoiceHeardBoundary {
+                assistant_message_id: heard.assistant_message_id,
+                completed_sequences: heard.completed_sequences,
+                active_sequence: heard.active_sequence,
+                active_offset_ms: heard.active_offset_ms,
+            }),
+        }
+    }
+}
 
 /// The options of one turn. All defaults give the plain `send`.
 #[derive(Clone, PartialEq, Eq, uniffi::Record)]
@@ -57,6 +98,10 @@ pub struct SendOptionsRecord {
     /// a new chat, a continuation and an edit.
     #[uniffi(default = None)]
     pub project_id: Option<String>,
+    /// The turn is the user's utterance of a live voice call (saved personal
+    /// chats only); the core adds the call fields to the message.
+    #[uniffi(default = None)]
+    pub voice_call: Option<VoiceCallTurnRecord>,
 }
 
 impl std::fmt::Debug for SendOptionsRecord {
@@ -76,6 +121,7 @@ impl std::fmt::Debug for SendOptionsRecord {
             )
             .field("pii_mappings", &self.pii_mappings.len())
             .field("project_id", &self.project_id)
+            .field("voice_call", &self.voice_call)
             .finish()
     }
 }
@@ -97,6 +143,7 @@ impl From<SendOptionsRecord> for SendTurnOptions {
             ),
             pii_mappings: record.pii_mappings.into_iter().map(pii_mapping).collect(),
             project_id: record.project_id,
+            voice_call: record.voice_call.map(Into::into),
         }
     }
 }

@@ -89,4 +89,23 @@ final class CoreSendMappingTests: XCTestCase {
         XCTAssertTrue(options.excludedPiiPlaceholders.isEmpty)
         XCTAssertTrue(options.piiMappings.isEmpty)
     }
+
+    // contract-test: supporting surface=gui.apple assertions=client-core.viewmodel.capability-contract
+    func testComposerPendingEmbedMapsLikeNodesAndRejectsUnsendableStatus() {
+        func pending(type: String, status: String) -> ComposerPendingEmbed {
+            let record = EmbedRecord(id: "embed-1", type: type, status: .finished, data: nil,
+                parentEmbedId: nil, appId: nil, skillId: nil, embedIds: nil,
+                hashedChatId: nil, createdAt: nil)
+            return ComposerPendingEmbed(id: "embed-1", type: type, referenceType: "", status: status,
+                content: "body", textPreview: "preview", record: record, localData: nil,
+                filename: "a", size: 0, piiMappings: [])
+        }
+        let recording = CoreSendMapping.embedRecord(from: pending(type: "recording", status: "finished"))
+        XCTAssertEqual(recording?.embedType, "audio-recording")
+        XCTAssertEqual(recording?.embedId, "embed-1")
+        XCTAssertEqual(recording?.content, "body")
+        XCTAssertNil(recording?.referenceType)
+        XCTAssertNotNil(CoreSendMapping.embedRecord(from: pending(type: "image", status: "processing")))
+        XCTAssertNil(CoreSendMapping.embedRecord(from: pending(type: "image", status: "error")))
+    }
 }

@@ -1394,6 +1394,20 @@ pub(super) async fn wait(ws: &mut Socket, kind: &str, field: &str, id: &str) -> 
     };
     Ok(wait_matching(ws, matches).await?.1)
 }
+/// The first frame whose type is one of `kinds` and whose `field` equals `id`
+/// (a request that is answered by either a success or a rejection frame).
+pub(super) async fn wait_any(
+    ws: &mut Socket,
+    kinds: &[&str],
+    field: &str,
+    id: &str,
+) -> Result<(String, Value)> {
+    let matches = |k: &str, p: &Value| {
+        let inner = p.get("payload").unwrap_or(p);
+        kinds.contains(&k) && (text(p, field) == id || text(inner, field) == id)
+    };
+    wait_matching(ws, matches).await
+}
 /// A matching error is returned to the closed embed-diff receipt validator.
 /// Other requests retain normal pending-queue/receive ownership semantics.
 pub(super) async fn wait_embed_diff_outcome(

@@ -188,7 +188,7 @@ impl Client {
 }
 
 /// `work` bounded by [`ACK_TIMEOUT`] and by `cancel`.
-async fn acknowledged<T>(
+pub(super) async fn acknowledged<T>(
     cancel: &CancellationToken,
     work: impl std::future::Future<Output = Result<T>>,
 ) -> Result<T> {
@@ -203,4 +203,4 @@ async fn acknowledged<T>(
 
 #[cfg(test)]
 #[path = "message_actions_tests.rs"]
-mod tests;
+pub(super) mod tests;

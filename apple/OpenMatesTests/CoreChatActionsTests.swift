@@ -100,6 +100,10 @@ private final class FakeChatActionsClient: ChatActionsCoreClient {
         calls.append("delete_chat:\(chatId)")
     }
 
+    func answerConsent(chatId: String, requestId: String, approvedItemIds: [String]) async throws {
+        calls.append("consent:\(chatId):\(requestId):\(approvedItemIds.joined(separator: ","))")
+    }
+
     func forkChat(chatId: String, messageId: String, title: String?) async throws -> String {
         calls.append("fork:\(messageId):\(title ?? "")")
         return forkedChatId
@@ -399,5 +403,47 @@ final class CoreChatActionsTests: XCTestCase {
         } catch {
             XCTFail("unexpected error \(error)")
         }
+    }
+
+    private static func consentItem(_ id: String) -> EmbedRefRecord {
+        EmbedRefRecord(id: id, kind: "memory", appId: "app", skillId: "", title: "Item \(id)",
+                       description: "", status: "finished", dataJson: "{}")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=app-memories.selection.source-scoped
+    @MainActor
+    func testConsentEventPublishesAndAnswerSendsSelectedIdsThenClears() async throws {
+        let (actions, client, events, _) = makeActions()
+        let sent = Task { @MainActor in
+            await actions.startTurn(.send(text: "hi"), chatId: Self.chatID) { _ in }
+        }
+        await waitUntil { client.sendIsRunning }
+        events.send(.stream(request: client.requests[0], chatId: Self.chatID, event: .consent(
+            requestId: "req-1", items: [Self.consentItem("a"), Self.consentItem("b")])))
+        XCTAssertEqual(actions.pendingConsent[Self.chatID]?.requestId, "req-1")
+        XCTAssertEqual(actions.pendingConsent[Self.chatID]?.items.map(\.id), ["a", "b"])
+        try await actions.answerConsent(chatId: Self.chatID, requestId: "req-1", approvedItemIds: ["b"])
+        XCTAssertTrue(client.calls.contains("consent:\(Self.chatID):req-1:b"))
+        XCTAssertNil(actions.pendingConsent[Self.chatID])
+        client.finishSend(chatId: Self.chatID)
+        _ = await sent.value
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=app-memories.selection.source-scoped
+    @MainActor
+    func testTurnEndClearsAPendingConsentRequest() async {
+        let (actions, client, events, window) = makeActions()
+        let sent = Task { @MainActor in
+            await actions.startTurn(.send(text: "hi"), chatId: Self.chatID) { _ in }
+        }
+        await waitUntil { client.sendIsRunning }
+        let request = client.requests[0]
+        events.send(.stream(request: request, chatId: Self.chatID, event: .consent(
+            requestId: "req-2", items: [Self.consentItem("a")])))
+        XCTAssertNotNil(actions.pendingConsent[Self.chatID])
+        client.finishSend(chatId: Self.chatID)
+        _ = await sent.value
+        XCTAssertNil(actions.pendingConsent[Self.chatID])
+        _ = window
     }
 }

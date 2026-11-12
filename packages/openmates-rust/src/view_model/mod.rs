@@ -37,6 +37,8 @@ mod draft_flows;
 mod draft_versions;
 mod draft_view;
 #[cfg(not(target_arch = "wasm32"))]
+mod queued_revision;
+#[cfg(not(target_arch = "wasm32"))]
 mod edit_request;
 #[cfg(not(target_arch = "wasm32"))]
 mod enrich;
@@ -82,6 +84,9 @@ pub use chat_actions::{
     clear_draft, delete_chat, delete_message, edit_message, fork_chat, retry_turn, save_draft,
     stop_reply,
 };
+/// Revise or steer a queued follow-up of a running reply.
+#[cfg(not(target_arch = "wasm32"))]
+pub use queued_revision::revise_queued_message;
 /// Answer a consent request a running turn showed.
 #[cfg(not(target_arch = "wasm32"))]
 pub use consent_answer::ConsentAnswerer;

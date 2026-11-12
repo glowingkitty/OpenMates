@@ -22,6 +22,7 @@ pub(crate) fn options() -> SendOptionsRecord {
         excluded_pii_placeholders: vec![],
         pii_mappings: vec![],
         project_id: None,
+        voice_call: None,
     }
 }
 

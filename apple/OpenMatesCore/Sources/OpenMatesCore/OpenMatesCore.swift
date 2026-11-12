@@ -2837,6 +2837,23 @@ public protocol ViewModelCoreProtocol: AnyObject, Sendable {
     func updateMemoryDocument(id: String, fields: MemoryFieldsRecord, cancellation: CoreCancellation?) async throws  -> MemoryDocumentRecord
     
     /**
+     * Revise queued follow-up `message_id` of `chat_id` (new `text`, a new
+     * `mode`, or both). `revision` is the queue revision the turn last
+     * reported (`SendReceiptRecord.queueRevision` or the receipt of the
+     * previous revision). `options` carries the PII choices of a changed
+     * text; attachments are refused. Runs on the actor.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid` for a malformed id, nothing
+     * to change, empty text or options that do not apply; `Conflict` is
+     * `Conflict` for a stale revision; `Forbidden`
+     * in a Team scope; `Unavailable` (`queued_revision`: `not_queued`,
+     * `inactive`, `busy`, ...) for other server rejections; `Offline`;
+     * `Cancelled`.
+     */
+    func reviseQueuedMessage(chatId: String, messageId: String, revision: UInt64, text: String?, modeChange: SendQueueModeRecord?, options: SendOptionsRecord, cancellation: CoreCancellation?) async throws  -> QueuedRevisionReceiptRecord
+    
+    /**
      * The server region preference applied to this core's sends (`Eu`
      * until Swift sets it).
      */
@@ -4660,6 +4677,37 @@ open func updateMemoryDocument(id: String, fields: MemoryFieldsRecord, cancellat
             completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
             freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
             liftFunc: FfiConverterTypeMemoryDocumentRecord_lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Revise queued follow-up `message_id` of `chat_id` (new `text`, a new
+     * `mode`, or both). `revision` is the queue revision the turn last
+     * reported (`SendReceiptRecord.queueRevision` or the receipt of the
+     * previous revision). `options` carries the PII choices of a changed
+     * text; attachments are refused. Runs on the actor.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid` for a malformed id, nothing
+     * to change, empty text or options that do not apply; `Conflict` is
+     * `Conflict` for a stale revision; `Forbidden`
+     * in a Team scope; `Unavailable` (`queued_revision`: `not_queued`,
+     * `inactive`, `busy`, ...) for other server rejections; `Offline`;
+     * `Cancelled`.
+     */
+open func reviseQueuedMessage(chatId: String, messageId: String, revision: UInt64, text: String?, modeChange: SendQueueModeRecord?, options: SendOptionsRecord, cancellation: CoreCancellation?)async throws  -> QueuedRevisionReceiptRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_revise_queued_message(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(chatId),FfiConverterString.lower(messageId),FfiConverterUInt64.lower(revision),FfiConverterOptionString.lower(text),FfiConverterOptionTypeSendQueueModeRecord.lower(modeChange),FfiConverterTypeSendOptionsRecord_lower(options),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeQueuedRevisionReceiptRecord_lift,
             errorHandler: FfiConverterTypeCoreError_lift
         )
 }
@@ -9227,6 +9275,95 @@ public func FfiConverterTypeProbeRecord_lower(_ value: ProbeRecord) -> RustBuffe
 
 
 /**
+ * The server's confirmation of a queued-message revision.
+ */
+public struct QueuedRevisionReceiptRecord: Equatable, Hashable {
+    /**
+     * The chat of the queued message.
+     */
+    public var chatId: String
+    /**
+     * The unchanged id of the queued message.
+     */
+    public var messageId: String
+    /**
+     * The mode now in force.
+     */
+    public var queueMode: SendQueueModeRecord
+    /**
+     * The revision now in force; use it as the next `expected_revision`.
+     */
+    public var queueRevision: UInt64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The chat of the queued message.
+         */chatId: String, 
+        /**
+         * The unchanged id of the queued message.
+         */messageId: String, 
+        /**
+         * The mode now in force.
+         */queueMode: SendQueueModeRecord, 
+        /**
+         * The revision now in force; use it as the next `expected_revision`.
+         */queueRevision: UInt64) {
+        self.chatId = chatId
+        self.messageId = messageId
+        self.queueMode = queueMode
+        self.queueRevision = queueRevision
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension QueuedRevisionReceiptRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeQueuedRevisionReceiptRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> QueuedRevisionReceiptRecord {
+        return
+            try QueuedRevisionReceiptRecord(
+                chatId: FfiConverterString.read(from: &buf), 
+                messageId: FfiConverterString.read(from: &buf), 
+                queueMode: FfiConverterTypeSendQueueModeRecord.read(from: &buf), 
+                queueRevision: FfiConverterUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: QueuedRevisionReceiptRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.chatId, into: &buf)
+        FfiConverterString.write(value.messageId, into: &buf)
+        FfiConverterTypeSendQueueModeRecord.write(value.queueMode, into: &buf)
+        FfiConverterUInt64.write(value.queueRevision, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeQueuedRevisionReceiptRecord_lift(_ buf: RustBuffer) throws -> QueuedRevisionReceiptRecord {
+    return try FfiConverterTypeQueuedRevisionReceiptRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeQueuedRevisionReceiptRecord_lower(_ value: QueuedRevisionReceiptRecord) -> RustBuffer {
+    return FfiConverterTypeQueuedRevisionReceiptRecord.lower(value)
+}
+
+
+/**
  * One embed the composer attaches to the turn (an upload, a recording, a
  * pasted code or text block, a URL preview, or an embed already stored).
  */
@@ -9400,6 +9537,11 @@ public struct SendOptionsRecord: Equatable, Hashable {
      * a new chat, a continuation and an edit.
      */
     public var projectId: String?
+    /**
+     * The turn is the user's utterance of a live voice call (saved personal
+     * chats only); the core adds the call fields to the message.
+     */
+    public var voiceCall: VoiceCallTurnRecord?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -9441,7 +9583,11 @@ public struct SendOptionsRecord: Equatable, Hashable {
         /**
          * The Project the turn belongs to (canonical lowercase UUID); applies to
          * a new chat, a continuation and an edit.
-         */projectId: String? = nil) {
+         */projectId: String? = nil, 
+        /**
+         * The turn is the user's utterance of a live voice call (saved personal
+         * chats only); the core adds the call fields to the message.
+         */voiceCall: VoiceCallTurnRecord? = nil) {
         self.piiDetection = piiDetection
         self.incognito = incognito
         self.slug = slug
@@ -9452,6 +9598,7 @@ public struct SendOptionsRecord: Equatable, Hashable {
         self.excludedPiiPlaceholders = excludedPiiPlaceholders
         self.piiMappings = piiMappings
         self.projectId = projectId
+        self.voiceCall = voiceCall
     }
 
     
@@ -9479,7 +9626,8 @@ public struct FfiConverterTypeSendOptionsRecord: FfiConverterRustBuffer {
                 excludedPiiOriginals: FfiConverterSequenceString.read(from: &buf), 
                 excludedPiiPlaceholders: FfiConverterSequenceString.read(from: &buf), 
                 piiMappings: FfiConverterSequenceTypePiiMappingRecord.read(from: &buf), 
-                projectId: FfiConverterOptionString.read(from: &buf)
+                projectId: FfiConverterOptionString.read(from: &buf), 
+                voiceCall: FfiConverterOptionTypeVoiceCallTurnRecord.read(from: &buf)
         )
     }
 
@@ -9494,6 +9642,7 @@ public struct FfiConverterTypeSendOptionsRecord: FfiConverterRustBuffer {
         FfiConverterSequenceString.write(value.excludedPiiPlaceholders, into: &buf)
         FfiConverterSequenceTypePiiMappingRecord.write(value.piiMappings, into: &buf)
         FfiConverterOptionString.write(value.projectId, into: &buf)
+        FfiConverterOptionTypeVoiceCallTurnRecord.write(value.voiceCall, into: &buf)
     }
 }
 
@@ -10199,6 +10348,174 @@ public func FfiConverterTypeUserProfileRecord_lift(_ buf: RustBuffer) throws -> 
 #endif
 public func FfiConverterTypeUserProfileRecord_lower(_ value: UserProfileRecord) -> RustBuffer {
     return FfiConverterTypeUserProfileRecord.lower(value)
+}
+
+
+/**
+ * Marks a turn as the user's utterance of a live voice call.
+ */
+public struct VoiceCallTurnRecord: Equatable, Hashable {
+    /**
+     * The call's id.
+     */
+    public var callId: String
+    /**
+     * The transcript's turn id (the user message id).
+     */
+    public var turnId: String
+    /**
+     * What the user heard of the previous reply, when it was interrupted.
+     */
+    public var heardBoundary: VoiceHeardBoundaryRecord?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The call's id.
+         */callId: String, 
+        /**
+         * The transcript's turn id (the user message id).
+         */turnId: String, 
+        /**
+         * What the user heard of the previous reply, when it was interrupted.
+         */heardBoundary: VoiceHeardBoundaryRecord?) {
+        self.callId = callId
+        self.turnId = turnId
+        self.heardBoundary = heardBoundary
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension VoiceCallTurnRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVoiceCallTurnRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VoiceCallTurnRecord {
+        return
+            try VoiceCallTurnRecord(
+                callId: FfiConverterString.read(from: &buf), 
+                turnId: FfiConverterString.read(from: &buf), 
+                heardBoundary: FfiConverterOptionTypeVoiceHeardBoundaryRecord.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: VoiceCallTurnRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.callId, into: &buf)
+        FfiConverterString.write(value.turnId, into: &buf)
+        FfiConverterOptionTypeVoiceHeardBoundaryRecord.write(value.heardBoundary, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVoiceCallTurnRecord_lift(_ buf: RustBuffer) throws -> VoiceCallTurnRecord {
+    return try FfiConverterTypeVoiceCallTurnRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVoiceCallTurnRecord_lower(_ value: VoiceCallTurnRecord) -> RustBuffer {
+    return FfiConverterTypeVoiceCallTurnRecord.lower(value)
+}
+
+
+/**
+ * What the user heard of the assistant reply a voice call interrupted.
+ */
+public struct VoiceHeardBoundaryRecord: Equatable, Hashable {
+    /**
+     * The assistant message that was being spoken.
+     */
+    public var assistantMessageId: String
+    /**
+     * Fully spoken segment sequences (0..=255; others are dropped).
+     */
+    public var completedSequences: [UInt32]
+    /**
+     * The segment being spoken, if any (0..=255).
+     */
+    public var activeSequence: UInt32?
+    /**
+     * Milliseconds heard of the active segment (capped at one hour).
+     */
+    public var activeOffsetMs: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The assistant message that was being spoken.
+         */assistantMessageId: String, 
+        /**
+         * Fully spoken segment sequences (0..=255; others are dropped).
+         */completedSequences: [UInt32], 
+        /**
+         * The segment being spoken, if any (0..=255).
+         */activeSequence: UInt32?, 
+        /**
+         * Milliseconds heard of the active segment (capped at one hour).
+         */activeOffsetMs: UInt32) {
+        self.assistantMessageId = assistantMessageId
+        self.completedSequences = completedSequences
+        self.activeSequence = activeSequence
+        self.activeOffsetMs = activeOffsetMs
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension VoiceHeardBoundaryRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVoiceHeardBoundaryRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VoiceHeardBoundaryRecord {
+        return
+            try VoiceHeardBoundaryRecord(
+                assistantMessageId: FfiConverterString.read(from: &buf), 
+                completedSequences: FfiConverterSequenceUInt32.read(from: &buf), 
+                activeSequence: FfiConverterOptionUInt32.read(from: &buf), 
+                activeOffsetMs: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: VoiceHeardBoundaryRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.assistantMessageId, into: &buf)
+        FfiConverterSequenceUInt32.write(value.completedSequences, into: &buf)
+        FfiConverterOptionUInt32.write(value.activeSequence, into: &buf)
+        FfiConverterUInt32.write(value.activeOffsetMs, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVoiceHeardBoundaryRecord_lift(_ buf: RustBuffer) throws -> VoiceHeardBoundaryRecord {
+    return try FfiConverterTypeVoiceHeardBoundaryRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVoiceHeardBoundaryRecord_lower(_ value: VoiceHeardBoundaryRecord) -> RustBuffer {
+    return FfiConverterTypeVoiceHeardBoundaryRecord.lower(value)
 }
 
 
@@ -14996,6 +15313,54 @@ fileprivate struct FfiConverterOptionTypeSessionInfoRecord: FfiConverterRustBuff
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeVoiceCallTurnRecord: FfiConverterRustBuffer {
+    typealias SwiftType = VoiceCallTurnRecord?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeVoiceCallTurnRecord.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeVoiceCallTurnRecord.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeVoiceHeardBoundaryRecord: FfiConverterRustBuffer {
+    typealias SwiftType = VoiceHeardBoundaryRecord?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeVoiceHeardBoundaryRecord.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeVoiceHeardBoundaryRecord.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeEmbedScopeRecord: FfiConverterRustBuffer {
     typealias SwiftType = EmbedScopeRecord?
 
@@ -15182,6 +15547,31 @@ fileprivate struct FfiConverterOptionSequenceString: FfiConverterRustBuffer {
         case 1: return try FfiConverterSequenceString.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceUInt32: FfiConverterRustBuffer {
+    typealias SwiftType = [UInt32]
+
+    public static func write(_ value: [UInt32], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterUInt32.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [UInt32] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [UInt32]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterUInt32.read(from: &buf))
+        }
+        return seq
     }
 }
 
@@ -16316,6 +16706,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_update_memory_document() != 35185) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_revise_queued_message() != 55808) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_server_region_preference() != 12846) {

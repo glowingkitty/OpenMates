@@ -23,6 +23,7 @@ mod view_account;
 mod view_adopt;
 mod view_chat_actions;
 mod view_consent;
+mod view_queued_revision;
 #[cfg(test)]
 mod view_consent_tests;
 mod view_core;

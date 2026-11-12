@@ -10,7 +10,7 @@ const ID: &str = "11111111-1111-4111-8111-111111111111";
 /// A loopback API: one session admission, then one socket that records every
 /// frame of type `operation` and answers each with the next `answers` entry
 /// (its `{id}` replaced by the request's id field `id_field`).
-async fn peer(
+pub(in crate::client) async fn peer(
     operation: &'static str,
     id_field: &'static str,
     answers: Vec<Value>,
@@ -81,7 +81,7 @@ fn deleted() -> Value {
     json!({"type":"message_deleted","payload":{"chat_id":ID,"message_id":"{id}"}})
 }
 
-async fn bounded<T>(work: impl std::future::Future<Output = T>) -> T {
+pub(in crate::client) async fn bounded<T>(work: impl std::future::Future<Output = T>) -> T {
     tokio::time::timeout(Duration::from_secs(5), work)
         .await
         .unwrap()

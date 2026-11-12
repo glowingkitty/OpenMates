@@ -27,7 +27,7 @@
 // Specification: specifications/features/issue-reporting/specification.yml
 // Assertions: issue-reporting.entry.device-shake
 // Specification: specifications/features/chats/specification.yml
-// Assertions: chats.surface.semantic-parity, chats.direction.reviewed-correction
+// Assertions: chats.surface.semantic-parity, chats.direction.reviewed-correction, chats.send.immediate-admission
 // Specification: specifications/architecture/sync/specification.yml
 // Assertions: sync.surface.semantic-parity, sync.startup.bounded-phases, sync.access.first-party-authenticated
 // Specification: specifications/features/rules/specification.yml — rules.transparency.applied-set
@@ -3800,6 +3800,34 @@ struct MainAppView: View {
                             titleV: 0,
                             draftV: 0
                         )
+                        if CoreChatActions.shared.isAttached {
+                            let records = composerEmbeds.compactMap { CoreSendMapping.embedRecord(from: $0) }
+                            guard records.count == composerEmbeds.count else {
+                                throw CoreChatActionsError.noCore
+                            }
+                            let options = CoreSendMapping.options(
+                                reservedChatId: chatId,
+                                embeds: records,
+                                piiMappings: ChatSendPipeline().combinedPIIMappings(
+                                    textMappings: piiMappings,
+                                    composerEmbeds: composerEmbeds
+                                )
+                            )
+                            chatStore.performWithoutPersistence { chatStore.upsertChat(chat) }
+                            let acceptance = await CoreChatActions.shared.startTurn(
+                                .send(text: message, options: options), chatId: nil
+                            ) { _ in }
+                            switch acceptance {
+                            case .accepted:
+                                // `.accepted` means the server admitted the message (old path: confirmHaptic).
+                                NativeHaptics.shared.confirmed(.messageAccepted, id: chatId,
+                                                               scope: wsManager.messageHapticScope)
+                                return chatId
+                            case .rejected(let failure): throw failure
+                            case .cancelled: throw CancellationError()
+                            case .noCore: throw CoreChatActionsError.noCore
+                            }
+                        }
                         let result = try await ChatSendPipeline().sendUserMessage(
                             content: message,
                             in: chat,
@@ -6288,6 +6316,12 @@ struct MainAppView: View {
             }
         }
         guard !content.isEmpty else { return }
+        // The core persists and draws the replies of its own turns; a second Swift copy would double-store them.
+        guard !CoreChatActions.shared.turnMessageIDs.contains(messageId),
+              !CoreChatActions.shared.hasActiveTurn(in: chatId) else {
+            NativeSyncPerfLog.info("phase=assistantCompletionSkip source=\(source) chat=\(chatId.prefix(8)) message=\(messageId.prefix(8)) reason=core_turn")
+            return
+        }
         guard !chatStore.messages(for: chatId).contains(where: { $0.id == messageId }) else {
             NativeSyncPerfLog.info("phase=assistantCompletionSkip source=\(source) chat=\(chatId.prefix(8)) message=\(messageId.prefix(8)) reason=duplicate")
             return

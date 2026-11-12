@@ -14,7 +14,7 @@ use super::{
 use crate::{
     client::{
         ReservedTurnIds, SendEmbed, SendOptions, SendOutcome, SendPiiMapping, SendQueueMode,
-        SendStatus,
+        SendStatus, VoiceCallTurn,
     },
     error::{Error, Result},
     local_cache::ByteStore,
@@ -48,6 +48,8 @@ pub struct SendTurnOptions {
     /// The Project this turn belongs to (canonical UUID). Applies to a new
     /// chat, a continuation and an edit.
     pub project_id: Option<String>,
+    /// The turn is a live voice call utterance (saved personal chats only).
+    pub voice_call: Option<VoiceCallTurn>,
 }
 
 impl Default for SendTurnOptions {
@@ -61,6 +63,7 @@ impl Default for SendTurnOptions {
             pii_exclusions: PiiExclusions::default(),
             pii_mappings: Vec::new(),
             project_id: None,
+            voice_call: None,
         }
     }
 }
@@ -105,6 +108,7 @@ impl SendTurnOptions {
             pii_exclusions: self.pii_exclusions.clone(),
             pii_mappings: self.pii_mappings.clone(),
             project_id: self.project_id.clone(),
+            voice_call: self.voice_call.clone(),
             ..SendOptions::default()
         }
     }

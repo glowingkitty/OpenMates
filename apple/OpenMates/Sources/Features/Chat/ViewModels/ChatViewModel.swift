@@ -676,7 +676,7 @@ final class ChatViewModel: ObservableObject {
     @Published var isStreaming = false
     @Published var streamingContent = ""
     @Published var streamingMessageId: String?
-    @Published private(set) var streamingLifecycle = ChatStreamingLifecycleState()
+    @Published var streamingLifecycle = ChatStreamingLifecycleState()
     var transientAssistantResponse: ChatTransientAssistantResponse? {
         guard let response = streamingLifecycle.transientResponse,
               chat?.id == response.chatId,
@@ -729,7 +729,7 @@ final class ChatViewModel: ObservableObject {
     @Published var followUpSuggestions: [String] = []
     @Published var error: String?
     @Published private(set) var openingMetrics = ChatOpeningMetrics()
-    @Published private(set) var pendingComposerEmbeds: [ComposerPendingEmbed] = []
+    @Published var pendingComposerEmbeds: [ComposerPendingEmbed] = []
     @Published var subChatApprovalRequest: SubChatApprovalRequest?
     @Published var subChatProgress: SubChatProgress?
     @Published var completedSubChatIDs = Set<String>()
@@ -791,8 +791,8 @@ final class ChatViewModel: ObservableObject {
     #endif
 
     private let api = APIClient.shared
-    private let sendPipeline = ChatSendPipeline()
-    private weak var wsManager: WebSocketManager?
+    let sendPipeline = ChatSendPipeline()
+    private(set) weak var wsManager: WebSocketManager?
     private(set) weak var chatStore: ChatStore?
     private var queuedMessageClearTask: Task<Void, Never>?
     private var streamTask: Task<Void, Never>?
@@ -2335,6 +2335,12 @@ final class ChatViewModel: ObservableObject {
         if AnonymousFreeUsageService.shared.isAnonymousChat(currentChat.id) {
             return await sendAnonymousMessage(content, in: currentChat)
         }
+        if !broadcastToSiblings, ownsCoreWindow(currentChat.id), coreActions.isAttached {
+            return await sendThroughCore(
+                content, in: currentChat, piiMappings: piiMappings,
+                excludedPIIOriginals: excludedPIIOriginals, excludedPIIPlaceholders: excludedPIIPlaceholders,
+                composerEmbeds: explicitComposerEmbeds, messageId: messageId, editingMessageID: editingMessageID)
+        }
         let editingScope = OfflineStore.shared.scopeGeneration
         do {
             let mutationFence = await captureMessageActionFence()
@@ -2632,7 +2638,9 @@ final class ChatViewModel: ObservableObject {
     func stopStreaming() {
         let taskId = streamingLifecycle.taskId
         let chatId = streamingLifecycle.chatId ?? chat?.id
-        if taskId != nil || chatId != nil {
+        if let chatId, ownsCoreWindow(chatId), coreActions.isAttached {
+            stopThroughCore(chatId: chatId, taskId: taskId)
+        } else if taskId != nil || chatId != nil {
             streamingLifecycle.apply(.cancelRequested(chatId: chatId ?? "", taskId: taskId))
             Task { @MainActor in
                 do {
@@ -2751,7 +2759,10 @@ final class ChatViewModel: ObservableObject {
                     embedRecords[id] = record
                 }
                 let assistantMessage = embedded.messages.first ?? rawAssistantMessage
-                if IncognitoChatSession.isIncognitoChatId(chatId) {
+                let coreOwned = ownsCoreWindow(chatId)
+                if coreOwned {
+                    // The core window draws and stores the reply.
+                } else if IncognitoChatSession.isIncognitoChatId(chatId) {
                     appendOrReplaceTransientMessage(assistantMessage)
                 } else {
                     appendOrReplaceLocalMessage(assistantMessage)
@@ -2767,7 +2778,7 @@ final class ChatViewModel: ObservableObject {
                 assistantCategoryByMessageId.removeValue(forKey: messageId)
                 assistantModelNameByMessageId.removeValue(forKey: messageId)
                 Task { @MainActor in
-                    if !IncognitoChatSession.isIncognitoChatId(chatId),
+                    if !coreOwned, !IncognitoChatSession.isIncognitoChatId(chatId),
                        !(wsManager?.ownsRecoveryPersistence(messageId: messageId) ?? false) {
                         await persistCompletedAssistantMessage(
                             assistantMessage,
@@ -2790,6 +2801,10 @@ final class ChatViewModel: ObservableObject {
                     embedRecords[id] = record
                 }
                 let partialAssistantMessage = embedded.messages.first ?? rawPartialAssistantMessage
+                if ownsCoreWindow(chatId) {
+                    isStreaming = true
+                    return
+                }
                 guard ChatStreamingPresentationPolicy.shouldMaterializeAssistant(
                     content: partialAssistantMessage.content ?? displayContent,
                     thinkingContent: streamingLifecycle.thinkingContent,
@@ -2894,6 +2909,7 @@ final class ChatViewModel: ObservableObject {
         messageId: String,
         metadata: StreamingClient.ChatMetadata?
     ) {
+        guard !ownsCoreWindow(chatId) else { return }
         guard ChatStreamingPresentationPolicy.shouldMaterializeAssistant(
             content: streamingContent,
             thinkingContent: streamingLifecycle.thinkingContent,
@@ -2916,6 +2932,7 @@ final class ChatViewModel: ObservableObject {
     }
 
     private func completePartialAssistantIfNeeded(chatId: String, messageId: String) {
+        guard !ownsCoreWindow(chatId) else { return }
         guard let partial = messages.first(where: {
             $0.id == messageId && $0.isStreaming == true && ($0.content?.isEmpty == false)
         }) else { return }

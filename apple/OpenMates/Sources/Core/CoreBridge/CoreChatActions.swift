@@ -50,6 +50,8 @@ protocol ChatActionsCoreClient: AnyObject, Sendable {
     func deleteMessage(request: UInt64, chatId: String, messageId: String) async throws
     func deleteChat(chatId: String) async throws
     func forkChat(chatId: String, messageId: String, title: String?) async throws -> String
+    /// Answers the consent request `requestId` of `chatId` with the approved item ids (empty: reject all).
+    func answerConsent(chatId: String, requestId: String, approvedItemIds: [String]) async throws
 }
 
 /// The app's core calls, each with a `CoreCancellation` tied to the calling task.
@@ -110,6 +112,19 @@ final class CoreSessionChatActionsClient: ChatActionsCoreClient {
             try await core.forkChat(chatId: chatId, messageId: messageId, title: title, cancellation: cancellation)
         }
     }
+
+    func answerConsent(chatId: String, requestId: String, approvedItemIds: [String]) async throws {
+        let core = session.core
+        try await Task.detached {
+            try core.answerConsent(chatId: chatId, requestId: requestId, approvedItemIds: approvedItemIds)
+        }.value
+    }
+}
+
+/// A consent request of a running turn: the assistant asks permission to use `items`.
+struct CoreConsentRequest: Equatable {
+    let requestId: String
+    let items: [EmbedRefRecord]
 }
 
 /// One turn the core sends.
@@ -167,7 +182,7 @@ enum CoreChatActionsError: Error, Equatable {
 }
 
 @MainActor
-final class CoreChatActions {
+final class CoreChatActions: ObservableObject {
     /// The app's actions; attached to the app's core by `launch()`. Unit tests
     /// create their own instance with a fake client.
     static let shared = CoreChatActions()
@@ -192,6 +207,10 @@ final class CoreChatActions {
     private(set) var turnMessageIDs = Set<String>()
     /// The last non-cancelled failure of a call; cleared at sign-out.
     private(set) var lastError: CoreError?
+    /// The consent request each chat waits on, keyed by chat id; removed when
+    /// answered, when its turn ends and at sign-out.
+    @Published private(set) var pendingConsent: [String: CoreConsentRequest] = [:]
+    private var consentRequests: [UInt64: String] = [:]
 
     var isAttached: Bool { client != nil }
 
@@ -317,6 +336,17 @@ final class CoreChatActions {
         }
     }
 
+    /// Answers the pending consent request `requestId` of `chatId` with the
+    /// approved item ids (empty rejects all) and clears it; a failure keeps the
+    /// request so the dialog can be answered again.
+    func answerConsent(chatId: String, requestId: String, approvedItemIds: [String]) async throws {
+        let client = try attachedClient()
+        try await timed("answer_consent") {
+            try await client.answerConsent(chatId: chatId, requestId: requestId, approvedItemIds: approvedItemIds)
+        }
+        if pendingConsent[chatId]?.requestId == requestId { pendingConsent[chatId] = nil }
+    }
+
     /// The text the chat shows for a failed action; `nil` for a cancellation.
     static func userMessage(for error: Error) -> String? {
         guard let coreError = error as? CoreError else { return AppStrings.genericProcessingError }
@@ -371,6 +401,7 @@ final class CoreChatActions {
             turnMessageIDs.formUnion([receipt.userMessageId, receipt.assistantMessageId].compactMap { $0 })
         }
         if let chatId, !hasActiveTurn(in: chatId) { taskIDs[chatId] = nil }
+        if let consentChat = consentRequests.removeValue(forKey: request) { pendingConsent[consentChat] = nil }
         if case .failed(let failure) = outcome { lastError = failure }
         if let waiter = runtime.waiter {
             switch outcome {
@@ -402,6 +433,8 @@ final class CoreChatActions {
                 turnMessageIDs = []
                 taskIDs = [:]
                 lastError = nil
+                pendingConsent = [:]
+                consentRequests = [:]
                 for runtime in runtimes.values { runtime.task?.cancel() }
             case .restored, .admitted, .verificationRequired:
                 break
@@ -428,7 +461,11 @@ final class CoreChatActions {
             guard runtimes[request] != nil else { return }
             turnMessageIDs.insert(messageId)
             accept(request: request)
-        case .consent(_, _), .content(_, _, _), .status(_):
+        case .consent(let requestId, let items):
+            guard let chatId = activeTurns.first(where: { $0.request == request })?.chatId else { return }
+            pendingConsent[chatId] = CoreConsentRequest(requestId: requestId, items: items)
+            consentRequests[request] = chatId
+        case .content(_, _, _), .status(_):
             break
         }
     }

@@ -260,6 +260,9 @@ async fn live_peer_observed_config_with_cache(
                 assert_eq!(request, format!("GET /v1/chats/{CHAT}/messages/window?direction=latest&limit=100&respect_compression_boundary=false HTTP/1.1"));
                 let snapshot = owned_cached_snapshot(6);
                 respond_http(&mut http, json!({"messages":snapshot["history"][CHAT].clone(),"has_more_before":false})).await;
+            } else if request == format!("GET /v1/chats/{CHAT}/pending-embed-notices HTTP/1.1") {
+                // Opening a chat reconciles unwritten embed-updated events; this fixture has none.
+                respond_http(&mut http, json!({"chat_id":CHAT,"notices":[]})).await;
             } else {
                 assert_eq!(request, "POST /v1/chats/metadata/batch HTTP/1.1");
                 let row = warm_snapshot.as_ref().map(|snapshot| snapshot["chats"][CHAT].clone()).unwrap_or_else(||

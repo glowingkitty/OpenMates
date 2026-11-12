@@ -51,6 +51,22 @@ enum CoreSendMapping {
     }
 
     /// Maps every embed node of `document` in order.
+    /// Maps a composer-pending embed with the same rules as the node mapper:
+    /// only finished or processing embeds with an id and type are sent.
+    static func embedRecord(from embed: ComposerPendingEmbed) -> SendEmbedRecord? {
+        guard !embed.id.isEmpty, !embed.type.isEmpty,
+              embed.status == statusFinished || embed.status == statusProcessing
+        else { return nil }
+        return SendEmbedRecord(
+            embedId: embed.id,
+            embedType: embed.type == composerRecordingType ? backendRecordingType : embed.type,
+            referenceType: embed.referenceType.isEmpty ? nil : embed.referenceType,
+            status: embed.status,
+            content: embed.content,
+            textPreview: embed.textPreview,
+            childEmbedIds: nil)
+    }
+
     static func embedRecords(from document: ComposerDocumentV1) -> EmbedMapping {
         var records: [SendEmbedRecord] = []
         var unmapped: [String] = []

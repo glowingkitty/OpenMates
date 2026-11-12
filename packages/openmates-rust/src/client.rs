@@ -171,6 +171,9 @@ pub mod chat_details;
 pub mod chat_rewrite;
 // Delete message, edit truncation and stop reply (plan apple-client-core-migration A5).
 pub mod message_actions;
+// Revise or steer a queued follow-up (`revise_queued_message`).
+pub mod queued_revision;
+pub use queued_revision::{QueuedRevisionMode, QueuedRevisionReceipt};
 pub use chat_list_freshness::CacheClockEvidence;
 pub use sync::FreshChatInventory;
 mod project_create_request;
@@ -217,6 +220,7 @@ pub use docs::{
 pub use pair::PairChallenge;
 pub use send_options::{
     SendConsentPolicy, SendMemoryRequest, SendOptions, SendOutcome, SendQueueMode, SendStatus,
+    VoiceCallTurn, VoiceHeardBoundary,
 };
 /// Ids a shell reserves for its next turn (`SendOptions::reserved_ids`).
 pub use send_reserved_ids::ReservedTurnIds;
