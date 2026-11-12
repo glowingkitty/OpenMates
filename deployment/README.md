@@ -13,11 +13,17 @@ We follow a best practice pattern for managing Caddy configurations in an open-s
   - Provides a reference for routing, security headers, and CORS configuration
   - Uses placeholder values that must be replaced with environment-specific values
 
+- **Server Caddyfiles are committed**: `dev_server/Caddyfile`, `prod_server/Caddyfile`
+  and the other `*/Caddyfile` files are tracked and public. Never put secrets in them.
+
 - **Environment-Specific Overrides**: The following files are gitignored:
   - `Caddyfile.local` - Local development configuration
   - `Caddyfile.prod` - Production configuration
   - `Caddyfile.override` - Any additional overrides
-  - `*/Caddyfile` - Any Caddyfile in subdirectories (e.g., `dev_server/Caddyfile`, `prod_server/Caddyfile`)
+
+- **Operator-local sites**: the dev Caddyfile imports `/etc/caddy/sites.d/*.caddy`.
+  Site blocks that are private to one server live there, outside the repository;
+  an empty or missing folder is fine.
 
 ### Why This Pattern?
 
@@ -107,10 +113,10 @@ deployment/
 ├── README.md                    # This file
 ├── Caddyfile.example           # Template (committed)
 ├── dev_server/
-│   ├── Caddyfile               # Dev config (gitignored)
+│   ├── Caddyfile               # Dev config (committed)
 │   └── Caddyfile.local         # Alternative dev config (gitignored)
 └── prod_server/
-    ├── Caddyfile               # Prod config (gitignored)
+    ├── Caddyfile               # Prod config (committed)
     └── Caddyfile.prod          # Alternative prod config (gitignored)
 ```
 

@@ -12,6 +12,9 @@
 	email letsencrypt83hd@openmates.org
 }
 
+# Operator-local sites that are not part of this repository. Missing files are fine.
+import /etc/caddy/sites.d/*.caddy
+
 # Private network listener for satellite services such as upload.openmates.org.
 # The API container is bound to localhost only; this listener exposes only the
 # internal service-to-service routes on the Hetzner private network.
