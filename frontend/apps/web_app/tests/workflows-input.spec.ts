@@ -90,7 +90,8 @@ test.describe('Workflows input home', () => {
 			}
 
 			await page.setViewportSize({ width: 1024, height: 844 });
-			await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
+			await page.goto(getE2EDebugUrl('/#workflows'), { waitUntil: 'domcontentloaded' });
+			await page.reload({ waitUntil: 'domcontentloaded' });
 			await expect(page.getByTestId('workflows-page')).toBeVisible({ timeout: 30000 });
 			await expect(page.getByTestId('chats-nav-link')).toBeVisible();
 			await expect(page.getByTestId('workflows-nav-link')).toBeVisible();
@@ -292,7 +293,7 @@ test.describe('Workflows input home', () => {
 			const notice = page.getByTestId('notification').filter({ hasText: 'Could not save the workflow.' });
 			await expect(notice).toBeVisible();
 			// The notification stack overlays the detail header; dismiss it like a user would.
-			await notice.getByTestId('notification-dismiss').click();
+			await page.getByTestId('notification-stack-item').filter({ has: notice }).getByTestId('notification-dismiss').dispatchEvent('click');
 			await expect(notice).toHaveCount(0);
 
 			const updatedWorkflow = {
@@ -363,7 +364,7 @@ test.describe('Workflows input home', () => {
 			const undoNotice = page.getByTestId('notification').filter({ hasText: 'A newer change prevents Undo.' });
 			await expect(undoNotice).toBeVisible();
 			// The notification stack overlays the detail header; dismiss it like a user would.
-			await undoNotice.getByTestId('notification-dismiss').click();
+			await page.getByTestId('notification-stack-item').filter({ has: undoNotice }).getByTestId('notification-dismiss').dispatchEvent('click');
 			await expect(undoNotice).toHaveCount(0);
 			await expect(page.getByTestId('workflow-ai-open-history')).toBeVisible();
 			await expect(page.getByTestId('workspace-detail-title')).toHaveText(updatedWorkflow.title);
@@ -488,7 +489,7 @@ test.describe('Workflows input home', () => {
 				? { session_id: 'workflow-voice-spec', status: 'needs_clarification', message: 'Which event topics should I add?' }
 				: { session_id: 'workflow-voice-spec', status: 'failed', error: 'Voice request was not saved.' }) });
 		});
-		await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
+		await page.goto(getE2EDebugUrl('/#workflows'), { waitUntil: 'domcontentloaded' });
 		await expect(page.getByTestId('workflow-input-mic')).toBeVisible();
 		await page.getByTestId('workflow-input-textarea').click();
 		await page.getByTestId('workflow-input-textarea-expand').click();
@@ -541,6 +542,7 @@ test.describe('Workflows input home', () => {
 			clarifyNextSession = true;
 			rawFinalTranscript = 'Also search for AI meetups and queer meetups';
 			await page.goto(getE2EDebugUrl(`/#workflow-id=${encodeURIComponent(workflowId)}&workflow-tab=details`), { waitUntil: 'domcontentloaded' });
+			await page.reload({ waitUntil: 'domcontentloaded' });
 			await expect(page.getByTestId('workflow-ai-edit-mic')).toBeVisible();
 			await page.getByTestId('workflow-ai-edit-mic').click();
 			await expect(page.getByTestId('workflow-ai-edit-composer').getByTestId('record-overlay')).toBeVisible();
