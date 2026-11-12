@@ -71,10 +71,9 @@ export function createImageEnhance(embedId: () => string | undefined, scope: () 
 	async function follow(id: string, run: Promise<{ version: number }>): Promise<void> {
 		state = 'running';
 		error = undefined;
+		let saved: { version: number };
 		try {
-			const saved = await run;
-			state = 'idle';
-			await deps.reloadHead(saved.version);
+			saved = await run;
 		} catch (failure) {
 			const code = errorCode(failure);
 			console.error('[imageEnhance] Enhance did not save a version:', id, code ?? failure);
@@ -82,6 +81,14 @@ export function createImageEnhance(embedId: () => string | undefined, scope: () 
 			state = 'failed';
 			// A newer version exists: show it instead of the stale one.
 			if (code === 'embed_version_conflict') await deps.reloadHead(null);
+			return;
+		}
+		state = 'idle';
+		// The version is saved (and billed): a failed reload is a display problem, never "Enhance failed".
+		try {
+			await deps.reloadHead(saved.version);
+		} catch (failure) {
+			console.error('[imageEnhance] Saved version could not be shown yet:', id, saved.version, failure);
 		}
 	}
 

@@ -524,7 +524,7 @@
   /** After a save: load the new head from the server so this view and the chat card show it. */
   async function reloadHead(version: number | null) {
     if (!embedId) return;
-    await requestEmbedFromServerOnce(embedId, 'user embed version saved', { chatId: projectId ? null : sourceChatId });
+    await requestEmbedFromServerOnce(embedId, 'user embed version saved', { chatId: projectId ? null : sourceChatId, refresh: true });
     noteEmbedHeadChanged(embedId);
     const head = await embedHead(embedId);
     headVersion = Math.max(head?.version ?? 0, version ?? 0) || headVersion;

@@ -1,6 +1,6 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { webcrypto } from "node:crypto";
-import { writable } from "svelte/store";
+import { writable, type Writable } from "svelte/store";
 
 const state = vi.hoisted(() => ({
   activeChat: "unrelated-active-chat", chats: new Map<string, Record<string, unknown>>(),
@@ -40,8 +40,12 @@ vi.mock("../../demo_chats/exampleChatStore", () => ({
 }));
 
 import { authStore } from "../../stores/authState";
-import { userProfile } from "../../stores/userProfile";
-import { activeTeamId } from "../../stores/teamStore";
+import { userProfile as profileStore } from "../../stores/userProfile";
+// The store is mocked as writable above; its real export type is read-only.
+const userProfile = profileStore as unknown as Writable<unknown>;
+import { activeTeamId as teamIdStore } from "../../stores/teamStore";
+// The mock above replaces the derived Team store with a writable one.
+const activeTeamId = teamIdStore as unknown as Writable<string | null>;
 import { requestEmbedFromServerOnce, resolveEmbed, resolveEmbedForOpen, isEmbedKnownError, markEmbedAsError, clearEmbedError } from "../embedResolver";
 
 let nextId = 0;
@@ -264,6 +268,22 @@ describe("embed reads use caller source context", () => {
     await requestEmbedFromServerOnce(id, "ready", { chatId: "source" });
     expect(state.fetch).toHaveBeenCalledTimes(2);
     expect(await resolveEmbed(id, { chatId: "source" })).toMatchObject({ status: "finished" });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=embed-user-edits.edit.next-version
+  it("re-reads a stored embed only on refresh, after a newer version was saved", async () => {
+    const id = "7f3c2a10-4b5d-4e6f-8a9b-0c1d2e3f4a5b";
+    const chat = "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d";
+    state.loaded.set(`embed:${id}`, { embed_id: id, status: "finished", content: "old head" });
+    state.fetch.mockImplementation(async () => ready(id));
+    await requestEmbedFromServerOnce(id, "already stored", { chatId: chat });
+    expect(state.fetch).not.toHaveBeenCalled();
+    expect(await requestEmbedFromServerOnce(id, "user embed version saved", { chatId: chat, refresh: true })).toBe(true);
+    expect(state.fetch).toHaveBeenCalledTimes(1);
+    expect(state.put).toHaveBeenCalledTimes(1);
+    // A second save inside the cooldown still reads the new head.
+    await requestEmbedFromServerOnce(id, "user embed version saved", { chatId: chat, refresh: true });
+    expect(state.fetch).toHaveBeenCalledTimes(2);
   });
 
   // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,chats.sync.key-gated-recovery

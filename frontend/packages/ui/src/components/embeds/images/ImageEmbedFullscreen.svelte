@@ -238,7 +238,7 @@
   /** After a save: load the new head from the server and show its files. */
   async function reloadHead(version: number | null) {
     if (!embedId) return;
-    await requestEmbedFromServerOnce(embedId, 'user embed version saved', { chatId: projectId ? null : sourceChatId });
+    await requestEmbedFromServerOnce(embedId, 'user embed version saved', { chatId: projectId ? null : sourceChatId, refresh: true });
     noteEmbedHeadChanged(embedId);
     const head = await embedHead(embedId);
     // The local row can still be the old head right after the save: open the saved version by number.
