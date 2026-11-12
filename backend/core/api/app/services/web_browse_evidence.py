@@ -335,6 +335,73 @@ def check_answer(
     return check
 
 
+def json_type(value: Any) -> str:
+    """The JSON type name of a value (a fixed word, safe for content-free metrics)."""
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "boolean"
+    if isinstance(value, int):
+        return "integer"
+    if isinstance(value, float):
+        return "number"
+    if isinstance(value, str):
+        return "string"
+    if isinstance(value, list):
+        return "array"
+    return "object" if isinstance(value, dict) else "other"
+
+
+def drop_invalid(value: Any, validator: Any) -> tuple[Any, list[str]]:
+    """Remove rows and optional fields that break their schema; never add or edit values.
+
+    `validator` is a jsonschema validator for the full schema; sub-schemas are
+    checked with `validator.evolve(schema=...)` so references keep resolving.
+    Returns the repaired answer (`_REMOVED` when the value itself cannot be kept)
+    and the JSON pointers that were dropped.
+    """
+
+    def visit(item: Any, node: Any, path: str) -> tuple[Any, list[str]]:
+        node = node if isinstance(node, dict) else {}
+        check = validator.evolve(schema=node)
+        if check.is_valid(item):
+            return item, []
+        if isinstance(item, dict):
+            properties = node.get("properties") or {}
+            extra = node.get("additionalProperties")
+            required = set(node.get("required") or [])
+            out: dict[str, Any] = {}
+            removed: list[str] = []
+            for key, child in item.items():
+                child_node = properties.get(
+                    key, extra if isinstance(extra, dict) else {}
+                )
+                new, gone = visit(child, child_node, _pointer(path, key))
+                if new is _REMOVED:
+                    if key in required:
+                        return _REMOVED, [path]
+                    removed.append(_pointer(path, key))
+                    continue
+                out[key] = new
+                removed += gone
+            return (out, removed) if check.is_valid(out) else (_REMOVED, [path])
+        if isinstance(item, list):
+            kept: list[Any] = []
+            removed = []
+            for index, child in enumerate(item):
+                new, gone = visit(child, node.get("items"), _pointer(path, index))
+                if new is _REMOVED:
+                    removed.append(_pointer(path, index))
+                    continue
+                kept.append(new)
+                removed += gone
+            return (kept, removed) if check.is_valid(kept) else (_REMOVED, [path])
+        return _REMOVED, [path]
+
+    repaired, removed = visit(value, validator.schema, "")
+    return (None if repaired is _REMOVED else repaired), removed
+
+
 def extraction_context(
     *,
     task: str,

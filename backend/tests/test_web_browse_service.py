@@ -259,7 +259,10 @@ def operations(service, name):
 
 
 @pytest.fixture
-def service():
+def service(monkeypatch):
+    # conftest loads the repo .env; a dev pool size there must not turn on the
+    # warm pool, which these fakes do not model (test_web_browse_pool.py does).
+    monkeypatch.setenv("E2B_BROWSE_POOL_SIZE", "0")
     browser = Browser()
     app = SimpleNamespace(
         _make_internal_api_request=AsyncMock(return_value={}),
@@ -1195,7 +1198,8 @@ async def test_default_answer_schema_rejects_a_scalar_even_after_positive_review
 
     service.models_factory = ScalarModels
     result = await run(service)
-    assert result.status == "failed" and result.data is None
+    # Nothing of the requested shape survives repair: no data, the user decides.
+    assert result.status == "needs_user" and result.data is None
 
 
 SHOP_SCHEMA = {
@@ -1825,26 +1829,79 @@ async def test_browsers_under_the_users_control_are_never_paused_to_make_room(se
 
 # contract-test: supporting surface=rest_api assertions=web-browse.truthful-completion
 @pytest.mark.asyncio
-async def test_an_answer_that_breaks_its_schema_records_only_the_schema_keyword(
-    service,
+@pytest.mark.parametrize("verified", [False, True])
+# contract-test: supporting surface=rest_api assertions=web-browse.truthful-completion
+async def test_a_field_that_breaks_its_schema_is_dropped_and_listed_as_missing(
+    service, verified
 ):
     service.driver.observation["text"] = "Kit A costs 20,00 € or 25,00 €"
 
     class WrongType(Models):
-        verified = False
         # Every value is on the page, but the price holds two numbers where
         # the schema asks for one number.
         extracted = {
             "data": {"products": [{"name": "Kit A", "price": "20,00 € or 25,00 €"}]}
         }
 
+    WrongType.verified = verified
     service.models_factory = WrongType
     result = await run(service, arguments(output_schema=SHOP_SCHEMA))
-    assert result.status == "needs_user" and result.data is None
+    assert result.status == "completed"
+    assert result.data == {"products": [{"name": "Kit A"}]}
+    assert result.missing == ["/products/0/price"]
     counts = result.metrics["verification"]
     assert counts["answer_unmatched_values"] == 0.0
     assert counts["answer_pruned_valid"] == 0.0
+    assert counts["answer_schema_dropped"] == 1.0
+    # Only a fixed keyword and a JSON type name, never schema or answer text.
     assert counts["answer_schema_error"] == "type"
+    assert counts["answer_schema_error_instance"] == "string"
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.truthful-completion
+@pytest.mark.asyncio
+async def test_rows_that_break_their_schema_are_dropped_and_the_rest_returned(service):
+    service.driver.observation["text"] = "Kit A 20,00 € Kit B 25,00 €"
+    schema = deepcopy(SHOP_SCHEMA)
+    schema["properties"]["products"]["items"]["required"] = ["name", "price"]
+
+    class NullPrice(Models):
+        verified = False
+        extracted = {
+            "data": {
+                "products": [
+                    {"name": "Kit A", "price": None},
+                    {"name": "Kit B", "price": "25,00 €"},
+                ]
+            }
+        }
+
+    service.models_factory = NullPrice
+    result = await run(service, arguments(output_schema=schema))
+    assert result.status == "completed"
+    assert result.data == {"products": [{"name": "Kit B", "price": 25}]}
+    assert result.missing == ["/products/0"]
+    assert result.metrics["verification"]["answer_schema_error_instance"] == "null"
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.truthful-completion
+@pytest.mark.asyncio
+async def test_an_answer_with_no_row_left_after_repair_needs_the_user(service):
+    service.driver.observation["text"] = "Kit A costs 20,00 € or 25,00 €"
+    schema = deepcopy(SHOP_SCHEMA)
+    schema["properties"]["products"]["minItems"] = 1
+    schema["properties"]["products"]["items"]["required"] = ["name", "price"]
+
+    class WrongType(Models):
+        verified = False
+        extracted = {
+            "data": {"products": [{"name": "Kit A", "price": "20,00 € or 25,00 €"}]}
+        }
+
+    service.models_factory = WrongType
+    result = await run(service, arguments(output_schema=schema))
+    assert result.status == "needs_user" and result.data is None
+    assert result.metrics["verification"]["answer_schema_dropped"] == 0.0
 
 
 # contract-test: supporting surface=rest_api assertions=web-browse.structured-data

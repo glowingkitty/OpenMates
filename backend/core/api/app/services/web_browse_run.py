@@ -42,7 +42,9 @@ from backend.core.api.app.services.web_browse_evidence import (
     accept_notes,
     check_answer,
     coerce_numbers,
+    drop_invalid,
     extraction_context,
+    json_type,
     page_text,
 )
 from backend.core.api.app.services.web_browse_pool import BrowsePool, pool_size
@@ -569,6 +571,19 @@ class BrowseRun:
             self.stage["verify_seconds"] += time.monotonic() - started
         check = check_answer(data, self.schema, self.ledger, observation)
         validator = Draft202012Validator(self.schema)
+        pruned_valid = data is not None and validator.is_valid(check.pruned)
+        dropped: list[str] = []
+        if data is not None and not pruned_valid:
+            # Content-free diagnosis before repair: a fixed JSON Schema keyword
+            # and the JSON type of the offending value, never schema or answer text.
+            error = best_match(validator.iter_errors(check.pruned))
+            keyword = error.validator if error is not None else None
+            instance = json_type(error.instance) if error is not None else "other"
+            repaired, removed = drop_invalid(check.pruned, validator)
+            if repaired is not None and validator.is_valid(repaired):
+                check.pruned = repaired
+                dropped = removed
+                check.missing = [*check.missing, *dropped]
         # Content-free counts that show which check decided the outcome.
         verification = getattr(self.models, "verification", None)
         if isinstance(verification, dict):
@@ -576,24 +591,23 @@ class BrowseRun:
                 answer_extracted=float(data is not None),
                 answer_matched_values=float(check.matched),
                 answer_unmatched_values=float(len(check.unmatched)),
-                answer_pruned_valid=float(
-                    data is not None and validator.is_valid(check.pruned)
-                ),
+                answer_pruned_valid=float(pruned_valid),
+                answer_schema_dropped=float(len(dropped)),
             )
-            if data is not None and not validator.is_valid(check.pruned):
-                # Only a fixed JSON Schema keyword, never schema or answer text.
-                error = best_match(validator.iter_errors(check.pruned))
-                keyword = error.validator if error is not None else None
+            if data is not None and not pruned_valid:
                 verification["answer_schema_error"] = (
                     keyword if keyword in SCHEMA_ERROR_KEYWORDS else "other"
                 )
-        if verified:
-            if getattr(self.models, "no_results", False):
+                verification["answer_schema_error_instance"] = instance
+        no_results = getattr(self.models, "no_results", False)
+        # A verified answer that breaks its schema goes through the repaired,
+        # reviewed path below instead of failing the run.
+        if verified and (no_results or validator.is_valid(data)):
+            if no_results:
                 self.finish("no_results", "The page reported no matching results.")
                 # An empty search cannot satisfy a schema demanding records.
                 self.data = data if validator.is_valid(data) else None
             else:
-                validator.validate(data)
                 self.finish("completed", None)
                 self.data = data
             self.sources = check.sources

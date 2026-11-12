@@ -870,6 +870,9 @@ OpenMates start page. Shop names and page contents stay out of this record.
 | 3 | `f4e59ea` | 5/6 | Answer review and partial results; shop search returned nothing. |
 | 4 | `6165347` | 4/6 | Safety threshold 0.9 stopped plain navigation at scores 0.87, 0.80 and 0.69. |
 | 5 | 0.6 threshold, simple age dialogs | 4/6 | Shop flow stopped on no progress; search form refused by the three-browser cap. |
+| 6 | `6c3a3da` | 5/6 | Search form passes with the cap fix; shop flow reached the product category but ended `needs_user`. |
+| 7 | `b22835a` | 5/6 | Shop answer: 15 values matched, 0 unmatched, pruned answer invalid (schema keyword `type`). |
+| 9 | `65cc40a` | 5/6 | Shown prices now become numbers, but the shop answer still failed `type`. |
 
 Run 5 per-flow cost and time (one browse run each unless noted):
 
@@ -896,3 +899,9 @@ Findings and fixes:
   pages with large menus, product links lower on the page can fall outside that
   window. Prioritising controls near the viewport needs a runtime template
   rebuild and is not done yet.
+- The shop answer matched every value on the page but broke its schema
+  (keyword `type`): a field held a value of another type, such as a price shown
+  as text or a missing value as `null`. Shown prices are now converted to the
+  number the schema asks for, and rows or optional fields that still break the
+  schema are dropped and listed as missing, so the remaining rows reach the
+  answer review. Metrics now also record the JSON type of the offending value.
