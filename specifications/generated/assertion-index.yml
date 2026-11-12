@@ -144334,7 +144334,7 @@ assertions:
     current_direct_proof: false
   notifications.sounds.important-events:
     specification: feature.notifications@2
-    fingerprint: fe9b7243d09a109ad3fe02bc465d9717ac41e3f076eec949e90574b22acb59f2
+    fingerprint: a6bbf426e06bcd7c8834eb21fd1ead594c5f217c5eb409613387ea96fa929d42
     direct_tests:
     - &id18425
       path: frontend/apps/web_app/tests/components/event-sounds.spec.ts
@@ -144376,7 +144376,7 @@ assertions:
     current_direct_proof: false
   notifications.sounds.quiet-window:
     specification: feature.notifications@2
-    fingerprint: da19aee57d8a436416eaf7f56a45ec5118b88babd6ccea06dac6576d4d0efeec
+    fingerprint: 70d9ed8931e1af100209c9bb1d071297c6f3996c3ce2705554b3c69921333636
     direct_tests:
     - &id18429
       path: frontend/apps/web_app/tests/components/event-sounds.spec.ts
@@ -144410,7 +144410,7 @@ assertions:
     current_direct_proof: false
   notifications.sounds.first-cue-opt-out:
     specification: feature.notifications@2
-    fingerprint: a14cd05463d273777bce43a46bf831ec976500f0f2f534b2866d1f18fb11aa99
+    fingerprint: f8df6cf8ac9822ab3f8111da745776fe5a9c31f49b6099bfd26fa5388f16fad9
     direct_tests:
     - &id18432
       path: frontend/apps/web_app/tests/components/event-sounds.spec.ts
@@ -144444,7 +144444,7 @@ assertions:
     current_direct_proof: false
   notifications.sounds.silent-mode:
     specification: feature.notifications@2
-    fingerprint: 25406ad478eddbc852215c8fd53166d41a4c39ae964c50f91fdc3a0f41db79f4
+    fingerprint: 9f802090a1726080d1dacb0958ab0f560df0765790198cbc18b84ad5f662c6ab
     direct_tests:
     - &id18435
       path: frontend/apps/web_app/tests/components/event-sounds.spec.ts

@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.notifications
 version: 2
-status: draft
+status: approved
 title: Notifications
 summary: >
   OpenMates notifications let authenticated users persist notification settings,
@@ -342,14 +342,14 @@ assertions:
       another device, duplicates grouped into an existing card and replayed or
       recovered events make no sound. On the web no sound plays before the
       first user interaction with the page.
-    depends_on: [applies_to.gui, examples.event_sounds]
+    depends_on: [applies_to.gui]
   - id: notifications.sounds.quiet-window
     type: behavior
     must: >
       After an event sound there is always silence: for three seconds after the
       sound ends every further event sound is dropped. A dropped sound is never
       queued, delayed or replayed later and does not extend the silence.
-    depends_on: [applies_to.gui, examples.event_sounds]
+    depends_on: [applies_to.gui]
   - id: notifications.sounds.first-cue-opt-out
     type: behavior
     must: >
@@ -357,7 +357,7 @@ assertions:
       a one-time in-app notice that explains the sounds and offers one action
       that turns them off immediately. The notice itself makes no sound and is
       not shown again on that device.
-    depends_on: [applies_to.gui, examples.event_sounds]
+    depends_on: [applies_to.gui]
   - id: notifications.sounds.silent-mode
     type: behavior
     must: >
@@ -366,7 +366,7 @@ assertions:
       turns off event sounds and app-triggered vibrations. Visual notifications,
       email and push delivery settings are unaffected, and operating-system
       notification sound remains controlled by the operating system.
-    depends_on: [applies_to.gui, examples.event_sounds]
+    depends_on: [applies_to.gui]
 
 applies_to:
   rest_api:
