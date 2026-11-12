@@ -62,8 +62,8 @@ capability inventory and status: `docs/plans/client-core-one-core-three-shells/p
   commands; drafted by `packages/openmates-rust/src/model.rs` and the TUI's use of
   `Client`). Do not add a shell-side adapter that re-derives state.
 - Delete the old implementation and its parity tests in the same deploy; keep the
-  shell's existing suite green; update the capability status (plan inventory, or
-  `docs/migration/rust/capabilities.yml` once it exists) with the commit.
+  shell's existing suite green; update the capability cell and `last_commit` in
+  `docs/migration/rust/capabilities.yml` (authoritative; validated by `rust_migration_yaml.py --check`).
 - Status enum per shell: `ts-only | swift-only | rust-twin | rust-default |
   rust-only | stays-shell`. Done = `rust-only` (old code deleted, suite green on
   the exact deployed commit). Progress = cells at `rust-only` or `stays-shell`.
@@ -101,9 +101,3 @@ capability inventory and status: `docs/plans/client-core-one-core-three-shells/p
   is tier-3: reuse the build-std recipe in `packages/openmates-apple-bindings/build-xcframework.sh`.
 - Node/Python (`packages/openmates-session-bindings`) follow `cli-sdk.md`.
 - Errors cross bindings as typed errors; no silent fallback.
-
-## Transition caveat
-- `scripts/rust_migration_yaml.py --check` still enforces the deprecated
-  `web-port-ledger.yml` (an unledgered TS routing function fails deploy). Until
-  plan TASK-2 removes it, add the ledger slice the check asks for; it is not a
-  progress metric.

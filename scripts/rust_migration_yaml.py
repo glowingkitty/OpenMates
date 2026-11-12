@@ -8,10 +8,10 @@ parsers of generate_rust_migration_status.py). No timestamps are written.
   python3 scripts/rust_migration_yaml.py          # rewrite overview.yml and sub-files
   python3 scripts/rust_migration_yaml.py --check  # fail on drift, schema or consistency errors
 
-performance-history.yml, web-lanes.yml, web-app-curated.yml and web-port-ledger.yml are
+performance-history.yml, web-lanes.yml, web-app-curated.yml and capabilities.yml are
 hand/agent-curated inputs: they are validated here, never rewritten. The web_app percent is the
-share of portable TS code lines that route to Rust under the flag (rust_web_port_ledger.py);
-overall and performance roll-ups come from rust_migration_rollup.py.
+share of capabilities whose web cell is rust-only or stays-shell (capabilities.yml); overview.yml
+also lists per-shell status counts. Overall and performance roll-ups come from rust_migration_rollup.py.
 
 Architecture: docs/architecture/platforms/rust-migration-status.md
 """
@@ -19,7 +19,6 @@ Architecture: docs/architecture/platforms/rust-migration-status.md
 from __future__ import annotations
 
 import argparse
-import functools
 import re
 import sys
 from collections import Counter, defaultdict
@@ -31,7 +30,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import generate_rust_migration_status as legacy  # noqa: E402 - needs the sys.path entry above
 import rust_migration_rollup as rollup  # noqa: E402 - needs the sys.path entry above
 import rust_perf_history as perf  # noqa: E402 - needs the sys.path entry above
-import rust_web_port_ledger as port_ledger  # noqa: E402 - needs the sys.path entry above
 
 ROOT = legacy.ROOT
 DIR = Path("docs/migration/rust")
@@ -39,6 +37,12 @@ SCHEMA_VERSION = 1
 CURATED = DIR / "web-app-curated.yml"
 LANES = DIR / "web-lanes.yml"
 SPEC_LINKS = DIR / "spec-links.yml"
+CAPABILITIES = DIR / "capabilities.yml"
+CAPABILITY_STATUSES = ("ts-only", "swift-only", "rust-twin", "rust-default", "rust-only", "stays-shell")
+SHELLS = ("web", "apple", "tui")
+DONE_STATUSES = ("rust-only", "stays-shell")
+OPEN_STATUSES = ("rust-twin", "rust-default")
+OLD_ONLY_STATUSES = ("ts-only", "swift-only")
 ASSERTION_INDEX = Path("specifications/generated/assertion-index.yml")
 LANE_STATUSES = ("planned", "running", "landed")
 GENERATED = ("overview.yml", "web-app.yml", "shared-client.yml", "cli.yml", "sdk.yml")
@@ -48,14 +52,12 @@ PRIORITY = {"web_app": 1, "shared_client": 1, "cli": 2, "sdk_rust": 3, "sdk_npm"
 ORDER = ("web_app", "shared_client", "cli", "sdk_rust", "sdk_npm", "sdk_python")
 FILES = {"web_app": "web-app.yml", "shared_client": "shared-client.yml", "cli": "cli.yml",
          "sdk_rust": "sdk.yml", "sdk_npm": "sdk.yml", "sdk_python": "sdk.yml"}
-TITLES = {"web_app": "Web app (portable TS routed to the shared Rust core Worker)","shared_client": "Shared client-side code (Rust, non-operation SDK capabilities)",
+TITLES = {"web_app": "Web app (capabilities at rust-only or stays-shell, capabilities.yml)","shared_client": "Shared client-side code (Rust, non-operation SDK capabilities)",
           "cli": "CLI (native Rust, command catalog)", "sdk_rust": "Rust SDK (operation capabilities)",
           "sdk_npm": "npm SDK (operation capabilities)", "sdk_python": "Python SDK (operation capabilities)"}
-UNITS = {"web_app": "TS code lines (portable)","shared_client": "capabilities", "cli": "CLI commands",
+UNITS = {"web_app": "capabilities (web cells)","shared_client": "capabilities", "cli": "CLI commands",
          "sdk_rust": "capabilities", "sdk_npm": "capabilities", "sdk_python": "capabilities"}
-DONE = {"web_app": ("code line of a portable TS function (services/, utils/, stores/) that routes to the shared Rust core under "
-                    "VITE_OPENMATES_RUST_CORE and is listed in web-port-ledger.yml; functions over 80 code lines count only their "
-                    "flag decision sites"),
+DONE = {"web_app": "capability whose web cell is rust-only (old web code deleted, suite green) or stays-shell (capabilities.yml)",
         "shared_client": "Rust capability status implemented (domains other than operations)",
         "cli": "command is differential-verified against the npm CLI",
         "sdk_rust": "capability status implemented in Rust (domain operations)",
@@ -211,6 +213,47 @@ def validate_lanes(lanes: dict) -> list[str]:
     return errors
 
 
+def load_capabilities() -> dict:
+    return yaml.safe_load((ROOT / CAPABILITIES).read_text(encoding="utf-8"))
+
+def capability_shell_counts(caps: dict) -> dict:
+    """Per-shell status counts over the curated capability cells (all statuses listed, zeros included)."""
+    out = {}
+    for shell in SHELLS:
+        by = Counter(c[shell]["status"] for c in caps["capabilities"])
+        out[shell] = {"total": len(caps["capabilities"]), **{st: by.get(st, 0) for st in CAPABILITY_STATUSES}}
+    return out
+
+def web_counts(caps: dict) -> dict:
+    row = capability_shell_counts(caps)["web"]
+    done = sum(row[st] for st in DONE_STATUSES)
+    partial = sum(row[st] for st in OPEN_STATUSES)
+    return counts(row["total"], done, partial, row["total"] - done - partial)
+
+def validate_capabilities(caps: dict) -> list[str]:
+    """Enum membership, unique ids and the rust-only rule: no listed old path may still exist."""
+    errors = []
+    if caps.get("schema_version") != SCHEMA_VERSION:
+        errors.append("capabilities.yml: schema_version mismatch")
+    ids = [c["id"] for c in caps["capabilities"]]
+    if len(set(ids)) != len(ids):
+        errors.append("capabilities.yml: capability ids must be unique")
+    for cap in caps["capabilities"]:
+        for shell in SHELLS:
+            cell, label = cap.get(shell), f"capabilities.yml {cap['id']}.{shell}"
+            if not isinstance(cell, dict) or cell.get("status") not in CAPABILITY_STATUSES:
+                errors.append(f"{label}: status must be one of {CAPABILITY_STATUSES}")
+                continue
+            old = cell.get("old", [])
+            if not isinstance(old, list):
+                errors.append(f"{label}: old must be a list")
+                continue
+            if cell["status"] == "rust-only":
+                errors += [f"{label}: rust-only but old path still exists: {p}" for p in old if (ROOT / p).exists()]
+            elif cell["status"] in OLD_ONLY_STATUSES + OPEN_STATUSES:
+                errors += [f"{label}: old path does not exist (move the cell to rust-only): {p}" for p in old if not (ROOT / p).exists()]
+    return errors
+
 def build_web_app() -> dict:
     installers = legacy.parse_installers((ROOT / legacy.UNIT_REGISTRY).read_text(encoding="utf-8"))
     protocol = (ROOT / legacy.UNIT_PROTOCOL).read_text(encoding="utf-8")
@@ -234,30 +277,13 @@ def build_web_app() -> dict:
         units.append(item)
     installed = sum(1 for u in units if u["status"] == "installed")
     specs = sorted(p.name for p in (ROOT / legacy.WEB_SPECS).glob("web-rust-core-*.spec.ts"))
-    ledger, _ = ledger_measure()
     return {"schema_version": SCHEMA_VERSION, "area": "web_app",
-            "sources": [str(legacy.UNIT_REGISTRY), str(legacy.UNIT_PROTOCOL), str(CURATED), str(LANES), str(port_ledger.LEDGER)],
+            "sources": [str(legacy.UNIT_REGISTRY), str(legacy.UNIT_PROTOCOL), str(CURATED), str(LANES), str(CAPABILITIES)],
             "flag": {"env": "VITE_OPENMATES_RUST_CORE", "default": "off", "flag_off_behavior": "original TypeScript path, byte-identical build output (guarded in CI)"},
-            "summary": web_counts(ledger),
+            "summary": web_counts(load_capabilities()),
             "worker_namespaces_installed_not_progress": {"installed": installed, "total": len(units),
                                                          "note": "Worker namespaces installed (not progress): a namespace can be installed while most of its TS still runs."},
-            "port_ledger": ledger,
             "e2e_specs_in_repo": specs, "lanes": lane_summary(load_lanes()), "units": units}
-
-
-@functools.cache
-def ledger_measure() -> tuple[dict, tuple[str, ...]]:
-    """web-port-ledger.yml summary and errors, computed once per process (it parses ~670 TS files)."""
-    summary, errors = port_ledger.measure(port_ledger.build_model(port_ledger.load_ledger()))
-    return summary, tuple(errors)
-
-
-def web_counts(ledger: dict) -> dict:
-    total, done = ledger["portable_code_lines"], ledger["ported_code_lines"]
-    return counts(total, done, 0, total - done)
-
-
-# --- overview + blockers ------------------------------------------------------------
 
 
 def perf_blockers(history: dict) -> list[str]:
@@ -301,13 +327,16 @@ def build_overview(files: dict[str, dict], history: dict) -> dict:
     return {"schema_version": SCHEMA_VERSION,
             "description": "Machine-readable Rust migration status. Priority: 1 web app + shared client code, 2 CLI, 3 SDKs. Sub-files hold the detail; performance-history.yml is the append-only measurement log.",
             "formula": FORMULA, "priority_order": list(ORDER), "performance_history": "performance-history.yml",
+            "capabilities": {"file": "capabilities.yml", "as_of": load_capabilities()["as_of"],
+                             "rule": "per-shell counts of capability cells by status; done = rust-only + stays-shell",
+                             "shells": capability_shell_counts(load_capabilities())},
             "overall": rollup.overall({a: summaries[a]["percent"] for a in ORDER}),
             "areas": areas, "perf_attention": rollup.perf_attention(perf_block), "performance": perf_block}
 
 
 def reference_date(web: dict) -> str:
-    """Newest web Rust change, as the newest slice date in the port ledger."""
-    return max(s["date"] for s in web["port_ledger"]["slices"])
+    """Date the capability statuses were last audited (capabilities.yml as_of)."""
+    return str(load_capabilities()["as_of"])
 
 
 def build_all() -> dict[str, dict]:
@@ -382,9 +411,12 @@ def validate(files: dict[str, dict]) -> list[str]:
     installed = sum(1 for u in web["units"] if u["status"] == "installed")
     if web["worker_namespaces_installed_not_progress"]["installed"] != installed or web["worker_namespaces_installed_not_progress"]["total"] != len(web["units"]):
         errors.append("web-app.yml: worker_namespaces_installed_not_progress differs from unit list")
-    if web["summary"] != web_counts(web["port_ledger"]):
-        errors.append("web-app.yml: summary differs from port_ledger line counts")
-    errors += list(ledger_measure()[1])
+    caps = load_capabilities()
+    errors += validate_capabilities(caps)
+    if web["summary"] != web_counts(caps):
+        errors.append("web-app.yml: summary differs from capabilities.yml web cells")
+    if ov.get("capabilities", {}).get("shells") != capability_shell_counts(caps):
+        errors.append("overview: capabilities section differs from capabilities.yml")
     if any((u["status"] == "installed") != bool(u["installer"]) for u in web["units"]):
         errors.append("web-app.yml: status must match installer presence")
     for unit in web["units"]:

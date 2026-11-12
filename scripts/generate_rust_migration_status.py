@@ -337,8 +337,8 @@ def overview_section() -> list[str]:
         *table(["Priority", "Area", "Scope", "Done", "Partial", "Missing", "Detail file"], rows),
         "",
         f"**Overall: {overview['overall']['percent']}%** ({overview['overall']['formula']}; weights decided {overview['overall']['weights_decided']}). "
-        "The web_app row counts portable TypeScript code lines that route to the shared Rust core under the flag "
-        "(`docs/migration/rust/web-port-ledger.yml`), not installed Worker namespaces.",
+        "The web_app row counts capabilities whose web cell is rust-only or stays-shell "
+        "(`docs/migration/rust/capabilities.yml`), not installed Worker namespaces.",
     ]
 
 

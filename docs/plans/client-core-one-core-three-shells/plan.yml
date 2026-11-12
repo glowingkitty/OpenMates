@@ -42,7 +42,7 @@ decisions:
     decision: One core (openmates-sdk), three shells; shells own UI, platform APIs, credential storage, an opaque byte persistence adapter and binding glue only.
   - id: D-2
     status: active
-    decision: Progress metric = capability/shell cells at rust-only or stays-shell. The web TS-lines ratio (web-port-ledger.yml, web_app.percent) is deprecated; it stays enforced by scripts until TASK-2 retires it.
+    decision: Progress metric = capability/shell cells at rust-only or stays-shell. The web TS-lines ratio and web-port-ledger.yml were retired by TASK-2 (2026-11-12).
   - id: D-3
     status: active
     decision: Apple order is bridge, crypto+keys, sync+cache, send/stream/recovery, drafts/search/settings/projects. Sync+cache is the Apple performance fix.
@@ -63,8 +63,8 @@ decisions:
 # config/sdk-capabilities.json domains (operations, recovery, configuration,
 # encryption, auth, streaming, errors) and apple/OpenMates/Sources/Core/*.
 # Web cells marked rust-twin have an installed Worker unit but the TS path is
-# still present; TASK-2 re-audits every cell and moves the table into
-# docs/migration/rust/capabilities.yml, after which that file is authoritative.
+# still present. TASK-2 re-audited every cell (2026-11-12) and moved the table into
+# docs/migration/rust/capabilities.yml; that file is authoritative, this snapshot is history.
 # Status rule: Worker-unit cells stay rust-twin until TASK-3 proves the full suite
 # flag-on; only then do they become rust-default (and rust-only once the TS path is deleted).
 # ---------------------------------------------------------------------------
@@ -255,6 +255,7 @@ tasks:
     dependencies: [session 97b7 apple-core/apple-unit CI modes]
   - id: TASK-2
     title: Replace the TS-lines metric with the capability status file
+    status: done
     read:
       - docs/migration/rust/README.md, docs/migration/rust/web-port-ledger.yml
       - scripts/rust_migration_yaml.py, scripts/rust_migration_rollup.py, scripts/rust_web_port_ledger.py, scripts/rust_migration_inputs.py

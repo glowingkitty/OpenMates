@@ -1,3 +1,4 @@
+# contract-test-file: tooling
 """
 Tests for the structured Rust migration status (docs/migration/rust/*.yml).
 
@@ -176,3 +177,21 @@ def test_unit_without_curated_entry_is_a_validation_error_not_a_crash(monkeypatc
     built = migration.build_all()
     problems = migration.validate(built)
     assert any(dropped in p and "curated" in p.lower() or "web-app-curated" in p for p in problems)
+
+def test_capabilities_validate_and_counts_match_overview() -> None:
+    caps = migration.load_capabilities()
+    assert migration.validate_capabilities(caps) == []
+    assert load_committed()["overview.yml"]["capabilities"]["shells"] == migration.capability_shell_counts(caps)
+
+def test_capability_status_enum_is_enforced() -> None:
+    caps = copy.deepcopy(migration.load_capabilities())
+    caps["capabilities"][0]["web"]["status"] = "done"
+    assert any("status must be one of" in e for e in migration.validate_capabilities(caps))
+
+def test_rust_only_cell_must_not_list_an_existing_old_path() -> None:
+    caps = copy.deepcopy(migration.load_capabilities())
+    cell = next(c["web"] for c in caps["capabilities"] if c["web"]["old"])
+    cell["status"] = "rust-only"
+    assert any("rust-only but old path still exists" in e for e in migration.validate_capabilities(caps))
+    cell["old"] = ["frontend/packages/ui/src/services/deleted_by_flip.ts"]
+    assert migration.validate_capabilities(caps) == []

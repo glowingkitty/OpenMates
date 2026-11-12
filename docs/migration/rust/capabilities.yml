@@ -1,0 +1,371 @@
+# Curated capability status: one entry per client capability, per shell (web, apple, tui).
+# Authoritative source of the migration progress metric (plan
+# docs/plans/client-core-one-core-three-shells/plan.yml, rule .claude/rules/client-core.md).
+# Status enum: ts-only | swift-only | rust-twin | rust-default | rust-only | stays-shell.
+# Done = rust-only (old files deleted, shell suite green on the deployed commit) or stays-shell.
+# A rust-only cell must not list an existing `old` path; scripts/rust_migration_yaml.py validates this.
+# Update the cell and last_commit in the same deploy that moves a capability.
+schema_version: 1
+as_of: '2026-11-12'
+capabilities:
+- id: transport
+  what: WebSocket/REST connect, auth handshake, reconnect, message routing
+  web:
+    status: rust-default
+    old:
+    - frontend/packages/ui/src/services/websocketService.ts
+    unit: ws
+    note: Worker unit installed and on by default in dev and production builds; the TypeScript path still exists
+    last_commit: 06da1b2448
+  apple:
+    status: rust-twin
+    old:
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Core/Networking/APIClient.swift
+    note: REST transport runs through the core session (APIClient+CoreTransport.swift); WebSocketManager is still
+      Swift
+    last_commit: 03a7aedaa3
+  tui:
+    status: rust-only
+- id: crypto-keys
+  what: key derivation, wrapping, chat/embed keys, AES-GCM, share-link and notification-preview decrypt
+  web:
+    status: rust-default
+    old:
+    - frontend/packages/ui/src/services/cryptoService.ts
+    - frontend/packages/ui/src/services/authKeyDerivation.ts
+    - frontend/packages/ui/src/services/encryption/
+    unit: crypto
+    note: Worker unit installed and on by default in dev and production builds; the TypeScript path still exists
+    last_commit: 06da1b2448
+  apple:
+    status: rust-twin
+    old:
+    - apple/OpenMates/Sources/Core/Crypto/CryptoManager.swift
+    - apple/OpenMates/Sources/Core/Crypto/ChatKeyManager.swift
+    - apple/OpenMates/Sources/Core/Crypto/ChatRecoveryV2Envelope.swift
+    - apple/OpenMates/Sources/Core/Crypto/ShareLinkCrypto.swift
+    - apple/OpenMates/Sources/Core/Networking/NotificationPreviewCrypto.swift
+    note: chat key and message-window decrypt run in batched core calls; the Swift managers remain
+    last_commit: fbd4396131
+  tui:
+    status: rust-only
+- id: credential-storage
+  what: persisting the credential snapshot in the platform secure store
+  web:
+    status: stays-shell
+    old: []
+    note: browser credential storage behind services/rustCore/browserCredentialStorage.ts
+    last_commit: null
+  apple:
+    status: stays-shell
+    old: []
+    keep:
+    - apple/OpenMates/Sources/Core/Crypto/KeychainHelper.swift
+    - apple/OpenMates/Sources/Core/CoreBridge/KeychainCredentialStore.swift
+    last_commit: 03a7aedaa3
+  tui:
+    status: stays-shell
+- id: auth-session
+  what: login, session validation, pairing (OPAQUE), logout fences
+  web:
+    status: rust-default
+    old: []
+    unit: auth
+    note: Worker unit installed and on by default in dev and production builds; the TypeScript path still exists;
+      auth unit
+    last_commit: 06da1b2448
+  apple:
+    status: rust-default
+    old:
+    - apple/OpenMates/Sources/Core/Models/AuthModels.swift
+    note: password and pair login run in the core (CoreSession.swift); AuthModels logic parts and PairOpaque.swift
+      remain
+    last_commit: 03a7aedaa3
+  tui:
+    status: rust-only
+- id: sync
+  what: phased startup sync, cursor feed, reconnect catch-up, deletion authority
+  web:
+    status: rust-default
+    old:
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    - frontend/packages/ui/src/services/chatSyncMerge.ts
+    unit: sync
+    note: Worker unit installed and on by default in dev and production builds; the TypeScript path still exists
+    last_commit: 06da1b2448
+  apple:
+    status: swift-only
+    old:
+    - apple/OpenMates/Sources/Core/Networking/SyncManager.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift
+    last_commit: null
+  tui:
+    status: rust-only
+- id: local-cache
+  what: encrypted local cache model, partitioning, retention, migrations
+  web:
+    status: rust-default
+    old:
+    - frontend/packages/ui/src/services/db.ts
+    - frontend/packages/ui/src/services/chatListCache.ts
+    - frontend/packages/ui/src/services/chatMetadataCache.ts
+    unit: persist
+    note: Worker unit installed and on by default in dev and production builds; the TypeScript path still exists
+    last_commit: 06da1b2448
+  apple:
+    status: rust-twin
+    old:
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/NativeWorkspaceOfflineCache.swift
+    note: core owns encrypted cache records and chat sections; Swift stores still exist
+    last_commit: 5ec99227f1
+  tui:
+    status: rust-only
+- id: chat-list
+  what: ordered chat list view model, pins, unread, hidden chats
+  web:
+    status: rust-default
+    old: []
+    unit: chatState
+    note: chatListUnit installed in the chatState unit; the TS chat-list path still exists
+    last_commit: 06da1b2448
+  apple:
+    status: rust-default
+    old:
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Services/UnreadMessagesStore.swift
+    note: chat list comes from the core view model (CoreChatList.swift); Swift projection and unread store remain
+    last_commit: 03a7aedaa3
+  tui:
+    status: rust-only
+- id: chat-window
+  what: bounded message window, paging, full read
+  web:
+    status: ts-only
+    old:
+    - frontend/packages/ui/src/services/authenticatedChatMessageWindow.ts
+    last_commit: null
+  apple:
+    status: rust-default
+    old:
+    - apple/OpenMates/Sources/Core/Networking/ChatMessageWindowClient.swift
+    note: chat open, paging and live window come from the core (CoreChatWindow.swift); the Swift client remains
+    last_commit: 03a7aedaa3
+  tui:
+    status: rust-only
+- id: send
+  what: send preparation, outbox, queued follow-ups, background send
+  web:
+    status: rust-default
+    old: []
+    unit: sendPrep
+    note: Worker unit installed and on by default in dev and production builds; the TypeScript path still exists;
+      sendPrep unit
+    last_commit: 06da1b2448
+  apple:
+    status: rust-default
+    old:
+    - apple/OpenMatesShared/BackgroundChatSender.swift
+    - apple/OpenMates/Sources/Core/Services/ChatQueuedFollowupRuntime.swift
+    - apple/OpenMates/Sources/Core/Persistence/PendingAssistantResponseQueue.swift
+    note: send and send options run in the core (CoreChatActions.swift); background sender and queue remain
+    last_commit: 5643f07daa
+  tui:
+    status: rust-only
+- id: streaming
+  what: AI stream events, cancellation
+  web:
+    status: ts-only
+    old:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    last_commit: null
+  apple:
+    status: rust-default
+    old:
+    - apple/OpenMates/Sources/Core/Networking/StreamingClient.swift
+    note: streaming reply and cancel run in the core; StreamingClient.swift remains
+    last_commit: b8a01f6935
+  tui:
+    status: rust-only
+- id: completion-recovery
+  what: completion and metadata recovery after disconnect/relaunch
+  web:
+    status: ts-only
+    old:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    last_commit: null
+  apple:
+    status: swift-only
+    old:
+    - apple/OpenMates/Sources/Core/Services/ChatCompletionRecoveryCoordinator.swift
+    - apple/OpenMates/Sources/Core/Services/ChatMetadataRecoveryCoordinator.swift
+    - apple/OpenMates/Sources/Core/Services/MessageCompressionCheckpoint.swift
+    last_commit: null
+  tui:
+    status: rust-only
+- id: drafts
+  what: encrypted drafts, draft-only chats, draft sync
+  web:
+    status: rust-default
+    old: []
+    unit: drafts
+    note: Worker unit installed and on by default in dev and production builds; the TypeScript path still exists;
+      drafts unit
+    last_commit: 06da1b2448
+  apple:
+    status: rust-default
+    old:
+    - apple/OpenMates/Sources/Core/Services/DraftService.swift
+    note: drafts run in the core (CoreDrafts.swift); DraftSyncCoordinator.swift is already deleted, DraftService.swift
+      remains
+    last_commit: 5643f07daa
+  tui:
+    status: rust-only
+- id: search
+  what: chat/message search and index policy
+  web:
+    status: rust-default
+    old: []
+    unit: search
+    note: Worker unit installed and on by default in dev and production builds; the TypeScript path still exists;
+      search unit
+    last_commit: 06da1b2448
+  apple:
+    status: swift-only
+    old: []
+    note: Spotlight indexing calls (SpotlightIndexer.swift) stay in the shell; search logic still in Swift
+    last_commit: null
+  tui:
+    status: rust-only
+- id: embeds
+  what: embed read, write, versions and patches
+  web:
+    status: rust-default
+    old:
+    - frontend/packages/ui/src/services/embedStore.ts
+    - frontend/packages/ui/src/services/embedResolver.ts
+    unit: embedData, embedWrite
+    note: Worker unit installed and on by default in dev and production builds; the TypeScript path still exists
+    last_commit: 06da1b2448
+  apple:
+    status: rust-default
+    old:
+    - apple/OpenMates/Sources/Core/Services/EmbedVersionHistory.swift
+    - apple/OpenMates/Sources/Core/Services/EmbedVersionPatch.swift
+    note: embed versions run in the core (CoreEmbedVersions.swift); Swift version files remain
+    last_commit: 03a7aedaa3
+  tui:
+    status: rust-only
+- id: transfer
+  what: uploads, media fetch, pending uploads
+  web:
+    status: rust-default
+    old: []
+    unit: transfer
+    note: Worker unit installed and on by default in dev and production builds; the TypeScript path still exists;
+      transfer unit
+    last_commit: 06da1b2448
+  apple:
+    status: swift-only
+    old:
+    - apple/OpenMates/Sources/Core/Networking/S3MediaClient.swift
+    - apple/OpenMates/Sources/Core/Services/PendingUploadStore.swift
+    last_commit: null
+  tui:
+    status: rust-only
+- id: composer-parse
+  what: mentions, message parsing, composer suggestions logic
+  web:
+    status: rust-default
+    old: []
+    unit: parse, composer
+    note: Worker unit installed and on by default in dev and production builds; the TypeScript path still exists;
+      parse and composer units
+    last_commit: 06da1b2448
+  apple:
+    status: swift-only
+    old: []
+    last_commit: null
+  tui:
+    status: rust-only
+- id: apps-skills
+  what: app/skill inventory and invocation
+  web:
+    status: rust-default
+    old: []
+    unit: apps
+    note: Worker unit installed and on by default in dev and production builds; the TypeScript path still exists;
+      apps unit
+    last_commit: 06da1b2448
+  apple:
+    status: swift-only
+    old: []
+    last_commit: null
+  tui:
+    status: rust-only
+- id: settings
+  what: app settings and memories requests/policy
+  web:
+    status: rust-default
+    old:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts
+    unit: settings
+    note: Worker unit installed and on by default in dev and production builds; the TypeScript path still exists
+    last_commit: 06da1b2448
+  apple:
+    status: rust-twin
+    old: []
+    note: memories requests run in the core; app settings policy still in Swift
+    last_commit: 03a7aedaa3
+  tui:
+    status: rust-only
+- id: projects-tasks-teams
+  what: projects, tasks, workflows, team workspace context
+  web:
+    status: ts-only
+    old:
+    - frontend/packages/ui/src/services/projectState/
+    - frontend/packages/ui/src/services/work/
+    last_commit: null
+  apple:
+    status: swift-only
+    old:
+    - apple/OpenMates/Sources/Core/Teams/TeamWorkspaceContext.swift
+    last_commit: null
+  tui:
+    status: rust-only
+- id: anonymous-public-chats
+  what: anonymous chats, public examples, free usage
+  web:
+    status: ts-only
+    old:
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    last_commit: null
+  apple:
+    status: swift-only
+    old:
+    - apple/OpenMates/Sources/Core/PublicChats/
+    - apple/OpenMates/Sources/Core/Services/AnonymousFreeUsageService.swift
+    last_commit: null
+  tui:
+    status: rust-only
+- id: watch-runtime
+  what: watchOS chat runtime
+  web:
+    status: stays-shell
+    old: []
+    note: not applicable
+    last_commit: null
+  apple:
+    status: swift-only
+    old:
+    - apple/OpenMates/Sources/Core/Watch/WatchChatRuntime.swift
+    note: last; depends on the arm64_32 risk R-3
+    last_commit: null
+  tui:
+    status: stays-shell

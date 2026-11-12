@@ -80,10 +80,8 @@ capability status model and lane shape are in `.claude/rules/client-core.md` and
   - After every web bench, append the result to `docs/migration/rust/performance-history.yml`
     with `scripts/record_perf_measurement.py` (append-only; never edit old entries).
     Refresh the status with `python3 scripts/rust_migration_yaml.py`.
-  - Migration progress is the capability status metric in `client-core.md`. The
-    TS-lines ratio and `web-port-ledger.yml` are deprecated; until plan TASK-2 removes
-    the check, `rust_migration_yaml.py --check` still fails on an unledgered routing
-    function, so add the slice it asks for (`rust_web_port_ledger.py --suggest`).
+  - Migration progress is the capability status metric in `client-core.md`
+    (`docs/migration/rust/capabilities.yml`).
   - Memory during the migration: at most one WASM instance, about +30 MB. More than
     one is a blocker. Memory that grows per page reload is always a bug. The final build with the TS paths removed must have RAM and
     download ≤ TS.

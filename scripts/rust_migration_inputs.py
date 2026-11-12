@@ -18,11 +18,9 @@ INPUT_FILES = (
 
 # Directories (or filename prefixes) whose contents the generator scans.
 INPUT_PREFIXES = (
-    "docs/migration/rust/",  # curated lanes, web-app-curated, spec-links, performance-history
+    "docs/migration/rust/",  # capabilities, curated lanes, web-app-curated, spec-links, performance-history
     "packages/openmates-rust/",  # shared vector files
-    "frontend/packages/ui/src/services/",  # web-port-ledger.yml scope (includes rustCore/)
-    "frontend/packages/ui/src/utils/",
-    "frontend/packages/ui/src/stores/",
+    "frontend/packages/ui/src/services/rustCore/",  # unit installers read for fallback state
     "frontend/apps/web_app/src/lib/rustCore/",  # sharedWorkerUnits.ts and unit installers
     "frontend/apps/web_app/tests/web-rust-core-",  # web-rust-core-*.spec.ts
 )

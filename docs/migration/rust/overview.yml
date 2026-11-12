@@ -7,8 +7,37 @@ formula: percent = round(100 * done / total, 1); done+partial+missing == total; 
   not how much code exists.
 priority_order: [web_app, shared_client, cli, sdk_rust, sdk_npm, sdk_python]
 performance_history: performance-history.yml
+capabilities:
+  file: capabilities.yml
+  as_of: '2026-11-12'
+  rule: per-shell counts of capability cells by status; done = rust-only + stays-shell
+  shells:
+    web:
+      total: 21
+      ts-only: 5
+      swift-only: 0
+      rust-twin: 0
+      rust-default: 14
+      rust-only: 0
+      stays-shell: 2
+    apple:
+      total: 21
+      ts-only: 0
+      swift-only: 9
+      rust-twin: 4
+      rust-default: 7
+      rust-only: 0
+      stays-shell: 1
+    tui:
+      total: 21
+      ts-only: 0
+      swift-only: 0
+      rust-twin: 0
+      rust-default: 0
+      rust-only: 19
+      stays-shell: 2
 overall:
-  percent: 26.7
+  percent: 27.4
   formula: overall = round(0.4 * web_app + 0.2 * shared_client + 0.25 * cli + 0.15 * sdk, 1), sdk = mean(sdk_rust,
     sdk_npm, sdk_python); each term is the area percent
   weights:
@@ -18,24 +47,22 @@ overall:
     sdk: 0.15
   weights_decided: '2026-11-08'
   inputs:
-    web_app: 7.8
+    web_app: 9.5
     shared_client: 28.6
     cli: 64.6
     sdk: 11.3
 areas:
 - id: web_app
-  title: Web app (portable TS routed to the shared Rust core Worker)
+  title: Web app (capabilities at rust-only or stays-shell, capabilities.yml)
   priority_rank: 1
   file: web-app.yml
-  unit: TS code lines (portable)
-  total: 108123
-  done: 8441
-  partial: 0
-  missing: 99682
-  percent: 7.8
-  done_definition: code line of a portable TS function (services/, utils/, stores/) that routes to the shared Rust
-    core under VITE_OPENMATES_RUST_CORE and is listed in web-port-ledger.yml; functions over 80 code lines count
-    only their flag decision sites
+  unit: capabilities (web cells)
+  total: 21
+  done: 2
+  partial: 14
+  missing: 5
+  percent: 9.5
+  done_definition: capability whose web cell is rust-only (old web code deleted, suite green) or stays-shell (capabilities.yml)
   blockers: ['planned units without installer: embedEdit', 'perf gate not cleared: chatRendered is inconclusive
       (2026-11-08-chatRendered-01)', 'perf gate not cleared: embedReady is inconclusive (2026-11-08-embedReady-01)',
     'perf gate not cleared: rss is inconclusive (2026-11-08-rss-01)', 'perf gate not cleared: send draftSaveP95Ms
@@ -119,9 +146,9 @@ perf_attention:
     in performance-history.yml.
 performance:
   source: performance-history.yml
-  reference_date: '2026-11-11'
-  stale_rule: 'age_hours = (reference_date - entry date) * 24, reference_date = newest slice date in web-port-ledger.yml
-    (the newest web Rust change); stale when age_hours > 24. Day granularity: history entries carry dates, not times.'
+  reference_date: '2026-11-12'
+  stale_rule: 'age_hours = (reference_date - entry date) * 24, reference_date = as_of date of capabilities.yml (last
+    capability status audit); stale when age_hours > 24. Day granularity: history entries carry dates, not times.'
   latest_count: 23
   stale_count: 23
   by_verdict:
@@ -141,7 +168,7 @@ performance:
     verdict: rust_not_worse
     date: '2026-11-06'
     source_commit: null
-    age_hours: 120
+    age_hours: 144
     stale: true
   - flow: chatRendered
     metric: chatListRenderedMs
@@ -153,7 +180,7 @@ performance:
     verdict: rust_not_worse
     date: '2026-11-07'
     source_commit: 13c341c23b
-    age_hours: 96
+    age_hours: 120
     stale: true
   - flow: chatRendered
     metric: chatRenderedMs
@@ -165,7 +192,7 @@ performance:
     verdict: inconclusive
     date: '2026-11-08'
     source_commit: c25f900c81f9
-    age_hours: 72
+    age_hours: 96
     stale: true
   - flow: chatRendered
     metric: openChatMs
@@ -177,7 +204,7 @@ performance:
     verdict: rust_not_worse
     date: '2026-11-07'
     source_commit: bce302fe1fc5b20cbcc32984baae065f50f80f92
-    age_hours: 96
+    age_hours: 120
     stale: true
   - flow: chatRendered
     metric: openChatWallMs
@@ -189,7 +216,7 @@ performance:
     verdict: unverified
     date: '2026-11-05'
     source_commit: 8ab883e
-    age_hours: 144
+    age_hours: 168
     stale: true
   - flow: cpu
     metric: browserCpuMs
@@ -201,7 +228,7 @@ performance:
     verdict: rust_not_worse
     date: '2026-11-08'
     source_commit: c25f900c81f9
-    age_hours: 72
+    age_hours: 96
     stale: true
   - flow: cpu
     metric: cpuMs
@@ -213,7 +240,7 @@ performance:
     verdict: inconclusive
     date: '2026-11-06'
     source_commit: null
-    age_hours: 120
+    age_hours: 144
     stale: true
   - flow: cpu
     metric: searchCpuMs
@@ -225,7 +252,7 @@ performance:
     verdict: rust_not_worse
     date: '2026-11-07'
     source_commit: 44cf35f
-    age_hours: 96
+    age_hours: 120
     stale: true
   - flow: embedReady
     metric: embedReadyMs
@@ -237,7 +264,7 @@ performance:
     verdict: inconclusive
     date: '2026-11-08'
     source_commit: c25f900c81f9
-    age_hours: 72
+    age_hours: 96
     stale: true
   - flow: embedReady
     metric: embedsBenchCpu
@@ -249,7 +276,7 @@ performance:
     verdict: unverified
     date: '2026-11-06'
     source_commit: 30472ca
-    age_hours: 120
+    age_hours: 144
     stale: true
   - flow: reloadMemory
     metric: retainedBytes
@@ -261,7 +288,7 @@ performance:
     verdict: rust_not_worse
     date: '2026-11-08'
     source_commit: c25f900c81f9
-    age_hours: 72
+    age_hours: 96
     stale: true
   - flow: reloadMemory
     metric: retainedBytes slope
@@ -273,7 +300,7 @@ performance:
     verdict: inconclusive
     date: '2026-11-06'
     source_commit: c0a439f
-    age_hours: 120
+    age_hours: 144
     stale: true
   - flow: rss
     metric: browserRssBytes
@@ -285,7 +312,7 @@ performance:
     verdict: inconclusive
     date: '2026-11-08'
     source_commit: c25f900c81f9
-    age_hours: 72
+    age_hours: 96
     stale: true
   - flow: rss
     metric: embedsBenchRss
@@ -297,7 +324,7 @@ performance:
     verdict: inconclusive
     date: '2026-11-06'
     source_commit: 30472ca
-    age_hours: 120
+    age_hours: 144
     stale: true
   - flow: rss
     metric: totalRssBytes
@@ -309,7 +336,7 @@ performance:
     verdict: rust_not_worse
     date: '2026-11-06'
     source_commit: 14bc6157939781cd5029c0fd176905df754a8992
-    age_hours: 120
+    age_hours: 144
     stale: true
   - flow: search
     metric: searchRenderedMs
@@ -321,7 +348,7 @@ performance:
     verdict: rust_not_worse
     date: '2026-11-08'
     source_commit: c25f900c81f9
-    age_hours: 72
+    age_hours: 96
     stale: true
   - flow: send
     metric: draftSaveP95Ms
@@ -333,7 +360,7 @@ performance:
     verdict: rust_worse
     date: '2026-11-08'
     source_commit: c25f900c81f9
-    age_hours: 72
+    age_hours: 96
     stale: true
   - flow: send
     metric: sendBrowserCpuMs
@@ -345,7 +372,7 @@ performance:
     verdict: rust_not_worse
     date: '2026-11-08'
     source_commit: c25f900c81f9
-    age_hours: 72
+    age_hours: 96
     stale: true
   - flow: send
     metric: sendTotalMs
@@ -357,7 +384,7 @@ performance:
     verdict: inconclusive
     date: '2026-11-06'
     source_commit: a777600
-    age_hours: 120
+    age_hours: 144
     stale: true
   - flow: sendToAdmit
     metric: sendToAdmitMs
@@ -369,7 +396,7 @@ performance:
     verdict: rust_not_worse
     date: '2026-11-08'
     source_commit: c25f900c81f9
-    age_hours: 72
+    age_hours: 96
     stale: true
   - flow: uiInteractive
     metric: uiInteractiveMs
@@ -381,7 +408,7 @@ performance:
     verdict: rust_not_worse
     date: '2026-11-08'
     source_commit: c25f900c81f9
-    age_hours: 72
+    age_hours: 96
     stale: true
   - flow: wasmInstances
     metric: wasmInstances
@@ -393,7 +420,7 @@ performance:
     verdict: rust_not_worse
     date: '2026-11-07'
     source_commit: 44cf35f
-    age_hours: 96
+    age_hours: 120
     stale: true
   - flow: wasmInstances
     metric: wasmInstantiations
@@ -405,5 +432,5 @@ performance:
     verdict: rust_not_worse
     date: '2026-11-08'
     source_commit: c25f900c81f9
-    age_hours: 72
+    age_hours: 96
     stale: true

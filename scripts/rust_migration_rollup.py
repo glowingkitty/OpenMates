@@ -22,8 +22,8 @@ WEIGHTS_DECIDED = "2026-11-08"
 OVERALL_FORMULA = ("overall = round(0.4 * web_app + 0.2 * shared_client + 0.25 * cli + 0.15 * sdk, 1), "
                    "sdk = mean(sdk_rust, sdk_npm, sdk_python); each term is the area percent")
 STALE_AFTER_HOURS = 24
-STALE_RULE = ("age_hours = (reference_date - entry date) * 24, reference_date = newest slice date in "
-              "web-port-ledger.yml (the newest web Rust change); stale when age_hours > 24. Day "
+STALE_RULE = ("age_hours = (reference_date - entry date) * 24, reference_date = as_of date of "
+              "capabilities.yml (last capability status audit); stale when age_hours > 24. Day "
               "granularity: history entries carry dates, not times.")
 VERDICT_ORDER = ("rust_not_worse", "inconclusive", "rust_worse", "invalid_measurement", "unverified")
 # Problems known from lane reports that have no history entry yet. Remove a line once its
