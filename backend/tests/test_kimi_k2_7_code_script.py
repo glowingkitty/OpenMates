@@ -50,8 +50,8 @@ def test_kimi_k3_config_uses_together_primary_without_openrouter_fallback():
     assert model["external_ids"]["together"] == "moonshotai/Kimi-K3"
     assert [server["id"] for server in model["servers"]] == ["together"]
     assert model["servers"][0]["model_id"] == "moonshotai/Kimi-K3"
-    assert model["pricing"]["tokens"]["input"]["per_credit_unit"] == 222.2222
-    assert model["pricing"]["tokens"]["output"]["per_credit_unit"] == 44.4444
+    assert model["pricing"]["tokens"]["input"]["per_credit_unit"] == 225
+    assert model["pricing"]["tokens"]["output"]["per_credit_unit"] == 45
 
 
 # contract-test: infrastructure

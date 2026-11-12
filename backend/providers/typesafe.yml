@@ -30,7 +30,7 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 15384.6153
+          per_credit_unit: 15875
         output:
           per_credit_unit: 0
     costs:
@@ -65,7 +65,7 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 15384.6153
+          per_credit_unit: 15875
         output:
           per_credit_unit: 0
     costs:

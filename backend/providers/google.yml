@@ -54,9 +54,9 @@ models:
     # Regular standard rates from December 1; AI Studio route only.
     pricing:
       tokens:
-        input: { per_credit_unit: 166.6666 }
-        cache_read: { per_credit_unit: 3333.3333 }
-        output: { per_credit_unit: 33.3333 }
+        input: { per_credit_unit: 170 }
+        cache_read: { per_credit_unit: 3335 }
+        output: { per_credit_unit: 35 }
     cache_pricing:
       enabled: false
       write_billing: included_in_input
@@ -79,9 +79,9 @@ models:
         processing_tier: standard
         pricing:
           tokens:
-            input: { per_credit_unit: 333.3333 }
-            cache_read: { per_credit_unit: 6666.6666 }
-            output: { per_credit_unit: 66.6666 }
+            input: { per_credit_unit: 335 }
+            cache_read: { per_credit_unit: 6670 }
+            output: { per_credit_unit: 70 }
         costs:
           input_per_million_token: { price: 2, currency: USD, max_context: 1048576 }
           cached_input_per_million_token: { price: 0.1, currency: USD }
@@ -120,9 +120,9 @@ models:
     # Regular standard rates from December 1; AI Studio route only.
     pricing:
       tokens:
-        input: { per_credit_unit: 166.6666 }
-        cache_read: { per_credit_unit: 3333.3333 }
-        output: { per_credit_unit: 33.3333 }
+        input: { per_credit_unit: 170 }
+        cache_read: { per_credit_unit: 3335 }
+        output: { per_credit_unit: 35 }
     cache_pricing:
       enabled: true
       write_billing: included_in_input
@@ -147,9 +147,9 @@ models:
         processing_tier: standard
         pricing:
           tokens:
-            input: { per_credit_unit: 333.3333 }
-            cache_read: { per_credit_unit: 6666.6666 }
-            output: { per_credit_unit: 66.6666 }
+            input: { per_credit_unit: 335 }
+            cache_read: { per_credit_unit: 6670 }
+            output: { per_credit_unit: 70 }
         costs:
           input_per_million_token: { price: 2, currency: USD, max_context: 1048576 }
           cached_input_per_million_token: { price: 0.1, currency: USD }
@@ -183,9 +183,9 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 673.4006
+          per_credit_unit: 675
         output:
-          per_credit_unit: 447.4272
+          per_credit_unit: 450
     costs:
       input_per_million_token:
         price: 0.99
@@ -244,9 +244,9 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 1333.3333
+          per_credit_unit: 1335
         output:
-          per_credit_unit: 222.2222
+          per_credit_unit: 225
     cache_pricing:
       enabled: false
       write_billing: included_in_input
@@ -309,11 +309,11 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 444.4444
+          per_credit_unit: 445
         cache_read:
-          per_credit_unit: 4444.4444
+          per_credit_unit: 4445
         output:
-          per_credit_unit: 88.8888
+          per_credit_unit: 90
     cache_pricing:
       enabled: true
       write_billing: included_in_input
@@ -353,11 +353,11 @@ models:
         pricing:
           tokens:
             input:
-              per_credit_unit: 444.4444
+              per_credit_unit: 445
             cache_read:
-              per_credit_unit: 4444.4444
+              per_credit_unit: 4445
             output:
-              per_credit_unit: 88.8888
+              per_credit_unit: 90
         costs:
           input_per_million_token:
             price: 0.75
@@ -428,11 +428,11 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 444.4444
+          per_credit_unit: 445
         cache_read:
-          per_credit_unit: 4444.4444
+          per_credit_unit: 4445
         output:
-          per_credit_unit: 88.8888
+          per_credit_unit: 90
     cache_pricing:
       enabled: true
       write_billing: included_in_input
@@ -472,11 +472,11 @@ models:
         pricing:
           tokens:
             input:
-              per_credit_unit: 444.4444
+              per_credit_unit: 445
             cache_read:
-              per_credit_unit: 4444.4444
+              per_credit_unit: 4445
             output:
-              per_credit_unit: 88.8888
+              per_credit_unit: 90
         costs:
           input_per_million_token:
             price: 0.75
@@ -547,16 +547,16 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 333.3333
+          per_credit_unit: 335
         output:
-          per_credit_unit: 55.5555
+          per_credit_unit: 60
       context_bands:
         over_200k:
           min_input_tokens: 200001
           eligible_hosts: [google_ai_studio, google]
           tokens:
-            input: { per_credit_unit: 166.6666 }
-            output: { per_credit_unit: 37.037 }
+            input: { per_credit_unit: 170 }
+            output: { per_credit_unit: 40 }
     cache_pricing:
       enabled: false
       write_billing: included_in_input
@@ -635,9 +635,9 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 444.4444
+          per_credit_unit: 445
         output:
-          per_credit_unit: 74.074
+          per_credit_unit: 75
     cache_pricing:
       enabled: false
       write_billing: included_in_input
@@ -699,9 +699,9 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 2222.2222
+          per_credit_unit: 2225
         output:
-          per_credit_unit: 266.6666
+          per_credit_unit: 270
     cache_pricing:
       enabled: false
       write_billing: included_in_input

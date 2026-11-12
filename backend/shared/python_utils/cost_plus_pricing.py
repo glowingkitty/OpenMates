@@ -8,9 +8,10 @@ supplier charges us (USD per billed unit). The customer price is
 rounded up to the next ``rounding_step_credits`` (5). Prices below one step are
 not stepped: per-call units and minutes (billed per started minute) are rounded
 up to a whole credit, continuous units (tokens, seconds, characters) to 0.01 credit.
-Token categories are rounded per 1M tokens and stored, as the catalog has
-always done, as tokens per credit rounded down to 0.0001, so no rounding sells below
-``supplier_usd * (1 + margin)``. Items with no external supplier cost charge
+Token categories are stored as tokens per credit, the number customers see.
+That number is rounded up to the next ``rounding_step_credits`` tokens (444.4 →
+445), or to 0.01 token when it is below one step, so displayed token rates are
+round numbers. Items with no external supplier cost charge
 ``zero_cost_minimum_credits`` per billed unit.
 
 Settings live in ``backend/config/backend_config.yml`` under ``pricing``.
@@ -23,7 +24,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from decimal import ROUND_CEILING, ROUND_FLOOR, Decimal
+from decimal import ROUND_CEILING, Decimal
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -90,9 +91,6 @@ def _ceil(value: Decimal, quantum: Decimal) -> Decimal:
     return (value / quantum).to_integral_value(rounding=ROUND_CEILING) * quantum
 
 
-def _floor(value: Decimal, quantum: Decimal) -> Decimal:
-    return (value / quantum).to_integral_value(rounding=ROUND_FLOOR) * quantum
-
 
 def round_credits(raw: Decimal, settings: PricingSettings, *, per_call: bool) -> Decimal:
     """Round a raw credit amount up to the policy step, or keep small prices."""
@@ -113,18 +111,22 @@ def credits_for_cost(usd: Any, settings: PricingSettings, *, per_call: bool) -> 
 
 
 def tokens_per_credit(usd_per_million: Any, settings: PricingSettings) -> int | float:
-    """Stored token rate (tokens per credit, 0.0001 precision rounded down) for a cost per 1M tokens.
+    """Stored token rate (tokens per credit) for a supplier cost per 1M tokens.
 
-    A token category the supplier does not charge for stays free (rate 0):
-    the flat minimum applies to billed items, not to free token categories of
-    a priced model.
+    The rate is ``1M tokens / (cost * (1 + margin) / USD_PER_CREDIT)`` rounded up
+    to the next step of ``rounding_step_credits`` tokens, or up to 0.01 token
+    below one step. A token category the supplier does not charge for stays
+    free (rate 0): the flat minimum applies to billed items, not to free token
+    categories of a priced model.
     """
-    if Decimal(str(usd_per_million)) == 0:
+    cost = Decimal(str(usd_per_million))
+    if not cost.is_finite() or cost < 0:
+        raise CostPlusPricingError(f"Invalid supplier cost {usd_per_million!r}")
+    if cost == 0:
         return 0
-    credits_per_million = credits_for_cost(usd_per_million, settings, per_call=False)
-    rate = _floor(TOKENS_PER_PRICE_UNIT / credits_per_million, Decimal("0.0001"))
-    return as_number(max(rate, Decimal("0.0001")))
-
+    raw = TOKENS_PER_PRICE_UNIT * USD_PER_CREDIT / (cost * settings.multiplier)
+    step = settings.rounding_step_credits
+    return as_number(_ceil(raw, step) if raw >= step else _ceil(raw, Decimal("0.01")))
 
 def as_number(value: Decimal) -> int | float:
     """YAML-friendly number: integers stay integers."""

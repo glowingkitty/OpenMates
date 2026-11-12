@@ -242,8 +242,8 @@ def test_launch_tariff_discounts_customer_and_supplier_and_freezes_attempt():
     validate_temporary_prices(model)
     before = resolve_model_tariff(model, on_date=date(2026, 10, 18), inference_host="inception")
     launch = resolve_model_tariff(model, on_date=date(2026, 10, 20), inference_host="inception")
-    assert before["pricing"]["tokens"] == {"input": {"per_credit_unit": 3333.3333}, "cache_read": {"per_credit_unit": 33333.3333}, "output": {"per_credit_unit": 952.3809}}
-    assert launch["pricing"]["tokens"] == {"input": {"per_credit_unit": 6666.6666}, "cache_read": {"per_credit_unit": 66666.6666}, "output": {"per_credit_unit": 1904.7619}}
+    assert before["pricing"]["tokens"] == {"input": {"per_credit_unit": 3335}, "cache_read": {"per_credit_unit": 33335}, "output": {"per_credit_unit": 955}}
+    assert launch["pricing"]["tokens"] == {"input": {"per_credit_unit": 6670}, "cache_read": {"per_credit_unit": 66670}, "output": {"per_credit_unit": 1905}}
     assert model == original
     assert before["costs"]["input_per_million_token"]["price"] == .2
     assert launch["costs"]["input_per_million_token"]["price"] == .1
@@ -251,13 +251,13 @@ def test_launch_tariff_discounts_customer_and_supplier_and_freezes_attempt():
     frozen = snapshot_model_tariff(launch)
     launch["pricing"]["tokens"]["input"]["per_credit_unit"] = 1
     launch["costs"]["input_per_million_token"]["price"] = 999
-    assert frozen["pricing"]["tokens"]["input"]["per_credit_unit"] == 6666.6666
+    assert frozen["pricing"]["tokens"]["input"]["per_credit_unit"] == 6670
     assert frozen["costs"]["input_per_million_token"]["price"] == .1
     assert frozen["active_temporary_price"]["id"] == "mercury-3-launch-2026"
     assert model == original
 
 
-@pytest.mark.parametrize("promotional,input_unit,cache_unit", [(False, 3333.3333, 33333.3333), (True, 6666.6666, 66666.6666)])
+@pytest.mark.parametrize("promotional,input_unit,cache_unit", [(False, 3335, 33335), (True, 6670, 66670)])
 def test_mercury_cache_read_and_launch_discounts_compose_without_double_counting(promotional, input_unit, cache_unit):
     from datetime import date
     from pathlib import Path

@@ -37,11 +37,11 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 3333.3333
+          per_credit_unit: 3335
         cache_read:
-          per_credit_unit: 33333.3333
+          per_credit_unit: 33335
         output:
-          per_credit_unit: 952.3809
+          per_credit_unit: 955
     cache_pricing:
       enabled: true
       write_billing: included_in_input
@@ -72,11 +72,11 @@ models:
         pricing:
           tokens:
             input:
-              per_credit_unit: 6666.6666
+              per_credit_unit: 6670
             cache_read:
-              per_credit_unit: 66666.6666
+              per_credit_unit: 66670
             output:
-              per_credit_unit: 1904.7619
+              per_credit_unit: 1905
         costs:
           input_per_million_token:
             price: 0.10

@@ -78,9 +78,9 @@ def test_answer_semantics_reject_swapped_scale_and_invalid_distributions(invalid
 # contract-test: direct surface=rest_api assertions=ai-decide.billing.bounded
 def test_quote_bounds_both_providers_and_actual_credits_use_catalog() -> None:
     _, pricing = decision_configuration()
-    assert pricing["tokens"]["input"]["per_credit_unit"] == 15384.6153
+    assert pricing["tokens"]["input"]["per_credit_unit"] == 15875
     assert pricing["tokens"]["output"]["per_credit_unit"] == 0
-    assert decision_quote(pricing) == 23
+    assert decision_quote(pricing) == 22
     direct = account_decision_attempts([{"provider": "typesafe", "success": True, **ANSWER["usage"]}], pricing)
     assert direct.model_dump() == {"input_tokens": 15_800, "output_tokens": 30, "credits": 1, "complete": True}
     fallback = account_decision_attempts([
@@ -206,8 +206,8 @@ async def test_anonymous_decision_reserves_envelope_and_settles_only_actual_usag
             await anonymous.anonymous_app_skill(_request(), "ai", "decide", BODY, None, None)
         assert caught.value.status_code == 503
         service.finalize_charge.assert_awaited_once()
-        assert service.finalize_charge.call_args.kwargs["actual_credits"] == 23
-    assert service.reserve_operation.call_args.kwargs["quoted_credits"] == 23
+        assert service.finalize_charge.call_args.kwargs["actual_credits"] == 22
+    assert service.reserve_operation.call_args.kwargs["quoted_credits"] == 22
     registry.dispatch_skill.assert_awaited_once_with("ai", "decide", BODY)
     service.release_reservation.assert_not_awaited()
 
@@ -235,7 +235,7 @@ async def test_chat_tool_reserves_envelope_and_settles_native_usage(monkeypatch:
         directus_service=None, log_prefix="[test]",
     )
     assert len(operations) == 1
-    assert reserve.call_args.kwargs["quoted_credits"] == 23
+    assert reserve.call_args.kwargs["quoted_credits"] == 22
     result = {**ANSWER, "success": True, "usage": {**ANSWER["usage"], "credits": 2, "complete": True}}
     await main_processor._charge_skill_credits(
         task_id="test-task", execution_id="execution", request_data=request,
@@ -255,8 +255,8 @@ async def test_interrupted_chat_tool_settles_ambiguous_spend_before_hold_expiry(
     assert await main_processor._settle_anonymous_skill_quote(
         app_id="ai", skill_id="decide", parsed_args=BODY, discovered_apps_metadata={},
         reserved_operation_ids=["operation"], log_prefix="[test]",
-    ) == 23
-    finalize.assert_awaited_once_with(charge_id="operation", actual_credits=23)
+    ) == 22
+    finalize.assert_awaited_once_with(charge_id="operation", actual_credits=22)
 
 
 @pytest.mark.asyncio

@@ -584,7 +584,7 @@ specifications:
     version: 11
     status: draft
     path: features/billing
-    fingerprint: ef92b12a9c018b55b2f66df0419d42975095078d18868110c1216243b1350397
+    fingerprint: 23356e7f363cccce919a4112c3b94b85e4ae6a174680cf67171d3c5941f6270e
     required_applies_to:
     - rest_api
     - cli
@@ -7906,7 +7906,19 @@ assertions:
     specification: feature.billing@11
     specification_id: feature.billing
     type: parity
-    fingerprint: 4ea85fe839c12851594a44629f5bd43adeb1bcfca3847da1e1cfd0cd318f3dfa
+    fingerprint: 0900ea9cc807d65d2c072a1a3a4a96a18e08b468f2efb1013ef0746d02bd45f9
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  billing.models.cost-plus-margin:
+    specification: feature.billing@11
+    specification_id: feature.billing
+    type: invariant
+    fingerprint: fdceb8602df9ece31ab590f7163ea53d444de603bae6dd9a103ad864a0abee2c
     required_applies_to:
     - rest_api
     - cli
@@ -7954,7 +7966,7 @@ assertions:
     specification: feature.billing@11
     specification_id: feature.billing
     type: parity
-    fingerprint: 5b5f6d3f53580d3f51ba9843bbdb53e81ad0f0a85df977e3ec924a1183702ebc
+    fingerprint: 58eaff2cb93beefb28dea2b9e154937695445e26a29b4956bc630f4c5e31d77e
     required_applies_to:
     - rest_api
     - cli

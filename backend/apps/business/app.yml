@@ -284,6 +284,10 @@ skills:
       This capability is currently unavailable because no permitted provider is configured.
     class_path: backend.apps.business.skills.search_investors.SearchInvestorsSkill
     pricing: {fixed: 1}
+    supplier_costs:
+      fixed:
+        none: true
+        note: Operator-installed provider; no official cost
     external_data: true
     provider_required: true
     providers: []
@@ -380,6 +384,10 @@ skills:
       legal advice.
     class_path: backend.apps.business.skills.company_ownership.CompanyOwnershipSkill
     pricing: {fixed: 1}
+    supplier_costs:
+      fixed:
+        none: true
+        note: Official public registers; no supplier cost
     external_data: true
     providers:
       - name: openregister

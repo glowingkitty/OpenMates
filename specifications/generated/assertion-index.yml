@@ -85343,17 +85343,17 @@ assertions:
       surface: rest_api
     - &id10757
       path: backend/tests/test_cache_pricing_activation.py
-      line: 175
+      line: 188
       name: test_active_catalog_tariffs_settle_reported_cache_categories
       surface: rest_api
     - &id10758
       path: backend/tests/test_cache_pricing_activation.py
-      line: 198
+      line: 211
       name: test_opus_55_missing_retention_counter_uses_full_input_rate
       surface: rest_api
     - &id10759
       path: backend/tests/test_cache_pricing_activation.py
-      line: 216
+      line: 229
       name: test_mistral_large_4_missing_read_counter_uses_regular_full_input_rate
       surface: rest_api
     - &id10760
@@ -85954,25 +85954,25 @@ assertions:
     current_direct_proof: false
   billing.models.active-price-consistency:
     specification: feature.billing@11
-    fingerprint: 4ea85fe839c12851594a44629f5bd43adeb1bcfca3847da1e1cfd0cd318f3dfa
+    fingerprint: 0900ea9cc807d65d2c072a1a3a4a96a18e08b468f2efb1013ef0746d02bd45f9
     direct_tests:
-    - &id10855
+    - &id10847
       path: backend/tests/test_openai_compatible_api_contract.py
       line: 392
       name: test_public_current_promotions_use_real_provider_yaml_and_live_config_resolver
       surface: rest_api
-    - &id10856
+    - &id10848
       path: frontend/apps/web_app/tests/components/temporary-model-pricing.spec.ts
       line: 7
       name: open Argon details switch to regular rates at the next UTC day
       surface: gui.web
-    - &id10858
+    - &id10850
       path: frontend/apps/web_app/tests/components/temporary-model-pricing.spec.ts
       line: 31
       name: Google Pro ordinary long-context prices remain visible while caching is
         pending
       surface: gui.web
-    - &id10859
+    - &id10851
       path: frontend/apps/web_app/tests/provider-temporary-pricing.spec.ts
       line: 9
       name: key-free public catalog filters unavailable models and generated details
@@ -85985,102 +85985,57 @@ assertions:
       name: test_public_skill_models_preserve_current_promotion_without_supplier_costs
       surface: rest_api
     - &id10842
-      path: backend/tests/test_cost_plus_pricing.py
-      line: 28
-      name: test_per_unit_prices_round_up_to_five_credit_steps_and_keep_small_prices
-      surface: rest_api
-    - &id10843
-      path: backend/tests/test_cost_plus_pricing.py
-      line: 33
-      name: test_supplier_cost_gets_the_margin_before_rounding
-      surface: rest_api
-    - &id10844
-      path: backend/tests/test_cost_plus_pricing.py
-      line: 44
-      name: test_token_rates_never_sell_below_cost_plus_margin
-      surface: rest_api
-    - &id10845
-      path: backend/tests/test_cost_plus_pricing.py
-      line: 53
-      name: test_free_token_category_stays_free_while_free_billed_items_cost_the_minimum
-      surface: rest_api
-    - &id10846
-      path: backend/tests/test_cost_plus_pricing.py
-      line: 60
-      name: test_margin_is_read_from_backend_config_and_overridable_by_environment
-      surface: rest_api
-    - &id10847
-      path: backend/tests/test_cost_plus_pricing.py
-      line: 73
-      name: test_highest_eligible_route_sets_the_token_price
-      surface: rest_api
-    - &id10848
-      path: backend/tests/test_cost_plus_pricing.py
-      line: 89
-      name: test_declared_skill_prices_need_a_supplier_cost
-      surface: rest_api
-    - &id10849
-      path: backend/tests/test_cost_plus_pricing.py
-      line: 102
-      name: test_every_stored_catalog_price_equals_its_cost_plus_derivation
-      surface: rest_api
-    - &id10850
       path: backend/tests/test_google_thinking_profiles.py
       line: 29
       name: test_google_clients_send_only_supported_profile_level
       surface: rest_api
-    - &id10851
+    - &id10843
       path: backend/tests/test_google_thinking_profiles.py
       line: 177
       name: test_argon_regular_stream_caps_output_without_background
       surface: rest_api
-    - &id10852
+    - &id10844
       path: backend/tests/test_google_thinking_profiles.py
       line: 218
       name: test_argon_charges_thoughts_with_pending_cache_without_changing_legacy_google
       surface: rest_api
-    - &id10853
+    - &id10845
       path: backend/tests/test_google_thinking_profiles.py
       line: 255
       name: test_argon_reconciles_missing_thoughts_and_marks_inconsistent_usage
       surface: rest_api
-    - &id10854
+    - &id10846
       path: backend/tests/test_openai_compatible_api_contract.py
       line: 377
       name: test_model_object_projects_current_promotion_without_supplier_tariff
       surface: rest_api
-    - &id10857
+    - &id10849
       path: frontend/apps/web_app/tests/components/temporary-model-pricing.spec.ts
       line: 22
       name: an undated promotion never presents its minimum guarantee as an expiry
       surface: gui.web
-    - &id10860
+    - &id10852
       path: frontend/packages/ui/src/utils/cachePricingAvailability.test.ts
       line: 87
       name: shows verified Google ordinary long-context rates independently of cache
         activation
       surface: gui.web
-    - &id10861
+    - &id10853
       path: frontend/packages/ui/src/utils/temporaryModelPricing.test.ts
       line: 14
       name: resolves inclusive dates and excludes another host, region and processing
         tier
       surface: gui.web
-    - &id10862
+    - &id10854
       path: frontend/packages/ui/src/utils/temporaryModelPricing.test.ts
       line: 30
       name: changes existing catalog getters without rebuilding or replacing a model
         object
       surface: gui.web
-    - &id10863
+    - &id10855
       path: frontend/packages/ui/src/utils/temporaryModelPricing.test.ts
       line: 42
       name: does not treat a minimum duration as an end date
-      surface: gui.web
-    - &id10864
-      path: frontend/packages/ui/src/utils/tokenRateFormat.test.ts
-      line: 6
-      name: keeps three significant digits and rounds down
       surface: gui.web
     tests:
     - *id10841
@@ -86098,6 +86053,80 @@ assertions:
     - *id10853
     - *id10854
     - *id10855
+    surfaces:
+      rest_api:
+        direct_tests:
+        - *id10847
+        supporting_tests:
+        - *id10841
+        - *id10842
+        - *id10843
+        - *id10844
+        - *id10845
+        - *id10846
+      gui.web:
+        direct_tests:
+        - *id10848
+        - *id10850
+        - *id10851
+        supporting_tests:
+        - *id10849
+        - *id10852
+        - *id10853
+        - *id10854
+        - *id10855
+    current_direct_proof: false
+  billing.models.cost-plus-margin:
+    specification: feature.billing@11
+    fingerprint: fdceb8602df9ece31ab590f7163ea53d444de603bae6dd9a103ad864a0abee2c
+    direct_tests: []
+    supporting_tests:
+    - &id10856
+      path: backend/tests/test_cost_plus_pricing.py
+      line: 28
+      name: test_per_unit_prices_round_up_to_five_credit_steps_and_keep_small_prices
+      surface: rest_api
+    - &id10857
+      path: backend/tests/test_cost_plus_pricing.py
+      line: 33
+      name: test_supplier_cost_gets_the_margin_before_rounding
+      surface: rest_api
+    - &id10858
+      path: backend/tests/test_cost_plus_pricing.py
+      line: 44
+      name: test_token_rates_round_up_to_five_token_steps
+      surface: rest_api
+    - &id10859
+      path: backend/tests/test_cost_plus_pricing.py
+      line: 59
+      name: test_free_token_category_stays_free_while_free_billed_items_cost_the_minimum
+      surface: rest_api
+    - &id10860
+      path: backend/tests/test_cost_plus_pricing.py
+      line: 66
+      name: test_margin_is_read_from_backend_config_and_overridable_by_environment
+      surface: rest_api
+    - &id10861
+      path: backend/tests/test_cost_plus_pricing.py
+      line: 79
+      name: test_highest_eligible_route_sets_the_token_price
+      surface: rest_api
+    - &id10862
+      path: backend/tests/test_cost_plus_pricing.py
+      line: 95
+      name: test_declared_skill_prices_need_a_supplier_cost
+      surface: rest_api
+    - &id10863
+      path: backend/tests/test_cost_plus_pricing.py
+      line: 108
+      name: test_every_stored_catalog_price_equals_its_cost_plus_derivation
+      surface: rest_api
+    - &id10864
+      path: frontend/packages/ui/src/utils/tokenRateFormat.test.ts
+      line: 6
+      name: shows the stored rate, which is already a rounded display value
+      surface: gui.web
+    tests:
     - *id10856
     - *id10857
     - *id10858
@@ -86109,34 +86138,19 @@ assertions:
     - *id10864
     surfaces:
       rest_api:
-        direct_tests:
-        - *id10855
+        direct_tests: []
         supporting_tests:
-        - *id10841
-        - *id10842
-        - *id10843
-        - *id10844
-        - *id10845
-        - *id10846
-        - *id10847
-        - *id10848
-        - *id10849
-        - *id10850
-        - *id10851
-        - *id10852
-        - *id10853
-        - *id10854
-      gui.web:
-        direct_tests:
         - *id10856
+        - *id10857
         - *id10858
         - *id10859
-        supporting_tests:
-        - *id10857
         - *id10860
         - *id10861
         - *id10862
         - *id10863
+      gui.web:
+        direct_tests: []
+        supporting_tests:
         - *id10864
     current_direct_proof: false
   billing.models.verified-host-prices:
@@ -86448,7 +86462,7 @@ assertions:
     current_direct_proof: false
   billing.surface.semantic-parity:
     specification: feature.billing@11
-    fingerprint: 5b5f6d3f53580d3f51ba9843bbdb53e81ad0f0a85df977e3ec924a1183702ebc
+    fingerprint: 58eaff2cb93beefb28dea2b9e154937695445e26a29b4956bc630f4c5e31d77e
     direct_tests:
     - &id10924
       path: backend/tests/test_apps_api.py

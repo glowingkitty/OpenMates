@@ -99,22 +99,22 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 66.6666
+          per_credit_unit: 70
         cache_read:
-          per_credit_unit: 666.6666
+          per_credit_unit: 670
         cache_write:
-          per_credit_unit: 53.3333
+          per_credit_unit: 55
         output:
-          per_credit_unit: 13.3333
+          per_credit_unit: 15
       context_bands:
         over_272k:
           min_input_tokens: 272001
           eligible_hosts: [openai]
           tokens:
-            input: { per_credit_unit: 33.3333 }
-            cache_read: { per_credit_unit: 333.3333 }
-            cache_write: { per_credit_unit: 26.6666 }
-            output: { per_credit_unit: 8.8888 }
+            input: { per_credit_unit: 35 }
+            cache_read: { per_credit_unit: 335 }
+            cache_write: { per_credit_unit: 30 }
+            output: { per_credit_unit: 10 }
     cache_pricing:
       enabled: true
       write_billing: separate
@@ -187,22 +187,22 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 333.3333
+          per_credit_unit: 335
         cache_read:
-          per_credit_unit: 6666.6666
+          per_credit_unit: 6670
         cache_write:
-          per_credit_unit: 266.6666
+          per_credit_unit: 270
         output:
-          per_credit_unit: 66.6666
+          per_credit_unit: 70
       context_bands:
         over_272k:
           min_input_tokens: 272001
           eligible_hosts: [openai]
           tokens:
-            input: { per_credit_unit: 166.6666 }
-            cache_read: { per_credit_unit: 3333.3333 }
-            cache_write: { per_credit_unit: 133.3333 }
-            output: { per_credit_unit: 44.4444 }
+            input: { per_credit_unit: 170 }
+            cache_read: { per_credit_unit: 3335 }
+            cache_write: { per_credit_unit: 135 }
+            output: { per_credit_unit: 45 }
     cache_pricing:
       enabled: true
       write_billing: separate
@@ -276,22 +276,22 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 6666.6666
+          per_credit_unit: 6670
         cache_read:
-          per_credit_unit: 66666.6666
+          per_credit_unit: 66670
         cache_write:
-          per_credit_unit: 5263.1578
+          per_credit_unit: 5335
         output:
-          per_credit_unit: 1333.3333
+          per_credit_unit: 1335
       context_bands:
         over_272k:
           min_input_tokens: 272001
           eligible_hosts: [openai]
           tokens:
-            input: { per_credit_unit: 3333.3333 }
-            cache_read: { per_credit_unit: 33333.3333 }
-            cache_write: { per_credit_unit: 2666.6666 }
-            output: { per_credit_unit: 888.8888 }
+            input: { per_credit_unit: 3335 }
+            cache_read: { per_credit_unit: 33335 }
+            cache_write: { per_credit_unit: 2670 }
+            output: { per_credit_unit: 890 }
     cache_pricing:
       enabled: true
       write_billing: separate
@@ -361,22 +361,22 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 333.3333
+          per_credit_unit: 335
         cache_read:
-          per_credit_unit: 3333.3333
+          per_credit_unit: 3335
         cache_write:
-          per_credit_unit: 266.6666
+          per_credit_unit: 270
         output:
-          per_credit_unit: 55.5555
+          per_credit_unit: 60
       context_bands:
         over_272k:
           min_input_tokens: 272001
           eligible_hosts: [openai]
           tokens:
-            input: { per_credit_unit: 166.6666 }
-            cache_read: { per_credit_unit: 1666.6666 }
-            cache_write: { per_credit_unit: 133.3333 }
-            output: { per_credit_unit: 37.037 }
+            input: { per_credit_unit: 170 }
+            cache_read: { per_credit_unit: 1670 }
+            cache_write: { per_credit_unit: 135 }
+            output: { per_credit_unit: 40 }
     cache_pricing:
       enabled: true
       write_billing: separate
@@ -443,19 +443,19 @@ models:
         country: "US"
     pricing:
       tokens:
-        input: { per_credit_unit: 333.3333 }
-        cache_read: { per_credit_unit: 3333.3333 }
-        cache_write: { per_credit_unit: 266.6666 }
-        output: { per_credit_unit: 66.6666 }
+        input: { per_credit_unit: 335 }
+        cache_read: { per_credit_unit: 3335 }
+        cache_write: { per_credit_unit: 270 }
+        output: { per_credit_unit: 70 }
       context_bands:
         over_272k:
           min_input_tokens: 272001
           eligible_hosts: [openai]
           tokens:
-            input: { per_credit_unit: 166.6666 }
-            cache_read: { per_credit_unit: 1666.6666 }
-            cache_write: { per_credit_unit: 133.3333 }
-            output: { per_credit_unit: 44.4444 }
+            input: { per_credit_unit: 170 }
+            cache_read: { per_credit_unit: 1670 }
+            cache_write: { per_credit_unit: 135 }
+            output: { per_credit_unit: 45 }
     cache_pricing:
       enabled: false
       write_billing: separate
@@ -512,19 +512,19 @@ models:
     # The undated promotion below does not switch on November 22.
     pricing:
       tokens:
-        input: { per_credit_unit: 133.3333 }
-        cache_read: { per_credit_unit: 1333.3333 }
-        cache_write: { per_credit_unit: 106.6666 }
-        output: { per_credit_unit: 22.2222 }
+        input: { per_credit_unit: 135 }
+        cache_read: { per_credit_unit: 1335 }
+        cache_write: { per_credit_unit: 110 }
+        output: { per_credit_unit: 25 }
       context_bands:
         over_272k:
           min_input_tokens: 272001
           eligible_hosts: [openai]
           tokens:
-            input: { per_credit_unit: 66.6666 }
-            cache_read: { per_credit_unit: 666.6666 }
-            cache_write: { per_credit_unit: 53.3333 }
-            output: { per_credit_unit: 14.8148 }
+            input: { per_credit_unit: 70 }
+            cache_read: { per_credit_unit: 670 }
+            cache_write: { per_credit_unit: 55 }
+            output: { per_credit_unit: 15 }
     cache_pricing:
       enabled: false
       write_billing: separate
@@ -558,13 +558,13 @@ models:
         pricing:
           tokens:
             input:
-              per_credit_unit: 166.6666
+              per_credit_unit: 170
             cache_read:
-              per_credit_unit: 1666.6666
+              per_credit_unit: 1670
             cache_write:
-              per_credit_unit: 133.3333
+              per_credit_unit: 135
             output:
-              per_credit_unit: 33.3333
+              per_credit_unit: 35
           context_bands:
             over_272k:
               min_input_tokens: 272001
@@ -572,13 +572,13 @@ models:
               - openai
               tokens:
                 input:
-                  per_credit_unit: 83.3333
+                  per_credit_unit: 85
                 cache_read:
-                  per_credit_unit: 833.3333
+                  per_credit_unit: 835
                 cache_write:
-                  per_credit_unit: 66.6666
+                  per_credit_unit: 70
                 output:
-                  per_credit_unit: 22.2222
+                  per_credit_unit: 25
         costs:
           input_per_million_token:
             price: 4
@@ -636,19 +636,19 @@ models:
         country: "US"
     pricing:
       tokens:
-        input: { per_credit_unit: 3333.3333 }
-        cache_read: { per_credit_unit: 33333.3333 }
-        cache_write: { per_credit_unit: 2666.6666 }
-        output: { per_credit_unit: 555.5555 }
+        input: { per_credit_unit: 3335 }
+        cache_read: { per_credit_unit: 33335 }
+        cache_write: { per_credit_unit: 2670 }
+        output: { per_credit_unit: 560 }
       context_bands:
         over_272k:
           min_input_tokens: 272001
           eligible_hosts: [openai]
           tokens:
-            input: { per_credit_unit: 1666.6666 }
-            cache_read: { per_credit_unit: 16666.6666 }
-            cache_write: { per_credit_unit: 1333.3333 }
-            output: { per_credit_unit: 370.3703 }
+            input: { per_credit_unit: 1670 }
+            cache_read: { per_credit_unit: 16670 }
+            cache_write: { per_credit_unit: 1335 }
+            output: { per_credit_unit: 375 }
     cache_pricing:
       enabled: false
       write_billing: separate
@@ -703,17 +703,17 @@ models:
         country: "US"
     pricing:
       tokens:
-        input: { per_credit_unit: 133.3333 }
-        cache_read: { per_credit_unit: 1333.3333 }
-        output: { per_credit_unit: 22.2222 }
+        input: { per_credit_unit: 135 }
+        cache_read: { per_credit_unit: 1335 }
+        output: { per_credit_unit: 25 }
       context_bands:
         over_272k:
           min_input_tokens: 272001
           eligible_hosts: [openai]
           tokens:
-            input: { per_credit_unit: 66.6666 }
-            cache_read: { per_credit_unit: 666.6666 }
-            output: { per_credit_unit: 14.8148 }
+            input: { per_credit_unit: 70 }
+            cache_read: { per_credit_unit: 670 }
+            output: { per_credit_unit: 15 }
     cache_pricing:
       enabled: false
       write_billing: included_in_input
@@ -766,15 +766,15 @@ models:
         country: "US"
     pricing:
       tokens:
-        input: { per_credit_unit: 22.2222 }
-        output: { per_credit_unit: 3.7037 }
+        input: { per_credit_unit: 25 }
+        output: { per_credit_unit: 3.71 }
       context_bands:
         over_272k:
           min_input_tokens: 272001
           eligible_hosts: [openai]
           tokens:
-            input: { per_credit_unit: 11.1111 }
-            output: { per_credit_unit: 2.4691 }
+            input: { per_credit_unit: 15 }
+            output: { per_credit_unit: 2.47 }
     cache_pricing:
       enabled: false
       write_billing: included_in_input
@@ -824,17 +824,17 @@ models:
         country: "US"
     pricing:
       tokens:
-        input: { per_credit_unit: 266.6666 }
-        cache_read: { per_credit_unit: 2666.6666 }
-        output: { per_credit_unit: 44.4444 }
+        input: { per_credit_unit: 270 }
+        cache_read: { per_credit_unit: 2670 }
+        output: { per_credit_unit: 45 }
       context_bands:
         over_272k:
           min_input_tokens: 272001
           eligible_hosts: [openai]
           tokens:
-            input: { per_credit_unit: 133.3333 }
-            cache_read: { per_credit_unit: 1333.3333 }
-            output: { per_credit_unit: 29.6296 }
+            input: { per_credit_unit: 135 }
+            cache_read: { per_credit_unit: 1335 }
+            output: { per_credit_unit: 30 }
     cache_pricing:
       enabled: false
       write_billing: included_in_input
@@ -887,15 +887,15 @@ models:
         country: "US"
     pricing:
       tokens:
-        input: { per_credit_unit: 22.2222 }
-        output: { per_credit_unit: 3.7037 }
+        input: { per_credit_unit: 25 }
+        output: { per_credit_unit: 3.71 }
       context_bands:
         over_272k:
           min_input_tokens: 272001
           eligible_hosts: [openai]
           tokens:
-            input: { per_credit_unit: 11.1111 }
-            output: { per_credit_unit: 2.4691 }
+            input: { per_credit_unit: 15 }
+            output: { per_credit_unit: 2.47 }
     cache_pricing:
       enabled: false
       write_billing: included_in_input
@@ -945,9 +945,9 @@ models:
         country: "US"
     pricing:
       tokens:
-        input: { per_credit_unit: 888.8888 }
-        cache_read: { per_credit_unit: 8695.6521 }
-        output: { per_credit_unit: 148.1481 }
+        input: { per_credit_unit: 890 }
+        cache_read: { per_credit_unit: 8890 }
+        output: { per_credit_unit: 150 }
     cache_pricing:
       enabled: false
       write_billing: included_in_input
@@ -993,9 +993,9 @@ models:
         country: "US"
     pricing:
       tokens:
-        input: { per_credit_unit: 3333.3333 }
-        cache_read: { per_credit_unit: 33333.3333 }
-        output: { per_credit_unit: 533.3333 }
+        input: { per_credit_unit: 3335 }
+        cache_read: { per_credit_unit: 33335 }
+        output: { per_credit_unit: 535 }
     cache_pricing:
       enabled: false
       write_billing: included_in_input
@@ -1040,9 +1040,9 @@ models:
         country: "US"
     pricing:
       tokens:
-        input: { per_credit_unit: 380.9523 }
-        cache_read: { per_credit_unit: 3773.5849 }
-        output: { per_credit_unit: 47.619 }
+        input: { per_credit_unit: 385 }
+        cache_read: { per_credit_unit: 3810 }
+        output: { per_credit_unit: 50 }
     cache_pricing:
       enabled: false
       write_billing: included_in_input
@@ -1088,8 +1088,8 @@ models:
         country: "US"
     pricing:
       tokens:
-        input: { per_credit_unit: 31.746 }
-        output: { per_credit_unit: 3.9682 }
+        input: { per_credit_unit: 35 }
+        output: { per_credit_unit: 3.97 }
     cache_pricing:
       enabled: false
       write_billing: included_in_input
@@ -1134,9 +1134,9 @@ models:
         country: "US"
     pricing:
       tokens:
-        input: { per_credit_unit: 533.3333 }
-        cache_read: { per_credit_unit: 5263.1578 }
-        output: { per_credit_unit: 66.6666 }
+        input: { per_credit_unit: 535 }
+        cache_read: { per_credit_unit: 5335 }
+        output: { per_credit_unit: 70 }
     cache_pricing:
       enabled: false
       write_billing: included_in_input
@@ -1199,9 +1199,9 @@ models:
     pricing: # Model-specific base pricing
       tokens:
         input:
-          per_credit_unit: 4444.4444
+          per_credit_unit: 4445
         output:
-          per_credit_unit: 1111.1111
+          per_credit_unit: 1115
     costs:
       input_per_million_token:
         price: 0.15
@@ -1248,9 +1248,9 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 8695.6521
+          per_credit_unit: 8890
         output:
-          per_credit_unit: 2222.2222
+          per_credit_unit: 2225
     costs:
       input_per_million_token:
         price: 0.075
@@ -1289,9 +1289,9 @@ models:
     pricing: # Model-specific base pricing
       tokens:
         input:
-          per_credit_unit: 8695.6521
+          per_credit_unit: 8890
         output:
-          per_credit_unit: 2222.2222
+          per_credit_unit: 2225
     costs:
       input_per_million_token:
         price: 0.075

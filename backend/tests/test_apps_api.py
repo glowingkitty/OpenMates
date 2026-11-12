@@ -197,7 +197,7 @@ async def test_decide_rest_billing_uses_only_server_result_native_credits() -> N
 # contract-test: direct surface=rest_api assertions=ai-decide.request.bounded,ai-decide.billing.bounded
 def test_decide_rest_preflight_validates_entire_request_and_quotes_fallback() -> None:
     body = {"state": "hello", "questions": {"ok": {"type": "noul", "instructions": "Is this a greeting?"}}}
-    assert apps_api.get_variable_preflight_reserved_credits("ai", "decide", body) == 23
+    assert apps_api.get_variable_preflight_reserved_credits("ai", "decide", body) == 22
     with pytest.raises(HTTPException) as caught:
         apps_api.get_variable_preflight_reserved_credits("ai", "decide", {**body, "model": "other/model"})
     assert caught.value.status_code == 422

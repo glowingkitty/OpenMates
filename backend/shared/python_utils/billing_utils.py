@@ -37,6 +37,23 @@ class BillingError(Exception):
 
 # One customer rounding step (credits per 1M tokens) allowed between derived context-band prices.
 CONTEXT_BAND_ROUNDING_CREDITS = Fraction(5)
+# Stored token rates are rounded up to a multiple of this many tokens.
+CONTEXT_BAND_ROUNDING_TOKENS = Fraction(5)
+
+
+def context_band_tolerance_credits(base_unit: Fraction, band_unit: Fraction, multiplier: Fraction) -> Fraction:
+    """Credits per 1M tokens by which a band may differ from base x multiplier.
+
+    Each stored rate is rounded up by less than CONTEXT_BAND_ROUNDING_TOKENS
+    tokens per credit, which moves credits per 1M by at most step * 1M / unit^2.
+    """
+    base_unit, band_unit = Fraction(base_unit), Fraction(band_unit)
+    step = CONTEXT_BAND_ROUNDING_TOKENS * 1_000_000
+    return (
+        multiplier * step / (base_unit * base_unit)
+        + step / (band_unit * band_unit)
+        + CONTEXT_BAND_ROUNDING_CREDITS * multiplier + 1
+    )
 
 def has_credit_headroom(current_credits: int, estimated_credits: int) -> bool:
     """Return whether a planned charge stays within the allowed overdraft."""
@@ -308,11 +325,11 @@ def select_customer_context_band(
             raise BillingError("Invalid customer context band token unit")
         multiplier = Fraction(5) if anthropic_band else Fraction(3, 2) if category == "output" else Fraction(2)
         # Compare credits per 1M tokens. Each derived price is rounded up to a
-        # 5-credit step and stored as tokens per credit rounded down, so the
-        # band may differ from base x multiplier by one rounding step.
+        # 5-token step, so the band may differ from base x multiplier by the
+        # credit effect of one token step on each rate.
         base_credits = Fraction(1_000_000) / Fraction(base_unit)
         band_credits = Fraction(1_000_000) / Fraction(band_unit)
-        tolerance = CONTEXT_BAND_ROUNDING_CREDITS * multiplier + 1
+        tolerance = context_band_tolerance_credits(Fraction(base_unit), Fraction(band_unit), multiplier)
         if abs(band_credits - base_credits * multiplier) > tolerance:
             raise BillingError("Customer context band does not match the approved multiplier")
     if inference_host not in band["eligible_hosts"]:

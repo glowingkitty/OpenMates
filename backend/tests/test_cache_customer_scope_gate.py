@@ -88,7 +88,7 @@ def test_excluded_openai_quote_disables_context_band(monkeypatch):
             "tokens": {"input": {"per_credit_unit": 1000}, "output": {"per_credit_unit": 100}},
             "context_bands": {"over_272k": {
                 "min_input_tokens": 272001, "eligible_hosts": ["openai"],
-                "tokens": {"input": {"per_credit_unit": 500}, "output": {"per_credit_unit": 66.6666}},
+                "tokens": {"input": {"per_credit_unit": 500}, "output": {"per_credit_unit": 70}},
             }},
         },
         "cache_pricing": {

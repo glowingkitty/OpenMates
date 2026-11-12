@@ -54,11 +54,11 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 952.3809
+          per_credit_unit: 955
         cache_read:
-          per_credit_unit: 9523.8095
+          per_credit_unit: 9525
         output:
-          per_credit_unit: 317.4603
+          per_credit_unit: 320
     cache_pricing:
       enabled: true
       write_billing: included_in_input
@@ -91,11 +91,11 @@ models:
         pricing:
           tokens:
             input:
-              per_credit_unit: 980.3921
+              per_credit_unit: 985
             cache_read:
-              per_credit_unit: 9523.8095
+              per_credit_unit: 9525
             output:
-              per_credit_unit: 318.9792
+              per_credit_unit: 320
         costs:
           input_per_million_token:
             price: 0.68
@@ -163,11 +163,11 @@ models:
     pricing: # Current Small 4 API rates: $0.15 input / $0.60 output per million tokens.
       tokens:
         input:
-          per_credit_unit: 4444.4444
+          per_credit_unit: 4445
         cache_read:
-          per_credit_unit: 40000
+          per_credit_unit: 44445
         output:
-          per_credit_unit: 1111.1111
+          per_credit_unit: 1115
     cache_pricing:
       enabled: true
       write_billing: included_in_input
@@ -226,11 +226,11 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 444.4444
+          per_credit_unit: 445
         cache_read:
-          per_credit_unit: 4444.4444
+          per_credit_unit: 4445
         output:
-          per_credit_unit: 88.8888
+          per_credit_unit: 90
     cache_pricing:
       enabled: false
       write_billing: included_in_input

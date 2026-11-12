@@ -36,14 +36,14 @@ UPSTREAM_ANTHROPIC_TARIFFS = {
         "eligible_hosts": ["anthropic"],
         "requires_cache_retention_metric": True,
         "source_url": "https://platform.claude.com/docs/en/models/sonnet-5/overview",
-        "credits_per_million": {"input": 333.3333, "cache_read": 3333.3333, "cache_write": 266.6666, "cache_write_1h": 166.6666, "output": 66.6666},
+        "credits_per_million": {"input": 335, "cache_read": 3335, "cache_write": 270, "cache_write_1h": 170, "output": 70},
         "supplier_per_million": {"input": 2.0, "cache_read": 0.2, "cache_write": 2.5, "cache_write_1h": 4.0, "output": 10.0},
     },
     "claude-sonnet-4-6": {
         "eligible_hosts": ["anthropic", "aws_bedrock"],
         "requires_cache_retention_metric": False,
         "source_url": "https://platform.claude.com/docs/en/models/sonnet-4-6/overview",
-        "credits_per_million": {"input": 202.0202, "cache_read": 2020.202, "cache_write": 161.5508, "cache_write_1h": 101.0101, "output": 40.404},
+        "credits_per_million": {"input": 205, "cache_read": 2025, "cache_write": 165, "cache_write_1h": 105, "output": 45},
         "supplier_per_million": {"input": 3.0, "cache_read": 0.3, "cache_write": 3.75, "cache_write_1h": 6.0, "output": 15.0},
     },
 }
@@ -127,8 +127,20 @@ def test_active_category_prices_cover_configured_supplier_costs(provider: str, m
                     cost_key = "cache_read_per_million_token"
                 supplier = Decimal(str(model["costs"][cost_key]["price"])) * host_multiplier
                 supplier *= Decimal(str(profile.get("context_bands", {}).get(band_name, {}).get(category, 1)))
-                customer = Decimal(1000) / Decimal(str(rate["per_credit_unit"]))
-                assert customer >= supplier * minimum_markup, (provider, model_id, host, band_name, category)
+                # Token counts round up to the next 5 tokens per credit: the rate is a
+                # multiple of 5 within [exact, exact + 5) of cost x margin (0.01 steps below 5).
+                unit = Decimal(str(rate["per_credit_unit"]))
+                exact = Decimal(1000) / (supplier * minimum_markup)
+                step = Decimal(5) if exact >= 5 else Decimal("0.01")
+                # The catalog rate is derived for the dearest eligible host, so cheaper hosts only
+                # need the upper bound; the dearest host needs the full [exact, exact + step) window.
+                dearest = host_multiplier == max(
+                    Decimal(str(model.get("supplier_cost_profiles", {}).get(h, {}).get("multiplier", 1)))
+                    for h in model["cache_pricing"]["eligible_hosts"]
+                )
+                assert unit % step == 0 and unit < exact + step, (provider, model_id, host, band_name, category)
+                if dearest:
+                    assert unit >= exact, (provider, model_id, host, band_name, category)
 
             # A missing write counter falls back to ordinary input pricing.
             if provider == "openai" and model["cache_pricing"]["requires_cache_write_metric"]:
@@ -136,7 +148,8 @@ def test_active_category_prices_cover_configured_supplier_costs(provider: str, m
                 write_cost *= Decimal(str(profile.get("context_bands", {}).get(band_name, {}).get("cache_write", 1)))
                 # Writes cost 1.25x input, so the input fallback keeps cost + 50% / 1.25 = cost x 1.2.
                 fallback_floor = load_pricing_settings().multiplier / Decimal("1.25")
-                assert Decimal(1000) / Decimal(str(category_rates["input"]["per_credit_unit"])) >= write_cost * fallback_floor
+                exact_input = Decimal(1000) / (write_cost * fallback_floor)
+                assert Decimal(str(category_rates["input"]["per_credit_unit"])) < exact_input + 5
 
 
 @pytest.mark.parametrize("provider,model_id,host,raw,expected_read,expected_write", [
@@ -225,5 +238,5 @@ def test_mistral_large_4_missing_read_counter_uses_regular_full_input_rate() -> 
     entry = build_model_usage_breakdown([bucket], lambda _provider, _model: model)["entries"][0]
     assert entry["billing_mode"] == "ordinary_input"
     assert entry["billed_input_tokens"] == 1000
-    assert entry["rates"]["input"] == "952.3809"
+    assert entry["rates"]["input"] == "955"
     assert float(entry["category_credits"]["cache_read"]) == 0

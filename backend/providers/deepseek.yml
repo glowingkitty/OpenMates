@@ -89,9 +89,9 @@ models:
       require_parameters: true
     pricing:
       tokens:
-        input: {per_credit_unit: 2222.2222}
-        cache_read: {per_credit_unit: 66666.6666}
-        output: {per_credit_unit: 555.5555}
+        input: {per_credit_unit: 2225}
+        cache_read: {per_credit_unit: 95240}
+        output: {per_credit_unit: 560}
     cache_pricing:
       enabled: true
       write_billing: included_in_input
@@ -159,9 +159,9 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 505.0505
+          per_credit_unit: 510
         output:
-          per_credit_unit: 168.3501
+          per_credit_unit: 170
     # Together standard pricing reviewed 2026-10-14:
     # https://www.together.ai/models/deepseek-v4-pro-0813
     costs:
@@ -215,9 +215,9 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 4761.9047
+          per_credit_unit: 4765
         output:
-          per_credit_unit: 2380.9523
+          per_credit_unit: 2385
     costs:
       input_per_million_token:
         price: 0.14

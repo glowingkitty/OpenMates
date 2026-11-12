@@ -23,9 +23,9 @@ test('key-free public catalog filters unavailable models and generated details s
   }
   await page.goto('/dev/preview/settings/AiAskModelDetails?variant=catalog-mistral-large&theme=light&width=768&chrome=0');
   await waitForComponentPreview(page);
-  await expect(page.getByTestId('ai-model-pricing-input-row')).toContainText('980');
-  await expect(page.getByTestId('ai-model-pricing-cache-read-row')).toContainText('9523');
-  await expect(page.getByTestId('ai-model-pricing-output-row')).toContainText('318');
+  await expect(page.getByTestId('ai-model-pricing-input-row')).toContainText('985');
+  await expect(page.getByTestId('ai-model-pricing-cache-read-row')).toContainText('9525');
+  await expect(page.getByTestId('ai-model-pricing-output-row')).toContainText('320');
   await expect(page.getByTestId('ai-model-temporary-price-note')).toContainText('No end date has been announced');
 });
 

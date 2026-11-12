@@ -96,7 +96,7 @@ def test_image_references_work_in_string_values_for_all_question_types(location:
     parsed = DecideRequest.model_validate(body)
     assert parsed.assets[REFERENCE].format == "png"
     assert decision_quote(has_assets=True) == 5
-    assert decision_quote() == 23
+    assert decision_quote() == 22
     assert "data_base64" not in repr(parsed)
 
 

@@ -906,9 +906,9 @@ skills:
     pricing:
       tokens:
         input:
-          per_credit_unit: 444.4444
+          per_credit_unit: 445
         output:
-          per_credit_unit: 88.8888
+          per_credit_unit: 90
       per_minute: 3
     supplier_costs:
       tokens:
