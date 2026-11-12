@@ -152,3 +152,34 @@ def test_rust_dirs_need_24h_idle_and_no_running_cargo(tmp_path):
     assert {Path(item["path"]) for item in report["deleted"]} == {idle, idle_cache}
     for kept in (recent, busy_cwd, busy_env):
         assert kept.exists()
+
+
+def test_cache_session_scratch_and_cargo_targets_are_reclaimed_when_idle(tmp_path):
+    repo, cache = tmp_path / "repo", tmp_path / "cache"
+    old_scratch = _make(cache / "3e82-pkgs", 4)
+    fresh_scratch = _make(cache / "a248-demo", 1)
+    in_use_scratch = _make(cache / "fe65-cand", 4)
+    old_target = _make(cache / "business-pkg-target", 2)
+    building_target = _make(cache / "tools-pkg-target", 2)
+    shared_tool_cache = _make(cache / "ms-playwright", 30)
+    not_session_named = _make(cache / "openmates-caddy", 30)
+
+    report = cleanup.run(tmp_path / "tmp", tmp_path / "recovery", apply=True,
+                         in_use=[str(in_use_scratch / "out.log")], repository=repo,
+                         cache_root=cache, cargo_paths=[str(building_target / "debug")])
+    assert {Path(item["path"]) for item in report["deleted"]} == {old_scratch, old_target}
+    assert {item["category"] for item in report["deleted"]} == {"cache_scratch", "rust_cache"}
+    for kept in (fresh_scratch, in_use_scratch, building_target, shared_tool_cache,
+                 not_session_named):
+        assert kept.exists()
+
+
+def test_sibling_recovery_archive_folder_follows_recovery_retention(tmp_path):
+    recovery = tmp_path / ".openmates-worktree-recovery"
+    recovery.mkdir()
+    archives = tmp_path / "OpenMates-worktree-recovery-archives"
+    old = _make(archives / "orphans-old.tar.zst", 20)
+    recent = _make(archives / "orphans-recent.tar.zst", 2)
+    report = cleanup.run(tmp_path / "tmp", recovery, apply=True, in_use=[])
+    assert [Path(item["path"]) for item in report["deleted"]] == [old]
+    assert recent.exists()

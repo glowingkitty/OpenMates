@@ -527,3 +527,65 @@ def test_dead_owner_without_thread_is_still_cancelled(tmp_path):
         c.tick(recovery_margin=0)
         assert c.get(row["id"])["state"] == "cancelled"
         assert _committed(c) == 0
+
+
+def test_serve_refuses_outside_the_service_unit(tmp_path):
+    # Chats ran `serve` in their own shell; that stole the lock from the
+    # systemd unit (crash loop for days) and cleanup stopped with the chat.
+    env = {k: v for k, v in os.environ.items() if k != disk.FOREGROUND_ENV}
+    result = subprocess.run(
+        [sys.executable, str(disk.Path(disk.__file__)), "serve",
+         "--state-root", str(tmp_path / "host")],
+        capture_output=True, text=True, env=env, timeout=30,
+    )
+    assert result.returncode == 2
+    assert disk.SERVICE_UNIT in result.stderr
+    assert not (tmp_path / "host" / "leader.json").exists()
+
+
+def test_leadership_waits_for_a_held_lock_instead_of_failing(tmp_path):
+    c, _root, _now, _usage = fixture(tmp_path)
+    other = disk.Coordinator(tmp_path / "host")
+    stop = threading.Event()
+    with c.leadership() as elected:
+        assert elected is True
+        with pytest.raises(BlockingIOError):
+            with other.leadership():
+                pass
+        outcome = []
+        waiter = threading.Thread(target=lambda: outcome.append(
+            _enter(other, stop)))
+        waiter.start()
+        waiter.join(0.5)
+        assert waiter.is_alive()  # waits while the lock is held
+    waiter.join(10)
+    assert outcome == [True]  # takes over once the holder releases
+    stop.set()
+    other.__dict__.pop("_leader", None)
+    # A stop request while waiting returns without leadership.
+    with c.leadership():
+        with other.leadership(wait_until=lambda: True) as elected:
+            assert elected is False
+
+
+def _enter(coordinator, stop):
+    with coordinator.leadership(wait_until=stop.is_set) as elected:
+        return elected
+
+
+def test_worktree_expiry_runs_with_the_24_hour_inactivity_window(tmp_path, monkeypatch):
+    c, root, _now, _usage = fixture(tmp_path, kinds=("worktrees",))
+    seen = []
+
+    def fake_run(command, **_kwargs):
+        seen.append(command)
+        payload = ('{"inspected": 0, "deleted": []}' if "expire" in command
+                   else '{"deleted": []}')
+        return subprocess.CompletedProcess(command, 0, payload, "")
+
+    monkeypatch.setattr(disk.subprocess, "run", fake_run)
+    with c.leadership():
+        report = c._cleanup(str(root), "worktrees")
+    expire = next(cmd for cmd in seen if "expire" in cmd)
+    assert expire[expire.index("--max-age-hours") + 1] == "24"
+    assert "error" not in report and "reconcile_error" not in report

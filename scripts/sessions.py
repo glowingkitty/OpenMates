@@ -4735,6 +4735,14 @@ def _managed_worktree_age_hours(record: dict, now_timestamp: float) -> float:
     return max(0.0, (now_timestamp - float(timestamp)) / 3600)
 
 
+# Successful probe results per (pid, process start time), reused for at most
+# _EXPIRY_PROBE_CACHE_SECONDS. One expiry pass checks every worktree against
+# the same non-dumpable processes (e.g. `systemd --user`); probing each once
+# per minute keeps a pass bounded without trusting stale references.
+_EXPIRY_PROBE_CACHE: dict[tuple[int, str], tuple[float, list[str]]] = {}
+_EXPIRY_PROBE_CACHE_SECONDS = 60
+
+
 def _expiry_privileged_process_references(pid: int) -> list[str] | None:
     """Inspect one inaccessible process only under the elected disk owner."""
     try:
@@ -4747,6 +4755,9 @@ def _expiry_privileged_process_references(pid: int) -> list[str] | None:
             return None
         stat_path = Path("/proc") / str(pid) / "stat"
         start = stat_path.read_text().rsplit(")", 1)[1].split()[19]
+        cached = _EXPIRY_PROBE_CACHE.get((int(pid), start))
+        if cached is not None and time.monotonic() - cached[0] < _EXPIRY_PROBE_CACHE_SECONDS:
+            return cached[1]
         rc, image, _stderr = _run_cmd(["docker", "inspect", "--format", "{{.Image}}", "api"], timeout=15)
         image = image.strip()
         if rc or not re.fullmatch(r"sha256:[0-9a-f]{64}", image):
@@ -4771,7 +4782,12 @@ def _expiry_privileged_process_references(pid: int) -> list[str] | None:
             return None
         rc, stdout, _stderr = _run_cmd([
             "docker", "run", "--pull=never", "--rm", "--network", "none", "--read-only",
-            "--cap-drop", "ALL", "--cap-add", "SYS_PTRACE", "--security-opt", "no-new-privileges",
+            # SYS_PTRACE passes the ptrace access check on /proc/<pid>/fd;
+            # DAC_READ_SEARCH lets root list that dr-x------ directory owned
+            # by the host user. Without it every probe failed and expiry
+            # retained all worktrees as possibly referenced.
+            "--cap-drop", "ALL", "--cap-add", "SYS_PTRACE", "--cap-add", "DAC_READ_SEARCH",
+            "--security-opt", "no-new-privileges",
             "--security-opt", "apparmor=unconfined",
             "--user", "0:0", "--pids-limit", "64", "--memory", "64m", "--cpus", "0.5",
             "--mount", "type=bind,source=/proc,target=/host-proc,readonly",
@@ -4791,6 +4807,7 @@ def _expiry_privileged_process_references(pid: int) -> list[str] | None:
             return None
         if len(refs) > 4097 or not all(isinstance(ref, str) for ref in refs):
             return None
+        _EXPIRY_PROBE_CACHE[(int(pid), start)] = (time.monotonic(), refs)
         return refs
     except (OSError, ValueError, TypeError, KeyError, IndexError, subprocess.SubprocessError):
         return None

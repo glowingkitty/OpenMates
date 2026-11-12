@@ -86,12 +86,59 @@ __all__ = [
 ]
 
 
+# Inactivity window applied to queued worktree expiry (24 hours, as documented
+# in CLAUDE.md and sessions.WORKTREE_INACTIVE_EXPIRY_HOURS).
+WORKTREE_EXPIRY_HOURS = 24
+# Structured cleanup reports are parsed for counts only. The worktree reconcile
+# report lists every worktree and exceeded the earlier 2 MiB bound on a host
+# with ~80 worktrees, so every pass was recorded as an error.
+REPORT_LIMIT_BYTES = 32 * 1024 * 1024
+SERVICE_UNIT = "openmates-disk-coordinator.service"
+FOREGROUND_ENV = "OPENMATES_DISK_COORDINATOR_FOREGROUND"
+LEADER_WAIT_LOG_SECONDS = 600
+
+
+def _supervised_by_service():
+    """True when this process runs inside the installed systemd user unit."""
+    try:
+        cgroup = Path("/proc/self/cgroup").read_text()
+    except OSError:
+        return False
+    return SERVICE_UNIT in cgroup
+
+
 class Coordinator(CoordinatorState):
     @contextmanager
-    def leadership(self):
+    def leadership(self, wait_until=None):
+        """Hold the elected-owner lock.
+
+        Without ``wait_until`` a held lock raises BlockingIOError at once. With
+        it, the caller waits (polling, so SIGTERM still stops it) until the lock
+        is free or ``wait_until()`` returns True; the service uses this instead
+        of crash-looping while a leftover holder exits.
+        """
         self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
         with (self.root / "leader.lock").open("a+") as leader:
-            fcntl.flock(leader, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            logged = None
+            while True:
+                try:
+                    fcntl.flock(leader, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    break
+                except BlockingIOError:
+                    if wait_until is None:
+                        raise
+                    if wait_until():
+                        yield False
+                        return
+                    if logged is None or time.monotonic() - logged >= LEADER_WAIT_LOG_SECONDS:
+                        logged = time.monotonic()
+                        try:
+                            holder = (self.root / "leader.json").read_text().strip()
+                        except OSError:
+                            holder = "unknown holder"
+                        print(f"Disk coordinator lock is held ({holder}); waiting",
+                              file=sys.stderr, flush=True)
+                    time.sleep(2)
             start = budget._start_time(os.getpid())
             if not start:
                 raise RuntimeError("Cannot establish disk coordinator identity")
@@ -102,7 +149,7 @@ class Coordinator(CoordinatorState):
                 )
             _atomic(self.root / "leader.json", {"pid": os.getpid(), "start": start})
             try:
-                yield
+                yield True
             finally:
                 (self.root / "leader.json").unlink(missing_ok=True)
                 self._leader = None
@@ -166,7 +213,12 @@ class Coordinator(CoordinatorState):
                 str(Path(repository) / "scripts/sessions.py"),
                 "worktree",
                 "expire",
-                # Default is sessions.WORKTREE_HARD_MAX_AGE_HOURS (7 days).
+                # The approved inactivity window (sessions.WORKTREE_INACTIVE_EXPIRY_HOURS).
+                # Callers that queue expiry (the hourly reconciliation unit) cannot
+                # pass their window through the queue, so the owner applies it here;
+                # the 7-day default alone let inactive worktrees fill the disk.
+                "--max-age-hours",
+                str(WORKTREE_EXPIRY_HOURS),
                 "--format",
                 "json",
             ]
@@ -198,7 +250,7 @@ class Coordinator(CoordinatorState):
                 report["error"] = "Host cleanup did not return a valid structured report"
         elif not script:
             try:
-                if len(result.stdout) > 2 * 1024 * 1024:
+                if len(result.stdout) > REPORT_LIMIT_BYTES:
                     raise ValueError("Worktree cleanup report exceeds diagnostic limit")
                 detail = json.loads(result.stdout)
                 report.update(
@@ -248,7 +300,7 @@ class Coordinator(CoordinatorState):
             return {"reconcile_returncode": result.returncode,
                     "reconcile_error": (result.stderr or "")[-300:]}
         try:
-            if len(result.stdout) > 2 * 1024 * 1024:
+            if len(result.stdout) > REPORT_LIMIT_BYTES:
                 raise ValueError("Worktree reconcile report exceeds diagnostic limit")
             detail = json.loads(result.stdout)
             return {"reconcile_returncode": 0, "reconciled_deleted": len(detail["deleted"]),
@@ -652,6 +704,18 @@ def main():
         coordinator.disable(repository)
         print("Coordinated admission disabled; retained ledger and pending requests")
     elif args.action == "serve":
+        if not _supervised_by_service() and os.environ.get(FOREGROUND_ENV) != "1":
+            # Chats once ran `serve` in their own shell: it took the lock from
+            # the systemd unit (which then crash-looped for days) and cleanup
+            # stopped whenever that chat ended.
+            print(
+                f"Refusing to serve outside {SERVICE_UNIT}. Check it with "
+                f"`systemctl --user status {SERVICE_UNIT}`; start or restart it with "
+                f"`systemctl --user restart {SERVICE_UNIT}`. Debugging only: set "
+                f"{FOREGROUND_ENV}=1 with a separate --state-root.",
+                file=sys.stderr,
+            )
+            return 2
         stop = False
 
         def shutdown(*_):
@@ -662,17 +726,20 @@ def main():
         signal.signal(signal.SIGINT, shutdown)
         loaded = _source_fingerprint()
         checked = time.monotonic()
-        with coordinator.leadership(), coordinator.background_cleanup() as dispatch:
-            while not stop:
-                coordinator.tick(cleanup_dispatch=dispatch, proactive=True)
-                time.sleep(1)
-                if time.monotonic() - checked >= SOURCE_CHECK_SECONDS:
-                    checked = time.monotonic()
-                    if _source_fingerprint() != loaded:
-                        # A long-lived owner once kept three-day-old cleanup
-                        # rules alive; hand over so the supervisor restarts
-                        # this service on the deployed code.
-                        return STALE_SOURCE_EXIT
+        with coordinator.leadership(wait_until=lambda: stop) as elected:
+            if not elected:
+                return 0
+            with coordinator.background_cleanup() as dispatch:
+                while not stop:
+                    coordinator.tick(cleanup_dispatch=dispatch, proactive=True)
+                    time.sleep(1)
+                    if time.monotonic() - checked >= SOURCE_CHECK_SECONDS:
+                        checked = time.monotonic()
+                        if _source_fingerprint() != loaded:
+                            # A long-lived owner once kept three-day-old cleanup
+                            # rules alive; hand over so the supervisor restarts
+                            # this service on the deployed code.
+                            return STALE_SOURCE_EXIT
     elif args.action == "owner-check":
         return 0 if owner_check(coordinator) else 1
     elif args.action == "configured-check":

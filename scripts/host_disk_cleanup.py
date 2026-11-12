@@ -11,8 +11,12 @@ Also applies the approved retention rule (age by mtime, never while in use):
     CI_ARTIFACT_MAX_AGE_DAYS, unless a queued, running, preparing or otherwise
     non-terminal job in logs/ci-coordinator/queue.sqlite3 references them (the
     queue is opened read-only; an unreadable queue skips these categories);
-  * Rust target/ dirs of managed worktrees and ~/.cache/openmates-rust-* caches
-    unchanged for RUST_IDLE_HOURS, unless a cargo/rustc process uses them.
+  * Rust target/ dirs of managed worktrees, ~/.cache/openmates-rust-* caches and
+    other cargo target dirs ~/.cache/*-target unchanged for RUST_IDLE_HOURS,
+    unless a cargo/rustc process uses them;
+  * per-session agent scratch in ~/.cache (entries named after a 4-hex session
+    id, e.g. ``3e82-pkgs``) untouched for CACHE_SCRATCH_MAX_AGE_DAYS and not in
+    use. Shared tool caches (pip, uv, ms-playwright, ...) are never touched.
 
 Runs as the disk coordinator's `host` cleanup kind. Outside the elected owner it
 only queues that maintenance (same handoff as docker-cleanup.sh), so cleanup
@@ -26,6 +30,7 @@ import argparse
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import sqlite3
 import stat
@@ -37,6 +42,10 @@ TMP_MAX_AGE_DAYS = 3
 RECOVERY_MAX_AGE_DAYS = 14
 CI_ARTIFACT_MAX_AGE_DAYS = 3
 RUST_IDLE_HOURS = 24
+CACHE_SCRATCH_MAX_AGE_DAYS = 3
+SESSION_SCRATCH_RE = re.compile(r"^[0-9a-f]{4}-[A-Za-z0-9._-]+$")
+# Sibling folders holding one-off worktree recovery archives (same retention).
+EXTRA_RECOVERY_DIRS = ("OpenMates-worktree-recovery-archives",)
 TERMINAL_JOB_STATES = ("success", "failure", "cancelled")
 JOB_REFERENCE_COLUMNS = ("id", "source", "run_id", "prepared_run_id", "preparation_id",
                          "preparation_key", "candidate_tree", "candidate_base")
@@ -130,9 +139,15 @@ def _retention_candidates(repository: Path, cache_root: Path, now: float,
         if target.is_dir() and not target.is_symlink():
             found.append((target, "rust_target", rust_cutoff, worktree))
     if cache_root.is_dir():
-        for entry in cache_root.glob("openmates-rust-*"):
-            if not entry.is_symlink() and (entry.is_dir() or entry.is_file()):
+        scratch_cutoff = now - CACHE_SCRATCH_MAX_AGE_DAYS * 86400
+        for entry in sorted(cache_root.iterdir()):
+            if entry.is_symlink() or not (entry.is_dir() or entry.is_file()):
+                continue
+            if entry.name.startswith("openmates-rust-") or (
+                    entry.name.endswith("-target") and entry.is_dir()):
                 found.append((entry, "rust_cache", rust_cutoff, None))
+            elif SESSION_SCRATCH_RE.match(entry.name):
+                found.append((entry, "cache_scratch", scratch_cutoff, None))
     return found
 
 
@@ -187,7 +202,8 @@ def _candidates(tmp_root: Path, recovery_root: Path, now: float, uid: int) -> li
             if not (stat.S_ISDIR(info.st_mode) or stat.S_ISREG(info.st_mode)):
                 continue  # sockets, fifos and links stay
             found.append((entry, "tmp", tmp_cutoff))
-    for base in (recovery_root / "expired-worktrees", recovery_root):
+    extra = [recovery_root.parent / name for name in EXTRA_RECOVERY_DIRS]
+    for base in (recovery_root / "expired-worktrees", recovery_root, *extra):
         if not base.is_dir():
             continue
         for entry in base.iterdir():
