@@ -38,6 +38,13 @@
         "components/embed-updated-event-notice.spec.ts"
       ]
     },
+    "ai_generated_badge_component": {
+      "execution": "e2e",
+      "enabling_work": "Account-free Vite-only bare previews of the AI generated badge over a finished generated image in the preview card and the fullscreen view (collapsed, expanded, no overlap with the card buttons). Pure presentation fixtures; no backend, account credentials, provider or AI inference.",
+      "specs": [
+        "components/ai-generated-badge.spec.ts"
+      ]
+    },
     "videos_generate_timeline_edit_preview": {
       "execution": "e2e",
       "enabling_work": "Account-free Vite-only bare previews of the opened videos.generate video: timeline below the player for composed and generative videos, extend buttons and description field, edit mode with text, trim and remove, pending bar, version timeline, light and dark, desktop and phone widths. Fixtures use the bundled store example clip. No backend, provider, sandbox, account credentials or AI inference.",

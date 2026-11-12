@@ -36,6 +36,7 @@
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { hasMediaEncryptionMetadata } from '../../../services/encryption/mediaEncryption';
   import SvgEmbedImage from '../code/SvgEmbedImage.svelte';
+  import AiGeneratedBadge from '../AiGeneratedBadge.svelte';
   import ImageModifyProgress from './ImageModifyProgress.svelte';
   import ImageModifyUnmet from './ImageModifyUnmet.svelte';
   import { isModifySkill, readImageModify, readUnmetRequirements } from './imageDraft';
@@ -649,6 +650,7 @@
               {#if versionBadge}
                 <span class="version-badge" data-testid="image-generate-version-badge">{versionBadge}</span>
               {/if}
+              <AiGeneratedBadge variant="fullscreen" corner="top-left" detail={modelDisplayName} />
             </div>
           {:else if previewImageUrl && isLoadingImage}
             <!-- Progressive: show preview while full-res loads -->
@@ -657,6 +659,7 @@
               <div class="progressive-overlay">
                 <div class="loading-spinner small"></div>
               </div>
+              <AiGeneratedBadge variant="fullscreen" corner="top-left" detail={modelDisplayName} />
             </div>
           {:else if isLoadingImage}
             <div class="image-loading">

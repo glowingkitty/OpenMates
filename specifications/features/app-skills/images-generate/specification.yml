@@ -106,6 +106,10 @@ assertions:
     type: invariant
     must: The preview file stored for a generated picture or vector graphic shows the whole picture in its own aspect ratio; it is scaled down to fit the preview size and never cropped or enlarged. A card that is wider or taller than the picture leaves empty space beside it instead of cutting it off.
     depends_on: [examples.create]
+  - id: images-generate.provenance.ai-label
+    type: invariant
+    must: Every finished generated or modified picture shows a small "AI generated" icon over the picture in its preview and in its fullscreen view. It expands on hover, focus or click to the label and the model name. It is an overlay of the interface, never drawn into the picture, and it does not cover the preview's buttons or version badge.
+    depends_on: [examples.create]
   - id: images-generate.revision.same-embed-new-version
     type: behavior
     must: A change to a generated picture or vector graphic of the same chat does not create a second image embed. The existing image embed gains the next version, and every earlier version, including its files, stays stored and viewable until the embed is deleted. A reference to an uploaded image or to an image of another chat creates a new image as before.

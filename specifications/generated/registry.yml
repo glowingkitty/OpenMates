@@ -295,7 +295,7 @@ specifications:
     version: 1
     status: draft
     path: features/app-skills/images-generate
-    fingerprint: 8e3b43b24f7527050329f6d14b6a2f3f3ffeba68c33b022a1ffefcd971034477
+    fingerprint: 7635f718d3655daacea0458c77cfa2513fa505337d8b3fdaa1895b54e82fa793
     required_applies_to:
     - rest_api
     - cli
@@ -4912,6 +4912,18 @@ assertions:
     specification_id: feature.app-skill.images-generate
     type: invariant
     fingerprint: 0ed5d5935a493492dac9b029f78b54d852ceb1845f2af1cd9d5e7577ef6bad73
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  images-generate.provenance.ai-label:
+    specification: feature.app-skill.images-generate@1
+    specification_id: feature.app-skill.images-generate
+    type: invariant
+    fingerprint: cc5e2a7060cbc291568995b59f1226bbf61ee350ff376f980465f59929719b81
     required_applies_to:
     - rest_api
     - cli

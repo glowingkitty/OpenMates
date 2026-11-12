@@ -34,6 +34,8 @@
   import { EMBED_VERSIONS_ENABLED, embedVersionGeneration } from '../../../services/rustCore/embeds/messageEmbedVersion';
   import { findMessageId, rememberFullscreenVersion, resolveImageVersionView, versionBadgeLabel } from './imageVersionScope';
   import { EMPTY_SVG_DRAFT, mergeSvgDraft, readSvgDraft, shouldShowDraftStatusOnly, shouldShowSvgDraft, svgDraftStageLabelKey, type SvgDraftStage, type SvgDraftState } from './svgDraft';
+  import AiGeneratedBadge from '../AiGeneratedBadge.svelte';
+  import { trackContainedInset, type ContainedInset } from '../containedMedia';
   import ImageModifyProgress from './ImageModifyProgress.svelte';
   import { EMPTY_IMAGE_MODIFY, isModifySkill, mergeImageModify, readImageModify, type ImageModifyState } from './imageDraft';
   
@@ -182,6 +184,7 @@
   // Lazy loading: only fetch when the embed scrolls into view
   let isInView = $state(false);
   let containerRef: HTMLElement | undefined = $state(undefined);
+  let pictureInset = $state<ContainedInset | null>(null);
   let observer: IntersectionObserver | undefined = undefined;
   
   // Set up IntersectionObserver for lazy loading
@@ -484,10 +487,14 @@
         <!-- Finished state with loaded image: show decrypted image with model info overlay -->
         <div class="image-content">
           <div class="image-container">
-            <img src={imageUrl} alt={prompt || 'Generated image'} class="preview-image" data-testid="image-generate-preview-image" data-embed-version={shownVersion ?? 1} />
+            <img src={imageUrl} alt={prompt || 'Generated image'} class="preview-image" data-testid="image-generate-preview-image" data-embed-version={shownVersion ?? 1} use:trackContainedInset={(inset) => (pictureInset = inset)} />
             {#if versionBadge}
               <span class="version-badge" data-testid="image-generate-version-badge">{versionBadge}</span>
             {/if}
+            <!-- The picture is letterboxed (object-fit: contain); the frame matches the visible picture so the badge sits on it. -->
+            <div class="picture-frame" style:inset={pictureInset ? `${pictureInset.y}px ${pictureInset.x}px` : '0'}>
+              <AiGeneratedBadge corner="bottom-left" detail={isModify ? undefined : modelDisplayName} />
+            </div>
           </div>
 
         </div>
@@ -663,6 +670,11 @@
   }
   
   /* Which version of the image this message shows (only when there are several). */
+  .picture-frame {
+    position: absolute;
+    pointer-events: none;
+  }
+
   .version-badge {
     position: absolute;
     top: var(--spacing-4);
