@@ -40,6 +40,14 @@ from backend.shared.app_packages.generic_contract import (
 )
 from backend.shared.app_packages.loader import InstalledProvider, get_installed_providers
 from backend.shared.app_packages.provider_dispatch import InstalledProviderOutcome, run_installed_providers
+from backend.shared.app_packages.result_photo_relevance import (
+    CRITERIA_FIELD,
+    rank_results_by_photos,
+    request_projection,
+    requested_limit,
+    wants_photo_ranking,
+    widen_candidate_pool,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -317,12 +325,28 @@ class InstalledProviderSkill(BaseSkill):
         contract_input, error = validate_request_item(models.item_model, raw)
         if contract_input is None:
             return error_group(request_id, error or "Invalid request.")
+        ranked = wants_photo_ranking(self.app_id, self.skill_id, contract_input)
+        provider_input = keep_selectors(contract_input, raw)
         outcomes = await run_installed_providers(
             # Selectors are read from the raw item: the item model may not declare them.
             self.app_id, self.skill_id, select_provider_ids(raw, providers),
-            keep_selectors(contract_input, raw), secrets_manager,
+            widen_candidate_pool(provider_input) if ranked else provider_input, secrets_manager,
         )
-        return build_group(request_id, outcomes)
+        group = build_group(request_id, outcomes)
+        if ranked and group["results"]:
+            await self._rank_group(group, contract_input, secrets_manager)
+        return group
+
+    async def _rank_group(self, group: Dict[str, Any], contract_input: Dict[str, Any], secrets_manager: Any) -> None:
+        """Order the group by criteria fit judged on result photos; then apply the requested limit."""
+        ranking = await rank_results_by_photos(
+            group["results"], relevance_criteria=contract_input[CRITERIA_FIELD],
+            searched=request_projection(contract_input), secrets_manager=secrets_manager,
+        )
+        limit = requested_limit(contract_input)
+        group["results"] = ranking.results[:limit] if limit else ranking.results
+        group["providers"] = list(dict.fromkeys(result["provider_id"] for result in group["results"]))
+        group["relevance_ranking"] = "photos_and_facts" if ranking.applied else "unavailable"
 
     async def execute(self, requests: List[Dict[str, Any]], secrets_manager: Any = None,
                       **kwargs: Any) -> Dict[str, Any]:

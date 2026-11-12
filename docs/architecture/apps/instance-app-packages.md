@@ -271,6 +271,17 @@ concurrently, at most 10 items per call:
    listing URL or a departure). Of several results with one key the highest
    integer `dedupe_priority` wins (default 0; ties keep the first in provider
    order). Both fields are removed from the returned results.
+6. Photo ranking (`result_photo_relevance`): for `shopping.search_products`
+   and `travel.search_stays`, a request item with `relevance_criteria` asks the
+   providers for up to 20 results, then the decision model scores each result
+   (0-4) on its photos (`image_url`, `image_urls`, `images`, `photos`; at most
+   two per result) and a bounded projection of its facts without links,
+   identifiers or attribution. Results are ordered by score, a completed score
+   of 0 (clear conflict) is dropped, and the requested `max_results` is applied
+   afterwards. Each result gets `visual_match` (`evaluated` with the score, or
+   `unavailable`) and the group gets `relevance_ranking` (`photos_and_facts` or
+   `unavailable`). Any failure (no photos, download or decision error, time
+   limit) keeps the provider order.
 
 **Flat schemas** (`InstalledProviderFlatSkill`, set as `class_path` instead).
 The tool input (call arguments named by the public `tool_schema` properties;

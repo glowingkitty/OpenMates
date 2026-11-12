@@ -33,6 +33,17 @@ logger = logging.getLogger(__name__)
 DEFAULT_SKILL_TIMEOUT = 20.0
 
 
+def _names_relevance_criteria(arguments: Any) -> bool:
+    """True when any request of the call carries non-empty ranking criteria."""
+    if not isinstance(arguments, dict):
+        return False
+    requests = arguments.get("requests", [arguments])
+    return isinstance(requests, list) and any(
+        isinstance(request, dict) and isinstance(request.get("relevance_criteria"), str)
+        and request["relevance_criteria"].strip() for request in requests
+    )
+
+
 def get_skill_timeout(app_id: str, skill_id: str, arguments: Dict[str, Any]) -> float:
     """Select the assistant's default envelope without overriding explicit timeouts.
 
@@ -71,6 +82,9 @@ def get_skill_timeout(app_id: str, skill_id: str, arguments: Dict[str, Any]) -> 
     # parallel batch can wait up to SEARCH_SLOT_BUDGET_SECONDS before its call.
     if (app_id, skill_id) == ("nutrition", "search_recipes"):
         return 60.0
+    if (app_id, skill_id) == ("travel", "search_stays"):
+        # Ranking stays by their photos adds bounded image loading and decision time.
+        return 45.0 if _names_relevance_criteria(arguments) else DEFAULT_SKILL_TIMEOUT
     if (app_id, skill_id) != ("shopping", "search_products") or not isinstance(arguments, dict):
         return DEFAULT_SKILL_TIMEOUT
     requests = arguments.get("requests", [arguments])

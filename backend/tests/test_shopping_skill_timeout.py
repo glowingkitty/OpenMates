@@ -47,3 +47,9 @@ async def test_selection_does_not_replace_explicit_executor_timeouts(monkeypatch
         "shopping", "search_products", {"requests": requests}, timeout=.5)
     assert result == [{"results": []}]
     assert dispatch.await_args.args[3] == .5
+
+
+def test_stay_search_with_criteria_gets_time_for_photo_ranking():
+    criteria = {"requests": [{"query": "Example City", "relevance_criteria": "bright rooms with a desk"}]}
+    assert get_skill_timeout("travel", "search_stays", criteria) == 45.0
+    assert get_skill_timeout("travel", "search_stays", {"requests": [{"query": "Example City"}]}) == DEFAULT_SKILL_TIMEOUT
