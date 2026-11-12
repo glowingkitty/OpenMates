@@ -8084,6 +8084,11 @@ export const APP_SKILL_METADATA = [
                 "maxLength": 4000,
                 "description": "What the user asked for, kept close to their own words: what the video shows, order, style, mood and pacing. Say so when it is based on search results or given pictures, and include the exact texts to show (headlines, titles, numbers) word for word.\n"
               },
+              "user_request": {
+                "type": "string",
+                "maxLength": 2000,
+                "description": "The user's latest message about this video, copied word for word. Always pass it.\n"
+              },
               "images": {
                 "x-ui": {
                   "basic": true

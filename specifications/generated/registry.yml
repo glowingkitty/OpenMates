@@ -377,7 +377,7 @@ specifications:
     version: 1
     status: draft
     path: features/app-skills/videos-generate
-    fingerprint: 729545ba0d28796f890fa53b03118edfe2c1e058071fa8f4d011af8f9a4e4893
+    fingerprint: fdc4e0ec5165138bc21ed43c4408c869019ed185e1337941638015f3821b8fde
     required_applies_to:
     - rest_api
     - cli
@@ -5401,7 +5401,7 @@ assertions:
     specification: feature.app-skill.videos-generate@1
     specification_id: feature.app-skill.videos-generate
     type: behavior
-    fingerprint: 61a07ae61e52f0cec97b32411ae14059bfa36c6214b96c2a88ece7cf2a4961b2
+    fingerprint: 3ab6c7b0930b95a0278e2e98c10da32415beed18e12ee73676b8552e1f975131
     required_applies_to:
     - rest_api
     - cli

@@ -8762,7 +8762,23 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                   'with '
                                                                                                   'change.\n',
                                                                                    'type': 'string',
-                                                                                   'x-ui': {'basic': False}}},
+                                                                                   'x-ui': {'basic': False}},
+                                                                  'user_request': {'description': 'The '
+                                                                                                  "user's "
+                                                                                                  'latest '
+                                                                                                  'message '
+                                                                                                  'about '
+                                                                                                  'this '
+                                                                                                  'video, '
+                                                                                                  'copied '
+                                                                                                  'word '
+                                                                                                  'for '
+                                                                                                  'word. '
+                                                                                                  'Always '
+                                                                                                  'pass '
+                                                                                                  'it.\n',
+                                                                                   'maxLength': 2000,
+                                                                                   'type': 'string'}},
                                                    'required': ['instructions'],
                                                    'type': 'object'},
                                          'type': 'array',

@@ -197,7 +197,7 @@ async def run_generate(task: Any, app_id: str, skill_id: str, arguments: dict[st
             decision = await decide_route(
                 mode=request.mode, instructions=request.instructions,
                 picture_kinds=[picture.kind for picture in pictures], secrets_manager=task._secrets_manager,
-                task_id=str(task.request.id),
+                task_id=str(task.request.id), user_request=request.user_request,
             )
             check_route_constraints(request, decision.route)
         except RoutingUnavailable as exc:

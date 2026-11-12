@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from typing import Any, Mapping, Optional
 
 MAX_INSTRUCTION_CHARS = 4000
+MAX_USER_REQUEST_CHARS = 2000
 MAX_IMAGES = 12
 MODES = ("auto", "generative", "composed")
 MODE_AUTO, MODE_GENERATIVE, MODE_COMPOSED = MODES
@@ -68,6 +69,7 @@ class GenerateRequest:
     source_video: Optional[str]
     change: Optional[str]
     first_frame_embed_ids: tuple[str, ...]
+    user_request: str = ""  # the user's own wording; evidence for routing only, never sent to a video model
 
     @property
     def is_change(self) -> bool:
@@ -143,6 +145,8 @@ def parse_generate_request(item: Mapping[str, Any]) -> GenerateRequest:
     if len(instructions) > MAX_INSTRUCTION_CHARS:
         raise GenerateRequestError(f"instructions are longer than {MAX_INSTRUCTION_CHARS} characters")
 
+    raw_user_request = item.get("user_request")
+    user_request = raw_user_request.strip()[:MAX_USER_REQUEST_CHARS] if isinstance(raw_user_request, str) else ""
     images = _refs(item.get("images"))
     first_frame_ids = _first_frame_ids(item.get("input_embed_ids"))
     if images and first_frame_ids:
@@ -172,7 +176,7 @@ def parse_generate_request(item: Mapping[str, Any]) -> GenerateRequest:
         check_change_constraints(GenerateRequest(
             instructions=instructions, images=images, mode=mode, aspect_ratio=aspect_ratio or DEFAULT_ASPECT_RATIO,
             duration_seconds=duration, resolution=resolution, model=model, seed=seed, source_video=source_video,
-            change=change, first_frame_embed_ids=first_frame_ids,
+            change=change, first_frame_embed_ids=first_frame_ids, user_request=user_request,
         ))
     if first_frame_ids and mode == MODE_COMPOSED:
         raise GenerateRequestError("input_embed_ids is a generative first frame; pass composed pictures as images")
@@ -183,7 +187,7 @@ def parse_generate_request(item: Mapping[str, Any]) -> GenerateRequest:
     request = GenerateRequest(
         instructions=instructions, images=images, mode=mode, aspect_ratio=aspect_ratio or DEFAULT_ASPECT_RATIO,
         duration_seconds=duration, resolution=resolution, model=model, seed=seed, source_video=source_video,
-        change=change, first_frame_embed_ids=first_frame_ids,
+        change=change, first_frame_embed_ids=first_frame_ids, user_request=user_request,
     )
     if mode != MODE_AUTO:
         check_route_constraints(request, mode)
@@ -260,4 +264,5 @@ def task_arguments(request: GenerateRequest) -> dict[str, Any]:
         "source_video": request.source_video,
         "change": request.change,
         "first_frame_embed_ids": list(request.first_frame_embed_ids),
+        "user_request": request.user_request,
     }

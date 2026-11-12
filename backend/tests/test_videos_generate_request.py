@@ -162,3 +162,14 @@ async def test_skill_rest_text_only_is_generative_omni(dispatch):
     queued = dispatch.await_args.kwargs["arguments"]["requests"][0]
     assert (queued["mode"], queued["model"], queued["resolution"]) == ("generative", gr.DEFAULT_MODEL, "720p")
     assert queued["full_model_reference"] == f"google/{gr.DEFAULT_MODEL}" == "google/gemini-omni-1.2-flash"
+
+
+# contract-test: supporting surface=gui.web assertions=videos-generate.routing.generative-or-composed
+def test_user_request_travels_to_the_task_for_routing():
+    from backend.apps.videos.generate_request import parse_generate_request, task_arguments
+
+    request = parse_generate_request({"instructions": "A cinematic overview of three discoveries",
+                                      "user_request": "  Based on the web results, create a short video for me  "})
+    assert request.user_request == "Based on the web results, create a short video for me"
+    assert parse_generate_request(task_arguments(request)).user_request == request.user_request
+    assert parse_generate_request({"instructions": "A fox"}).user_request == ""
