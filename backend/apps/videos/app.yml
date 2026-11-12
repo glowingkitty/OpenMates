@@ -178,12 +178,14 @@ skills:
       without a picture, or a whole search). Each request is made either as a generative clip (invented realistic or stylized footage,
       camera movement, animating one picture) or as a composed, code-rendered video (exact texts and
       titles, lists, numbers, charts, diagrams, slideshows or recaps of the given pictures, anything
-      based on search results, two or more pictures). The skill decides the kind itself from
+      based on search results, two or more pictures, any voice-over, sound effects or music). The skill decides the kind itself from
       the instructions and pictures. Pass the user's request in instructions without turning it into
       a cinematic prompt, and name the exact texts to show. When the video is based on search
       results or other pictures in this chat, pass each one's exact embed_ref in images (results
       without a visible picture too; the skill reads their pictures and texts itself). To change an earlier result pass
       its embed_ref as source_video with change edit, extend_start or extend_end.
+      The skill makes the video's sound itself: put a wanted voice-over (with its exact words), sound
+      effects and music in instructions and do not call audio or music skills for the same video.
       Do not use this for fake real-world footage, fake endorsements, public-figure
       likeness/persona/voice imitation, scams, spam, or watermark/detection evasion.
     class_path: backend.apps.videos.skills.generate_skill.GenerateSkill

@@ -3,7 +3,8 @@
 Assertion videos-generate.routing.generative-or-composed: a mode named in the
 request wins. Otherwise Jev (the typesafe decision client that also reviews
 images.modify results) decides from the instruction, the user's own message and from how many pictures
-of which kind were given. The pictures themselves are never sent. When Jev
+of which kind were given. Generative clips are silent, so a request for a voice-over, sound effects or
+music is composed (the composition defines its own sound). The pictures themselves are never sent. When Jev
 cannot be reached the request fails explicitly (``RoutingUnavailable``) before
 anything is charged; there is no default route.
 
@@ -37,12 +38,14 @@ RESULT_KINDS = frozenset({"search_result", TEXT_ONLY_KIND})
 ROUTE_CRITERIA = {
     MODE_COMPOSED: (
         "An exact, code-rendered video: exact texts, titles, headlines, lists, numbers, charts, diagrams, "
-        "logos, a slideshow or recap of the given pictures, anything based on search results, and any request "
-        "with two or more pictures."
+        "logos, a slideshow or recap of the given pictures, anything based on search results, any request "
+        "with two or more pictures, and any request for sound: a spoken voice-over or narration, sound effects "
+        "or background music."
     ),
     MODE_GENERATIVE: (
         "One invented moving clip made by a generative video model: realistic or stylized footage, scenes, "
-        "camera movement, animation of one picture. It can start from at most one picture and cannot show exact text."
+        "camera movement, animation of one picture. It can start from at most one picture, cannot show exact text "
+        "and is silent."
     ),
 }
 
@@ -100,8 +103,9 @@ async def decide_route(*, mode: str, instructions: str, picture_kinds: Sequence[
                 "web results, news, given pictures, headlines or exact texts, choose composed even if "
                 "state.video_request reads like a film prompt. "
                 "Choose composed for exact texts, titles, lists, charts, slideshows of the given pictures, "
-                "anything based on search results or two or more pictures; choose generative for invented "
-                "moving footage. A generative clip can start from at most one picture: with two or more given "
+                "anything based on search results or two or more pictures, and whenever a voice-over, narration, "
+                "spoken text, sound effects or music is asked for (generative clips are silent); choose generative "
+                "for invented moving footage without sound. A generative clip can start from at most one picture: with two or more given "
                 "pictures or any given search result the video is always composed."
             ),
             "criteria": dict(ROUTE_CRITERIA),

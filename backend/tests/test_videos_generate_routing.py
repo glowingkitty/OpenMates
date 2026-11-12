@@ -111,6 +111,36 @@ async def test_text_only_results_are_counted_and_a_result_is_never_generative(mo
         "1 picture: 1 search_result; 2 search results without a picture (text only)")
 
 
+# contract-test: supporting surface=gui.web assertions=videos-generate.routing.generative-or-composed,videos-generate.composed.sound
+@pytest.mark.asyncio
+async def test_sound_requests_are_routed_as_composed(monkeypatch):
+    """Generative clips are silent: the routing question says a voice-over, sound effects or music means composed."""
+    seen = _stub_client(monkeypatch, answer=_choice("composed"))
+    decision = await routing.decide_route(
+        mode="auto", instructions="Three scenes about bees with a voice-over, whooshes and calm music",
+        picture_kinds=[], secrets_manager=None, task_id="t",
+    )
+    assert decision == routing.RouteDecision("composed", routing.DECIDED_BY_MODEL)
+    question = seen["questions"]["route"]
+    for word in ("voice-over", "sound effects", "music", "generative clips are silent"):
+        assert word in question["instructions"]
+    assert "voice-over" in question["criteria"]["composed"]
+    assert "silent" in question["criteria"]["generative"]
+
+
+# contract-test: supporting surface=gui.web assertions=videos-generate.routing.generative-or-composed
+def test_skill_hint_keeps_sound_inside_the_video_request():
+    """The assistant passes the wanted sound in instructions instead of calling audio or music skills."""
+    from pathlib import Path
+
+    import yaml
+
+    app = yaml.safe_load((Path(__file__).resolve().parents[1] / "apps/videos/app.yml").read_text())
+    hint = next(skill for skill in app["skills"] if skill["id"] == "generate")["preprocessor_hint"]
+    assert "makes the video's sound itself" in hint
+    assert "do not call audio or music skills" in hint
+
+
 # contract-test: supporting surface=gui.web assertions=videos-generate.routing.generative-or-composed
 def test_assistant_tool_schema_does_not_offer_mode():
     """The assistant cannot name a mode in chat: the routing model decides from the request."""
