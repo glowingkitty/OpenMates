@@ -253,7 +253,8 @@ def _regions(value: Any) -> List[str]:
         return []
     _require(isinstance(value, list) and 0 < len(value) <= MAX_PROVIDER_REGIONS
              and all(isinstance(code, str) and REGION_CODE_RE.match(code) for code in value),
-             f"provider regions must be a list of 1-{MAX_PROVIDER_REGIONS} ISO 3166-1 alpha-2 codes (e.g. DE)")
+             f"provider regions must be a list of 1-{MAX_PROVIDER_REGIONS} ISO 3166-1 alpha-2 codes (e.g. DE); "
+             'quote Norway as "NO"')
     _require(len(set(value)) == len(value), "provider regions must be unique")
     return value
 

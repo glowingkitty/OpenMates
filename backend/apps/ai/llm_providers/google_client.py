@@ -340,6 +340,17 @@ def _clamp_temperature_for_thinking_model(model_id: str, temperature: float) -> 
 GEMINI_4_MODEL_IDS = frozenset({"gemini-4-argon", "gemini-4-carbon"})
 
 
+def _sampling_config(normalized_model_id: str, model_id: str, temperature: float | None) -> dict:
+    """Sampling options for one request.
+
+    Gemini 4 models and turns without a routed temperature (consent-only focus
+    or Project routing turns) use Google's default sampling instead of a value.
+    """
+    if normalized_model_id in GEMINI_4_MODEL_IDS or temperature is None:
+        return {}
+    return {"temperature": _clamp_temperature_for_thinking_model(model_id, temperature)}
+
+
 def _google_thinking_config(model_id: str, thinking_level: Optional[str]) -> types.ThinkingConfig:
     """Apply supported native thinking levels without affecting other models."""
 
@@ -993,10 +1004,7 @@ async def invoke_google_ai_studio_chat_completions(
         # Clamp temperature for thinking models: Google confirmed that temperature < 1.0 causes
         # infinite reasoning loops that exhaust the token budget and flush raw internal reasoning
         # text (missing thought: true tag) into the response as regular text.
-        sampling_config = (
-            {} if normalized_model_id in GEMINI_4_MODEL_IDS else
-            {"temperature": _clamp_temperature_for_thinking_model(model_id, temperature)}
-        )
+        sampling_config = _sampling_config(normalized_model_id, model_id, temperature)
         output_limit = (
             min(max_tokens, 65_536) if max_tokens is not None else 65_536
         ) if normalized_model_id in GEMINI_4_MODEL_IDS else max_tokens
@@ -1390,10 +1398,7 @@ async def invoke_google_chat_completions(
         # Clamp temperature for thinking models: Google confirmed that temperature < 1.0 causes
         # infinite reasoning loops that exhaust the token budget and flush raw internal reasoning
         # text (missing thought: true tag) into the response as regular text.
-        sampling_config = (
-            {} if normalized_model_id in GEMINI_4_MODEL_IDS else
-            {"temperature": _clamp_temperature_for_thinking_model(model_id, temperature)}
-        )
+        sampling_config = _sampling_config(normalized_model_id, model_id, temperature)
         output_limit = (
             min(max_tokens, 65_536) if max_tokens is not None else 65_536
         ) if normalized_model_id in GEMINI_4_MODEL_IDS else max_tokens

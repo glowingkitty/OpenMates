@@ -278,3 +278,13 @@ def test_argon_reconciles_missing_thoughts_and_marks_inconsistent_usage(
     receipt = build_model_usage_breakdown([normalized.to_bucket()], lambda *_args: None)
     assert receipt["output_tokens"] == normalized.output_billable
     assert receipt["usage_source"] == source
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.defaults.google-tier-profiles
+def test_turn_without_routed_temperature_uses_google_default_sampling():
+    # Consent-only focus turns carry no routed temperature; the request must not fail.
+    assert google_client._sampling_config("gemini-3.8-flash", "gemini-3.8-flash", None) == {}
+    assert google_client._sampling_config("gemini-3.8-flash", "gemini-3.8-flash", 0.2) == {
+        "temperature": google_client.GEMINI_THINKING_MIN_TEMPERATURE
+    }
+    assert google_client._sampling_config("gemini-4-argon", "gemini-4-argon", 0.4) == {}

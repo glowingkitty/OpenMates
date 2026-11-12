@@ -213,6 +213,8 @@ A provider that covers only some countries can declare them with `regions`
 (1-60 unique ISO 3166-1 alpha-2 codes, for example `regions: [DE, AT]`). A
 generic-contract request that names other countries does not start that
 provider and lists it as skipped. Without `regions` the provider is worldwide.
+Quote Norway as `"NO"`: an unquoted `NO` in YAML is read as a boolean and the
+server rejects the package.
 
 Secrets are imported into Vault at `kv/data/providers/<provider id>` like
 built-in provider keys. A provider receives only its own declared secrets, for
