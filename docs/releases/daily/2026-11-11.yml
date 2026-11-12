@@ -1,27 +1,27 @@
 schema_version: 1
 cadence: daily
 date: '2026-11-11'
-generated_at: '2026-11-11T17:35:51+00:00'
+generated_at: '2026-11-12T00:20:47+00:00'
 range:
-  since: 24 hours ago
-  until: null
+  since: '2026-11-11T00:00:00+00:00'
+  until: '2026-11-12T00:00:00+00:00'
   from_ref: null
   to_ref: HEAD
   assume_released: false
 summary:
-  total_commits: 52
+  total_commits: 61
   section_counts:
     features: 21
-    bug_fixes: 22
+    bug_fixes: 28
     improvements: 1
-    docs: 4
+    docs: 6
     tests: 3
-    infrastructure: 1
+    infrastructure: 2
     internal: 0
     other: 0
   newsletter_ready_items: 0
-  user_facing_items: 33
-  dev_only_items: 52
+  user_facing_items: 35
+  dev_only_items: 61
   unknown_release_items: 0
 feature_availability:
   disabled_features:
@@ -162,6 +162,347 @@ feature_availability:
     recommendations.
 sections:
   features:
+  - title: 'feat(embeds): user-made embed versions, image Enhance and the embed-updated chat event (server, client core, web
+      components)'
+    section: features
+    commits:
+    - 32b672579c
+    authored_at: '2026-11-11T22:29:12+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/embed_update_history.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/images/enhance_jobs.py
+    - backend/apps/images/tasks/__init__.py
+    - backend/apps/images/tasks/enhance_task.py
+    - backend/apps/images/tasks/image_revision.py
+    - backend/core/api/app/routes/embed_user_revisions.py
+    - backend/core/api/app/routes/embeds_api.py
+    - backend/core/api/app/routes/images_enhance.py
+    - backend/core/api/app/services/embed_version_transaction_service.py
+    - backend/core/api/app/services/pending_embed_notices.py
+    - backend/core/api/app/services/storage_reference_service.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/core/api/main.py
+    - backend/core/directus/extensions/embed-version-transaction/src/index.js
+    - backend/core/directus/extensions/embed-version-transaction/src/operations.js
+    - backend/core/directus/extensions/embed-version-transaction/src/project-items.js
+    - backend/core/directus/extensions/embed-version-transaction/src/user-revisions.js
+    - backend/core/directus/extensions/embed-version-transaction/test/user-revisions.test.js
+    - backend/core/directus/schemas/embed_diffs.yml
+    - backend/core/directus/schemas/embed_user_revisions.yml
+    - backend/core/directus/schemas/image_enhance_jobs.yml
+    - backend/providers/google.yml
+    - backend/scripts/image_enhance_provider_probe.py
+    - backend/shared/providers/google/gemini_image_enhance.py
+    - backend/tests/test_embed_update_history.py
+    - backend/tests/test_embed_user_revisions_routes.py
+    - backend/tests/test_embed_version_routes.py
+    - backend/tests/test_images_enhance.py
+    - config/sdk-capabilities.json
+    - deployment/Caddyfile.example
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    - docs/migration/rust/shared-client.yml
+    - docs/plans/embed-user-edit-versions/plan.yml
+    - frontend/apps/web_app/src/routes/dev/preview/[...path]/+page.svelte
+    - frontend/apps/web_app/tests/components/embed-enhance-button.spec.ts
+    - frontend/apps/web_app/tests/components/embed-updated-event-notice.spec.ts
+    - frontend/packages/ui/src/components/EmbedUpdatedEventNotice.preview.ts
+    - frontend/packages/ui/src/components/EmbedUpdatedEventNotice.svelte
+    - frontend/packages/ui/src/components/HeaderActionMenu.svelte
+    - frontend/packages/ui/src/components/embedUpdatedGroup.ts
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImageGenerateEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/images/ImageGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/embed_user_edits.yml
+    - frontend/packages/ui/src/styles/icons.css
+    - frontend/packages/ui/static/icons/sparkles.svg
+    - packages/openmates-browser-bindings/src/browser.rs
+    - packages/openmates-browser-bindings/src/browser_embed_revision.rs
+    - packages/openmates-browser-bindings/src/browser_embed_user_edit.rs
+    - packages/openmates-rust/src/client.rs
+    - packages/openmates-rust/src/client/embed.rs
+    - packages/openmates-rust/src/client/embed_pinned_version.rs
+    - packages/openmates-rust/src/client/embed_pinned_version_tests.rs
+    - packages/openmates-rust/src/client/embed_updated_event.rs
+    - packages/openmates-rust/src/client/embed_updated_event_tests.rs
+    - packages/openmates-rust/src/client/embed_user_edit_client.rs
+    - packages/openmates-rust/src/client/embed_user_restore.rs
+    - packages/openmates-rust/src/client/embed_user_restore_tests.rs
+    - packages/openmates-rust/src/client/embed_user_revision.rs
+    - packages/openmates-rust/src/client/embed_user_revision_refusal.rs
+    - packages/openmates-rust/src/client/embed_user_revision_tests.rs
+    - packages/openmates-rust/src/client/image_enhance.rs
+    - packages/openmates-rust/src/client/image_enhance_client.rs
+    - packages/openmates-rust/src/client/image_enhance_job.rs
+    - packages/openmates-rust/src/client/image_enhance_refusal.rs
+    - packages/openmates-rust/src/client/image_enhance_tests.rs
+    - packages/openmates-rust/src/client/send_prepared_turn.rs
+    - packages/openmates-rust/src/client/transport.rs
+    - packages/openmates-rust/src/view_model/window_flows.rs
+    - scripts/ci_coverage_manifest.json
+    - scripts/tests/test_production_caddy_route_parity.py
+    - specifications/features/app-skills/images-generate/examples.yml
+    - specifications/features/app-skills/images-generate/specification.yml
+    - specifications/features/embed-user-edits/examples.yml
+    - specifications/features/embed-user-edits/specification.yml
+    - specifications/features/projects/examples.yml
+    - specifications/features/projects/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    - id: embed:images:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:generate_draft
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:generated_image
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:modify
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:vectorize
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:images, embed:images:generate, embed:images:generate_draft, embed:images:generated_image,
+      embed:images:modify, embed:images:vectorize'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat(memories,workflows): memories settings as list and pages, the regular workflow editor in chat, chat-linked
+      billing'
+    section: features
+    commits:
+    - b84bb098b8
+    authored_at: '2026-11-11T21:34:39+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/memory_create_draft.py
+    - backend/apps/ai/processing/memory_preview_billing.py
+    - backend/core/api/app/routes/memory_suggestions.py
+    - backend/core/api/app/routes/workflows.py
+    - backend/core/api/app/services/directus/usage.py
+    - backend/core/api/app/services/workflow_authoring_billing.py
+    - backend/core/api/app/services/workflow_input_service.py
+    - backend/core/api/app/services/workflow_registry_planner.py
+    - backend/shared/python_utils/memory_loader.py
+    - backend/tests/test_memory_create_draft.py
+    - backend/tests/test_memory_loader.py
+    - backend/tests/test_memory_suggestions_route.py
+    - backend/tests/test_workflow_authoring_billing.py
+    - backend/tests/test_workflow_input_sessions.py
+    - docs/migration/rust/overview.yml
+    - docs/migration/rust/web-app.yml
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/components/chat-recommendations-components.spec.ts
+    - frontend/apps/web_app/tests/components/rule-document-manager.spec.ts
+    - frontend/apps/web_app/tests/components/settings-memories-list.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-detail-tabs.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-memory-picker.spec.ts
+    - frontend/apps/web_app/tests/web-rust-core-chat-recommendations-flow.spec.ts
+    - frontend/apps/web_app/tests/web-rust-core-workflow-side-panel.spec.ts
+    - frontend/apps/web_app/tests/wiki-learning-flow.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatRecommendations.svelte
+    - frontend/packages/ui/src/components/ContextEntryEventNotice.preview.ts
+    - frontend/packages/ui/src/components/ContextEntryEventNotice.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/activeChatScrollKeeper.ts
+    - frontend/packages/ui/src/components/projects/RuleDocumentManager.svelte
+    - frontend/packages/ui/src/components/settings/MemoriesEditor.svelte
+    - frontend/packages/ui/src/components/settings/MemoryBodyEditor.svelte
+    - frontend/packages/ui/src/components/settings/MemoryEntryPage.preview.ts
+    - frontend/packages/ui/src/components/settings/MemoryEntryPage.svelte
+    - frontend/packages/ui/src/components/settings/MemoryList.preview.ts
+    - frontend/packages/ui/src/components/settings/MemoryList.svelte
+    - frontend/packages/ui/src/components/settings/SearchSortBar.svelte
+    - frontend/packages/ui/src/components/settings/SettingsMemoriesHub.svelte
+    - frontend/packages/ui/src/components/settings/elements/SettingsItem.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowChatPane.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowChatPaneLayout.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowChatPaneLayout.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowEditorPane.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowEditorPane.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowHomePreviewHarness.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowMemoryPicker.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowMemoryPicker.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowProvisionalView.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowSidePanel.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowSidePanelView.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowSidePanelView.svelte
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowAuthoringRun.test.ts
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowChatDraft.test.ts
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowSidePanelDraft.test.ts
+    - frontend/packages/ui/src/components/workflows/workflowAuthoringRun.ts
+    - frontend/packages/ui/src/components/workflows/workflowChatDraft.ts
+    - frontend/packages/ui/src/components/workflows/workflowEditorPane.ts
+    - frontend/packages/ui/src/components/workflows/workflowSidePanelDraft.ts
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/sources/memories.yml
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - frontend/packages/ui/src/services/__tests__/legacyTypedMemoryMigration.test.ts
+    - frontend/packages/ui/src/services/__tests__/recommendationDrafts.test.ts
+    - frontend/packages/ui/src/services/__tests__/workflowInputStream.test.ts
+    - frontend/packages/ui/src/services/__tests__/workflowMemorySnapshotService.test.ts
+    - frontend/packages/ui/src/services/legacyTypedMemoryMigration.ts
+    - frontend/packages/ui/src/services/recommendationDrafts.ts
+    - frontend/packages/ui/src/services/ruleDocumentService.ts
+    - frontend/packages/ui/src/services/workflowInputService.ts
+    - frontend/packages/ui/src/services/workflowMemorySnapshotService.ts
+    - frontend/packages/ui/src/stores/memoryDraftSuggestionStore.ts
+    - frontend/packages/ui/src/stores/workflowSidePanelStore.ts
+    - frontend/packages/ui/src/utils/__tests__/memoryListEntries.test.ts
+    - frontend/packages/ui/src/utils/__tests__/ruleDocuments.test.ts
+    - frontend/packages/ui/src/utils/memoryListEntries.ts
+    - frontend/packages/ui/src/utils/ruleDocuments.ts
+    - packages/openmates-rust/src/client/memory_documents.rs
+    - packages/openmates-rust/src/client/memory_documents_tests.rs
+    - packages/openmates-rust/src/web_work/workflow_bodies.rs
+    - packages/openmates-rust/src/web_work/workflows_tests.rs
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/workflows-ui/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, platform:projects, platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat(images): text-only draft images use Recraft V4.1 Flash'
+    section: features
+    commits:
+    - 662f5ab4f2
+    authored_at: '2026-11-11T19:26:57+00:00'
+    changed_paths:
+    - backend/apps/images/app.yml
+    - backend/apps/images/tasks/generate_task.py
+    - backend/core/api/app/schemas/settings.py
+    - backend/providers/recraft.yml
+    - backend/scripts/test_generated_media_billing_contract.py
+    - backend/shared/providers/recraft/recraft.py
+    - backend/tests/test_vector_author.py
+    - frontend/apps/web_app/tests/cli-images.spec.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - packages/openmates-rust/src/generated/metadata.json
+    - specifications/features/app-skills/images-generate/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:images'
+    - commit is not reachable from main, so it is not newsletter-ready
   - title: 'feat(core): Swift gets full chat row and message fields, per-message stream updates, and one core-owned session
       for REST'
     section: features
@@ -1072,134 +1413,136 @@ sections:
     - contains user-facing product paths
     - 'matches feature availability gates: app:jobs, embed:jobs:search, skill:jobs:search'
     - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'feat(design,safety): embroidery shows sewing time and thread length estimates; ordinary media prompts are no longer
-      refused as public-figure imitation'
-    section: features
+  bug_fixes:
+  - title: 'fix(embeds): user-made versions accept generated images stored without a catalog stamp'
+    section: bug_fixes
     commits:
-    - 751a56d90e
-    authored_at: '2026-11-10T18:18:59+00:00'
+    - 050e724865
+    authored_at: '2026-11-11T23:20:12+00:00'
     changed_paths:
-    - backend/apps/design/app.yml
-    - backend/apps/design/embroidery/content.py
-    - backend/apps/design/embroidery_sandbox/pipeline.py
-    - backend/apps/design/embroidery_sandbox/stitch_report.py
-    - backend/shared/providers/e2b_embroidery.py
-    - backend/shared/python_utils/generated_media_graph.py
-    - backend/shared/python_utils/media_generation_safety/pipeline.py
-    - backend/tests/test_embroidery_sandbox_rules.py
-    - backend/tests/test_media_generation_safety.py
-    - docs/plans/design-embroidery-skill/pipeline-results.md
-    - frontend/apps/web_app/tests/components/design-embroidery-embed.spec.ts
-    - frontend/packages/ui/src/components/embeds/design/DesignEmbroideryEmbedFullscreen.preview.ts
-    - frontend/packages/ui/src/components/embeds/design/DesignEmbroideryEmbedFullscreen.svelte
-    - frontend/packages/ui/src/components/embeds/design/DesignEmbroideryEmbedPreview.examples.ts
-    - frontend/packages/ui/src/components/embeds/design/DesignEmbroideryEmbedPreview.svelte
-    - frontend/packages/ui/src/components/embeds/design/EmbroideryThreadList.svelte
-    - frontend/packages/ui/src/components/embeds/design/designEmbedText.ts
-    - frontend/packages/ui/src/components/embeds/design/embroideryDesign.ts
-    - frontend/packages/ui/src/components/embeds/design/embroideryFixtures.ts
-    - frontend/packages/ui/src/i18n/sources/embeds.yml
-    - specifications/features/app-skills/design-embroidery/examples.yml
-    - specifications/features/app-skills/design-embroidery/specification.yml
+    - backend/core/directus/extensions/embed-version-transaction/src/user-revisions.js
+    - backend/core/directus/extensions/embed-version-transaction/test/user-revisions.test.js
     - specifications/generated/assertion-index.yml
-    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(embeds): image fullscreen uses the available width and height; tap opens only the image in a new tab'
+    section: bug_fixes
+    commits:
+    - 788e8aa2cb
+    authored_at: '2026-11-11T23:12:29+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/media-result-layout.spec.ts
+    - frontend/packages/ui/src/components/embeds/ResultEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImageGenerateEmbedFullscreen.svelte
+    - specifications/generated/assertion-index.yml
     release_status: dev_only
     communication_status: dev_only
     newsletter_ready: false
     user_facing: true
     related_features:
-    - id: app:design
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/design/app.yml
-    - id: embed:design:embroidery
+    - id: embed:images:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
       override: null
-      parent_id: app:design
-      source: backend/apps/design/app.yml
-    - id: embed:design:embroidery_design
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:generate_draft
       kind: embed
       default_enabled: true
       effective_enabled: true
       override: null
-      parent_id: app:design
-      source: backend/apps/design/app.yml
-    feature_metadata_changed: true
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:generated_image
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:modify
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:vectorize
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    feature_metadata_changed: false
     rationale:
-    - classified as new features from commit subject/path rules
+    - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - 'matches feature availability gates: app:design, embed:design:embroidery, embed:design:embroidery_design'
+    - 'matches feature availability gates: embed:images:generate, embed:images:generate_draft, embed:images:generated_image,
+      embed:images:modify, embed:images:vectorize'
     - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'feat(slides): manual deck edits save as a new server version; editor uses round icon buttons'
-    section: features
+  - title: 'fix(images): Enhance recognises images by the owner''s file index'
+    section: bug_fixes
     commits:
-    - 02af2dfda5
-    authored_at: '2026-11-10T18:12:51+00:00'
+    - 3580882d60
+    authored_at: '2026-11-11T23:07:41+00:00'
     changed_paths:
-    - backend/apps/ai/testing/mercury_routing_fixture.py
-    - backend/core/directus/extensions/embed-version-transaction/src/operations.js
-    - backend/core/directus/extensions/embed-version-transaction/test/operations.test.js
-    - backend/tests/test_mercury_routing_fixture.py
-    - backend/tests/test_slides_markup_core_fixed_points.py
+    - backend/core/api/app/routes/images_enhance.py
+    - backend/tests/test_images_enhance.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(web): chat version updates settle from their own IndexedDB commit so voice call events save'
+    section: bug_fixes
+    commits:
+    - 535922db85
+    authored_at: '2026-11-11T22:56:44+00:00'
+    changed_paths:
     - docs/migration/rust/overview.yml
     - docs/migration/rust/web-app.yml
-    - docs/plans/embed-user-revision-commit/plan.yml
-    - frontend/apps/web_app/tests/components/slides-editor.spec.ts
-    - frontend/apps/web_app/tests/slides-manual-edit.spec.ts
-    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlHistory.ts
-    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlReceipt.ts
-    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlRevision.ts
-    - frontend/packages/ui/src/components/embeds/shared/EmbedIconButton.svelte
-    - frontend/packages/ui/src/components/embeds/slides/SlidesDeckEmbedFullscreen.preview.ts
-    - frontend/packages/ui/src/components/embeds/slides/SlidesDeckEmbedFullscreen.svelte
-    - frontend/packages/ui/src/components/embeds/slides/SlidesEditor.preview.ts
-    - frontend/packages/ui/src/components/embeds/slides/SlidesEditor.svelte
-    - frontend/packages/ui/src/components/embeds/slides/SlidesEditorCanvas.svelte
-    - frontend/packages/ui/src/components/embeds/slides/SlidesEditorStrip.svelte
-    - frontend/packages/ui/src/components/embeds/slides/SlidesEditorToolbar.svelte
-    - frontend/packages/ui/src/components/embeds/slides/__tests__/UnifiedFullscreenOwnerStub.svelte
-    - frontend/packages/ui/src/components/embeds/slides/__tests__/slidesDeckFullscreenOwner.test.ts
-    - frontend/packages/ui/src/components/embeds/slides/slidesDeckVersion.test.ts
-    - frontend/packages/ui/src/components/embeds/slides/slidesDeckVersion.ts
-    - frontend/packages/ui/src/i18n/locales/ar.json
-    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/services/db/__tests__/chatComponentVersionUpdate.test.ts
+    - frontend/packages/ui/src/services/db/offlineChangesAndUpdates.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(jobs): application mode writes the letter when asked to skip questions; matching focus modes are entered before
+      answering'
+    section: bug_fixes
+    commits:
+    - 0f3827de47
+    authored_at: '2026-11-11T21:05:49+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/jobs/focus_modes/prepare-interview/SKILL.md
+    - backend/apps/jobs/focus_modes/write-application/SKILL.md
     - frontend/packages/ui/src/i18n/locales/de.json
     - frontend/packages/ui/src/i18n/locales/en.json
-    - frontend/packages/ui/src/i18n/locales/es.json
-    - frontend/packages/ui/src/i18n/locales/fr.json
-    - frontend/packages/ui/src/i18n/locales/he.json
-    - frontend/packages/ui/src/i18n/locales/hi.json
-    - frontend/packages/ui/src/i18n/locales/id.json
-    - frontend/packages/ui/src/i18n/locales/it.json
-    - frontend/packages/ui/src/i18n/locales/ja.json
-    - frontend/packages/ui/src/i18n/locales/ko.json
-    - frontend/packages/ui/src/i18n/locales/nl.json
-    - frontend/packages/ui/src/i18n/locales/pl.json
-    - frontend/packages/ui/src/i18n/locales/pt.json
-    - frontend/packages/ui/src/i18n/locales/ru.json
-    - frontend/packages/ui/src/i18n/locales/sv.json
-    - frontend/packages/ui/src/i18n/locales/th.json
-    - frontend/packages/ui/src/i18n/locales/tr.json
-    - frontend/packages/ui/src/i18n/locales/vi.json
-    - frontend/packages/ui/src/i18n/locales/zh.json
-    - frontend/packages/ui/src/i18n/sources/embeds.yml
-    - frontend/packages/ui/src/services/__tests__/embedDiffStore.test.ts
-    - frontend/packages/ui/src/services/__tests__/embedUserRevision.test.ts
-    - frontend/packages/ui/src/services/embedDiffStore.ts
-    - frontend/packages/ui/src/services/embedStore.ts
-    - frontend/packages/ui/src/services/embedUserRevision.ts
-    - frontend/packages/ui/src/services/embedUserRevisionHistory.ts
-    - scripts/ci_coverage_manifest.json
-    - specifications/features/slides/examples.yml
-    - specifications/features/slides/specification.yml
-    - specifications/generated/assertion-index.yml
-    - specifications/generated/coverage.yml
-    - specifications/generated/registry.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/jobs_prepare_interview.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/jobs_write_application.yml
+    - frontend/packages/ui/src/i18n/sources/recommendations.yml
     release_status: dev_only
     communication_status: dev_only
     newsletter_ready: false
@@ -1212,59 +1555,6 @@ sections:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    - id: embed:slides:deck
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:slides
-      source: backend/apps/slides/app.yml
-    feature_metadata_changed: true
-    rationale:
-    - classified as new features from commit subject/path rules
-    - contains user-facing product paths
-    - 'matches feature availability gates: app:ai, embed:slides:deck'
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'feat(memories): client core and CLI apply assistant memory writes, with undo'
-    section: features
-    commits:
-    - c75d22343b
-    authored_at: '2026-11-10T17:57:14+00:00'
-    changed_paths:
-    - backend/apps/jobs/focus_modes/prepare-interview/SKILL.md
-    - config/cli-command-catalog.json
-    - config/sdk-capabilities.json
-    - docs/migration/rust/cli.yml
-    - docs/migration/rust/overview.yml
-    - docs/migration/rust/shared-client.yml
-    - frontend/packages/openmates-tui-native/assets/cli-command-catalog.json
-    - frontend/packages/openmates-tui-native/assets/manifest.json
-    - frontend/packages/openmates-tui-native/src/cli/account/memories.rs
-    - frontend/packages/openmates-tui-native/src/cli/account/memories_tests.rs
-    - frontend/packages/openmates-tui-native/src/cli/send.rs
-    - frontend/packages/openmates-tui-native/src/cli/utility.rs
-    - packages/openmates-rust/src/chat_state/bookmarks.rs
-    - packages/openmates-rust/src/chat_state/mod.rs
-    - packages/openmates-rust/src/client.rs
-    - packages/openmates-rust/src/client/memory_documents.rs
-    - packages/openmates-rust/src/client/memory_documents_tests.rs
-    - packages/openmates-rust/src/client/memory_write_jobs.rs
-    - packages/openmates-rust/src/client/memory_write_jobs_tests.rs
-    - packages/openmates-rust/src/client/project_create_request.rs
-    - packages/openmates-rust/src/client/recommendations.rs
-    - packages/openmates-rust/src/client/recommendations_tests.rs
-    - packages/openmates-rust/src/client/send.rs
-    - packages/openmates-rust/src/client/send_observations.rs
-    - packages/openmates-rust/src/client/send_options.rs
-    - packages/openmates-rust/src/client/send_prepared_transport.rs
-    - packages/openmates-rust/src/client/send_prepared_turn.rs
-    - packages/openmates-rust/src/client/send_turn_runtime.rs
-    - scripts/jobs_focus_real_test.py
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features:
     - id: app:jobs
       kind: app
       default_enabled: true
@@ -1274,11 +1564,72 @@ sections:
       source: backend/apps/jobs/app.yml
     feature_metadata_changed: false
     rationale:
-    - classified as new features from commit subject/path rules
+    - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - 'matches feature availability gates: app:jobs'
+    - 'matches feature availability gates: app:ai, app:jobs'
     - commit is not reachable from main, so it is not newsletter-ready
-  bug_fixes:
+  - title: 'fix(tooling): idle Claude chat processes close after 3 hours instead of 24'
+    section: bug_fixes
+    commits:
+    - 8927917d05
+    authored_at: '2026-11-11T19:47:05+00:00'
+    changed_paths:
+    - scripts/claude-idle-chats-setup.sh
+    - scripts/claude_idle_chats.py
+    - scripts/tests/test_claude_idle_chats.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(core): a chat whose newest message is too large for one page opens that message with the Rust core on'
+    section: bug_fixes
+    commits:
+    - 58ebd0d138
+    authored_at: '2026-11-11T19:37:32+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    - packages/openmates-rust/src/client/browser.rs
+    - packages/openmates-rust/src/client/saved_chat_oversized_join.rs
+    - packages/openmates-rust/src/client/saved_chat_oversized_join_tests.rs
+    - packages/openmates-rust/src/client/saved_chat_read.rs
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(tooling): whole-package type-checks need the heavy slot, and a heavy run starts only when its memory fits'
+    section: bug_fixes
+    commits:
+    - 2a1c89c814
+    authored_at: '2026-11-11T19:23:50+00:00'
+    changed_paths:
+    - .claude/rules/testing.md
+    - CLAUDE.md
+    - scripts/heavy_local_guard.py
+    - scripts/heavy_slot.py
+    - scripts/tests/test_heavy_local_guard.py
+    - scripts/tests/test_heavy_slot.py
+    - scripts/tests/test_safe_bash_guard.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
   - title: 'fix(memories): the proxy lets the web app reach the memory suggestion routes'
     section: bug_fixes
     commits:
@@ -1921,89 +2272,6 @@ sections:
     - contains user-facing product paths
     - 'matches feature availability gates: app:design'
     - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'fix(memories): a memory suggestion preview retries once on a lost connection, is never billed twice and names
-      connection problems'
-    section: bug_fixes
-    commits:
-    - '9859544140'
-    authored_at: '2026-11-10T20:42:47+00:00'
-    changed_paths:
-    - backend/core/api/app/routes/memory_suggestions.py
-    - backend/tests/test_memory_suggestions_route.py
-    - docs/migration/rust/overview.yml
-    - docs/migration/rust/web-app.yml
-    - frontend/apps/web_app/tests/web-rust-core-chat-recommendations-flow.spec.ts
-    - frontend/packages/ui/src/components/ChatRecommendations.svelte
-    - frontend/packages/ui/src/i18n/locales/ar.json
-    - frontend/packages/ui/src/i18n/locales/cs.json
-    - frontend/packages/ui/src/i18n/locales/de.json
-    - frontend/packages/ui/src/i18n/locales/en.json
-    - frontend/packages/ui/src/i18n/locales/es.json
-    - frontend/packages/ui/src/i18n/locales/fr.json
-    - frontend/packages/ui/src/i18n/locales/he.json
-    - frontend/packages/ui/src/i18n/locales/hi.json
-    - frontend/packages/ui/src/i18n/locales/id.json
-    - frontend/packages/ui/src/i18n/locales/it.json
-    - frontend/packages/ui/src/i18n/locales/ja.json
-    - frontend/packages/ui/src/i18n/locales/ko.json
-    - frontend/packages/ui/src/i18n/locales/nl.json
-    - frontend/packages/ui/src/i18n/locales/pl.json
-    - frontend/packages/ui/src/i18n/locales/pt.json
-    - frontend/packages/ui/src/i18n/locales/ru.json
-    - frontend/packages/ui/src/i18n/locales/sv.json
-    - frontend/packages/ui/src/i18n/locales/th.json
-    - frontend/packages/ui/src/i18n/locales/tr.json
-    - frontend/packages/ui/src/i18n/locales/vi.json
-    - frontend/packages/ui/src/i18n/locales/zh.json
-    - frontend/packages/ui/src/i18n/sources/memories.yml
-    - frontend/packages/ui/src/services/__tests__/recommendationDrafts.test.ts
-    - frontend/packages/ui/src/services/recommendationDrafts.ts
-    - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
-    feature_metadata_changed: true
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'fix(images): recovery records of a changed image are verified and acknowledged through the Rust core'
-    section: bug_fixes
-    commits:
-    - e59edc5db0
-    authored_at: '2026-11-10T19:02:50+00:00'
-    changed_paths:
-    - config/sdk-capabilities.json
-    - docs/migration/rust/overview.yml
-    - docs/migration/rust/shared-client.yml
-    - docs/migration/rust/web-app.yml
-    - docs/plans/image-edit-as-embed-version/wire-contract.md
-    - frontend/apps/web_app/tests/vector-graphic-chat.spec.ts
-    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
-    - frontend/packages/ui/src/services/rustCore/embeds/__tests__/rustRecoveredChildRevision.test.ts
-    - frontend/packages/ui/src/services/rustCore/embeds/childRevisionHandlers.ts
-    - frontend/packages/ui/src/services/rustCore/embeds/childRevisionProtocol.ts
-    - frontend/packages/ui/src/services/rustCore/embeds/rustRecoveredChildRevision.ts
-    - frontend/packages/ui/src/services/rustCore/embeds/rustStreamedEmbedWrite.ts
-    - packages/openmates-browser-bindings/src/browser_embed_revision.rs
-    - packages/openmates-rust/src/client/embed_child_revision_recovery.rs
-    - packages/openmates-rust/src/client/embed_child_revision_recovery_tests.rs
-    - packages/openmates-rust/src/client/embed_child_revision_tests.rs
-    - packages/openmates-rust/src/client/embed_write.rs
-    - packages/openmates-rust/src/client/embed_write_session.rs
-    - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
-    feature_metadata_changed: true
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
   improvements:
   - title: 'perf(apple): a decrypted message rebuilds its rendered form once, not once per field'
     section: improvements
@@ -2041,6 +2309,38 @@ sections:
     - 'matches feature availability gates: platform:ios, platform:macos'
     - commit is not reachable from main, so it is not newsletter-ready
   docs:
+  - title: 'docs: backend Rust migration Plan gains coexistence rules, isolation measures and staged agent instructions'
+    section: docs
+    commits:
+    - b92fde98ca
+    authored_at: '2026-11-11T19:48:47+00:00'
+    changed_paths:
+    - docs/plans/backend-rust-migration/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: draft Plan for the step-by-step backend migration from Python to Rust'
+    section: docs
+    commits:
+    - cb332e3a8e
+    authored_at: '2026-11-11T17:43:49+00:00'
+    changed_paths:
+    - docs/plans/backend-rust-migration/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
   - title: 'docs(images): named-person examples are split into the two deciding cases and the limits'
     section: docs
     commits:
@@ -2162,6 +2462,25 @@ sections:
     - classified as tests from commit subject/path rules
     - commit is not reachable from main, so it is not newsletter-ready
   infrastructure:
+  - title: 'build(web): production and main web builds use the shared Rust client core'
+    section: infrastructure
+    commits:
+    - 06da1b2448
+    authored_at: '2026-11-11T17:37:20+00:00'
+    changed_paths:
+    - docs/releases/daily/2026-11-11.md
+    - docs/releases/daily/2026-11-11.yml
+    - frontend/apps/web_app/scripts/vercel-build.mjs
+    - frontend/apps/web_app/scripts/vercel-build.test.mjs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
   - title: 'chore(ai): log why an authored results card ended without any member'
     section: infrastructure
     commits:
@@ -2182,6 +2501,233 @@ sections:
   other: []
 unreleased_progress:
   dev_only:
+  - title: 'fix(embeds): user-made versions accept generated images stored without a catalog stamp'
+    commits:
+    - 050e724865
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(embeds): image fullscreen uses the available width and height; tap opens only the image in a new tab'
+    commits:
+    - 788e8aa2cb
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:images:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:generate_draft
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:generated_image
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:modify
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:vectorize
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+  - title: 'fix(images): Enhance recognises images by the owner''s file index'
+    commits:
+    - 3580882d60
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix(web): chat version updates settle from their own IndexedDB commit so voice call events save'
+    commits:
+    - 535922db85
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat(embeds): user-made embed versions, image Enhance and the embed-updated chat event (server, client core, web
+      components)'
+    commits:
+    - 32b672579c
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    - id: embed:images:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:generate_draft
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:generated_image
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:modify
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:vectorize
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+  - title: 'feat(memories,workflows): memories settings as list and pages, the regular workflow editor in chat, chat-linked
+      billing'
+    commits:
+    - b84bb098b8
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix(jobs): application mode writes the letter when asked to skip questions; matching focus modes are entered before
+      answering'
+    commits:
+    - 0f3827de47
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:jobs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/jobs/app.yml
+  - title: 'docs: backend Rust migration Plan gains coexistence rules, isolation measures and staged agent instructions'
+    commits:
+    - b92fde98ca
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(tooling): idle Claude chat processes close after 3 hours instead of 24'
+    commits:
+    - 8927917d05
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(core): a chat whose newest message is too large for one page opens that message with the Rust core on'
+    commits:
+    - 58ebd0d138
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat(images): text-only draft images use Recraft V4.1 Flash'
+    commits:
+    - 662f5ab4f2
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+  - title: 'fix(tooling): whole-package type-checks need the heavy slot, and a heavy run starts only when its memory fits'
+    commits:
+    - 2a1c89c814
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: draft Plan for the step-by-step backend migration from Python to Rust'
+    commits:
+    - cb332e3a8e
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'build(web): production and main web builds use the shared Rust client core'
+    commits:
+    - 06da1b2448
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
   - title: 'fix(memories): the proxy lets the web app reach the memory suggestion routes'
     commits:
     - 0ad0c4f7f8
@@ -2783,53 +3329,19 @@ unreleased_progress:
     release_status: dev_only
     communication_status: not_user_facing
     related_features: []
-  - title: 'fix(memories): a memory suggestion preview retries once on a lost connection, is never billed twice and names
-      connection problems'
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix(web): chat version updates settle from their own IndexedDB commit so voice call events save'
     commits:
-    - '9859544140'
+    - 535922db85
     section: bug_fixes
     release_status: dev_only
-    communication_status: dev_only
+    communication_status: not_user_facing
     related_features: []
-  - title: 'fix(images): recovery records of a changed image are verified and acknowledged through the Rust core'
+  - title: 'feat(memories,workflows): memories settings as list and pages, the regular workflow editor in chat, chat-linked
+      billing'
     commits:
-    - e59edc5db0
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'feat(design,safety): embroidery shows sewing time and thread length estimates; ordinary media prompts are no longer
-      refused as public-figure imitation'
-    commits:
-    - 751a56d90e
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:design
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/design/app.yml
-    - id: embed:design:embroidery
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:design
-      source: backend/apps/design/app.yml
-    - id: embed:design:embroidery_design
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:design
-      source: backend/apps/design/app.yml
-  - title: 'feat(slides): manual deck edits save as a new server version; editor uses round icon buttons'
-    commits:
-    - 02af2dfda5
+    - b84bb098b8
     section: features
     release_status: dev_only
     communication_status: dev_only
@@ -2841,29 +3353,34 @@ unreleased_progress:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    - id: embed:slides:deck
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
       override: null
-      parent_id: app:slides
-      source: backend/apps/slides/app.yml
-  - title: 'feat(memories): client core and CLI apply assistant memory writes, with undo'
+      parent_id: null
+      source: platform
+  - title: 'feat(images): text-only draft images use Recraft V4.1 Flash'
     commits:
-    - c75d22343b
+    - 662f5ab4f2
     section: features
     release_status: dev_only
     communication_status: dev_only
     related_features:
-    - id: app:jobs
+    - id: app:images
       kind: app
       default_enabled: true
       effective_enabled: true
       override: null
       parent_id: null
-      source: backend/apps/jobs/app.yml
-  unknown_release_status: []
-  feature_metadata_changed:
+      source: backend/apps/images/app.yml
   - title: 'feat(core): Swift gets full chat row and message fields, per-message stream updates, and one core-owned session
       for REST'
     commits:
@@ -3049,53 +3566,64 @@ unreleased_progress:
       override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
-  - title: 'fix(memories): a memory suggestion preview retries once on a lost connection, is never billed twice and names
-      connection problems'
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix(embeds): image fullscreen uses the available width and height; tap opens only the image in a new tab'
     commits:
-    - '9859544140'
+    - 788e8aa2cb
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix(images): recovery records of a changed image are verified and acknowledged through the Rust core'
-    commits:
-    - e59edc5db0
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'feat(design,safety): embroidery shows sewing time and thread length estimates; ordinary media prompts are no longer
-      refused as public-figure imitation'
-    commits:
-    - 751a56d90e
-    section: features
     release_status: dev_only
     communication_status: dev_only
     related_features:
-    - id: app:design
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/design/app.yml
-    - id: embed:design:embroidery
+    - id: embed:images:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
       override: null
-      parent_id: app:design
-      source: backend/apps/design/app.yml
-    - id: embed:design:embroidery_design
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:generate_draft
       kind: embed
       default_enabled: true
       effective_enabled: true
       override: null
-      parent_id: app:design
-      source: backend/apps/design/app.yml
-  - title: 'feat(slides): manual deck edits save as a new server version; editor uses round icon buttons'
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:generated_image
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:modify
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:vectorize
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    newsletter_ready: false
+  - title: 'fix(images): Enhance recognises images by the owner''s file index'
     commits:
-    - 02af2dfda5
+    - 3580882d60
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat(embeds): user-made embed versions, image Enhance and the embed-updated chat event (server, client core, web
+      components)'
+    commits:
+    - 32b672579c
     section: features
     release_status: dev_only
     communication_status: dev_only
@@ -3107,16 +3635,125 @@ unreleased_progress:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    - id: embed:slides:deck
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    - id: embed:images:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
       override: null
-      parent_id: app:slides
-      source: backend/apps/slides/app.yml
-marketing_candidates:
-  newsletter: []
-  social_or_video:
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:generate_draft
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:generated_image
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:modify
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:vectorize
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    newsletter_ready: false
+  - title: 'feat(memories,workflows): memories settings as list and pages, the regular workflow editor in chat, chat-linked
+      billing'
+    commits:
+    - b84bb098b8
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix(jobs): application mode writes the letter when asked to skip questions; matching focus modes are entered before
+      answering'
+    commits:
+    - 0f3827de47
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:jobs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/jobs/app.yml
+    newsletter_ready: false
+  - title: 'fix(core): a chat whose newest message is too large for one page opens that message with the Rust core on'
+    commits:
+    - 58ebd0d138
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat(images): text-only draft images use Recraft V4.1 Flash'
+    commits:
+    - 662f5ab4f2
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    newsletter_ready: false
   - title: 'feat(design): drawn lines given as filled outlines are sewn as satin bands across the line'
     commits:
     - 3fab01e191
@@ -3582,90 +4219,6 @@ marketing_candidates:
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     newsletter_ready: false
-  - title: 'fix(memories): a memory suggestion preview retries once on a lost connection, is never billed twice and names
-      connection problems'
-    commits:
-    - '9859544140'
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-    newsletter_ready: false
-  - title: 'fix(images): recovery records of a changed image are verified and acknowledged through the Rust core'
-    commits:
-    - e59edc5db0
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-    newsletter_ready: false
-  - title: 'feat(design,safety): embroidery shows sewing time and thread length estimates; ordinary media prompts are no longer
-      refused as public-figure imitation'
-    commits:
-    - 751a56d90e
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:design
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/design/app.yml
-    - id: embed:design:embroidery
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:design
-      source: backend/apps/design/app.yml
-    - id: embed:design:embroidery_design
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:design
-      source: backend/apps/design/app.yml
-    newsletter_ready: false
-  - title: 'feat(slides): manual deck edits save as a new server version; editor uses round icon buttons'
-    commits:
-    - 02af2dfda5
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: embed:slides:deck
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:slides
-      source: backend/apps/slides/app.yml
-    newsletter_ready: false
-  - title: 'feat(memories): client core and CLI apply assistant memory writes, with undo'
-    commits:
-    - c75d22343b
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:jobs
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/jobs/app.yml
-    newsletter_ready: false
 risks:
   communication:
   - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
@@ -3673,6 +4226,394 @@ risks:
   - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
 sources:
   commits:
+  - sha: 050e724865c577d17a20ba29624a4065bc2f0c70
+    short_sha: 050e724865
+    authored_at: '2026-11-11T23:20:12+00:00'
+    subject: 'fix(embeds): user-made versions accept generated images stored without a catalog stamp'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/directus/extensions/embed-version-transaction/src/user-revisions.js
+    - backend/core/directus/extensions/embed-version-transaction/test/user-revisions.test.js
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 788e8aa2cb43db437adfd3c3161dd15103843f48
+    short_sha: 788e8aa2cb
+    authored_at: '2026-11-11T23:12:29+00:00'
+    subject: 'fix(embeds): image fullscreen uses the available width and height; tap opens only the image in a new tab'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/media-result-layout.spec.ts
+    - frontend/packages/ui/src/components/embeds/ResultEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImageGenerateEmbedFullscreen.svelte
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - embed:images:generate
+    - embed:images:generate_draft
+    - embed:images:generated_image
+    - embed:images:modify
+    - embed:images:vectorize
+  - sha: 3580882d6003038c98a9ac77b77458421af01bd5
+    short_sha: 3580882d60
+    authored_at: '2026-11-11T23:07:41+00:00'
+    subject: 'fix(images): Enhance recognises images by the owner''s file index'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/images_enhance.py
+    - backend/tests/test_images_enhance.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 535922db8526883b5ba421f611054f7f34f28364
+    short_sha: 535922db85
+    authored_at: '2026-11-11T22:56:44+00:00'
+    subject: 'fix(web): chat version updates settle from their own IndexedDB commit so voice call events save'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/migration/rust/overview.yml
+    - docs/migration/rust/web-app.yml
+    - frontend/packages/ui/src/services/db/__tests__/chatComponentVersionUpdate.test.ts
+    - frontend/packages/ui/src/services/db/offlineChangesAndUpdates.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 32b672579cabfcb68cd56512b86f8836a93a086d
+    short_sha: 32b672579c
+    authored_at: '2026-11-11T22:29:12+00:00'
+    subject: 'feat(embeds): user-made embed versions, image Enhance and the embed-updated chat event (server, client core,
+      web components)'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/embed_update_history.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/images/enhance_jobs.py
+    - backend/apps/images/tasks/__init__.py
+    - backend/apps/images/tasks/enhance_task.py
+    - backend/apps/images/tasks/image_revision.py
+    - backend/core/api/app/routes/embed_user_revisions.py
+    - backend/core/api/app/routes/embeds_api.py
+    - backend/core/api/app/routes/images_enhance.py
+    - backend/core/api/app/services/embed_version_transaction_service.py
+    - backend/core/api/app/services/pending_embed_notices.py
+    - backend/core/api/app/services/storage_reference_service.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/core/api/main.py
+    - backend/core/directus/extensions/embed-version-transaction/src/index.js
+    - backend/core/directus/extensions/embed-version-transaction/src/operations.js
+    - backend/core/directus/extensions/embed-version-transaction/src/project-items.js
+    - backend/core/directus/extensions/embed-version-transaction/src/user-revisions.js
+    - backend/core/directus/extensions/embed-version-transaction/test/user-revisions.test.js
+    - backend/core/directus/schemas/embed_diffs.yml
+    - backend/core/directus/schemas/embed_user_revisions.yml
+    - backend/core/directus/schemas/image_enhance_jobs.yml
+    - backend/providers/google.yml
+    - backend/scripts/image_enhance_provider_probe.py
+    - backend/shared/providers/google/gemini_image_enhance.py
+    - backend/tests/test_embed_update_history.py
+    - backend/tests/test_embed_user_revisions_routes.py
+    - backend/tests/test_embed_version_routes.py
+    - backend/tests/test_images_enhance.py
+    - config/sdk-capabilities.json
+    - deployment/Caddyfile.example
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    - docs/migration/rust/shared-client.yml
+    - docs/plans/embed-user-edit-versions/plan.yml
+    - frontend/apps/web_app/src/routes/dev/preview/[...path]/+page.svelte
+    - frontend/apps/web_app/tests/components/embed-enhance-button.spec.ts
+    - frontend/apps/web_app/tests/components/embed-updated-event-notice.spec.ts
+    - frontend/packages/ui/src/components/EmbedUpdatedEventNotice.preview.ts
+    - frontend/packages/ui/src/components/EmbedUpdatedEventNotice.svelte
+    - frontend/packages/ui/src/components/HeaderActionMenu.svelte
+    - frontend/packages/ui/src/components/embedUpdatedGroup.ts
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImageGenerateEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/images/ImageGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/embed_user_edits.yml
+    - frontend/packages/ui/src/styles/icons.css
+    - frontend/packages/ui/static/icons/sparkles.svg
+    - packages/openmates-browser-bindings/src/browser.rs
+    - packages/openmates-browser-bindings/src/browser_embed_revision.rs
+    - packages/openmates-browser-bindings/src/browser_embed_user_edit.rs
+    - packages/openmates-rust/src/client.rs
+    - packages/openmates-rust/src/client/embed.rs
+    - packages/openmates-rust/src/client/embed_pinned_version.rs
+    - packages/openmates-rust/src/client/embed_pinned_version_tests.rs
+    - packages/openmates-rust/src/client/embed_updated_event.rs
+    - packages/openmates-rust/src/client/embed_updated_event_tests.rs
+    - packages/openmates-rust/src/client/embed_user_edit_client.rs
+    - packages/openmates-rust/src/client/embed_user_restore.rs
+    - packages/openmates-rust/src/client/embed_user_restore_tests.rs
+    - packages/openmates-rust/src/client/embed_user_revision.rs
+    - packages/openmates-rust/src/client/embed_user_revision_refusal.rs
+    - packages/openmates-rust/src/client/embed_user_revision_tests.rs
+    - packages/openmates-rust/src/client/image_enhance.rs
+    - packages/openmates-rust/src/client/image_enhance_client.rs
+    - packages/openmates-rust/src/client/image_enhance_job.rs
+    - packages/openmates-rust/src/client/image_enhance_refusal.rs
+    - packages/openmates-rust/src/client/image_enhance_tests.rs
+    - packages/openmates-rust/src/client/send_prepared_turn.rs
+    - packages/openmates-rust/src/client/transport.rs
+    - packages/openmates-rust/src/view_model/window_flows.rs
+    - scripts/ci_coverage_manifest.json
+    - scripts/tests/test_production_caddy_route_parity.py
+    - specifications/features/app-skills/images-generate/examples.yml
+    - specifications/features/app-skills/images-generate/specification.yml
+    - specifications/features/embed-user-edits/examples.yml
+    - specifications/features/embed-user-edits/specification.yml
+    - specifications/features/projects/examples.yml
+    - specifications/features/projects/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - app:images
+    - embed:images:generate
+    - embed:images:generate_draft
+    - embed:images:generated_image
+    - embed:images:modify
+    - embed:images:vectorize
+  - sha: b84bb098b8337c98a6c4003fa1a87b27424fba52
+    short_sha: b84bb098b8
+    authored_at: '2026-11-11T21:34:39+00:00'
+    subject: 'feat(memories,workflows): memories settings as list and pages, the regular workflow editor in chat, chat-linked
+      billing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/memory_create_draft.py
+    - backend/apps/ai/processing/memory_preview_billing.py
+    - backend/core/api/app/routes/memory_suggestions.py
+    - backend/core/api/app/routes/workflows.py
+    - backend/core/api/app/services/directus/usage.py
+    - backend/core/api/app/services/workflow_authoring_billing.py
+    - backend/core/api/app/services/workflow_input_service.py
+    - backend/core/api/app/services/workflow_registry_planner.py
+    - backend/shared/python_utils/memory_loader.py
+    - backend/tests/test_memory_create_draft.py
+    - backend/tests/test_memory_loader.py
+    - backend/tests/test_memory_suggestions_route.py
+    - backend/tests/test_workflow_authoring_billing.py
+    - backend/tests/test_workflow_input_sessions.py
+    - docs/migration/rust/overview.yml
+    - docs/migration/rust/web-app.yml
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/components/chat-recommendations-components.spec.ts
+    - frontend/apps/web_app/tests/components/rule-document-manager.spec.ts
+    - frontend/apps/web_app/tests/components/settings-memories-list.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-detail-tabs.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-memory-picker.spec.ts
+    - frontend/apps/web_app/tests/web-rust-core-chat-recommendations-flow.spec.ts
+    - frontend/apps/web_app/tests/web-rust-core-workflow-side-panel.spec.ts
+    - frontend/apps/web_app/tests/wiki-learning-flow.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatRecommendations.svelte
+    - frontend/packages/ui/src/components/ContextEntryEventNotice.preview.ts
+    - frontend/packages/ui/src/components/ContextEntryEventNotice.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/activeChatScrollKeeper.ts
+    - frontend/packages/ui/src/components/projects/RuleDocumentManager.svelte
+    - frontend/packages/ui/src/components/settings/MemoriesEditor.svelte
+    - frontend/packages/ui/src/components/settings/MemoryBodyEditor.svelte
+    - frontend/packages/ui/src/components/settings/MemoryEntryPage.preview.ts
+    - frontend/packages/ui/src/components/settings/MemoryEntryPage.svelte
+    - frontend/packages/ui/src/components/settings/MemoryList.preview.ts
+    - frontend/packages/ui/src/components/settings/MemoryList.svelte
+    - frontend/packages/ui/src/components/settings/SearchSortBar.svelte
+    - frontend/packages/ui/src/components/settings/SettingsMemoriesHub.svelte
+    - frontend/packages/ui/src/components/settings/elements/SettingsItem.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowChatPane.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowChatPaneLayout.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowChatPaneLayout.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowEditorPane.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowEditorPane.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowHomePreviewHarness.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowMemoryPicker.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowMemoryPicker.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowProvisionalView.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowSidePanel.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowSidePanelView.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowSidePanelView.svelte
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowAuthoringRun.test.ts
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowChatDraft.test.ts
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowSidePanelDraft.test.ts
+    - frontend/packages/ui/src/components/workflows/workflowAuthoringRun.ts
+    - frontend/packages/ui/src/components/workflows/workflowChatDraft.ts
+    - frontend/packages/ui/src/components/workflows/workflowEditorPane.ts
+    - frontend/packages/ui/src/components/workflows/workflowSidePanelDraft.ts
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/sources/memories.yml
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - frontend/packages/ui/src/services/__tests__/legacyTypedMemoryMigration.test.ts
+    - frontend/packages/ui/src/services/__tests__/recommendationDrafts.test.ts
+    - frontend/packages/ui/src/services/__tests__/workflowInputStream.test.ts
+    - frontend/packages/ui/src/services/__tests__/workflowMemorySnapshotService.test.ts
+    - frontend/packages/ui/src/services/legacyTypedMemoryMigration.ts
+    - frontend/packages/ui/src/services/recommendationDrafts.ts
+    - frontend/packages/ui/src/services/ruleDocumentService.ts
+    - frontend/packages/ui/src/services/workflowInputService.ts
+    - frontend/packages/ui/src/services/workflowMemorySnapshotService.ts
+    - frontend/packages/ui/src/stores/memoryDraftSuggestionStore.ts
+    - frontend/packages/ui/src/stores/workflowSidePanelStore.ts
+    - frontend/packages/ui/src/utils/__tests__/memoryListEntries.test.ts
+    - frontend/packages/ui/src/utils/__tests__/ruleDocuments.test.ts
+    - frontend/packages/ui/src/utils/memoryListEntries.ts
+    - frontend/packages/ui/src/utils/ruleDocuments.ts
+    - packages/openmates-rust/src/client/memory_documents.rs
+    - packages/openmates-rust/src/client/memory_documents_tests.rs
+    - packages/openmates-rust/src/web_work/workflow_bodies.rs
+    - packages/openmates-rust/src/web_work/workflows_tests.rs
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/workflows-ui/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - platform:projects
+    - platform:workflows
+  - sha: 0f3827de47734ce93314cb6941a9fc7193212af6
+    short_sha: 0f3827de47
+    authored_at: '2026-11-11T21:05:49+00:00'
+    subject: 'fix(jobs): application mode writes the letter when asked to skip questions; matching focus modes are entered
+      before answering'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/jobs/focus_modes/prepare-interview/SKILL.md
+    - backend/apps/jobs/focus_modes/write-application/SKILL.md
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/sources/focus_modes/jobs_prepare_interview.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/jobs_write_application.yml
+    - frontend/packages/ui/src/i18n/sources/recommendations.yml
+    related_feature_ids:
+    - app:ai
+    - app:jobs
+  - sha: b92fde98cae4e733a6ab48771827cb2cbf84e71f
+    short_sha: b92fde98ca
+    authored_at: '2026-11-11T19:48:47+00:00'
+    subject: 'docs: backend Rust migration Plan gains coexistence rules, isolation measures and staged agent instructions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/backend-rust-migration/plan.yml
+    related_feature_ids: []
+  - sha: 8927917d0566e162ba006545c2770a8b3e199dd3
+    short_sha: 8927917d05
+    authored_at: '2026-11-11T19:47:05+00:00'
+    subject: 'fix(tooling): idle Claude chat processes close after 3 hours instead of 24'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/claude-idle-chats-setup.sh
+    - scripts/claude_idle_chats.py
+    - scripts/tests/test_claude_idle_chats.py
+    related_feature_ids: []
+  - sha: 58ebd0d138db9f3cb8d169abc009fa6da51ce1f4
+    short_sha: 58ebd0d138
+    authored_at: '2026-11-11T19:37:32+00:00'
+    subject: 'fix(core): a chat whose newest message is too large for one page opens that message with the Rust core on'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    - packages/openmates-rust/src/client/browser.rs
+    - packages/openmates-rust/src/client/saved_chat_oversized_join.rs
+    - packages/openmates-rust/src/client/saved_chat_oversized_join_tests.rs
+    - packages/openmates-rust/src/client/saved_chat_read.rs
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 662f5ab4f23fc70c35b512fd05490774b882d9e9
+    short_sha: 662f5ab4f2
+    authored_at: '2026-11-11T19:26:57+00:00'
+    subject: 'feat(images): text-only draft images use Recraft V4.1 Flash'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/images/app.yml
+    - backend/apps/images/tasks/generate_task.py
+    - backend/core/api/app/schemas/settings.py
+    - backend/providers/recraft.yml
+    - backend/scripts/test_generated_media_billing_contract.py
+    - backend/shared/providers/recraft/recraft.py
+    - backend/tests/test_vector_author.py
+    - frontend/apps/web_app/tests/cli-images.spec.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - packages/openmates-rust/src/generated/metadata.json
+    - specifications/features/app-skills/images-generate/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:images
+  - sha: 2a1c89c81440336d1ce547e481897213138fb72d
+    short_sha: 2a1c89c814
+    authored_at: '2026-11-11T19:23:50+00:00'
+    subject: 'fix(tooling): whole-package type-checks need the heavy slot, and a heavy run starts only when its memory fits'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/rules/testing.md
+    - CLAUDE.md
+    - scripts/heavy_local_guard.py
+    - scripts/heavy_slot.py
+    - scripts/tests/test_heavy_local_guard.py
+    - scripts/tests/test_heavy_slot.py
+    - scripts/tests/test_safe_bash_guard.py
+    related_feature_ids: []
+  - sha: cb332e3a8e5b3760a8fc91c110f72e9383fe9b1a
+    short_sha: cb332e3a8e
+    authored_at: '2026-11-11T17:43:49+00:00'
+    subject: 'docs: draft Plan for the step-by-step backend migration from Python to Rust'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/backend-rust-migration/plan.yml
+    related_feature_ids: []
+  - sha: 06da1b244874813b2dc2ec5ce7cb3a5954777d55
+    short_sha: 06da1b2448
+    authored_at: '2026-11-11T17:37:20+00:00'
+    subject: 'build(web): production and main web builds use the shared Rust client core'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/releases/daily/2026-11-11.md
+    - docs/releases/daily/2026-11-11.yml
+    - frontend/apps/web_app/scripts/vercel-build.mjs
+    - frontend/apps/web_app/scripts/vercel-build.test.mjs
+    related_feature_ids: []
   - sha: 0ad0c4f7f8d5f0839c69a991b3d18a00f8911319
     short_sha: 0ad0c4f7f8
     authored_at: '2026-11-11T16:34:57+00:00'
@@ -4789,376 +5730,138 @@ sources:
     - .claude/rules/testing.md
     - CLAUDE.md
     related_feature_ids: []
-  - sha: 98595441404e2734e15eb59b596d963bec596171
-    short_sha: '9859544140'
-    authored_at: '2026-11-10T20:42:47+00:00'
-    subject: 'fix(memories): a memory suggestion preview retries once on a lost connection, is never billed twice and names
-      connection problems'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - backend/core/api/app/routes/memory_suggestions.py
-    - backend/tests/test_memory_suggestions_route.py
-    - docs/migration/rust/overview.yml
-    - docs/migration/rust/web-app.yml
-    - frontend/apps/web_app/tests/web-rust-core-chat-recommendations-flow.spec.ts
-    - frontend/packages/ui/src/components/ChatRecommendations.svelte
-    - frontend/packages/ui/src/i18n/locales/ar.json
-    - frontend/packages/ui/src/i18n/locales/cs.json
-    - frontend/packages/ui/src/i18n/locales/de.json
-    - frontend/packages/ui/src/i18n/locales/en.json
-    - frontend/packages/ui/src/i18n/locales/es.json
-    - frontend/packages/ui/src/i18n/locales/fr.json
-    - frontend/packages/ui/src/i18n/locales/he.json
-    - frontend/packages/ui/src/i18n/locales/hi.json
-    - frontend/packages/ui/src/i18n/locales/id.json
-    - frontend/packages/ui/src/i18n/locales/it.json
-    - frontend/packages/ui/src/i18n/locales/ja.json
-    - frontend/packages/ui/src/i18n/locales/ko.json
-    - frontend/packages/ui/src/i18n/locales/nl.json
-    - frontend/packages/ui/src/i18n/locales/pl.json
-    - frontend/packages/ui/src/i18n/locales/pt.json
-    - frontend/packages/ui/src/i18n/locales/ru.json
-    - frontend/packages/ui/src/i18n/locales/sv.json
-    - frontend/packages/ui/src/i18n/locales/th.json
-    - frontend/packages/ui/src/i18n/locales/tr.json
-    - frontend/packages/ui/src/i18n/locales/vi.json
-    - frontend/packages/ui/src/i18n/locales/zh.json
-    - frontend/packages/ui/src/i18n/sources/memories.yml
-    - frontend/packages/ui/src/services/__tests__/recommendationDrafts.test.ts
-    - frontend/packages/ui/src/services/recommendationDrafts.ts
-    - specifications/generated/assertion-index.yml
-    related_feature_ids: []
-  - sha: e59edc5db03ac33d9cf342cace1e8df9426f2b74
-    short_sha: e59edc5db0
-    authored_at: '2026-11-10T19:02:50+00:00'
-    subject: 'fix(images): recovery records of a changed image are verified and acknowledged through the Rust core'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - config/sdk-capabilities.json
-    - docs/migration/rust/overview.yml
-    - docs/migration/rust/shared-client.yml
-    - docs/migration/rust/web-app.yml
-    - docs/plans/image-edit-as-embed-version/wire-contract.md
-    - frontend/apps/web_app/tests/vector-graphic-chat.spec.ts
-    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
-    - frontend/packages/ui/src/services/rustCore/embeds/__tests__/rustRecoveredChildRevision.test.ts
-    - frontend/packages/ui/src/services/rustCore/embeds/childRevisionHandlers.ts
-    - frontend/packages/ui/src/services/rustCore/embeds/childRevisionProtocol.ts
-    - frontend/packages/ui/src/services/rustCore/embeds/rustRecoveredChildRevision.ts
-    - frontend/packages/ui/src/services/rustCore/embeds/rustStreamedEmbedWrite.ts
-    - packages/openmates-browser-bindings/src/browser_embed_revision.rs
-    - packages/openmates-rust/src/client/embed_child_revision_recovery.rs
-    - packages/openmates-rust/src/client/embed_child_revision_recovery_tests.rs
-    - packages/openmates-rust/src/client/embed_child_revision_tests.rs
-    - packages/openmates-rust/src/client/embed_write.rs
-    - packages/openmates-rust/src/client/embed_write_session.rs
-    - specifications/generated/assertion-index.yml
-    related_feature_ids: []
-  - sha: 751a56d90e3879cf300f7f1d153a8da6ef2a954b
-    short_sha: 751a56d90e
-    authored_at: '2026-11-10T18:18:59+00:00'
-    subject: 'feat(design,safety): embroidery shows sewing time and thread length estimates; ordinary media prompts are no
-      longer refused as public-figure imitation'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - backend/apps/design/app.yml
-    - backend/apps/design/embroidery/content.py
-    - backend/apps/design/embroidery_sandbox/pipeline.py
-    - backend/apps/design/embroidery_sandbox/stitch_report.py
-    - backend/shared/providers/e2b_embroidery.py
-    - backend/shared/python_utils/generated_media_graph.py
-    - backend/shared/python_utils/media_generation_safety/pipeline.py
-    - backend/tests/test_embroidery_sandbox_rules.py
-    - backend/tests/test_media_generation_safety.py
-    - docs/plans/design-embroidery-skill/pipeline-results.md
-    - frontend/apps/web_app/tests/components/design-embroidery-embed.spec.ts
-    - frontend/packages/ui/src/components/embeds/design/DesignEmbroideryEmbedFullscreen.preview.ts
-    - frontend/packages/ui/src/components/embeds/design/DesignEmbroideryEmbedFullscreen.svelte
-    - frontend/packages/ui/src/components/embeds/design/DesignEmbroideryEmbedPreview.examples.ts
-    - frontend/packages/ui/src/components/embeds/design/DesignEmbroideryEmbedPreview.svelte
-    - frontend/packages/ui/src/components/embeds/design/EmbroideryThreadList.svelte
-    - frontend/packages/ui/src/components/embeds/design/designEmbedText.ts
-    - frontend/packages/ui/src/components/embeds/design/embroideryDesign.ts
-    - frontend/packages/ui/src/components/embeds/design/embroideryFixtures.ts
-    - frontend/packages/ui/src/i18n/sources/embeds.yml
-    - specifications/features/app-skills/design-embroidery/examples.yml
-    - specifications/features/app-skills/design-embroidery/specification.yml
-    - specifications/generated/assertion-index.yml
-    - specifications/generated/registry.yml
-    related_feature_ids:
-    - app:design
-    - embed:design:embroidery
-    - embed:design:embroidery_design
-  - sha: 02af2dfda58f062b8dee8268894d2641d2bbb9cf
-    short_sha: 02af2dfda5
-    authored_at: '2026-11-10T18:12:51+00:00'
-    subject: 'feat(slides): manual deck edits save as a new server version; editor uses round icon buttons'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - backend/apps/ai/testing/mercury_routing_fixture.py
-    - backend/core/directus/extensions/embed-version-transaction/src/operations.js
-    - backend/core/directus/extensions/embed-version-transaction/test/operations.test.js
-    - backend/tests/test_mercury_routing_fixture.py
-    - backend/tests/test_slides_markup_core_fixed_points.py
-    - docs/migration/rust/overview.yml
-    - docs/migration/rust/web-app.yml
-    - docs/plans/embed-user-revision-commit/plan.yml
-    - frontend/apps/web_app/tests/components/slides-editor.spec.ts
-    - frontend/apps/web_app/tests/slides-manual-edit.spec.ts
-    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlHistory.ts
-    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlReceipt.ts
-    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlRevision.ts
-    - frontend/packages/ui/src/components/embeds/shared/EmbedIconButton.svelte
-    - frontend/packages/ui/src/components/embeds/slides/SlidesDeckEmbedFullscreen.preview.ts
-    - frontend/packages/ui/src/components/embeds/slides/SlidesDeckEmbedFullscreen.svelte
-    - frontend/packages/ui/src/components/embeds/slides/SlidesEditor.preview.ts
-    - frontend/packages/ui/src/components/embeds/slides/SlidesEditor.svelte
-    - frontend/packages/ui/src/components/embeds/slides/SlidesEditorCanvas.svelte
-    - frontend/packages/ui/src/components/embeds/slides/SlidesEditorStrip.svelte
-    - frontend/packages/ui/src/components/embeds/slides/SlidesEditorToolbar.svelte
-    - frontend/packages/ui/src/components/embeds/slides/__tests__/UnifiedFullscreenOwnerStub.svelte
-    - frontend/packages/ui/src/components/embeds/slides/__tests__/slidesDeckFullscreenOwner.test.ts
-    - frontend/packages/ui/src/components/embeds/slides/slidesDeckVersion.test.ts
-    - frontend/packages/ui/src/components/embeds/slides/slidesDeckVersion.ts
-    - frontend/packages/ui/src/i18n/locales/ar.json
-    - frontend/packages/ui/src/i18n/locales/cs.json
-    - frontend/packages/ui/src/i18n/locales/de.json
-    - frontend/packages/ui/src/i18n/locales/en.json
-    - frontend/packages/ui/src/i18n/locales/es.json
-    - frontend/packages/ui/src/i18n/locales/fr.json
-    - frontend/packages/ui/src/i18n/locales/he.json
-    - frontend/packages/ui/src/i18n/locales/hi.json
-    - frontend/packages/ui/src/i18n/locales/id.json
-    - frontend/packages/ui/src/i18n/locales/it.json
-    - frontend/packages/ui/src/i18n/locales/ja.json
-    - frontend/packages/ui/src/i18n/locales/ko.json
-    - frontend/packages/ui/src/i18n/locales/nl.json
-    - frontend/packages/ui/src/i18n/locales/pl.json
-    - frontend/packages/ui/src/i18n/locales/pt.json
-    - frontend/packages/ui/src/i18n/locales/ru.json
-    - frontend/packages/ui/src/i18n/locales/sv.json
-    - frontend/packages/ui/src/i18n/locales/th.json
-    - frontend/packages/ui/src/i18n/locales/tr.json
-    - frontend/packages/ui/src/i18n/locales/vi.json
-    - frontend/packages/ui/src/i18n/locales/zh.json
-    - frontend/packages/ui/src/i18n/sources/embeds.yml
-    - frontend/packages/ui/src/services/__tests__/embedDiffStore.test.ts
-    - frontend/packages/ui/src/services/__tests__/embedUserRevision.test.ts
-    - frontend/packages/ui/src/services/embedDiffStore.ts
-    - frontend/packages/ui/src/services/embedStore.ts
-    - frontend/packages/ui/src/services/embedUserRevision.ts
-    - frontend/packages/ui/src/services/embedUserRevisionHistory.ts
-    - scripts/ci_coverage_manifest.json
-    - specifications/features/slides/examples.yml
-    - specifications/features/slides/specification.yml
-    - specifications/generated/assertion-index.yml
-    - specifications/generated/coverage.yml
-    - specifications/generated/registry.yml
-    related_feature_ids:
-    - app:ai
-    - embed:slides:deck
-  - sha: c75d22343b56e413b186912e4ed88c9d3665a0f8
-    short_sha: c75d22343b
-    authored_at: '2026-11-10T17:57:14+00:00'
-    subject: 'feat(memories): client core and CLI apply assistant memory writes, with undo'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - backend/apps/jobs/focus_modes/prepare-interview/SKILL.md
-    - config/cli-command-catalog.json
-    - config/sdk-capabilities.json
-    - docs/migration/rust/cli.yml
-    - docs/migration/rust/overview.yml
-    - docs/migration/rust/shared-client.yml
-    - frontend/packages/openmates-tui-native/assets/cli-command-catalog.json
-    - frontend/packages/openmates-tui-native/assets/manifest.json
-    - frontend/packages/openmates-tui-native/src/cli/account/memories.rs
-    - frontend/packages/openmates-tui-native/src/cli/account/memories_tests.rs
-    - frontend/packages/openmates-tui-native/src/cli/send.rs
-    - frontend/packages/openmates-tui-native/src/cli/utility.rs
-    - packages/openmates-rust/src/chat_state/bookmarks.rs
-    - packages/openmates-rust/src/chat_state/mod.rs
-    - packages/openmates-rust/src/client.rs
-    - packages/openmates-rust/src/client/memory_documents.rs
-    - packages/openmates-rust/src/client/memory_documents_tests.rs
-    - packages/openmates-rust/src/client/memory_write_jobs.rs
-    - packages/openmates-rust/src/client/memory_write_jobs_tests.rs
-    - packages/openmates-rust/src/client/project_create_request.rs
-    - packages/openmates-rust/src/client/recommendations.rs
-    - packages/openmates-rust/src/client/recommendations_tests.rs
-    - packages/openmates-rust/src/client/send.rs
-    - packages/openmates-rust/src/client/send_observations.rs
-    - packages/openmates-rust/src/client/send_options.rs
-    - packages/openmates-rust/src/client/send_prepared_transport.rs
-    - packages/openmates-rust/src/client/send_prepared_turn.rs
-    - packages/openmates-rust/src/client/send_turn_runtime.rs
-    - scripts/jobs_focus_real_test.py
-    related_feature_ids:
-    - app:jobs
 llm_summary:
-  overview: OpenMates focused on the migration of Apple platform logic to a shared Rust core, covering chat sessions, encryption,
-    and message streaming. Significant updates were made to the design and embroidery application, including satin band sewing
-    and resource estimates. The project also advanced unreleased features for project management, memory persistence, and
-    safety safeguards for image generation.
+  overview: OpenMates focused heavily on the cross-platform migration to a shared Rust client core, alongside significant
+    advancements in AI image generation safeguards and embroidery design geometry. Work also progressed on integrating Projects
+    and Workflows more deeply into the chat experience.
   released_changes: []
-  bug_fixes: []
-  unreleased_progress:
-  - text: OpenMates integrated chat row logic, message streaming, and session management into the shared Rust core for Apple
-      platforms, including batched decryption for chat keys and metadata.
+  bug_fixes:
+  - text: Image fullscreen views now utilize the full available screen dimensions, and tapping an image correctly opens the
+      source file in a new tab.
     evidence:
       commits:
-      - 6d15ee29da
-      - 5bf66aed1d
-      - b8a01f6935
-      - 583ebb3255
-      - 62b8bc156d
-      - fbd4396131
-      - 941bac92aa
-      - 5ec99227f1
-      - 0b16254066
-      - 3d1c5cf4e1
+      - 788e8aa2cb
     release_status: dev_only
-  - text: The embroidery sandbox now supports sewing satin bands across filled outlines and provides estimates for sewing
-      time and thread length, with fixes for SVG upload handling.
+  - text: Resolved issues where assistant names failed to resolve in chat; authored result groups now use standard views and
+      event cards include venue maps.
     evidence:
       commits:
-      - 3fab01e191
-      - 751a56d90e
-      - 1cf3262c1c
+      - 3f3c8db298
+    release_status: dev_only
+  - text: Embroidery design logic was corrected to prevent separate shapes from being joined by unintended stitches and to
+      ensure sewing widths match user requests.
+    evidence:
+      commits:
       - 433c8492d9
       - edca0a3641
-      - e13486f130
     release_status: dev_only
-  - text: Development continued on assistant-created projects, including UI for activation cards, folder-based application
-      storage, and file operations within the Rust core and CLI.
-    evidence:
-      commits:
-      - bd1e6ed0a8
-      - f007d2e389
-      - ef6f1b5e05
-      - b844812366
-      - 01acb8e246
-    release_status: dev_only
-  - text: Improvements to memory suggestions include better generation after continued turns, assistant memory writes with
-      undo support, and improved cross-device synchronization.
-    evidence:
-      commits:
-      - df0d921126
-      - 6b71cf4d0a
-      - c75d22343b
-      - '9859544140'
-    release_status: dev_only
-  - text: Web app updates addressed performance for long chat timelines, Safari compatibility for Rust core units, and UI
-      rendering polish.
+  - text: The web interface no longer flashes raw message source before rendering, and several console errors related to memory
+      migration and draft deletion were resolved.
     evidence:
       commits:
       - 9387c8f073
       - 35afed7a0e
-      - ade966ade4
-      - 1164c58318
-      - 6c67df588b
-      - b8b83bbba0
-      - 3f3c8db298
     release_status: dev_only
-  - text: OpenMates added a safeguard model to review image prompts naming specific individuals and refined PII redaction
-      for upload references.
+  - text: Privacy protections were strengthened to ensure personal data redaction does not inadvertently rewrite embed references
+      for uploaded files.
     evidence:
       commits:
-      - c6370d9b97
       - 35dbf89f93
     release_status: dev_only
-  - text: The CLI now supports setting due dates for tasks, and job search skills were updated with separate field listing
-      and country filters.
+  unreleased_progress:
+  - text: Significant progress was made on the Apple client core migration, including UniFFI bridging, encrypted cache records,
+      and batched decryption for chat metadata and message windows.
     evidence:
       commits:
-      - 351b67a13d
-      - 9e4f6da63d
+      - 3d1c5cf4e1
+      - 5ec99227f1
+      - fbd4396131
+      - 6d15ee29da
+      - 583ebb3255
     release_status: dev_only
-  - text: Manual deck edits in the slides editor now save as new server versions, and the editor UI was updated with round
-      icon buttons.
+  - text: AI image capabilities were expanded with Recraft V4.1 Flash for text-only drafts, a new safeguard model for named-person
+      prompts, and server-side support for image enhancement jobs.
     evidence:
       commits:
-      - 02af2dfda5
+      - 662f5ab4f2
+      - c6370d9b97
+      - 32b672579c
+    release_status: dev_only
+  - text: Project integration was enhanced with new activation cards in chat, support for application files within project
+      folders, and file management operations (rename/delete) in the Rust core.
+    evidence:
+      commits:
+      - bd1e6ed0a8
+      - f007d2e389
+      - 01acb8e246
+    release_status: dev_only
+  - text: Workflows and Memories received UI updates, including a list-based memory editor and the ability to access the regular
+      workflow editor directly within chat.
+    evidence:
+      commits:
+      - b84bb098b8
+    release_status: dev_only
+  - text: The design engine now supports sewing drawn lines as satin bands, improving the quality of embroidery output for
+      outline-based geometry.
+    evidence:
+      commits:
+      - 3fab01e191
     release_status: dev_only
   internal_progress:
-  - text: Build processes were optimized to exclude Rust embed recovery units when the core is not present.
+  - text: Initial planning and architectural measures were established for the staged migration of the backend from Python
+      to Rust.
     evidence:
       commits:
-      - bf964a9c71
+      - b92fde98ca
+      - cb332e3a8e
     release_status: dev_only
-  - text: Testing improvements were made for schema-repair logic, image details navigation, and CLI recovery profiles.
-    evidence:
-      commits:
-      - d935b9cf99
-      - f1441a24da
-      - fe16c17a45
-    release_status: dev_only
-  - text: A new script manages Claude chat processes by closing idle sessions and restarting them upon receiving new messages.
+  - text: New tooling was implemented to automatically close idle Claude chat processes after three hours of inactivity to
+      optimize resource usage.
     evidence:
       commits:
       - f86aaa8b46
+      - 8927917d05
       - fbca809d32
     release_status: dev_only
-  - text: OpenMates added logging to track authored results card completion and fixed memory suggestion routing in the proxy.
+  - text: CI and build pipelines were updated to handle heavy type-checks more efficiently and to manage Rust core bundling
+      across production web builds.
     evidence:
       commits:
-      - 43894c04a9
-      - 0ad0c4f7f8
+      - 2a1c89c814
+      - bf964a9c71
+      - 06da1b2448
     release_status: dev_only
   newsletter_recommendation:
     include: []
     exclude:
-    - text: Apple platform core migration
+    - text: Client Core Migration (Apple & Web)
       evidence:
         commits:
-        - 6d15ee29da
-        - 5bf66aed1d
-        - b8a01f6935
-        - 583ebb3255
-        - 62b8bc156d
-        - fbd4396131
-        - 941bac92aa
-        - 5ec99227f1
-        - 0b16254066
         - 3d1c5cf4e1
-      reason: Feature is unreleased and related to disabled platforms (iOS/macOS).
-    - text: Project management features
+        - 5ec99227f1
+        - 62b8bc156d
+      reason: The comprehensive migration to the Rust-based client core for Apple and Web platforms is currently in development
+        and not yet released to the public.
+    - text: AI Image Generation Updates
       evidence:
         commits:
-        - bd1e6ed0a8
-        - f007d2e389
-        - ef6f1b5e05
-        - b844812366
-        - 01acb8e246
-      reason: Feature is unreleased and related to disabled platform:projects.
-    - text: Embroidery satin bands and estimates
-      evidence:
-        commits:
-        - 3fab01e191
-        - 751a56d90e
-      reason: Feature is unreleased.
-    rationale: All changes from this period are currently in development and have not been released to the main branch for
-      public communication.
+        - 662f5ab4f2
+        - c6370d9b97
+        - 32b672579c
+      reason: New image generation models and enhancement features are currently in dev-only status.
+    rationale: All user-facing features and improvements from this period are currently in dev-only status or tied to disabled
+      platforms (iOS, macOS, Projects, Workflows) and are not yet ready for public communication.
   social_video_recommendations:
-  - idea: Show the new satin band sewing technique in the embroidery sandbox.
+  - idea: Demonstrate the new 'satin band' sewing logic for embroidery, showing how drawn lines are converted into high-quality
+      stitched paths.
     priority: Medium
-    reason: Visually demonstrates a concrete improvement in design output.
+    reason: This provides a clear visual product story for the design-focused user base.
     evidence:
       commits:
       - 3fab01e191
-  - idea: Demonstrate the assistant-created project flow, from chat creation to the activation card.
-    priority: Low
-    reason: Shows progress on the unreleased projects feature.
-    evidence:
-      commits:
-      - f007d2e389
-      - bd1e6ed0a8
   quality_notes:
-  - Extensive work on the shared Rust core indicates a strong push for cross-platform logic parity and stability.
-  - Proactive fixes for cross-device synchronization (drafts, memories) suggest a focus on multi-device reliability.
-  - Performance tuning for message decryption and web rendering shows attention to user experience details.
+  - The project is prioritizing architectural consistency by moving critical logic (session management, encryption, and paging)
+    into a shared Rust core used by both Apple and Web platforms.
+  - Privacy remains a focus with fixes to PII redaction logic ensuring it does not break functional embed references.
+  - Performance improvements were noted in Apple message rendering, reducing redundant rebuilds during decryption.
   validation_warnings: []
