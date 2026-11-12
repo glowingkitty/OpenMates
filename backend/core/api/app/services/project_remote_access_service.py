@@ -38,8 +38,15 @@ RUN_COMMAND_OPERATION = "run_command"
 # The digest is the client-computed Project-key HMAC; the server never sees argv.
 GIT_STATUS_OPERATION = "git_status"
 GIT_WRITE_OPERATIONS = {"git_commit", "git_land"}
-WRITE_OPERATIONS = {"create_file", "update_file", RUN_COMMAND_OPERATION, *GIT_WRITE_OPERATIONS}
-SINGLE_USE_OPERATIONS = {RUN_COMMAND_OPERATION, *GIT_WRITE_OPERATIONS}
+# Creates a new Project folder on a host device; addressed to a placeholder
+# source that only carries the ``create_source`` capability.
+CREATE_SOURCE_OPERATION = "create_source"
+CREATE_SOURCE_CAPABILITY = "create_source"
+SOURCE_CAPABILITIES = {"read", "search", "import", "write_request", "run_command", CREATE_SOURCE_CAPABILITY}
+WRITE_OPERATIONS = {
+    "create_file", "update_file", RUN_COMMAND_OPERATION, CREATE_SOURCE_OPERATION, *GIT_WRITE_OPERATIONS,
+}
+SINGLE_USE_OPERATIONS = {RUN_COMMAND_OPERATION, CREATE_SOURCE_OPERATION, *GIT_WRITE_OPERATIONS}
 USER_FILE_OPERATIONS = {"copy_entries", "move_entries"}
 ALLOWED_OPERATIONS = {"list", "search", "read_text", "read_image_chunk", "read_file_chunk", GIT_STATUS_OPERATION, *WRITE_OPERATIONS, *USER_FILE_OPERATIONS}
 WORKSPACE_CHAT_ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}")
@@ -435,6 +442,7 @@ class ProjectRemoteAccessService:
                 raise ProjectRemoteAccessError("source_offline", status_code=404)
             required_capability = (
                 RUN_COMMAND_OPERATION if operation == RUN_COMMAND_OPERATION
+                else CREATE_SOURCE_CAPABILITY if operation == CREATE_SOURCE_OPERATION
                 else "write_request" if operation in WRITE_OPERATIONS | USER_FILE_OPERATIONS
                 else "search" if operation == "search" else "read"
             )
@@ -561,6 +569,7 @@ class ProjectRemoteAccessService:
                 or binding.get("key_epoch") != request.get("key_epoch")
                 or (
                     RUN_COMMAND_OPERATION if request["operation"] == RUN_COMMAND_OPERATION
+                    else CREATE_SOURCE_CAPABILITY if request["operation"] == CREATE_SOURCE_OPERATION
                     else "write_request"
                 ) not in set(binding.get("capabilities") or [])):
             raise ProjectRemoteAccessError("source_session_changed", status_code=409)
@@ -1022,7 +1031,7 @@ def _normalize_binding(value: dict[str, Any]) -> dict[str, Any]:
         or key_epoch < 1
     ):
         raise ProjectRemoteAccessError("invalid_source_binding")
-    if not set(capabilities).issubset({"read", "search", "import", "write_request", "run_command"}):
+    if not set(capabilities).issubset(SOURCE_CAPABILITIES):
         raise ProjectRemoteAccessError("invalid_source_capabilities")
     return {
         "project_id": project_id,

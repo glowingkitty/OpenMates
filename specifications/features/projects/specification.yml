@@ -674,6 +674,20 @@ assertions:
     Project key or plaintext name.
   depends_on:
   - examples.project_assistant_creation
+- id: projects.creation.machine-folder
+  type: behavior
+  must: A new Project is created in the cloud unless the user asks for it on their own machine. Only then, and only for
+    a machine that is connected through remote access and whose owner configured one folder for new Projects, the chat
+    shows a confirmation with the Project name and the target machine, and nothing is created on the machine before the
+    user confirms that exact request. After confirmation the remote-access host creates a new folder for the Project
+    inside the configured folder, initializes a Git repository on the branch main with a first commit, and serves it as
+    a connected source of the Project. The host never writes outside the configured folder and never into or over an
+    existing path; a machine without that setting does not offer creation. A refusal (creation_not_configured,
+    invalid_project_name, creation_folder_unavailable, identity_missing, target_exists) creates nothing and consumes no
+    confirmation, and the pending request can be retried or removed without the machine. Only the bound machine of the
+    confirming user can complete the creation.
+  depends_on:
+  - examples.project_machine_creation
 - id: projects.files.application-single-source
   type: invariant
   must: Each file of an application created in a Project chat is stored as exactly one encrypted embed that is both a

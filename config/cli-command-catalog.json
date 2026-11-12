@@ -21,7 +21,7 @@
     },
     {
       "path": "frontend/packages/openmates-cli/src/generated/appSkills.ts",
-      "sha256": "de884b358e713943185ae8f3988df149d274a9d8440756ff38f94c8d35035116"
+      "sha256": "c4a0a8ea14b7a13c3aaa42edd3be4588bbbe3b9445ae02d9adb10652975d9318"
     },
     {
       "path": "frontend/packages/openmates-cli/src/generatedFiles.ts",
@@ -889,12 +889,14 @@
       "chat",
       "color",
       "confirm",
+      "cwd",
       "depth",
       "description",
       "entry",
       "environment",
       "focus-activation",
       "help",
+      "host",
       "host-path",
       "icon",
       "include-archived",
@@ -902,6 +904,7 @@
       "include-ignored",
       "json",
       "limit",
+      "message",
       "name",
       "path",
       "personal",
@@ -915,6 +918,7 @@
       "target",
       "team",
       "text",
+      "timeout-ms",
       "type",
       "unpin",
       "write-policy"
@@ -3903,6 +3907,30 @@
           "path": "frontend/packages/openmates-cli/src/cli.ts",
           "line": 14984,
           "symbol": "printTasksHelp"
+        }
+      ]
+    },
+    {
+      "long": "cwd",
+      "arity": "value",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/cli/projects/remote_ops.rs",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "long": "host",
+      "arity": "value",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/cli/projects/remote_create.rs",
+          "line": 1
         }
       ]
     },
@@ -18125,6 +18153,18 @@
       ]
     },
     {
+      "long": "timeout-ms",
+      "arity": "value",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/cli/projects/remote_ops.rs",
+          "line": 1
+        }
+      ]
+    },
+    {
       "long": "timeout-seconds",
       "arity": "value",
       "repeatable": true,
@@ -23986,7 +24026,7 @@
                     "basic": true
                   },
                   "type": "string",
-                  "description": "Doctor speciality or type. Supports German and English names. Examples: \"augenarzt\", \"hautarzt\", \"allgemeinmedizin\", \"zahnarzt\", \"gyn\u00e4kologie\", \"kardiologie\", \"orthop\u00e4die\", \"neurologie\", \"kinderarzt\", \"hno\", \"physiotherapie\", \"urologie\", \"ophthalmologist\", \"dermatologist\", \"general_practitioner\", \"dentist\", \"cardiologist\", \"neurologist\", \"pediatrician\".\n"
+                  "description": "Doctor speciality or type. Supports German and English names. Examples: \"augenarzt\", \"hautarzt\", \"allgemeinmedizin\", \"zahnarzt\", \"gynäkologie\", \"kardiologie\", \"orthopädie\", \"neurologie\", \"kinderarzt\", \"hno\", \"physiotherapie\", \"urologie\", \"ophthalmologist\", \"dermatologist\", \"general_practitioner\", \"dentist\", \"cardiologist\", \"neurologist\", \"pediatrician\".\n"
                 },
                 "city": {
                   "x-ui": {
@@ -23995,7 +24035,7 @@
                     "location_mode": "city"
                   },
                   "type": "string",
-                  "description": "City where to search for appointments. Supports German and English city names. Examples: \"Berlin\", \"M\u00fcnchen\", \"Munich\", \"Hamburg\", \"K\u00f6ln\", \"Frankfurt\", \"Stuttgart\", \"D\u00fcsseldorf\", \"Dresden\", \"Leipzig\", \"Hannover\", \"N\u00fcrnberg\", \"Bonn\", \"Heidelberg\".\n"
+                  "description": "City where to search for appointments. Supports German and English city names. Examples: \"Berlin\", \"München\", \"Munich\", \"Hamburg\", \"Köln\", \"Frankfurt\", \"Stuttgart\", \"Düsseldorf\", \"Dresden\", \"Leipzig\", \"Hannover\", \"Nürnberg\", \"Bonn\", \"Heidelberg\".\n"
                 },
                 "provider_platform": {
                   "x-ui": {
@@ -24814,7 +24854,7 @@
                     "basic": true
                   },
                   "type": "string",
-                  "description": "Output file format. Use \"svg\" to generate a scalable vector graphic (SVG) via\nRecraft V4.1 \u2014 ideal for logos, icons, illustrations, and any graphic that needs\nto be scalable, editable in design tools, or used at any size without quality loss.\nUse \"png\" or \"jpg\" for photos, realistic scenes, and detailed raster images.\nWhen a Recraft model is selected, Recraft V4 is used for raster output as well.\n",
+                  "description": "Output file format. Use \"svg\" to generate a scalable vector graphic (SVG) via\nRecraft V4.1 — ideal for logos, icons, illustrations, and any graphic that needs\nto be scalable, editable in design tools, or used at any size without quality loss.\nUse \"png\" or \"jpg\" for photos, realistic scenes, and detailed raster images.\nWhen a Recraft model is selected, Recraft V4 is used for raster output as well.\n",
                   "enum": [
                     "png",
                     "jpg",
@@ -24827,7 +24867,7 @@
                     "basic": true
                   },
                   "type": "string",
-                  "description": "Generation quality. Controls which model tier is used when Recraft is the provider.\nFor SVG output (output_filetype=\"svg\"):\n  \"default\" uses Recraft V4.1 Vector (100 credits \u2014 good for web/UI use).\n  \"max\" uses Recraft V4.1 Pro Vector (300 credits \u2014 best for print, large-format,\n  or highly detailed vector illustrations).\nFor raster output (output_filetype=\"png\"/\"jpg\") with a Recraft model selected:\n  \"default\" uses Recraft V4.1 (50 credits \u2014 fast, cost-effective).\n  \"max\" uses Recraft V4.1 Pro (250 credits \u2014 high-resolution, print-ready).\nFor other raster models (Google Gemini, GPT Image 2, FLUX), quality may be handled by the provider.\n",
+                  "description": "Generation quality. Controls which model tier is used when Recraft is the provider.\nFor SVG output (output_filetype=\"svg\"):\n  \"default\" uses Recraft V4.1 Vector (100 credits — good for web/UI use).\n  \"max\" uses Recraft V4.1 Pro Vector (300 credits — best for print, large-format,\n  or highly detailed vector illustrations).\nFor raster output (output_filetype=\"png\"/\"jpg\") with a Recraft model selected:\n  \"default\" uses Recraft V4.1 (50 credits — fast, cost-effective).\n  \"max\" uses Recraft V4.1 Pro (250 credits — high-resolution, print-ready).\nFor other raster models (Google Gemini, GPT Image 2, FLUX), quality may be handled by the provider.\n",
                   "enum": [
                     "default",
                     "max"
@@ -25815,7 +25855,7 @@
         "math",
         "calculate"
       ],
-      "summary": "MANDATORY: Use this skill for ALL mathematical calculations without exception. This includes simple arithmetic such as addition, subtraction, multiplication (written as *, x, or \u00d7), division, and parenthesised expressions like (4x22x7)/2 or (100+50)*3/2. Also use for algebra, trigonometry, calculus, unit conversions, symbolic simplification, equation solving, derivatives, and integrals. NEVER attempt to compute a numeric result yourself \u2014 always call this skill so results are guaranteed to be ex",
+      "summary": "MANDATORY: Use this skill for ALL mathematical calculations without exception. This includes simple arithmetic such as addition, subtraction, multiplication (written as *, x, or ×), division, and parenthesised expressions like (4x22x7)/2 or (100+50)*3/2. Also use for algebra, trigonometry, calculus, unit conversions, symbolic simplification, equation solving, derivatives, and integrals. NEVER attempt to compute a numeric result yourself — always call this skill so results are guaranteed to be ex",
       "usages": [
         "apps math calculate [value]"
       ],
@@ -26822,7 +26862,7 @@
         "pdf",
         "read"
       ],
-      "summary": "Load and read the raw text content (markdown) of specific pages from an uploaded PDF document. Use when the user asks what a PDF says, wants you to summarise sections, or requests information that is likely textual (paragraphs, tables, headings). The embed TOON content includes a TOC and per-page token estimates \u2014 use them to select the most relevant pages. Limits output to 50 000 tokens; call again for remaining pages if needed. Pass the exact embed_ref (original filename) from the toon block \u2014",
+      "summary": "Load and read the raw text content (markdown) of specific pages from an uploaded PDF document. Use when the user asks what a PDF says, wants you to summarise sections, or requests information that is likely textual (paragraphs, tables, headings). The embed TOON content includes a TOC and per-page token estimates — use them to select the most relevant pages. Limits output to 50 000 tokens; call again for remaining pages if needed. Pass the exact embed_ref (original filename) from the toon block —",
       "usages": [
         "apps pdf read [value]"
       ],
@@ -26899,7 +26939,7 @@
         "pdf",
         "search"
       ],
-      "summary": "Search for specific text, keywords, or phrases across all pages of an uploaded PDF. Returns matching text blocks with surrounding context and page numbers. Use when the user asks to find where something is mentioned in the document, or when a targeted keyword search is faster than reading entire sections. No LLM call required \u2014 pure text search over the OCR data. Pass the exact embed_ref (original filename) from the toon block as file_path.",
+      "summary": "Search for specific text, keywords, or phrases across all pages of an uploaded PDF. Returns matching text blocks with surrounding context and page numbers. Use when the user asks to find where something is mentioned in the document, or when a targeted keyword search is faster than reading entire sections. No LLM call required — pure text search over the OCR data. Pass the exact embed_ref (original filename) from the toon block as file_path.",
       "usages": [
         "apps pdf search [value]"
       ],
@@ -26979,7 +27019,7 @@
         "pdf",
         "view"
       ],
-      "summary": "View one or more page screenshots from an uploaded PDF and return them as multimodal image blocks so the main inference model can see the pages directly. Use when the user asks about the visual layout, diagrams, charts, figures, or images on specific pages. Also useful when text OCR may have been imperfect (e.g. complex tables, mathematical notation, handwriting). Up to 5 pages can be viewed per call. Pass the exact embed_ref (original filename) from the toon block as file_path \u2014 the server reso",
+      "summary": "View one or more page screenshots from an uploaded PDF and return them as multimodal image blocks so the main inference model can see the pages directly. Use when the user asks about the visual layout, diagrams, charts, figures, or images on specific pages. Also useful when text OCR may have been imperfect (e.g. complex tables, mathematical notation, handwriting). Up to 5 pages can be viewed per call. Pass the exact embed_ref (original filename) from the toon block as file_path — the server reso",
       "usages": [
         "apps pdf view [value]"
       ],
@@ -28715,7 +28755,7 @@
             },
             "type": "string",
             "format": "date",
-            "description": "Departure date in YYYY-MM-DD format (e.g. '2026-03-05'). Must be a past/completed date \u2014 live tracking is not supported.\n"
+            "description": "Departure date in YYYY-MM-DD format (e.g. '2026-03-05'). Must be a past/completed date — live tracking is not supported.\n"
           },
           "origin_iata": {
             "x-ui": {
@@ -64052,6 +64092,459 @@
         "macos": "not_verified",
         "windows": "not_verified"
       }
+    },
+    {
+      "path": [
+        "projects",
+        "remote",
+        "run"
+      ],
+      "summary": "projects remote run",
+      "usages": [
+        "projects remote run <project> [--source <source-id>] --chat <chat-id> [--personal|--team <team>] [--json] [--cwd <dir>] [--timeout-ms <n>] -- <command>..."
+      ],
+      "positionals": [
+        {
+          "name": "project",
+          "required": true,
+          "variadic": false,
+          "at": 3,
+          "synopsis": "<project>"
+        },
+        {
+          "name": "command",
+          "required": true,
+          "variadic": true,
+          "at": 4,
+          "synopsis": "<command>..."
+        }
+      ],
+      "flags": [
+        "api-key",
+        "api-url",
+        "chat",
+        "cwd",
+        "help",
+        "json",
+        "personal",
+        "profile",
+        "source",
+        "team",
+        "timeout-ms"
+      ],
+      "source_locations": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/cli/projects/remote_ops.rs",
+          "line": 1,
+          "symbol": "projects::remote_ops"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "sdk.projects.run_remote_command",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/projects/remote_ops.rs"
+      },
+      "gaps": [
+        "Rust-first native remote operation (no npm CLI counterpart). Core requester in packages/openmates-rust/src/work/projects/remote_ops.rs; live backend integration and platform verification pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "projects",
+        "remote",
+        "git",
+        "status"
+      ],
+      "summary": "projects remote git status",
+      "usages": [
+        "projects remote git status <project> [--source <source-id>] --chat <chat-id> [--personal|--team <team>] [--json]"
+      ],
+      "positionals": [
+        {
+          "name": "project",
+          "required": true,
+          "variadic": false,
+          "at": 4,
+          "synopsis": "<project>"
+        }
+      ],
+      "flags": [
+        "api-key",
+        "api-url",
+        "chat",
+        "help",
+        "json",
+        "personal",
+        "profile",
+        "source",
+        "team"
+      ],
+      "source_locations": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/cli/projects/remote_ops.rs",
+          "line": 1,
+          "symbol": "projects::remote_ops"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "sdk.projects.git_status",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/projects/remote_ops.rs"
+      },
+      "gaps": [
+        "Rust-first native remote operation (no npm CLI counterpart). Core requester in packages/openmates-rust/src/work/projects/remote_ops.rs; live backend integration and platform verification pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "projects",
+        "remote",
+        "git",
+        "commit"
+      ],
+      "summary": "projects remote git commit",
+      "usages": [
+        "projects remote git commit <project> --message <text> [--source <source-id>] --chat <chat-id> [--personal|--team <team>] [--json]"
+      ],
+      "positionals": [
+        {
+          "name": "project",
+          "required": true,
+          "variadic": false,
+          "at": 4,
+          "synopsis": "<project>"
+        }
+      ],
+      "flags": [
+        "api-key",
+        "api-url",
+        "chat",
+        "help",
+        "json",
+        "message",
+        "personal",
+        "profile",
+        "source",
+        "team"
+      ],
+      "source_locations": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/cli/projects/remote_ops.rs",
+          "line": 1,
+          "symbol": "projects::remote_ops"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "sdk.projects.git_commit",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/projects/remote_ops.rs"
+      },
+      "gaps": [
+        "Rust-first native remote operation (no npm CLI counterpart). Core requester in packages/openmates-rust/src/work/projects/remote_ops.rs; live backend integration and platform verification pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "projects",
+        "remote",
+        "git",
+        "land"
+      ],
+      "summary": "projects remote git land",
+      "usages": [
+        "projects remote git land <project> [--source <source-id>] --chat <chat-id> [--personal|--team <team>] [--json]"
+      ],
+      "positionals": [
+        {
+          "name": "project",
+          "required": true,
+          "variadic": false,
+          "at": 4,
+          "synopsis": "<project>"
+        }
+      ],
+      "flags": [
+        "api-key",
+        "api-url",
+        "chat",
+        "help",
+        "json",
+        "personal",
+        "profile",
+        "source",
+        "team"
+      ],
+      "source_locations": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/cli/projects/remote_ops.rs",
+          "line": 1,
+          "symbol": "projects::remote_ops"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "sdk.projects.git_land",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/projects/remote_ops.rs"
+      },
+      "gaps": [
+        "Rust-first native remote operation (no npm CLI counterpart). Core requester in packages/openmates-rust/src/work/projects/remote_ops.rs; live backend integration and platform verification pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "projects",
+        "remote",
+        "hosts"
+      ],
+      "summary": "projects remote hosts",
+      "usages": [
+        "projects remote hosts <project> [--personal|--team <team>] [--json]"
+      ],
+      "positionals": [
+        {
+          "name": "project",
+          "required": true,
+          "variadic": false,
+          "at": 4,
+          "synopsis": "<project>"
+        }
+      ],
+      "flags": [
+        "api-key",
+        "api-url",
+        "help",
+        "json",
+        "personal",
+        "profile",
+        "team"
+      ],
+      "source_locations": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/cli/projects/remote_create.rs",
+          "line": 1,
+          "symbol": "projects::remote_create"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "sdk.projects.machine_hosts",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/projects/remote_create.rs"
+      },
+      "gaps": [
+        "Rust-first native remote operation (no npm CLI counterpart). Core requester in packages/openmates-rust/src/work/projects/sources/machine.rs; the machine creates folders only inside its configured new-Projects folder and never overwrites; live backend integration and platform verification pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "projects",
+        "remote",
+        "create"
+      ],
+      "summary": "projects remote create",
+      "usages": [
+        "projects remote create <project> --chat <chat-id> --name <project-name> (--host <device-hash> | --source <placeholder-id>) [--personal|--team <team>] [--json]"
+      ],
+      "positionals": [
+        {
+          "name": "project",
+          "required": true,
+          "variadic": false,
+          "at": 4,
+          "synopsis": "<project>"
+        }
+      ],
+      "flags": [
+        "api-key",
+        "api-url",
+        "chat",
+        "help",
+        "host",
+        "json",
+        "name",
+        "personal",
+        "profile",
+        "source",
+        "team"
+      ],
+      "source_locations": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/cli/projects/remote_create.rs",
+          "line": 1,
+          "symbol": "projects::remote_create"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "sdk.projects.create_machine_source",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/projects/remote_create.rs"
+      },
+      "gaps": [
+        "Rust-first native remote operation (no npm CLI counterpart). Core requester in packages/openmates-rust/src/work/projects/sources/machine.rs; the machine creates folders only inside its configured new-Projects folder and never overwrites; live backend integration and platform verification pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "remote-access",
+        "new-projects-folder",
+        "set"
+      ],
+      "summary": "remote-access new-projects-folder set",
+      "usages": [
+        "remote-access new-projects-folder set <absolute-path> [--json]"
+      ],
+      "positionals": [
+        {
+          "name": "path",
+          "required": true,
+          "variadic": false,
+          "at": 3,
+          "synopsis": "<absolute-path>"
+        }
+      ],
+      "flags": [
+        "api-key",
+        "api-url",
+        "help",
+        "json",
+        "profile"
+      ],
+      "source_locations": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/cli/remote_access_folder.rs",
+          "line": 1,
+          "symbol": "remote_access_folder"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "sdk.source_host.save_new_projects_dir",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/remote_access_folder.rs"
+      },
+      "gaps": [
+        "Rust-first native host setting (no npm CLI counterpart). Stored in the remote-access state directory by packages/openmates-rust/src/source_host/store.rs; the host creates Project folders only inside this folder and never overwrites. Platform verification pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "remote-access",
+        "new-projects-folder",
+        "show"
+      ],
+      "summary": "remote-access new-projects-folder show",
+      "usages": [
+        "remote-access new-projects-folder show [--json]"
+      ],
+      "positionals": [],
+      "flags": [
+        "api-key",
+        "api-url",
+        "help",
+        "json",
+        "profile"
+      ],
+      "source_locations": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/cli/remote_access_folder.rs",
+          "line": 1,
+          "symbol": "remote_access_folder"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "sdk.source_host.load_new_projects_dir",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/remote_access_folder.rs"
+      },
+      "gaps": [
+        "Rust-first native host setting (no npm CLI counterpart). Stored in the remote-access state directory by packages/openmates-rust/src/source_host/store.rs; the host creates Project folders only inside this folder and never overwrites. Platform verification pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "remote-access",
+        "new-projects-folder",
+        "clear"
+      ],
+      "summary": "remote-access new-projects-folder clear",
+      "usages": [
+        "remote-access new-projects-folder clear [--json]"
+      ],
+      "positionals": [],
+      "flags": [
+        "api-key",
+        "api-url",
+        "help",
+        "json",
+        "profile"
+      ],
+      "source_locations": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/cli/remote_access_folder.rs",
+          "line": 1,
+          "symbol": "remote_access_folder"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "sdk.source_host.save_new_projects_dir",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/remote_access_folder.rs"
+      },
+      "gaps": [
+        "Rust-first native host setting (no npm CLI counterpart). Stored in the remote-access state directory by packages/openmates-rust/src/source_host/store.rs; the host creates Project folders only inside this folder and never overwrites. Platform verification pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
     }
   ],
   "platform_gaps": [
@@ -64060,9 +64553,9 @@
     "Remote command protection is Linux-specific; unsupported hosts must fail closed."
   ],
   "coverage": {
-    "command_patterns": 745,
-    "flags": 624,
-    "native_handlers_partial": 740,
+    "command_patterns": 754,
+    "flags": 627,
+    "native_handlers_partial": 749,
     "unsupported": 5,
     "feature_complete": false
   },

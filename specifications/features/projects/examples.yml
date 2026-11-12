@@ -815,6 +815,21 @@ project_commits:
   when: Alice opens "Add recipe list" in the timeline and chooses Restore.
   then: Every file returns to its content from that commit as a new version, and "Add recipe search" stays in the timeline
     and can be restored again.
+project_machine_creation:
+- id: new-project-on-own-machine
+  assertion_ids:
+  - projects.creation.machine-folder
+  given: Alice's laptop is connected through remote access and she set ~/projects as its folder for new Projects.
+  when: She asks for a new Project "Recipe Manager" on her laptop and confirms the request shown in the chat.
+  then: The laptop creates ~/projects/recipe-manager as a Git repository on main with a first commit, and the folder
+    appears as a connected source of the new Project. Before she confirmed, nothing existed on the laptop.
+- id: existing-folder-is-never-overwritten
+  assertion_ids:
+  - projects.creation.machine-folder
+  given: ~/projects/recipe-manager already exists on Alice's laptop.
+  when: She confirms creating a Project "Recipe Manager" on her laptop.
+  then: The laptop refuses with target_exists, the existing folder is unchanged, and Alice can retry with another name
+    or remove the pending request.
 project_chat_worktrees:
 - id: two-chats-one-repository
   assertion_ids:

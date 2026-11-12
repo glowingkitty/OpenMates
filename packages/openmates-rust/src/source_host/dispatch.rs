@@ -18,7 +18,9 @@
 use super::reads::{self, HostRoot};
 use super::worktrees::WorktreeArea;
 use super::writes::{self, Mutation, WriteRequest};
-use super::{HostError, HostResult, command_sandbox, commands, git_ops, search};
+use super::{
+    HostError, HostResult, command_sandbox, commands, create_source, creation_host, git_ops, search,
+};
 use crate::client::{
     Client, SourceHostAdapter, SourceHostOperation, SourceHostRequest, SourceHostSession,
 };
@@ -150,6 +152,7 @@ fn operation_name(operation: SourceHostOperation) -> &'static str {
         SourceHostOperation::GitStatus => git_ops::STATUS_OPERATION,
         SourceHostOperation::GitCommit => git_ops::COMMIT_OPERATION,
         SourceHostOperation::GitLand => git_ops::LAND_OPERATION,
+        SourceHostOperation::CreateSource => create_source::OPERATION,
     }
 }
 
@@ -157,6 +160,14 @@ fn operation_name(operation: SourceHostOperation) -> &'static str {
 pub(crate) enum Handled {
     /// A sealed answer (success or error code) was completed.
     Answered(String),
+    /// A `create_source` request was answered with a created folder that the
+    /// host now serves (the placeholder became a normal source).
+    Created {
+        /// Local lifecycle line.
+        summary: String,
+        /// The new folder to serve.
+        source: HostedSource,
+    },
     /// A routing discovery probe was answered.
     Discovery,
     /// The bootstrap was invalid; the request was dropped without completion.
@@ -237,7 +248,17 @@ pub(crate) async fn handle(
         proposal_digest: frame.proposal_digest.clone(),
         source_session_id: frame.source_session_id.clone(),
     };
-    let outcome = execute(client, &source, &context, frame.operation, &bootstrap, &key).await;
+    let mut created_source = None;
+    let outcome = execute(
+        client,
+        &source,
+        &context,
+        frame.operation,
+        &bootstrap,
+        &key,
+        &mut created_source,
+    )
+    .await;
     let response = match outcome {
         Ok(result) => reads::serialize_success(result),
         Err(error) => json!({"ok": false, "error": error.code}).to_string(),
@@ -249,7 +270,11 @@ pub(crate) async fn handle(
     let envelope = crypto.seal(response.as_bytes())?;
     let payload = json!({"source_handshake": source_handshake, "envelope": envelope}).to_string();
     host.complete(request, payload, cancel).await?;
-    Ok(Handled::Answered(format!("{operation} {code}")))
+    let summary = format!("{operation} {code}");
+    Ok(match created_source {
+        Some(source) => Handled::Created { summary, source },
+        None => Handled::Answered(summary),
+    })
 }
 
 struct RequestContext {
@@ -270,6 +295,7 @@ async fn execute(
     operation: SourceHostOperation,
     bootstrap: &Value,
     key: &[u8; 32],
+    created_source: &mut Option<HostedSource>,
 ) -> HostResult<Value> {
     let args = bootstrap["arguments"].clone();
     match operation {
@@ -280,6 +306,9 @@ async fn execute(
             Err(HostError::failed("unsupported_operation"))
         }
         SourceHostOperation::RunCommand => run_command(client, source, context, &args, key).await,
+        SourceHostOperation::CreateSource => {
+            create_source_op(client, source, context, &args, key, created_source).await
+        }
         SourceHostOperation::GitStatus => git_status(source, context).await,
         SourceHostOperation::GitCommit | SourceHostOperation::GitLand => {
             git_write(client, source, context, operation, &args, key).await
@@ -597,6 +626,66 @@ async fn git_write(
     })
     .await
     .map_err(|_| HostError::failed("Host operation was interrupted"))?
+}
+
+/// `create_source`: the same digest and backend authorization as a write.
+/// Unconfigured hosts answer `creation_not_configured` first; every other
+/// refusal (name, folder, identity, existing target) is checked by
+/// [`create_source::preflight`] before the approval is consumed. The new
+/// folder is then recorded locally, the placeholder is completed at the backend
+/// ([`creation_host::finish_creation`]) and the new source is handed back in
+/// `created_source` for the run loop to serve.
+async fn create_source_op(
+    client: &mut Client,
+    source: &HostedSource,
+    context: &RequestContext,
+    args: &Value,
+    key: &[u8; 32],
+    created_source: &mut Option<HostedSource>,
+) -> HostResult<Value> {
+    let proposal = create_source::validate(&args["create"])?;
+    let chat_id = args["chat_id"].as_str().ok_or_else(denied)?;
+    if Some(chat_id) != context.chat_id.as_deref()
+        || Some(proposal.operation_id.as_str()) != context.operation_id.as_deref()
+        || Some(create_source::digest(key, &context.project_id, chat_id, &proposal)?)
+            != context.proposal_digest
+    {
+        return Err(denied());
+    }
+    let state_dir = source.root.state_dir.clone();
+    let name = proposal.project_name.clone();
+    let plan = tokio::task::spawn_blocking(move || {
+        let folder = create_source::configured_folder(&state_dir)?;
+        let home = std::env::var_os("HOME").map(std::path::PathBuf::from).ok_or_else(|| {
+            HostError::new("identity_missing", "The home directory is unavailable")
+        })?;
+        create_source::preflight(&folder, &name, &home)
+    })
+    .await
+    .map_err(|_| HostError::failed("Host operation was interrupted"))??;
+    let route = source_route(
+        source,
+        &format!(
+            "/{}/requests/{}/authorize-write",
+            url::form_urlencoded::byte_serialize(source.source_id.as_bytes()).collect::<String>(),
+            url::form_urlencoded::byte_serialize(context.request_id.as_bytes()).collect::<String>()
+        ),
+    );
+    let body = json!({"source_session_id": context.source_session_id});
+    let authorized = authorize(client, &route, &body).await?;
+    if authorized["operation_id"] != proposal.operation_id.as_str() {
+        return Err(denied());
+    }
+    let name = proposal.project_name;
+    let created = tokio::task::spawn_blocking(move || create_source::create(&plan, &name))
+        .await
+        .map_err(|_| HostError::failed("Host operation was interrupted"))?;
+    let mut completion = creation_host::BackendCompletion(client);
+    let (result, served) =
+        creation_host::finish_creation(&mut completion, source, created, &source.root.state_dir)
+            .await?;
+    *created_source = Some(served);
+    Ok(result)
 }
 
 /// Fresh backend re-authorization with an unchanged scope and operation.

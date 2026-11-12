@@ -291,7 +291,10 @@ impl Projects<'_> {
         let sources = self.list_sources_raw(&project_id).await?;
         let source = select_source(&sources, requested_source)?;
         let source_id = string(&source, "source_id")?.to_owned();
-        if source["status"] != "connected" {
+        // A placeholder awaiting folder creation is routable for exactly the
+        // creation operation (the backend rejects every other operation on it).
+        let creation = call.name == "create_source" && source["status"] == "creation_pending";
+        if source["status"] != "connected" && !creation {
             return Err(remote(
                 "source_offline",
                 "The selected Project source is offline.",
@@ -329,6 +332,13 @@ impl Projects<'_> {
             .map(str::to_owned);
         let mut key_epoch = source["key_epoch"].as_u64();
         let mut routing = None;
+        if creation && (session_id.is_none() || key_epoch.is_none()) {
+            // Discovery would use a read operation, which a placeholder refuses.
+            return Err(remote(
+                "source_offline",
+                "The machine has not bound the new Project source yet.",
+            ));
+        }
         if session_id.is_none() || key_epoch.is_none() {
             let (session, epoch, identity) = self
                 .discover_routing(&project_id, &source_id, &project.key, timeout)

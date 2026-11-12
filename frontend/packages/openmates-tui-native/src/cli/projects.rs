@@ -8,6 +8,8 @@ mod files;
 mod focus;
 mod hosted;
 mod items;
+mod remote_create;
+mod remote_ops;
 mod sources;
 use super::{CliError, CliOutput, Invocation, task_input as input};
 use crate::{client::Client, error::Error, runtime_store::RuntimeStore};
@@ -77,6 +79,12 @@ pub(super) fn supported(i: &Invocation) -> bool {
             | "projects files list"
             | "projects files search"
             | "projects files read"
+            | "projects remote run"
+            | "projects remote git status"
+            | "projects remote git commit"
+            | "projects remote git land"
+            | "projects remote hosts"
+            | "projects remote create"
             | "projects settings focus activate"
             | "projects settings focus deactivate"
             | "projects settings command stop"
@@ -421,6 +429,9 @@ async fn execute_service(
     }
     if i.command_path().starts_with("projects files ") {
         return files::execute(i, &mut service).await;
+    }
+    if i.command_path().starts_with("projects remote ") {
+        return remote_ops::execute(i, &mut service).await;
     }
     if i.command_path().starts_with("projects settings command") {
         return command_settings::execute(i, &mut service).await;

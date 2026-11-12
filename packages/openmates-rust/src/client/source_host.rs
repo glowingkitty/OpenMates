@@ -36,6 +36,10 @@ pub enum SourceHostOperation {
     /// Rebase the chat's commits onto the target branch and fast-forward it
     /// locally (needs `write_request`; chat/operation/digest like a write).
     GitLand,
+    /// Create a new Project folder under the host's configured new-Projects
+    /// folder (write class: chat/operation/digest like a write; claimed only
+    /// where the host configured that folder).
+    CreateSource,
 }
 impl SourceHostOperation {
     fn capability(self) -> ProjectSourceCapability {
@@ -47,6 +51,7 @@ impl SourceHostOperation {
             | Self::MoveEntries
             | Self::GitCommit
             | Self::GitLand => ProjectSourceCapability::WriteRequest,
+            Self::CreateSource => ProjectSourceCapability::CreateSource,
             Self::RunCommand => ProjectSourceCapability::RunCommand,
             _ => ProjectSourceCapability::Read,
         }
@@ -607,6 +612,7 @@ impl SourceHostSession {
                 | SourceHostOperation::RunCommand
                 | SourceHostOperation::GitCommit
                 | SourceHostOperation::GitLand
+                | SourceHostOperation::CreateSource
         ) {
             identifier(frame.chat_id.as_deref().ok_or(Error::Protocol)?)?;
             identifier(frame.operation_id.as_deref().ok_or(Error::Protocol)?)?;

@@ -21,11 +21,14 @@ from backend.core.api.app.services.feature_availability_guards import ensure_pro
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.directus.project_methods import ProjectMoveError
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError
+from backend.core.api.app.services.directus.user.device_management import _normalize_device_list
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.services.project_remote_access_service import (
     ProjectRemoteAccessError,
     ProjectRemoteAccessService,
     resolve_root_chat_id,
+    CREATE_SOURCE_CAPABILITY,
+    CREATE_SOURCE_OPERATION,
     SINGLE_USE_OPERATIONS,
     WRITE_OPERATIONS,
     USER_FILE_OPERATIONS,
@@ -365,7 +368,11 @@ class ProjectUploadEmbedRequest(BaseModel):
 
 
 class ProjectSourceCreateRequest(BaseModel):
-    source_id: str = Field(max_length=PROJECT_SOURCE_ID_MAX_LENGTH)
+    # Omitted in placeholder mode (``create_on_host_device``): the backend generates it.
+    source_id: Optional[str] = Field(default=None, min_length=1, max_length=PROJECT_SOURCE_ID_MAX_LENGTH)
+    # Placeholder mode: stable device hash of the connected host device that will
+    # create a new folder + Git repository for this Project.
+    create_on_host_device: Optional[str] = Field(default=None, pattern="^[a-f0-9]{64}$")
     source_type: Literal[
         "local_folder",
         "local_git_repository",
@@ -382,6 +389,36 @@ class ProjectSourceCreateRequest(BaseModel):
     created_at: int
     updated_at: int
     last_indexed_at: Optional[int] = None
+
+    @model_validator(mode="after")
+    def validate_creation_mode(self) -> "ProjectSourceCreateRequest":
+        if self.create_on_host_device is None:
+            if not self.source_id:
+                raise ValueError("source_id is required")
+            return self
+        if self.source_id or self.capabilities or self.last_indexed_at is not None:
+            raise ValueError("Placeholder sources take no source_id, capabilities or index time")
+        return self
+
+
+class ProjectSourceCreationCompleteRequest(BaseModel):
+    """Host-side completion of a placeholder after its folder was created."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    source_type: Literal["local_folder", "local_git_repository"]
+    encrypted_display_name: str = Field(min_length=1, max_length=PROJECT_SOURCE_CIPHERTEXT_MAX_LENGTH)
+    encrypted_metadata: str = Field(min_length=1, max_length=PROJECT_SOURCE_CIPHERTEXT_MAX_LENGTH)
+    capabilities: List[Literal["read", "search", "import", "write_request", "run_command"]] = Field(
+        min_length=1, max_length=PROJECT_SOURCE_CAPABILITIES_MAX_COUNT,
+    )
+    updated_at: int
+
+    @model_validator(mode="after")
+    def validate_unique_capabilities(self) -> "ProjectSourceCreationCompleteRequest":
+        if len(self.capabilities) != len(set(self.capabilities)):
+            raise ValueError("Project source capabilities must be unique")
+        return self
 
 
 class ProjectSourceCapabilitiesUpdateRequest(BaseModel):
@@ -403,7 +440,7 @@ class ProjectRemoteAccessRequestCreate(BaseModel):
 
     request_id: str = Field(min_length=1, max_length=128)
     requesting_client_id: str = Field(min_length=1, max_length=128)
-    operation: Literal["list", "search", "read_text", "read_image_chunk", "read_file_chunk", "create_file", "update_file", "run_command", "git_status", "git_commit", "git_land", "copy_entries", "move_entries"]
+    operation: Literal["list", "search", "read_text", "read_image_chunk", "read_file_chunk", "create_file", "update_file", "run_command", "git_status", "git_commit", "git_land", "create_source", "copy_entries", "move_entries"]
     key_epoch: int = Field(ge=1)
     encrypted_envelope: str = Field(min_length=1, max_length=350_000)
     chat_id: str | None = Field(default=None, min_length=1, max_length=128)
@@ -885,6 +922,77 @@ async def update_project(
     return {"project": updated, "history": history}
 
 
+@router.get("/source-creations/pending")
+@limiter.limit("60/minute")
+async def list_pending_source_creations(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    """First-party host surface: placeholders addressed to the calling device.
+
+    Rows carry ``hashed_project_id`` (and ``hashed_team_id`` for Team Projects);
+    the host maps them to Projects it knows. No plaintext Project identity or
+    filesystem data is stored or returned.
+    """
+    device_hash = await _authenticated_request_device_hash(request, current_user.id)
+    rows = await directus_service.project.list_creation_pending_sources(current_user.id, device_hash)
+    return {"sources": rows}
+
+
+@router.post("/{project_id}/sources/{source_id}/complete-creation")
+@limiter.limit("30/minute")
+async def complete_project_source_creation(
+    request: Request,
+    project_id: str,
+    source_id: str,
+    body: ProjectSourceCreationCompleteRequest,
+    team_id: str | None = None,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    """First-party host surface: upgrade a placeholder after the folder exists.
+
+    Only the device the placeholder is bound to may complete it. The source
+    becomes an ordinary offline source; the host then registers its bindings
+    over the normal remote-access WebSocket registration.
+    """
+    await _require_project_role(directus_service, team_id, current_user.id, TEAM_MUTATE_ROLES)
+    device_hash = await _authenticated_request_device_hash(request, current_user.id)
+    project = await directus_service.project.get_project(project_id, current_user.id, team_id=team_id)
+    source = await directus_service.project.get_source(project_id, current_user.id, source_id, team_id=team_id)
+    if not project or not source:
+        raise HTTPException(status_code=404, detail="Source not found")
+    if source.get("status") != "creation_pending":
+        raise HTTPException(status_code=409, detail="SOURCE_NOT_CREATION_PENDING")
+    if (
+        source.get("attached_by_user_hash") != hash_id(current_user.id)
+        or source.get("host_device_hash") != device_hash
+    ):
+        raise HTTPException(status_code=403, detail="SOURCE_HOST_DEVICE_MISMATCH")
+    updated = await directus_service.project.complete_source_creation(
+        project_id, current_user.id, source_id,
+        source_type=body.source_type,
+        encrypted_display_name=body.encrypted_display_name,
+        encrypted_metadata=body.encrypted_metadata,
+        capabilities=list(body.capabilities),
+        updated_at=body.updated_at,
+        team_id=team_id,
+    )
+    if not updated:
+        raise HTTPException(status_code=409, detail="SOURCE_NOT_CREATION_PENDING")
+    return {"source": updated}
+
+
+async def _require_connected_device(directus_service: DirectusService, user_id: str, device_hash: str) -> None:
+    profile = await directus_service.get_user_fields_direct(
+        user_id, ["id", "connected_devices"], no_cache=True,
+    )
+    known = _normalize_device_list(profile.get("connected_devices")) if isinstance(profile, dict) else []
+    if device_hash not in {row.get("hash") for row in known}:
+        raise HTTPException(status_code=403, detail="HOST_DEVICE_NOT_CONNECTED")
+
+
 @router.get("/{project_id}/sources")
 @limiter.limit("60/minute")
 async def list_project_sources(
@@ -919,6 +1027,10 @@ async def list_project_sources(
                 status_value = "connected"
             except ProjectRemoteAccessError:
                 pass
+            if source.get("status") == "creation_pending":
+                # Placeholders register like any source; the client needs the live
+                # binding to route create_source, but the row stays pending.
+                status_value = "creation_pending"
         if membership:
             safe_source = {key: value for key, value in source.items() if key in TEAM_SOURCE_SAFE_FIELDS}
             safe_source["status"] = status_value
@@ -933,8 +1045,12 @@ async def list_project_sources(
                 {
                     **source,
                     "status": status_value,
-                    "source_session_id": binding.get("source_session_id") if status_value == "connected" else None,
-                    "key_epoch": binding.get("key_epoch") if status_value == "connected" else None,
+                    "source_session_id": binding.get("source_session_id"),
+                    "key_epoch": binding.get("key_epoch"),
+                    "host_device_hash": (
+                        binding.get("stable_device_fingerprint_hash")
+                        or source.get("host_device_hash")
+                    ),
                 }
             )
     return {"sources": live_sources}
@@ -961,10 +1077,20 @@ async def create_project_source(
         "auto_approve_safe_writes",
     }:
         raise HTTPException(status_code=409, detail="PROJECT_WRITE_MODE_REQUIRED")
+    payload = body.model_dump()
+    if body.create_on_host_device:
+        await _require_connected_device(directus_service, current_user.id, body.create_on_host_device)
+        payload.update(
+            source_id=f"src_{uuid.uuid4().hex}",
+            source_type="local_folder",
+            capabilities=[CREATE_SOURCE_CAPABILITY],
+            status="creation_pending",
+            host_device_hash=body.create_on_host_device,
+        )
     source = await directus_service.project.create_source(
         project_id,
         current_user.id,
-        body.model_dump(),
+        payload,
         team_id=team_id,
     )
     if not source:
@@ -1040,6 +1166,8 @@ async def update_project_source_capabilities(
     )
     if not project or not source or source.get("status") == "revoked":
         raise HTTPException(status_code=404, detail="Source not found")
+    if source.get("status") == "creation_pending":
+        raise HTTPException(status_code=409, detail="SOURCE_CREATION_PENDING")
     if (
         membership
         and membership.get("role") == "member"
@@ -1087,6 +1215,12 @@ async def create_project_remote_access_request(
         raise HTTPException(status_code=404, detail="Source not found")
     if source.get("status") == "revoked":
         raise HTTPException(status_code=409, detail="SOURCE_REVOKED")
+    if (source.get("status") == "creation_pending") != (body.operation == CREATE_SOURCE_OPERATION):
+        raise HTTPException(
+            status_code=409,
+            detail="SOURCE_CREATION_PENDING" if source.get("status") == "creation_pending"
+            else "SOURCE_NOT_CREATION_PENDING",
+        )
     service = ProjectRemoteAccessService(request.app.state.cache_service)
     requester_device_hash = await _authenticated_request_device_hash(request, current_user.id)
     if body.operation in WRITE_OPERATIONS:

@@ -43,6 +43,8 @@ mod plans;
 mod projects;
 #[cfg(unix)]
 mod remote_access;
+#[cfg(unix)]
+mod remote_access_folder;
 mod send;
 pub mod signup;
 mod utility;

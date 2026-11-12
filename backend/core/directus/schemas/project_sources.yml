@@ -50,7 +50,12 @@ project_sources:
 
     status:
       type: string
-      note: "Connection status: connected, offline, permission_required, or revoked."
+      note: "Connection status: connected, offline, permission_required, revoked, or creation_pending (placeholder awaiting its host device to create the folder)."
+
+    host_device_hash:
+      type: string
+      nullable: true
+      note: "[Indexed, Nullable] Stable device hash of the single host device a creation_pending placeholder is bound to."
 
     created_at:
       type: integer
@@ -65,6 +70,7 @@ project_sources:
       note: "Optional Unix timestamp (seconds) for the last successful source index/search refresh."
 
   indexes:
+    - fields: [host_device_hash, status]
     - fields: [hashed_project_id, hashed_user_id]
     - fields: [hashed_project_id, hashed_team_id]
     - fields: [source_id, hashed_user_id]

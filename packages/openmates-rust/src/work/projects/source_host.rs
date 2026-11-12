@@ -57,7 +57,9 @@ impl Projects<'_> {
                 ],
                 // The adapter advertises this only when a sandbox tier exists.
                 ProjectSourceCapability::RunCommand => &[Op::RunCommand],
-                _ => &[],
+                // Placeholder bindings serve only the creation operation.
+                ProjectSourceCapability::CreateSource => &[Op::CreateSource],
+                ProjectSourceCapability::Import => &[],
             };
             if !operations.iter().all(|op| adapter.supports_operation(*op)) {
                 return Err(Error::Invalid(

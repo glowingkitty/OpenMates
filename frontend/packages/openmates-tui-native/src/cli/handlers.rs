@@ -71,7 +71,8 @@ fn supported(invocation: &Invocation) -> bool {
 /// The Rust filesystem host exists only on unix targets.
 fn remote_access_supported(invocation: &Invocation) -> bool {
     #[cfg(unix)]
-    return super::remote_access::supported(invocation);
+    return super::remote_access::supported(invocation)
+        || super::remote_access_folder::supported(invocation);
     #[cfg(not(unix))]
     {
         let _ = invocation;
@@ -92,6 +93,7 @@ pub fn requirements(invocation: &Invocation) -> Requirements {
         || super::parity_extras::is_public(invocation)
         || super::parity_chat_recovery::is_public(invocation)
         || super::group_help::is_root(invocation)
+        || invocation.command_path().starts_with("remote-access new-projects-folder ")
         || !supported(invocation)
         || invocation.path.first().is_some_and(|v| v == "server");
     Requirements {
@@ -108,6 +110,8 @@ pub fn execute_public(invocation: &Invocation) -> Option<Result<CliOutput, CliEr
     if invocation.command_path()=="embeds share" { if let Some(result)=super::embed_share::preflight(invocation){return Some(result);} }
     #[cfg(unix)]
     if let Some(output) = super::remote_access::preflight(invocation) { return Some(output); }
+    #[cfg(unix)]
+    if let Some(output) = super::remote_access_folder::public(invocation) { return Some(output); }
     if let Some(output) = super::apps_run::public(invocation) { return Some(output); }
     if let Some(output) = super::utility::public(invocation) { return Some(output); }
     if let Some(output) = super::group_help::public(invocation) { return Some(output); }

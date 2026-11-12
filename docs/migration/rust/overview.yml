@@ -8,7 +8,7 @@ formula: percent = round(100 * done / total, 1); done+partial+missing == total; 
 priority_order: [web_app, shared_client, cli, sdk_rust, sdk_npm, sdk_python]
 performance_history: performance-history.yml
 overall:
-  percent: 26.9
+  percent: 26.7
   formula: overall = round(0.4 * web_app + 0.2 * shared_client + 0.25 * cli + 0.15 * sdk, 1), sdk = mean(sdk_rust,
     sdk_npm, sdk_python); each term is the area percent
   weights:
@@ -20,7 +20,7 @@ overall:
   inputs:
     web_app: 7.8
     shared_client: 28.6
-    cli: 65.4
+    cli: 64.6
     sdk: 11.3
 areas:
 - id: web_app
@@ -60,13 +60,13 @@ areas:
   priority_rank: 2
   file: cli.yml
   unit: CLI commands
-  total: 745
+  total: 754
   done: 487
-  partial: 253
+  partial: 262
   missing: 5
-  percent: 65.4
+  percent: 64.6
   done_definition: command is differential-verified against the npm CLI
-  blockers: [5 unsupported commands without native handler, 736 commands not verified on Linux]
+  blockers: [5 unsupported commands without native handler, 745 commands not verified on Linux]
 - id: sdk_rust
   title: Rust SDK (operation capabilities)
   priority_rank: 3

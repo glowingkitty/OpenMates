@@ -9,13 +9,12 @@
 //! the session keeps at most four pending, so a slow search delays the next
 //! request but never drops it.
 
-use super::dispatch::{self, FilesystemSourceAdapter, Handled, HostedSource};
-use super::reads::HostRoot;
+use super::creation_host::{self, HostState};
+use super::dispatch::{self, Handled, HostedSource};
 use crate::client::{Client, SourceHostOptions, SourceHostPoll, SourceHostSession};
 use crate::error::{Error, Result};
 use crate::session::Session;
 use std::path::PathBuf;
-use std::sync::Arc;
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 
@@ -108,9 +107,30 @@ fn terminal(error: &Error) -> bool {
     )
 }
 
-async fn bind(client: &mut Client, run: &SourceHostRun, cancel: &CancellationToken) -> Result<SourceHostSession> {
-    let mut bindings = Vec::with_capacity(run.sources.len());
-    for source in &run.sources {
+/// How often a host that may create folders re-checks for new placeholders
+/// while it idles (placeholders are also discovered at start and on reconnect).
+const RESCAN_INTERVAL: Duration = Duration::from_secs(20);
+
+/// Why [`serve`] returned without an error.
+enum Served {
+    /// Cancelled; the session was disconnected.
+    Finished,
+    /// A `create_source` request was answered; serve the new folder.
+    Created(HostedSource),
+    /// The idle rescan interval elapsed.
+    Rescan,
+}
+
+/// Bind every source of `state` (placeholders with the creation adapter, the
+/// rest with the filesystem adapter) and register one host session.
+async fn bind(
+    client: &mut Client,
+    run: &SourceHostRun,
+    state: &HostState,
+    cancel: &CancellationToken,
+) -> Result<SourceHostSession> {
+    let mut bindings = Vec::with_capacity(state.sources.len());
+    for source in &state.sources {
         let filters = crate::work::ProjectFilters {
             personal: source.team_id.is_none(),
             team_id: source.team_id.clone(),
@@ -120,7 +140,7 @@ async fn bind(client: &mut Client, run: &SourceHostRun, cancel: &CancellationTok
             client
                 .projects()
                 .with_filters(filters)
-                .source_host_binding(&source.project_id, &source.source_id, Arc::new(FilesystemSourceAdapter))
+                .source_host_binding(&source.project_id, &source.source_id, state.adapter(&source.source_id))
                 .await?,
         );
     }
@@ -134,7 +154,103 @@ async fn bind(client: &mut Client, run: &SourceHostRun, cancel: &CancellationTok
         .await
 }
 
+fn report_notes(notes: Vec<String>, on_event: &mut (dyn FnMut(SourceHostEvent) + Send)) {
+    for summary in notes {
+        on_event(SourceHostEvent::Request { summary });
+    }
+}
+
+/// Replace the session with a fresh registration of the current `state`
+/// (a created folder is served with the normal capabilities, newly found
+/// placeholders are bound). `state.rebind_needed` stays set when the new
+/// registration fails so the reconnect loop registers fresh instead of reusing
+/// the stale bindings.
+async fn reseat(
+    client: &mut Client,
+    run: &SourceHostRun,
+    state: &mut HostState,
+    host: &mut SourceHostSession,
+    hosted: &mut Vec<HostedSource>,
+    cancel: &CancellationToken,
+    on_event: &mut (dyn FnMut(SourceHostEvent) + Send),
+) -> Result<()> {
+    *hosted = state.hosted(&run.state_dir);
+    state.rebind_needed = true;
+    host.close();
+    on_event(SourceHostEvent::Connecting { attempt: 0 });
+    *host = bind(client, run, state, cancel).await?;
+    state.rebind_needed = false;
+    on_event(SourceHostEvent::Connected);
+    Ok(())
+}
+
+/// Look for placeholders and unfinished creations; reseat when any were found.
+/// A transient discovery failure is reported and retried at the next rescan.
+async fn rescan(
+    client: &mut Client,
+    run: &SourceHostRun,
+    state: &mut HostState,
+    host: &mut SourceHostSession,
+    hosted: &mut Vec<HostedSource>,
+    cancel: &CancellationToken,
+    on_event: &mut (dyn FnMut(SourceHostEvent) + Send),
+) -> Result<()> {
+    match creation_host::discover(client, run, state).await {
+        Ok(found) => {
+            report_notes(found.notes, on_event);
+            if found.changed {
+                reseat(client, run, state, host, hosted, cancel, on_event).await?;
+            }
+            Ok(())
+        }
+        Err(error) if terminal(&error) => Err(error),
+        Err(error) => {
+            on_event(SourceHostEvent::Request {
+                summary: format!("creation_discovery {error}"),
+            });
+            Ok(())
+        }
+    }
+}
+
+/// One serve step; `Ok(true)` when the run finished.
+// The step threads the whole session state; a struct would only rename the arguments.
+#[allow(clippy::too_many_arguments)]
+async fn step(
+    client: &mut Client,
+    run: &SourceHostRun,
+    state: &mut HostState,
+    host: &mut SourceHostSession,
+    hosted: &mut Vec<HostedSource>,
+    pending_scan: &mut bool,
+    cancel: &CancellationToken,
+    on_event: &mut (dyn FnMut(SourceHostEvent) + Send),
+) -> Result<bool> {
+    if std::mem::take(pending_scan) {
+        rescan(client, run, state, host, hosted, cancel, on_event).await?;
+    }
+    let rescan_enabled = creation_host::creation_configured(&run.state_dir);
+    match serve(client, host, hosted, rescan_enabled, cancel, on_event).await? {
+        Served::Finished => Ok(true),
+        Served::Created(source) => {
+            state.adopt(&source);
+            reseat(client, run, state, host, hosted, cancel, on_event).await?;
+            Ok(false)
+        }
+        Served::Rescan => {
+            rescan(client, run, state, host, hosted, cancel, on_event).await?;
+            Ok(false)
+        }
+    }
+}
+
 /// Serve the sources until `cancel` fires.
+///
+/// Before the first registration the host looks for new-Project placeholders
+/// addressed to this device (only when a new-Projects folder is configured) and
+/// binds them with the `create_source` capability; the same check runs after
+/// every reconnect and periodically while idle. A created folder is served with
+/// the normal capabilities in the running session.
 ///
 /// # Errors
 /// `Conflict` when another process owns a source and takeover was not
@@ -146,30 +262,24 @@ pub async fn run_source_host(
     cancel: CancellationToken,
     on_event: &mut (dyn FnMut(SourceHostEvent) + Send),
 ) -> Result<()> {
-    let hosted: Vec<HostedSource> = run
-        .sources
-        .iter()
-        .map(|s| HostedSource {
-            project_id: s.project_id.clone(),
-            source_id: s.source_id.clone(),
-            team_id: s.team_id.clone(),
-            root: HostRoot {
-                root: s.root.clone(),
-                state_dir: run.state_dir.clone(),
-                policy_source: None,
-            },
-            // The per-source target-branch setting is not stored yet; chat
-            // worktrees default to the branch checked out in the source root.
-            target_branch: None,
-        })
-        .collect();
+    let mut state = HostState::new(&run);
     on_event(SourceHostEvent::Connecting { attempt: 0 });
-    let mut host = bind(client, &run, &cancel).await?;
+    match creation_host::discover(client, &run, &mut state).await {
+        Ok(found) => report_notes(found.notes, on_event),
+        Err(error) if terminal(&error) => return Err(error),
+        Err(error) => on_event(SourceHostEvent::Request {
+            summary: format!("creation_discovery {error}"),
+        }),
+    }
+    let mut hosted = state.hosted(&run.state_dir);
+    let mut host = bind(client, &run, &state, &cancel).await?;
     on_event(SourceHostEvent::Connected);
     let mut attempt = 0u32;
+    let mut pending_scan = false;
     loop {
-        let error = match serve(client, &mut host, &hosted, &cancel, on_event).await {
-            Ok(()) => return Ok(()),
+        let error = match step(client, &run, &mut state, &mut host, &mut hosted, &mut pending_scan, &cancel, on_event).await {
+            Ok(true) => return Ok(()),
+            Ok(false) => continue,
             Err(error) => error,
         };
         if cancel.is_cancelled() {
@@ -204,14 +314,20 @@ pub async fn run_source_host(
                 host.close();
                 return Err(error);
             }
-            let next = match client.prepare_source_host_reconnect(&mut host, cancel.child_token()).await {
-                Ok(start) => start.connect().await,
-                Err(error) => Err(error),
+            let next = if state.rebind_needed {
+                bind(client, &run, &state, &cancel).await
+            } else {
+                match client.prepare_source_host_reconnect(&mut host, cancel.child_token()).await {
+                    Ok(start) => start.connect().await,
+                    Err(error) => Err(error),
+                }
             };
             match next {
                 Ok(session) => {
                     host = session;
+                    state.rebind_needed = false;
                     attempt = 0;
+                    pending_scan = true;
                     on_event(SourceHostEvent::Connected);
                     break;
                 }
@@ -231,28 +347,39 @@ async fn serve(
     client: &mut Client,
     host: &mut SourceHostSession,
     hosted: &[HostedSource],
+    rescan: bool,
     cancel: &CancellationToken,
     on_event: &mut (dyn FnMut(SourceHostEvent) + Send),
-) -> Result<()> {
+) -> Result<Served> {
+    let started = std::time::Instant::now();
     loop {
         if cancel.is_cancelled() {
             // One bounded best-effort disconnect; the server times the lease out otherwise.
             let _ = host.disconnect(&CancellationToken::new()).await;
             on_event(SourceHostEvent::Disconnected);
-            return Ok(());
+            return Ok(Served::Finished);
         }
         // Poll with a private token so cancellation is observed here, before
         // the session closes, and the disconnect frame can still be sent.
         let read = match host.poll(&CancellationToken::new()).await? {
-            SourceHostPoll::Idle => continue,
+            SourceHostPoll::Idle => {
+                if rescan && started.elapsed() >= RESCAN_INTERVAL {
+                    return Ok(Served::Rescan);
+                }
+                continue;
+            }
             SourceHostPoll::Read(read) => read,
         };
         let request = client.finish_source_host_read(host, read)?;
-        let summary = match dispatch::handle(client, host, request, hosted, cancel).await? {
-            Handled::Answered(summary) => summary,
-            Handled::Discovery => "routing_discovery ok".to_owned(),
-            Handled::Dropped => "request dropped".to_owned(),
+        let (summary, created) = match dispatch::handle(client, host, request, hosted, cancel).await? {
+            Handled::Answered(summary) => (summary, None),
+            Handled::Created { summary, source } => (summary, Some(source)),
+            Handled::Discovery => ("routing_discovery ok".to_owned(), None),
+            Handled::Dropped => ("request dropped".to_owned(), None),
         };
         on_event(SourceHostEvent::Request { summary });
+        if let Some(source) = created {
+            return Ok(Served::Created(source));
+        }
     }
 }

@@ -12,16 +12,16 @@ spec_assertions: [cli.runtime.native-rust, cli.distribution.cargo-prereleases, c
 spec_gaps: ['Differential parity with the npm CLI per command is tracked in config/cli-command-catalog.json, not
     in an assertion.']
 summary:
-  total: 745
+  total: 754
   done: 487
-  partial: 253
+  partial: 262
   missing: 5
-  percent: 65.4
+  percent: 64.6
 status_counts:
   implemented: 0
-  partial: 740
+  partial: 749
   unsupported: 5
-with_native_handler: 736
+with_native_handler: 745
 with_e2e_evidence: 9
 platforms_verified:
   linux: 9
@@ -61,9 +61,9 @@ groups:
   linux_verified: 0
   macos_verified: 0
 - group: projects
-  commands: 48
+  commands: 54
   implemented: 0
-  partial: 48
+  partial: 54
   unsupported: 0
   differential_verified: 31
   linux_verified: 3
@@ -188,6 +188,14 @@ groups:
   differential_verified: 4
   linux_verified: 0
   macos_verified: 0
+- group: remote-access
+  commands: 4
+  implemented: 0
+  partial: 4
+  unsupported: 0
+  differential_verified: 0
+  linux_verified: 0
+  macos_verified: 0
 - group: wiki
   commands: 4
   implemented: 0
@@ -298,14 +306,6 @@ groups:
   partial: 1
   unsupported: 0
   differential_verified: 1
-  linux_verified: 0
-  macos_verified: 0
-- group: remote-access
-  commands: 1
-  implemented: 0
-  partial: 1
-  unsupported: 0
-  differential_verified: 0
   linux_verified: 0
   macos_verified: 0
 - group: signup

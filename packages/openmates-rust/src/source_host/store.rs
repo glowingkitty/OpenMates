@@ -13,6 +13,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
 const STORE_FILE: &str = "remote-sources.json";
+const SETTINGS_FILE: &str = "host-settings.json";
 const MAX_SOURCE_ID_LENGTH: usize = 128;
 const MAX_PROFILE_LENGTH: usize = 64;
 
@@ -241,4 +242,65 @@ pub(crate) fn write_private_file(path: &Path, bytes: &[u8]) -> HostResult<()> {
         return Err(HostError::failed(format!("Private write failed: {error}")));
     }
     Ok(())
+}
+
+/// The machine owner's "new Projects" folder from `<state>/host-settings.json`
+/// (`{"new_projects_dir": "/abs/path"}`), or `None` when unset. Unset means the
+/// host does not advertise `create_source`.
+///
+/// # Errors
+/// `operation_failed` for an unreadable or malformed settings file or a
+/// relative path.
+pub fn load_new_projects_dir(state_dir: &Path) -> HostResult<Option<PathBuf>> {
+    let path = state_dir.join(SETTINGS_FILE);
+    let text = match std::fs::read_to_string(&path) {
+        Ok(text) => text,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => return Err(HostError::failed(format!("Host settings unreadable: {e}"))),
+    };
+    let parsed: Value = serde_json::from_str(&text)
+        .map_err(|e| HostError::failed(format!("Host settings are invalid: {e}")))?;
+    match parsed.get("new_projects_dir") {
+        None | Some(Value::Null) => Ok(None),
+        Some(Value::String(dir)) if Path::new(dir).is_absolute() => Ok(Some(PathBuf::from(dir))),
+        Some(_) => Err(HostError::failed(
+            "The new-Projects folder must be an absolute path.",
+        )),
+    }
+}
+
+/// Set (`Some`) or clear (`None`) the new-Projects folder, keeping any other
+/// settings keys. Only the machine owner calls this (CLI configuration); a
+/// requester can never change it.
+///
+/// # Errors
+/// `operation_failed` for a relative path or IO failure.
+pub fn save_new_projects_dir(state_dir: &Path, dir: Option<&Path>) -> HostResult<()> {
+    if dir.is_some_and(|d| !d.is_absolute()) {
+        return Err(HostError::failed(
+            "The new-Projects folder must be an absolute path.",
+        ));
+    }
+    let path = state_dir.join(SETTINGS_FILE);
+    let mut settings: Map<String, Value> = match std::fs::read_to_string(&path) {
+        Ok(text) => serde_json::from_str(&text)
+            .map_err(|e| HostError::failed(format!("Host settings are invalid: {e}")))?,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Map::new(),
+        Err(e) => return Err(HostError::failed(format!("Host settings unreadable: {e}"))),
+    };
+    match dir {
+        Some(dir) => {
+            settings.insert(
+                "new_projects_dir".into(),
+                Value::String(dir.to_string_lossy().into_owned()),
+            );
+        }
+        None => {
+            settings.remove("new_projects_dir");
+        }
+    }
+    private_directory(state_dir)?;
+    let body = serde_json::to_string_pretty(&Value::Object(settings))
+        .map_err(|e| HostError::failed(e.to_string()))?;
+    write_private_file(&path, format!("{body}\n").as_bytes())
 }

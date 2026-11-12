@@ -1,7 +1,7 @@
 //! Cookie-only encrypted source authoring. Native filesystem approval is separate.
 use super::*;
 
-#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ProjectSourceType {
     LocalFolder,
@@ -9,7 +9,7 @@ pub enum ProjectSourceType {
     RemoteFolder,
     RemoteGitRepository,
 }
-#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ProjectSourceCapability {
     Read,
@@ -17,14 +17,19 @@ pub enum ProjectSourceCapability {
     Import,
     WriteRequest,
     RunCommand,
+    /// Placeholder capability: the bound machine may create the new Project
+    /// folder this source stands for (wire `create_source`).
+    CreateSource,
 }
-#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ProjectSourceStatus {
     Connected,
     Offline,
     PermissionRequired,
     Revoked,
+    /// A placeholder awaiting folder creation on its target machine.
+    CreationPending,
 }
 /// Metadata is encrypted in full, including legacy root/binding_root fields.
 #[derive(Clone, Serialize, Deserialize)]
@@ -58,6 +63,10 @@ pub struct ProjectSource {
     pub created_at: u64,
     pub updated_at: u64,
     pub last_indexed_at: Option<u64>,
+    /// Stable hash of the machine that hosts (or will host) this personal
+    /// source; `None` for team rows and legacy sources.
+    #[serde(default)]
+    pub host_device_hash: Option<String>,
 }
 fn source_id(id: &str) -> Result<()> {
     if id.is_empty() || id.len() > 128 || id.chars().any(char::is_control) {
@@ -159,6 +168,7 @@ fn source_decode(
         updated_at: raw["updated_at"].as_u64().ok_or(Error::Protocol)?,
         last_indexed_at: serde_json::from_value(raw["last_indexed_at"].clone())
             .map_err(|_| Error::Protocol)?,
+        host_device_hash: raw["host_device_hash"].as_str().map(str::to_owned),
     })
 }
 impl Projects<'_> {
@@ -310,6 +320,12 @@ impl Projects<'_> {
         Ok(json!({"project_id":project_id,"source_id":id,"deleted":response["deleted"] == true}))
     }
 }
+mod machine;
+pub use machine::{
+    CreatedMachineSource, MachineHost, PendingSourceCreation, ProjectSourceCompletion,
+};
+#[cfg(test)]
+mod machine_tests;
 #[cfg(test)]
 mod tests;
 

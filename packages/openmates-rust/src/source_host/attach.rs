@@ -365,14 +365,18 @@ pub async fn attach_root(
     })
 }
 
-fn host_capabilities() -> Vec<ProjectSourceCapability> {
-    host_capability_names(command_sandbox::detect().is_ok())
+/// The capabilities a normal (folder-backed) source is registered with.
+/// `create_source` belongs to placeholders only (see `creation_host.rs`), so
+/// it is never part of this set.
+pub(crate) fn host_capabilities() -> Vec<ProjectSourceCapability> {
+    host_capability_names(command_sandbox::detect().is_ok(), false)
         .iter()
         .map(|c| match *c {
             "read" => ProjectSourceCapability::Read,
             "search" => ProjectSourceCapability::Search,
             "import" => ProjectSourceCapability::Import,
             "run_command" => ProjectSourceCapability::RunCommand,
+            "create_source" => ProjectSourceCapability::CreateSource,
             _ => ProjectSourceCapability::WriteRequest,
         })
         .collect()
@@ -450,7 +454,7 @@ pub async fn prepare_source(
                 .as_array()
                 .map(|values| values.iter().filter_map(Value::as_str).map(str::to_owned).collect())
                 .unwrap_or_default();
-            let mut wanted: Vec<String> = host_capability_names(command_sandbox::detect().is_ok())
+            let mut wanted: Vec<String> = host_capability_names(command_sandbox::detect().is_ok(), false)
                 .iter()
                 .map(|c| (*c).to_owned())
                 .collect();

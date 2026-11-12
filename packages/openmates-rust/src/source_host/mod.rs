@@ -15,6 +15,8 @@ mod command_process;
 mod command_sandbox;
 mod command_scope;
 pub(crate) mod commands;
+pub(crate) mod create_source;
+mod creation_host;
 mod dispatch;
 mod fs_safe;
 pub(crate) mod git_ops;
@@ -33,6 +35,10 @@ mod writes_journal;
 
 #[cfg(test)]
 mod command_sandbox_tests;
+#[cfg(test)]
+mod create_source_tests;
+#[cfg(test)]
+mod creation_host_tests;
 #[cfg(test)]
 mod commands_tests;
 #[cfg(test)]
@@ -64,8 +70,8 @@ pub use attach::{
 pub use dispatch::FilesystemSourceAdapter;
 pub use runner::{CredentialSync, CredentialSyncFuture, SourceHostEvent, SourceHostRun, SourceHostRunSource, run_source_host};
 pub use store::{
-    StoredRemoteSource, load_remote_sources, npm_state_dir, remote_cache_path,
-    remote_source_type, save_remote_sources, upsert_remote_source,
+    StoredRemoteSource, load_new_projects_dir, load_remote_sources, npm_state_dir, remote_cache_path,
+    remote_source_type, save_new_projects_dir, save_remote_sources, upsert_remote_source,
 };
 
 use std::cmp::Ordering;
@@ -77,13 +83,20 @@ use std::fmt;
 pub const HOST_CAPABILITIES: [&str; 4] = ["read", "search", "import", "write_request"];
 
 /// The capability names this host advertises: [`HOST_CAPABILITIES`] plus
-/// `run_command` when `sandbox_available` (a confinement tier was detected).
-/// Without a sandbox the operation still answers `confinement_unavailable`
-/// but is never advertised.
-pub(crate) fn host_capability_names(sandbox_available: bool) -> Vec<&'static str> {
+/// `run_command` when `sandbox_available` (a confinement tier was detected)
+/// and `create_source` when `creation_configured` (the machine owner set a
+/// new-Projects folder). Unadvertised operations still answer their stable
+/// refusal code (`confinement_unavailable`, `creation_not_configured`).
+pub(crate) fn host_capability_names(
+    sandbox_available: bool,
+    creation_configured: bool,
+) -> Vec<&'static str> {
     let mut names = HOST_CAPABILITIES.to_vec();
     if sandbox_available {
         names.push("run_command");
+    }
+    if creation_configured {
+        names.push("create_source");
     }
     names
 }

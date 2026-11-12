@@ -234,7 +234,7 @@ async fn choose_project(
     Ok(ProjectChoice::Existing(numbered.map_or(answer.clone(), |(id, _)| id.clone())))
 }
 
-fn state_dir(i: &Invocation) -> Result<PathBuf, CliError> {
+pub(super) fn state_dir(i: &Invocation) -> Result<PathBuf, CliError> {
     let profile = i
         .text("profile")
         .map(str::to_owned)

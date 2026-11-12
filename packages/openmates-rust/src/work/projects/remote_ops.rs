@@ -18,6 +18,7 @@ use std::time::Duration;
 const PROTOCOL_TIMEOUT: Duration = Duration::from_secs(45);
 const COMMAND_DOMAIN: &str = "openmates-remote-command-proposal-v1";
 const GIT_DOMAIN: &str = "openmates-remote-git-proposal-v1";
+const CREATE_SOURCE_DOMAIN: &str = "openmates-remote-create-source-proposal-v1";
 
 /// One approved-operation proposal; owns the exact digest and wire shape.
 #[derive(Clone, Debug)]
@@ -33,6 +34,12 @@ pub(super) enum WriteProposal {
         operation: &'static str,
         operation_id: String,
         message: Option<String>,
+    },
+    /// Create a new Project folder on the machine bound to a placeholder
+    /// source (host `source_host/create_source.rs`).
+    CreateSource {
+        operation_id: String,
+        project_name: String,
     },
 }
 
@@ -50,7 +57,9 @@ pub(super) struct WireCall {
 impl WriteProposal {
     pub(super) fn operation_id(&self) -> &str {
         match self {
-            Self::Command { operation_id, .. } | Self::Git { operation_id, .. } => operation_id,
+            Self::Command { operation_id, .. }
+            | Self::Git { operation_id, .. }
+            | Self::CreateSource { operation_id, .. } => operation_id,
         }
     }
     /// HMAC-SHA256(projectKey, JSON tuple), lower-case hex, byte-identical to
@@ -85,6 +94,17 @@ impl WriteProposal {
                 operation_id,
                 message,
             } => json!([GIT_DOMAIN, project, chat, operation, operation_id, message]),
+            Self::CreateSource {
+                operation_id,
+                project_name,
+            } => json!([
+                CREATE_SOURCE_DOMAIN,
+                project,
+                chat,
+                "create_source",
+                operation_id,
+                project_name
+            ]),
         };
         let mut mac = <Hmac<Sha256> as Mac>::new_from_slice(key).map_err(|_| Error::Crypto)?;
         mac.update(tuple.to_string().as_bytes());
@@ -95,8 +115,12 @@ impl WriteProposal {
             .map(|b| format!("{b:02x}"))
             .collect())
     }
-    fn arguments(&self, chat: &str) -> Value {
+    pub(super) fn arguments(&self, chat: &str) -> Value {
         match self {
+            Self::CreateSource {
+                operation_id,
+                project_name,
+            } => json!({"chat_id":chat,"create":{"operation_id":operation_id,"project_name":project_name}}),
             Self::Command {
                 operation_id,
                 argv,
@@ -236,6 +260,17 @@ pub enum RemoteOpCode {
     SourceSessionChanged,
     SourceNotFound,
     SourceSelectionRequired,
+    /// The machine has no new-Projects folder configured.
+    CreationNotConfigured,
+    /// The Project name cannot become a folder name.
+    InvalidProjectName,
+    /// The configured new-Projects folder is missing or not writable.
+    CreationFolderUnavailable,
+    /// A folder or file with the derived name already exists.
+    TargetExists,
+    /// The folder exists but the backend could not finish the source (the
+    /// machine keeps the folder and retries completion on its next discovery).
+    CreationCompletionFailed,
     /// A code this client does not know; the wire text is kept.
     Other(String),
 }
@@ -262,6 +297,11 @@ impl RemoteOpCode {
             "source_session_changed" => Self::SourceSessionChanged,
             "source_not_found" => Self::SourceNotFound,
             "source_selection_required" => Self::SourceSelectionRequired,
+            "creation_not_configured" => Self::CreationNotConfigured,
+            "invalid_project_name" => Self::InvalidProjectName,
+            "creation_folder_unavailable" => Self::CreationFolderUnavailable,
+            "target_exists" => Self::TargetExists,
+            "creation_completion_failed" => Self::CreationCompletionFailed,
             other => Self::Other(other.to_owned()),
         }
     }

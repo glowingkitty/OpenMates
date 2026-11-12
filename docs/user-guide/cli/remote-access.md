@@ -46,7 +46,41 @@ Request those files from another authenticated CLI with deterministic commands:
 openmates projects files list <project> --personal --json
 openmates projects files search <project> billing --team acme --source <source-id> --json
 openmates projects files read <project> src/billing.ts --team acme --source <source-id> --json
+openmates projects remote run <project> --chat <chat-id> --personal --cwd web -- cargo test
+openmates projects remote git status <project> --chat <chat-id> --personal
+openmates projects remote git commit <project> --chat <chat-id> --personal --message "fix: typo"
+openmates projects remote git land <project> --chat <chat-id> --personal
 ```
+
+## Create a new Project folder on your machine
+
+A connected machine can create a brand-new Project folder (a Git repository
+with a first commit) for a Project. The machine owner first chooses the one
+folder in which the host may create new Project folders. The host creates
+folders only inside it, never overwrites an existing folder, and offers
+nothing until the folder is set:
+
+```bash
+openmates remote-access new-projects-folder set /home/me/projects
+openmates remote-access new-projects-folder show
+openmates remote-access new-projects-folder clear
+```
+
+The path must be absolute, an existing directory and not a symlink. Restart
+`remote-access` after changing it. From another authenticated CLI, list the
+Project's connected machines and create the folder. Running `create` is your
+confirmation; there is no extra prompt:
+
+```bash
+openmates projects remote hosts <project> --personal --json
+openmates projects remote create <project> --chat <chat-id> --personal --host <device-hash> --name "Kitchen renovation"
+```
+
+The command prints the created path, folder name, branch and first commit. If
+the machine refuses (for example `creation_not_configured`, `target_exists`),
+it prints the stable code and the pending placeholder source id; retry with
+`--source <placeholder-id>` instead of `--host`, or remove the placeholder with
+`openmates projects sources remove`.
 
 Live filesystem hosting and requests are CLI-only; stored encrypted Project data
 is the separate surface intended for npm and pip SDK parity.

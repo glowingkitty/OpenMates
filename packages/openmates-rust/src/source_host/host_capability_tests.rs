@@ -8,13 +8,13 @@ use crate::work::ProjectSourceCapability;
 fn run_command_is_advertised_only_with_a_sandbox_tier() {
     let with = capabilities_for(true);
     assert!(with.contains(&ProjectSourceCapability::RunCommand));
-    assert!(host_capability_names(true).contains(&"run_command"));
+    assert!(host_capability_names(true, false).contains(&"run_command"));
     let without = capabilities_for(false);
     assert!(!without.contains(&ProjectSourceCapability::RunCommand));
-    assert!(!host_capability_names(false).contains(&"run_command"));
+    assert!(!host_capability_names(false, false).contains(&"run_command"));
     assert!(without.contains(&ProjectSourceCapability::WriteRequest));
     assert_eq!(
-        host_capability_names(false),
+        host_capability_names(false, false),
         super::HOST_CAPABILITIES.to_vec()
     );
 }
