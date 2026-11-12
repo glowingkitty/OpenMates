@@ -13,6 +13,7 @@ import { get } from 'svelte/store';
 import type { Chat } from '../../../types/chat';
 import type { ChatSynchronizationService } from '../../chatSyncService';
 import { syncCall } from './syncUnitClient';
+import { isDraftChatClaimedForSend } from '../../drafts/draftSendClaims';
 import type { SyncStaleDraftProbeEntry } from './syncProtocol';
 
 type JsonRecord = Record<string, unknown>;
@@ -117,6 +118,9 @@ export async function applyStaleDraftProbeResult(
 		if (editor.currentChatId === chatId && editor.hasUnsavedChanges) continue;
 		try {
 			if (action === 'delete_draft_only') {
+				// A send in progress stores its first message in this chat next; deleting the
+				// draft shell now would remove the message row the send is about to read.
+				if (isDraftChatClaimedForSend(chatId)) continue;
 				const { deleted } = await chatDB.deleteDraftOnlyChat(chatId, draftV);
 				if (!deleted) continue;
 				chatListCache.removeChat(chatId);

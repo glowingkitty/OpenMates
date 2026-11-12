@@ -92,4 +92,14 @@ describe('stale draft reconcile adapter', () => {
 			encrypted_draft_md: null, encrypted_draft_preview: null, draft_v: 0, cleared_draft_v: 3,
 		});
 	});
+
+	// contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative,drafts.draft-only.lifecycle
+	it('keeps the draft shell of a chat whose first send is still storing its message', async () => {
+		const { claimDraftChatForSend } = await import('../../drafts/draftSendClaims');
+		const release = claimDraftChatForSend('stale-chat');
+		await buildStaleDraftProbe(null, 7, [['stale-chat', 3]], new Set());
+		await applyStaleDraftProbeResult(service, { context_epoch: 7, stale_draft_probe_result: {} });
+		expect(chatDB.deleteDraftOnlyChat).not.toHaveBeenCalled();
+		release();
+	});
 });

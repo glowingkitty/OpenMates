@@ -1,6 +1,6 @@
 <script lang="ts">
     import { vibrateDevice } from '../services/eventSounds';
-    import { markFirstSendStopped } from "../services/drafts/draftSendClaims";
+    import { markFirstSendStopped, isDraftChatClaimedForSend } from "../services/drafts/draftSendClaims";
     import { authoredResultMetadata } from '../utils/authoredResultPresentation';
 import { storageArchiveFetch } from "../config/api";
 import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
@@ -4414,6 +4414,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         await tick();
         if (!currentChat || currentChat.chat_id !== chatId || !isPersistedDraftOnlyChat(currentChat)) return false;
         if (hasLiveDraftComposerTextAfterDraftDeleted(chatId)) return false;
+        // A send in progress stores its first message in this chat next; the composer was
+        // cleared by that send, so "no draft, no messages" is not an abandoned chat.
+        if (isDraftChatClaimedForSend(chatId)) return false;
 
         try {
             const messages = await chatDB.getMessagesForChat(chatId);
@@ -4424,7 +4427,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         }
 
         if (!currentChat || currentChat.chat_id !== chatId || !isPersistedDraftOnlyChat(currentChat)) return false;
-        if (hasLiveDraftComposerTextAfterDraftDeleted(chatId)) return false;
+        if (hasLiveDraftComposerTextAfterDraftDeleted(chatId) || isDraftChatClaimedForSend(chatId)) return false;
 
         console.info(`[ActiveChat] ${reason}: Active draft-only chat ${chatId} was cleared. Resetting to new chat.`);
         await resetChatWorkspace(messageInputFocused);
