@@ -134,6 +134,7 @@ fn update_from_stream(event: StreamEvent) -> Result<StreamUpdate> {
         StreamEvent::Content { content, thinking, mate } => StreamUpdate::Content { content, thinking, mate },
         StreamEvent::Completed { chat_id, message_id, content } => StreamUpdate::Completed { chat_id, message_id, content },
         StreamEvent::Status { message } => StreamUpdate::Status(message),
+        StreamEvent::TaskAssigned { chat_id, message_id, task_id } => StreamUpdate::TaskAssigned { chat_id, message_id, task_id },
     })
 }
 

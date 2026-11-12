@@ -1110,7 +1110,8 @@ impl Ui {
                     form.context = Some(context);
                 }
             }
-            StreamUpdate::Content { .. } | StreamUpdate::Status(_) => {}
+            // The TUI shows no Task badge yet; the assignment needs no state here.
+            StreamUpdate::Content { .. } | StreamUpdate::Status(_) | StreamUpdate::TaskAssigned { .. } => {}
         }
     }
     pub fn stream(&mut self, update: StreamUpdate) {
@@ -1317,6 +1318,7 @@ impl Ui {
                 self.hits.clear();
             }
             StreamUpdate::Status(status) => self.set_status(&status),
+            StreamUpdate::TaskAssigned { .. } => {}
         }
     }
     fn selected_item(&self) -> Option<&Item> {
