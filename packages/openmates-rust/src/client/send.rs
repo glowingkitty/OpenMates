@@ -988,7 +988,10 @@ fn bind_turn_embeds(
 
 /// Upper bound on the server tasks one turn may hand over to (initial task plus its
 /// continuations); more is a protocol error rather than unbounded growth.
-const MAX_TURN_TASKS: usize = 16;
+/// An agentic coding turn resumes after every Project file job and async test
+/// run (read, write, snapshot, run, fix, rerun, commit), so 16 was too tight:
+/// a real recipe-app test turn used 18 tasks.
+const MAX_TURN_TASKS: usize = 64;
 
 /// Switch the turn to the task id a frame of this same turn names, remembering the
 /// previous one so `bind_turn_embeds` still owns the embeds it streamed.
@@ -1142,6 +1145,16 @@ mod consent_fence_tests {
             adopt_turn_task(&mut task, "overflow", &mut earlier),
             Err(Error::Protocol)
         );
+    }
+
+    // contract-test: supporting surface=sdks.rust assertions=sdk.surface.semantic-parity
+    #[test]
+    fn an_agentic_coding_turn_with_eighteen_continuations_is_accepted() {
+        let (mut task, mut earlier) = (String::new(), Vec::new());
+        for n in 0..18 {
+            adopt_turn_task(&mut task, &format!("t{n}"), &mut earlier).unwrap();
+        }
+        assert_eq!(task, "t17");
     }
 
     // contract-test: supporting surface=sdks.rust assertions=sdk.surface.semantic-parity,auth.session.isolation

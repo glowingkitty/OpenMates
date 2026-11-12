@@ -9458,6 +9458,22 @@ async def handle_main_processing(
                                     "status": "rejected",
                                     "reason": "Project snapshot authorization or dispatch failed.",
                                 }
+                            # This call never runs; the rerun after the snapshot
+                            # gets its own card. Cancelled placeholders are removed
+                            # silently by clients instead of spinning forever.
+                            _snapshot_placeholder = inline_placeholder_embeds.get(tool_call_id)
+                            if (isinstance(_snapshot_placeholder, dict) and _snapshot_placeholder.get("embed_id")
+                                    and user_vault_key_id and directus_service):
+                                from backend.core.api.app.services.embed_service import EmbedService
+                                await EmbedService(
+                                    cache_service=cache_service, directus_service=directus_service,
+                                    encryption_service=encryption_service,
+                                ).update_embed_status_to_cancelled(
+                                    embed_id=_snapshot_placeholder["embed_id"], app_id=app_id, skill_id=skill_id,
+                                    chat_id=request_data.chat_id, message_id=request_data.message_id,
+                                    user_id=request_data.user_id, user_id_hash=request_data.user_id_hash,
+                                    user_vault_key_id=user_vault_key_id, task_id=task_id, log_prefix=log_prefix,
+                                )
                             current_message_history.append(
                                 {
                                     "role": "tool",
