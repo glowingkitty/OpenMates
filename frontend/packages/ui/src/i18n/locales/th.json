@@ -1654,7 +1654,7 @@
       "generate": {
         "text": "สร้างวิดีโอ",
         "description": {
-          "text": "สร้างวิดีโอ AI สั้นๆ จากข้อความพรอมต์"
+          "text": "สร้างวิดีโอสั้นจากคำอธิบายและรูปภาพในแชต เป็นฟุตเทจ AI หรือวิดีโอที่จัดองค์ประกอบอย่างแม่นยำ"
         }
       },
       "create": {
@@ -8173,6 +8173,181 @@
         "no_video": {
           "text": "ไม่มีวิดีโอสำหรับการรันนี้"
         }
+      }
+    },
+    "video_generate": {
+      "apply": {
+        "text": "นำไปใช้"
+      },
+      "cancel": {
+        "text": "ยกเลิก"
+      },
+      "clip": {
+        "text": "คลิป"
+      },
+      "discard": {
+        "text": "ละทิ้ง"
+      },
+      "discard_confirm": {
+        "text": "ละทิ้งการเปลี่ยนแปลงที่รอดำเนินการหรือไม่?"
+      },
+      "edit_hint": {
+        "text": "เลือกส่วนบนไทม์ไลน์เพื่อแก้ไข"
+      },
+      "edit_part": {
+        "text": "แก้ไข {label}"
+      },
+      "extend_empty": {
+        "text": "อธิบายก่อนว่าส่วนที่เพิ่มควรมีอะไรเกิดขึ้น"
+      },
+      "extend_end": {
+        "text": "ต่อความยาววิดีโอที่ท้าย"
+      },
+      "extend_placeholder_end": {
+        "text": "ในคลิปที่เพิ่มหลังจบ ควรมีอะไรเกิดขึ้น?"
+      },
+      "extend_placeholder_start": {
+        "text": "ในคลิปที่เพิ่มก่อนจุดเริ่มต้น ควรมีอะไรเกิดขึ้น?"
+      },
+      "extend_start": {
+        "text": "ต่อความยาววิดีโอที่ต้น"
+      },
+      "keep_editing": {
+        "text": "แก้ไขต่อ"
+      },
+      "kind_composed": {
+        "text": "วิดีโอที่ประกอบขึ้น"
+      },
+      "kind_generative": {
+        "text": "วิดีโอที่สร้างขึ้น"
+      },
+      "load_error": {
+        "text": "โหลดวิดีโอไม่สำเร็จ"
+      },
+      "loading": {
+        "text": "กำลังโหลดวิดีโอ..."
+      },
+      "model": {
+        "text": "โมเดล"
+      },
+      "new_length": {
+        "text": "ความยาวใหม่ {length}"
+      },
+      "part_aria": {
+        "text": "{label} ตั้งแต่ {start} ถึง {end}"
+      },
+      "pending_changes": {
+        "text": "การเปลี่ยนแปลงที่รอดำเนินการ: {count}"
+      },
+      "progress_deciding": {
+        "text": "กำลังตัดสินใจว่าจะสร้างวิดีโออย่างไร…"
+      },
+      "progress_writing": {
+        "text": "กำลังเขียนองค์ประกอบ…"
+      },
+      "progress_rendering": {
+        "text": "กำลังเรนเดอร์วิดีโอ…"
+      },
+      "progress_correcting": {
+        "text": "กำลังแก้ไขวิดีโอ…"
+      },
+      "progress_generating": {
+        "text": "กำลังสร้างคลิป…"
+      },
+      "prompt": {
+        "text": "พรอมต์"
+      },
+      "remove_last_hint": {
+        "text": "ไม่สามารถลบส่วนสุดท้ายได้"
+      },
+      "remove_part": {
+        "text": "ลบส่วน"
+      },
+      "request_change_text": {
+        "text": "ส่วน {label} (id {id}): เปลี่ยนข้อความ {text} จาก {from} เป็น {to}"
+      },
+      "request_remove_part": {
+        "text": "ลบส่วน {label} (id {id})"
+      },
+      "request_shorten_end": {
+        "text": "ส่วน {label} (id {id}): ตัดท้ายออก {seconds} s"
+      },
+      "request_shorten_start": {
+        "text": "ส่วน {label} (id {id}): ตัดต้นออก {seconds} s"
+      },
+      "request_trim_video": {
+        "text": "ตัดวิดีโอ: ลบ {start} s จากต้นและ {end} s จากท้าย"
+      },
+      "request_trim_video_end": {
+        "text": "ตัดวิดีโอ: ลบ {end} s จากท้าย"
+      },
+      "request_trim_video_start": {
+        "text": "ตัดวิดีโอ: ลบ {start} s จากต้น"
+      },
+      "resolution": {
+        "text": "ความละเอียด"
+      },
+      "restore_part": {
+        "text": "กู้คืนส่วน"
+      },
+      "send": {
+        "text": "ส่ง"
+      },
+      "shorten_end": {
+        "text": "ตัดจากท้าย"
+      },
+      "shorten_less": {
+        "text": "คืน 0.5 s"
+      },
+      "shorten_more": {
+        "text": "ตัด 0.5 s"
+      },
+      "shorten_start": {
+        "text": "ตัดจากต้น"
+      },
+      "sources": {
+        "text": "แหล่งที่มา"
+      },
+      "timeline": {
+        "text": "ไทม์ไลน์วิดีโอ"
+      },
+      "trim_video": {
+        "text": "ตัดต่อวิดีโอ"
+      }
+    },
+    "video_create": {
+      "not_available": {
+        "text": "วิดีโอยังไม่พร้อมใช้งาน"
+      },
+      "status_cancelled": {
+        "text": "หยุดเรนเดอร์แล้ว"
+      },
+      "status_error": {
+        "text": "เรนเดอร์ไม่สำเร็จ"
+      },
+      "status_finished": {
+        "text": "เสร็จสิ้น"
+      },
+      "status_needs_rerender": {
+        "text": "ต้องเรนเดอร์ใหม่"
+      },
+      "status_processing": {
+        "text": "กำลังเตรียมซอร์ส…"
+      },
+      "status_rendering": {
+        "text": "กำลังเรนเดอร์วิดีโอ..."
+      },
+      "subtitle": {
+        "text": "Remotion · v{version} · {status}"
+      },
+      "view_code": {
+        "text": "โค้ด"
+      },
+      "view_timeline": {
+        "text": "ไทม์ไลน์"
+      },
+      "view_video": {
+        "text": "วิดีโอ"
       }
     }
   },

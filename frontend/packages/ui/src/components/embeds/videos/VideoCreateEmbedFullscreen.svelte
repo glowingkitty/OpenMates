@@ -1,9 +1,9 @@
 <!--
   frontend/packages/ui/src/components/embeds/videos/VideoCreateEmbedFullscreen.svelte
 
-  Fullscreen view for videos.create Remotion embeds. The component reads the
-  decoded embed payload directly, supports playback/timeline/source inspection,
-  and exposes render lifecycle actions without executing Remotion code locally.
+  Read-only fullscreen view for legacy videos.create Remotion embeds: playback,
+  timeline and source inspection of the decoded embed payload. It does not render
+  or send anything; new videos come from videos.generate.
 
   Native Swift counterparts:
   - apple/OpenMates/Sources/Features/Embeds/Renderers/RemotionVideoCreateRenderer.swift
@@ -14,6 +14,8 @@
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import EmbedVersionTimeline from '../shared/EmbedVersionTimeline.svelte';
   import VideoTimeline from './VideoTimeline.svelte';
+  import { timelineFromManifest } from './videoTimelineModel';
+  import { text } from '../../../i18n/translations';
   import { parseRemotionTimeline } from '../../../utils/remotionTimelineParser';
   import { createAudioUrlOwner } from '../audio/audioEmbedCrypto';
   const audioUrlOwner = createAudioUrlOwner();
@@ -63,6 +65,7 @@
   );
   let currentSourceVersion = $derived(typeof dc.current_source_version === 'number' ? dc.current_source_version : data.embedData?.version_number ?? 1);
   let manifest = $derived(parseRemotionTimeline(renderSource));
+  let timeline = $derived(timelineFromManifest(manifest));
   let videoUrl = $state<string | undefined>();
   let error = $state<string | undefined>();
   let currentTime = $state(0);
@@ -88,7 +91,7 @@
       videoUrl = await fetchAndDecryptAudio(s3BaseUrl, file.s3_key, aesKey, aesNonce, file.mime_type || 'video/mp4', file);
       retainedS3Key = file.s3_key;
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to load video';
+      error = err instanceof Error ? err.message : $text('embeds.video_generate.load_error');
     }
   }
 
@@ -106,25 +109,6 @@
     if (videoEl.paused) void videoEl.play(); else videoEl.pause();
   }
 
-  async function postAction(path: string, sourceVersion?: number) {
-    if (!embedId) return;
-    const response = await fetch(path, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ chat_id: String(data.attrs?.chat_id || data.embedData?.chat_id || ''), source_version: sourceVersion }),
-    });
-    if (!response.ok) throw new Error(await response.text());
-  }
-
-  async function rerender(sourceVersion?: number) {
-    await postAction(`/v1/videos/remotion/${embedId}/render`, sourceVersion);
-  }
-
-  async function stopRender() {
-    await postAction(`/v1/videos/remotion/${embedId}/render/current/stop`);
-  }
-
   function formatTimestamp(seconds: number): string {
     const m = Math.floor(seconds / 60);
     const s = Math.floor(seconds % 60);
@@ -137,7 +121,7 @@
   skillId="create"
   skillIconName="videos"
   embedHeaderTitle={filename}
-  embedHeaderSubtitle={`Remotion · v${currentSourceVersion} · ${status}`}
+  embedHeaderSubtitle={$text('embeds.video_create.subtitle', { values: { version: currentSourceVersion, status: $text(`embeds.video_create.status_${status}`) } })}
   showSkillIcon={true}
   {onClose}
   currentEmbedId={embedId}
@@ -152,13 +136,9 @@
   {#snippet content()}
     <div class="video-create-fullscreen" data-testid="video-create-fullscreen">
       <div class="toolbar">
-        <button class:active={viewMode === 'video'} onclick={() => viewMode = 'video'}>Video</button>
-        <button class:active={viewMode === 'timeline'} onclick={() => viewMode = 'timeline'}>Timeline</button>
-        <button class:active={viewMode === 'code'} onclick={() => viewMode = 'code'}>Code</button>
-        <span class="spacer"></span>
-        {#if status === 'rendering'}<button onclick={stopRender}>Stop render</button>{/if}
-        <button onclick={() => rerender()}>Rerender</button>
-        <button onclick={() => rerender(currentSourceVersion)}>Render this version</button>
+        <button class:active={viewMode === 'video'} onclick={() => viewMode = 'video'}>{$text('embeds.video_create.view_video')}</button>
+        <button class:active={viewMode === 'timeline'} onclick={() => viewMode = 'timeline'}>{$text('embeds.video_create.view_timeline')}</button>
+        <button class:active={viewMode === 'code'} onclick={() => viewMode = 'code'}>{$text('embeds.video_create.view_code')}</button>
       </div>
 
       {#if viewMode === 'code'}
@@ -173,15 +153,15 @@
             {:else if error}
               <p>{error}</p>
             {:else}
-              <p>{status === 'rendering' ? 'Rendering video...' : 'Video is not available yet.'}</p>
+              <p>{status === 'rendering' ? $text('embeds.video_create.status_rendering') : $text('embeds.video_create.not_available')}</p>
             {/if}
           </div>
           <div class="controls-bar">
-            <button class="play-btn" onclick={togglePlayback} disabled={!videoUrl}>{isPlaying ? 'Pause' : 'Play'}</button>
+            <button class="play-btn" onclick={togglePlayback} disabled={!videoUrl}>{isPlaying ? $text('video.pause') : $text('video.play')}</button>
             <span>{formatTimestamp(currentTime)} / {formatTimestamp(manifest.meta.durationSeconds)}</span>
           </div>
         {/if}
-        <VideoTimeline {manifest} {currentTime} onSeek={handleSeek} />
+        <VideoTimeline {timeline} {currentTime} onSeek={handleSeek} />
       {/if}
       {#if embedId && currentSourceVersion > 1}
         <EmbedVersionTimeline
@@ -189,9 +169,8 @@
           currentVersion={currentSourceVersion}
           currentContent={source}
           buildRestoredContent={(content, newVersion) => ({ ...dc, remotion_source: content, current_source_version: newVersion, version_number: newVersion })}
-          onVersionSelect={(version, content) => {
+          onVersionSelect={(_version, content) => {
             selectedSource = content;
-            console.log('[VideoCreateEmbedFullscreen] Version selected:', version);
           }}
         />
       {/if}
@@ -204,7 +183,6 @@
   .toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .toolbar button, .play-btn { border: 1px solid var(--color-grey-25, #ddd); border-radius: 10px; background: var(--color-grey-10, #f4f4f4); color: var(--color-font-primary); padding: 8px 12px; cursor: pointer; }
   .toolbar button.active { background: var(--color-button-primary); color: var(--color-font-button, #fff); }
-  .spacer { flex: 1; }
   .video-wrapper { display: grid; place-items: center; min-height: 240px; border-radius: 16px; background: var(--color-grey-100, #111); overflow: hidden; }
   video { width: 100%; max-height: 62vh; object-fit: contain; }
   .controls-bar { display: flex; gap: 12px; align-items: center; }

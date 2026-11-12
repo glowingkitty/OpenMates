@@ -91,7 +91,7 @@ APPLE_DEVICE_CLIENTS = {"ios", "macos", "apple"}
 VARIABLE_RESULT_BILLING_SKILLS = {("code", "image_to_html"), ("audio", "generate"), ("audio", "speak"), ("web", "read")}
 TEAM_ASYNC_SKILL_BILLING = {
     ("images", "generate"), ("images", "generate_draft"),
-    ("videos", "generate"), ("videos", "create"),
+    ("videos", "generate"),
     ("music", "generate"), ("audio", "generate"), ("audio", "speak"),
     ("code", "image_to_html"),
 }

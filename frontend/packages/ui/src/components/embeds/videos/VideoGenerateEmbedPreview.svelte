@@ -126,7 +126,7 @@
   function statusText(): string {
     if (currentStatus === 'processing') return 'Generating video';
     if (currentStatus === 'error') return currentError || 'Video generation failed';
-    return [currentModel || 'Veo', currentResolution, currentDurationSeconds ? `${currentDurationSeconds}s` : ''].filter(Boolean).join(' · ');
+    return [currentModel, currentResolution, currentDurationSeconds ? `${currentDurationSeconds}s` : ''].filter(Boolean).join(' · ');
   }
 </script>
 

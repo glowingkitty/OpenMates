@@ -839,45 +839,6 @@ rest_modules:
     access: [admin_read, test_write]
     data_domains: [diagnostics, tests]
     rationale: Test recordings are test/debug artifacts.
-  - path: backend/core/api/app/routes/video_remotion.py
-    expected_routes: 4
-    actors: [authenticated_owner]
-    access: [owner_read, owner_write]
-    data_domains: [embeds, generated_assets]
-    rationale: Remotion render/read operations currently require an authenticated owner session.
-    endpoints:
-      - method: POST
-        route: /{embed_id}/render
-        function: start_remotion_render
-        actors: [authenticated_owner]
-        access: [owner_write]
-        data_domains: [embeds, generated_assets]
-        auth_model: session_required
-        rationale: Render dispatch decrypts current user's cached Remotion embed content.
-      - method: GET
-        route: /{embed_id}
-        function: get_remotion_embed
-        actors: [authenticated_owner]
-        access: [owner_read]
-        data_domains: [embeds, generated_assets]
-        auth_model: session_required
-        rationale: Remotion status/content read decrypts current user's cached Remotion embed content.
-      - method: POST
-        route: /{embed_id}/render/{render_id}/stop
-        function: stop_remotion_render
-        actors: [authenticated_owner]
-        access: [owner_write]
-        data_domains: [embeds, generated_assets]
-        auth_model: session_required
-        rationale: Render stop mutates current user's Remotion embed content/status.
-      - method: GET
-        route: /{embed_id}/versions
-        function: get_remotion_versions
-        actors: [authenticated_owner]
-        access: [owner_read]
-        data_domains: [embeds, generated_assets]
-        auth_model: session_required
-        rationale: Version metadata read decrypts current user's cached Remotion embed content.
   - path: backend/core/api/app/routes/wikipedia_proxy.py
     expected_routes: 2
     actors: [unauthenticated, authenticated_owner]

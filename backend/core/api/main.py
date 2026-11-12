@@ -65,7 +65,6 @@ from backend.core.api.app.routes import email_block  # noqa: E402 # Import email
 from backend.core.api.app.routes import geocode  # noqa: E402 # Import geocode proxy router (avoids browser CORS/425 on Nominatim)
 from backend.core.api.app.routes import generated_assets_api  # noqa: E402 # Generated media asset download links
 from backend.core.api.app.routes import design_icons  # noqa: E402 # Design app Iconify SVG fetch route
-from backend.core.api.app.routes import video_remotion  # noqa: E402 # Remotion videos.create render endpoints
 from backend.core.api.app.routes import features  # noqa: E402 # Feature availability endpoint
 from backend.core.api.app.routes import default_inspirations  # noqa: E402 # Import default inspirations public endpoint
 from backend.core.api.app.routes import projects  # noqa: E402 # Import projects workspace router
@@ -1453,7 +1452,6 @@ def create_app() -> FastAPI:
     app.include_router(pdf_pages.router, include_in_schema=False)  # First-party on-demand PDF page renders (session auth only)
     app.include_router(generated_assets_api.router, include_in_schema=True)  # Short-lived decrypted download URLs for generated media assets
     app.include_router(design_icons.router, include_in_schema=True)  # Design app sanitized Iconify SVG fetch route
-    app.include_router(video_remotion.router, include_in_schema=True)  # Remotion videos.create render, stop, and version endpoints
     app.include_router(features.router, include_in_schema=True)  # Effective feature availability for clients
     app.include_router(profile_api.router, include_in_schema=True)  # Profile image API - authenticated proxy for AES-encrypted user profile images
     app.include_router(geocode.router, include_in_schema=False)  # Geocode proxy router - proxies Nominatim requests server-side to avoid browser CORS/TLS 0-RTT issues

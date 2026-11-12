@@ -3502,59 +3502,11 @@ async function checkedRerenderAuthority(trx, intent) {
   return chat;
 }
 
-async function registerAuthorizedRerender(database, raw, now) {
-  const body = operationBody(raw, 'register_authorized_rerender');
-  const intent = {
-    id: uuid(body.task_uuid, 'invalid_task_id'),
-    task_name: producerTaskName(body.task_name),
-    kwargs_binding: hexDigest(body.kwargs_binding, 'invalid_producer_binding'),
-    hashed_user_id: hexDigest(body.hashed_user_id, 'invalid_owner'),
-    target_chat_id: uuid(body.target_chat_id, 'invalid_target_chat_id'),
-    primary_embed_id: uuid(body.primary_embed_id, 'invalid_embed_id'),
-    primary_message_id: body.primary_message_id == null
-      ? null : string(body.primary_message_id, 'invalid_message_id', 255),
-    source_version: integer(body.source_version, 'invalid_source_version'),
-    expected_embed_version: integer(body.expected_embed_version, 'invalid_embed_version'),
-  };
-  if (intent.task_name !== 'apps.videos.tasks.render_remotion'
-    || intent.source_version < 1 || intent.expected_embed_version < 1) {
-    fail(400, 'invalid_rerender_identity');
-  }
-  return database.transaction(async (trx) => {
-    await requireUnfencedRecoveryAccount(trx, intent.hashed_user_id);
-    await lockRecoveryChats(trx, intent.target_chat_id);
-    await lockIdentity(trx, `output-producer-task:${intent.id}`);
-    if (await trx(OUTPUT_PRODUCERS).where({ id: intent.id }).first()) {
-      fail(409, 'producer_task_identity_conflict');
-    }
-    if (await trx(AUTHORIZED_DIRECT_SKILLS).where({ id: intent.id }).first()) {
-      fail(409, 'producer_task_identity_conflict');
-    }
-    if (await trx(LEGACY_OUTPUT_PRODUCERS).where({ id: intent.id }).first()) {
-      fail(409, 'producer_task_identity_conflict');
-    }
-    const existing = await trx(AUTHORIZED_RERENDERS).where({ id: intent.id }).forUpdate().first();
-    if (existing) {
-      if (Object.entries(intent).some(([key, value]) => existing[key] !== value)) {
-        fail(409, 'rerender_intent_mismatch');
-      }
-      if (existing.state !== 'PENDING') fail(409, 'rerender_intent_invalidated');
-      await checkedRerenderAuthority(trx, existing);
-      return { producer_intent_id: intent.id, status: 'DIRECT_AUTHORIZED', idempotent: true };
-    }
-    const chat = await authorizedOutputChat(trx, intent.target_chat_id, intent.hashed_user_id);
-    intent.hashed_team_id = chat.hashed_team_id || null;
-    await checkedRerenderAuthority(trx, intent);
-    await lockIdentity(trx, `direct-embed:${intent.hashed_user_id}:${intent.primary_embed_id}:${intent.target_chat_id}`);
-    const competing = await trx(AUTHORIZED_RERENDERS).where({
-      hashed_user_id: intent.hashed_user_id, primary_embed_id: intent.primary_embed_id,
-      target_chat_id: intent.target_chat_id,
-      expected_embed_version: intent.expected_embed_version,
-    }).whereIn('state', ['PENDING', 'RUNNING']).first();
-    if (competing) fail(409, 'producer_embed_intent_conflict');
-    await trx(AUTHORIZED_RERENDERS).insert({ ...intent, state: 'PENDING', registered_at: now });
-    return { producer_intent_id: intent.id, status: 'DIRECT_AUTHORIZED', idempotent: false };
-  });
+async function registerAuthorizedRerender(_database, raw, _now) {
+  operationBody(raw, 'register_authorized_rerender');
+  // No authenticated non-AI rerender task exists any more: intents already
+  // registered still claim and complete, but new ones are refused explicitly.
+  fail(400, 'invalid_rerender_identity');
 }
 
 async function checkedDirectSkillAuthority(trx, intent) {

@@ -1654,7 +1654,7 @@
       "generate": {
         "text": "Generovat",
         "description": {
-          "text": "Generuj krátké AI video z textového zadání."
+          "text": "Vytvoř krátké video z popisu a obrázků v chatu, jako AI záběry nebo přesně sestavené video."
         }
       },
       "create": {
@@ -8173,6 +8173,181 @@
         "no_video": {
           "text": "Pro toto spuštění není k dispozici video"
         }
+      }
+    },
+    "video_generate": {
+      "apply": {
+        "text": "Použít"
+      },
+      "cancel": {
+        "text": "Zrušit"
+      },
+      "clip": {
+        "text": "Klip"
+      },
+      "discard": {
+        "text": "Zahodit"
+      },
+      "discard_confirm": {
+        "text": "Zahodit čekající změny?"
+      },
+      "edit_hint": {
+        "text": "Vyber část na časové ose a uprav ji."
+      },
+      "edit_part": {
+        "text": "Upravit {label}"
+      },
+      "extend_empty": {
+        "text": "Nejdřív popiš, co se má dít v přidané části."
+      },
+      "extend_end": {
+        "text": "Prodloužit video na konci"
+      },
+      "extend_placeholder_end": {
+        "text": "Co se má dít v přidaném klipu po konci?"
+      },
+      "extend_placeholder_start": {
+        "text": "Co se má dít v přidaném klipu před začátkem?"
+      },
+      "extend_start": {
+        "text": "Prodloužit video na začátku"
+      },
+      "keep_editing": {
+        "text": "Pokračovat v úpravách"
+      },
+      "kind_composed": {
+        "text": "Složené video"
+      },
+      "kind_generative": {
+        "text": "Vygenerované video"
+      },
+      "load_error": {
+        "text": "Video se nepodařilo načíst"
+      },
+      "loading": {
+        "text": "Načítání videa..."
+      },
+      "model": {
+        "text": "Model"
+      },
+      "new_length": {
+        "text": "Nová délka {length}"
+      },
+      "part_aria": {
+        "text": "{label}, od {start} do {end}"
+      },
+      "pending_changes": {
+        "text": "Čekající změny: {count}"
+      },
+      "progress_deciding": {
+        "text": "Rozhoduji, jak video vytvořit…"
+      },
+      "progress_writing": {
+        "text": "Píšu kompozici…"
+      },
+      "progress_rendering": {
+        "text": "Renderuji video…"
+      },
+      "progress_correcting": {
+        "text": "Opravuji video…"
+      },
+      "progress_generating": {
+        "text": "Generuji klip…"
+      },
+      "prompt": {
+        "text": "Prompt"
+      },
+      "remove_last_hint": {
+        "text": "Poslední část nelze odebrat."
+      },
+      "remove_part": {
+        "text": "Odebrat část"
+      },
+      "request_change_text": {
+        "text": "Část {label} (id {id}): změnit text {text} z {from} na {to}"
+      },
+      "request_remove_part": {
+        "text": "Odebrat část {label} (id {id})"
+      },
+      "request_shorten_end": {
+        "text": "Část {label} (id {id}): zkrátit o {seconds} s na konci"
+      },
+      "request_shorten_start": {
+        "text": "Část {label} (id {id}): zkrátit o {seconds} s na začátku"
+      },
+      "request_trim_video": {
+        "text": "Oříznout video: odebrat {start} s ze začátku a {end} s z konce"
+      },
+      "request_trim_video_end": {
+        "text": "Oříznout video: odebrat {end} s z konce"
+      },
+      "request_trim_video_start": {
+        "text": "Oříznout video: odebrat {start} s ze začátku"
+      },
+      "resolution": {
+        "text": "Rozlišení"
+      },
+      "restore_part": {
+        "text": "Obnovit část"
+      },
+      "send": {
+        "text": "Odeslat"
+      },
+      "shorten_end": {
+        "text": "Zkrátit od konce"
+      },
+      "shorten_less": {
+        "text": "Vrátit 0.5 s"
+      },
+      "shorten_more": {
+        "text": "Zkrátit o 0.5 s"
+      },
+      "shorten_start": {
+        "text": "Zkrátit od začátku"
+      },
+      "sources": {
+        "text": "Zdroje"
+      },
+      "timeline": {
+        "text": "Časová osa videa"
+      },
+      "trim_video": {
+        "text": "Oříznout video"
+      }
+    },
+    "video_create": {
+      "not_available": {
+        "text": "Video zatím není k dispozici."
+      },
+      "status_cancelled": {
+        "text": "Renderování zastaveno"
+      },
+      "status_error": {
+        "text": "Renderování selhalo"
+      },
+      "status_finished": {
+        "text": "Hotovo"
+      },
+      "status_needs_rerender": {
+        "text": "Vyžaduje nové renderování"
+      },
+      "status_processing": {
+        "text": "Připravuji zdroj…"
+      },
+      "status_rendering": {
+        "text": "Renderuji video..."
+      },
+      "subtitle": {
+        "text": "Remotion · v{version} · {status}"
+      },
+      "view_code": {
+        "text": "Kód"
+      },
+      "view_timeline": {
+        "text": "Časová osa"
+      },
+      "view_video": {
+        "text": "Video"
       }
     }
   },

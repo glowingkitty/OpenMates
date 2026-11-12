@@ -1,4 +1,5 @@
-# Authenticated non-AI Remotion render authorization, bound to a canonical head.
+# Authenticated non-AI rerender authorization, bound to a canonical head.
+# No rerender task is registered today; the collection only settles older intents.
 # No recovery public key is inferred from task kwargs or auto_started.
 chat_recovery_authorized_rerenders:
   type: collection

@@ -1,7 +1,8 @@
+# contract-test-file: infrastructure
 # backend/tests/test_embed_status.py
 #
-# Regression coverage for the canonical embed status state machine. Remotion
-# video creation uses non-terminal render lifecycle states, so the backend must
+# Regression coverage for the canonical embed status state machine. Rendering
+# producers use non-terminal render lifecycle states, so the backend must
 # accept those transitions before WebSocket/cache updates can finalize embeds.
 
 from backend.shared.python_schemas.embed_status import validate_embed_transition

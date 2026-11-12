@@ -85,9 +85,6 @@ from backend.apps.ai.utils.code_embed_policy import (
 from backend.apps.ai.utils.app_skill_json_cleanup import (
     canonicalize_app_skill_json_blocks,
 )
-from backend.apps.ai.utils.remotion_fences import (
-    _is_remotion_video_fence,
-)
 from backend.apps.ai.utils.slides_fences import _is_slides_fence
 from backend.shared.python_utils.slides_markup import SlidesMarkupError, normalise_slides_markup
 from backend.apps.ai.utils.pcb_schematic_fences import (
@@ -6189,71 +6186,6 @@ async def _create_slides_deck_embed_reference(
     return f"```json\n{embed_data['embed_reference']}\n```\n\n"
 
 
-async def _create_remotion_video_embed_reference(
-    *,
-    embed_service: Any,
-    source: str,
-    filename: Optional[str],
-    request_data: AskSkillRequest,
-    task_id: str,
-    user_vault_key_id: str,
-    log_prefix: str,
-) -> str:
-    if is_learning_mode_enabled(_learning_mode_context(request_data)):
-        logger.info("%s Skipping Remotion video artifact because Learning Mode is active", log_prefix)
-        return "Learning Mode is active, so I can outline the video concept or storyboard instead of generating a finished video artifact.\n\n"
-
-    embed_data = await embed_service.create_remotion_video_embed_placeholder(
-        chat_id=request_data.chat_id,
-        message_id=request_data.message_id,
-        user_id=request_data.user_id,
-        user_id_hash=request_data.user_id_hash,
-        user_vault_key_id=user_vault_key_id,
-        task_id=task_id,
-        filename=filename,
-        log_prefix=log_prefix,
-    )
-    if not embed_data:
-        return ""
-
-    embed_id = embed_data["embed_id"]
-    await embed_service.update_remotion_video_embed_content(
-        embed_id=embed_id,
-        remotion_source=source,
-        chat_id=request_data.chat_id,
-        message_id=request_data.message_id,
-        user_id=request_data.user_id,
-        user_id_hash=request_data.user_id_hash,
-        user_vault_key_id=user_vault_key_id,
-        filename=filename,
-        status="rendering",
-        source_version=1,
-        log_prefix=log_prefix,
-    )
-    await _dispatch_ai_embed_task(
-        "apps.videos.tasks.render_remotion",
-        args=[{
-            "embed_id": embed_id,
-            "chat_id": request_data.chat_id,
-            "message_id": request_data.message_id,
-            "user_id": request_data.user_id,
-            "user_id_hash": request_data.user_id_hash,
-            "vault_key_id": user_vault_key_id,
-            "remotion_source": source,
-            "filename": filename,
-            "source_version": 1,
-            "auto_started": True,
-        }],
-        queue="app_videos",
-    )
-    logger.info(
-        "%s Created Remotion videos.create embed %s and queued auto render",
-        log_prefix,
-        embed_id,
-    )
-    return f"```json\n{embed_data['embed_reference']}\n```\n\n"
-
-
 async def _create_application_artifact_embed_reference(
     *,
     files: List[Dict[str, str]],
@@ -7846,7 +7778,6 @@ async def _consume_main_processing_stream(
                                     current_code_filename,
                                     _diff_file_path_index,
                                 )
-                                is_remotion_block = _is_remotion_video_fence(current_code_language, current_code_filename)
 
                                 if _is_slides_fence(current_code_language):
                                     chunk = await _create_slides_deck_embed_reference(
@@ -7857,24 +7788,6 @@ async def _consume_main_processing_stream(
                                         user_vault_key_id=user_vault_key_id,
                                         log_prefix=log_prefix,
                                     )
-                                    in_code_block = False
-                                    current_code_language = ""
-                                    current_code_filename = None
-                                    current_code_content = ""
-                                    current_code_embed_id = None
-
-                                elif is_remotion_block:
-                                    embed_reference_code = await _create_remotion_video_embed_reference(
-                                        embed_service=embed_service,
-                                        source=code_content,
-                                        filename=current_code_filename,
-                                        request_data=request_data,
-                                        task_id=task_id,
-                                        user_vault_key_id=user_vault_key_id,
-                                        log_prefix=log_prefix,
-                                    )
-                                    if embed_reference_code:
-                                        chunk = embed_reference_code
                                     in_code_block = False
                                     current_code_language = ""
                                     current_code_filename = None
@@ -8468,13 +8381,6 @@ async def _consume_main_processing_stream(
                             chunk = ""  # Don't emit opening fence
                             continue  # Skip embed creation, just track the content
 
-                        if _is_remotion_video_fence(current_code_language, current_code_filename):
-                            chunk = ""
-                            logger.info(
-                                f"{log_prefix} Deferring Remotion video-create block until closing fence"
-                            )
-                            continue
-
                         if _is_slides_fence(current_code_language):
                             chunk = ""
                             logger.info(f"{log_prefix} Deferring slides deck block until closing fence")
@@ -8909,13 +8815,6 @@ async def _consume_main_processing_stream(
                                 )
                             # Don't create an embed yet - accumulate content and decide at closing fence
                             chunk = ""
-                            continue
-
-                        if _is_remotion_video_fence(current_code_language, current_code_filename):
-                            chunk = ""
-                            logger.info(
-                                f"{log_prefix} Deferring Remotion video-create block until closing fence"
-                            )
                             continue
 
                         if _is_slides_fence(current_code_language):
@@ -9466,45 +9365,6 @@ async def _consume_main_processing_stream(
                                     current_code_filename = None
                                     current_code_content = ""
                                     current_code_embed_id = None
-                        if (
-                            not current_code_embed_id
-                            and _is_remotion_video_fence(current_code_language, current_code_filename)
-                            and directus_service
-                            and encryption_service
-                            and user_vault_key_id
-                        ):
-                            try:
-                                from backend.core.api.app.services.embed_service import EmbedService
-                                embed_service = EmbedService(cache_service, directus_service, encryption_service)
-                                chunk = await _create_remotion_video_embed_reference(
-                                    embed_service=embed_service,
-                                    source=current_code_content,
-                                    filename=current_code_filename,
-                                    request_data=request_data,
-                                    task_id=task_id,
-                                    user_vault_key_id=user_vault_key_id,
-                                    log_prefix=log_prefix,
-                                )
-                            except RequiredRecoveryOutputError:
-                                raise
-                            except Exception as e:
-                                logger.error(f"{log_prefix} Error creating Remotion video embed: {e}", exc_info=True)
-                                chunk = f"```{current_code_language or ''}\n{current_code_content}```\n\n"
-
-                            in_code_block = False
-                            in_plot_block = False
-                            in_document_block = False
-                            in_email_block = False
-                            in_pcb_schematic_block = False
-                            in_json_content_block = False
-                            in_mermaid_block = False
-                            in_diagram_html_block = False
-                            current_document_title = None
-                            current_code_language = ""
-                            current_code_filename = None
-                            current_code_content = ""
-                            current_code_embed_id = None
-
                         # No embed was created (services unavailable or placeholder failed) —
                         # emit accumulated code as raw markdown so it's not silently lost.
                         application_preview_files_at_close = _parse_application_preview_json_bundle_files(
@@ -10043,7 +9903,6 @@ async def _consume_main_processing_stream(
                         is_deferred_protocol_block = (
                             in_json_content_block
                             or _is_application_preview_combined_language(current_code_language)
-                            or _is_remotion_video_fence(current_code_language, current_code_filename)
                             or toon_pending_validation
                             or bool(current_code_language and current_code_language.lower() == 'tool_code')
                         )

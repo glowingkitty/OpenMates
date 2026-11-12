@@ -26,7 +26,6 @@ PROTECTED_EMBED_TASK_NAMES = frozenset({
     "apps.images.tasks.skill_vectorize", "apps.images.tasks.skill_modify", "apps.models3d.tasks.skill_generate",
     "apps.music.tasks.skill_generate", "apps.social_media.tasks.skill_search",
     "apps.social_media.tasks.skill_get-posts", "apps.videos.tasks.skill_generate",
-    "apps.videos.tasks.render_remotion",
 })
 
 
@@ -49,7 +48,7 @@ def bound_output_producer(
 
 
 def _envelope_identity(task_name: str, args: tuple[Any, ...], kwargs: dict[str, Any]) -> dict[str, str]:
-    if task_name in {"apps.docs.tasks.generate_docx", "apps.videos.tasks.render_remotion"}:
+    if task_name == "apps.docs.tasks.generate_docx":
         source = args[0] if len(args) == 1 and isinstance(args[0], dict) else None
     else:
         source = kwargs.get("arguments")

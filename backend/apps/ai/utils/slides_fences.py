@@ -1,6 +1,6 @@
 """Fence detection for slides decks (```slides blocks).
 
-Mirrors remotion_fences.py: stream_consumer.py defers the fence until it closes,
+stream_consumer.py defers the fence until it closes,
 then creates one finished deck embed from the normalised markup.
 """
 

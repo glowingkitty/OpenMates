@@ -7,7 +7,7 @@ from backend.shared.python_utils.team_skill_billing import skill_billing_request
 
 # contract-test: supporting surface=rest_api assertions=billing.credits.idempotent-charge
 @pytest.mark.parametrize("app_id,skill_id", [
-    ("videos", "generate"), ("videos", "create"), ("images", "generate"),
+    ("videos", "generate"), ("images", "generate"),
     ("images", "vectorize"), ("music", "generate"), ("models3d", "generate"),
     ("code", "image_to_html"),
 ])

@@ -1,0 +1,221 @@
+schema_version: 1
+id: feature.app-skill.videos-generate
+version: 1
+status: draft
+title: Videos Generate Skill
+summary: >
+  Videos Generate makes a short video from a natural-language instruction and,
+  optionally, pictures that already exist in the chat. For every request it is
+  decided whether the video is made by a generative video model or composed as
+  an exact, code-rendered video: an author model writes the composition, which
+  is rendered in an isolated sandbox. Every video opens with a timeline below
+  the player. The user can extend a generated clip at its start or end, edit
+  texts and cut parts of a composed video, and every change becomes the next
+  version of the same video.
+
+inherits:
+  - architecture.app-skill-execution@1
+
+related_contracts:
+  - specification: feature.embed-user-edits@1
+    relationship: Reuse one version history per embed, the display rule for versions per message, and the "<Type> updated" chat event.
+  - specification: feature.app-skill.images-modify@1
+    relationship: Same pattern of a chat model handing instructions and pictures to an author model whose program runs in a sandbox.
+
+scope:
+  includes:
+    - videos.generate calls made by the assistant in first-party chats originating from CLI, npm SDK, pip SDK, web, or Apple clients.
+    - Text-only generative video through the developer REST API, as before.
+    - Choosing between a generative model and a composed video, by the assistant's explicit wish or by a routing decision.
+    - Zero to twelve input pictures from the conversation; uploaded and generated images, vector graphics, and pictures of search results (image search, web search, news and other result cards that carry a picture).
+    - Composed videos; author program, sandbox render, bounded correction, progress, stored result with its timeline and source.
+    - The timeline in the opened video, extending a generated clip at its start or end, and basic editing (texts, trimming, removing a part) as new versions of the same video.
+  excludes:
+    - The former videos.create skill and the "remotion" code fence in assistant answers; no new video is made that way. Videos made with it stay playable.
+    - Sound design, voice-over and music selection beyond what a generative model returns with its clip.
+    - A full video editor; moving elements on the canvas, keyframes, transitions between arbitrary parts, multiple tracks edited by hand.
+    - Composed videos, input pictures and changes of an existing video through the developer REST API; they need the chat's embed context.
+
+models:
+  GenerateRequest:
+    instructions:
+      type: string
+      required: true
+      constraints: {natural_language: true, max_chars: 4000, former_name_prompt_still_accepted: true}
+    images:
+      type: embed_ref_list
+      required: false
+      constraints: {max_items: 12, exact_conversation_reference: true, accepts: [uploaded_image, generated_image, vector_graphic, search_result_with_picture], order_is_meaningful: true}
+    mode:
+      type: enum
+      required: false
+      values: [auto, generative, composed]
+      default: auto
+    aspect_ratio:
+      type: enum
+      required: false
+      values: ["16:9", "9:16", "1:1"]
+      default: "16:9"
+      constraints: {generative_supports: ["16:9", "9:16"]}
+    duration_seconds:
+      type: integer
+      required: false
+      constraints: {generative_min: 3, generative_max: 15, generative_default: 8, added_clip_min: 3, added_clip_max: 10, added_clip_default: 8, composed_min: 2, composed_max: 60, composed_default_chosen_by_author: true}
+    source_video:
+      type: embed_ref
+      required: false
+      constraints: {a_video_made_by_this_skill_in_the_same_chat: true, makes_the_request_a_change: true}
+    change:
+      type: enum
+      required: false
+      values: [edit, extend_start, extend_end]
+      constraints: {requires_source_video: true, default_with_source_video: edit}
+
+  Routing:
+    decision:
+      type: enum
+      required: true
+      values: [generative, composed]
+    decided_by:
+      type: enum
+      required: true
+      values: [request_mode, routing_model]
+      constraints: {routing_model_sees: [instructions, number_and_kind_of_pictures], routing_model_never_sees_pictures: true, generative_answer_for_two_or_more_pictures_is_made_composed: true}
+
+  ComposedAuthoring:
+    author_models:
+      type: ordered_model_list
+      required: true
+      constraints: {can_see_images: true, first_valid_result_answers: true}
+    author_input:
+      type: author_context
+      required: true
+      values: [instructions, aspect_ratio, duration, reduced_copy_of_each_picture, exact_pixel_size_of_each_picture, source_title_of_search_result_pictures, previous_composition_when_changing_a_video]
+    composition:
+      type: remotion_module
+      required: true
+      constraints: {allowed_packages: [remotion, react, remotion_first_party_packages], declares: [fps, duration, width, height], named_parts: true, uses_only_the_given_pictures_as_files: true, same_inputs_same_video: true}
+    max_correction_rounds:
+      type: integer
+      required: true
+      constraints: {value: 2}
+
+  Sandbox:
+    runtime:
+      type: isolated_runtime
+      required: true
+      constraints: {render_limit_seconds: 900, credits_per_started_minute: 5, destroyed_after_use: true}
+    limits:
+      type: video_limits
+      required: true
+      constraints: {max_picture_megabytes_each: 20, max_width_px: 1920, max_height_px: 1920, fps: 30, max_duration_seconds: 60}
+
+  VideoResult:
+    video:
+      type: stored_video
+      required: true
+      constraints: {encrypted: true, with_thumbnail: true}
+    made_by:
+      type: enum
+      required: true
+      values: [generative, composed]
+    timeline:
+      type: timeline
+      required: true
+      constraints: {fps: true, duration: true, size: true, tracks_with_parts: true, part_has: [id, label, start, duration, kind, editable_texts], generative_video_has_one_clip_per_generated_clip: true}
+    composition_source:
+      type: recallable_source
+      required: false
+      constraints: {present_for_composed_and_extended_videos: true, encrypted: true, kept_with_the_video: true}
+    kept_material:
+      type: server_readable_record_per_version
+      required: true
+      constraints: {encrypted_with_owner_key: true, holds: [stored_video, composition, copies_of_input_pictures, generated_clips_with_trims], deleted_with_the_video: true, missing_record_means_not_changeable: true}
+    input_embed_ids:
+      type: embed_id_list
+      required: true
+    version:
+      type: integer
+      required: true
+
+assertions:
+  - id: videos-generate.request.instruction-and-pictures
+    type: behavior
+    must: videos.generate accepts a natural-language instruction and up to twelve exact references of pictures visible in the conversation. Uploaded and generated images are read in their stored resolution; a search result is used through its picture, fetched once from its public address. A reference that is not in the conversation, a picture that cannot be read or fetched, more than twelve pictures, or a picture over the size limit fails explicitly before any model or sandbox is used; nothing is produced and nothing is charged.
+    depends_on: [models.GenerateRequest, models.Sandbox.limits, examples.request]
+  - id: videos-generate.routing.generative-or-composed
+    type: behavior
+    must: Every request is made either by a generative video model or as a composed video. When the request names a mode, that mode is used. Otherwise a routing model decides from the instruction and from how many pictures of which kind were given; exact texts, titles, lists, charts, slideshows of the given pictures and anything based on search results is composed, and invented moving footage is generative. A generative clip starts from at most one picture, so when the routing model chooses generative for two or more pictures, the video is made composed, still recorded as decided by the routing model. The decision is shown on the result. When the routing model cannot be reached the request fails explicitly and nothing is charged.
+    depends_on: [models.Routing, examples.routing]
+  - id: videos-generate.composed.author-writes-composition
+    type: behavior
+    must: For a composed video an author model that can see pictures receives the instruction, the format, a reduced copy of every picture with its exact pixel size, and the title of each search result, and writes one composition restricted to the allowed packages. The composition declares its length and size, names its parts, and shows the given pictures only from the files handed to it. The author never returns the video itself. When the first author model fails to produce a valid composition the next model in the fixed order is used.
+    depends_on: [models.ComposedAuthoring, examples.composed]
+  - id: videos-generate.composed.sandbox-render-and-correction
+    type: invariant
+    must: A composition is rendered only inside an isolated sandbox, never in an API or worker process; the sandbox receives only the composition and the pictures of this request and is destroyed when the request ends. A composition that does not build, fails while rendering, runs past the limit or exceeds the size and length limits counts as a failed round; its error goes back to the author for a corrected composition, at most two times. A request with no valid video after all rounds fails explicitly and is not charged.
+    depends_on: [models.Sandbox, models.ComposedAuthoring.max_correction_rounds, examples.correct]
+  - id: videos-generate.generative.clip
+    type: behavior
+    must: A generative video is one clip of 3 to 15 seconds (default 8) made by the generative video model (Gemini Omni; H3 only when named) from the instruction, optionally starting from one given picture as its first frame. It is stored with its first frame as thumbnail and charged for its measured length. More than one picture in a generative request fails explicitly with the advice to use a composed video.
+    depends_on: [models.GenerateRequest, examples.generative]
+  - id: videos-generate.progress.shown-while-running
+    type: behavior
+    must: From the moment the request is accepted the result card shows that the video is being made and names the current step (deciding, writing the composition, rendering, correcting, generating). Nothing unfinished is stored as chat content.
+    depends_on: [examples.progress]
+  - id: videos-generate.result.video-with-timeline
+    type: behavior
+    must: The finished result is one video with a thumbnail, its length and size, how it was made, the pictures it used as sources, and a timeline. A composed video's timeline lists its named parts with start and length and the texts that can be edited; a generative video's timeline holds one clip per generated clip. A composed video keeps its composition with the video.
+    depends_on: [models.VideoResult, examples.result]
+  - id: videos-generate.timeline.below-the-video
+    type: behavior
+    must: The opened video shows the timeline directly below the player for every video of this skill, in one style for generative and composed videos. The timeline shows the parts in time order with their labels, follows playback with a playhead, and a click on it moves playback to that time. A generative video shows a button at the start and at the end of its timeline to extend the clip.
+    depends_on: [examples.timeline]
+  - id: videos-generate.change.extend-generated-clip
+    type: behavior
+    must: Pressing an extend button asks the user to describe what should happen in the added part and sends that as a change of this video. The added clip is generated to continue from the last frame for an extension at the end, or to lead into the first frame for an extension at the start, and is joined with the existing clips into one video. An added clip lasts 3 to 10 seconds (default 8) in the video's format and resolution, and an extended video lasts at most 60 seconds. An extension at the start first makes an opening picture from the video's first frame and generates the clip from that picture to the first frame. Only the added clip, the opening picture and the join are charged. Only videos made of generated clips can be extended. An extension without a description is not sent.
+    depends_on: [models.GenerateRequest.change, examples.extend]
+  - id: videos-generate.change.edit-mode
+    type: behavior
+    must: The opened video has an edit mode. In it the user selects a part on the timeline and can change its texts, shorten it from its start or end, or remove it; a generative video can be shortened from its start or end. Nothing is rendered while editing. Applying sends all pending edits as one change of this video; leaving edit mode without applying discards them. When every edit of a video made of generated clips is a shortening or a removal, it is applied exactly by code and rendered without an author model; any other edit goes to the author model.
+    depends_on: [examples.edit]
+  - id: videos-generate.change.same-video-next-version
+    type: behavior
+    must: A change of a video made by this skill in the same chat, whether asked in words in the chat or made through extend or edit mode, does not create a second video. The existing video gains the next version; earlier versions stay stored and viewable, and each message shows the version valid at that message. For a composed video the author changes the kept composition and it is rendered again from the original pictures. A change that fails leaves the video at its previous version without a charge.
+    depends_on: [models.GenerateRequest.source_video, models.VideoResult.version, examples.change]
+  - id: videos-generate.safety.same-as-generated-media
+    type: privacy
+    must: The instruction, the input pictures and the result pass the same safety checks as other generated media. Pictures leave the platform only as reduced copies to the author model and in full to the sandbox or, as a first frame, to the generative model. The result and the composition are stored encrypted like other generated media, belong to the requesting user and follow the chat's sharing rules.
+    depends_on: [models.Sandbox.runtime, models.VideoResult, examples.request]
+  - id: videos-generate.billing.metered
+    type: invariant
+    must: A generative clip is charged per second at its model's price. A composed video is charged the reported tokens of every author call at each model's price plus 5 credits per started minute of each sandbox render. The routing decision is not charged separately. Each version is charged exactly once for what that version used; a request that delivers no video is not charged.
+    depends_on: [models.Sandbox.runtime, examples.billing]
+  - id: videos-generate.surface.semantic-parity
+    type: parity
+    must: First-party chats originating from CLI, npm SDK, pip SDK, web, or Apple trigger the same routing, authoring, render, result and billing; a client without the timeline or edit mode still receives the finished video and can ask for a change in words.
+    depends_on: [models.GenerateRequest, models.VideoResult, examples.composed]
+
+applies_to:
+  rest_api:
+    required: true
+    role: Text-only generative video for developers; composed videos, pictures and changes need the chat's embed context and are not offered.
+  cli:
+    required: true
+    role: CLI chats trigger the skill through the chat pipeline and receive the finished video.
+  sdks:
+    required: true
+    role: SDK chats trigger the skill through the chat pipeline and receive the same result.
+    implementations:
+      npm: {required: true}
+      pip: {required: true}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: true}
+
+examples:
+  file: examples.yml
+  required_groups: [request, routing, composed, correct, generative, progress, result, timeline, extend, edit, change, billing]

@@ -1,6 +1,6 @@
 <!-- Skill-use parent card for one invocation with zero or more generated children. -->
 <script lang="ts">
-  import { onDestroy } from 'svelte';
+  import { onDestroy, untrack } from 'svelte';
   import { fade } from 'svelte/transition';
   import { text } from '@repo/ui';
   import { chatSyncService } from '../../services/chatSyncService';
@@ -18,6 +18,8 @@
   import { generatedMediaChildIds } from './generatedMediaGroup';
   import { pinnedEmbedsOf } from '../../services/rustCore/embeds/messageEmbedVersion';
 
+  const VIDEO_STAGES = ['deciding', 'writing', 'rendering', 'correcting', 'generating'];
+
   interface Props {
     id: string;
     appId: string;
@@ -28,13 +30,15 @@
     /** Prompt supplied by the manifest; otherwise taken from the first child. */
     prompt?: string;
     error?: string;
+    /** Current step of a running videos.generate request (deciding, writing, rendering, correcting, generating). */
+    progressStage?: string;
     taskId?: string;
     isMobile?: boolean;
     onFullscreen: () => void;
   }
 
   let {
-    id, appId, skillId, status, resultCount, childEmbedIds = [], prompt: promptProp, error = '',
+    id, appId, skillId, status, resultCount, childEmbedIds = [], prompt: promptProp, error = '', progressStage,
     taskId, isMobile = false, onFullscreen,
   }: Props = $props();
   // The card is mounted once; later status changes of the parent arrive as updates.
@@ -53,9 +57,16 @@
   const childIds = $derived([...new Set([...(currentChildIds ?? childEmbedIds), ...pinnedIds])]);
   const count = $derived(Math.max(currentCount ?? 0, resultCount ?? 0, childIds.length));
 
+  // videos.generate names its current step on the parent card while it runs.
+  let videoStage = $state<string | undefined>(untrack(() => progressStage));
+  const videoStageKey = $derived(
+    appId === 'videos' && videoStage && VIDEO_STAGES.includes(videoStage) ? `embeds.video_generate.progress_${videoStage}` : null,
+  );
+
   function handleUpdated(data: { decodedContent: Record<string, unknown> | null }) {
     const content = data.decodedContent;
     if (!content) return;
+    if (typeof content.progress_stage === 'string') videoStage = content.progress_stage;
     if (content.status === 'processing' || content.status === 'finished' || content.status === 'error' || content.status === 'cancelled') {
       liveStatus = content.status;
     }
@@ -87,7 +98,7 @@
   // draft has something to look at, the card shows the request instead.
   let svgDraftState = $state<SvgDraftState>(EMPTY_SVG_DRAFT);
   const showSvgDraft = $derived(shownStatus === 'processing' && hasDrawableSvg(svgDraftState.draft));
-  const showRequest = $derived(shownStatus === 'processing' && !showSvgDraft && !!prompt);
+  const showRequest = $derived(shownStatus === 'processing' && !showSvgDraft && (!!prompt || !!videoStageKey));
   const draftStageLabelKey = $derived(svgDraftStageLabelKey(svgDraftState.stage));
   const modelLabel = $derived(request.model ? imageGenerationAttribution(request.model) : undefined);
   const FADE_MS = 350;
@@ -142,9 +153,10 @@
               <div class="request-text">
                 <span class="request-model shimmer" data-testid="image-generate-request-model">
                   {draftStageLabelKey ? $text(draftStageLabelKey)
+                    : videoStageKey ? $text(videoStageKey)
                     : modelLabel ? `${$text('embeds.image_generate.generating_via')} ${modelLabel}` : skillName}
                 </span>
-                <p class="request-prompt shimmer" data-testid="image-generate-request-prompt">{prompt}</p>
+                {#if prompt}<p class="request-prompt shimmer" data-testid="image-generate-request-prompt">{prompt}</p>{/if}
               </div>
             </div>
           {/if}

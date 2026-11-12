@@ -2390,13 +2390,31 @@ function rekeyChild(fixture, newId) {
   return { ...fixture, childId: newId };
 }
 
+// contract-test: direct surface=rest_api assertions=videos-generate.change.same-video-next-version
+test('a videos-generate video child advances to its next version like a generated image', async () => {
+  const fixture = childRevisionFixture();
+  const head = fixture.seed.embeds.find((row) => row.embed_id === fixture.childId);
+  head.app_id = 'videos'; head.skill_id = 'generated_video';
+  head.s3_file_keys = JSON.stringify([{ bucket: 'chatfiles', key: 'v1/original.mp4' }]);
+  fixture.advance.payload.app_id = 'videos'; fixture.advance.payload.skill_id = 'generated_video';
+  fixture.advance.payload.s3_file_keys = [{ bucket: 'chatfiles', key: 'v2/original.mp4' }];
+  const database = fakeDatabase(fixture.seed);
+  assert.equal((await writeLegacyEmbed(database, fixture.advance)).status, 'updated');
+  const stored = database.rows.embeds.find((row) => row.embed_id === fixture.childId);
+  assert.equal(stored.version_number, 2);
+  assert.equal(stored.parent_embed_id, 'parent-embed');
+  assert.deepEqual(JSON.parse(stored.s3_file_keys), [
+    { bucket: 'chatfiles', key: 'v1/original.mp4' }, { bucket: 'chatfiles', key: 'v2/original.mp4' },
+  ]);
+});
+
 // contract-test: direct surface=rest_api assertions=images-generate.revision.same-embed-new-version
-test('only images-generate image children take the revision branches; other children and roots keep the old denials', async () => {
+test('only generated image and video children take the revision branches; other children and roots keep the old denials', async () => {
   const cases = [
-    // A UUIDv5 child of another app (stored catalog marker is not images/generated_image).
+    // A UUIDv5 child of another app (stored catalog marker is neither a generated image nor video).
     [(fixture) => { const head = fixture.seed.embeds.find((row) => row.embed_id === fixture.childId);
-      head.app_id = 'videos'; head.skill_id = 'generated_video';
-      fixture.advance.payload.app_id = 'videos'; fixture.advance.payload.skill_id = 'generated_video';
+      head.app_id = 'audio'; head.skill_id = 'generated_audio';
+      fixture.advance.payload.app_id = 'audio'; fixture.advance.payload.skill_id = 'generated_audio';
       return fixture; }, 'project_context_required'],
     // A UUIDv5 image child without a stored catalog marker.
     [(fixture) => { const head = fixture.seed.embeds.find((row) => row.embed_id === fixture.childId);

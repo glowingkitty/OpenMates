@@ -1654,7 +1654,7 @@
       "generate": {
         "text": "Generuj",
         "description": {
-          "text": "Generuj krótkie wideo AI na podstawie opisu tekstowego."
+          "text": "Twórz krótkie wideo z opisu i obrazów z czatu, jako ujęcia AI lub dokładnie złożone wideo."
         }
       },
       "create": {
@@ -8173,6 +8173,181 @@
         "no_video": {
           "text": "Brak wideo dla tego uruchomienia"
         }
+      }
+    },
+    "video_generate": {
+      "apply": {
+        "text": "Zastosuj"
+      },
+      "cancel": {
+        "text": "Anuluj"
+      },
+      "clip": {
+        "text": "Klip"
+      },
+      "discard": {
+        "text": "Odrzuć"
+      },
+      "discard_confirm": {
+        "text": "Odrzucić oczekujące zmiany?"
+      },
+      "edit_hint": {
+        "text": "Wybierz fragment na osi czasu, aby go edytować."
+      },
+      "edit_part": {
+        "text": "Edytuj {label}"
+      },
+      "extend_empty": {
+        "text": "Najpierw opisz, co ma się dziać w dodanej części."
+      },
+      "extend_end": {
+        "text": "Wydłuż wideo na końcu"
+      },
+      "extend_placeholder_end": {
+        "text": "Co ma się dziać w dodanym klipie po końcu?"
+      },
+      "extend_placeholder_start": {
+        "text": "Co ma się dziać w dodanym klipie przed początkiem?"
+      },
+      "extend_start": {
+        "text": "Wydłuż wideo na początku"
+      },
+      "keep_editing": {
+        "text": "Edytuj dalej"
+      },
+      "kind_composed": {
+        "text": "Wideo złożone"
+      },
+      "kind_generative": {
+        "text": "Wygenerowane wideo"
+      },
+      "load_error": {
+        "text": "Nie udało się wczytać wideo"
+      },
+      "loading": {
+        "text": "Wczytywanie wideo..."
+      },
+      "model": {
+        "text": "Model"
+      },
+      "new_length": {
+        "text": "Nowa długość {length}"
+      },
+      "part_aria": {
+        "text": "{label}, od {start} do {end}"
+      },
+      "pending_changes": {
+        "text": "Oczekujące zmiany: {count}"
+      },
+      "progress_deciding": {
+        "text": "Ustalam, jak zrobić wideo…"
+      },
+      "progress_writing": {
+        "text": "Piszę kompozycję…"
+      },
+      "progress_rendering": {
+        "text": "Renderowanie wideo…"
+      },
+      "progress_correcting": {
+        "text": "Poprawiam wideo…"
+      },
+      "progress_generating": {
+        "text": "Generuję klip…"
+      },
+      "prompt": {
+        "text": "Prompt"
+      },
+      "remove_last_hint": {
+        "text": "Ostatniej części nie można usunąć."
+      },
+      "remove_part": {
+        "text": "Usuń część"
+      },
+      "request_change_text": {
+        "text": "Część {label} (id {id}): zmień tekst {text} z {from} na {to}"
+      },
+      "request_remove_part": {
+        "text": "Usuń część {label} (id {id})"
+      },
+      "request_shorten_end": {
+        "text": "Część {label} (id {id}): skróć o {seconds} s na końcu"
+      },
+      "request_shorten_start": {
+        "text": "Część {label} (id {id}): skróć o {seconds} s na początku"
+      },
+      "request_trim_video": {
+        "text": "Przytnij wideo: usuń {start} s z początku i {end} s z końca"
+      },
+      "request_trim_video_end": {
+        "text": "Przytnij wideo: usuń {end} s z końca"
+      },
+      "request_trim_video_start": {
+        "text": "Przytnij wideo: usuń {start} s z początku"
+      },
+      "resolution": {
+        "text": "Rozdzielczość"
+      },
+      "restore_part": {
+        "text": "Przywróć część"
+      },
+      "send": {
+        "text": "Wyślij"
+      },
+      "shorten_end": {
+        "text": "Skróć od końca"
+      },
+      "shorten_less": {
+        "text": "Oddaj 0.5 s"
+      },
+      "shorten_more": {
+        "text": "Skróć o 0.5 s"
+      },
+      "shorten_start": {
+        "text": "Skróć od początku"
+      },
+      "sources": {
+        "text": "Źródła"
+      },
+      "timeline": {
+        "text": "Oś czasu wideo"
+      },
+      "trim_video": {
+        "text": "Przytnij wideo"
+      }
+    },
+    "video_create": {
+      "not_available": {
+        "text": "Wideo nie jest jeszcze dostępne."
+      },
+      "status_cancelled": {
+        "text": "Renderowanie zatrzymane"
+      },
+      "status_error": {
+        "text": "Renderowanie nie powiodło się"
+      },
+      "status_finished": {
+        "text": "Gotowe"
+      },
+      "status_needs_rerender": {
+        "text": "Wymaga ponownego renderowania"
+      },
+      "status_processing": {
+        "text": "Przygotowywanie źródła…"
+      },
+      "status_rendering": {
+        "text": "Renderowanie wideo..."
+      },
+      "subtitle": {
+        "text": "Remotion · v{version} · {status}"
+      },
+      "view_code": {
+        "text": "Kod"
+      },
+      "view_timeline": {
+        "text": "Oś czasu"
+      },
+      "view_video": {
+        "text": "Wideo"
       }
     }
   },

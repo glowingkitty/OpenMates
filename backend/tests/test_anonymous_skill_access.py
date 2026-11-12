@@ -211,7 +211,7 @@ def test_missing_connected_account_classification_fails_closed() -> None:
 
 
 @pytest.mark.parametrize("app_id, skill_id", [
-    ("images", "generate"), ("music", "generate"), ("videos", "create"),
+    ("images", "generate"), ("music", "generate"),
     ("social_media", "search"), ("weather", "rain_radar"),
     ("web", "read"), ("videos", "get_transcript"),
     ("tasks", "search"),

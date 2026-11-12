@@ -29,6 +29,8 @@ from backend.shared.python_utils.image_reference_resolver import (
     load_owned_image_record,
 )
 from backend.shared.python_utils.media_encryption import decrypt_media_payload
+# Shared with the owner-bound picture loader, so one failure type covers every picture input.
+from backend.shared.python_utils.owned_pictures import ReferenceImageUnavailable
 
 logger = logging.getLogger(__name__)
 
@@ -38,10 +40,6 @@ REFERENCE_UNAVAILABLE_MESSAGE = (
     "The image this request refers to could not be loaded, so nothing was generated or charged. "
     "Please try again."
 )
-
-
-class ReferenceImageUnavailable(RuntimeError):
-    """A referenced image could not be read; the request fails without a charge."""
 
 
 @dataclass

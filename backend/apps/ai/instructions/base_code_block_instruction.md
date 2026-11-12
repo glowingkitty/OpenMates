@@ -49,16 +49,7 @@ Use normal language fences only when the user asks for a code snippet, library e
 
 **Remember:** The language on the opening fence line is REQUIRED for syntax highlighting and proper embed rendering. Never put the language on a separate line.
 
-**7. Remotion video-create fences:**
-When creating deterministic videos with exact text, slides, product announcements, diagrams, charts, UI-like motion graphics, or branded layouts, use an explicit Remotion fence:
-
-```remotion:ProductAnnouncement.tsx
-// Remotion TSX source
-```
-
-Do NOT use generic `tsx`, `typescript`, or `javascript` fences for videos. Generic TSX remains a normal code embed. Use `videos.generate`/Veo instead when the user asks for photorealistic or generative footage.
-
-**8. Atopile PCB schematic fences:**
+**7. Atopile PCB schematic fences:**
 When creating PCB schematic source, use an explicit `atopile` fence and make the file compile with `atopile==0.15.7`:
 
 ```atopile:main.ato
@@ -78,7 +69,7 @@ Atopile essentials: use `module App:` as the build entrypoint, instantiate with 
 
 Allowed imports for simple self-contained PCB examples are exactly `import Resistor`, `import Capacitor`, `import Diode`, and `import ElectricPower`. Do not import nonexistent standard library parts such as `LDO`, `LED`, `USBConn`, `USBC`, connector parts, regulator parts, or package-specific MPNs; define helper modules locally instead. Never use legacy Atopile imports (`import Resistor from "..."`), bare Python imports (`from Package import Thing`), exact passive values (`capacitor.capacitance = 10uF`), generic `.value`, KiCad-style `.p1` / `.p2`, or LED `.a` / `.c` unless those fields are explicitly declared in a local module. Use `.unnamed[0]` / `.unnamed[1]` for resistor/capacitor terminals and `.anode` / `.cathode` for standard diode terminals.
 
-**9. Jupyter notebook artifacts:**
+**8. Jupyter notebook artifacts:**
 When the user asks for a Jupyter notebook, notebook, `.ipynb` file, or notebook-style analysis with cells, emit a notebook artifact instead of a normal Python script. Use one `notebook:filename.ipynb` fence containing Python percent-cell source so the backend creates a notebook embed immediately and then converts the cells to nbformat. Include at least two `# %%` markers, use `# %% [markdown]` for markdown cells with commented markdown lines, and use `# %%` for runnable Python code cells. Do NOT emit raw nbformat JSON unless the user explicitly asks for raw `.ipynb` JSON, and do NOT answer natural notebook requests with an ordinary `.py` script without cell markers.
 
 Example:
@@ -90,7 +81,7 @@ Example:
 print("ok")
 ```
 
-**10. Interactive HTML visuals:**
+**9. Interactive HTML visuals:**
 The chat renders a finished `html` fence live, as an animated and interactive visual, inside an offline sandbox. When a process, motion, mechanism, simulation, data relationship, or "what happens if I change X" exploration is much easier to understand by seeing it, and no real image, video, or result card shows it better, add one visual like this:
 
 ```html:four-stroke-engine.html
@@ -107,5 +98,5 @@ Rules:
 - Explain what the visual shows in one short sentence next to it; do not repeat it in long prose.
 - Do not add a visual to simple factual answers, when the user asked for text only, or when a real photo, video, plot, or diagram is the better fit. Use `plot` for plain function graphs and `application_preview` for multi-file apps.
 
-**11. Vector graphics (SVG):**
+**10. Vector graphics (SVG):**
 To create or modify a logo, icon, illustration, pattern, diagram-like drawing or any other graphic as SVG/vector, call the `images-generate` skill with `output_filetype: "svg"`. To change an existing graphic (SVG or pixel image), pass it in `reference_images` and describe the change. Do NOT write the SVG code yourself in a code block, except when the user explicitly asks to see or learn raw SVG source, or wants a tiny snippet embedded in other code (HTML, CSS, React). To convert an uploaded pixel image to vector without changes, use `images-vectorize`.

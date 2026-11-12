@@ -1654,7 +1654,7 @@
       "generate": {
         "text": "Создать видео",
         "description": {
-          "text": "Создавай короткие ИИ-видео по текстовому описанию."
+          "text": "Создавай короткие видео по описанию и картинкам из чата — как ИИ-съёмку или как точно собранное видео."
         }
       },
       "create": {
@@ -8173,6 +8173,181 @@
         "no_video": {
           "text": "Для этого запуска нет видео"
         }
+      }
+    },
+    "video_generate": {
+      "apply": {
+        "text": "Применить"
+      },
+      "cancel": {
+        "text": "Отмена"
+      },
+      "clip": {
+        "text": "Клип"
+      },
+      "discard": {
+        "text": "Отбросить"
+      },
+      "discard_confirm": {
+        "text": "Отменить несохранённые изменения?"
+      },
+      "edit_hint": {
+        "text": "Выбери фрагмент на таймлайне, чтобы изменить его."
+      },
+      "edit_part": {
+        "text": "Изменить {label}"
+      },
+      "extend_empty": {
+        "text": "Сначала опиши, что должно происходить в добавленной части."
+      },
+      "extend_end": {
+        "text": "Продлить видео в конце"
+      },
+      "extend_placeholder_end": {
+        "text": "Что должно происходить в добавленном клипе после конца?"
+      },
+      "extend_placeholder_start": {
+        "text": "Что должно происходить в добавленном клипе перед началом?"
+      },
+      "extend_start": {
+        "text": "Продлить видео в начале"
+      },
+      "keep_editing": {
+        "text": "Продолжить редактирование"
+      },
+      "kind_composed": {
+        "text": "Составное видео"
+      },
+      "kind_generative": {
+        "text": "Сгенерированное видео"
+      },
+      "load_error": {
+        "text": "Не удалось загрузить видео"
+      },
+      "loading": {
+        "text": "Загрузка видео..."
+      },
+      "model": {
+        "text": "Модель"
+      },
+      "new_length": {
+        "text": "Новая длина {length}"
+      },
+      "part_aria": {
+        "text": "{label}, от {start} до {end}"
+      },
+      "pending_changes": {
+        "text": "Несохранённые изменения: {count}"
+      },
+      "progress_deciding": {
+        "text": "Решаю, как сделать видео…"
+      },
+      "progress_writing": {
+        "text": "Пишу композицию…"
+      },
+      "progress_rendering": {
+        "text": "Рендеринг видео…"
+      },
+      "progress_correcting": {
+        "text": "Исправляю видео…"
+      },
+      "progress_generating": {
+        "text": "Генерирую клип…"
+      },
+      "prompt": {
+        "text": "Промпт"
+      },
+      "remove_last_hint": {
+        "text": "Последнюю часть нельзя удалить."
+      },
+      "remove_part": {
+        "text": "Удалить часть"
+      },
+      "request_change_text": {
+        "text": "Часть {label} (id {id}): изменить текст {text} с {from} на {to}"
+      },
+      "request_remove_part": {
+        "text": "Удалить часть {label} (id {id})"
+      },
+      "request_shorten_end": {
+        "text": "Часть {label} (id {id}): сократить на {seconds} s в конце"
+      },
+      "request_shorten_start": {
+        "text": "Часть {label} (id {id}): сократить на {seconds} s в начале"
+      },
+      "request_trim_video": {
+        "text": "Обрезать видео: убрать {start} s в начале и {end} s в конце"
+      },
+      "request_trim_video_end": {
+        "text": "Обрезать видео: убрать {end} s в конце"
+      },
+      "request_trim_video_start": {
+        "text": "Обрезать видео: убрать {start} s в начале"
+      },
+      "resolution": {
+        "text": "Разрешение"
+      },
+      "restore_part": {
+        "text": "Вернуть часть"
+      },
+      "send": {
+        "text": "Отправить"
+      },
+      "shorten_end": {
+        "text": "Сократить с конца"
+      },
+      "shorten_less": {
+        "text": "Вернуть 0.5 s"
+      },
+      "shorten_more": {
+        "text": "Сократить на 0.5 s"
+      },
+      "shorten_start": {
+        "text": "Сократить с начала"
+      },
+      "sources": {
+        "text": "Источники"
+      },
+      "timeline": {
+        "text": "Таймлайн видео"
+      },
+      "trim_video": {
+        "text": "Обрезать видео"
+      }
+    },
+    "video_create": {
+      "not_available": {
+        "text": "Видео пока недоступно."
+      },
+      "status_cancelled": {
+        "text": "Рендеринг остановлен"
+      },
+      "status_error": {
+        "text": "Ошибка рендеринга"
+      },
+      "status_finished": {
+        "text": "Готово"
+      },
+      "status_needs_rerender": {
+        "text": "Нужен повторный рендеринг"
+      },
+      "status_processing": {
+        "text": "Подготовка исходного кода…"
+      },
+      "status_rendering": {
+        "text": "Рендеринг видео..."
+      },
+      "subtitle": {
+        "text": "Remotion · v{version} · {status}"
+      },
+      "view_code": {
+        "text": "Код"
+      },
+      "view_timeline": {
+        "text": "Таймлайн"
+      },
+      "view_video": {
+        "text": "Видео"
       }
     }
   },

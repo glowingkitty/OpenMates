@@ -294,7 +294,6 @@ def test_historical_read_results_remain_readable_with_restored_workflow_reader()
     (
         ("images.generate", {"status": "processing", "task_id": "image-task", "embed_id": "image-placeholder"}, ["image-task"], ["image-placeholder"]),
         ("music.generate", {"status": "processing", "task_ids": ["music-task-1", "music-task-2"], "embed_ids": ["music-placeholder-1", "music-placeholder-2"]}, ["music-task-1", "music-task-2"], ["music-placeholder-1", "music-placeholder-2"]),
-        ("videos.create", {"status": "rendering", "task_id": "render-task", "embed_id": "video-placeholder", "render_id": "render-1"}, ["render-task"], ["video-placeholder"]),
     ),
 )
 # contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract

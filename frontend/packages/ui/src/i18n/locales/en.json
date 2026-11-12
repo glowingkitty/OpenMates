@@ -1669,7 +1669,7 @@
       "generate": {
         "text": "Generate",
         "description": {
-          "text": "Generate a short AI video from a text prompt."
+          "text": "Make a short video from your description and pictures in the chat, as AI footage or as an exact composed video."
         }
       },
       "create": {
@@ -9849,6 +9849,181 @@
           "text": "No video available for this run"
         }
       }
+    },
+    "video_generate": {
+      "apply": {
+        "text": "Apply"
+      },
+      "cancel": {
+        "text": "Cancel"
+      },
+      "clip": {
+        "text": "Clip"
+      },
+      "discard": {
+        "text": "Discard"
+      },
+      "discard_confirm": {
+        "text": "Discard your pending changes?"
+      },
+      "edit_hint": {
+        "text": "Select a part on the timeline to edit it."
+      },
+      "edit_part": {
+        "text": "Edit {label}"
+      },
+      "extend_empty": {
+        "text": "Describe what should happen in the added part first."
+      },
+      "extend_end": {
+        "text": "Extend the video at the end"
+      },
+      "extend_placeholder_end": {
+        "text": "What should happen in the added clip after the end?"
+      },
+      "extend_placeholder_start": {
+        "text": "What should happen in the added clip before the start?"
+      },
+      "extend_start": {
+        "text": "Extend the video at the start"
+      },
+      "keep_editing": {
+        "text": "Keep editing"
+      },
+      "kind_composed": {
+        "text": "Composed video"
+      },
+      "kind_generative": {
+        "text": "Generated video"
+      },
+      "load_error": {
+        "text": "Failed to load video"
+      },
+      "loading": {
+        "text": "Loading video..."
+      },
+      "model": {
+        "text": "Model"
+      },
+      "new_length": {
+        "text": "New length {length}"
+      },
+      "part_aria": {
+        "text": "{label}, from {start} to {end}"
+      },
+      "pending_changes": {
+        "text": "Pending changes: {count}"
+      },
+      "progress_deciding": {
+        "text": "Deciding how to make the video…"
+      },
+      "progress_writing": {
+        "text": "Writing the composition…"
+      },
+      "progress_rendering": {
+        "text": "Rendering the video…"
+      },
+      "progress_correcting": {
+        "text": "Correcting the video…"
+      },
+      "progress_generating": {
+        "text": "Generating the clip…"
+      },
+      "prompt": {
+        "text": "Prompt"
+      },
+      "remove_last_hint": {
+        "text": "The last part cannot be removed."
+      },
+      "remove_part": {
+        "text": "Remove part"
+      },
+      "request_change_text": {
+        "text": "Part {label} (id {id}): change text {text} from {from} to {to}"
+      },
+      "request_remove_part": {
+        "text": "Remove part {label} (id {id})"
+      },
+      "request_shorten_end": {
+        "text": "Part {label} (id {id}): shorten by {seconds} s at the end"
+      },
+      "request_shorten_start": {
+        "text": "Part {label} (id {id}): shorten by {seconds} s at the start"
+      },
+      "request_trim_video": {
+        "text": "Trim the video: remove {start} s from the start and {end} s from the end"
+      },
+      "request_trim_video_end": {
+        "text": "Trim the video: remove {end} s from the end"
+      },
+      "request_trim_video_start": {
+        "text": "Trim the video: remove {start} s from the start"
+      },
+      "resolution": {
+        "text": "Resolution"
+      },
+      "restore_part": {
+        "text": "Restore part"
+      },
+      "send": {
+        "text": "Send"
+      },
+      "shorten_end": {
+        "text": "Shorten from end"
+      },
+      "shorten_less": {
+        "text": "Give back 0.5 s"
+      },
+      "shorten_more": {
+        "text": "Shorten by 0.5 s"
+      },
+      "shorten_start": {
+        "text": "Shorten from start"
+      },
+      "sources": {
+        "text": "Sources"
+      },
+      "timeline": {
+        "text": "Video timeline"
+      },
+      "trim_video": {
+        "text": "Trim the video"
+      }
+    },
+    "video_create": {
+      "not_available": {
+        "text": "Video is not available yet."
+      },
+      "status_cancelled": {
+        "text": "Render stopped"
+      },
+      "status_error": {
+        "text": "Render failed"
+      },
+      "status_finished": {
+        "text": "Finished"
+      },
+      "status_needs_rerender": {
+        "text": "Needs rerender"
+      },
+      "status_processing": {
+        "text": "Preparing the source…"
+      },
+      "status_rendering": {
+        "text": "Rendering video..."
+      },
+      "subtitle": {
+        "text": "Remotion · v{version} · {status}"
+      },
+      "view_code": {
+        "text": "Code"
+      },
+      "view_timeline": {
+        "text": "Timeline"
+      },
+      "view_video": {
+        "text": "Video"
+      }
     }
   },
   "embeds_input": {
@@ -13856,7 +14031,7 @@
               "text": "Google Gemini"
             },
             "description": {
-              "text": "Google's Gemini API processes eligible chat messages when normal routing selects a Gemini model, including ordinary text turns submitted from voice calls. On the Gemini correction route for audio recordings, Gemini corrects raw Mistral voice transcripts and creates titles, and may process prompts, reference images, screenshots, or generated code for image generation or editing, Veo video generation, and screenshot-to-HTML conversion. Raw recording transcripts do not receive typed-message placeholder substitution. Google's paid Gemini API terms say prompts and outputs are not used to improve its products, while its current abuse-monitoring documentation states that logged prompts, context, and outputs may be retained for 55 days."
+              "text": "Google's Gemini API processes eligible chat messages when normal routing selects a Gemini model, including ordinary text turns submitted from voice calls. On the Gemini correction route for audio recordings, Gemini corrects raw Mistral voice transcripts and creates titles, and may process prompts, reference images, screenshots, or generated code for image generation or editing, Gemini Omni video generation, and screenshot-to-HTML conversion. Raw recording transcripts do not receive typed-message placeholder substitution. Google's paid Gemini API terms say prompts and outputs are not used to improve its products, while its current abuse-monitoring documentation states that logged prompts, context, and outputs may be retained for 55 days."
             }
           },
           "inception": {

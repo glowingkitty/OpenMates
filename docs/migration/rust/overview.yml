@@ -20,7 +20,7 @@ overall:
   inputs:
     web_app: 7.8
     shared_client: 28.6
-    cli: 65.3
+    cli: 65.4
     sdk: 11.3
 areas:
 - id: web_app
@@ -60,13 +60,13 @@ areas:
   priority_rank: 2
   file: cli.yml
   unit: CLI commands
-  total: 746
+  total: 745
   done: 487
-  partial: 254
+  partial: 253
   missing: 5
-  percent: 65.3
+  percent: 65.4
   done_definition: command is differential-verified against the npm CLI
-  blockers: [5 unsupported commands without native handler, 737 commands not verified on Linux]
+  blockers: [5 unsupported commands without native handler, 736 commands not verified on Linux]
 - id: sdk_rust
   title: Rust SDK (operation capabilities)
   priority_rank: 3

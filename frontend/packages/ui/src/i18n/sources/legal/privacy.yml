@@ -13459,14 +13459,14 @@ providers.ai_models.google_gemini_v2.description:
   en: Google's Gemini API processes eligible chat messages when normal routing selects a Gemini model, including ordinary
     text turns submitted from voice calls. On the Gemini correction route for audio recordings, Gemini corrects raw Mistral
     voice transcripts and creates titles, and may process prompts, reference images, screenshots, or generated code for
-    image generation or editing, Veo video generation, and screenshot-to-HTML conversion. Raw recording transcripts do
+    image generation or editing, Gemini Omni video generation, and screenshot-to-HTML conversion. Raw recording transcripts do
     not receive typed-message placeholder substitution. Google's paid Gemini API terms say prompts and outputs are not
     used to improve its products, while its current abuse-monitoring documentation states that logged prompts, context,
     and outputs may be retained for 55 days.
   de: Die Gemini-API von Google verarbeitet geeignete Chatnachrichten, wenn die normale KI-Auswahl ein Gemini-Modell bestimmt,
     einschließlich gewöhnlicher Textbeiträge aus Sprachanrufen. Auf dem Gemini-Korrekturweg für Audioaufnahmen korrigiert
     Gemini Mistral-Rohtranskripte und erstellt Titel. Gemini kann außerdem Prompts, Referenzbilder, Screenshots oder erzeugten
-    Code für die Bilderzeugung oder -bearbeitung, die Veo-Videoerzeugung und die Umwandlung von Screenshots in HTML verarbeiten.
+    Code für die Bilderzeugung oder -bearbeitung, die Gemini-Omni-Videoerzeugung und die Umwandlung von Screenshots in HTML verarbeiten.
     Rohtranskripte von Aufnahmen erhalten nicht die Platzhalterersetzung für eingetippte Nachrichten. Laut den Bedingungen
     für die kostenpflichtige Gemini-API von Google werden Prompts und Ausgaben nicht zur Verbesserung seiner Produkte
     verwendet; die aktuelle Dokumentation zur Missbrauchsüberwachung gibt jedoch an, dass protokollierte Prompts, Kontext

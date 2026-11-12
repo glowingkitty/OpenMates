@@ -39,4 +39,4 @@ def test_standard_google_chat_and_media_providers_remain_available():
     assert all("live" not in model["id"].lower() for model in models)
     assert (ROOT / "backend/apps/ai/llm_providers/google_client.py").is_file()
     assert (ROOT / "backend/shared/providers/google/gemini_image.py").is_file()
-    assert (ROOT / "backend/shared/providers/google/gemini_video.py").is_file()
+    assert (ROOT / "backend/shared/providers/google/omni_video.py").is_file()

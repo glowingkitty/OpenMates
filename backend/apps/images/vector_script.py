@@ -12,13 +12,19 @@ from __future__ import annotations
 
 import asyncio
 import base64
-import math
 import time
 from dataclasses import dataclass
 from typing import Any, Optional
 
-# Kept equal to the Code Run price (backend/apps/code/app.yml, code.run pricing.per_minute).
-SCRIPT_CREDITS_PER_STARTED_MINUTE = 5
+# The Code Run price per started sandbox minute, shared with every metered sandbox skill.
+from backend.shared.python_utils.metered_author_billing import (
+    SANDBOX_CREDITS_PER_STARTED_MINUTE as SCRIPT_CREDITS_PER_STARTED_MINUTE,
+    sandbox_run_credits as script_run_credits,
+)
+
+# Re-exported for the callers that price sandbox runs through this module.
+__all__ = ["SCRIPT_CREDITS_PER_STARTED_MINUTE", "SCRIPT_RUN_LIMIT_SECONDS", "script_run_credits"]
+
 SCRIPT_RUN_LIMIT_SECONDS = 60
 MAX_ERROR_CHARS = 1500
 
@@ -45,13 +51,6 @@ class ScriptRun:
     svg: Optional[str]
     seconds: float
     error: Optional[str] = None
-
-
-def script_run_credits(seconds: float) -> int:
-    """Credits for one sandbox run: every started minute is charged, a run that never started is free."""
-    if seconds <= 0:
-        return 0
-    return math.ceil(seconds / 60) * SCRIPT_CREDITS_PER_STARTED_MINUTE
 
 
 async def run_generator_script(code: str, *, secrets_manager: Any, task_id: str) -> ScriptRun:

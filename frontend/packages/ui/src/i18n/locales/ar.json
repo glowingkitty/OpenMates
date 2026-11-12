@@ -1654,7 +1654,7 @@
       "generate": {
         "text": "إنشاء",
         "description": {
-          "text": "إنشاء فيديو قصير بالذكاء الاصطناعي من مطالبة نصية."
+          "text": "أنشئ فيديو قصيرًا من وصفك والصور في المحادثة، كلقطات بالذكاء الاصطناعي أو كفيديو مركّب بدقة."
         }
       },
       "create": {
@@ -8173,6 +8173,181 @@
         "no_video": {
           "text": "لا يوجد فيديو لهذا التشغيل"
         }
+      }
+    },
+    "video_generate": {
+      "apply": {
+        "text": "تطبيق"
+      },
+      "cancel": {
+        "text": "إلغاء"
+      },
+      "clip": {
+        "text": "مقطع"
+      },
+      "discard": {
+        "text": "تجاهل"
+      },
+      "discard_confirm": {
+        "text": "تجاهل التغييرات المعلّقة؟"
+      },
+      "edit_hint": {
+        "text": "اختر جزءًا على الخط الزمني لتعديله."
+      },
+      "edit_part": {
+        "text": "تعديل {label}"
+      },
+      "extend_empty": {
+        "text": "صف أولًا ما الذي يجب أن يحدث في الجزء المضاف."
+      },
+      "extend_end": {
+        "text": "تمديد الفيديو في النهاية"
+      },
+      "extend_placeholder_end": {
+        "text": "ماذا يجب أن يحدث في المقطع المضاف بعد النهاية؟"
+      },
+      "extend_placeholder_start": {
+        "text": "ماذا يجب أن يحدث في المقطع المضاف قبل البداية؟"
+      },
+      "extend_start": {
+        "text": "تمديد الفيديو في البداية"
+      },
+      "keep_editing": {
+        "text": "متابعة التعديل"
+      },
+      "kind_composed": {
+        "text": "فيديو مركّب"
+      },
+      "kind_generative": {
+        "text": "فيديو مُولَّد"
+      },
+      "load_error": {
+        "text": "تعذّر تحميل الفيديو"
+      },
+      "loading": {
+        "text": "جارٍ تحميل الفيديو..."
+      },
+      "model": {
+        "text": "النموذج"
+      },
+      "new_length": {
+        "text": "المدة الجديدة {length}"
+      },
+      "part_aria": {
+        "text": "{label}، من {start} إلى {end}"
+      },
+      "pending_changes": {
+        "text": "تغييرات معلّقة: {count}"
+      },
+      "progress_deciding": {
+        "text": "جارٍ تحديد طريقة صنع الفيديو…"
+      },
+      "progress_writing": {
+        "text": "جارٍ كتابة التركيب…"
+      },
+      "progress_rendering": {
+        "text": "جارٍ معالجة الفيديو…"
+      },
+      "progress_correcting": {
+        "text": "جارٍ تصحيح الفيديو…"
+      },
+      "progress_generating": {
+        "text": "جارٍ توليد المقطع…"
+      },
+      "prompt": {
+        "text": "الموجّه"
+      },
+      "remove_last_hint": {
+        "text": "لا يمكن إزالة الجزء الأخير."
+      },
+      "remove_part": {
+        "text": "إزالة الجزء"
+      },
+      "request_change_text": {
+        "text": "الجزء {label} (id {id}): تغيير النص {text} من {from} إلى {to}"
+      },
+      "request_remove_part": {
+        "text": "إزالة الجزء {label} (id {id})"
+      },
+      "request_shorten_end": {
+        "text": "الجزء {label} (id {id}): تقصير {seconds} s من النهاية"
+      },
+      "request_shorten_start": {
+        "text": "الجزء {label} (id {id}): تقصير {seconds} s من البداية"
+      },
+      "request_trim_video": {
+        "text": "قص الفيديو: إزالة {start} s من البداية و{end} s من النهاية"
+      },
+      "request_trim_video_end": {
+        "text": "قص الفيديو: إزالة {end} s من النهاية"
+      },
+      "request_trim_video_start": {
+        "text": "قص الفيديو: إزالة {start} s من البداية"
+      },
+      "resolution": {
+        "text": "الدقة"
+      },
+      "restore_part": {
+        "text": "استعادة الجزء"
+      },
+      "send": {
+        "text": "إرسال"
+      },
+      "shorten_end": {
+        "text": "تقصير من النهاية"
+      },
+      "shorten_less": {
+        "text": "إرجاع 0.5 s"
+      },
+      "shorten_more": {
+        "text": "تقصير 0.5 s"
+      },
+      "shorten_start": {
+        "text": "تقصير من البداية"
+      },
+      "sources": {
+        "text": "المصادر"
+      },
+      "timeline": {
+        "text": "الخط الزمني للفيديو"
+      },
+      "trim_video": {
+        "text": "قص الفيديو"
+      }
+    },
+    "video_create": {
+      "not_available": {
+        "text": "الفيديو غير متاح بعد."
+      },
+      "status_cancelled": {
+        "text": "تم إيقاف المعالجة"
+      },
+      "status_error": {
+        "text": "فشلت المعالجة"
+      },
+      "status_finished": {
+        "text": "اكتمل"
+      },
+      "status_needs_rerender": {
+        "text": "يحتاج إلى إعادة المعالجة"
+      },
+      "status_processing": {
+        "text": "جارٍ تحضير المصدر…"
+      },
+      "status_rendering": {
+        "text": "جارٍ معالجة الفيديو..."
+      },
+      "subtitle": {
+        "text": "Remotion · v{version} · {status}"
+      },
+      "view_code": {
+        "text": "الكود"
+      },
+      "view_timeline": {
+        "text": "الخط الزمني"
+      },
+      "view_video": {
+        "text": "الفيديو"
       }
     }
   },

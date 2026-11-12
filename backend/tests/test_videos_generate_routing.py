@@ -1,0 +1,97 @@
+# backend/tests/test_videos_generate_routing.py
+#
+# Routing of videos.generate requests (no network: the decision client is stubbed).
+
+import pytest
+
+from backend.apps.videos import routing
+from backend.shared.providers.typesafe import client as typesafe_client
+from backend.shared.providers.typesafe.models import ChoiceAnswer
+
+
+class _Response:
+    def __init__(self, answers):
+        self.answers = answers
+
+
+def _stub_client(monkeypatch, *, answer=None, error=None):
+    seen = {}
+
+    class _Client:
+        def __init__(self, **kwargs):
+            seen["init"] = kwargs
+
+        async def evaluate(self, *, state, questions):
+            seen["state"], seen["questions"] = state, questions
+            if error:
+                raise error
+            return _Response({"route": answer})
+
+    monkeypatch.setattr(typesafe_client, "JevDecisionClient", _Client)
+    return seen
+
+
+def _choice(value):
+    return ChoiceAnswer.model_construct(choice=value, probabilities={value: 0.9}, confidence=0.9)
+
+
+# contract-test: supporting surface=gui.web assertions=videos-generate.routing.generative-or-composed
+@pytest.mark.asyncio
+async def test_explicit_mode_wins_without_asking(monkeypatch):
+    seen = _stub_client(monkeypatch, error=AssertionError("must not be asked"))
+    decision = await routing.decide_route(mode="composed", instructions="x", picture_kinds=[],
+                                          secrets_manager=None, task_id="t")
+    assert decision == routing.RouteDecision("composed", routing.DECIDED_BY_REQUEST)
+    assert "state" not in seen
+
+
+# contract-test: supporting surface=gui.web assertions=videos-generate.routing.generative-or-composed
+@pytest.mark.asyncio
+async def test_auto_asks_with_count_and_kinds_only(monkeypatch):
+    seen = _stub_client(monkeypatch, answer=_choice("composed"))
+    decision = await routing.decide_route(
+        mode="auto", instructions="A recap of these news", picture_kinds=["search_result", "search_result", "image"],
+        secrets_manager=None, task_id="t",
+    )
+    assert decision == routing.RouteDecision("composed", routing.DECIDED_BY_MODEL)
+    assert seen["state"]["given_pictures"] == "3 pictures: 1 image, 2 search_result"
+    assert set(seen["questions"]["route"]["criteria"]) == {"composed", "generative"}
+
+
+# contract-test: supporting surface=gui.web assertions=videos-generate.routing.generative-or-composed
+@pytest.mark.asyncio
+async def test_unreachable_routing_model_is_explicit(monkeypatch):
+    _stub_client(monkeypatch, error=typesafe_client.DecisionProviderError("down"))
+    with pytest.raises(routing.RoutingUnavailable):
+        await routing.decide_route(mode="auto", instructions="x", picture_kinds=[], secrets_manager=None,
+                                   task_id="t")
+
+
+# contract-test: supporting surface=gui.web assertions=videos-generate.routing.generative-or-composed
+@pytest.mark.asyncio
+async def test_invalid_routing_answer_is_explicit(monkeypatch):
+    _stub_client(monkeypatch, answer=None)
+    with pytest.raises(routing.RoutingUnavailable):
+        await routing.decide_route(mode="auto", instructions="x", picture_kinds=[], secrets_manager=None,
+                                   task_id="t")
+
+
+# contract-test: supporting surface=gui.web assertions=videos-generate.routing.generative-or-composed
+@pytest.mark.asyncio
+async def test_generative_answer_for_two_pictures_is_made_composed(monkeypatch):
+    seen = _stub_client(monkeypatch, answer=_choice("generative"))
+    decision = await routing.decide_route(
+        mode="auto", instructions="Animate these two photos", picture_kinds=["image", "image"],
+        secrets_manager=None, task_id="t",
+    )
+    assert decision == routing.RouteDecision("composed", routing.DECIDED_BY_MODEL)
+    assert "at most one picture" in seen["questions"]["route"]["instructions"]
+
+
+# contract-test: supporting surface=gui.web assertions=videos-generate.routing.generative-or-composed
+@pytest.mark.asyncio
+async def test_generative_answer_for_one_picture_stays_generative(monkeypatch):
+    _stub_client(monkeypatch, answer=_choice("generative"))
+    decision = await routing.decide_route(mode="auto", instructions="Animate this photo", picture_kinds=["image"],
+                                          secrets_manager=None, task_id="t")
+    assert decision == routing.RouteDecision("generative", routing.DECIDED_BY_MODEL)

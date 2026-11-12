@@ -1654,7 +1654,7 @@
       "generate": {
         "text": "Tạo",
         "description": {
-          "text": "Tạo video AI ngắn từ lời nhắc văn bản."
+          "text": "Tạo video ngắn từ mô tả của bạn và hình ảnh trong cuộc trò chuyện, dưới dạng cảnh quay AI hoặc video dựng chính xác."
         }
       },
       "create": {
@@ -8173,6 +8173,181 @@
         "no_video": {
           "text": "Không có video cho lần chạy này"
         }
+      }
+    },
+    "video_generate": {
+      "apply": {
+        "text": "Áp dụng"
+      },
+      "cancel": {
+        "text": "Hủy"
+      },
+      "clip": {
+        "text": "Clip"
+      },
+      "discard": {
+        "text": "Bỏ"
+      },
+      "discard_confirm": {
+        "text": "Bỏ các thay đổi đang chờ?"
+      },
+      "edit_hint": {
+        "text": "Chọn một phần trên dòng thời gian để chỉnh sửa."
+      },
+      "edit_part": {
+        "text": "Chỉnh sửa {label}"
+      },
+      "extend_empty": {
+        "text": "Hãy mô tả trước điều sẽ xảy ra trong phần được thêm."
+      },
+      "extend_end": {
+        "text": "Kéo dài video ở cuối"
+      },
+      "extend_placeholder_end": {
+        "text": "Điều gì sẽ xảy ra trong clip được thêm sau phần kết?"
+      },
+      "extend_placeholder_start": {
+        "text": "Điều gì sẽ xảy ra trong clip được thêm trước phần đầu?"
+      },
+      "extend_start": {
+        "text": "Kéo dài video ở đầu"
+      },
+      "keep_editing": {
+        "text": "Tiếp tục chỉnh sửa"
+      },
+      "kind_composed": {
+        "text": "Video ghép"
+      },
+      "kind_generative": {
+        "text": "Video được tạo"
+      },
+      "load_error": {
+        "text": "Không tải được video"
+      },
+      "loading": {
+        "text": "Đang tải video..."
+      },
+      "model": {
+        "text": "Mô hình"
+      },
+      "new_length": {
+        "text": "Độ dài mới {length}"
+      },
+      "part_aria": {
+        "text": "{label}, từ {start} đến {end}"
+      },
+      "pending_changes": {
+        "text": "Thay đổi đang chờ: {count}"
+      },
+      "progress_deciding": {
+        "text": "Đang quyết định cách tạo video…"
+      },
+      "progress_writing": {
+        "text": "Đang viết bố cục…"
+      },
+      "progress_rendering": {
+        "text": "Đang kết xuất video…"
+      },
+      "progress_correcting": {
+        "text": "Đang chỉnh sửa video…"
+      },
+      "progress_generating": {
+        "text": "Đang tạo clip…"
+      },
+      "prompt": {
+        "text": "Câu lệnh"
+      },
+      "remove_last_hint": {
+        "text": "Không thể xóa phần cuối cùng."
+      },
+      "remove_part": {
+        "text": "Xóa phần"
+      },
+      "request_change_text": {
+        "text": "Phần {label} (id {id}): đổi văn bản {text} từ {from} thành {to}"
+      },
+      "request_remove_part": {
+        "text": "Xóa phần {label} (id {id})"
+      },
+      "request_shorten_end": {
+        "text": "Phần {label} (id {id}): rút ngắn {seconds} s ở cuối"
+      },
+      "request_shorten_start": {
+        "text": "Phần {label} (id {id}): rút ngắn {seconds} s ở đầu"
+      },
+      "request_trim_video": {
+        "text": "Cắt video: xóa {start} s ở đầu và {end} s ở cuối"
+      },
+      "request_trim_video_end": {
+        "text": "Cắt video: xóa {end} s ở cuối"
+      },
+      "request_trim_video_start": {
+        "text": "Cắt video: xóa {start} s ở đầu"
+      },
+      "resolution": {
+        "text": "Độ phân giải"
+      },
+      "restore_part": {
+        "text": "Khôi phục phần"
+      },
+      "send": {
+        "text": "Gửi"
+      },
+      "shorten_end": {
+        "text": "Rút ngắn từ cuối"
+      },
+      "shorten_less": {
+        "text": "Trả lại 0.5 s"
+      },
+      "shorten_more": {
+        "text": "Rút ngắn 0.5 s"
+      },
+      "shorten_start": {
+        "text": "Rút ngắn từ đầu"
+      },
+      "sources": {
+        "text": "Nguồn"
+      },
+      "timeline": {
+        "text": "Dòng thời gian video"
+      },
+      "trim_video": {
+        "text": "Cắt video"
+      }
+    },
+    "video_create": {
+      "not_available": {
+        "text": "Video chưa khả dụng."
+      },
+      "status_cancelled": {
+        "text": "Đã dừng kết xuất"
+      },
+      "status_error": {
+        "text": "Kết xuất thất bại"
+      },
+      "status_finished": {
+        "text": "Hoàn tất"
+      },
+      "status_needs_rerender": {
+        "text": "Cần kết xuất lại"
+      },
+      "status_processing": {
+        "text": "Đang chuẩn bị mã nguồn…"
+      },
+      "status_rendering": {
+        "text": "Đang kết xuất video..."
+      },
+      "subtitle": {
+        "text": "Remotion · v{version} · {status}"
+      },
+      "view_code": {
+        "text": "Mã"
+      },
+      "view_timeline": {
+        "text": "Dòng thời gian"
+      },
+      "view_video": {
+        "text": "Video"
       }
     }
   },

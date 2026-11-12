@@ -1654,7 +1654,7 @@
       "generate": {
         "text": "Genereren",
         "description": {
-          "text": "Genereer een korte AI-video op basis van een tekstprompt."
+          "text": "Maak een korte video van je beschrijving en afbeeldingen in de chat, als AI-beelden of als exact samengestelde video."
         }
       },
       "create": {
@@ -8173,6 +8173,181 @@
         "no_video": {
           "text": "Geen video beschikbaar voor deze run"
         }
+      }
+    },
+    "video_generate": {
+      "apply": {
+        "text": "Toepassen"
+      },
+      "cancel": {
+        "text": "Annuleren"
+      },
+      "clip": {
+        "text": "Clip"
+      },
+      "discard": {
+        "text": "Verwerpen"
+      },
+      "discard_confirm": {
+        "text": "Openstaande wijzigingen verwerpen?"
+      },
+      "edit_hint": {
+        "text": "Selecteer een deel op de tijdlijn om het te bewerken."
+      },
+      "edit_part": {
+        "text": "{label} bewerken"
+      },
+      "extend_empty": {
+        "text": "Beschrijf eerst wat er in het toegevoegde deel moet gebeuren."
+      },
+      "extend_end": {
+        "text": "Video aan het eind verlengen"
+      },
+      "extend_placeholder_end": {
+        "text": "Wat moet er gebeuren in de toegevoegde clip na het einde?"
+      },
+      "extend_placeholder_start": {
+        "text": "Wat moet er gebeuren in de toegevoegde clip voor het begin?"
+      },
+      "extend_start": {
+        "text": "Video aan het begin verlengen"
+      },
+      "keep_editing": {
+        "text": "Doorgaan met bewerken"
+      },
+      "kind_composed": {
+        "text": "Samengestelde video"
+      },
+      "kind_generative": {
+        "text": "Gegenereerde video"
+      },
+      "load_error": {
+        "text": "Video laden mislukt"
+      },
+      "loading": {
+        "text": "Video laden..."
+      },
+      "model": {
+        "text": "Model"
+      },
+      "new_length": {
+        "text": "Nieuwe lengte {length}"
+      },
+      "part_aria": {
+        "text": "{label}, van {start} tot {end}"
+      },
+      "pending_changes": {
+        "text": "Openstaande wijzigingen: {count}"
+      },
+      "progress_deciding": {
+        "text": "Bepalen hoe de video wordt gemaakt…"
+      },
+      "progress_writing": {
+        "text": "Compositie schrijven…"
+      },
+      "progress_rendering": {
+        "text": "Video renderen…"
+      },
+      "progress_correcting": {
+        "text": "Video corrigeren…"
+      },
+      "progress_generating": {
+        "text": "Clip genereren…"
+      },
+      "prompt": {
+        "text": "Prompt"
+      },
+      "remove_last_hint": {
+        "text": "Het laatste deel kan niet worden verwijderd."
+      },
+      "remove_part": {
+        "text": "Deel verwijderen"
+      },
+      "request_change_text": {
+        "text": "Deel {label} (id {id}): tekst {text} wijzigen van {from} naar {to}"
+      },
+      "request_remove_part": {
+        "text": "Deel {label} (id {id}) verwijderen"
+      },
+      "request_shorten_end": {
+        "text": "Deel {label} (id {id}): {seconds} s inkorten aan het eind"
+      },
+      "request_shorten_start": {
+        "text": "Deel {label} (id {id}): {seconds} s inkorten aan het begin"
+      },
+      "request_trim_video": {
+        "text": "Video inkorten: {start} s van het begin en {end} s van het eind verwijderen"
+      },
+      "request_trim_video_end": {
+        "text": "Video inkorten: {end} s van het eind verwijderen"
+      },
+      "request_trim_video_start": {
+        "text": "Video inkorten: {start} s van het begin verwijderen"
+      },
+      "resolution": {
+        "text": "Resolutie"
+      },
+      "restore_part": {
+        "text": "Deel herstellen"
+      },
+      "send": {
+        "text": "Verzenden"
+      },
+      "shorten_end": {
+        "text": "Inkorten vanaf het eind"
+      },
+      "shorten_less": {
+        "text": "0.5 s teruggeven"
+      },
+      "shorten_more": {
+        "text": "0.5 s inkorten"
+      },
+      "shorten_start": {
+        "text": "Inkorten vanaf het begin"
+      },
+      "sources": {
+        "text": "Bronnen"
+      },
+      "timeline": {
+        "text": "Videotijdlijn"
+      },
+      "trim_video": {
+        "text": "Video inkorten"
+      }
+    },
+    "video_create": {
+      "not_available": {
+        "text": "De video is nog niet beschikbaar."
+      },
+      "status_cancelled": {
+        "text": "Renderen gestopt"
+      },
+      "status_error": {
+        "text": "Renderen mislukt"
+      },
+      "status_finished": {
+        "text": "Klaar"
+      },
+      "status_needs_rerender": {
+        "text": "Opnieuw renderen nodig"
+      },
+      "status_processing": {
+        "text": "Bron voorbereiden…"
+      },
+      "status_rendering": {
+        "text": "Video renderen..."
+      },
+      "subtitle": {
+        "text": "Remotion · v{version} · {status}"
+      },
+      "view_code": {
+        "text": "Code"
+      },
+      "view_timeline": {
+        "text": "Tijdlijn"
+      },
+      "view_video": {
+        "text": "Video"
       }
     }
   },

@@ -487,9 +487,6 @@ impl VideosSkills<'_> {
     pub async fn generate(&self, input: Value) -> Result<Value> {
         self.sdk.run_skill("videos", "generate", input).await
     }
-    pub async fn create(&self, input: Value) -> Result<Value> {
-        self.sdk.run_skill("videos", "create", input).await
-    }
     pub async fn get_transcript(&self, input: Value) -> Result<Value> {
         self.sdk.run_skill("videos", "get_transcript", input).await
     }

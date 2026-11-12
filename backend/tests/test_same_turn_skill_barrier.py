@@ -315,8 +315,8 @@ def test_code_run_deadline_keeps_queue_slack_and_longer_mixed_job_envelopes():
         {"app_id": "web", "skill_id": "search"}, code_job,
     ]) == 1200
     assert barrier.deadline_seconds_for_jobs([
-        code_job, {"app_id": "videos", "skill_id": "create"},
-    ]) == 1500
+        code_job, {"app_id": "videos", "skill_id": "generate"},
+    ]) == 2340
     with pytest.raises(RuntimeError, match="Same-turn deadline has no envelope for code.unknown"):
         barrier.deadline_seconds_for_jobs([{"app_id": "code", "skill_id": "unknown"}])
 

@@ -1654,7 +1654,7 @@
       "generate": {
         "text": "生成",
         "description": {
-          "text": "テキストプロンプトから短いAI動画を生成します。"
+          "text": "説明とチャット内の画像から、AI映像または正確に構成された動画として短い動画を作成します。"
         }
       },
       "create": {
@@ -8173,6 +8173,181 @@
         "no_video": {
           "text": "この実行の動画はありません"
         }
+      }
+    },
+    "video_generate": {
+      "apply": {
+        "text": "適用"
+      },
+      "cancel": {
+        "text": "キャンセル"
+      },
+      "clip": {
+        "text": "クリップ"
+      },
+      "discard": {
+        "text": "破棄"
+      },
+      "discard_confirm": {
+        "text": "保留中の変更を破棄しますか？"
+      },
+      "edit_hint": {
+        "text": "タイムラインでパートを選ぶと編集できます。"
+      },
+      "edit_part": {
+        "text": "{label}を編集"
+      },
+      "extend_empty": {
+        "text": "まず、追加するパートで何が起こるかを説明してください。"
+      },
+      "extend_end": {
+        "text": "動画の最後を延長"
+      },
+      "extend_placeholder_end": {
+        "text": "終わりの後に追加するクリップでは何が起こりますか？"
+      },
+      "extend_placeholder_start": {
+        "text": "始まりの前に追加するクリップでは何が起こりますか？"
+      },
+      "extend_start": {
+        "text": "動画の冒頭を延長"
+      },
+      "keep_editing": {
+        "text": "編集を続ける"
+      },
+      "kind_composed": {
+        "text": "合成した動画"
+      },
+      "kind_generative": {
+        "text": "生成された動画"
+      },
+      "load_error": {
+        "text": "動画を読み込めませんでした"
+      },
+      "loading": {
+        "text": "動画を読み込み中..."
+      },
+      "model": {
+        "text": "モデル"
+      },
+      "new_length": {
+        "text": "新しい長さ {length}"
+      },
+      "part_aria": {
+        "text": "{label}、{start}から{end}まで"
+      },
+      "pending_changes": {
+        "text": "保留中の変更: {count}"
+      },
+      "progress_deciding": {
+        "text": "動画の作り方を決めています…"
+      },
+      "progress_writing": {
+        "text": "コンポジションを書いています…"
+      },
+      "progress_rendering": {
+        "text": "動画をレンダリング中…"
+      },
+      "progress_correcting": {
+        "text": "動画を修正しています…"
+      },
+      "progress_generating": {
+        "text": "クリップを生成しています…"
+      },
+      "prompt": {
+        "text": "プロンプト"
+      },
+      "remove_last_hint": {
+        "text": "最後のパートは削除できません。"
+      },
+      "remove_part": {
+        "text": "パートを削除"
+      },
+      "request_change_text": {
+        "text": "パート {label} (id {id}): テキスト {text} を {from} から {to} に変更"
+      },
+      "request_remove_part": {
+        "text": "パート {label} (id {id}) を削除"
+      },
+      "request_shorten_end": {
+        "text": "パート {label} (id {id}): 最後を {seconds} s 短縮"
+      },
+      "request_shorten_start": {
+        "text": "パート {label} (id {id}): 冒頭を {seconds} s 短縮"
+      },
+      "request_trim_video": {
+        "text": "動画をトリミング: 冒頭の {start} s と最後の {end} s を削除"
+      },
+      "request_trim_video_end": {
+        "text": "動画をトリミング: 最後の {end} s を削除"
+      },
+      "request_trim_video_start": {
+        "text": "動画をトリミング: 冒頭の {start} s を削除"
+      },
+      "resolution": {
+        "text": "解像度"
+      },
+      "restore_part": {
+        "text": "パートを元に戻す"
+      },
+      "send": {
+        "text": "送信"
+      },
+      "shorten_end": {
+        "text": "終わりから短縮"
+      },
+      "shorten_less": {
+        "text": "0.5 s 戻す"
+      },
+      "shorten_more": {
+        "text": "0.5 s 短縮"
+      },
+      "shorten_start": {
+        "text": "冒頭から短縮"
+      },
+      "sources": {
+        "text": "ソース"
+      },
+      "timeline": {
+        "text": "動画タイムライン"
+      },
+      "trim_video": {
+        "text": "動画をトリミング"
+      }
+    },
+    "video_create": {
+      "not_available": {
+        "text": "動画はまだ利用できません。"
+      },
+      "status_cancelled": {
+        "text": "レンダリングを停止しました"
+      },
+      "status_error": {
+        "text": "レンダリングに失敗しました"
+      },
+      "status_finished": {
+        "text": "完了"
+      },
+      "status_needs_rerender": {
+        "text": "再レンダリングが必要"
+      },
+      "status_processing": {
+        "text": "ソースを準備中…"
+      },
+      "status_rendering": {
+        "text": "動画をレンダリング中..."
+      },
+      "subtitle": {
+        "text": "Remotion · v{version} · {status}"
+      },
+      "view_code": {
+        "text": "コード"
+      },
+      "view_timeline": {
+        "text": "タイムライン"
+      },
+      "view_video": {
+        "text": "動画"
       }
     }
   },

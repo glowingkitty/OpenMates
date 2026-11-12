@@ -26,31 +26,29 @@ generate:
     - de
 
 generate.description:
-  context: Description for generated video skill
-  en: Generate a short AI video from a text prompt.
-  de: Erstelle ein kurzes KI-Video aus einer Texteingabe.
-  zh: 根据文本提示词生成一段 AI 短视频。
-  es: Genera un video corto de IA a partir de un mensaje de texto.
-  fr: "Génère une courte vidéo par IA à partir d'une invite textuelle."
-  pt: Gera um vídeo curto de IA a partir de um comando de texto.
-  ru: Создавай короткие ИИ-видео по текстовому описанию.
-  ja: テキストプロンプトから短いAI動画を生成します。
-  ko: 텍스트 프롬프트로 짧은 AI 비디오를 생성합니다.
-  it: Genera un breve video AI da un prompt di testo.
-  tr: Metin isteminden kısa bir yapay zeka videosu oluştur.
-  vi: Tạo video AI ngắn từ lời nhắc văn bản.
-  id: Buat video AI pendek dari perintah teks.
-  pl: Generuj krótkie wideo AI na podstawie opisu tekstowego.
-  nl: Genereer een korte AI-video op basis van een tekstprompt.
-  ar: إنشاء فيديو قصير بالذكاء الاصطناعي من مطالبة نصية.
-  hi: टेक्स्ट प्रॉम्प्ट से एक छोटा AI वीडियो जनरेट करें।
-  th: สร้างวิดีโอ AI สั้นๆ จากข้อความพรอมต์
-  cs: Generuj krátké AI video z textového zadání.
-  sv: Generera en kort AI-video från en textprompt.
-  he: יצירת סרטון AI קצר מהנחיית טקסט.
-  verified_by_human:
-    - en
-    - de
+  context: Description for the video skill that makes generative clips or composed videos from an instruction and chat pictures
+  en: Make a short video from your description and pictures in the chat, as AI footage or as an exact composed video.
+  de: Erstelle ein kurzes Video aus deiner Beschreibung und Bildern im Chat, als KI-Aufnahme oder als exakt gestaltetes Video.
+  zh: 根据你的描述和聊天中的图片制作短视频，可以是 AI 生成画面，也可以是精确排版的合成视频。
+  es: Crea un video corto a partir de tu descripción y de imágenes del chat, como metraje de IA o como video compuesto exacto.
+  fr: "Crée une courte vidéo à partir de ta description et des images du chat, en images IA ou en vidéo composée précise."
+  pt: Cria um vídeo curto a partir da tua descrição e das imagens do chat, como filmagem de IA ou como vídeo composto exato.
+  ru: Создавай короткие видео по описанию и картинкам из чата — как ИИ-съёмку или как точно собранное видео.
+  ja: 説明とチャット内の画像から、AI映像または正確に構成された動画として短い動画を作成します。
+  ko: 설명과 채팅 속 이미지로 AI 영상 또는 정확하게 구성된 영상 형태의 짧은 비디오를 만듭니다.
+  it: Crea un breve video dalla tua descrizione e dalle immagini della chat, come riprese AI o come video composto preciso.
+  tr: Açıklamandan ve sohbetteki görsellerden yapay zeka çekimi ya da birebir oluşturulmuş kısa bir video yap.
+  vi: Tạo video ngắn từ mô tả của bạn và hình ảnh trong cuộc trò chuyện, dưới dạng cảnh quay AI hoặc video dựng chính xác.
+  id: Buat video pendek dari deskripsimu dan gambar di obrolan, sebagai rekaman AI atau video susunan yang tepat.
+  pl: Twórz krótkie wideo z opisu i obrazów z czatu, jako ujęcia AI lub dokładnie złożone wideo.
+  nl: Maak een korte video van je beschrijving en afbeeldingen in de chat, als AI-beelden of als exact samengestelde video.
+  ar: أنشئ فيديو قصيرًا من وصفك والصور في المحادثة، كلقطات بالذكاء الاصطناعي أو كفيديو مركّب بدقة.
+  hi: अपने विवरण और चैट की तस्वीरों से छोटा वीडियो बनाएं, AI फ़ुटेज या सटीक रूप से बने वीडियो के रूप में।
+  th: สร้างวิดีโอสั้นจากคำอธิบายและรูปภาพในแชต เป็นฟุตเทจ AI หรือวิดีโอที่จัดองค์ประกอบอย่างแม่นยำ
+  cs: Vytvoř krátké video z popisu a obrázků v chatu, jako AI záběry nebo přesně sestavené video.
+  sv: Skapa en kort video från din beskrivning och bilder i chatten, som AI-filmklipp eller som exakt sammansatt video.
+  he: יצירת סרטון קצר מהתיאור שלך ומתמונות בצ'אט, כצילומי AI או כסרטון מורכב מדויק.
+  verified_by_human: []
 
 create:
   context: Skill name for Remotion video creation

@@ -1654,7 +1654,7 @@
       "generate": {
         "text": "Genera",
         "description": {
-          "text": "Genera un breve video AI da un prompt di testo."
+          "text": "Crea un breve video dalla tua descrizione e dalle immagini della chat, come riprese AI o come video composto preciso."
         }
       },
       "create": {
@@ -8200,6 +8200,181 @@
         "no_video": {
           "text": "Nessun video disponibile per questa esecuzione"
         }
+      }
+    },
+    "video_generate": {
+      "apply": {
+        "text": "Applica"
+      },
+      "cancel": {
+        "text": "Annulla"
+      },
+      "clip": {
+        "text": "Clip"
+      },
+      "discard": {
+        "text": "Scarta"
+      },
+      "discard_confirm": {
+        "text": "Scartare le modifiche in sospeso?"
+      },
+      "edit_hint": {
+        "text": "Seleziona una parte della timeline per modificarla."
+      },
+      "edit_part": {
+        "text": "Modifica {label}"
+      },
+      "extend_empty": {
+        "text": "Descrivi prima cosa deve succedere nella parte aggiunta."
+      },
+      "extend_end": {
+        "text": "Estendi il video alla fine"
+      },
+      "extend_placeholder_end": {
+        "text": "Cosa deve succedere nella clip aggiunta dopo la fine?"
+      },
+      "extend_placeholder_start": {
+        "text": "Cosa deve succedere nella clip aggiunta prima dell'inizio?"
+      },
+      "extend_start": {
+        "text": "Estendi il video all'inizio"
+      },
+      "keep_editing": {
+        "text": "Continua a modificare"
+      },
+      "kind_composed": {
+        "text": "Video composto"
+      },
+      "kind_generative": {
+        "text": "Video generato"
+      },
+      "load_error": {
+        "text": "Impossibile caricare il video"
+      },
+      "loading": {
+        "text": "Caricamento video..."
+      },
+      "model": {
+        "text": "Modello"
+      },
+      "new_length": {
+        "text": "Nuova durata {length}"
+      },
+      "part_aria": {
+        "text": "{label}, da {start} a {end}"
+      },
+      "pending_changes": {
+        "text": "Modifiche in sospeso: {count}"
+      },
+      "progress_deciding": {
+        "text": "Decido come realizzare il video…"
+      },
+      "progress_writing": {
+        "text": "Scrittura della composizione…"
+      },
+      "progress_rendering": {
+        "text": "Rendering del video…"
+      },
+      "progress_correcting": {
+        "text": "Correzione del video…"
+      },
+      "progress_generating": {
+        "text": "Generazione della clip…"
+      },
+      "prompt": {
+        "text": "Prompt"
+      },
+      "remove_last_hint": {
+        "text": "L'ultima parte non può essere rimossa."
+      },
+      "remove_part": {
+        "text": "Rimuovi parte"
+      },
+      "request_change_text": {
+        "text": "Parte {label} (id {id}): cambia il testo {text} da {from} a {to}"
+      },
+      "request_remove_part": {
+        "text": "Rimuovi la parte {label} (id {id})"
+      },
+      "request_shorten_end": {
+        "text": "Parte {label} (id {id}): accorcia di {seconds} s alla fine"
+      },
+      "request_shorten_start": {
+        "text": "Parte {label} (id {id}): accorcia di {seconds} s all'inizio"
+      },
+      "request_trim_video": {
+        "text": "Taglia il video: rimuovi {start} s dall'inizio e {end} s dalla fine"
+      },
+      "request_trim_video_end": {
+        "text": "Taglia il video: rimuovi {end} s dalla fine"
+      },
+      "request_trim_video_start": {
+        "text": "Taglia il video: rimuovi {start} s dall'inizio"
+      },
+      "resolution": {
+        "text": "Risoluzione"
+      },
+      "restore_part": {
+        "text": "Ripristina parte"
+      },
+      "send": {
+        "text": "Invia"
+      },
+      "shorten_end": {
+        "text": "Accorcia dalla fine"
+      },
+      "shorten_less": {
+        "text": "Restituisci 0.5 s"
+      },
+      "shorten_more": {
+        "text": "Accorcia di 0.5 s"
+      },
+      "shorten_start": {
+        "text": "Accorcia dall'inizio"
+      },
+      "sources": {
+        "text": "Fonti"
+      },
+      "timeline": {
+        "text": "Timeline del video"
+      },
+      "trim_video": {
+        "text": "Taglia il video"
+      }
+    },
+    "video_create": {
+      "not_available": {
+        "text": "Il video non è ancora disponibile."
+      },
+      "status_cancelled": {
+        "text": "Rendering interrotto"
+      },
+      "status_error": {
+        "text": "Rendering non riuscito"
+      },
+      "status_finished": {
+        "text": "Completato"
+      },
+      "status_needs_rerender": {
+        "text": "Serve un nuovo rendering"
+      },
+      "status_processing": {
+        "text": "Preparazione del sorgente…"
+      },
+      "status_rendering": {
+        "text": "Rendering del video..."
+      },
+      "subtitle": {
+        "text": "Remotion · v{version} · {status}"
+      },
+      "view_code": {
+        "text": "Codice"
+      },
+      "view_timeline": {
+        "text": "Timeline"
+      },
+      "view_video": {
+        "text": "Video"
       }
     }
   },

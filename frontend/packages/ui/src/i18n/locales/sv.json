@@ -1654,7 +1654,7 @@
       "generate": {
         "text": "Generera",
         "description": {
-          "text": "Generera en kort AI-video från en textprompt."
+          "text": "Skapa en kort video från din beskrivning och bilder i chatten, som AI-filmklipp eller som exakt sammansatt video."
         }
       },
       "create": {
@@ -8173,6 +8173,181 @@
         "no_video": {
           "text": "Ingen video tillgänglig för den här körningen"
         }
+      }
+    },
+    "video_generate": {
+      "apply": {
+        "text": "Tillämpa"
+      },
+      "cancel": {
+        "text": "Avbryt"
+      },
+      "clip": {
+        "text": "Klipp"
+      },
+      "discard": {
+        "text": "Förkasta"
+      },
+      "discard_confirm": {
+        "text": "Förkasta väntande ändringar?"
+      },
+      "edit_hint": {
+        "text": "Välj en del på tidslinjen för att redigera den."
+      },
+      "edit_part": {
+        "text": "Redigera {label}"
+      },
+      "extend_empty": {
+        "text": "Beskriv först vad som ska hända i den tillagda delen."
+      },
+      "extend_end": {
+        "text": "Förläng videon i slutet"
+      },
+      "extend_placeholder_end": {
+        "text": "Vad ska hända i det tillagda klippet efter slutet?"
+      },
+      "extend_placeholder_start": {
+        "text": "Vad ska hända i det tillagda klippet före början?"
+      },
+      "extend_start": {
+        "text": "Förläng videon i början"
+      },
+      "keep_editing": {
+        "text": "Fortsätt redigera"
+      },
+      "kind_composed": {
+        "text": "Sammansatt video"
+      },
+      "kind_generative": {
+        "text": "Genererad video"
+      },
+      "load_error": {
+        "text": "Det gick inte att läsa in videon"
+      },
+      "loading": {
+        "text": "Läser in video..."
+      },
+      "model": {
+        "text": "Modell"
+      },
+      "new_length": {
+        "text": "Ny längd {length}"
+      },
+      "part_aria": {
+        "text": "{label}, från {start} till {end}"
+      },
+      "pending_changes": {
+        "text": "Väntande ändringar: {count}"
+      },
+      "progress_deciding": {
+        "text": "Bestämmer hur videon ska göras…"
+      },
+      "progress_writing": {
+        "text": "Skriver kompositionen…"
+      },
+      "progress_rendering": {
+        "text": "Renderar videon…"
+      },
+      "progress_correcting": {
+        "text": "Korrigerar videon…"
+      },
+      "progress_generating": {
+        "text": "Genererar klippet…"
+      },
+      "prompt": {
+        "text": "Prompt"
+      },
+      "remove_last_hint": {
+        "text": "Den sista delen kan inte tas bort."
+      },
+      "remove_part": {
+        "text": "Ta bort del"
+      },
+      "request_change_text": {
+        "text": "Del {label} (id {id}): ändra texten {text} från {from} till {to}"
+      },
+      "request_remove_part": {
+        "text": "Ta bort del {label} (id {id})"
+      },
+      "request_shorten_end": {
+        "text": "Del {label} (id {id}): korta av {seconds} s i slutet"
+      },
+      "request_shorten_start": {
+        "text": "Del {label} (id {id}): korta av {seconds} s i början"
+      },
+      "request_trim_video": {
+        "text": "Trimma videon: ta bort {start} s från början och {end} s från slutet"
+      },
+      "request_trim_video_end": {
+        "text": "Trimma videon: ta bort {end} s från slutet"
+      },
+      "request_trim_video_start": {
+        "text": "Trimma videon: ta bort {start} s från början"
+      },
+      "resolution": {
+        "text": "Upplösning"
+      },
+      "restore_part": {
+        "text": "Återställ del"
+      },
+      "send": {
+        "text": "Skicka"
+      },
+      "shorten_end": {
+        "text": "Korta av från slutet"
+      },
+      "shorten_less": {
+        "text": "Ge tillbaka 0.5 s"
+      },
+      "shorten_more": {
+        "text": "Korta av 0.5 s"
+      },
+      "shorten_start": {
+        "text": "Korta av från början"
+      },
+      "sources": {
+        "text": "Källor"
+      },
+      "timeline": {
+        "text": "Videotidslinje"
+      },
+      "trim_video": {
+        "text": "Trimma videon"
+      }
+    },
+    "video_create": {
+      "not_available": {
+        "text": "Videon är inte tillgänglig än."
+      },
+      "status_cancelled": {
+        "text": "Renderingen stoppad"
+      },
+      "status_error": {
+        "text": "Renderingen misslyckades"
+      },
+      "status_finished": {
+        "text": "Klar"
+      },
+      "status_needs_rerender": {
+        "text": "Behöver renderas om"
+      },
+      "status_processing": {
+        "text": "Förbereder källan…"
+      },
+      "status_rendering": {
+        "text": "Renderar video..."
+      },
+      "subtitle": {
+        "text": "Remotion · v{version} · {status}"
+      },
+      "view_code": {
+        "text": "Kod"
+      },
+      "view_timeline": {
+        "text": "Tidslinje"
+      },
+      "view_video": {
+        "text": "Video"
       }
     }
   },

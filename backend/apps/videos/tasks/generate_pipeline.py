@@ -1,0 +1,429 @@
+"""One videos.generate request: parse, route, then make a generative clip or a composed video.
+
+Runs inside the registered generated-media batch (``run_generated_media_batch``)
+on the videos worker. Per request:
+
+1. the queued arguments are parsed again (``parse_generate_request``);
+2. a change of an earlier video goes to ``generate_change`` (the next version of the same embed);
+3. the route comes from the request's mode or from the routing model
+   (progress ``deciding``); an unreachable routing model fails the request;
+4. generative: the clip producer (Gemini Omni, a given picture as first frame;
+   H3 only when named; progress ``generating``), charged per measured second;
+5. composed: pictures read server-side, safety on inputs, balance check, the
+   composed-video engine (progress ``writing``/``rendering``/``correcting``),
+   safety on the first, middle and last frame of the output, store (with
+   copies of the input pictures and the kept record a later change needs),
+   charge once (author tokens plus 5 credits per started sandbox minute,
+   event id = result embed id), ONE result child.
+
+Expected failures publish a failed result child with the reason in plain words
+and are never charged. Infrastructure errors propagate so the batch records the
+slot as failed; nothing is charged then either, because the charge comes after
+storing.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import logging
+import uuid
+from datetime import datetime, timezone
+from typing import Any, Optional, Sequence
+
+import httpx
+
+from backend.apps.videos.composed.author import COMPOSE_AUTHOR_MODELS, compose_video
+from backend.apps.videos.composed.models import ComposedInputError, ComposedRequest, ComposeFailure
+from backend.apps.videos.generate_request import (
+    DEFAULT_RESOLUTION,
+    GENERATIVE_DEFAULT_SECONDS,
+    H3_MODEL,
+    MODE_COMPOSED,
+    MODE_GENERATIVE,
+    GenerateRequest,
+    GenerateRequestError,
+    check_route_constraints,
+    generative_model,
+    parse_generate_request,
+)
+from backend.apps.videos.routing import DECIDED_BY_REQUEST, RouteDecision, RoutingUnavailable, decide_route
+from backend.apps.videos.tasks.generate_billing import charge_composed_credits, composed_credits, \
+    estimate_composed_credits
+from backend.apps.videos.tasks.generate_change import ChangeNotAvailable, run_change_request
+from backend.apps.videos.tasks.generate_inputs import (
+    KIND_RESULT,
+    PictureRef,
+    VideoInputUnavailable,
+    classify_pictures,
+    load_composed_inputs,
+    task_reader,
+)
+from backend.apps.videos.tasks.generate_progress import STAGE_DECIDING, STAGE_GENERATING, VideoProgressPublisher
+from backend.apps.videos.tasks.generate_result import (
+    MADE_BY_COMPOSED,
+    MADE_BY_GENERATIVE,
+    assistant_result,
+    composed_content,
+    failed_content,
+    store_composed_video,
+)
+from backend.core.api.app.services.s3.config import get_bucket_name
+from backend.shared.python_utils.billing_utils import BillingError, ensure_credit_headroom
+from backend.shared.python_utils.generated_media_graph import send_generated_media_child
+from backend.shared.python_utils.image_safety import get_pipeline
+from backend.shared.python_utils.storage_availability import initialize_task_storage, require_storage_available
+
+logger = logging.getLogger(__name__)
+
+ERROR_INVALID_REQUEST = "invalid_request"
+ERROR_INVALID_INPUT = "invalid_input"
+ERROR_ROUTING = "routing_unavailable"
+ERROR_SAFETY = "safety_rejected"
+ERROR_CREDITS = "insufficient_credits"
+
+ROUTING_MESSAGE = ("It could not be decided how to make this video, so nothing was made or charged. Try again, or "
+                   "say whether it should be a generative clip or a composed video.")
+CREDITS_MESSAGE = "There are not enough credits to make this video."
+SAFETY_MESSAGE = "This video couldn't be made."
+RESULT_FIRST_FRAME_MESSAGE = ("A search-result picture cannot start a generative clip. Use mode composed to show it "
+                              "in a composed video. Nothing was made or charged.")
+COMPOSE_FAILURE_MESSAGES = {
+    "no_valid_composition": "No working video could be composed for this request, so nothing was charged.",
+    "render_failed": "The composed video could not be rendered, so nothing was charged.",
+    "sandbox_unavailable": "The video renderer is not available right now, so nothing was made or charged.",
+    "author_unavailable": "The video author model is not available right now, so nothing was made or charged.",
+}
+
+
+class VideoFailure(Exception):
+    """An expected failure: a failed result child is published and nothing is charged."""
+
+    def __init__(self, code: str, user_message: str, *, made_by: Optional[str] = None) -> None:
+        super().__init__(f"{code}: {user_message}")
+        self.code = code
+        self.user_message = user_message
+        self.made_by = made_by
+
+
+def _hash(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def _queued_request(arguments: dict[str, Any]) -> GenerateRequest:
+    """Parse the queued arguments again; the first-frame ids travel apart from the batch's input ids."""
+    first_frame = arguments["first_frame_embed_ids"] if "first_frame_embed_ids" in arguments \
+        else arguments.get("input_embed_ids")
+    return parse_generate_request({**arguments, "input_embed_ids": first_frame or None})
+
+
+def _embed_service(task: Any) -> Any:
+    from backend.core.api.app.services.embed_service import EmbedService
+
+    return EmbedService(task._cache_service, task._directus_service, task._encryption_service)
+
+
+async def _generate_clip(task: Any, app_id: str, skill_id: str, arguments: dict[str, Any], request: GenerateRequest,
+                         *, first_frame_ids: Sequence[str], decided_by: str) -> dict[str, Any]:
+    """Hand the request to the generative clip producer with its final model and settings."""
+    from backend.apps.videos.tasks.generate_task import _async_generate_video
+
+    model = generative_model(request)
+    is_h3 = model == H3_MODEL
+    clip_args = {
+        **arguments,
+        "mode": MODE_GENERATIVE,
+        "model": model,
+        "duration_seconds": 5 if is_h3 else request.duration_seconds or GENERATIVE_DEFAULT_SECONDS,
+        "resolution": "480p" if is_h3 else request.resolution or DEFAULT_RESOLUTION,
+        "input_embed_ids": list(first_frame_ids),
+        "full_model_reference": f"fal/{model}" if is_h3 else f"google/{model}",
+        "routing_decided_by": decided_by,
+    }
+    return await _async_generate_video(task, app_id, skill_id, clip_args)
+
+
+async def run_generate(task: Any, app_id: str, skill_id: str, arguments: dict[str, Any]) -> dict[str, Any]:
+    """Make the video of one request and publish its result child (or a failed one)."""
+    from backend.apps.videos.tasks.generate_task import _async_generate_video
+
+    if arguments.get("external_request") or "mode" not in arguments:
+        # REST (text-only generative) and requests queued before routing existed: the clip producer as before.
+        return await _async_generate_video(task, app_id, skill_id, arguments)
+
+    log_prefix = f"[videos.generate task:{task.request.id}]"
+    user_id = str(arguments.get("user_id") or "")
+    if not user_id:
+        raise ValueError("videos.generate requires a user identifier")
+    embed_id = str(arguments.get("embed_id") or uuid.uuid4())
+    parent_embed_id = str(arguments.get("producer_embed_id") or embed_id)
+    chat_id, message_id = arguments.get("chat_id"), arguments.get("message_id")
+    image_ids = [str(value) for value in arguments.get("image_embed_ids") or []]
+    instructions = str(arguments.get("instructions") or arguments.get("prompt") or "")
+
+    await task.initialize_core_services()
+    embed_service = _embed_service(task)
+    progress = VideoProgressPublisher(
+        embed_service, skill_id=skill_id, embed_id=embed_id, parent_embed_id=parent_embed_id, user_id=user_id,
+        chat_id=chat_id, message_id=message_id, instructions=instructions, input_embed_ids=image_ids,
+        log_prefix=log_prefix,
+    )
+    decision: Optional[RouteDecision] = None
+    try:
+        try:
+            request = _queued_request(arguments)
+        except GenerateRequestError as exc:
+            raise VideoFailure(exc.code, str(exc)) from exc
+        if len(image_ids) != len(request.images):
+            raise VideoFailure(ERROR_INVALID_REQUEST, "Every picture reference must resolve to a picture.")
+        from backend.core.api.app.services.embed_service import EmbedService
+
+        await EmbedService.assert_registered_output_can_generate(
+            task._directus_service, embed_id=parent_embed_id, chat_id=chat_id, message_id=message_id,
+            owner_hash=_hash(user_id),
+        )
+        if request.is_change:
+            source_id = str(arguments.get("source_video_embed_id") or "")
+            if not source_id:
+                raise VideoFailure(ERROR_INVALID_INPUT, "The video to change is not in this conversation.")
+            return await run_change_request(task, request, source_video_embed_id=source_id, arguments=arguments)
+        vault_key_id = str(arguments.get("user_vault_key_id") or "")
+        if image_ids and not vault_key_id:
+            raise ValueError("videos.generate with pictures requires the vault key identifier")
+        pictures = (await classify_pictures(image_ids, request.images, read_content=task_reader(task, vault_key_id))
+                    if image_ids else [])
+        if request.mode not in (MODE_GENERATIVE, MODE_COMPOSED):
+            await progress(STAGE_DECIDING, 1)
+        try:
+            decision = await decide_route(
+                mode=request.mode, instructions=request.instructions,
+                picture_kinds=[picture.kind for picture in pictures], secrets_manager=task._secrets_manager,
+                task_id=str(task.request.id),
+            )
+            check_route_constraints(request, decision.route)
+        except RoutingUnavailable as exc:
+            raise VideoFailure(ERROR_ROUTING, ROUTING_MESSAGE) from exc
+        except GenerateRequestError as exc:
+            raise VideoFailure(exc.code, str(exc)) from exc
+
+        if decision.route == MODE_GENERATIVE:
+            if any(picture.kind == KIND_RESULT for picture in pictures):
+                raise VideoFailure(ERROR_INVALID_INPUT, RESULT_FIRST_FRAME_MESSAGE, made_by=MADE_BY_GENERATIVE)
+            await progress(STAGE_GENERATING, 1)
+            return await _generate_clip(task, app_id, skill_id, arguments, request,
+                                        first_frame_ids=image_ids or list(request.first_frame_embed_ids),
+                                        decided_by=decision.decided_by)
+        return await _run_composed(
+            task, app_id, skill_id, arguments, request, pictures=pictures, decision=decision, embed_id=embed_id,
+            user_id=user_id, vault_key_id=vault_key_id, progress=progress, publish=_publisher(
+                embed_service, arguments, parent_embed_id=parent_embed_id, embed_id=embed_id, user_id=user_id,
+                log_prefix=log_prefix),
+            log_prefix=log_prefix,
+        )
+    except (VideoFailure, ChangeNotAvailable) as failure:
+        code = failure.code
+        message = failure.user_message if isinstance(failure, VideoFailure) else str(failure)
+        made_by = failure.made_by if isinstance(failure, VideoFailure) else None
+        logger.info("%s videos.generate failed (%s), not charged", log_prefix, code)
+        content = failed_content(
+            skill_id=skill_id, instructions=instructions, input_embed_ids=image_ids, error_code=code,
+            user_message=message, made_by=made_by or (MADE_BY_COMPOSED if decision and decision.route == MODE_COMPOSED
+                                                      else None),
+            routing_decided_by=decision.decided_by if decision else None,
+        )
+        published = False
+        if chat_id and message_id:
+            await _publisher(embed_service, arguments, parent_embed_id=parent_embed_id, embed_id=embed_id,
+                             user_id=user_id, log_prefix=log_prefix)(content)
+            published = True
+        return {
+            "embed_id": embed_id, "child_embed_id": embed_id, "status": "failed", "child_published": published,
+            "error": message, "error_code": code, "billing_status": "not_charged", "input_embed_ids": image_ids,
+        }
+    finally:
+        await task.cleanup_services()
+
+
+def _publisher(embed_service: Any, arguments: dict[str, Any], *, parent_embed_id: str, embed_id: str, user_id: str,
+               log_prefix: str) -> Any:
+    async def publish(content: dict[str, Any]) -> None:
+        await send_generated_media_child(
+            embed_service, parent_embed_id=parent_embed_id, child_embed_id=embed_id,
+            child_index=int(arguments.get("media_child_index") or 0), content=content,
+            chat_id=arguments.get("chat_id"), message_id=arguments.get("message_id"), user_id=user_id,
+            user_id_hash=_hash(user_id), created_at=int(datetime.now(timezone.utc).timestamp()),
+            log_prefix=log_prefix,
+        )
+    return publish
+
+
+async def _reject(task: Any, rejection: Any, *, instructions: str, user_id: str, message_id: Any,
+                  source_embed_id: Optional[str], output_embed_id: Optional[str], model: Optional[str],
+                  log_prefix: str) -> None:
+    """Record the strike and audit entry exactly like generated pictures, then fail the request."""
+    from backend.apps.images.tasks.generate_task import _handle_safety_rejection
+
+    tool_response = await _handle_safety_rejection(
+        task, rejection, user_id=user_id, prompt=instructions, assistant_response_id=message_id,
+        source_embed_id=source_embed_id, output_embed_id=output_embed_id, provider=None, model=model,
+        log_prefix=log_prefix,
+    )
+    raise VideoFailure(ERROR_SAFETY, str(tool_response.get("user_facing_message") or SAFETY_MESSAGE),
+                       made_by=MADE_BY_COMPOSED)
+
+
+async def _ensure_headroom(task: Any, *, user_id: str, team_id: Optional[str], picture_count: int,
+                           log_prefix: str) -> None:
+    estimated = await estimate_composed_credits(picture_count=picture_count, author_model=COMPOSE_AUTHOR_MODELS[0])
+    try:
+        if team_id:
+            from backend.shared.python_utils.team_skill_billing import ensure_team_skill_credit_headroom
+
+            await ensure_team_skill_credit_headroom(task._directus_service, team_id, user_id, estimated)
+        else:
+            await ensure_credit_headroom(user_id=user_id, estimated_credits=estimated, log_prefix=log_prefix,
+                                         operation_name="video composition")
+    except BillingError as exc:
+        raise VideoFailure(ERROR_CREDITS, CREDITS_MESSAGE, made_by=MADE_BY_COMPOSED) from exc
+    except ValueError as exc:
+        if str(exc) != "INSUFFICIENT_TEAM_CREDITS":
+            raise
+        raise VideoFailure(ERROR_CREDITS, CREDITS_MESSAGE, made_by=MADE_BY_COMPOSED) from exc
+
+
+async def _run_composed(
+    task: Any, app_id: str, skill_id: str, arguments: dict[str, Any], request: GenerateRequest, *,
+    pictures: Sequence[PictureRef], decision: RouteDecision, embed_id: str, user_id: str, vault_key_id: str,
+    progress: VideoProgressPublisher, publish: Any, log_prefix: str,
+) -> dict[str, Any]:
+    team_id = str(arguments["team_id"]) if arguments.get("team_id") else None
+    message_id = arguments.get("message_id")
+    image_ids = [picture.embed_id for picture in pictures]
+    s3_service = await initialize_task_storage(task)
+    await require_storage_available(s3_service)
+    bucket = get_bucket_name("chatfiles", s3_service.environment)
+    try:
+        inputs, _kinds = await load_composed_inputs(
+            task, pictures=pictures, user_id=user_id, vault_key_id=vault_key_id, s3_service=s3_service,
+            bucket=bucket, log_prefix=log_prefix,
+        ) if pictures else ([], [])
+    except VideoInputUnavailable as exc:
+        raise VideoFailure(ERROR_INVALID_INPUT, f"{exc} Nothing was made or charged.", made_by=MADE_BY_COMPOSED) \
+            from exc
+    source_titles = [item.title for item in inputs if item.kind == "search_result" and item.title]
+
+    safety = get_pipeline()
+    if inputs:
+        decision_in = await safety.validate_input(
+            prompt=request.instructions, reference_images=[(item.content, item.mime_type) for item in inputs],
+            secrets_manager=task._secrets_manager,
+        )
+        if not decision_in.allowed and decision_in.rejection:
+            await _reject(task, decision_in.rejection, instructions=request.instructions, user_id=user_id,
+                          message_id=message_id, source_embed_id=image_ids[0], output_embed_id=None, model=None,
+                          log_prefix=log_prefix)
+    await _ensure_headroom(task, user_id=user_id, team_id=team_id, picture_count=len(inputs), log_prefix=log_prefix)
+    try:
+        video = await compose_video(
+            ComposedRequest(instructions=request.instructions, aspect_ratio=request.aspect_ratio,
+                            duration_seconds=request.duration_seconds, inputs=tuple(inputs)),
+            secrets_manager=task._secrets_manager, task_id=str(task.request.id), on_stage=progress.on_stage,
+        )
+    except ComposedInputError as exc:
+        raise VideoFailure(ERROR_INVALID_INPUT, f"The video could not be composed: {exc}. Nothing was charged.",
+                           made_by=MADE_BY_COMPOSED) from exc
+    except ComposeFailure as exc:
+        logger.warning("%s Composed video failed (%s): %s", log_prefix, exc.code, exc.message)
+        raise VideoFailure(exc.code, COMPOSE_FAILURE_MESSAGES[exc.code], made_by=MADE_BY_COMPOSED) from exc
+
+    await check_output_frames(
+        task, video.mp4, instructions=request.instructions, user_id=user_id, message_id=message_id,
+        source_embed_id=image_ids[0] if image_ids else None, output_embed_id=embed_id,
+        model=video.author_model or None, log_prefix=log_prefix,
+    )
+
+    # Price before storing: a missing price is an error, so nothing is delivered unbilled.
+    credits, usage_details = await composed_credits(usage=video.usage, sandbox_seconds=video.sandbox_seconds)
+    stored = await store_composed_video(
+        task, s3_service=s3_service, bucket_name=bucket, user_id=user_id, embed_id=embed_id, mp4=video.mp4,
+        thumbnail_png=video.thumbnail_png, vault_key_id=vault_key_id, filename=video.filename,
+        log_prefix=log_prefix, inputs=inputs,
+    )
+    await _keep_composed(task, s3_service=s3_service, stored=stored, video=video, request=request, inputs=inputs,
+                         pictures=pictures, user_id=user_id, embed_id=embed_id, vault_key_id=vault_key_id,
+                         in_chat=bool(arguments.get("chat_id")))
+    billing_status = await _charge(
+        arguments, user_id=user_id, app_id=app_id, skill_id=skill_id, credits=credits, usage_details=usage_details,
+        model_ref=video.author_model or "e2b/sandbox", team_id=team_id,
+        duration_seconds=round(video.duration_in_frames / video.fps, 3), event_id=embed_id, log_prefix=log_prefix,
+    )
+    content = composed_content(
+        skill_id=skill_id, stored=stored, video=video, instructions=request.instructions, input_embed_ids=image_ids,
+        source_titles=source_titles, routing_decided_by=decision.decided_by or DECIDED_BY_REQUEST,
+        billing_status=billing_status,
+    )
+    if arguments.get("chat_id") and message_id:
+        await publish(content)
+    logger.info("%s Composed video delivered (%d round(s), %d credits)", log_prefix, video.attempts, credits)
+    return assistant_result(embed_id=embed_id, content=content)
+
+
+async def check_output_frames(task: Any, mp4: bytes, *, instructions: str, user_id: str, message_id: Any,
+                              source_embed_id: Optional[str], output_embed_id: str, model: Optional[str],
+                              log_prefix: str) -> None:
+    """Output safety on the first, middle and last frame of a rendered video; a rejection fails the request."""
+    from backend.shared.python_utils.video_frames import review_frames
+
+    safety = get_pipeline()
+    for frame in await review_frames(mp4):
+        decision = await safety.validate_output(prompt=instructions, image_bytes=frame, mime_type="image/jpeg",
+                                                secrets_manager=task._secrets_manager)
+        if not decision.allowed and decision.rejection:
+            await _reject(task, decision.rejection, instructions=instructions, user_id=user_id,
+                          message_id=message_id, source_embed_id=source_embed_id, output_embed_id=output_embed_id,
+                          model=model, log_prefix=log_prefix)
+
+
+async def _keep_composed(task: Any, *, s3_service: Any, stored: Any, video: Any, request: GenerateRequest,
+                         inputs: Sequence[Any], pictures: Sequence[PictureRef], user_id: str, embed_id: str,
+                         vault_key_id: str, in_chat: bool) -> None:
+    """Keep the composition and the input copies for later changes, and leave every file key for the embed."""
+    from backend.apps.videos.tasks.video_kept import KeptInput, KeptVideo, remember_video
+    from backend.apps.videos.tasks.video_storage import CHATFILES, cache_embed_file_keys
+
+    keys = stored.file_keys()
+    if in_chat:
+        kept = KeptVideo(
+            version=1, made_by=MADE_BY_COMPOSED, aspect_ratio=request.aspect_ratio, resolution="",
+            width=video.width, height=video.height, video=stored.object("original"), source=video.source,
+            inputs=tuple(KeptInput(
+                stored=stored.object(f"input-{index}"), name=item.name, mime_type=item.mime_type, width=item.width,
+                height=item.height, title=item.title or "", kind=item.kind, embed_id=picture.embed_id,
+                ref=picture.ref,
+            ) for index, (item, picture) in enumerate(zip(inputs, pictures), start=1)),
+        )
+        key = await remember_video(task, s3_service=s3_service, kept=kept, user_id=user_id, embed_id=embed_id,
+                                   vault_key_id=vault_key_id)
+        keys.append({"bucket": CHATFILES, "key": key})
+    await cache_embed_file_keys(task, embed_id=embed_id, keys=keys)
+
+
+async def _charge(arguments: dict[str, Any], *, user_id: str, app_id: str, skill_id: str, credits: int,
+                  usage_details: dict[str, Any], model_ref: str, team_id: Optional[str], duration_seconds: float,
+                  event_id: str, log_prefix: str) -> str:
+    """Charge the delivered video once; a Personal billing failure is recorded on the result, a Team one raises."""
+    try:
+        await charge_composed_credits(
+            user_id=user_id, user_id_hash=_hash(user_id), app_id=app_id, skill_id=skill_id, credits=credits,
+            usage_details=usage_details, model_ref=model_ref, chat_id=arguments.get("chat_id"),
+            message_id=arguments.get("message_id"), team_id=team_id,
+            api_key_hash=str(arguments["api_key_hash"]) if arguments.get("api_key_hash") else None,
+            device_hash=str(arguments["device_hash"]) if arguments.get("device_hash") else None,
+            duration_seconds=duration_seconds, event_id=event_id,
+        )
+    except httpx.HTTPError as exc:
+        if team_id:
+            raise
+        logger.error("%s Video stored but billing failed; delivering with billing_status=failed: %s",
+                     log_prefix, exc, exc_info=True)
+        return "failed"
+    return "charged"

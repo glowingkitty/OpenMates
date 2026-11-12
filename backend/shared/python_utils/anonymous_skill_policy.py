@@ -21,7 +21,7 @@ BACKGROUND_OR_FILE_SKILLS = frozenset({
     ("images", "generate"), ("images", "generate_draft"), ("images", "vectorize"), ("images", "modify"),
     ("models3d", "generate"), ("music", "generate"),
     ("social_media", "search"), ("social_media", "get-posts"),
-    ("videos", "generate"), ("videos", "create"),
+    ("videos", "generate"),
     ("videos", "get_transcript"),
     ("weather", "rain_radar"),
     ("web", "read"),

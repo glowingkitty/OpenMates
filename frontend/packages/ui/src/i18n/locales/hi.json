@@ -1654,7 +1654,7 @@
       "generate": {
         "text": "जनरेट करें",
         "description": {
-          "text": "टेक्स्ट प्रॉम्प्ट से एक छोटा AI वीडियो जनरेट करें।"
+          "text": "अपने विवरण और चैट की तस्वीरों से छोटा वीडियो बनाएं, AI फ़ुटेज या सटीक रूप से बने वीडियो के रूप में।"
         }
       },
       "create": {
@@ -8173,6 +8173,181 @@
         "no_video": {
           "text": "इस रन के लिए कोई वीडियो उपलब्ध नहीं है"
         }
+      }
+    },
+    "video_generate": {
+      "apply": {
+        "text": "लागू करें"
+      },
+      "cancel": {
+        "text": "रद्द करें"
+      },
+      "clip": {
+        "text": "क्लिप"
+      },
+      "discard": {
+        "text": "छोड़ें"
+      },
+      "discard_confirm": {
+        "text": "लंबित बदलाव छोड़ें?"
+      },
+      "edit_hint": {
+        "text": "संपादित करने के लिए टाइमलाइन पर कोई हिस्सा चुनें।"
+      },
+      "edit_part": {
+        "text": "{label} संपादित करें"
+      },
+      "extend_empty": {
+        "text": "पहले बताएँ कि जोड़े गए हिस्से में क्या होना चाहिए।"
+      },
+      "extend_end": {
+        "text": "वीडियो को अंत में बढ़ाएँ"
+      },
+      "extend_placeholder_end": {
+        "text": "अंत के बाद जोड़ी गई क्लिप में क्या होना चाहिए?"
+      },
+      "extend_placeholder_start": {
+        "text": "शुरुआत से पहले जोड़ी गई क्लिप में क्या होना चाहिए?"
+      },
+      "extend_start": {
+        "text": "वीडियो को शुरुआत में बढ़ाएँ"
+      },
+      "keep_editing": {
+        "text": "संपादन जारी रखें"
+      },
+      "kind_composed": {
+        "text": "संयोजित वीडियो"
+      },
+      "kind_generative": {
+        "text": "जनरेट किया गया वीडियो"
+      },
+      "load_error": {
+        "text": "वीडियो लोड नहीं हो सका"
+      },
+      "loading": {
+        "text": "वीडियो लोड हो रहा है..."
+      },
+      "model": {
+        "text": "मॉडल"
+      },
+      "new_length": {
+        "text": "नई अवधि {length}"
+      },
+      "part_aria": {
+        "text": "{label}, {start} से {end} तक"
+      },
+      "pending_changes": {
+        "text": "लंबित बदलाव: {count}"
+      },
+      "progress_deciding": {
+        "text": "तय हो रहा है कि वीडियो कैसे बनाया जाए…"
+      },
+      "progress_writing": {
+        "text": "कंपोज़िशन लिखी जा रही है…"
+      },
+      "progress_rendering": {
+        "text": "वीडियो रेंडर हो रहा है…"
+      },
+      "progress_correcting": {
+        "text": "वीडियो ठीक किया जा रहा है…"
+      },
+      "progress_generating": {
+        "text": "क्लिप जनरेट हो रही है…"
+      },
+      "prompt": {
+        "text": "प्रॉम्प्ट"
+      },
+      "remove_last_hint": {
+        "text": "आखिरी हिस्सा हटाया नहीं जा सकता।"
+      },
+      "remove_part": {
+        "text": "हिस्सा हटाएँ"
+      },
+      "request_change_text": {
+        "text": "हिस्सा {label} (id {id}): टेक्स्ट {text} को {from} से {to} में बदलें"
+      },
+      "request_remove_part": {
+        "text": "हिस्सा {label} (id {id}) हटाएँ"
+      },
+      "request_shorten_end": {
+        "text": "हिस्सा {label} (id {id}): अंत में {seconds} s छोटा करें"
+      },
+      "request_shorten_start": {
+        "text": "हिस्सा {label} (id {id}): शुरुआत में {seconds} s छोटा करें"
+      },
+      "request_trim_video": {
+        "text": "वीडियो ट्रिम करें: शुरुआत से {start} s और अंत से {end} s हटाएँ"
+      },
+      "request_trim_video_end": {
+        "text": "वीडियो ट्रिम करें: अंत से {end} s हटाएँ"
+      },
+      "request_trim_video_start": {
+        "text": "वीडियो ट्रिम करें: शुरुआत से {start} s हटाएँ"
+      },
+      "resolution": {
+        "text": "रिज़ॉल्यूशन"
+      },
+      "restore_part": {
+        "text": "हिस्सा वापस लाएँ"
+      },
+      "send": {
+        "text": "भेजें"
+      },
+      "shorten_end": {
+        "text": "अंत से छोटा करें"
+      },
+      "shorten_less": {
+        "text": "0.5 s वापस दें"
+      },
+      "shorten_more": {
+        "text": "0.5 s छोटा करें"
+      },
+      "shorten_start": {
+        "text": "शुरुआत से छोटा करें"
+      },
+      "sources": {
+        "text": "स्रोत"
+      },
+      "timeline": {
+        "text": "वीडियो टाइमलाइन"
+      },
+      "trim_video": {
+        "text": "वीडियो ट्रिम करें"
+      }
+    },
+    "video_create": {
+      "not_available": {
+        "text": "वीडियो अभी उपलब्ध नहीं है।"
+      },
+      "status_cancelled": {
+        "text": "रेंडर रोका गया"
+      },
+      "status_error": {
+        "text": "रेंडर विफल रहा"
+      },
+      "status_finished": {
+        "text": "पूरा हुआ"
+      },
+      "status_needs_rerender": {
+        "text": "दोबारा रेंडर करना होगा"
+      },
+      "status_processing": {
+        "text": "स्रोत तैयार हो रहा है…"
+      },
+      "status_rendering": {
+        "text": "वीडियो रेंडर हो रहा है..."
+      },
+      "subtitle": {
+        "text": "Remotion · v{version} · {status}"
+      },
+      "view_code": {
+        "text": "कोड"
+      },
+      "view_timeline": {
+        "text": "टाइमलाइन"
+      },
+      "view_video": {
+        "text": "वीडियो"
       }
     }
   },

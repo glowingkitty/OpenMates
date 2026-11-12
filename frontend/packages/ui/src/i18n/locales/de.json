@@ -1669,7 +1669,7 @@
       "generate": {
         "text": "Generieren",
         "description": {
-          "text": "Erstelle ein kurzes KI-Video aus einer Texteingabe."
+          "text": "Erstelle ein kurzes Video aus deiner Beschreibung und Bildern im Chat, als KI-Aufnahme oder als exakt gestaltetes Video."
         }
       },
       "create": {
@@ -9820,6 +9820,181 @@
           "text": "Für diesen Lauf ist kein Video verfügbar"
         }
       }
+    },
+    "video_generate": {
+      "apply": {
+        "text": "Anwenden"
+      },
+      "cancel": {
+        "text": "Abbrechen"
+      },
+      "clip": {
+        "text": "Clip"
+      },
+      "discard": {
+        "text": "Verwerfen"
+      },
+      "discard_confirm": {
+        "text": "Ausstehende Änderungen verwerfen?"
+      },
+      "edit_hint": {
+        "text": "Wähle einen Teil der Zeitleiste aus, um ihn zu bearbeiten."
+      },
+      "edit_part": {
+        "text": "{label} bearbeiten"
+      },
+      "extend_empty": {
+        "text": "Beschreibe zuerst, was im hinzugefügten Teil passieren soll."
+      },
+      "extend_end": {
+        "text": "Video am Ende verlängern"
+      },
+      "extend_placeholder_end": {
+        "text": "Was soll im hinzugefügten Clip nach dem Ende passieren?"
+      },
+      "extend_placeholder_start": {
+        "text": "Was soll im hinzugefügten Clip vor dem Anfang passieren?"
+      },
+      "extend_start": {
+        "text": "Video am Anfang verlängern"
+      },
+      "keep_editing": {
+        "text": "Weiter bearbeiten"
+      },
+      "kind_composed": {
+        "text": "Zusammengesetztes Video"
+      },
+      "kind_generative": {
+        "text": "Generiertes Video"
+      },
+      "load_error": {
+        "text": "Video konnte nicht geladen werden"
+      },
+      "loading": {
+        "text": "Video wird geladen..."
+      },
+      "model": {
+        "text": "Modell"
+      },
+      "new_length": {
+        "text": "Neue Länge {length}"
+      },
+      "part_aria": {
+        "text": "{label}, von {start} bis {end}"
+      },
+      "pending_changes": {
+        "text": "Ausstehende Änderungen: {count}"
+      },
+      "progress_deciding": {
+        "text": "Entscheide, wie das Video entsteht…"
+      },
+      "progress_writing": {
+        "text": "Komposition wird geschrieben…"
+      },
+      "progress_rendering": {
+        "text": "Video wird gerendert…"
+      },
+      "progress_correcting": {
+        "text": "Video wird korrigiert…"
+      },
+      "progress_generating": {
+        "text": "Clip wird generiert…"
+      },
+      "prompt": {
+        "text": "Prompt"
+      },
+      "remove_last_hint": {
+        "text": "Der letzte Teil kann nicht entfernt werden."
+      },
+      "remove_part": {
+        "text": "Teil entfernen"
+      },
+      "request_change_text": {
+        "text": "Teil {label} (id {id}): Text {text} von {from} zu {to} ändern"
+      },
+      "request_remove_part": {
+        "text": "Teil {label} (id {id}) entfernen"
+      },
+      "request_shorten_end": {
+        "text": "Teil {label} (id {id}): am Ende um {seconds} s kürzen"
+      },
+      "request_shorten_start": {
+        "text": "Teil {label} (id {id}): am Anfang um {seconds} s kürzen"
+      },
+      "request_trim_video": {
+        "text": "Video kürzen: {start} s am Anfang und {end} s am Ende entfernen"
+      },
+      "request_trim_video_end": {
+        "text": "Video kürzen: {end} s am Ende entfernen"
+      },
+      "request_trim_video_start": {
+        "text": "Video kürzen: {start} s am Anfang entfernen"
+      },
+      "resolution": {
+        "text": "Auflösung"
+      },
+      "restore_part": {
+        "text": "Teil wiederherstellen"
+      },
+      "send": {
+        "text": "Senden"
+      },
+      "shorten_end": {
+        "text": "Vom Ende kürzen"
+      },
+      "shorten_less": {
+        "text": "0.5 s zurückgeben"
+      },
+      "shorten_more": {
+        "text": "0.5 s kürzen"
+      },
+      "shorten_start": {
+        "text": "Vom Anfang kürzen"
+      },
+      "sources": {
+        "text": "Quellen"
+      },
+      "timeline": {
+        "text": "Video-Zeitleiste"
+      },
+      "trim_video": {
+        "text": "Video kürzen"
+      }
+    },
+    "video_create": {
+      "not_available": {
+        "text": "Das Video ist noch nicht verfügbar."
+      },
+      "status_cancelled": {
+        "text": "Rendering gestoppt"
+      },
+      "status_error": {
+        "text": "Rendering fehlgeschlagen"
+      },
+      "status_finished": {
+        "text": "Fertig"
+      },
+      "status_needs_rerender": {
+        "text": "Neu rendern nötig"
+      },
+      "status_processing": {
+        "text": "Quelle wird vorbereitet…"
+      },
+      "status_rendering": {
+        "text": "Video wird gerendert..."
+      },
+      "subtitle": {
+        "text": "Remotion · v{version} · {status}"
+      },
+      "view_code": {
+        "text": "Code"
+      },
+      "view_timeline": {
+        "text": "Zeitleiste"
+      },
+      "view_video": {
+        "text": "Video"
+      }
     }
   },
   "embeds_input": {
@@ -13761,7 +13936,7 @@
               "text": "Google Gemini"
             },
             "description": {
-              "text": "Die Gemini-API von Google verarbeitet geeignete Chatnachrichten, wenn die normale KI-Auswahl ein Gemini-Modell bestimmt, einschließlich gewöhnlicher Textbeiträge aus Sprachanrufen. Auf dem Gemini-Korrekturweg für Audioaufnahmen korrigiert Gemini Mistral-Rohtranskripte und erstellt Titel. Gemini kann außerdem Prompts, Referenzbilder, Screenshots oder erzeugten Code für die Bilderzeugung oder -bearbeitung, die Veo-Videoerzeugung und die Umwandlung von Screenshots in HTML verarbeiten. Rohtranskripte von Aufnahmen erhalten nicht die Platzhalterersetzung für eingetippte Nachrichten. Laut den Bedingungen für die kostenpflichtige Gemini-API von Google werden Prompts und Ausgaben nicht zur Verbesserung seiner Produkte verwendet; die aktuelle Dokumentation zur Missbrauchsüberwachung gibt jedoch an, dass protokollierte Prompts, Kontext und Ausgaben 55 Tage aufbewahrt werden können."
+              "text": "Die Gemini-API von Google verarbeitet geeignete Chatnachrichten, wenn die normale KI-Auswahl ein Gemini-Modell bestimmt, einschließlich gewöhnlicher Textbeiträge aus Sprachanrufen. Auf dem Gemini-Korrekturweg für Audioaufnahmen korrigiert Gemini Mistral-Rohtranskripte und erstellt Titel. Gemini kann außerdem Prompts, Referenzbilder, Screenshots oder erzeugten Code für die Bilderzeugung oder -bearbeitung, die Gemini-Omni-Videoerzeugung und die Umwandlung von Screenshots in HTML verarbeiten. Rohtranskripte von Aufnahmen erhalten nicht die Platzhalterersetzung für eingetippte Nachrichten. Laut den Bedingungen für die kostenpflichtige Gemini-API von Google werden Prompts und Ausgaben nicht zur Verbesserung seiner Produkte verwendet; die aktuelle Dokumentation zur Missbrauchsüberwachung gibt jedoch an, dass protokollierte Prompts, Kontext und Ausgaben 55 Tage aufbewahrt werden können."
             }
           },
           "inception": {

@@ -1,0 +1,129 @@
+schema_version: 1
+specification: feature.app-skill.videos-generate@1
+
+request:
+  - id: search-results-and-upload
+    given: Lena's chat holds a web search for "new bike lanes Berlin 2026" with five results that carry pictures, and she uploaded "logo.png".
+    when: The assistant calls videos.generate with the instruction "a 20 second news recap of these results, one result per scene with its headline, my logo in the corner" and the references of three results and the logo.
+    then: >
+      The three result pictures are fetched once from their public addresses and the logo is read in its stored
+      resolution. Reduced copies go to the author model, the full files only to the sandbox, and the finished video
+      is stored encrypted in Lena's account.
+  - id: thirteen-pictures-rejected
+    given: The chat holds thirteen holiday photos.
+    when: The assistant calls videos.generate with all thirteen for a slideshow.
+    then: The call fails with the message that at most twelve pictures can be used; no model and no sandbox is used and nothing is charged.
+
+routing:
+  - id: recap-of-search-results-is-composed
+    given: The request from the search-results example, without a mode.
+    when: The routing model reads the instruction and "4 pictures, 3 search results and 1 upload".
+    then: It decides "composed", and the result later shows "Composed video".
+  - id: invented-footage-is-generative
+    given: Tom asks for "a drone flight over a foggy pine forest at sunrise, cinematic".
+    when: The assistant calls videos.generate with that instruction and no pictures or mode.
+    then: The routing model decides "generative" and one clip is generated.
+
+composed:
+  - id: news-recap
+    given: The routed request from the search-results example, 16:9.
+    when: The author model writes the composition.
+    then: >
+      The composition is 20 seconds at 1280 x 720 with the parts "Intro", "Bike lane on Kantstraße", "Budget vote",
+      "Opening dates" and "Outro". Each scene shows its result picture with the headline over it and the logo in the
+      corner. A CLI chat receives the same finished video.
+  - id: second-author-model
+    given: The first author model answers with text but no composition.
+    when: The request continues.
+    then: The next author model in the fixed order writes the composition and the video is delivered.
+
+correct:
+  - id: build-error-then-corrected
+    given: The news recap composition imports a component that does not exist.
+    when: The sandbox build fails with "Module not found".
+    then: The error text goes back to the author, the corrected composition renders, and its video is delivered. Two sandbox renders are billed.
+  - id: all-rounds-fail
+    given: A request whose three compositions all fail to render.
+    when: The request ends without a video.
+    then: The card shows that the video could not be made and nothing is charged.
+
+generative:
+  - id: first-frame-from-upload
+    given: Tom uploaded "forest.jpg".
+    when: The assistant calls videos.generate with "slow push-in, mist drifting between the trees", mode generative and that picture.
+    then: One generated clip starts from the uploaded picture.
+  - id: several-pictures-need-composed
+    given: Three uploaded photos.
+    when: The assistant calls videos.generate with mode generative and all three.
+    then: The call fails with the message that a generative clip can start from one picture only and that a composed video can use several.
+
+progress:
+  - id: steps-of-a-composed-video
+    given: The news recap request, opened in a web chat.
+    when: The request runs.
+    then: The card shows "Deciding how to make it", then "Writing the composition", then "Rendering", and finally the finished video. After a reload while it still runs the card shows the current step again; nothing unfinished is stored.
+
+result:
+  - id: composed-result
+    given: The finished news recap.
+    when: Lena opens it.
+    then: She sees the player, "Composed video · 20 s · 1280 x 720", the three results and the logo as sources, and a timeline with the five named parts.
+  - id: generative-result
+    given: The finished drone flight, 8 seconds.
+    when: Tom opens it.
+    then: He sees the player, "Generated video · 8 s · 1280 x 720" and a timeline with one clip.
+
+timeline:
+  - id: click-seeks
+    given: The opened news recap, paused at 0 seconds.
+    when: Lena clicks the part "Budget vote" on the timeline.
+    then: Playback moves to the start of that part and the playhead stands there.
+  - id: extend-buttons-on-generated-clip
+    given: The opened drone flight.
+    when: Tom looks at the timeline.
+    then: The single clip has a "+" button at its start and one at its end; the news recap has no such buttons.
+
+extend:
+  - id: extend-at-the-end
+    given: The opened 8 second drone flight.
+    when: Tom presses "+" at the end, writes "the camera rises above the fog and reveals a lake" and sends it.
+    then: >
+      A second clip is generated that continues from the last frame, both are joined, and the same video is now
+      version 2 with about 16 seconds and two clips on its timeline. Tom is charged for the new clip's seconds and
+      one render minute, not for the first clip again.
+  - id: empty-description-not-sent
+    given: The extend field is open and empty.
+    when: Tom presses send.
+    then: Nothing is sent and the field asks for a description.
+
+edit:
+  - id: change-a-headline-and-shorten
+    given: The opened news recap in edit mode.
+    when: Lena selects "Budget vote", changes its headline to "Council approves 12 million", shortens "Outro" by one second from its end and presses Apply.
+    then: One change is sent with both edits; the video becomes version 2 with the new headline and 19 seconds.
+  - id: leave-without-applying
+    given: Lena removed the part "Opening dates" in edit mode.
+    when: She leaves edit mode without pressing Apply.
+    then: The part is back, nothing was sent and nothing was charged.
+
+change:
+  - id: asked-in-words
+    given: The finished news recap from five minutes ago.
+    when: Lena writes "make the headlines yellow" and the assistant calls videos.generate with the recap as source video.
+    then: >
+      The author receives the kept composition, changes the headline colour, and it renders again from the original
+      pictures. The chat still has one video; the first answer shows version 1 and the new answer version 2.
+  - id: failed-change-keeps-version
+    given: The same change, but every corrected composition fails to render.
+    when: The request ends.
+    then: The video stays at version 1, the assistant says the change could not be made, and nothing is charged.
+
+billing:
+  - id: composed-one-round
+    given: A composed video with one author call and one sandbox render of 48 seconds.
+    when: The video is delivered.
+    then: The user is charged the credits for that author call's reported tokens plus 5 credits.
+  - id: generative-eight-seconds
+    given: An 8 second generative clip.
+    when: The video is delivered.
+    then: The user is charged 8 seconds at that model's price, and nothing for the routing decision.

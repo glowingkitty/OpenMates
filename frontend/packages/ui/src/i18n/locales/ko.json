@@ -1654,7 +1654,7 @@
       "generate": {
         "text": "생성",
         "description": {
-          "text": "텍스트 프롬프트로 짧은 AI 비디오를 생성합니다."
+          "text": "설명과 채팅 속 이미지로 AI 영상 또는 정확하게 구성된 영상 형태의 짧은 비디오를 만듭니다."
         }
       },
       "create": {
@@ -8173,6 +8173,181 @@
         "no_video": {
           "text": "이 실행에는 사용 가능한 동영상이 없습니다"
         }
+      }
+    },
+    "video_generate": {
+      "apply": {
+        "text": "적용"
+      },
+      "cancel": {
+        "text": "취소"
+      },
+      "clip": {
+        "text": "클립"
+      },
+      "discard": {
+        "text": "버리기"
+      },
+      "discard_confirm": {
+        "text": "대기 중인 변경 사항을 버릴까요?"
+      },
+      "edit_hint": {
+        "text": "타임라인에서 편집할 부분을 선택하세요."
+      },
+      "edit_part": {
+        "text": "{label} 편집"
+      },
+      "extend_empty": {
+        "text": "먼저 추가된 부분에서 무슨 일이 일어나야 하는지 설명하세요."
+      },
+      "extend_end": {
+        "text": "끝에서 동영상 연장"
+      },
+      "extend_placeholder_end": {
+        "text": "끝 뒤에 추가되는 클립에서 무슨 일이 일어나야 하나요?"
+      },
+      "extend_placeholder_start": {
+        "text": "시작 앞에 추가되는 클립에서 무슨 일이 일어나야 하나요?"
+      },
+      "extend_start": {
+        "text": "시작에서 동영상 연장"
+      },
+      "keep_editing": {
+        "text": "계속 편집"
+      },
+      "kind_composed": {
+        "text": "구성된 동영상"
+      },
+      "kind_generative": {
+        "text": "생성된 동영상"
+      },
+      "load_error": {
+        "text": "동영상을 불러오지 못했습니다"
+      },
+      "loading": {
+        "text": "동영상 불러오는 중..."
+      },
+      "model": {
+        "text": "모델"
+      },
+      "new_length": {
+        "text": "새 길이 {length}"
+      },
+      "part_aria": {
+        "text": "{label}, {start}부터 {end}까지"
+      },
+      "pending_changes": {
+        "text": "대기 중인 변경 사항: {count}"
+      },
+      "progress_deciding": {
+        "text": "동영상 제작 방식을 정하는 중…"
+      },
+      "progress_writing": {
+        "text": "컴포지션 작성 중…"
+      },
+      "progress_rendering": {
+        "text": "동영상 렌더링 중…"
+      },
+      "progress_correcting": {
+        "text": "동영상 수정 중…"
+      },
+      "progress_generating": {
+        "text": "클립 생성 중…"
+      },
+      "prompt": {
+        "text": "프롬프트"
+      },
+      "remove_last_hint": {
+        "text": "마지막 부분은 제거할 수 없습니다."
+      },
+      "remove_part": {
+        "text": "부분 제거"
+      },
+      "request_change_text": {
+        "text": "부분 {label} (id {id}): 텍스트 {text}을(를) {from}에서 {to}(으)로 변경"
+      },
+      "request_remove_part": {
+        "text": "부분 {label} (id {id}) 제거"
+      },
+      "request_shorten_end": {
+        "text": "부분 {label} (id {id}): 끝에서 {seconds} s 단축"
+      },
+      "request_shorten_start": {
+        "text": "부분 {label} (id {id}): 시작에서 {seconds} s 단축"
+      },
+      "request_trim_video": {
+        "text": "동영상 자르기: 시작 {start} s와 끝 {end} s 제거"
+      },
+      "request_trim_video_end": {
+        "text": "동영상 자르기: 끝 {end} s 제거"
+      },
+      "request_trim_video_start": {
+        "text": "동영상 자르기: 시작 {start} s 제거"
+      },
+      "resolution": {
+        "text": "해상도"
+      },
+      "restore_part": {
+        "text": "부분 복원"
+      },
+      "send": {
+        "text": "보내기"
+      },
+      "shorten_end": {
+        "text": "끝에서 단축"
+      },
+      "shorten_less": {
+        "text": "0.5 s 되돌리기"
+      },
+      "shorten_more": {
+        "text": "0.5 s 단축"
+      },
+      "shorten_start": {
+        "text": "시작에서 단축"
+      },
+      "sources": {
+        "text": "소스"
+      },
+      "timeline": {
+        "text": "동영상 타임라인"
+      },
+      "trim_video": {
+        "text": "동영상 자르기"
+      }
+    },
+    "video_create": {
+      "not_available": {
+        "text": "동영상을 아직 사용할 수 없습니다."
+      },
+      "status_cancelled": {
+        "text": "렌더링 중지됨"
+      },
+      "status_error": {
+        "text": "렌더링 실패"
+      },
+      "status_finished": {
+        "text": "완료됨"
+      },
+      "status_needs_rerender": {
+        "text": "다시 렌더링 필요"
+      },
+      "status_processing": {
+        "text": "소스 준비 중…"
+      },
+      "status_rendering": {
+        "text": "동영상 렌더링 중..."
+      },
+      "subtitle": {
+        "text": "Remotion · v{version} · {status}"
+      },
+      "view_code": {
+        "text": "코드"
+      },
+      "view_timeline": {
+        "text": "타임라인"
+      },
+      "view_video": {
+        "text": "동영상"
       }
     }
   },

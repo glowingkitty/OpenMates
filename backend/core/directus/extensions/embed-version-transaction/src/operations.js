@@ -228,16 +228,32 @@ async function lockIdentity(trx, value) {
   await trx.raw('SELECT pg_advisory_xact_lock(hashtextextended(?, 0))', [value]);
 }
 
-/* Stored marker of an images-generate image child: the server-derived catalog
+/* Stored marker of a generated media child: the server-derived catalog
  * projection (store_embed_handler sets app_id/skill_id from the producer's
- * `send_embed_data`, skill_id = embed type "generated_image") on a UUIDv5
- * registered child. Only such heads may take the image-revision branches. */
+ * `send_embed_data`, skill_id = embed type) on a UUIDv5 registered child.
+ * Only such heads may take the producer-revision branches. Images-generate
+ * images and videos-generate videos take revisions (same list as
+ * backend/shared/python_utils/media_revision.py REVISABLE_CHILD_MARKERS). */
 const GENERATED_IMAGE_APP_ID = 'images';
 const GENERATED_IMAGE_SKILL_ID = 'generated_image';
+const REVISABLE_CHILD_MARKERS = new Set([
+  `${GENERATED_IMAGE_APP_ID}:${GENERATED_IMAGE_SKILL_ID}`,
+  'videos:generated_video',
+]);
 
+function isRegisteredChild(embedId, head) {
+  return Boolean(head) && UUID_V5_RE.test(embedId) && head.parent_embed_id != null;
+}
+
+/** An images-generate image child (user-made revisions are offered for images only). */
 export function isGeneratedImageChild(embedId, head) {
-  return Boolean(head) && UUID_V5_RE.test(embedId) && head.parent_embed_id != null
+  return isRegisteredChild(embedId, head)
     && head.app_id === GENERATED_IMAGE_APP_ID && head.skill_id === GENERATED_IMAGE_SKILL_ID;
+}
+
+/** A generated media child that may take a producer revision (image or video). */
+export function isRevisableMediaChild(embedId, head) {
+  return isRegisteredChild(embedId, head) && REVISABLE_CHILD_MARKERS.has(`${head.app_id}:${head.skill_id}`);
 }
 
 /** Union of two stored `s3_file_keys` lists (JSON text or arrays), first-seen order. */
@@ -276,7 +292,7 @@ export function unionFileKeys(existing, incoming) {
  * same-version replay/enrichment of an already advanced head. */
 async function requireChildRevisionHead(trx, embedId, actor, payload, version) {
   const head = await trx(EMBEDS).where({ embed_id: embedId }).first();
-  if (!isGeneratedImageChild(embedId, head) || head.hashed_user_id !== actor || version < 2
+  if (!isRevisableMediaChild(embedId, head) || head.hashed_user_id !== actor || version < 2
       || (payload.app_id != null && payload.app_id !== head.app_id)
       || (payload.skill_id != null && payload.skill_id !== head.skill_id)
       || head.parent_embed_id == null || head.parent_embed_id !== payload.parent_embed_id
@@ -434,7 +450,7 @@ export async function writeLegacyEmbedDiff(database, raw) {
   return database.transaction(async (trx) => {
     await lockIdentity(trx, `embed:${embedId}`);
     const heads = await trx(EMBEDS).where({ embed_id: embedId }).forUpdate().limit(2);
-    const imageChild = heads.length === 1 && isGeneratedImageChild(embedId, heads[0]);
+    const imageChild = heads.length === 1 && isRevisableMediaChild(embedId, heads[0]);
     if (reservedId && !imageChild) fail(403, 'project_context_required');
     if (heads.length !== 1 || heads[0].hashed_user_id !== actor) fail(403, 'embed_access_denied');
     const embed = heads[0];
@@ -927,7 +943,7 @@ export async function writeLegacyEmbed(database, raw) {
           // is wrapped by the parent, so the parent's wrappers must be present.
           // Only an images-generate image child (UUIDv5, parent, stored images
           // catalog marker) takes the child branch; every other child keeps 409.
-          const childHead = isGeneratedImageChild(embedId, embed);
+          const childHead = isRevisableMediaChild(embedId, embed);
           const keyOwner = childHead ? embed.parent_embed_id : embedId;
           if (matchingAcks.some((output) =>
             output.canonical_digest !== sha256(embed.encrypted_content ?? ''))
@@ -1043,7 +1059,7 @@ export async function writeLegacyEmbed(database, raw) {
       }
       const updated = { ...storedPayload, hashed_user_id: actor, hashed_embed_id: sha256(embedId) };
       delete updated.embed_id;
-      if (isGeneratedImageChild(embedId, embed) && 's3_file_keys' in updated) {
+      if (isRevisableMediaChild(embedId, embed) && 's3_file_keys' in updated) {
         // Every version of a generated image keeps its files viewable and
         // cleanable until the embed is deleted: any write (also a same-version
         // replay carrying a stale subset) only ever grows the stored key list.

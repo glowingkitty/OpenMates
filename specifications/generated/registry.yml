@@ -373,6 +373,18 @@ specifications:
     - sdks.pip
     - gui.web
     - gui.apple
+  feature.app-skill.videos-generate:
+    version: 1
+    status: draft
+    path: features/app-skills/videos-generate
+    fingerprint: 372880d10a68df5fa8d7c041fdecc5adbb0b3726e19147937843113f6ba507d8
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   feature.app-skill.videos-get-transcript:
     version: 1
     status: draft
@@ -5366,6 +5378,174 @@ assertions:
     specification_id: feature.app-skill.travel-search
     type: parity
     fingerprint: 89b6f9a7e6a6376930bdede1cfca424a749362e294f98b950575a3ad4f34a76c
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  videos-generate.request.instruction-and-pictures:
+    specification: feature.app-skill.videos-generate@1
+    specification_id: feature.app-skill.videos-generate
+    type: behavior
+    fingerprint: 397aa049c6b46863a794cd9aa5e02eb43c09f4a7a53711cfd7288edc5824071f
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  videos-generate.routing.generative-or-composed:
+    specification: feature.app-skill.videos-generate@1
+    specification_id: feature.app-skill.videos-generate
+    type: behavior
+    fingerprint: 35c24aa3a09df285269214ae1a72aeeafb707d91c2cd1a71169a0284f4c9d49f
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  videos-generate.composed.author-writes-composition:
+    specification: feature.app-skill.videos-generate@1
+    specification_id: feature.app-skill.videos-generate
+    type: behavior
+    fingerprint: 2a87ef9e19ed798128a5243ce1e05594396d7b74f283c410343c31389187e834
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  videos-generate.composed.sandbox-render-and-correction:
+    specification: feature.app-skill.videos-generate@1
+    specification_id: feature.app-skill.videos-generate
+    type: invariant
+    fingerprint: 77d07ed0e1547d5cf4d22741813f7421a8f9e5aca3d39a87fc87af9b7f0b54e6
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  videos-generate.generative.clip:
+    specification: feature.app-skill.videos-generate@1
+    specification_id: feature.app-skill.videos-generate
+    type: behavior
+    fingerprint: c2bf9bbb02620e23227b88ea273dab6f6e178cef44ff8984405746c70136d72f
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  videos-generate.progress.shown-while-running:
+    specification: feature.app-skill.videos-generate@1
+    specification_id: feature.app-skill.videos-generate
+    type: behavior
+    fingerprint: 906c77e77f058dd64b2b5004bf1c315c18fbec46d93afef42667141c650ed812
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  videos-generate.result.video-with-timeline:
+    specification: feature.app-skill.videos-generate@1
+    specification_id: feature.app-skill.videos-generate
+    type: behavior
+    fingerprint: 57532b2a96915e7c54ff33be03fea7ef2b3c2da8484b07a9f7ad62fb2dff8b5d
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  videos-generate.timeline.below-the-video:
+    specification: feature.app-skill.videos-generate@1
+    specification_id: feature.app-skill.videos-generate
+    type: behavior
+    fingerprint: 03d353225bef670f7fbac0bb928415d9c0be4bba412d3dd3ec32186ed5140a62
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  videos-generate.change.extend-generated-clip:
+    specification: feature.app-skill.videos-generate@1
+    specification_id: feature.app-skill.videos-generate
+    type: behavior
+    fingerprint: 498107ff3d4147cc3d5505e9cb9b866a560fc3bcfe53a357717be46dc3ebfaa7
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  videos-generate.change.edit-mode:
+    specification: feature.app-skill.videos-generate@1
+    specification_id: feature.app-skill.videos-generate
+    type: behavior
+    fingerprint: ad8276c834c6a3002c0b271859a6e49b1745ab17561b77d01e6befcae39a4dbf
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  videos-generate.change.same-video-next-version:
+    specification: feature.app-skill.videos-generate@1
+    specification_id: feature.app-skill.videos-generate
+    type: behavior
+    fingerprint: 4655831f6f0cc895e67cd623eb69f9a791a34b9c0e652ac9984378b868d45913
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  videos-generate.safety.same-as-generated-media:
+    specification: feature.app-skill.videos-generate@1
+    specification_id: feature.app-skill.videos-generate
+    type: privacy
+    fingerprint: b41497eceeee0aacbc6a957b59f116d23a1ad0af3233f87af93907c8dcf9eee1
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  videos-generate.billing.metered:
+    specification: feature.app-skill.videos-generate@1
+    specification_id: feature.app-skill.videos-generate
+    type: invariant
+    fingerprint: 63e9282a3ff1f45fd2c7177c965ab0a051919ec893f4473ee5f1a543cf534b3f
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  videos-generate.surface.semantic-parity:
+    specification: feature.app-skill.videos-generate@1
+    specification_id: feature.app-skill.videos-generate
+    type: parity
+    fingerprint: f5667773b89e7022d698052e7362e8047669af19cefe9e7ed90faa99e0c3668c
     required_applies_to:
     - rest_api
     - cli

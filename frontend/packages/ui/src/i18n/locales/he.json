@@ -1654,7 +1654,7 @@
       "generate": {
         "text": "יצירה",
         "description": {
-          "text": "יצירת סרטון AI קצר מהנחיית טקסט."
+          "text": "יצירת סרטון קצר מהתיאור שלך ומתמונות בצ'אט, כצילומי AI או כסרטון מורכב מדויק."
         }
       },
       "create": {
@@ -8173,6 +8173,181 @@
         "no_video": {
           "text": "אין וידאו זמין להרצה זו"
         }
+      }
+    },
+    "video_generate": {
+      "apply": {
+        "text": "החל"
+      },
+      "cancel": {
+        "text": "ביטול"
+      },
+      "clip": {
+        "text": "קליפ"
+      },
+      "discard": {
+        "text": "השלך"
+      },
+      "discard_confirm": {
+        "text": "לזרוק את השינויים הממתינים?"
+      },
+      "edit_hint": {
+        "text": "בחר חלק בציר הזמן כדי לערוך אותו."
+      },
+      "edit_part": {
+        "text": "עריכת {label}"
+      },
+      "extend_empty": {
+        "text": "תאר קודם מה צריך לקרות בחלק שנוסף."
+      },
+      "extend_end": {
+        "text": "הארך את הסרטון בסוף"
+      },
+      "extend_placeholder_end": {
+        "text": "מה צריך לקרות בקליפ שנוסף אחרי הסוף?"
+      },
+      "extend_placeholder_start": {
+        "text": "מה צריך לקרות בקליפ שנוסף לפני ההתחלה?"
+      },
+      "extend_start": {
+        "text": "הארך את הסרטון בהתחלה"
+      },
+      "keep_editing": {
+        "text": "המשך לערוך"
+      },
+      "kind_composed": {
+        "text": "סרטון מורכב"
+      },
+      "kind_generative": {
+        "text": "סרטון שנוצר"
+      },
+      "load_error": {
+        "text": "טעינת הסרטון נכשלה"
+      },
+      "loading": {
+        "text": "טוען סרטון..."
+      },
+      "model": {
+        "text": "מודל"
+      },
+      "new_length": {
+        "text": "אורך חדש {length}"
+      },
+      "part_aria": {
+        "text": "{label}, מ-{start} עד {end}"
+      },
+      "pending_changes": {
+        "text": "שינויים ממתינים: {count}"
+      },
+      "progress_deciding": {
+        "text": "מחליט איך ליצור את הסרטון…"
+      },
+      "progress_writing": {
+        "text": "כותב את הקומפוזיציה…"
+      },
+      "progress_rendering": {
+        "text": "מעבד את הסרטון…"
+      },
+      "progress_correcting": {
+        "text": "מתקן את הסרטון…"
+      },
+      "progress_generating": {
+        "text": "יוצר את הקליפ…"
+      },
+      "prompt": {
+        "text": "פרומפט"
+      },
+      "remove_last_hint": {
+        "text": "לא ניתן להסיר את החלק האחרון."
+      },
+      "remove_part": {
+        "text": "הסר חלק"
+      },
+      "request_change_text": {
+        "text": "חלק {label} (id {id}): שנה את הטקסט {text} מ-{from} ל-{to}"
+      },
+      "request_remove_part": {
+        "text": "הסר את חלק {label} (id {id})"
+      },
+      "request_shorten_end": {
+        "text": "חלק {label} (id {id}): קצר ב-{seconds} s בסוף"
+      },
+      "request_shorten_start": {
+        "text": "חלק {label} (id {id}): קצר ב-{seconds} s בהתחלה"
+      },
+      "request_trim_video": {
+        "text": "קצץ את הסרטון: הסר {start} s מההתחלה ו-{end} s מהסוף"
+      },
+      "request_trim_video_end": {
+        "text": "קצץ את הסרטון: הסר {end} s מהסוף"
+      },
+      "request_trim_video_start": {
+        "text": "קצץ את הסרטון: הסר {start} s מההתחלה"
+      },
+      "resolution": {
+        "text": "רזולוציה"
+      },
+      "restore_part": {
+        "text": "שחזר חלק"
+      },
+      "send": {
+        "text": "שלח"
+      },
+      "shorten_end": {
+        "text": "קצר מהסוף"
+      },
+      "shorten_less": {
+        "text": "החזר 0.5 s"
+      },
+      "shorten_more": {
+        "text": "קצר ב-0.5 s"
+      },
+      "shorten_start": {
+        "text": "קצר מההתחלה"
+      },
+      "sources": {
+        "text": "מקורות"
+      },
+      "timeline": {
+        "text": "ציר זמן של הסרטון"
+      },
+      "trim_video": {
+        "text": "קצץ את הסרטון"
+      }
+    },
+    "video_create": {
+      "not_available": {
+        "text": "הסרטון עדיין לא זמין."
+      },
+      "status_cancelled": {
+        "text": "העיבוד נעצר"
+      },
+      "status_error": {
+        "text": "העיבוד נכשל"
+      },
+      "status_finished": {
+        "text": "הושלם"
+      },
+      "status_needs_rerender": {
+        "text": "נדרש עיבוד מחדש"
+      },
+      "status_processing": {
+        "text": "מכין את המקור…"
+      },
+      "status_rendering": {
+        "text": "מעבד סרטון..."
+      },
+      "subtitle": {
+        "text": "Remotion · v{version} · {status}"
+      },
+      "view_code": {
+        "text": "קוד"
+      },
+      "view_timeline": {
+        "text": "ציר זمن"
+      },
+      "view_video": {
+        "text": "סרטון"
       }
     }
   },

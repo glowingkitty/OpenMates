@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import uuid
-from types import SimpleNamespace
 
 import pytest
 
@@ -322,7 +320,7 @@ async def test_direct_rerender_has_distinct_durable_proof_and_no_recovery_key(mo
     monkeypatch.setattr(worker, "_transaction", direct)
     rerender_args = ({**ARGS, "source_version": 1},)
     producer, recovery = await worker.verify_output_producer(
-        task_name="apps.videos.tasks.render_remotion", task_id=TASK_ID,
+        task_name="apps.docs.tasks.generate_docx", task_id=TASK_ID,
         args=rerender_args, kwargs={},
         headers={dispatch.PRODUCER_HEADER: {"version": 1, "intent_id": TASK_ID}},
     )
@@ -338,7 +336,7 @@ async def test_direct_rerender_has_distinct_durable_proof_and_no_recovery_key(mo
     monkeypatch.setattr(worker, "_transaction", claimed)
     with pytest.raises(worker.ProducerHold, match="direct_intent_already_claimed"):
         await worker.verify_output_producer(
-            task_name="apps.videos.tasks.render_remotion", task_id=TASK_ID,
+            task_name="apps.docs.tasks.generate_docx", task_id=TASK_ID,
             args=rerender_args, kwargs={},
             headers={dispatch.PRODUCER_HEADER: {"version": 1, "intent_id": TASK_ID}},
         )
@@ -346,7 +344,7 @@ async def test_direct_rerender_has_distinct_durable_proof_and_no_recovery_key(mo
     monkeypatch.setattr(worker, "_transaction", unrelated)
     with pytest.raises(worker.ProducerHold, match="untagged_task_requires_durable_authorization"):
         await worker.verify_output_producer(
-            task_name="apps.videos.tasks.render_remotion", task_id=TASK_ID,
+            task_name="apps.docs.tasks.generate_docx", task_id=TASK_ID,
             args=rerender_args, kwargs={}, headers=None,
         )
 
@@ -468,53 +466,3 @@ def test_worker_context_is_reset_after_body_failure_or_retry():
             raise RuntimeError("retry")
     assert active_verified_output_producer.get() is None
     assert active_recovery_output_context.get() is None
-
-
-# contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
-@pytest.mark.asyncio
-async def test_direct_rerender_requires_canonical_head_and_durable_registration(monkeypatch):
-    from fastapi import HTTPException
-    from backend.core.api.app.routes import video_remotion
-
-    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "secret")
-    async def cached(*_):
-        return {"app_id": "videos", "skill_id": "create", "remotion_source": "source",
-                "message_id": "message-1", "current_source_version": 1}
-    monkeypatch.setattr(video_remotion, "_load_remotion_embed_content", cached)
-    row = {"hashed_user_id": OWNER_HASH,
-           "hashed_chat_id": hashlib.sha256(b"chat-1").hexdigest(),
-           "version_number": 2, "encrypted_content": "encrypted"}
-    async def get_row(*_): return row
-    async def decrypt(*_):
-        return json.dumps({"app_id": "videos", "skill_id": "create",
-                           "remotion_source": "source", "message_id": "message-1"})
-    calls = []
-    async def register(operation, data):
-        calls.append((operation, data))
-        return {"producer_intent_id": data["task_uuid"], "status": "DIRECT_AUTHORIZED"}
-    monkeypatch.setattr(dispatch, "_transaction", register)
-    def send(name, *, args, queue, **options):
-        calls.append(("send", name, args, queue, options))
-    request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(remotion_task_sender=send)))
-    current_user = SimpleNamespace(id=OWNER, vault_key_id="vault")
-    directus = SimpleNamespace(embed=SimpleNamespace(get_sync_embed_by_id=get_row))
-    result = await video_remotion.start_remotion_render(
-        "embed-1", video_remotion.RemotionRenderRequest(chat_id="chat-1"), request,
-        current_user=current_user, cache_service=object(),
-        directus_service=directus, encryption_service=SimpleNamespace(decrypt_with_user_key=decrypt),
-    )
-    assert result["status"] == "rendering"
-    assert [call[0] for call in calls] == ["register_authorized_rerender", "send"]
-    registered, sent = calls[0][1], calls[1]
-    assert registered["expected_embed_version"] == 2
-    assert registered["hashed_user_id"] == OWNER_HASH
-    assert sent[4]["headers"][dispatch.PRODUCER_HEADER]["intent_id"] == registered["task_uuid"]
-    row["hashed_user_id"] = "other"
-    with pytest.raises(HTTPException) as exc:
-        await video_remotion.start_remotion_render(
-            "embed-1", video_remotion.RemotionRenderRequest(chat_id="chat-1"), request,
-            current_user=current_user, cache_service=object(),
-            directus_service=directus, encryption_service=SimpleNamespace(decrypt_with_user_key=decrypt),
-        )
-    assert exc.value.status_code == 404
-    assert len(calls) == 2

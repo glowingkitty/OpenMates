@@ -551,7 +551,7 @@ provider_groups:
           - correction and title generation for Mistral voice transcripts on the Gemini correction route
           - live voice calling with spoken replies and user/assistant transcription
           - Gemini image generation and editing
-          - Google Veo video generation
+          - Gemini Omni video generation
           - screenshot-to-HTML conversion
         data_shared:
           - Chat messages with PII placeholders substituted client-side
@@ -746,7 +746,7 @@ provider_groups:
         used_for:
           - isolated sandbox execution for generated code embeds
           - isolated live preview sessions for generated application embeds
-          - automatic isolated Remotion rendering for videos.create embeds
+          - automatic isolated Remotion rendering for composed videos made by videos.generate
         data_shared:
           - Code selected for execution
           - Generated application files and assets selected for preview

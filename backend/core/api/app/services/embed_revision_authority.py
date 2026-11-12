@@ -2,7 +2,9 @@
 
 A registered AI producer normally seals only its primary embed and the UUIDv5
 children of its own intent. A revision (images-generate changing a generated
-image of the same chat, specification images-generate.revision.*) seals version
+image, specification images-generate.revision.*, or videos-generate changing a
+generated video, videos-generate.change.same-video-next-version, of the same
+chat) seals version
 N+1 of a child that belongs to an earlier message's parent. It is admitted only
 when the canonical row still is that child of this owner and chat at version N,
 so a stale or forged revision never reaches the client.
@@ -16,15 +18,13 @@ import re
 from typing import Any, Mapping
 
 from backend.shared.python_utils.chat_recovery_context import RequiredRecoveryOutputError
+from backend.shared.python_utils.media_revision import REVISABLE_CHILD_MARKERS
 
 REVISION_FIELDS = frozenset({
     "embed_id", "parent_embed_id", "expected_version", "base_snapshot_required",
     # The creating message's hash (kept by the head) and the file keys of every version.
     "hashed_message_id", "s3_file_keys",
 })
-# Stored marker of an images-generate image child (same rule as the Directus
-# embed-version-transaction ``isGeneratedImageChild``).
-GENERATED_IMAGE_MARKER = ("images", "generated_image")
 _UUID_V5 = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
 _HEX_64 = re.compile(r"^[0-9a-f]{64}$")
 
@@ -76,7 +76,7 @@ async def verify_producer_revision(
     version = 1 if row.get("version_number") is None else row.get("version_number")
     if (row.get("hashed_chat_id") != _sha256(producer.target_chat_id)
             or row.get("parent_embed_id") != parent_id or version != expected
-            or (row.get("app_id"), row.get("skill_id")) != GENERATED_IMAGE_MARKER
+            or (row.get("app_id"), row.get("skill_id")) not in REVISABLE_CHILD_MARKERS
             or row.get("hashed_message_id") != revision["hashed_message_id"]):
         raise RevisionRefused("Revised embed canonical version changed")
     if not _stored_keys(row.get("s3_file_keys")) <= _stored_keys(revision["s3_file_keys"]):

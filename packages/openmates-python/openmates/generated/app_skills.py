@@ -8448,99 +8448,299 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
  {'app_id': 'videos',
   'app_namespace_py': 'videos',
   'app_namespace_ts': 'videos',
-  'description': 'Generate short photorealistic or generative footage from text prompts using '
-                 'Google Veo. Use this when the user asks for cinematic footage, realistic scenes, '
-                 'camera movement, stylized animation, or non-deterministic video generation. Do '
-                 'not use this for exact text slides, product announcements, diagrams, charts, '
-                 'UI-like motion graphics, or branded videos where exact text and layout matter; '
-                 'those requests should use videos.create with an explicit ```remotion:Name.tsx '
-                 'fence instead. Do not use this',
+  'description': 'Make any short video from a natural-language instruction, optionally with up to '
+                 '12 pictures from this chat (uploads, generated images, vector graphics, '
+                 'image/web/news/video search results with a picture). Each request is made either '
+                 'as a generative clip (invented realistic or stylized footage, camera movement, '
+                 'animating one picture) or as a composed, code-rendered video (exact texts and '
+                 'titles, lists, numbers, charts, diagrams, slideshows or recaps of the given '
+                 'pictures, anything based on search',
   'description_key': 'app_skills.videos.generate.description',
-  'schema': {'properties': {'requests': {'description': 'REQUIRED array of video generation '
-                                                        'request objects.',
+  'schema': {'properties': {'requests': {'description': 'REQUIRED array of video request objects, '
+                                                        'one per video.',
                                          'items': {'properties': {'aspect_ratio': {'default': '16:9',
+                                                                                   'description': '1:1 '
+                                                                                                  'is '
+                                                                                                  'available '
+                                                                                                  'for '
+                                                                                                  'composed '
+                                                                                                  'videos '
+                                                                                                  'only.',
                                                                                    'enum': ['16:9',
-                                                                                            '9:16'],
+                                                                                            '9:16',
+                                                                                            '1:1'],
                                                                                    'type': 'string',
                                                                                    'x-ui': {'basic': True}},
-                                                                  'duration_seconds': {'default': 8,
-                                                                                       'enum': [4,
-                                                                                                5,
-                                                                                                6,
-                                                                                                8],
+                                                                  'change': {'description': 'How '
+                                                                                            'source_video '
+                                                                                            'changes '
+                                                                                            '(it '
+                                                                                            'becomes '
+                                                                                            'the '
+                                                                                            'next '
+                                                                                            'version '
+                                                                                            'of '
+                                                                                            'the '
+                                                                                            'same '
+                                                                                            'video): '
+                                                                                            'edit '
+                                                                                            'applies '
+                                                                                            'the '
+                                                                                            'instructions '
+                                                                                            'to '
+                                                                                            'it, '
+                                                                                            'extend_start '
+                                                                                            'adds '
+                                                                                            'a new '
+                                                                                            'generated '
+                                                                                            'clip '
+                                                                                            'before '
+                                                                                            'it, '
+                                                                                            'extend_end '
+                                                                                            'adds '
+                                                                                            'one '
+                                                                                            'after '
+                                                                                            'it '
+                                                                                            '(only '
+                                                                                            'for '
+                                                                                            'videos '
+                                                                                            'made '
+                                                                                            'of '
+                                                                                            'generated '
+                                                                                            'clips).\n',
+                                                                             'enum': ['edit',
+                                                                                      'extend_start',
+                                                                                      'extend_end'],
+                                                                             'type': 'string',
+                                                                             'x-ui': {'basic': False}},
+                                                                  'duration_seconds': {'description': 'Optional '
+                                                                                                      'length. '
+                                                                                                      'Generative '
+                                                                                                      'clips '
+                                                                                                      'last '
+                                                                                                      '3 '
+                                                                                                      'to '
+                                                                                                      '15 '
+                                                                                                      'seconds '
+                                                                                                      '(default '
+                                                                                                      '8); '
+                                                                                                      'composed '
+                                                                                                      'videos '
+                                                                                                      '2 '
+                                                                                                      'to '
+                                                                                                      '60; '
+                                                                                                      'a '
+                                                                                                      'clip '
+                                                                                                      'added '
+                                                                                                      'by '
+                                                                                                      'extend_start '
+                                                                                                      'or '
+                                                                                                      'extend_end '
+                                                                                                      '3 '
+                                                                                                      'to '
+                                                                                                      '10.',
+                                                                                       'maximum': 60,
+                                                                                       'minimum': 2,
                                                                                        'type': 'integer',
                                                                                        'x-ui': {'basic': True}},
-                                                                  'input_embed_ids': {'description': 'Optional '
+                                                                  'images': {'description': 'Optional '
+                                                                                            'exact '
+                                                                                            'embed_refs '
+                                                                                            'of '
+                                                                                            'pictures '
+                                                                                            'in '
+                                                                                            'this '
+                                                                                            'chat '
+                                                                                            'to '
+                                                                                            'use, '
+                                                                                            'in '
+                                                                                            'the '
+                                                                                            'order '
+                                                                                            'they '
+                                                                                            'should '
+                                                                                            'appear: '
+                                                                                            'uploads, '
+                                                                                            'generated '
+                                                                                            'images, '
+                                                                                            'vector '
+                                                                                            'graphics, '
+                                                                                            'or '
+                                                                                            'search '
+                                                                                            'results '
+                                                                                            'with '
+                                                                                            'a '
+                                                                                            'picture '
+                                                                                            '(image, '
+                                                                                            'web, '
+                                                                                            'news '
+                                                                                            'or '
+                                                                                            'video '
+                                                                                            'search). '
+                                                                                            'A '
+                                                                                            'generative '
+                                                                                            'clip '
+                                                                                            'can '
+                                                                                            'start '
+                                                                                            'from '
+                                                                                            'one '
+                                                                                            'picture '
+                                                                                            'only.\n',
+                                                                             'items': {'type': 'string'},
+                                                                             'maxItems': 12,
+                                                                             'type': 'array',
+                                                                             'x-ui': {'basic': True}},
+                                                                  'input_embed_ids': {'description': 'Former '
                                                                                                      'first-frame '
+                                                                                                     'field '
+                                                                                                     '(one '
                                                                                                      'image '
                                                                                                      'embed '
                                                                                                      'UUID, '
-                                                                                                     'owned '
-                                                                                                     'by '
-                                                                                                     'the '
-                                                                                                     'authenticated '
-                                                                                                     'caller. '
                                                                                                      'H3 '
-                                                                                                     'only; '
-                                                                                                     'the '
-                                                                                                     'output '
-                                                                                                     'follows '
-                                                                                                     'this '
-                                                                                                     'image '
-                                                                                                     'canvas.',
+                                                                                                     'only). '
+                                                                                                     'Prefer '
+                                                                                                     'images.',
                                                                                       'items': {'format': 'uuid',
                                                                                                 'type': 'string'},
                                                                                       'maxItems': 1,
-                                                                                      'type': 'array'},
-                                                                  'model': {'default': 'veo-3.1-generate-preview',
-                                                                            'description': 'H3 is '
+                                                                                      'type': 'array',
+                                                                                      'x-ui': {'basic': False}},
+                                                                  'instructions': {'description': 'Natural-language '
+                                                                                                  'description '
+                                                                                                  'of '
+                                                                                                  'the '
+                                                                                                  'whole '
+                                                                                                  'video: '
+                                                                                                  'what '
+                                                                                                  'it '
+                                                                                                  'shows, '
+                                                                                                  'texts, '
+                                                                                                  'order, '
+                                                                                                  'style, '
+                                                                                                  'mood '
+                                                                                                  'and '
+                                                                                                  'pacing. '
+                                                                                                  'For '
+                                                                                                  'a '
+                                                                                                  'composed '
+                                                                                                  'video '
+                                                                                                  'name '
+                                                                                                  'the '
+                                                                                                  'exact '
+                                                                                                  'texts '
+                                                                                                  'to '
+                                                                                                  'show.\n',
+                                                                                   'maxLength': 4000,
+                                                                                   'type': 'string',
+                                                                                   'x-ui': {'basic': True}},
+                                                                  'mode': {'default': 'auto',
+                                                                           'description': 'auto '
+                                                                                          'decides '
+                                                                                          'per '
+                                                                                          'request. '
+                                                                                          'generative '
+                                                                                          '= '
+                                                                                          'invented '
+                                                                                          'footage '
+                                                                                          'from a '
+                                                                                          'video '
+                                                                                          'model. '
+                                                                                          'composed '
+                                                                                          '= '
+                                                                                          'exact, '
+                                                                                          'code-rendered '
+                                                                                          'video '
+                                                                                          '(texts, '
+                                                                                          'charts, '
+                                                                                          'slideshows, '
+                                                                                          'several '
+                                                                                          'pictures).\n',
+                                                                           'enum': ['auto',
+                                                                                    'generative',
+                                                                                    'composed'],
+                                                                           'type': 'string',
+                                                                           'x-ui': {'basic': True}},
+                                                                  'model': {'description': 'Only '
+                                                                                           'for '
+                                                                                           'generative '
+                                                                                           'clips; '
+                                                                                           'naming '
+                                                                                           'a '
+                                                                                           'model '
+                                                                                           'makes '
+                                                                                           'the '
+                                                                                           'request '
+                                                                                           'generative. '
+                                                                                           'H3 '
+                                                                                           '(fixed '
+                                                                                           '5-second '
+                                                                                           '480p '
+                                                                                           'clips '
+                                                                                           'from '
+                                                                                           'one '
+                                                                                           'picture) '
+                                                                                           'is '
                                                                                            'available '
                                                                                            'in '
                                                                                            'authenticated '
-                                                                                           'chats/calls '
-                                                                                           'with '
-                                                                                           'fixed '
-                                                                                           '5-second '
-                                                                                           '480p '
-                                                                                           'clips. '
+                                                                                           'chats; '
                                                                                            'REST '
                                                                                            'supports '
-                                                                                           'Veo '
-                                                                                           'only.',
-                                                                            'enum': ['veo-3.1-generate-preview',
-                                                                                     'veo-3.1-fast-generate-preview',
-                                                                                     'veo-3.0-generate-001',
+                                                                                           'Gemini '
+                                                                                           'Omni '
+                                                                                           'only.\n',
+                                                                            'enum': ['gemini-omni-1.2-flash',
                                                                                      'minimax/h3-max-turbo/image-to-video'],
                                                                             'type': 'string',
                                                                             'x-ui': {'basic': False}},
-                                                                  'prompt': {'description': 'Detailed '
-                                                                                            'text '
-                                                                                            'description '
-                                                                                            'of '
-                                                                                            'the '
-                                                                                            'video '
-                                                                                            'to '
-                                                                                            'generate.',
-                                                                             'type': 'string',
-                                                                             'x-ui': {'basic': True}},
-                                                                  'resolution': {'default': '720p',
-                                                                                 'enum': ['480p',
+                                                                  'resolution': {'description': 'Generative '
+                                                                                                'Gemini '
+                                                                                                'Omni '
+                                                                                                'clips '
+                                                                                                '360p, '
+                                                                                                '720p, '
+                                                                                                '1080p '
+                                                                                                'or '
+                                                                                                '4k '
+                                                                                                '(default '
+                                                                                                '720p); '
+                                                                                                'H3 '
+                                                                                                'is '
+                                                                                                'fixed '
+                                                                                                '480p.',
+                                                                                 'enum': ['360p',
+                                                                                          '480p',
                                                                                           '720p',
                                                                                           '1080p',
                                                                                           '4k'],
                                                                                  'type': 'string',
-                                                                                 'x-ui': {'basic': True}},
+                                                                                 'x-ui': {'basic': False}},
                                                                   'seed': {'description': 'Optional '
                                                                                           'seed '
                                                                                           'for '
                                                                                           'more '
                                                                                           'reproducible '
+                                                                                          'generative '
                                                                                           'output '
                                                                                           'when '
                                                                                           'supported.',
                                                                            'type': 'integer',
-                                                                           'x-ui': {'basic': False}}},
-                                                   'required': ['prompt'],
+                                                                           'x-ui': {'basic': False}},
+                                                                  'source_video': {'description': 'Exact '
+                                                                                                  'embed_ref '
+                                                                                                  'of '
+                                                                                                  'an '
+                                                                                                  'earlier '
+                                                                                                  'videos-generate '
+                                                                                                  'result '
+                                                                                                  'to '
+                                                                                                  'change. '
+                                                                                                  'Use '
+                                                                                                  'with '
+                                                                                                  'change.\n',
+                                                                                   'type': 'string',
+                                                                                   'x-ui': {'basic': False}}},
+                                                   'required': ['instructions'],
                                                    'type': 'object'},
                                          'type': 'array',
                                          'x-ui': {'basic': True}}},
@@ -8549,27 +8749,6 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'skill_id': 'generate',
   'skill_method_py': 'generate',
   'skill_method_ts': 'generate'},
- {'app_id': 'videos',
-  'app_namespace_py': 'videos',
-  'app_namespace_ts': 'videos',
-  'description': 'Create deterministic code-backed videos with Remotion. Use this for text slides, '
-                 'product announcements, diagrams, charts, UI-like motion graphics, or branded '
-                 'videos where exact text and layout matter. The assistant must write an explicit '
-                 '```remotion:Name.tsx fence; do not use this for photorealistic footage or '
-                 'generic TSX components.',
-  'description_key': 'app_skills.videos.create.description',
-  'schema': {'properties': {'filename': {'description': 'Source filename, for example '
-                                                        'ProductAnnouncement.tsx.',
-                                         'type': 'string',
-                                         'x-ui': {'basic': True}},
-                            'source': {'description': 'Remotion TSX source code to render.',
-                                       'type': 'string',
-                                       'x-ui': {'basic': True}}},
-             'required': ['source'],
-             'type': 'object'},
-  'skill_id': 'create',
-  'skill_method_py': 'create',
-  'skill_method_ts': 'create'},
  {'app_id': 'videos',
   'app_namespace_py': 'videos',
   'app_namespace_ts': 'videos',
@@ -10497,16 +10676,8 @@ class VideosAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
 
-    def create(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Create deterministic code-backed videos with Remotion. Use this for text slides, product announcements, diagrams, charts, UI-like motion graphics, or branded videos where exact text and layout matter. The assistant must write an explicit ```remotion:Name.tsx fence; do not use this for photorealistic footage or generic TSX components.
-
-        Description key: app_skills.videos.create.description
-        Skill: videos/create
-        """
-        return self._run_skill("videos", "create", input_data, prompt_injection_protection=prompt_injection_protection)
-
     def generate(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Generate short photorealistic or generative footage from text prompts using Google Veo. Use this when the user asks for cinematic footage, realistic scenes, camera movement, stylized animation, or non-deterministic video generation. Do not use this for exact text slides, product announcements, diagrams, charts, UI-like motion graphics, or branded videos where exact text and layout matter; those requests should use videos.create with an explicit ```remotion:Name.tsx fence instead. Do not use this
+        """Make any short video from a natural-language instruction, optionally with up to 12 pictures from this chat (uploads, generated images, vector graphics, image/web/news/video search results with a picture). Each request is made either as a generative clip (invented realistic or stylized footage, camera movement, animating one picture) or as a composed, code-rendered video (exact texts and titles, lists, numbers, charts, diagrams, slideshows or recaps of the given pictures, anything based on search
 
         Description key: app_skills.videos.generate.description
         Skill: videos/generate

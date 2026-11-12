@@ -1654,7 +1654,7 @@
       "generate": {
         "text": "Buat",
         "description": {
-          "text": "Buat video AI pendek dari perintah teks."
+          "text": "Buat video pendek dari deskripsimu dan gambar di obrolan, sebagai rekaman AI atau video susunan yang tepat."
         }
       },
       "create": {
@@ -8173,6 +8173,181 @@
         "no_video": {
           "text": "Tidak ada video untuk eksekusi ini"
         }
+      }
+    },
+    "video_generate": {
+      "apply": {
+        "text": "Terapkan"
+      },
+      "cancel": {
+        "text": "Batal"
+      },
+      "clip": {
+        "text": "Klip"
+      },
+      "discard": {
+        "text": "Buang"
+      },
+      "discard_confirm": {
+        "text": "Buang perubahan yang tertunda?"
+      },
+      "edit_hint": {
+        "text": "Pilih bagian di lini masa untuk mengeditnya."
+      },
+      "edit_part": {
+        "text": "Edit {label}"
+      },
+      "extend_empty": {
+        "text": "Jelaskan dulu apa yang harus terjadi di bagian yang ditambahkan."
+      },
+      "extend_end": {
+        "text": "Perpanjang video di akhir"
+      },
+      "extend_placeholder_end": {
+        "text": "Apa yang harus terjadi di klip yang ditambahkan setelah akhir?"
+      },
+      "extend_placeholder_start": {
+        "text": "Apa yang harus terjadi di klip yang ditambahkan sebelum awal?"
+      },
+      "extend_start": {
+        "text": "Perpanjang video di awal"
+      },
+      "keep_editing": {
+        "text": "Lanjut mengedit"
+      },
+      "kind_composed": {
+        "text": "Video gabungan"
+      },
+      "kind_generative": {
+        "text": "Video yang dihasilkan"
+      },
+      "load_error": {
+        "text": "Gagal memuat video"
+      },
+      "loading": {
+        "text": "Memuat video..."
+      },
+      "model": {
+        "text": "Model"
+      },
+      "new_length": {
+        "text": "Durasi baru {length}"
+      },
+      "part_aria": {
+        "text": "{label}, dari {start} hingga {end}"
+      },
+      "pending_changes": {
+        "text": "Perubahan tertunda: {count}"
+      },
+      "progress_deciding": {
+        "text": "Menentukan cara membuat video…"
+      },
+      "progress_writing": {
+        "text": "Menulis komposisi…"
+      },
+      "progress_rendering": {
+        "text": "Merender video…"
+      },
+      "progress_correcting": {
+        "text": "Memperbaiki video…"
+      },
+      "progress_generating": {
+        "text": "Membuat klip…"
+      },
+      "prompt": {
+        "text": "Prompt"
+      },
+      "remove_last_hint": {
+        "text": "Bagian terakhir tidak dapat dihapus."
+      },
+      "remove_part": {
+        "text": "Hapus bagian"
+      },
+      "request_change_text": {
+        "text": "Bagian {label} (id {id}): ubah teks {text} dari {from} menjadi {to}"
+      },
+      "request_remove_part": {
+        "text": "Hapus bagian {label} (id {id})"
+      },
+      "request_shorten_end": {
+        "text": "Bagian {label} (id {id}): pendekkan {seconds} s di akhir"
+      },
+      "request_shorten_start": {
+        "text": "Bagian {label} (id {id}): pendekkan {seconds} s di awal"
+      },
+      "request_trim_video": {
+        "text": "Pangkas video: hapus {start} s dari awal dan {end} s dari akhir"
+      },
+      "request_trim_video_end": {
+        "text": "Pangkas video: hapus {end} s dari akhir"
+      },
+      "request_trim_video_start": {
+        "text": "Pangkas video: hapus {start} s dari awal"
+      },
+      "resolution": {
+        "text": "Resolusi"
+      },
+      "restore_part": {
+        "text": "Pulihkan bagian"
+      },
+      "send": {
+        "text": "Kirim"
+      },
+      "shorten_end": {
+        "text": "Pendekkan dari akhir"
+      },
+      "shorten_less": {
+        "text": "Kembalikan 0.5 s"
+      },
+      "shorten_more": {
+        "text": "Pendekkan 0.5 s"
+      },
+      "shorten_start": {
+        "text": "Pendekkan dari awal"
+      },
+      "sources": {
+        "text": "Sumber"
+      },
+      "timeline": {
+        "text": "Lini masa video"
+      },
+      "trim_video": {
+        "text": "Pangkas video"
+      }
+    },
+    "video_create": {
+      "not_available": {
+        "text": "Video belum tersedia."
+      },
+      "status_cancelled": {
+        "text": "Render dihentikan"
+      },
+      "status_error": {
+        "text": "Render gagal"
+      },
+      "status_finished": {
+        "text": "Selesai"
+      },
+      "status_needs_rerender": {
+        "text": "Perlu render ulang"
+      },
+      "status_processing": {
+        "text": "Menyiapkan sumber…"
+      },
+      "status_rendering": {
+        "text": "Merender video..."
+      },
+      "subtitle": {
+        "text": "Remotion · v{version} · {status}"
+      },
+      "view_code": {
+        "text": "Kode"
+      },
+      "view_timeline": {
+        "text": "Lini masa"
+      },
+      "view_video": {
+        "text": "Video"
       }
     }
   },

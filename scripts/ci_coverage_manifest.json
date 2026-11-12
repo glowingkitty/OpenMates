@@ -37,6 +37,13 @@
         "components/embed-updated-event-notice.spec.ts"
       ]
     },
+    "videos_generate_timeline_edit_preview": {
+      "execution": "e2e",
+      "enabling_work": "Account-free Vite-only bare previews of the opened videos.generate video: timeline below the player for composed and generative videos, extend buttons and description field, edit mode with text, trim and remove, pending bar, version timeline, light and dark, desktop and phone widths. Fixtures use the bundled store example clip. No backend, provider, sandbox, account credentials or AI inference.",
+      "specs": [
+        "components/video-timeline-edit.spec.ts"
+      ]
+    },
     "images_modify_embed_preview": {
       "execution": "e2e",
       "enabling_work": "Account-free Vite-only bare image card and opened view in the images.modify states (steps, draft picture, finished, unmet requirements, failed). Fixtures carry a tiny inline synthetic JPEG. No backend, E2B sandbox, account credentials or AI inference. The real edit is verified separately against the sandbox template and in chat.",
@@ -215,7 +222,6 @@
         "reminder-redesign.spec.ts",
         "reminder-repeating-and-cancel.spec.ts",
         "reminder-same-chat.spec.ts",
-        "remotion-video-create.spec.ts",
         "skill-audio-generate-speak.spec.ts",
         "skill-images-generate-safety-upload.spec.ts",
         "skill-images-generate-safety.spec.ts",
@@ -1022,7 +1028,8 @@
       "specs": [
         "teams-chat-collaboration-real.spec.ts",
         "vector-graphic-chat.spec.ts",
-        "design-embroidery-chat.spec.ts"
+        "design-embroidery-chat.spec.ts",
+        "videos-generate-chat.spec.ts"
       ]
     },
     "real_stripe_sandbox_settlement": {
@@ -1670,12 +1677,6 @@
     "reminder-same-chat.spec.ts": {
       "dependency": "reminder_scheduler_and_live_seed",
       "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: reminder — same-chat: system message fires in the same chat. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add actual reminder scheduling/beat and time-bounded fresh reminder cleanup; preserve firing/cancellation assertions.",
-      "user_input_required": true,
-      "source_environment_names": []
-    },
-    "remotion-video-create.spec.ts": {
-      "dependency": "real_remotion_e2b_pipeline",
-      "next_action": "Original natural-language request invokes AI -> videos.create -> actual E2B render -> source/playback. Add videos worker/storage and obtain dedicated AI/E2B keys with explicit render/inference caps. A local Remotion render alone cannot replace its E2B pipeline assertions.",
       "user_input_required": true,
       "source_environment_names": []
     },

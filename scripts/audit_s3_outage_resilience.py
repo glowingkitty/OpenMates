@@ -21,7 +21,6 @@ MEDIA_TASKS = (
     ("backend/apps/audio/tasks/generate_task.py", "_async_generate_audio", "ensure_audio_credit_headroom("),
     ("backend/apps/audio/tasks/speak_task.py", "_async_speak_audio", "classify_audio_speech_safety("),
     ("backend/apps/videos/tasks/generate_task.py", "_async_generate_video", "ensure_credit_headroom("),
-    ("backend/apps/videos/tasks/render_remotion_task.py", "_async_render_remotion", "render_remotion_in_e2b("),
 )
 PRESERVATION_TASKS = (
     "backend/core/api/app/tasks/usage_archive_tasks.py",

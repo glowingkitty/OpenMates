@@ -106,18 +106,3 @@ def test_text_ai_task_has_no_s3_dependency() -> None:
 
     assert "S3UploadService" not in source
     assert "s3_service" not in source
-
-
-# contract-test: direct surface=rest_api assertions=storage-resilience.operations.fail-before-cost
-def test_remotion_render_guards_storage_before_e2b_and_billing() -> None:
-    source = (
-        REPOSITORY_ROOT / "backend/apps/videos/tasks/render_remotion_task.py"
-    ).read_text()
-    render_source = source[source.index("async def _async_render_remotion("):]
-
-    guard_position = render_source.index("await require_storage_available(")
-    render_position = render_source.index("render_remotion_in_e2b(")
-    charge_position = render_source.index("await _charge_remotion_render_credits(")
-    assert "await task.initialize_core_services()" in render_source
-    assert "await initialize_task_storage(task)" in render_source
-    assert guard_position < render_position < charge_position

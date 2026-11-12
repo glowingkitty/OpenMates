@@ -1654,7 +1654,7 @@
       "generate": {
         "text": "生成",
         "description": {
-          "text": "根据文本提示词生成一段 AI 短视频。"
+          "text": "根据你的描述和聊天中的图片制作短视频，可以是 AI 生成画面，也可以是精确排版的合成视频。"
         }
       },
       "create": {
@@ -8173,6 +8173,181 @@
         "no_video": {
           "text": "此次运行没有可用视频"
         }
+      }
+    },
+    "video_generate": {
+      "apply": {
+        "text": "应用"
+      },
+      "cancel": {
+        "text": "取消"
+      },
+      "clip": {
+        "text": "片段"
+      },
+      "discard": {
+        "text": "放弃"
+      },
+      "discard_confirm": {
+        "text": "放弃未应用的更改？"
+      },
+      "edit_hint": {
+        "text": "在时间轴上选择一个部分进行编辑。"
+      },
+      "edit_part": {
+        "text": "编辑{label}"
+      },
+      "extend_empty": {
+        "text": "请先描述添加的部分中要发生什么。"
+      },
+      "extend_end": {
+        "text": "在结尾延长视频"
+      },
+      "extend_placeholder_end": {
+        "text": "结尾之后新增的片段中要发生什么？"
+      },
+      "extend_placeholder_start": {
+        "text": "开头之前新增的片段中要发生什么？"
+      },
+      "extend_start": {
+        "text": "在开头延长视频"
+      },
+      "keep_editing": {
+        "text": "继续编辑"
+      },
+      "kind_composed": {
+        "text": "合成视频"
+      },
+      "kind_generative": {
+        "text": "生成的视频"
+      },
+      "load_error": {
+        "text": "视频加载失败"
+      },
+      "loading": {
+        "text": "正在加载视频..."
+      },
+      "model": {
+        "text": "模型"
+      },
+      "new_length": {
+        "text": "新时长 {length}"
+      },
+      "part_aria": {
+        "text": "{label}，从 {start} 到 {end}"
+      },
+      "pending_changes": {
+        "text": "待处理的更改：{count}"
+      },
+      "progress_deciding": {
+        "text": "正在决定如何制作视频…"
+      },
+      "progress_writing": {
+        "text": "正在编写合成内容…"
+      },
+      "progress_rendering": {
+        "text": "正在渲染视频…"
+      },
+      "progress_correcting": {
+        "text": "正在修正视频…"
+      },
+      "progress_generating": {
+        "text": "正在生成片段…"
+      },
+      "prompt": {
+        "text": "提示词"
+      },
+      "remove_last_hint": {
+        "text": "无法删除最后一个部分。"
+      },
+      "remove_part": {
+        "text": "删除部分"
+      },
+      "request_change_text": {
+        "text": "部分 {label} (id {id})：将文字 {text} 从 {from} 改为 {to}"
+      },
+      "request_remove_part": {
+        "text": "删除部分 {label} (id {id})"
+      },
+      "request_shorten_end": {
+        "text": "部分 {label} (id {id})：结尾缩短 {seconds} s"
+      },
+      "request_shorten_start": {
+        "text": "部分 {label} (id {id})：开头缩短 {seconds} s"
+      },
+      "request_trim_video": {
+        "text": "裁剪视频：从开头删除 {start} s，从结尾删除 {end} s"
+      },
+      "request_trim_video_end": {
+        "text": "裁剪视频：从结尾删除 {end} s"
+      },
+      "request_trim_video_start": {
+        "text": "裁剪视频：从开头删除 {start} s"
+      },
+      "resolution": {
+        "text": "分辨率"
+      },
+      "restore_part": {
+        "text": "恢复部分"
+      },
+      "send": {
+        "text": "发送"
+      },
+      "shorten_end": {
+        "text": "从结尾缩短"
+      },
+      "shorten_less": {
+        "text": "恢复 0.5 s"
+      },
+      "shorten_more": {
+        "text": "缩短 0.5 s"
+      },
+      "shorten_start": {
+        "text": "从开头缩短"
+      },
+      "sources": {
+        "text": "素材"
+      },
+      "timeline": {
+        "text": "视频时间轴"
+      },
+      "trim_video": {
+        "text": "裁剪视频"
+      }
+    },
+    "video_create": {
+      "not_available": {
+        "text": "视频暂不可用。"
+      },
+      "status_cancelled": {
+        "text": "渲染已停止"
+      },
+      "status_error": {
+        "text": "渲染失败"
+      },
+      "status_finished": {
+        "text": "已完成"
+      },
+      "status_needs_rerender": {
+        "text": "需要重新渲染"
+      },
+      "status_processing": {
+        "text": "正在准备源代码…"
+      },
+      "status_rendering": {
+        "text": "正在渲染视频..."
+      },
+      "subtitle": {
+        "text": "Remotion · v{version} · {status}"
+      },
+      "view_code": {
+        "text": "代码"
+      },
+      "view_timeline": {
+        "text": "时间轴"
+      },
+      "view_video": {
+        "text": "视频"
       }
     }
   },

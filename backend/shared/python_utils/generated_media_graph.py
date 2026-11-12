@@ -63,13 +63,15 @@ COMPLETION_RESULT_FIELDS = frozenset({
     "thread_length_m", "hoop", "fits_hoop", "fabric", "reworked", "threads", "notes",
     # images.generate revision: which version of the existing image this change made.
     "version", "previous_version", "revision_note",
+    # videos.generate: how the video was made and what it shows.
+    "made_by", "routing_decided_by", "width", "height", "fps", "source_titles", "author_model",
 })
 
 _INLINE_CARD_SKILLS = frozenset({("nutrition", "search_recipes"), ("design", "search_icons")})
 _GENERATED_OUTPUT_SKILLS = frozenset({
     ("images", "generate"), ("images", "generate_draft"), ("images", "vectorize"), ("images", "modify"),
     ("audio", "generate"), ("audio", "speak"), ("music", "generate"),
-    ("videos", "generate"), ("videos", "create"), ("models3d", "generate"),
+    ("videos", "generate"), ("models3d", "generate"),
     ("code", "image_to_html"), ("design", "embroidery"),
 })
 _OUTPUT_REF_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._~:-]{0,127}\Z")

@@ -59,6 +59,10 @@ def test_real_provider_catalogue_supplies_current_text_image_video_and_audio_con
     assert "GPT-6.1 Sol" in context
     assert "Claude Opus 5.5" in context
     assert "GPT Image 2" in context
-    assert "Veo 3.1" in context
+    # Gemini Omni (released 2026-11-01) replaced the shut-down Veo previews; unreleased on this date.
+    assert "Gemini Omni 1.2 Flash" not in context
+    assert "Veo" not in context
+    video_context = build_ai_model_catalogue_context(provider_configs, ["video"], today=date(2026, 11, 12))
+    assert "Gemini Omni 1.2 Flash" in video_context
     assert "ElevenLabs Flash v2.5" in context
     assert len(context) < 8_000

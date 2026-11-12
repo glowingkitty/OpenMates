@@ -47,7 +47,7 @@
     /** Visible, safe result metadata only; never encryption keys or transport records. */
     result: Record<string, unknown>;
     summary?: Snippet;
-    media?: Snippet;
+    media?: Snippet<[ResultFollowupChannel]>;
     /** Receives the follow-up channel so detail controls can send ordinary follow-up turns. */
     detailContent?: Snippet<[ResultFollowupChannel]>;
     identity?: Snippet;
@@ -216,7 +216,7 @@
           data-testid="result-media"
         >
           {#if media}<div class="result-media-panel">
-              {@render media()}
+              {@render media({ requestFollowup: (value) => submitFollowup(value, []), submitting })}
             </div>{/if}
           {#if hasMap}
             <div class="result-map" data-testid="result-map">

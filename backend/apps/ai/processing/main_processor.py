@@ -1362,7 +1362,6 @@ ASYNC_SKILLS = ASYNC_SKILL_INLINE_WAIT_SKILLS | {
     ("images", "modify"),
     ("models3d", "generate"),
     ("music", "generate"),
-    ("videos", "create"),
     ("videos", "generate"),
 }
 VARIABLE_RESULT_BILLING_SKILLS = {("code", "image_to_html"), ("audio", "generate"), ("audio", "speak"), ("web", "read")}
@@ -1378,13 +1377,11 @@ def _ordered_async_task_ids(async_result: Dict[str, Any]) -> List[str]:
 
 
 def _is_async_skill_dispatch_result(app_id: str, skill_id: str, result: Dict[str, Any]) -> bool:
-    """Accept Remotion's rendering state only for the registered videos.create producer."""
+    """Accept only the processing state for an async skill dispatch."""
     if not (result.get("task_id") or result.get("task_ids")):
         return False
     status = result.get("status")
-    return status == "processing" or (
-        (app_id, skill_id) == ("videos", "create") and status == "rendering"
-    )
+    return status == "processing"
 
 
 def _is_async_skill_blocked_in_orchestration(
@@ -12168,6 +12165,27 @@ async def handle_main_processing(
                             app_id=app_id, skill_id=skill_id,
                             results=results_with_refs, authored_embeds=updated_embed_data_list,
                         ))
+                    # Exact refs of this turn's finished search results, so a later call in the
+                    # same turn (videos.generate pictures) can name a result by its embed_ref.
+                    from backend.shared.python_utils.result_pictures import collect_result_ref_index
+                    result_ref_index: Dict[str, str] = {}
+                    if is_multiple_requests and grouped_results:
+                        for authored_embed in updated_embed_data_list:
+                            group = grouped_by_id.get(str(authored_embed.get("request_id")))
+                            if group and isinstance(group.get("results"), list):
+                                result_ref_index.update(collect_result_ref_index(
+                                    app_id=app_id, skill_id=skill_id,
+                                    results=group["results"], authored_embeds=[authored_embed],
+                                ))
+                    else:
+                        result_ref_index = collect_result_ref_index(
+                            app_id=app_id, skill_id=skill_id,
+                            results=results_with_refs, authored_embeds=updated_embed_data_list,
+                        )
+                    if result_ref_index:
+                        request_data.embed_file_path_index = {
+                            **result_ref_index, **(request_data.embed_file_path_index or {}),
+                        }
 
                 # NOTE: With new embeds architecture, embed references are streamed as chunks
                 # We still track tool_call_info for TOON code block (for backward compatibility and follow-up questions)

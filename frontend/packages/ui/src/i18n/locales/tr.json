@@ -1654,7 +1654,7 @@
       "generate": {
         "text": "Oluştur",
         "description": {
-          "text": "Metin isteminden kısa bir yapay zeka videosu oluştur."
+          "text": "Açıklamandan ve sohbetteki görsellerden yapay zeka çekimi ya da birebir oluşturulmuş kısa bir video yap."
         }
       },
       "create": {
@@ -8173,6 +8173,181 @@
         "no_video": {
           "text": "Bu çalıştırma için video yok"
         }
+      }
+    },
+    "video_generate": {
+      "apply": {
+        "text": "Uygula"
+      },
+      "cancel": {
+        "text": "İptal"
+      },
+      "clip": {
+        "text": "Klip"
+      },
+      "discard": {
+        "text": "Vazgeç"
+      },
+      "discard_confirm": {
+        "text": "Bekleyen değişiklikler silinsin mi?"
+      },
+      "edit_hint": {
+        "text": "Düzenlemek için zaman çizelgesinden bir bölüm seç."
+      },
+      "edit_part": {
+        "text": "{label} düzenle"
+      },
+      "extend_empty": {
+        "text": "Önce eklenen bölümde ne olması gerektiğini anlat."
+      },
+      "extend_end": {
+        "text": "Videoyu sondan uzat"
+      },
+      "extend_placeholder_end": {
+        "text": "Sondan sonra eklenen klipte ne olmalı?"
+      },
+      "extend_placeholder_start": {
+        "text": "Baştan önce eklenen klipte ne olmalı?"
+      },
+      "extend_start": {
+        "text": "Videoyu baştan uzat"
+      },
+      "keep_editing": {
+        "text": "Düzenlemeye devam et"
+      },
+      "kind_composed": {
+        "text": "Birleştirilmiş video"
+      },
+      "kind_generative": {
+        "text": "Oluşturulan video"
+      },
+      "load_error": {
+        "text": "Video yüklenemedi"
+      },
+      "loading": {
+        "text": "Video yükleniyor..."
+      },
+      "model": {
+        "text": "Model"
+      },
+      "new_length": {
+        "text": "Yeni süre {length}"
+      },
+      "part_aria": {
+        "text": "{label}, {start} – {end} arası"
+      },
+      "pending_changes": {
+        "text": "Bekleyen değişiklikler: {count}"
+      },
+      "progress_deciding": {
+        "text": "Videonun nasıl yapılacağına karar veriliyor…"
+      },
+      "progress_writing": {
+        "text": "Kompozisyon yazılıyor…"
+      },
+      "progress_rendering": {
+        "text": "Video işleniyor…"
+      },
+      "progress_correcting": {
+        "text": "Video düzeltiliyor…"
+      },
+      "progress_generating": {
+        "text": "Klip oluşturuluyor…"
+      },
+      "prompt": {
+        "text": "İstem"
+      },
+      "remove_last_hint": {
+        "text": "Son bölüm kaldırılamaz."
+      },
+      "remove_part": {
+        "text": "Bölümü kaldır"
+      },
+      "request_change_text": {
+        "text": "Bölüm {label} (id {id}): {text} metnini {from} yerine {to} olarak değiştir"
+      },
+      "request_remove_part": {
+        "text": "{label} bölümünü kaldır (id {id})"
+      },
+      "request_shorten_end": {
+        "text": "Bölüm {label} (id {id}): sondan {seconds} s kısalt"
+      },
+      "request_shorten_start": {
+        "text": "Bölüm {label} (id {id}): baştan {seconds} s kısalt"
+      },
+      "request_trim_video": {
+        "text": "Videoyu kırp: baştan {start} s ve sondan {end} s kaldır"
+      },
+      "request_trim_video_end": {
+        "text": "Videoyu kırp: sondan {end} s kaldır"
+      },
+      "request_trim_video_start": {
+        "text": "Videoyu kırp: baştan {start} s kaldır"
+      },
+      "resolution": {
+        "text": "Çözünürlük"
+      },
+      "restore_part": {
+        "text": "Bölümü geri yükle"
+      },
+      "send": {
+        "text": "Gönder"
+      },
+      "shorten_end": {
+        "text": "Sondan kısalt"
+      },
+      "shorten_less": {
+        "text": "0.5 s geri ver"
+      },
+      "shorten_more": {
+        "text": "0.5 s kısalt"
+      },
+      "shorten_start": {
+        "text": "Baştan kısalt"
+      },
+      "sources": {
+        "text": "Kaynaklar"
+      },
+      "timeline": {
+        "text": "Video zaman çizelgesi"
+      },
+      "trim_video": {
+        "text": "Videoyu kırp"
+      }
+    },
+    "video_create": {
+      "not_available": {
+        "text": "Video henüz mevcut değil."
+      },
+      "status_cancelled": {
+        "text": "İşleme durduruldu"
+      },
+      "status_error": {
+        "text": "İşleme başarısız"
+      },
+      "status_finished": {
+        "text": "Tamamlandı"
+      },
+      "status_needs_rerender": {
+        "text": "Yeniden işlenmeli"
+      },
+      "status_processing": {
+        "text": "Kaynak hazırlanıyor…"
+      },
+      "status_rendering": {
+        "text": "Video işleniyor..."
+      },
+      "subtitle": {
+        "text": "Remotion · v{version} · {status}"
+      },
+      "view_code": {
+        "text": "Kod"
+      },
+      "view_timeline": {
+        "text": "Zaman çizelgesi"
+      },
+      "view_video": {
+        "text": "Video"
       }
     }
   },

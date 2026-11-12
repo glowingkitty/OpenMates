@@ -1509,19 +1509,7 @@ capabilities:
         - prompt: simple slow pan across a blue gradient background
           duration_seconds: 4
           resolution: 720p
-          model: veo-3.1-fast-generate-preview
-    output_schema: *generation_output
-  videos.create:
-    available: true
-    execution_mode: sandbox
-    effect: generate
-    unattended: true
-    approval: side_effect_confirmation
-    binding_requirements: [none]
-    test_allowed: true
-    test_example_input:
-      source: export default function Video(){return null;}
-      filename: WorkflowTest.tsx
+          model: gemini-omni-1.2-flash
     output_schema: *generation_output
   videos.get_transcript:
     available: true

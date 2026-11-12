@@ -5,7 +5,7 @@
   "source_snapshots": [
     {
       "path": "frontend/packages/openmates-cli/src/cli.ts",
-      "sha256": "998fd159bc6feb16b3d94ecbaadbcb378da5bcbf80b20d148c1fe1fa5165085c"
+      "sha256": "9368b48ab3a1eda82362f1a2cbde894bd9dfe7a08c3484fd74766a3bcfbac6ec"
     },
     {
       "path": "frontend/packages/openmates-cli/src/server.ts",
@@ -21,7 +21,7 @@
     },
     {
       "path": "frontend/packages/openmates-cli/src/generated/appSkills.ts",
-      "sha256": "fff96a1192dd317aecab9e81855340ce3450731516c348c9671171835f0bcab5"
+      "sha256": "8cbc12d05e2f7140a77f49f35ebfa622f178d2d86712264cb5d2683e73c52eb1"
     },
     {
       "path": "frontend/packages/openmates-cli/src/generatedFiles.ts",
@@ -29,7 +29,7 @@
     },
     {
       "path": "frontend/packages/openmates-cli/src/tasksCli.ts",
-      "sha256": "aacac373ed14b5d4652fc399d6f80f5ec94da6ea0b0beee0d46c138d4006c21f"
+      "sha256": "d02fcb23b955cfb1456e9a1feb3c1f91ed33a608356572b20c931649e7ac0077"
     },
     {
       "path": "frontend/packages/openmates-cli/src/taskActivityHistory.ts",
@@ -2563,6 +2563,11 @@
         {
           "path": "frontend/packages/openmates-cli/src/cli.ts",
           "line": 2730
+        },
+        {
+          "path": "frontend/packages/openmates-cli/src/generated/appSkills.ts",
+          "line": 1,
+          "symbol": "APP_SKILL_METADATA:videos/generate"
         }
       ]
     },
@@ -4645,11 +4650,6 @@
         {
           "path": "frontend/packages/openmates-cli/src/generated/appSkills.ts",
           "line": 1,
-          "symbol": "APP_SKILL_METADATA:videos/create"
-        },
-        {
-          "path": "frontend/packages/openmates-cli/src/generated/appSkills.ts",
-          "line": 1,
           "symbol": "APP_SKILL_METADATA:videos/get_transcript"
         },
         {
@@ -5859,11 +5859,6 @@
           "path": "frontend/packages/openmates-cli/src/generated/appSkills.ts",
           "line": 1,
           "symbol": "APP_SKILL_METADATA:code/image_to_html"
-        },
-        {
-          "path": "frontend/packages/openmates-cli/src/generated/appSkills.ts",
-          "line": 1,
-          "symbol": "APP_SKILL_METADATA:videos/create"
         }
       ]
     },
@@ -6924,6 +6919,11 @@
         {
           "path": "frontend/packages/openmates-cli/src/server.ts",
           "line": 4232
+        },
+        {
+          "path": "frontend/packages/openmates-cli/src/generated/appSkills.ts",
+          "line": 1,
+          "symbol": "APP_SKILL_METADATA:videos/generate"
         }
       ]
     },
@@ -7544,11 +7544,6 @@
         {
           "path": "frontend/packages/openmates-cli/src/generated/appSkills.ts",
           "line": 1,
-          "symbol": "APP_SKILL_METADATA:videos/create"
-        },
-        {
-          "path": "frontend/packages/openmates-cli/src/generated/appSkills.ts",
-          "line": 1,
           "symbol": "APP_SKILL_METADATA:videos/get_transcript"
         },
         {
@@ -7593,6 +7588,11 @@
           "path": "frontend/packages/openmates-cli/src/generated/appSkills.ts",
           "line": 1,
           "symbol": "APP_SKILL_METADATA"
+        },
+        {
+          "path": "frontend/packages/openmates-cli/src/generated/appSkills.ts",
+          "line": 1,
+          "symbol": "APP_SKILL_METADATA:videos/generate"
         }
       ]
     },
@@ -7631,6 +7631,11 @@
         {
           "path": "frontend/packages/openmates-cli/src/cli.ts",
           "line": 2807
+        },
+        {
+          "path": "frontend/packages/openmates-cli/src/generated/appSkills.ts",
+          "line": 1,
+          "symbol": "APP_SKILL_METADATA:videos/generate"
         }
       ]
     },
@@ -11678,6 +11683,11 @@
           "path": "frontend/packages/openmates-cli/src/generated/appSkills.ts",
           "line": 1,
           "symbol": "APP_SKILL_METADATA:music/generate"
+        },
+        {
+          "path": "frontend/packages/openmates-cli/src/generated/appSkills.ts",
+          "line": 1,
+          "symbol": "APP_SKILL_METADATA:videos/generate"
         }
       ]
     },
@@ -12857,11 +12867,6 @@
         {
           "path": "frontend/packages/openmates-cli/src/generated/appSkills.ts",
           "line": 1,
-          "symbol": "APP_SKILL_METADATA:videos/create"
-        },
-        {
-          "path": "frontend/packages/openmates-cli/src/generated/appSkills.ts",
-          "line": 1,
           "symbol": "APP_SKILL_METADATA:videos/get_transcript"
         },
         {
@@ -13184,11 +13189,6 @@
           "path": "frontend/packages/openmates-cli/src/generated/appSkills.ts",
           "line": 1,
           "symbol": "APP_SKILL_METADATA:videos/generate"
-        },
-        {
-          "path": "frontend/packages/openmates-cli/src/generated/appSkills.ts",
-          "line": 1,
-          "symbol": "APP_SKILL_METADATA:videos/create"
         },
         {
           "path": "frontend/packages/openmates-cli/src/generated/appSkills.ts",
@@ -13555,11 +13555,6 @@
           "path": "frontend/packages/openmates-cli/src/generated/appSkills.ts",
           "line": 1,
           "symbol": "APP_SKILL_METADATA:videos/generate"
-        },
-        {
-          "path": "frontend/packages/openmates-cli/src/generated/appSkills.ts",
-          "line": 1,
-          "symbol": "APP_SKILL_METADATA:videos/create"
         },
         {
           "path": "frontend/packages/openmates-cli/src/generated/appSkills.ts",
@@ -14720,11 +14715,6 @@
           "path": "frontend/packages/openmates-cli/src/generated/appSkills.ts",
           "line": 1,
           "symbol": "APP_SKILL_METADATA:reminder/set-reminder"
-        },
-        {
-          "path": "frontend/packages/openmates-cli/src/generated/appSkills.ts",
-          "line": 1,
-          "symbol": "APP_SKILL_METADATA:videos/generate"
         }
       ]
     },
@@ -16942,11 +16932,6 @@
           "path": "frontend/packages/openmates-cli/src/cli.ts",
           "line": 9306,
           "symbol": "SETTINGS_COMMANDS"
-        },
-        {
-          "path": "frontend/packages/openmates-cli/src/generated/appSkills.ts",
-          "line": 1,
-          "symbol": "APP_SKILL_METADATA:videos/create"
         }
       ]
     },
@@ -17074,6 +17059,19 @@
         {
           "path": "frontend/packages/openmates-cli/src/server.ts",
           "line": 2463
+        }
+      ]
+    },
+    {
+      "long": "source-video",
+      "arity": "value",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "frontend/packages/openmates-cli/src/generated/appSkills.ts",
+          "line": 1,
+          "symbol": "APP_SKILL_METADATA:videos/generate"
         }
       ]
     },
@@ -29367,89 +29365,9 @@
       "path": [
         "apps",
         "videos",
-        "create"
-      ],
-      "summary": "Create deterministic code-backed videos with Remotion. Use this for text slides, product announcements, diagrams, charts, UI-like motion graphics, or branded videos where exact text and layout matter. The assistant must write an explicit ```remotion:Name.tsx fence; do not use this for photorealistic footage or generic TSX components.",
-      "usages": [
-        "apps videos create [value]"
-      ],
-      "positionals": [
-        {
-          "name": "value",
-          "required": false,
-          "variadic": false,
-          "at": 3,
-          "synopsis": "[value]"
-        }
-      ],
-      "flags": [
-        "api-key",
-        "api-url",
-        "disable-prompt-injection-protection",
-        "filename",
-        "help",
-        "input",
-        "json",
-        "no-download",
-        "output",
-        "output-dir",
-        "overwrite",
-        "profile",
-        "source"
-      ],
-      "source_locations": [
-        {
-          "path": "frontend/packages/openmates-cli/src/generated/appSkills.ts",
-          "line": 1,
-          "symbol": "APP_SKILL_METADATA:videos/create"
-        }
-      ],
-      "skill_schema": {
-        "type": "object",
-        "properties": {
-          "source": {
-            "x-ui": {
-              "basic": true
-            },
-            "type": "string",
-            "description": "Remotion TSX source code to render."
-          },
-          "filename": {
-            "x-ui": {
-              "basic": true
-            },
-            "type": "string",
-            "description": "Source filename, for example ProductAnnouncement.tsx."
-          }
-        },
-        "required": [
-          "source"
-        ]
-      },
-      "app": "videos",
-      "skill": "create",
-      "implementation": {
-        "parser": "native_clap",
-        "handler": "client.run_app_skill",
-        "status": "partial",
-        "module": "frontend/packages/openmates-tui-native/src/cli/handlers.rs"
-      },
-      "gaps": [
-        "Formatting, option variants, and complete protocol parity require validation."
-      ],
-      "platforms": {
-        "linux": "not_verified",
-        "macos": "not_verified",
-        "windows": "not_verified"
-      }
-    },
-    {
-      "path": [
-        "apps",
-        "videos",
         "generate"
       ],
-      "summary": "Generate short photorealistic or generative footage from text prompts using Google Veo. Use this when the user asks for cinematic footage, realistic scenes, camera movement, stylized animation, or non-deterministic video generation. Do not use this for exact text slides, product announcements, diagrams, charts, UI-like motion graphics, or branded videos where exact text and layout matter; those requests should use videos.create with an explicit ```remotion:Name.tsx fence instead. Do not use this",
+      "summary": "Make any short video from a natural-language instruction, optionally with up to 12 pictures from this chat (uploads, generated images, vector graphics, image/web/news/video search results with a picture). Each request is made either as a generative clip (invented realistic or stylized footage, camera movement, animating one picture) or as a composed, code-rendered video (exact texts and titles, lists, numbers, charts, diagrams, slideshows or recaps of the given pictures, anything based on search",
       "usages": [
         "apps videos generate [value]"
       ],
@@ -29466,21 +29384,25 @@
         "api-key",
         "api-url",
         "aspect-ratio",
+        "change",
         "disable-prompt-injection-protection",
         "duration-seconds",
         "help",
+        "images",
         "input",
         "input-embed-ids",
+        "instructions",
         "json",
+        "mode",
         "model",
         "no-download",
         "output",
         "output-dir",
         "overwrite",
         "profile",
-        "prompt",
         "resolution",
-        "seed"
+        "seed",
+        "source-video"
       ],
       "source_locations": [
         {
@@ -29497,16 +29419,41 @@
               "basic": true
             },
             "type": "array",
-            "description": "REQUIRED array of video generation request objects.",
+            "description": "REQUIRED array of video request objects, one per video.",
             "items": {
               "type": "object",
               "properties": {
-                "prompt": {
+                "instructions": {
                   "x-ui": {
                     "basic": true
                   },
                   "type": "string",
-                  "description": "Detailed text description of the video to generate."
+                  "maxLength": 4000,
+                  "description": "Natural-language description of the whole video: what it shows, texts, order, style, mood and pacing. For a composed video name the exact texts to show.\n"
+                },
+                "images": {
+                  "x-ui": {
+                    "basic": true
+                  },
+                  "type": "array",
+                  "maxItems": 12,
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Optional exact embed_refs of pictures in this chat to use, in the order they should appear: uploads, generated images, vector graphics, or search results with a picture (image, web, news or video search). A generative clip can start from one picture only.\n"
+                },
+                "mode": {
+                  "x-ui": {
+                    "basic": true
+                  },
+                  "type": "string",
+                  "enum": [
+                    "auto",
+                    "generative",
+                    "composed"
+                  ],
+                  "default": "auto",
+                  "description": "auto decides per request. generative = invented footage from a video model. composed = exact, code-rendered video (texts, charts, slideshows, several pictures).\n"
                 },
                 "aspect_ratio": {
                   "x-ui": {
@@ -29515,51 +29462,34 @@
                   "type": "string",
                   "enum": [
                     "16:9",
-                    "9:16"
+                    "9:16",
+                    "1:1"
                   ],
-                  "default": "16:9"
+                  "default": "16:9",
+                  "description": "1:1 is available for composed videos only."
                 },
                 "duration_seconds": {
                   "x-ui": {
                     "basic": true
                   },
                   "type": "integer",
-                  "enum": [
-                    4,
-                    5,
-                    6,
-                    8
-                  ],
-                  "default": 8
+                  "minimum": 2,
+                  "maximum": 60,
+                  "description": "Optional length. Generative clips last 3 to 15 seconds (default 8); composed videos 2 to 60; a clip added by extend_start or extend_end 3 to 10."
                 },
                 "resolution": {
                   "x-ui": {
-                    "basic": true
+                    "basic": false
                   },
                   "type": "string",
                   "enum": [
+                    "360p",
                     "480p",
                     "720p",
                     "1080p",
                     "4k"
                   ],
-                  "default": "720p"
-                },
-                "input_embed_ids": {
-                  "type": "array",
-                  "maxItems": 1,
-                  "items": {
-                    "type": "string",
-                    "format": "uuid"
-                  },
-                  "description": "Optional first-frame image embed UUID, owned by the authenticated caller. H3 only; the output follows this image canvas."
-                },
-                "seed": {
-                  "x-ui": {
-                    "basic": false
-                  },
-                  "type": "integer",
-                  "description": "Optional seed for more reproducible output when supported."
+                  "description": "Generative Gemini Omni clips 360p, 720p, 1080p or 4k (default 720p); H3 is fixed 480p."
                 },
                 "model": {
                   "x-ui": {
@@ -29567,17 +29497,52 @@
                   },
                   "type": "string",
                   "enum": [
-                    "veo-3.1-generate-preview",
-                    "veo-3.1-fast-generate-preview",
-                    "veo-3.0-generate-001",
+                    "gemini-omni-1.2-flash",
                     "minimax/h3-max-turbo/image-to-video"
                   ],
-                  "description": "H3 is available in authenticated chats/calls with fixed 5-second 480p clips. REST supports Veo only.",
-                  "default": "veo-3.1-generate-preview"
+                  "description": "Only for generative clips; naming a model makes the request generative. H3 (fixed 5-second 480p clips from one picture) is available in authenticated chats; REST supports Gemini Omni only.\n"
+                },
+                "seed": {
+                  "x-ui": {
+                    "basic": false
+                  },
+                  "type": "integer",
+                  "description": "Optional seed for more reproducible generative output when supported."
+                },
+                "source_video": {
+                  "x-ui": {
+                    "basic": false
+                  },
+                  "type": "string",
+                  "description": "Exact embed_ref of an earlier videos-generate result to change. Use with change.\n"
+                },
+                "change": {
+                  "x-ui": {
+                    "basic": false
+                  },
+                  "type": "string",
+                  "enum": [
+                    "edit",
+                    "extend_start",
+                    "extend_end"
+                  ],
+                  "description": "How source_video changes (it becomes the next version of the same video): edit applies the instructions to it, extend_start adds a new generated clip before it, extend_end adds one after it (only for videos made of generated clips).\n"
+                },
+                "input_embed_ids": {
+                  "x-ui": {
+                    "basic": false
+                  },
+                  "type": "array",
+                  "maxItems": 1,
+                  "items": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "description": "Former first-frame field (one image embed UUID, H3 only). Prefer images."
                 }
               },
               "required": [
-                "prompt"
+                "instructions"
               ]
             }
           }
@@ -64087,9 +64052,9 @@
     "Remote command protection is Linux-specific; unsupported hosts must fail closed."
   ],
   "coverage": {
-    "command_patterns": 746,
-    "flags": 611,
-    "native_handlers_partial": 741,
+    "command_patterns": 745,
+    "flags": 624,
+    "native_handlers_partial": 740,
     "unsupported": 5,
     "feature_complete": false
   },

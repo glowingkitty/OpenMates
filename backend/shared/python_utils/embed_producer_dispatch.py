@@ -120,8 +120,6 @@ async def dispatch_authorized_direct_skill_task(
     if principal is None:
         raise RuntimeError("Authenticated direct skill principal is missing")
     expected_name = f"apps.{principal.app_id}.tasks.skill_{principal.skill_id}"
-    if principal.app_id == "videos" and principal.skill_id == "create":
-        expected_name = "apps.videos.tasks.render_remotion"
     if (
         task_name != expected_name or owner_id != principal.owner_id
         or hashlib.sha256(owner_id.encode()).hexdigest() != principal.owner_hash
