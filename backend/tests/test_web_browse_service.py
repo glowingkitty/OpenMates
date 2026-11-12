@@ -1440,6 +1440,15 @@ async def test_nothing_matched_or_unfinished_interaction_needs_the_user(service,
     assert result.missing == [] and not result.observations
     # Nothing code-matched means no review call at all.
     assert len(reviews) == (0 if case == "nothing_matched" else 1)
+    # Content-free counts say which check decided the outcome.
+    counts = result.metrics["verification"]
+    assert counts["answer_extracted"] == 1.0
+    assert counts["answer_matched_values"] == (
+        0.0 if case == "nothing_matched" else 1.0
+    )
+    assert counts["answer_unmatched_values"] == (
+        2.0 if case == "nothing_matched" else 0.0
+    )
 
 
 # contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.truthful-completion

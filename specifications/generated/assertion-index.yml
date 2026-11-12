@@ -50208,7 +50208,7 @@ assertions:
       surface: rest_api
     - &id6256
       path: backend/tests/test_web_browse_service.py
-      line: 1449
+      line: 1458
       name: test_a_large_code_matched_answer_rejected_by_jev_completes_after_review
       surface: rest_api
     - &id6257
@@ -50449,22 +50449,22 @@ assertions:
       surface: rest_api
     - &id6282
       path: backend/tests/test_web_browse_service.py
-      line: 1527
+      line: 1536
       name: test_a_new_task_on_the_session_starts_with_an_empty_ledger
       surface: rest_api
     - &id6283
       path: backend/tests/test_web_browse_service.py
-      line: 1729
+      line: 1738
       name: test_existing_session_resumes_with_observe_and_rejects_an_old_runtime
       surface: rest_api
     - &id6284
       path: backend/tests/test_web_browse_service.py
-      line: 1795
+      line: 1804
       name: test_a_fourth_browser_pauses_the_least_recently_used_idle_ai_browser
       surface: rest_api
     - &id6285
       path: backend/tests/test_web_browse_service.py
-      line: 1809
+      line: 1818
       name: test_browsers_under_the_users_control_are_never_paused_to_make_room
       surface: rest_api
     - &id6286
@@ -50682,27 +50682,27 @@ assertions:
       surface: rest_api
     - &id6319
       path: backend/tests/test_web_browse_service.py
-      line: 1486
+      line: 1495
       name: test_verification_sees_the_runs_executed_steps_without_typed_text
       surface: rest_api
     - &id6320
       path: backend/tests/test_web_browse_service.py
-      line: 1575
+      line: 1584
       name: test_plan_error_code_and_dropped_notes_reach_the_run_metrics
       surface: rest_api
     - &id6321
       path: backend/tests/test_web_browse_service.py
-      line: 1602
+      line: 1611
       name: test_planner_block_needs_the_user_and_keeps_the_browser_running
       surface: rest_api
     - &id6322
       path: backend/tests/test_web_browse_service.py
-      line: 1623
+      line: 1632
       name: test_unsafe_action_in_a_batch_sends_no_step
       surface: rest_api
     - &id6323
       path: backend/tests/test_web_browse_service.py
-      line: 1650
+      line: 1659
       name: test_uncertain_step_outcome_needs_the_user_and_is_never_retried
       surface: rest_api
     - &id6324
@@ -50872,7 +50872,7 @@ assertions:
       surface: rest_api
     - &id6340
       path: backend/tests/test_web_browse_service.py
-      line: 1575
+      line: 1584
       name: test_plan_error_code_and_dropped_notes_reach_the_run_metrics
       surface: rest_api
     tests:
@@ -51009,22 +51009,22 @@ assertions:
       surface: rest_api
     - &id6360
       path: backend/tests/test_web_browse_service.py
-      line: 1449
+      line: 1458
       name: test_a_large_code_matched_answer_rejected_by_jev_completes_after_review
       surface: rest_api
     - &id6361
       path: backend/tests/test_web_browse_service.py
-      line: 1486
+      line: 1495
       name: test_verification_sees_the_runs_executed_steps_without_typed_text
       surface: rest_api
     - &id6362
       path: backend/tests/test_web_browse_service.py
-      line: 1527
+      line: 1536
       name: test_a_new_task_on_the_session_starts_with_an_empty_ledger
       surface: rest_api
     - &id6363
       path: backend/tests/test_web_browse_service.py
-      line: 1752
+      line: 1761
       name: test_partial_answer_drops_rows_that_lost_as_many_values_as_they_kept
       surface: rest_api
     - &id6364
@@ -51256,22 +51256,22 @@ assertions:
       surface: rest_api
     - &id6387
       path: backend/tests/test_web_browse_service.py
-      line: 1623
+      line: 1632
       name: test_unsafe_action_in_a_batch_sends_no_step
       surface: rest_api
     - &id6388
       path: backend/tests/test_web_browse_service.py
-      line: 1650
+      line: 1659
       name: test_uncertain_step_outcome_needs_the_user_and_is_never_retried
       surface: rest_api
     - &id6389
       path: backend/tests/test_web_browse_service.py
-      line: 1716
+      line: 1725
       name: test_manual_control_reads_live_frames_from_the_runtime
       surface: rest_api
     - &id6390
       path: backend/tests/test_web_browse_service.py
-      line: 1809
+      line: 1818
       name: test_browsers_under_the_users_control_are_never_paused_to_make_room
       surface: rest_api
     - &id6391
@@ -51371,7 +51371,7 @@ assertions:
       surface: rest_api
     - &id6400
       path: backend/tests/test_web_browse_service.py
-      line: 1602
+      line: 1611
       name: test_planner_block_needs_the_user_and_keeps_the_browser_running
       surface: rest_api
     - &id6401
@@ -51503,22 +51503,22 @@ assertions:
       surface: rest_api
     - &id6418
       path: backend/tests/test_web_browse_service.py
-      line: 1602
+      line: 1611
       name: test_planner_block_needs_the_user_and_keeps_the_browser_running
       surface: rest_api
     - &id6419
       path: backend/tests/test_web_browse_service.py
-      line: 1685
+      line: 1694
       name: test_live_view_during_an_ai_run_never_waits_on_the_lease_or_the_runtime
       surface: rest_api
     - &id6420
       path: backend/tests/test_web_browse_service.py
-      line: 1729
+      line: 1738
       name: test_existing_session_resumes_with_observe_and_rejects_an_old_runtime
       surface: rest_api
     - &id6421
       path: backend/tests/test_web_browse_service.py
-      line: 1795
+      line: 1804
       name: test_a_fourth_browser_pauses_the_least_recently_used_idle_ai_browser
       surface: rest_api
     - &id6422
@@ -51686,7 +51686,7 @@ assertions:
       surface: rest_api
     - &id6442
       path: backend/tests/test_web_browse_service.py
-      line: 1667
+      line: 1676
       name: test_budget_is_admitted_before_the_planner_call
       surface: rest_api
     - &id6443
@@ -51945,7 +51945,7 @@ assertions:
       surface: rest_api
     - &id6483
       path: backend/tests/test_web_browse_service.py
-      line: 1667
+      line: 1676
       name: test_budget_is_admitted_before_the_planner_call
       surface: rest_api
     - &id6484
@@ -52273,17 +52273,17 @@ assertions:
       surface: rest_api
     - &id6521
       path: backend/tests/test_web_browse_service.py
-      line: 1486
+      line: 1495
       name: test_verification_sees_the_runs_executed_steps_without_typed_text
       surface: rest_api
     - &id6522
       path: backend/tests/test_web_browse_service.py
-      line: 1685
+      line: 1694
       name: test_live_view_during_an_ai_run_never_waits_on_the_lease_or_the_runtime
       surface: rest_api
     - &id6523
       path: backend/tests/test_web_browse_service.py
-      line: 1716
+      line: 1725
       name: test_manual_control_reads_live_frames_from_the_runtime
       surface: rest_api
     - &id6524

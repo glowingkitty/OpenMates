@@ -547,6 +547,17 @@ class BrowseRun:
             self.stage["verify_seconds"] += time.monotonic() - started
         check = check_answer(data, self.schema, self.ledger, observation)
         validator = Draft202012Validator(self.schema)
+        # Content-free counts that show which check decided the outcome.
+        verification = getattr(self.models, "verification", None)
+        if isinstance(verification, dict):
+            verification.update(
+                answer_extracted=float(data is not None),
+                answer_matched_values=float(check.matched),
+                answer_unmatched_values=float(len(check.unmatched)),
+                answer_pruned_valid=float(
+                    data is not None and validator.is_valid(check.pruned)
+                ),
+            )
         if verified:
             if getattr(self.models, "no_results", False):
                 self.finish("no_results", "The page reported no matching results.")
