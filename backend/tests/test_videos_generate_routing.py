@@ -173,3 +173,32 @@ def test_assistant_tool_schema_offers_nothing_that_implies_a_route():
     _drop_assistant_hidden_properties(schema)
     offered = set(schema["properties"]["requests"]["items"]["properties"])
     assert not offered & {"mode", "model", "input_embed_ids"}
+
+
+# contract-test: supporting surface=gui.web assertions=videos-generate.composed.sound
+def test_audio_and_music_skills_leave_a_videos_sound_to_videos_generate():
+    """A video's voice-over, sound effects and music are made inside videos.generate, not by separate skill calls."""
+    from pathlib import Path
+
+    import yaml
+
+    apps = Path(__file__).resolve().parents[1] / "apps"
+    hints = {}
+    for app_id, skill_ids in (("audio", ("generate", "speak")), ("music", ("generate",))):
+        app = yaml.safe_load((apps / app_id / "app.yml").read_text())
+        for skill in app["skills"]:
+            if skill["id"] in skill_ids:
+                hints[f"{app_id}.{skill['id']}"] = skill["preprocessor_hint"]
+    assert set(hints) == {"audio.generate", "audio.speak", "music.generate"}
+    for name, hint in hints.items():
+        assert "videos.generate makes a video's" in hint, name
+
+
+# contract-test: supporting surface=gui.web assertions=videos-generate.composed.sound
+def test_author_makes_exactly_the_requested_sounds():
+    import inspect
+
+    from backend.apps.videos.composed import prompt
+
+    text = inspect.getsource(prompt)
+    assert "Make exactly the sounds the request describes" in text

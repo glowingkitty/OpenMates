@@ -178,7 +178,9 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'description': 'Generate short, non-speech sound effects from text prompts, such as UI '
                  'confirmation ticks, gentle alerts, transitions, and product sounds. Do not use '
                  'this for spoken words, narration, vocals, voice cloning, scams, public figures, '
-                 'or deceptive media; use audio.speak for explicit speech generation.',
+                 'or deceptive media; use audio.speak for explicit speech generation. Not for the '
+                 "sound of a video: videos.generate makes a video's voice-over, sound effects and "
+                 'music itself.',
   'description_key': 'app_skills.audio.generate.description',
   'schema': {'properties': {'requests': {'description': 'REQUIRED: Array of short sound-effect '
                                                         'generation request objects.',
@@ -261,7 +263,9 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'description': 'Convert explicit user-provided text into short speech audio using an OpenMates '
                  'voice preset after a required GPT OSS safeguard approval. Do not use this for '
                  'automatic assistant voice replies, long narration, voice cloning, raw provider '
-                 'voice IDs, impersonation, scams, or deceptive speech.',
+                 'voice IDs, impersonation, scams, or deceptive speech. Not for the sound of a '
+                 "video: videos.generate makes a video's voice-over, sound effects and music "
+                 'itself.',
   'description_key': 'app_skills.audio.speak.description',
   'schema': {'properties': {'requests': {'description': 'REQUIRED: Array of explicit '
                                                         'text-to-speech request objects.',
@@ -6011,7 +6015,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                  'this when the user asks to create music or background music. Do not use this to '
                  'imitate the voice, vocals, cadence, or persona of a real public figure, living '
                  'artist, famous educator, or recognizable person. Use original voices and styles '
-                 'only, and reject scams, spam, or detection evasion.',
+                 'only, and reject scams, spam, or detection evasion. Not for the music of a '
+                 'video: videos.generate makes a',
   'description_key': 'app_skills.music.generate.description',
   'schema': {'properties': {'requests': {'description': 'REQUIRED: Array of music generation '
                                                         'request objects. Each object must\n'
@@ -10480,7 +10485,7 @@ class AudioAppSkills:
         self._run_skill = run_skill
 
     def generate(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Generate short, non-speech sound effects from text prompts, such as UI confirmation ticks, gentle alerts, transitions, and product sounds. Do not use this for spoken words, narration, vocals, voice cloning, scams, public figures, or deceptive media; use audio.speak for explicit speech generation.
+        """Generate short, non-speech sound effects from text prompts, such as UI confirmation ticks, gentle alerts, transitions, and product sounds. Do not use this for spoken words, narration, vocals, voice cloning, scams, public figures, or deceptive media; use audio.speak for explicit speech generation. Not for the sound of a video: videos.generate makes a video's voice-over, sound effects and music itself.
 
         Description key: app_skills.audio.generate.description
         Skill: audio/generate
@@ -10488,7 +10493,7 @@ class AudioAppSkills:
         return self._run_skill("audio", "generate", input_data, prompt_injection_protection=prompt_injection_protection)
 
     def speak(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Convert explicit user-provided text into short speech audio using an OpenMates voice preset after a required GPT OSS safeguard approval. Do not use this for automatic assistant voice replies, long narration, voice cloning, raw provider voice IDs, impersonation, scams, or deceptive speech.
+        """Convert explicit user-provided text into short speech audio using an OpenMates voice preset after a required GPT OSS safeguard approval. Do not use this for automatic assistant voice replies, long narration, voice cloning, raw provider voice IDs, impersonation, scams, or deceptive speech. Not for the sound of a video: videos.generate makes a video's voice-over, sound effects and music itself.
 
         Description key: app_skills.audio.speak.description
         Skill: audio/speak
@@ -10796,7 +10801,7 @@ class MusicAppSkills:
         self._run_skill = run_skill
 
     def generate(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Generate music from a text prompt, including full songs, instrumental tracks, background music, loops, jingles, lyric-based songs, and soundtrack cues. Use this when the user asks to create music or background music. Do not use this to imitate the voice, vocals, cadence, or persona of a real public figure, living artist, famous educator, or recognizable person. Use original voices and styles only, and reject scams, spam, or detection evasion.
+        """Generate music from a text prompt, including full songs, instrumental tracks, background music, loops, jingles, lyric-based songs, and soundtrack cues. Use this when the user asks to create music or background music. Do not use this to imitate the voice, vocals, cadence, or persona of a real public figure, living artist, famous educator, or recognizable person. Use original voices and styles only, and reject scams, spam, or detection evasion. Not for the music of a video: videos.generate makes a
 
         Description key: app_skills.music.generate.description
         Skill: music/generate

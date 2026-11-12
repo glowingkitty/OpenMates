@@ -91,6 +91,7 @@ skills:
       Do not use this to imitate the voice, vocals, cadence, or persona of a real
       public figure, living artist, famous educator, or recognizable person. Use
       original voices and styles only, and reject scams, spam, or detection evasion.
+      Not for the music of a video: videos.generate makes a video's music, voice-over and sound effects itself.
     class_path: backend.apps.music.skills.generate_skill.GenerateSkill
     providers:
       - Google

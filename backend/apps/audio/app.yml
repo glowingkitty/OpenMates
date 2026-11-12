@@ -240,6 +240,7 @@ skills:
       confirmation ticks, gentle alerts, transitions, and product sounds. Do not
       use this for spoken words, narration, vocals, voice cloning, scams, public
       figures, or deceptive media; use audio.speak for explicit speech generation.
+      Not for the sound of a video: videos.generate makes a video's voice-over, sound effects and music itself.
     class_path: backend.apps.audio.skills.generate_skill.GenerateSkill
     providers:
       - name: ElevenLabs
@@ -343,6 +344,7 @@ skills:
       OpenMates voice preset after a required GPT OSS safeguard approval. Do not
       use this for automatic assistant voice replies, long narration, voice
       cloning, raw provider voice IDs, impersonation, scams, or deceptive speech.
+      Not for the sound of a video: videos.generate makes a video's voice-over, sound effects and music itself.
     class_path: backend.apps.audio.skills.speak_skill.SpeakSkill
     providers:
       - name: ElevenLabs
