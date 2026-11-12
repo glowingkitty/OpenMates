@@ -419,7 +419,7 @@ class TestPlanChildInventoryPaging(unittest.IsolatedAsyncioTestCase):
 
     def method(self, kind, get_items):
         namespace = load_functions("backend/core/api/app/services/directus/user_plan_methods.py",
-            {"_list_child_collection", f"list_{kind}", "CRITERION_FIELDS", "VERIFICATION_FIELDS", "ASSUMPTION_FIELDS", "REFERENCE_PATTERN_FIELDS"})
+            {"_list_child_collection", f"list_{kind}", "CRITERION_FIELDS", "VERIFICATION_FIELDS", "ASSUMPTION_FIELDS", "REFERENCE_PATTERN_FIELDS", "PLAN_CHILD_CURSOR_SCAN_CAP"})
         value = SimpleNamespace(directus_service=SimpleNamespace(get_items=get_items))
         value._list_child_collection = lambda *args, **kwargs: namespace["_list_child_collection"](value, *args, **kwargs)
         return lambda *args, **kwargs: namespace[f"list_{kind}"](value, *args, **kwargs)
@@ -436,13 +436,13 @@ class TestPlanChildInventoryPaging(unittest.IsolatedAsyncioTestCase):
             rows = [{"id": key, "plan_id": "parent", "encrypted_text": "cipher"} for key in self.IDS]
             database = AsyncMock(return_value=rows)
             method = self.method(kind, database)
-            self.assertEqual(await method("parent", paginate=True, limit=500, cursor=self.IDS[0]), rows)
+            self.assertEqual(await method("parent", paginate=True, limit=500, cursor=self.IDS[0]), rows[1:])
             call = database.await_args
             self.assertEqual(call.args[0], collection)
             self.assertEqual(call.kwargs["params"]["filter[plan_id][_eq]"], "parent")
-            self.assertEqual(call.kwargs["params"]["filter[id][_gt]"], self.IDS[0])
+            self.assertNotIn("filter[id][_gt]", call.kwargs["params"])
             self.assertEqual(call.kwargs["params"]["sort"], "id")
-            self.assertEqual(call.kwargs["params"]["limit"], 501)
+            self.assertEqual(call.kwargs["params"]["limit"], 5001)
             self.assertTrue(call.kwargs["raise_on_error"])
             await method("parent")
             self.assertEqual(database.await_args.kwargs["params"]["sort"], "created_at")
@@ -451,6 +451,18 @@ class TestPlanChildInventoryPaging(unittest.IsolatedAsyncioTestCase):
             database.return_value = {"error": "unavailable"}
             with self.assertRaises(RuntimeError):
                 await method("parent", paginate=True)
+
+    # contract-test: supporting surface=rest_api assertions=apple-workspaces.offline-complete
+    async def test_child_second_page_with_uuid_cursor_slices_after_cursor(self):
+        rows = [{"id": key, "plan_id": "parent"} for key in self.IDS]
+        database = AsyncMock(return_value=rows)
+        method = self.method("criteria", database)
+        self.assertEqual(await method("parent", paginate=True, limit=1, cursor=self.IDS[0]), rows[1:])
+        self.assertNotIn("filter[id][_gt]", database.await_args.kwargs["params"])
+        self.assertEqual(await method("parent", paginate=True, limit=1, cursor=self.IDS[2]), [])
+        database.return_value = rows * 2000
+        with self.assertRaises(RuntimeError):
+            await method("parent", paginate=True, cursor=self.IDS[0])
 
     # contract-test: supporting surface=rest_api assertions=apple-workspaces.offline-complete,apple-workspaces.isolation
     async def test_child_route_completes_only_after_last_page_in_exact_team_context(self):

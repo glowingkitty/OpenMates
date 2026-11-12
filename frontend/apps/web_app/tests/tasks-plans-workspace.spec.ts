@@ -135,9 +135,9 @@ async function verifyPlanChildPages(page: any, apiUrl: string, planId: string): 
 				// Reuse existing ciphertext from this disposable Plan, so fixtures
 				// stay decryptable with its key and never send a plaintext child value.
 				const created = await page.request.post(`${apiUrl}/v1/user-plans/${encodeURIComponent(planId)}/${collection.path}`, {
-					data: { [collection.id]: id, [collection.field]: cipher, created_at: Date.now(), ...collection.extras }
+					data: { [collection.id]: id, [collection.field]: cipher, created_at: Math.floor(Date.now() / 1000), ...collection.extras }
 				});
-				expect(created.ok()).toBe(true);
+				expect(created.ok(), `${collection.path} create: ${created.status()} ${(await created.text()).slice(0, 300)}`).toBe(true);
 			}
 			const seen = new Set<string>();
 			let cursor: string | null = null;
@@ -147,7 +147,7 @@ async function verifyPlanChildPages(page: any, apiUrl: string, planId: string): 
 				if (cursor) params.set('cursor', cursor);
 				const url = `${apiUrl}/v1/user-plans/${encodeURIComponent(planId)}/${collection.path}?${params}`;
 				const response = await page.request.get(url);
-				expect(response.ok()).toBe(true);
+				expect(response.ok(), `${collection.path} page ${pageIndex}: GET ${url} -> ${response.status()} ${(await response.text()).slice(0, 500)}`).toBe(true);
 				const body = await response.json();
 				expect(typeof body.complete).toBe('boolean');
 				const rows = body[collection.key];
