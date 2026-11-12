@@ -206,7 +206,7 @@ verifications:
   - id: V-WEB
     kind: command
     covers: [AC-2]
-    command: ci_coordinator.py submit --mode e2e with the flag on for the capability's existing specs (until TASK-3 lands, only web-rust-core-* specs build with the flag on; see R-6)
+    command: ci_coordinator.py submit --mode e2e (e2e and component builds default to the Rust client core on; --no-web-rust-core opts out; see R-6)
   - id: V-APPLE
     kind: command
     covers: [AC-2, AC-4]
@@ -365,7 +365,7 @@ risks:
     risk: Binary size and startup cost of the full core in the iOS app and extensions.
     mitigation: Record size and cold start in TASK-1 and TASK-6 deploy messages; share one framework between app and extensions.
   - id: R-6
-    risk: The existing Playwright suite cannot run flag-on today (CI_LANE_WEB_RUST_CORE matches only web-rust-core-* specs), so the web gate is unavailable.
+    risk: Resolved by TASK-960 - e2e/component CI builds default flag-on (CI_LANE_WEB_RUST_CORE true unless --no-web-rust-core).
     mitigation: TASK-3 before the first web flip.
   - id: R-7
     risk: The TS-lines ledger check (rust_migration_yaml.py --check) still fails deploys that route a TS function without a ledger slice.

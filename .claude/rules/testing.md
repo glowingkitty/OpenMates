@@ -53,6 +53,9 @@ paths:
 - Product REST/WebSocket, CLI/SDK and browser E2E: isolated GitHub CI only (one
   browser spec per job, disposable backend, fresh accounts). Specs marked
   `reason=isolated_component_preview` use the Vite-only component profile.
+  e2e and component jobs build the web app with the Rust client core ON (as
+  dev/production serve it; job log shows `RUST-CORE-ON`); `--no-web-rust-core`
+  opts out, `--web-rust-core` is an accepted no-op. Daily reports list `web_build`.
   Flow: `sessions.py ci-source` → `ci_coordinator.py submit` →
   `ci_coordinator.py wait <id>`. Never start a second scheduler, deploy before
   E2E, or use the shared dev stack for these tests.

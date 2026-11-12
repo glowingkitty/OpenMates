@@ -355,12 +355,14 @@ def run(argv: list[str]) -> int:
                             candidate,
                             source_root=canonical,
                             prepared_builds=True,
+                            web_rust_core=True,
                         )
                     )
                 else:
                     jobs.append(queue.enqueue(
                         owner, source, batch, mode,
                         attempt, args.proof_video_profile, candidate,
+                        web_rust_core=mode == "component",
                     ))
     if args.daily:
         write_daily_manifest(

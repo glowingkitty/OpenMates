@@ -341,6 +341,11 @@ def build_report(root: Path, day: date, now: datetime | None = None) -> dict:
         "admitted_specs": len(admitted_specs),
         "held_specs": len(manifest.get("held_specs", [])) if manifest else None,
         "job_count": len(jobs), "job_states": dict(job_states), "job_modes": dict(modes),
+        # Build mode of the browser jobs: Rust client core on (default) or legacy flag-off.
+        "web_build": {
+            "rust_core_on": sum(1 for job in jobs if job["mode"] in ("e2e", "component") and job.get("web_rust_core")),
+            "rust_core_off": sum(1 for job in jobs if job["mode"] in ("e2e", "component") and not job.get("web_rust_core")),
+        },
         "failed_case_count": len(failed_cases), "failed_case_files": files.most_common(12),
         "case_counts": case_counts,
         "known_total_tests": sum(item["total"] for item in case_counts),

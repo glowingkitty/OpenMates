@@ -1802,7 +1802,12 @@ def main():
     submit.add_argument(
         "--web-rust-core",
         action="store_true",
-        help="e2e or component only: run the web app with the Rust client core on (wasm package + VITE_OPENMATES_RUST_CORE=1)",
+        help="no-op alias: e2e and component builds already use the Rust client core (as dev and production serve it)",
+    )
+    submit.add_argument(
+        "--no-web-rust-core",
+        action="store_true",
+        help="e2e or component only: build the web app with the Rust client core off (legacy configuration)",
     )
     priority = sub.add_parser("prioritize")
     priority.add_argument("id")
@@ -1940,7 +1945,8 @@ def main():
             capacity_configuration=capacity_configuration,
             case_title=args.case_title,
             runtime_seed_job=args.runtime_seed_job,
-            web_rust_core=args.web_rust_core,
+            web_rust_core=args.mode in WEB_RUST_CORE_MODES
+            and not args.no_web_rust_core,
         )
         print_receipt(
             receipts[0] if len(receipts) == 1 else receipts, as_json=args.json
