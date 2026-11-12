@@ -182,6 +182,29 @@ fn builds_the_start_body_from_the_heads_original_file() {
     );
 }
 
+// contract-test: supporting surface=sdks.rust assertions=embed-user-edits.enhance.button
+#[test]
+fn accepts_every_skill_that_stores_a_finished_image() {
+    for skill in ["generate", "generate_draft", "modify", "upload"] {
+        let mut fields = head_fields(true);
+        for field in &mut fields {
+            if field.0 == "skill_id" {
+                field.1 = json!(skill);
+            }
+        }
+        let content = toon_encode::encode_fields(&fields).expect("toon head");
+        let started = start_body(&head(), &content, &chat(), OP);
+        assert!(started.is_ok(), "{skill} image must be enhanceable");
+    }
+    let search = json!({"app_id": "images", "skill_id": "search"}).to_string();
+    assert_eq!(
+        start_body(&head(), &search, &chat(), OP).map(|_| ()),
+        Err(ImageEnhanceError::InvalidSource {
+            code: "not_an_image"
+        })
+    );
+}
+
 // contract-test: supporting surface=sdks.rust assertions=embed-user-edits.enhance.billed-once-refunded-on-failure
 #[test]
 fn refuses_team_scope_and_non_images_before_any_request() {

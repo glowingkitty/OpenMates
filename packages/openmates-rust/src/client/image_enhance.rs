@@ -353,8 +353,13 @@ fn invalid_source(code: &'static str) -> ImageEnhanceError {
 fn image_content(head_content: &str) -> ImageEnhanceResult<Map<String, Value>> {
     let content = decode_object(head_content).ok_or(invalid_source("invalid_head_content"))?;
     let text = |name: &str| content.get(name).and_then(Value::as_str);
+    // A finished generated image carries the skill that made it; the
+    // `generated_image` id is only on the placeholder written while it runs.
     if text("app_id") != Some("images")
-        || !matches!(text("skill_id"), Some("generated_image" | "upload"))
+        || !matches!(
+            text("skill_id"),
+            Some("generate" | "generate_draft" | "modify" | "generated_image" | "upload")
+        )
     {
         return Err(invalid_source("not_an_image"));
     }
