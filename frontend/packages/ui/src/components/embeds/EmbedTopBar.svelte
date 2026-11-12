@@ -40,6 +40,10 @@
     downloadHref?: string | null;
     /** Suggested filename for native anchor downloads. */
     downloadFilename?: string;
+    /** Label of the main download action; defaults to the generic "Download". */
+    downloadLabel?: string;
+    /** Optional second download in PDF format, shown next to the main download. */
+    onDownloadPdf?: () => void;
     /** Whether to show the add-to-calendar button (truthy = show). */
     showCalendar?: boolean;
     /** Whether to show the preview/render button (for markdown/HTML code embeds). */
@@ -105,6 +109,8 @@
     showDownload = false,
     downloadHref = null,
     downloadFilename = 'download',
+    downloadLabel,
+    onDownloadPdf,
     showCalendar = false,
     showPreview = false,
     showRun = false,
@@ -157,6 +163,7 @@
   const secondaryActionCount = $derived([
     (showCopy && onCopy),
     (showDownload && onDownload),
+    (showDownload && onDownloadPdf),
     onImport,
     (showCalendar && onCalendar),
     (showRun && onRun),
@@ -327,12 +334,12 @@
               data-testid="embed-download-button"
               href={downloadHref}
               download={downloadFilename}
-              aria-label={$text('common.download')}
+              aria-label={downloadLabel ?? $text('common.download')}
               ><span
                 class="clickable-icon icon_download top-button"
                 aria-hidden="true"
               ></span><span class="action-label"
-                >{$text('common.download')}</span
+                >{downloadLabel ?? $text('common.download')}</span
               ></a
             >
           {:else}
@@ -341,16 +348,34 @@
               use:tooltip
               data-testid="embed-download-button"
               onclick={onDownload}
-              aria-label={$text('common.download')}
+              aria-label={downloadLabel ?? $text('common.download')}
               ><span
                 class="clickable-icon icon_download top-button"
                 aria-hidden="true"
               ></span><span class="action-label"
-                >{$text('common.download')}</span
+                >{downloadLabel ?? $text('common.download')}</span
               ></button
             >
           {/if}
         </div>
+        {#if onDownloadPdf}
+          <div class="button-wrapper">
+            <button
+              class="header-action"
+              type="button"
+              use:tooltip
+              data-testid="embed-download-pdf-button"
+              onclick={onDownloadPdf}
+              aria-label={$text('common.download_pdf')}
+              ><span
+                class="clickable-icon icon_download top-button"
+                aria-hidden="true"
+              ></span><span class="action-label"
+                >{$text('common.download_pdf')}</span
+              ></button
+            >
+          </div>
+        {/if}
       {/if}
 
       <!-- Add to calendar -->

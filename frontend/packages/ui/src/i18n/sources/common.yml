@@ -723,6 +723,56 @@ download:
   he: הורדה
   verified_by_human: []
 
+download_pdf:
+  context: "Embed fullscreen action: download the document as a PDF file"
+  en: Download PDF
+  de: PDF herunterladen
+  zh: 下载 PDF
+  es: Descargar PDF
+  fr: Télécharger en PDF
+  pt: Baixar PDF
+  ru: Скачать PDF
+  ja: PDFをダウンロード
+  ko: PDF 다운로드
+  it: Scarica PDF
+  tr: PDF indir
+  vi: Tải xuống PDF
+  id: Unduh PDF
+  pl: Pobierz PDF
+  nl: PDF downloaden
+  ar: تحميل PDF
+  hi: PDF डाउनलोड करें
+  th: ดาวน์โหลด PDF
+  cs: Stáhnout PDF
+  sv: Ladda ned PDF
+  he: הורדת PDF
+  verified_by_human: []
+
+download_word:
+  context: "Embed fullscreen action: download the document as an editable Word (.docx) file"
+  en: Download Word
+  de: Word herunterladen
+  zh: 下载 Word
+  es: Descargar Word
+  fr: Télécharger en Word
+  pt: Baixar Word
+  ru: Скачать Word
+  ja: Wordをダウンロード
+  ko: Word 다운로드
+  it: Scarica Word
+  tr: Word indir
+  vi: Tải xuống Word
+  id: Unduh Word
+  pl: Pobierz Word
+  nl: Word downloaden
+  ar: تحميل Word
+  hi: Word डाउनलोड करें
+  th: ดาวน์โหลด Word
+  cs: Stáhnout Word
+  sv: Ladda ned Word
+  he: הורדת Word
+  verified_by_human: []
+
 loading:
   context: "Generic UI text: Loading..."
   en: Loading...

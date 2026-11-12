@@ -265,3 +265,16 @@ def test_sealed_docx_retry_without_backend_result_does_not_create_failure(monkey
     backend_read.assert_not_called()
     backend_write.assert_not_called()
     state_write.assert_not_called()
+
+
+# contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
+def test_docx_generation_stores_the_pdf_artifact_only_when_conversion_succeeded() -> None:
+    from pathlib import Path
+
+    source = (Path(__file__).resolve().parents[1] / "apps/docs/tasks/generate_task.py").read_text()
+    upload = source.index('.pdf.bin"')
+    guard = source.index("if _convert_docx_to_pdf(")
+    content = source.index('"pdf_s3_key"')
+    assert guard < upload < content
+    assert "pdf_path.read_bytes()" in source
+    assert '**({"pdf_s3_key": pdf_s3_key} if pdf_s3_key else {})' in source

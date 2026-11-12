@@ -1,0 +1,328 @@
+schema_version: 2
+id: press-release-focus-mode
+title: Write press release focus mode with a Project press style
+status: approved
+goal: 'A Business focus mode helps the user write a press release with press-release best practices. The writing style has
+  two layers: public best-practice guidance shipped with the Business app, and a company-specific press style that is saved
+  as a Memory in the user''s Project (not as a global Memory). If no style exists yet, the mode sets it up first. Word is
+  the default output; the same flow also works when the user asks for a PDF, an HTML page or a React page.
+
+  '
+scope:
+  in:
+  - 'Stage A: focus mode business.write_press_release (phases style, brief, angle and facts, draft, refine) with SKILL.md,
+    app.yml entry, i18n and an example chat.'
+  - 'Stage A: public app Memory backend/apps/business/memories/press-release-structure.md (structure, length, quotes, embargo,
+    pitch email, mistakes to avoid).'
+  - 'Stage A: output formats. Word via docx_model by default; PDF via the same document and its PDF download; HTML via a single
+    self-contained html fence; React via an application_preview fence.'
+  - 'Stage B: save_memory gains a target (personal or project). Project writes require the chat''s current authoritative active
+    Project Focus with write access, are applied by the client as an encrypted .openmates/memories file through the Rust core,
+    and get the same notice and Undo as personal writes.'
+  - 'Stage C: documents created by the assistant offer a PDF download of the current version next to the Word download (doc-editor.export.latest-version,
+    PDF half).'
+  out:
+  - Sending press releases to journalists, newswire distribution or contact lists.
+  - Team Memories written by the assistant.
+  - Apple UI for the save notice and the PDF download (Apple keeps reading Memories; parity follows web).
+  - Manual document editing (owned by the doc-editor contract).
+decisions:
+- id: D-1
+  status: active
+  decision: The press style lives as a Project Memory; without an active Project the mode offers a personal Memory with load
+    mode mention_only.
+  reason: It belongs to one company or product and must not leak into unrelated chats.
+  decided_at: '2026-11-12'
+- id: D-2
+  status: active
+  decision: Style setup is the first phase of the same focus mode and is skipped when a style Memory is loaded.
+  reason: Style is set up exactly when it is needed; no separate mode to discover.
+  decided_at: '2026-11-12'
+- id: D-3
+  status: active
+  decision: The Business app owns the mode.
+  reason: It sits next to investor outreach and pitch modes.
+  decided_at: '2026-11-12'
+- id: D-4
+  status: active
+  decision: Stage B edits to main_processor.py, memory_write_jobs, memoryWriteJobRunner.ts, memory_catalog.rs and the app-memories
+    Specification start only after TASK-1567 (assistant-memory-writes) is integrated on dev. Stage A and C touch none of these
+    files.
+  reason: Another chat has uncommitted edits in exactly these files.
+  decided_at: '2026-11-12'
+- id: D-5
+  status: active
+  decision: Word is the default output; PDF uses the same document plus its PDF download; HTML uses one self-contained html
+    fence; React uses an application_preview fence.
+  reason: Requested by the user on 2026-11-12; reuses existing output paths.
+  decided_at: '2026-11-12'
+scenarios:
+- id: S-1
+  title: First press release without a style
+  given:
+  - An active Project without a press style Memory.
+  when:
+  - The user asks for a press release about a launch.
+  then:
+  - The mate offers style setup (past releases
+  - a few questions
+  - or defaults)
+  - then collects the brief one question per round
+  - confirms facts and angle
+  - writes a Word document and offers to save the style to the Project.
+- id: S-2
+  title: Style reused
+  given:
+  - A Project with a press style Memory.
+  when:
+  - The user asks for another press release in that Project.
+  then:
+  - The mate applies the stored names
+  - boilerplate
+  - spokesperson
+  - contact and tone without asking for them again.
+- id: S-3
+  title: Other formats
+  given:
+  - A user in the focus mode.
+  when:
+  - The user asks for a PDF
+  - an HTML page or a React page.
+  then:
+  - The mate delivers a document with PDF download
+  - a self-contained HTML page
+  - or a runnable React preview
+  - with the same content rules.
+- id: S-4
+  title: Assistant saves to the Project
+  given:
+  - An active Project with write access and a user who agreed to save the style.
+  when:
+  - The mate calls save_memory with target project.
+  then:
+  - The Memory is stored encrypted in the Project's .openmates/memories
+  - the chat shows a notice with Undo
+  - and nothing is stored as a personal Memory.
+acceptance_criteria:
+- id: AC-1
+  scenario: S-1
+  text: Real dev CLI chats activate business.write_press_release for press release requests, not for investor outreach or
+    social posts, and follow the phase order.
+  required: true
+  status: pending
+  verification_scope: manual
+  verification_ids:
+  - T-REAL
+  coverage_status: covered
+- id: AC-2
+  scenario: S-1
+  text: The generated release has headline, dateline, a lede answering who/what/when/where/why, quotes marked for approval,
+    boilerplate, media contact and end mark, and invents no facts or quotes.
+  required: true
+  status: pending
+  verification_scope: manual
+  verification_ids:
+  - T-REAL
+  coverage_status: covered
+- id: AC-3
+  scenario: S-3
+  text: Requests for PDF, HTML and React produce a document with PDF download, an html embed, and an application preview respectively.
+  required: true
+  status: pending
+  verification_scope: manual
+  verification_ids:
+  - T-REAL
+  coverage_status: covered
+- id: AC-4
+  scenario: S-3
+  text: The docs fullscreen offers a PDF download of the current version; the downloaded file is a valid PDF.
+  required: true
+  status: pending
+  verification_scope: playwright
+  verification_ids:
+  - T-PDF
+  coverage_status: covered
+- id: AC-5
+  scenario: S-4
+  text: save_memory with target project is offered only under active Project Focus with write access, is rejected otherwise,
+    and a real chat ends with the Memory in the Project's Memories tab and none in personal Memories.
+  required: true
+  status: pending
+  verification_scope: related_backend
+  verification_ids:
+  - T-TOOL-PROJECT
+  - T-REAL
+  coverage_status: covered
+- id: AC-6
+  scenario: S-2
+  text: A new chat in the same Project reuses the saved style without asking for it again.
+  required: true
+  status: pending
+  verification_scope: manual
+  verification_ids:
+  - T-REAL
+  coverage_status: covered
+tests:
+- id: T-REAL
+  type: manual
+  file: scripts/press_release_focus_real_test.py
+  command: python3 scripts/press_release_focus_real_test.py --session c595 --allow-paid-dev-inference
+  execution_environment: dev
+  target: dev
+  covers:
+  - AC-1
+  - AC-2
+  - AC-3
+  - AC-5
+  - AC-6
+  assertions:
+  - focus activates and phases followed
+  - release structure and no invented facts or quotes
+  - PDF, HTML and React formats
+  - Project save and reuse
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+- id: T-PDF
+  type: playwright
+  file: frontend/apps/web_app/tests/docs-pdf-download.spec.ts
+  command: python3 scripts/ci_coordinator.py submit --session c595 --mode e2e --spec docs-pdf-download.spec.ts
+  execution_environment: isolated_github_ci
+  target: isolated_github_ci
+  covers:
+  - AC-4
+  assertions:
+  - PDF download offered
+  - downloaded file is a PDF
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+- id: T-TOOL-PROJECT
+  type: pytest
+  file: backend/tests/test_memory_write_tool.py
+  command: python3 scripts/ci_coordinator.py submit --session c595 --mode pytest --spec backend/tests/test_memory_write_tool.py
+  execution_environment: isolated_github_ci
+  target: isolated_github_ci
+  covers:
+  - AC-5
+  assertions:
+  - project target gated by active Project write access
+  - rejected without it
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+tasks:
+- id: TASK-1
+  title: 'Stage A: focus mode, public memory, i18n, real chats, example chat'
+  status: pending
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    - S-2
+    - S-3
+    acceptance_criteria:
+    - AC-1
+    - AC-2
+    - AC-3
+    - AC-6
+  expected_files: &id001
+  - backend/apps/business/focus_modes/write-press-release/SKILL.md
+  - backend/apps/business/memories/press-release-structure.md
+  - backend/apps/business/app.yml
+  - frontend/packages/ui/src/i18n/sources/focus_modes/business_write_press_release.yml
+  - frontend/packages/ui/src/i18n/sources/app_focus_modes/business.yml
+  - scripts/press_release_focus_real_test.py
+  verification_ids:
+  - T-REAL
+  dependencies: &id002 []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files: *id001
+    shared_files: []
+- id: TASK-3
+  title: 'Stage C: PDF download of assistant documents'
+  status: pending
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-3
+    acceptance_criteria:
+    - AC-4
+  expected_files: &id003
+  - backend/apps/docs/tasks/generate_task.py
+  - frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.svelte
+  - frontend/packages/ui/src/components/embeds/docs/docsDownload.ts
+  - frontend/apps/web_app/tests/docs-pdf-download.spec.ts
+  verification_ids:
+  - T-PDF
+  dependencies: *id002
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files: *id003
+    shared_files: []
+- id: TASK-2
+  title: 'Stage B: save_memory target project'
+  status: pending
+  phase: blocked
+  covers:
+    scenarios:
+    - S-4
+    acceptance_criteria:
+    - AC-5
+  expected_files: &id004
+  - backend/apps/ai/processing/memory_write_tool.py
+  - packages/openmates-rust/src/client/memory_write_jobs.rs
+  - frontend/packages/ui/src/services/rustCore/memory/memoryWriteJobRunner.ts
+  - specifications/features/app-memories/specification.yml
+  verification_ids:
+  - T-TOOL-PROJECT
+  - T-REAL
+  dependencies:
+  - TASK-1
+  blockers:
+  - TASK-1567 (assistant-memory-writes) not yet integrated on dev
+  follow_up_tasks: []
+  ownership:
+    files: *id004
+    shared_files: []
+implementation_state:
+  subject_commit: 3b73b6239727be64a8b058eabbb5de72d131fb94
+approvals:
+  specification:
+    status: pending
+    reason: Stage B amends approved feature.app-memories and feature.projects; Stage C implements draft feature.doc-editor
+      export. Presented for approval after deployment.
+  plan:
+    status: approved
+    approved_at: '2026-11-12'
+attempts:
+- id: A-1
+  task_id: TASK-1
+  outcome: planned
+  approach: 'Model on jobs create-cv: phased SKILL.md plus a public app Memory.'
+  recorded_at: '2026-11-12'
+handoff:
+  current_task_id: TASK-1
+  next_action: Write Stage A files; run Stage C in a lane; start Stage B after TASK-1567 lands.
+  command: python3 scripts/plan_validate.py docs/plans/press-release-focus-mode/plan.yml
+  expected_outcome: Validated plan.
+  last_verified_commit: 3b73b6239727be64a8b058eabbb5de72d131fb94
+  blocker: null

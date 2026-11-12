@@ -395,3 +395,69 @@ plan_funding_round.description:
     ett redigerbart cap table-ark.
   he: חשבו כמה לגייס, איזה מכשיר מתאים, את ההדילול ולוח זמנים, עם גיליון קאפ טייבל שאפשר לערוך.
   verified_by_human: []
+write_press_release:
+  context: Focus mode name
+  en: Write press release
+  de: Pressemitteilung schreiben
+  zh: 撰写新闻稿
+  es: Redactar nota de prensa
+  fr: Rédiger un communiqué de presse
+  pt: Redigir comunicado de imprensa
+  ru: Написать пресс-релиз
+  ja: プレスリリースを作成
+  ko: 보도자료 작성
+  it: Scrivi un comunicato stampa
+  tr: Basın bülteni yaz
+  vi: Viết thông cáo báo chí
+  id: Tulis siaran pers
+  pl: Napisz informację prasową
+  nl: Persbericht schrijven
+  ar: كتابة بيان صحفي
+  hi: प्रेस विज्ञप्ति लिखें
+  th: เขียนข่าวประชาสัมพันธ์
+  cs: Napsat tiskovou zprávu
+  sv: Skriv pressmeddelande
+  he: כתיבת הודעה לעיתונות
+  verified_by_human: []
+write_press_release.description:
+  context: Focus mode description
+  en: Write a press release journalists can use, in your company's own press style, as a Word document
+    or another format you ask for.
+  de: Schreib eine Pressemitteilung, die Journalisten direkt nutzen können, im Pressestil deines Unternehmens,
+    als Word-Dokument oder in einem anderen Format deiner Wahl.
+  zh: 撰写记者可直接使用的新闻稿，采用贵公司自己的新闻风格，输出为 Word 文档或你指定的其他格式。
+  es: Redacta una nota de prensa que los periodistas puedan usar, con el estilo de prensa de tu empresa,
+    como documento de Word u otro formato que pidas.
+  fr: Rédigez un communiqué de presse que les journalistes peuvent utiliser, dans le style de presse de
+    votre entreprise, en document Word ou dans un autre format de votre choix.
+  pt: Redija um comunicado de imprensa que os jornalistas possam usar, no estilo de imprensa da sua empresa,
+    como documento Word ou em outro formato que você pedir.
+  ru: 'Напишите пресс-релиз, которым журналисты смогут пользоваться, в пресс-стиле вашей компании: в виде
+    документа Word или в другом нужном формате.'
+  ja: 記者がそのまま使えるプレスリリースを、御社のプレススタイルで作成します。Word 文書、またはご希望の別形式で出力します。
+  ko: 기자가 바로 쓸 수 있는 보도자료를 회사만의 보도 스타일로 작성합니다. Word 문서 또는 원하는 다른 형식으로 받을 수 있습니다.
+  it: Scrivi un comunicato stampa che i giornalisti possano usare, nello stile di comunicazione della tua
+    azienda, come documento Word o in un altro formato a tua scelta.
+  tr: Gazetecilerin kullanabileceği bir basın bülteni yazın; şirketinizin kendi basın üslubuyla, Word belgesi
+    veya istediğiniz başka bir biçimde.
+  vi: Viết thông cáo báo chí mà nhà báo có thể dùng ngay, theo phong cách báo chí riêng của công ty bạn,
+    dưới dạng tài liệu Word hoặc định dạng khác bạn yêu cầu.
+  id: Tulis siaran pers yang bisa langsung dipakai jurnalis, dengan gaya pers perusahaan Anda sendiri, sebagai
+    dokumen Word atau format lain yang Anda minta.
+  pl: Napisz informację prasową, z której dziennikarze mogą korzystać, w stylu prasowym Twojej firmy, jako
+    dokument Word lub w innym wybranym formacie.
+  nl: Schrijf een persbericht dat journalisten kunnen gebruiken, in de eigen perstoon van je bedrijf, als
+    Word-document of in een ander gewenst formaat.
+  ar: اكتب بياناً صحفياً يستطيع الصحفيون استخدامه، بأسلوب شركتك الصحفي الخاص، كمستند Word أو بصيغة أخرى
+    تطلبها.
+  hi: ऐसी प्रेस विज्ञप्ति लिखें जिसे पत्रकार सीधे इस्तेमाल कर सकें, आपकी कंपनी की अपनी प्रेस शैली में, Word
+    दस्तावेज़ या आपकी पसंद के किसी और फ़ॉर्मैट में।
+  th: เขียนข่าวประชาสัมพันธ์ที่นักข่าวนำไปใช้ได้ทันที ด้วยสไตล์การสื่อสารกับสื่อของบริษัทคุณเอง เป็นเอกสาร
+    Word หรือรูปแบบอื่นที่คุณต้องการ
+  cs: Napište tiskovou zprávu, kterou mohou novináři použít, ve vlastním tiskovém stylu vaší firmy, jako
+    dokument Word nebo v jiném požadovaném formátu.
+  sv: Skriv ett pressmeddelande som journalister kan använda, i företagets egen pressstil, som Word-dokument
+    eller i ett annat format du ber om.
+  he: כתבו הודעה לעיתונות שעיתונאים יכולים להשתמש בה, בסגנון התקשורת של החברה שלכם, כמסמך Word או בפורמט
+    אחר לפי בקשתכם.
+  verified_by_human: []

@@ -131,6 +131,10 @@
     downloadHref?: string | null;
     /** Suggested filename for prepared native-anchor downloads. */
     downloadFilename?: string;
+    /** Label of the main download action; defaults to the generic "Download". */
+    downloadLabel?: string;
+    /** Optional second download in PDF format, shown next to the main download. */
+    onDownloadPdf?: () => void;
     /** Optional calendar handler - downloads an .ics calendar file for scheduled embeds */
     onCalendar?: () => void;
     /** Optional run handler - starts sandbox execution for executable code embeds */
@@ -409,6 +413,8 @@
     isImporting = false,
     downloadHref = null,
     downloadFilename = 'download',
+    downloadLabel,
+    onDownloadPdf,
     onCalendar,
     onRun,
     onShare,
@@ -1531,6 +1537,8 @@
       showDownload={!!onDownload}
       {downloadHref}
       {downloadFilename}
+      {downloadLabel}
+      {onDownloadPdf}
       showCalendar={!!onCalendar}
       {showRun}
       {runActive}

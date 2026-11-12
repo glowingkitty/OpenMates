@@ -336,6 +336,7 @@
         "components/pdf-view-preview.spec.ts",
         "components/pdf-public-document.spec.ts",
         "components/docs-public-model.spec.ts",
+        "components/docs-pdf-download.spec.ts",
         "components/project-file-approval.spec.ts",
         "components/project-readme-figma.spec.ts",
         "components/projects-file-actions.spec.ts",

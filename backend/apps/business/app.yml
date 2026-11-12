@@ -761,6 +761,19 @@ focuses:
       - Show me the dilution and a cap table if I sell 15% for 600k.
     preprocessor_hint: >
       Select when a founder wants to plan raising money from investors: how much to raise, runway, equity round vs convertible loan vs SAFE-style, valuation or cap range, dilution, a cap table, or the timeline and process of a round. Do not select for finding investors, researching one investor, writing outreach, pitch rehearsal, bank loans or grants alone, company valuation for a sale, stock investing, or personal finance.
+  - id: write_press_release
+    auto_activate_when_relevant: true
+    icon_image: business.svg
+    name_translation_key: business.write_press_release
+    description_translation_key: business.write_press_release.description
+    process_translation_key: focus_modes.business_write_press_release.process
+    systemprompt_translation_key: focus_modes.business_write_press_release.systemprompt
+    how_to_use:
+      - Write a press release about our app launch on 18 November. Here are our last two releases
+      - Set up our press style from our website and save it to this project
+      - Turn this announcement into a press release as a PDF and a short pitch email for journalists
+    preprocessor_hint: >
+      Select when the user wants to write, draft, improve, shorten, review or translate a press release, Pressemitteilung, media release or news announcement for journalists, wants a pitch email that accompanies a press release, or wants to set up or update the writing style for their press releases. Do not select for social media posts alone, newsletters, blog posts, ads, investor outreach, job applications, or reading the news.
 
 marketing_discovery:
   skills:
