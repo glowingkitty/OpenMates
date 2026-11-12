@@ -42,6 +42,7 @@ from backend.shared.app_packages.delegate_skill import (
     error_group,
     import_original_skill,
     is_model,
+    keep_selectors,
     module_models,
     select_provider_ids,
     validate_request_item,
@@ -221,7 +222,7 @@ class InstalledProviderFlatSkill(InstalledProviderSkill):
         selectors = {key: kwargs[key] for key in PROVIDER_SELECTOR_FIELDS if key in kwargs}
         outcomes = await run_installed_providers(
             self.app_id, self.skill_id, select_provider_ids({**raw, **selectors}, providers),
-            contract_input, secrets_manager,
+            keep_selectors(contract_input, selectors), secrets_manager,
         )
         return build_flat_response(build_group(None, outcomes), providers, models,
                                    echoed_input_fields(models, contract_input))

@@ -125755,7 +125755,7 @@ assertions:
       surface: rest_api
     - &id16063
       path: backend/tests/test_app_packages_generic_contract.py
-      line: 408
+      line: 410
       name: test_flat_paused_skill_accepts_generic_contract_and_overlays_flat_delegate
       surface: rest_api
     - &id16064
@@ -125850,12 +125850,12 @@ assertions:
       surface: rest_api
     - &id16074
       path: backend/tests/test_app_packages_generic_contract.py
-      line: 408
+      line: 410
       name: test_flat_paused_skill_accepts_generic_contract_and_overlays_flat_delegate
       surface: rest_api
     - &id16075
       path: backend/tests/test_app_packages_generic_contract.py
-      line: 458
+      line: 460
       name: test_flat_base_app_dispatch_is_never_charged
       surface: rest_api
     - &id16076
@@ -126045,57 +126045,57 @@ assertions:
       surface: rest_api
     - &id16100
       path: backend/tests/test_app_packages_generic_contract.py
-      line: 288
+      line: 290
       name: test_overlay_declares_provider_filter_in_request_item_schema
       surface: rest_api
     - &id16101
       path: backend/tests/test_app_packages_generic_contract.py
-      line: 307
+      line: 309
       name: test_delegate_returns_duplicate_results_once
       surface: rest_api
     - &id16102
       path: backend/tests/test_app_packages_generic_contract.py
-      line: 322
+      line: 324
       name: test_delegate_unknown_selector_runs_every_provider
       surface: rest_api
     - &id16103
       path: backend/tests/test_app_packages_generic_contract.py
-      line: 332
+      line: 334
       name: test_delegate_invalid_item_is_a_group_error_without_runner_call
       surface: rest_api
     - &id16104
       path: backend/tests/test_app_packages_generic_contract.py
-      line: 343
+      line: 345
       name: test_null_optional_fields_use_model_defaults
       surface: rest_api
     - &id16105
       path: backend/tests/test_app_packages_generic_contract.py
-      line: 353
+      line: 355
       name: test_provider_list_follows_the_original_response_model
       surface: rest_api
     - &id16106
       path: backend/tests/test_app_packages_generic_contract.py
-      line: 367
+      line: 369
       name: test_original_models_are_resolved_from_skill_module
       surface: rest_api
     - &id16107
       path: backend/tests/test_app_packages_generic_contract.py
-      line: 422
+      line: 424
       name: test_flat_delegate_passes_whole_input_and_keeps_original_shape
       surface: rest_api
     - &id16108
       path: backend/tests/test_app_packages_generic_contract.py
-      line: 445
+      line: 447
       name: test_flat_delegate_validation_selection_and_failures
       surface: rest_api
     - &id16109
       path: backend/tests/test_app_packages_generic_contract.py
-      line: 492
+      line: 494
       name: test_generic_validator_bounds_and_drops
       surface: rest_api
     - &id16110
       path: backend/tests/test_app_packages_generic_contract.py
-      line: 514
+      line: 516
       name: test_generic_results_are_count_and_size_bounded
       surface: rest_api
     - &id16111
@@ -126362,7 +126362,7 @@ assertions:
       surface: rest_api
     - &id16141
       path: backend/tests/test_app_packages_generic_contract.py
-      line: 476
+      line: 478
       name: test_optional_secret_is_passed_only_when_set
       surface: rest_api
     - &id16142
@@ -126442,17 +126442,17 @@ assertions:
       surface: rest_api
     - &id16152
       path: backend/tests/test_app_packages_generic_contract.py
-      line: 458
+      line: 460
       name: test_flat_base_app_dispatch_is_never_charged
       surface: rest_api
     - &id16153
       path: backend/tests/test_app_packages_generic_contract.py
-      line: 525
+      line: 527
       name: test_delegate_groups_are_never_charged
       surface: rest_api
     - &id16154
       path: backend/tests/test_app_packages_generic_contract.py
-      line: 542
+      line: 544
       name: test_flag_off_paused_skill_billing_unchanged
       surface: rest_api
     - &id16155

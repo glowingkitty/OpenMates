@@ -282,6 +282,8 @@ async def test_delegate_runs_only_selected_provider(monkeypatch, two_providers, 
     # The health item model has no ``providers`` field; selectors are read from the raw item.
     group = (await _delegate().execute([{**VALID_ITEM, **selector}]))["results"][0]
     assert [c["provider"] for c in calls] == [SECOND] and group["providers"] == [SECOND]
+    # The provider receives the caller's choice even though the item model does not declare it.
+    assert {key: calls[0]["input"][key] for key in selector} == selector
 
 
 # contract-test: direct surface=rest_api assertions=instance-app-packages.provider-contract

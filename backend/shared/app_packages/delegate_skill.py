@@ -223,6 +223,16 @@ def select_provider_ids(item: Dict[str, Any], providers: Sequence[InstalledProvi
     return list(dict.fromkeys(chosen)) or [provider.provider_id for provider in providers]
 
 
+def keep_selectors(contract_input: Dict[str, Any], raw: Dict[str, Any]) -> Dict[str, Any]:
+    """Contract input plus the selector fields of the call that the item model dropped.
+
+    A provider that serves several sources needs the caller's choice to route the request.
+    """
+    kept = {field: raw[field] for field in PROVIDER_SELECTOR_FIELDS
+            if field not in contract_input and isinstance(raw.get(field), (str, list)) and raw[field]}
+    return {**contract_input, **kept}
+
+
 def interleave_results(per_provider: Sequence[Sequence[Dict[str, Any]]]) -> List[Dict[str, Any]]:
     """Round-robin merge: first result of each provider, then the second of each, ..."""
     merged: List[Dict[str, Any]] = []
@@ -309,7 +319,8 @@ class InstalledProviderSkill(BaseSkill):
             return error_group(request_id, error or "Invalid request.")
         outcomes = await run_installed_providers(
             # Selectors are read from the raw item: the item model may not declare them.
-            self.app_id, self.skill_id, select_provider_ids(raw, providers), contract_input, secrets_manager,
+            self.app_id, self.skill_id, select_provider_ids(raw, providers),
+            keep_selectors(contract_input, raw), secrets_manager,
         )
         return build_group(request_id, outcomes)
 
