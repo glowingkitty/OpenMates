@@ -121,7 +121,11 @@ assertions:
     skill always declares; otherwise all of them run, and their results are interleaved
     round-robin in a stable provider order. Duplicate installed-provider results of one request (identical
     apart from provider attribution, or carrying the same provider-chosen dedupe_key) are returned once, keeping
-    the result with the highest dedupe_priority.
+    the result with the highest dedupe_priority. The provider receives the caller's provider selection. For
+    product search and stay search, a request item with relevance criteria has its installed-provider results
+    scored by the decision model on their photos and a bounded projection of their facts without links,
+    identifiers or attribution; results are ordered by score, clear conflicts are dropped and the requested
+    limit is applied afterwards, and any failure of that ranking keeps the provider order.
   depends_on:
   - models.ProviderInvocation
   - examples.contract

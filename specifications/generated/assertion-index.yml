@@ -126069,7 +126069,7 @@ assertions:
     current_direct_proof: false
   instance-app-packages.provider-contract:
     specification: feature.instance-app-packages@1
-    fingerprint: d6998e0ea87f2212a67e9ef9e6b262ab91d6991b285df4794a14b32f23aa1051
+    fingerprint: e2c929df2457fab4663d67f8325886c7b0c4c8219589ce0ec73fa169e8e11bac
     direct_tests:
     - &id16102
       path: backend/tests/test_app_packages_events_dispatch.py
