@@ -28,6 +28,7 @@ Description=Wake idle Claude chats every 10 minutes
 
 [Timer]
 OnBootSec=10min
+OnStartupSec=10min
 OnUnitActiveSec=10min
 AccuracySec=1min
 

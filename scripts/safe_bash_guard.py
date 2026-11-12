@@ -306,7 +306,11 @@ def check_invocation(command: str, args: list[str], *, cwd: Path = REPO_ROOT) ->
     if subcommand == "push":
         return "BLOCKED: Use sessions.py deploy instead of raw git push. It handles session tracking and deploy coordination."
     if subcommand == "stash":
-        return "BLOCKED: git stash is forbidden. Commit your work via sessions.py deploy instead."
+        return (
+            "BLOCKED: git stash is forbidden. Commit your work via sessions.py deploy instead. "
+            "Leave the changes in your worktree; to publish only part of them use "
+            "sessions.py deploy --only <path>."
+        )
     if subcommand == "reset" and "--hard" in subcommand_args:
         return "BLOCKED: git reset --hard can destroy uncommitted work and is forbidden."
     if subcommand == "clean" and any(
@@ -696,14 +700,19 @@ def main(argv: list[str]) -> int:
                 destination = next_non_option(args)
                 resolved = _resolved_repo_path(candidate_cwd, destination) if destination else None
                 if resolved is None:
-                    return block("BLOCKED: local command changes directory outside the OpenMates repository.")
+                    return block(
+                        "BLOCKED: local command changes directory outside the OpenMates repository. "
+                        "Use absolute paths instead of cd (for git: git -C <path>)."
+                    )
                 candidate_cwd = resolved
                 continue
             if executable in SHELL_EXECUTABLES:
                 payload = shell_command_payload(args)
                 if payload is None:
                     return block(
-                        "BLOCKED: nested shell execution must use an inspectable shell -c payload."
+                        "BLOCKED: nested shell execution must use an inspectable shell -c payload. "
+                        "Run the script file directly (./scripts/name.sh; it must be executable) "
+                        "or pass the code inline with bash -c '<commands>'."
                     )
                 pending.append((payload, candidate_cwd))
                 continue

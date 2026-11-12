@@ -29,6 +29,7 @@ Description=Sample OpenMates dev host load every minute
 
 [Timer]
 OnBootSec=1min
+OnStartupSec=1min
 OnUnitActiveSec=1min
 AccuracySec=5s
 

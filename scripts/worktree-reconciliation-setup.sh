@@ -44,6 +44,7 @@ Description=Reconcile OpenMates agent worktrees hourly
 
 [Timer]
 OnBootSec=10min
+OnStartupSec=10min
 OnUnitActiveSec=1h
 Persistent=true
 

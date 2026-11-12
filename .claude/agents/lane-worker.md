@@ -39,6 +39,8 @@ gives you one bounded deliverable and the workspace to use.
 - Your tools are Read, Edit, Write, Bash, Grep and Glob only (tool names are
   case-sensitive; there is no Monitor). Use absolute paths instead of `cd`
   outside the worktree. Never run `sessions.py start` or `lane_start.py`.
+- Show one file per `cat` (or use Read): `cat a b` with several files fails
+  here with `rtk: No such file or directory`.
 
 ## Handback
 Reply tersely: outcome, files changed, checks run with their result, CI job ids

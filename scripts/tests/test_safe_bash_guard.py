@@ -232,3 +232,16 @@ def test_worktree_may_cd_to_canonical_checkout_and_sibling_worktrees(
 def test_cd_outside_repository_is_still_blocked() -> None:
     assert run_guard("cd /tmp && ls").returncode == 2
     assert run_guard(f"cd {PROJECT_ROOT} && ls").returncode == 0
+
+
+def test_block_messages_name_the_working_alternative() -> None:
+    """A refused command says what to run instead, so agents do not retry blindly."""
+    cases = {
+        "cd /tmp && ls": "absolute paths",
+        "bash scripts/lint_changed.sh": "Run the script file directly",
+        "git stash": "sessions.py deploy --only",
+    }
+    for command, hint in cases.items():
+        result = run_guard(command)
+        assert result.returncode == 2, command
+        assert hint in json.loads(result.stderr)["reason"], command
