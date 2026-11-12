@@ -4,6 +4,12 @@
 Usage:
   code_map.py outline <file>
   code_map.py dir <path> [--depth N]
+  code_map.py find "<area>: <what changes>" [--no-jev] [--top N] [--json]
+  code_map.py find-report [--days N]
+
+`find` ranks the files a task most likely touches (local search, then Jev with a
+daily cost cap; see code_locate.py). Write a focused query naming the area and
+concrete behaviour, not the user's raw message.
 
 Python files use ``ast``; other languages use conservative line regexes.
 Output is capped so it is cheap to read instead of whole files.
@@ -207,6 +213,33 @@ def dir_map(root: Path, depth: int) -> str:
     return "\n".join(out) if out else f"{root}: no source files found"
 
 
+def _find(args) -> int:
+    """`find` and `find-report`; imported lazily so outline/dir stay dependency-free."""
+    import json
+    import os
+    import subprocess
+    import time
+
+    import code_locate
+    import code_locate_jev
+
+    if args.cmd == "find-report":
+        print(code_locate_jev.report(args.days))
+        return 0
+    top = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, check=False)
+    root = Path(top.stdout.strip()) if top.returncode == 0 else Path(__file__).resolve().parents[1]
+    query = " ".join(args.query).strip()
+    result = code_locate.locate(query, root, top=max(1, args.top), use_jev=not args.no_jev)
+    code_locate_jev.log_usage({
+        "ts": time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime()), "chat": os.environ.get("CLAUDE_CODE_SESSION_ID", ""),
+        "root": str(root), "query": query, "mode": result["mode"], "reason": result["reason"],
+        "files": [f["path"] for f in result["files"]], "scores": [f["score"] for f in result["files"]],
+        "confidence": result["confidence"], "input_tokens": result["input_tokens"], "usd": result["usd"],
+        "latency_ms": result["latency_ms"]})
+    print(json.dumps(result, indent=1) if args.json else code_locate.format_result(result))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -215,7 +248,16 @@ def main(argv: list[str] | None = None) -> int:
     p_dir = sub.add_parser("dir")
     p_dir.add_argument("path")
     p_dir.add_argument("--depth", type=int, default=2)
+    p_find = sub.add_parser("find", help="rank the files a coding task most likely touches")
+    p_find.add_argument("query", nargs="+")
+    p_find.add_argument("--no-jev", action="store_true", help="local search only (free, offline)")
+    p_find.add_argument("--top", type=int, default=5)
+    p_find.add_argument("--json", action="store_true")
+    p_rep = sub.add_parser("find-report", help="summarize find usage, Jev spend and hit evidence")
+    p_rep.add_argument("--days", type=int, default=7)
     args = parser.parse_args(argv)
+    if args.cmd in ("find", "find-report"):
+        return _find(args)
     if args.cmd == "outline":
         path = Path(args.file)
         if not path.is_file():

@@ -33,8 +33,10 @@ gives you one bounded deliverable and the workspace to use.
 ## Budget and tools
 - You have about 50 tool calls; a hook stops your tools at 70. Batch reads and
   checks, and hand back early with the exact next step when the work is larger.
-- Before reading unfamiliar code run `python3 scripts/code_map.py dir <path>`
-  or `code_map.py outline <file>`, then read only the range you need. Whole
+- To find where something lives, run `python3 scripts/code_map.py find
+  "<area>: <what changes>"` before grepping; confirm low-confidence results.
+  Before reading unfamiliar code run `code_map.py dir <path>` or
+  `code_map.py outline <file>`, then read only the range you need. Whole
   reads of source files over 800 lines are refused.
 - Your tools are Read, Edit, Write, Bash, Grep and Glob only (tool names are
   case-sensitive; there is no Monitor). Use absolute paths instead of `cd`

@@ -193,7 +193,10 @@ when a skill or this file points to it.
   A hook warns a sub-agent at 50 tool calls and stops its tools at 70: size
   each brief to fit, and start a fresh lane from the handback instead of
   resuming a stopped one. Sub-agents cannot create sessions or worktrees.
-- Reading code: `python3 scripts/code_map.py dir <path>` gives a compact map of
-  a folder and `code_map.py outline <file>` the definitions with line numbers.
-  Reading a source file over 800 lines without `offset`/`limit` is refused
-  with that outline; read the range you need.
+- Reading code: to find where something lives, first run `python3
+  scripts/code_map.py find "<area>: <what changes>"` (a focused query you write,
+  not the user's message); it returns 5 files with a confidence. Low confidence
+  or search-only: confirm with grep. `code_map.py dir <path>` maps a folder and
+  `code_map.py outline <file>` lists definitions with line numbers. Reading a
+  source file over 800 lines without `offset`/`limit` is refused with that
+  outline; read the range you need.
