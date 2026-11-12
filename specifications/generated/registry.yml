@@ -399,7 +399,7 @@ specifications:
     version: 1
     status: draft
     path: features/app-skills/videos-generate
-    fingerprint: 818c253079ec9fa60beb8f36c757b01fb429e997d3a72e5ed0bb2eec838bbd00
+    fingerprint: 656264e74bc2e757f688756a0bcb02adf0db5d918b802f96e7a7cd74ec95d5f7
     required_applies_to:
     - rest_api
     - cli
@@ -5713,6 +5713,18 @@ assertions:
     specification_id: feature.app-skill.videos-generate
     type: privacy
     fingerprint: 68f744f2d860cd53917762ceed708a25e6cf05be023d858f46640b2881698bf4
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  videos-generate.safety.named-person-review:
+    specification: feature.app-skill.videos-generate@1
+    specification_id: feature.app-skill.videos-generate
+    type: invariant
+    fingerprint: 24407815e5b71a0f338533c747e12d5a8f8674947a40e277e3c2410d7454b0fc
     required_applies_to:
     - rest_api
     - cli

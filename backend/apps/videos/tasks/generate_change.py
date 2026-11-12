@@ -198,7 +198,8 @@ async def _make(context: _Context) -> _Made:
         if visible_seconds(kept.clips) + seconds > MAX_JOINED_SECONDS:
             raise ChangeFailed(ERROR_INVALID_INPUT, f"An extended video lasts at most {MAX_JOINED_SECONDS} seconds. "
                                                     "Nothing was made or charged.")
-        _check_prompt(context.request.instructions)
+        _check_prompt(context.request.instructions,
+                      named_person_reviewed=context.arguments.get("named_person_reviewed") is True)
         await _ensure_headroom(context, extend_seconds=seconds, still=change == CHANGE_EXTEND_START)
         return await _extend(context, seconds=seconds, at_start=change == CHANGE_EXTEND_START)
     if change != CHANGE_EDIT:
@@ -217,10 +218,11 @@ async def _make(context: _Context) -> _Made:
     return await _author_edit(context)
 
 
-def _check_prompt(prompt: str) -> None:
+def _check_prompt(prompt: str, *, named_person_reviewed: bool) -> None:
     from backend.shared.python_utils.media_generation_safety import validate_media_generation_request
 
-    if not validate_media_generation_request(media_type="video", prompt=prompt, request_count=1).allowed:
+    if not validate_media_generation_request(media_type="video", prompt=prompt, request_count=1,
+                                             named_person_reviewed=named_person_reviewed).allowed:
         raise ChangeFailed(ERROR_SAFETY, SAFETY_MESSAGE)
 
 

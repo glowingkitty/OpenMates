@@ -179,3 +179,15 @@ billing:
     given: The Videos app page in the settings.
     when: The user opens the Generate skill.
     then: It shows 105 credits per second and 10 credits per minute, and the note that clips cost 35 (360p), 105 (720p), 160 (1080p) or 315 (4K) credits per second, composed videos the writing model's tokens plus 10 credits per started render minute, sound at 2 credits per second of narration, 15 per second of sound effect and 120 per music track, and changes only what they add.
+
+named_person:
+  - id: narrated-video-with-title-case-scenes
+    given: Lena asks for "a 12 second explainer about how bees make honey, scenes 'Flower Visits', 'Inside The Hive' and 'Golden Honey', with a spoken voice-over for each scene".
+    when: The fixed safety rules read the capitalised scene titles next to "voice-over" as a possible named voice.
+    then: >
+      The safeguard model reviews the instruction, finds that the titles name no person, and the video is made with
+      its voice-over. The worker accepts exactly this reviewed instruction.
+  - id: imitated-voice-refused
+    given: Tom asks for "an explainer video narrated in the voice of a famous science educator".
+    when: The assistant calls videos.generate with that instruction.
+    then: The request is refused as imitation of a real person's voice without a review by the safeguard model; nothing is made or charged.

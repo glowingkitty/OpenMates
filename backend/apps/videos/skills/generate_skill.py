@@ -35,6 +35,7 @@ from backend.apps.videos.generate_request import (
 )
 from backend.shared.python_utils.app_skill_helpers import execute_skill_via_celery
 from backend.shared.python_utils.media_generation_safety import validate_media_generation_request
+from backend.shared.python_utils.media_generation_safety.named_person_review import check_named_person_media_request
 
 logger = logging.getLogger(__name__)
 
@@ -120,7 +121,9 @@ class GenerateSkill(BaseSkill):
 
         external_request = bool(kwargs.get("external_request"))
         file_path_index: Mapping[str, str] = kwargs.get("file_path_index") or {}
-        parsed = []
+        secrets_manager = kwargs.get("secrets_manager") or getattr(self.app, "secrets_manager", None)
+        # (request, the safeguard model allowed a suspected name in it)
+        parsed: List[tuple[Any, bool]] = []
         for item in requests:
             try:
                 request = parse_generate_request(item)
@@ -128,14 +131,14 @@ class GenerateSkill(BaseSkill):
                     check_external_request(request)
             except GenerateRequestError as exc:
                 return _error(str(exc), exc.code)
-            decision = validate_media_generation_request(media_type="video", prompt=request.instructions,
-                                                         request_count=1)
+            decision = await check_named_person_media_request(media_type="video", prompt=request.instructions,
+                                                              secrets_manager=secrets_manager)
             if not decision.allowed:
                 logger.warning("Video generation request rejected by media safety gate: %s", decision.category)
                 return decision.to_rejection_payload()
-            parsed.append(request)
+            parsed.append((request, decision.reason == "named_person_reviewed"))
 
-        missing = [ref for request in parsed
+        missing = [ref for request, _ in parsed
                    for ref in (*request.images, *((request.source_video,) if request.source_video else ()))
                    if ref not in file_path_index]
         earlier = await self._resolve_earlier_results(missing, file_path_index, kwargs) if missing else {}
@@ -144,7 +147,7 @@ class GenerateSkill(BaseSkill):
         placeholder_embed_ids = kwargs.get("placeholder_embed_ids") or []
         parent_embed_id = next((value for value in placeholder_embed_ids if value), str(uuid.uuid4()))
         prepared_requests: List[Dict[str, Any]] = []
-        for request in parsed:
+        for request, named_person_reviewed in parsed:
             image_ids: List[str] = []
             for ref in request.images:
                 embed_id = index.get(ref)
@@ -167,6 +170,8 @@ class GenerateSkill(BaseSkill):
                 "resolution": ("480p" if model == H3_MODEL else request.resolution or DEFAULT_RESOLUTION)
                 if is_generative
                 else request.resolution,
+                # Always set: batch children inherit the first request's keys they lack.
+                "named_person_reviewed": named_person_reviewed,
                 "image_embed_ids": image_ids,
                 "input_embed_ids": image_ids or list(request.first_frame_embed_ids),
                 "source_video_embed_id": source_video_id,

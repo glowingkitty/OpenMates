@@ -195,7 +195,7 @@ def validate_media_generation_request(
     """Return a deterministic allow/block decision for generated-media prompts.
 
     ``named_person_reviewed`` is set only by a caller for which the safeguard model
-    already allowed this exact picture prompt; explicit imitation is refused regardless.
+    already allowed this exact picture or video prompt; explicit imitation is refused regardless.
     """
     normalized_media_type = media_type.lower().strip()
     max_requests = _request_limit_for_media(normalized_media_type)
@@ -279,7 +279,8 @@ def validate_media_generation_request(
     # Assistant-response narration uses a fixed OpenMates voice to read already
     # generated prose. Reporting about a person is not a request to imitate them.
     # User-authored audio.speak requests retain the broader identity heuristic.
-    reviewable = is_image and not has_imitation_context
+    # Pictures and videos: a suspected name goes to the safeguard model (named_person_review).
+    reviewable = normalized_media_type in {"image", "video"} and not has_imitation_context
     if broad_identity_match and not trusted_speech and not (reviewable and named_person_reviewed):
         return MediaGenerationDecision(
             needs_review=reviewable,

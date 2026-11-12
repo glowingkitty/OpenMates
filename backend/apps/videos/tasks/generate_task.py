@@ -357,6 +357,7 @@ async def _async_generate_video(task: BaseServiceTask, app_id: str, skill_id: st
             media_type="video",
             prompt=prompt,
             request_count=1,
+            named_person_reviewed=arguments.get("named_person_reviewed") is True,
         )
         if not media_decision.allowed:
             logger.warning(

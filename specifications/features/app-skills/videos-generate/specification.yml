@@ -201,6 +201,10 @@ assertions:
     type: privacy
     must: The instruction, the input pictures and the result pass the same safety checks as other generated media. Pictures leave the platform only as reduced copies to the author model and in full to the sandbox or, as a first frame, to the generative model. The result and the composition are stored encrypted like other generated media, belong to the requesting user and follow the chat's sharing rules.
     depends_on: [models.Sandbox.runtime, models.VideoResult, examples.request]
+  - id: videos-generate.safety.named-person-review
+    type: invariant
+    must: An instruction that the fixed safety rules refuse only because it may name a person (for example capitalised scene titles next to a voice-over) is decided by the safeguard model, as for pictures. It is allowed only when the model finds the name is not a real public figure and the video is harmless, and only that exact reviewed instruction is accepted later in the request. An instruction that explicitly asks to imitate a person's voice, likeness or persona is refused without review, and a failed or unclear review refuses the request without a charge.
+    depends_on: [models.GenerateRequest, examples.named_person]
   - id: videos-generate.billing.metered
     type: invariant
     must: A generative clip is charged per second at its model's price. A composed video is charged the reported tokens of every author call at each model's price plus the catalog price per started minute of each sandbox render, plus its generated sound; narration and sound effects per second of the generated clip and music per track, at the prices of the speech, sound and music skills. A reused sound clip is not charged again. The routing decision is not charged separately. The price shown for the skill in the app settings names the price per second of every clip resolution, the token and render-minute price of composed videos, and that changes are charged only for what they add. Each version is charged exactly once for what that version used; a request that delivers no video is not charged.
@@ -232,4 +236,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [request, routing, composed, sound, correct, generative, progress, result, timeline, extend, edit, change, billing]
+  required_groups: [request, routing, composed, sound, correct, generative, progress, result, timeline, extend, edit, change, billing, named_person]
