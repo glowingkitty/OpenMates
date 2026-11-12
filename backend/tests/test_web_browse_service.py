@@ -1828,13 +1828,15 @@ async def test_browsers_under_the_users_control_are_never_paused_to_make_room(se
 async def test_an_answer_that_breaks_its_schema_records_only_the_schema_keyword(
     service,
 ):
-    service.driver.observation["text"] = "Kit A costs 20,00 €"
+    service.driver.observation["text"] = "Kit A costs 20,00 € or 25,00 €"
 
     class WrongType(Models):
         verified = False
-        # Every value is on the page, but the price is text where the schema
-        # asks for a number.
-        extracted = {"data": {"products": [{"name": "Kit A", "price": "20,00 €"}]}}
+        # Every value is on the page, but the price holds two numbers where
+        # the schema asks for one number.
+        extracted = {
+            "data": {"products": [{"name": "Kit A", "price": "20,00 € or 25,00 €"}]}
+        }
 
     service.models_factory = WrongType
     result = await run(service, arguments(output_schema=SHOP_SCHEMA))
@@ -1843,3 +1845,45 @@ async def test_an_answer_that_breaks_its_schema_records_only_the_schema_keyword(
     assert counts["answer_unmatched_values"] == 0.0
     assert counts["answer_pruned_valid"] == 0.0
     assert counts["answer_schema_error"] == "type"
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.structured-data
+@pytest.mark.parametrize(
+    ("shown", "types", "expected"),
+    [
+        ("€24,95", "number", 24.95),
+        ("24.95 €", "number", 24.95),
+        ("1.299,00 €", "number", 1299),
+        ("$1,299.00", "number", 1299),
+        ("EUR 30", "integer", 30),
+        ("19,5", "integer", "19,5"),  # Not an integer: left for the schema check.
+        ("0.125", "number", 0.125),
+        ("0.125 kg each", "number", "0.125 kg each"),  # Not a short price.
+        ("2 for 30 €", "number", "2 for 30 €"),  # Two numbers: never guessed.
+        ("from 24,95 € per kit", "number", "from 24,95 € per kit"),
+        ("24,95 €", "string", "24,95 €"),
+    ],
+)
+# contract-test: supporting surface=rest_api assertions=web-browse.structured-data
+def test_a_shown_price_becomes_the_number_its_schema_field_asks_for(
+    shown, types, expected
+):
+    from backend.core.api.app.services.web_browse_evidence import coerce_numbers
+
+    schema = {"type": "object", "properties": {"price": {"type": types}}}
+    assert coerce_numbers({"price": shown}, schema) == {"price": expected}
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.truthful-completion
+@pytest.mark.asyncio
+async def test_prices_copied_as_shown_still_complete_a_number_schema(service):
+    service.driver.observation["text"] = "Kit A costs 20,00 €"
+
+    class ShownPrice(Models):
+        verified = True
+        extracted = {"data": {"products": [{"name": "Kit A", "price": "20,00 €"}]}}
+
+    service.models_factory = ShownPrice
+    result = await run(service, arguments(output_schema=SHOP_SCHEMA))
+    assert result.status == "completed"
+    assert result.data == {"products": [{"name": "Kit A", "price": 20}]}

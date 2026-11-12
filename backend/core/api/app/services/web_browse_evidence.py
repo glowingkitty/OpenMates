@@ -29,6 +29,83 @@ _REMOVED = object()
 _NUMBER = re.compile(r"\d(?:[\d.,'   ]*\d)?")
 
 
+def _schema_types(node: Any) -> set[str]:
+    kind = node.get("type") if isinstance(node, dict) else None
+    return {kind} if isinstance(kind, str) else set(kind or [])
+
+
+def _shown_number(text: str) -> Decimal | None:
+    """The one number a short price-like text shows ('€24,95', '1.299,00 €').
+
+    Returns None when the text holds no number, more than one, or an ambiguous
+    separator, so a wrong conversion is never made.
+    """
+    tokens = re.findall(r"\d[\d.,]*\d|\d", text)
+    letters = re.sub(r"[\d.,\s+-]|[^\w]", "", text)
+    if len(tokens) != 1 or len(letters) > 3:
+        return None
+    token = tokens[0]
+    if "," in token and "." in token:
+        decimal = "," if token.rfind(",") > token.rfind(".") else "."
+    elif token.count(",") == 1 and len(token.split(",")[1]) != 3:
+        decimal = ","
+    elif token.count(".") == 1 and len(token.split(".")[1]) != 3:
+        decimal = "."
+    elif re.fullmatch(r"0[.,]\d+", token):
+        decimal = token[1]  # A leading zero is never a thousands group.
+    elif "," in token or "." in token:
+        groups = re.split(r"[.,]", token)
+        if any(len(g) != 3 for g in groups[1:]):
+            return None
+        decimal = None
+    else:
+        decimal = None
+    thousands = {",", "."} - {decimal} if decimal else {",", "."}
+    digits = "".join(ch for ch in token if ch not in thousands)
+    try:
+        return Decimal(digits.replace(",", ".") if decimal else digits)
+    except InvalidOperation:
+        return None
+
+
+def coerce_numbers(value: Any, schema: Any) -> Any:
+    """Turn a shown number into the number type its schema field asks for.
+
+    Extraction copies prices as shown ('€24,95'); a `number` field then fails
+    validation although the value is on the page. Only an unambiguous single
+    number is converted; everything else is left for the checks to reject.
+    """
+    node = schema if isinstance(schema, dict) else {}
+    if isinstance(value, dict):
+        properties = node.get("properties") or {}
+        extra = node.get("additionalProperties")
+        return {
+            k: coerce_numbers(
+                v, properties.get(k, extra if isinstance(extra, dict) else {})
+            )
+            for k, v in value.items()
+        }
+    if isinstance(value, list):
+        return [coerce_numbers(v, node.get("items")) for v in value]
+    types = _schema_types(node)
+    if (
+        isinstance(value, str)
+        and "string" not in types
+        and types
+        & {
+            "number",
+            "integer",
+        }
+    ):
+        number = _shown_number(value)
+        if number is None:
+            return value
+        if number == number.to_integral_value():
+            return int(number)
+        return float(number) if "number" in types else value
+    return value
+
+
 def normalize(text: str) -> str:
     return " ".join(unicodedata.normalize("NFKC", text).split()).casefold()
 

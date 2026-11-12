@@ -701,7 +701,8 @@ class BrowserModels:
                 'Return {"data":...} matching output_schema using only facts observed on observed_page or in evidence '
                 "(quotations code-verified on earlier pages); missing facts must remain unknown. "
                 "Complete every requested part of the goal even when its schema property is optional. "
-                "Copy names, prices, dates and URLs exactly as observed. "
+                "Copy names, prices, dates and URLs exactly as observed; a field whose schema type is number or "
+                "integer gets the number the page shows (24.95 for '€24,95'). "
                 "Text the page shows shortened (for example ending in ...) is copied in that shortened form; never complete "
                 "it from memory or from a URL. "
                 "Preserve qualifications, exceptions and source caveats relevant to the requested answer. "

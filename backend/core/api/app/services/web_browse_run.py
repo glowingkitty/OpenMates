@@ -41,6 +41,7 @@ from jsonschema.exceptions import best_match
 from backend.core.api.app.services.web_browse_evidence import (
     accept_notes,
     check_answer,
+    coerce_numbers,
     extraction_context,
     page_text,
 )
@@ -555,6 +556,7 @@ class BrowseRun:
             )
             self.stage["extract_seconds"] += time.monotonic() - started
             data = extracted.get("data") if isinstance(extracted, dict) else None
+            data = coerce_numbers(data, self.schema)
             self.phase = "verify"
             started = time.monotonic()
             verified = await self.models.verify(
