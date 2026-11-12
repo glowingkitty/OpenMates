@@ -951,3 +951,23 @@ async def test_missing_provider_usage_stops_without_free_success_or_blind_retry(
     assert len(models.attempts) == 1 and not models.attempts[0]["complete"]
     assert models.after_attempt.await_args.args[1]["complete"] is False
     fallback.assert_not_awaited()
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.control-loop
+def test_plan_keeps_the_valid_actions_before_a_bad_one_and_rejects_a_bad_first_action():
+    from backend.shared.providers.browser_planner import PlanInvalid, validate_plan
+
+    observation = {
+        "controls": [{"id": "1", "kind": "click", "role": "button", "label": "Next"}]
+    }
+    good, bad = {"kind": "click", "target": "1"}, {"kind": "hover", "target": "1"}
+    plan = validate_plan(
+        {"notes": [], "actions": [good, bad, good], "done": False, "blocked": None},
+        observation,
+    )
+    assert plan["actions"] == [good]
+    with pytest.raises(PlanInvalid):
+        validate_plan(
+            {"notes": [], "actions": [bad, good], "done": False, "blocked": None},
+            observation,
+        )

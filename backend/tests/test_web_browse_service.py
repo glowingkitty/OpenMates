@@ -1704,3 +1704,32 @@ async def test_existing_session_resumes_with_observe_and_rejects_an_old_runtime(
     )
     assert old.status == "failed" and "outdated runtime" in old.reason
     assert len(operations(service, "observe")) == 1  # Nothing observed on v1.
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.truthful-completion
+def test_partial_answer_drops_rows_that_lost_as_many_values_as_they_kept():
+    from backend.core.api.app.services.web_browse_evidence import check_answer
+
+    observation = {
+        "url": "https://example.org/list",
+        "title": "List",
+        "document_text": "Blue Lamp 12.50 Red Chair 40.00 in stock",
+    }
+    data = [
+        {"title": "Blue Lamp", "price": "12.50"},
+        {"title": "Invented Table", "price": "40.00"},
+        {
+            "title": "Red Chair",
+            "price": "40.00",
+            "stock": "in stock",
+            "maker": "Unknown Maker",
+        },
+    ]
+    check = check_answer(
+        data, {"type": "array", "items": {"type": "object"}}, [], observation
+    )
+    assert check.pruned == [
+        {"title": "Blue Lamp", "price": "12.50"},
+        {"title": "Red Chair", "price": "40.00", "stock": "in stock"},
+    ]
+    assert "/1" in check.missing and "/2/maker" in check.missing

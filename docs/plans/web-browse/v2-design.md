@@ -117,7 +117,7 @@ identity, replay and the final result/settlement, and delegates the loop.
      (`{goal, target, page_title}`; a submitting type adds an `effect` note;
      typed text and field values never included). Plain actions ask no
      question: scroll, wait, back, HTTPS link clicks and field preparation
-     (`select`, `type` without `submit`). Safe score below 0.95 ends the run
+     (`select`, `type` without `submit`). Safe score below 0.9 ends the run
      with `needs_user`; injection above the threshold ends it as today.
      Content-free scores (`gate_injection_score`, `gate_safe_score` = step
      minimum, `gate_safe_questions`) go to the run's verification metrics;

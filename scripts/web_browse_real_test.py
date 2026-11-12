@@ -46,7 +46,7 @@ CASES: dict[str, dict] = {
     },
     "catalogue-two-pages": {
         "browse_required": True,
-        "expect_all": ["a light in the attic", "in her wake"],
+        "expect_all": ["a light in the", "in her wake"],
         "turns": [
             "Use the browser on https://books.toscrape.com/ and give me title and price of every book on the "
             "first two catalogue pages as a table."

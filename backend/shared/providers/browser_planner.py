@@ -339,7 +339,15 @@ def validate_plan(raw: Any, observation: dict[str, Any]) -> dict[str, Any]:
     if not actions:
         raise _reject("no_action", "An unfinished plan needs an action.")
     controls = control_index(observation)
-    checked = [_action(a, controls) for a in actions[:MAX_ACTIONS]]
+    checked: list[dict[str, Any]] = []
+    for position, raw_action in enumerate(actions[:MAX_ACTIONS]):
+        try:
+            checked.append(_action(raw_action, controls))
+        except PlanInvalid:
+            # The valid actions before a bad one still run; the page is observed again afterwards.
+            if position == 0:
+                raise
+            break
     if any(a["kind"] == "goto" for a in checked) and len(checked) > 1:
         raise _reject("bad_goto", "goto must be the only action.")
     return {**result, "actions": checked}

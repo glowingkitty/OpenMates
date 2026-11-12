@@ -228,7 +228,8 @@ def check_answer(
             for index, child in enumerate(value):
                 child_path = _pointer(path, index)
                 new, count, gone = visit(child, items, child_path)
-                if new is _REMOVED or (count == 0 and gone):
+                # A record that lost as many values as it kept is not a usable row.
+                if new is _REMOVED or (gone and count <= len(gone)):
                     removed.append(child_path)
                     continue
                 kept.append(new)
