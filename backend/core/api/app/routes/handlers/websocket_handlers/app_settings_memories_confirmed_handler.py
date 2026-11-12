@@ -17,6 +17,7 @@ import logging
 import time
 import json
 import os
+import uuid
 import yaml
 from datetime import datetime, timezone
 from typing import Dict, Any, List
@@ -361,6 +362,27 @@ async def _requested_memory_catalog(
     return [row for row in rows if isinstance(row, dict) and f"memory:{row.get('id')}" in requested]
 
 
+async def _claim_continuation_task(
+    cache_service: CacheService, chat_id: str, original_task_id: str,
+) -> tuple[str, bool]:
+    """Reserve the chat's active-task marker for the continuation before dispatch.
+
+    The paused source task releases the marker when it finishes, so the
+    continuation would otherwise run unowned: a Focus activation it pauses for
+    can then never resume (the resumed task must find its root still active).
+    A source that has not finished yet hands the marker over atomically. A
+    marker held by a newer turn is never taken; that continuation runs unowned.
+    """
+    child_task_id = str(uuid.uuid4())
+    if await cache_service.try_claim_active_ai_task(chat_id, child_task_id):
+        return child_task_id, True
+    if original_task_id and await cache_service.transfer_active_ai_task(
+        chat_id, original_task_id, child_task_id,
+    ):
+        return child_task_id, True
+    return child_task_id, False
+
+
 async def _trigger_continuation(
     cache_service: CacheService,
     directus_service: DirectusService,
@@ -571,7 +593,16 @@ async def _trigger_continuation(
         # Trigger the task with the original request parameters
         # The task will find app settings/memories in cache (if confirmed)
         # or process without them (if rejected)
+        continuation_task_id, owns_chat = await _claim_continuation_task(
+            cache_service, chat_id, original_task_id,
+        )
+        if not owns_chat:
+            logger.warning(
+                f"Continuation task {continuation_task_id} for chat {chat_id} runs without the active-task "
+                f"marker: a newer turn owns the chat (original task: {original_task_id})"
+            )
         task = process_ai_skill_ask_task.apply_async(
+            task_id=continuation_task_id,
             kwargs={
                 "request_data_dict": request_data_dict,
                 "skill_config_dict": skill_config_dict,

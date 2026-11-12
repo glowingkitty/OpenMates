@@ -522,6 +522,17 @@ def _trusted_focus_override(overrides: UserOverrides | None, focus_id: str) -> b
                                  for app_id, identifier in overrides.focus_modes))
 
 
+def _pending_focus_authority_root(request_data: Any, task_id: str) -> str:
+    """Return the task that owns a pending focus activation for this turn.
+
+    Imported here because focus_continuation_history imports the AI tasks package,
+    which imports this module.
+    """
+    from backend.shared.python_utils.focus_continuation_history import focus_authority_root
+
+    return focus_authority_root(request_data, task_id)
+
+
 def _forward_agentic_context(request: AskSkillRequest) -> dict:
     """JSON-safe agentic context for a pending Focus continuation (stored in Redis).
 
@@ -3999,10 +4010,9 @@ async def handle_main_processing(
                     "chat_has_title": request_data.chat_has_title,
                     "is_incognito": getattr(request_data, 'is_incognito', False),
                     "task_id": task_id,
-                    "focus_authority_task_id": (
-                        getattr(request_data, "_focus_authority_task_id", None)
-                        or request_data.resolved_recovery_inference_task_id() or task_id
-                    ),
+                    # Same root the pause retains and the active marker holds; a
+                    # Memory-approval continuation owns the marker under its own id.
+                    "focus_authority_task_id": _pending_focus_authority_root(request_data, task_id),
                     "legacy_cutover_task_id": request_data.legacy_cutover_task_id,
                     "root_legacy_cutover_task_id": request_data.root_legacy_cutover_task_id,
                     "root_user_message_id": request_data.root_user_message_id,
@@ -6284,10 +6294,9 @@ async def handle_main_processing(
                     "chat_has_title": request_data.chat_has_title,
                     "is_incognito": getattr(request_data, 'is_incognito', False),
                     "task_id": task_id,
-                    "focus_authority_task_id": (
-                        getattr(request_data, "_focus_authority_task_id", None)
-                        or request_data.resolved_recovery_inference_task_id() or task_id
-                    ),
+                    # Same root the pause retains and the active marker holds; a
+                    # Memory-approval continuation owns the marker under its own id.
+                    "focus_authority_task_id": _pending_focus_authority_root(request_data, task_id),
                     "legacy_cutover_task_id": request_data.legacy_cutover_task_id,
                     "root_legacy_cutover_task_id": request_data.root_legacy_cutover_task_id,
                     "root_user_message_id": request_data.root_user_message_id,
