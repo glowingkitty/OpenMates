@@ -261,10 +261,9 @@
       identityResetSignal += 1;
       authoring?.onSaved(updated);
       await refreshProjection(updated);
-    } catch (error) {
-      onError(messageOf(error, 'Failed to save workflow'));
-      throw error;
     } finally {
+      // Failures propagate unreported: the node editor shows them inline, and
+      // reporting here too would raise a second, generic notification.
       saving = false;
     }
   }
