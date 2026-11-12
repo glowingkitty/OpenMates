@@ -761,6 +761,14 @@ project_memories:
   given: Acme's Memories tab is open.
   when: The user creates a memory with a title, text, when-to-use, an expiry date and Only when mentioned.
   then: It is stored under .openmates/memories with those fields and stays hidden from model stages until mentioned.
+- id: assistant-saves-project-memory
+  given: Acme's Work on focus is active in a chat and the user agrees to save Acme's press style.
+  when: The assistant saves it to the Project.
+  then: A new Memory file appears in Acme's Memories tab, no personal Memory is created, and the reply says it was saved only after the file operation succeeded.
+- id: assistant-project-memory-without-focus
+  given: No Project Focus is active in the chat.
+  when: The assistant tries to save a Memory to a Project.
+  then: The save is refused, nothing is stored, and the assistant offers a personal Memory instead.
 project_assistant_creation:
 - id: recipe-web-app-creates-project
   assertion_ids:

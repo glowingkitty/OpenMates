@@ -659,6 +659,10 @@ assertions:
     active Project Focus/access. Deactivation prevents future inclusion, while already included conversation content keeps
     existing chat-history behavior. Personal memories about a Project retain personal consent. New Project Memory documents
     use .openmates/memories with the same title, memory, when-to-use, optional start/expiry and load-mode fields as personal Memories and are edited in a Project Memories tab; compatible legacy rules and facts documents remain readable without duplication.
+    When the user agrees, the assistant can save a new Project Memory, but only under current authoritative active Project
+    Focus with Project file tools; the user's device encrypts and stores it as a Project file in .openmates/memories with
+    revision history, nothing is written to personal Memories, and the assistant says it was saved only after the file
+    operation succeeded. Without that Focus a Project save is refused and the assistant offers a personal Memory instead.
   depends_on:
   - examples.project_memories
 - id: projects.creation.assistant-inferred

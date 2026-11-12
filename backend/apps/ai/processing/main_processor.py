@@ -103,7 +103,9 @@ from backend.apps.ai.processing.memory_tools import (
     memory_tools, native_memory_context_matches,
 )
 from backend.apps.ai.processing.memory_write_tool import (
-    SAVE_MEMORY_TOOL_INSTRUCTION, SAVE_MEMORY_TOOL_NAME, dispatch_save_memory, is_save_memory_tool_name,
+    PROJECT_MEMORY_FILE_TOOL, SAVE_MEMORY_TOOL_INSTRUCTION, SAVE_MEMORY_TOOL_NAME,
+    SAVE_PROJECT_MEMORY_TOOL_INSTRUCTION, MemoryWriteToolError, dispatch_save_memory, is_project_memory_call,
+    is_save_memory_tool_name, project_memory_file_arguments,
     record_workflow_writes, save_memory_enabled, save_memory_tool,
 )
 from backend.shared.python_utils.rule_loader import applied_rule_set_key
@@ -5146,8 +5148,12 @@ async def handle_main_processing(
         logger.info("%s [MEMORY_CONTEXT] on-demand tools available", log_prefix)
     # Client-applied personal Memory writes (memory_write_tool.py); the server never stores them.
     save_memory_available = save_memory_enabled(request_data) and cache_service is not None
+    # Project target only with the authorized Project file tools of this turn (see below).
+    save_memory_project_target = bool(save_memory_available and project_file_tools_enabled and active_project_focus)
     if save_memory_available:
         prompt_parts.append(SAVE_MEMORY_TOOL_INSTRUCTION)
+    if save_memory_project_target:
+        prompt_parts.append(SAVE_PROJECT_MEMORY_TOOL_INSTRUCTION)
     if (discovered_apps_metadata and "diagrams" in discovered_apps_metadata
             and selected_app_ids is not None and "diagrams" in selected_app_ids):
         from backend.apps.diagrams.diagram_guidance import (
@@ -5434,7 +5440,7 @@ async def handle_main_processing(
     if memory_runtime is not None:
         available_tools_for_llm.extend(memory_tools())
     if save_memory_available:
-        available_tools_for_llm.append(save_memory_tool())
+        available_tools_for_llm.append(save_memory_tool(project_target=save_memory_project_target))
     available_tools_for_llm = without_unscoped_project_search(available_tools_for_llm)
 
     if task_queue_blocks_plan_tools:
@@ -7575,6 +7581,33 @@ async def handle_main_processing(
                         f"'{raw_function_name}' -> '{canonical_name}'"
                     )
                     chunk.function_name = canonical_name
+
+                # save_memory with target "project": store the Memory as one
+                # Project file operation, so it runs through the authorized,
+                # client-encrypted Project file path (placeholder, exclusivity,
+                # continuation, revision history) instead of the personal job.
+                if (is_save_memory_tool_name(chunk.function_name) and save_memory_project_target
+                        and _canonicalize_tool_name(PROJECT_MEMORY_FILE_TOOL) in iteration_allowed_tool_names):
+                    try:
+                        memory_call_args = json.loads(chunk.function_arguments_raw or "{}")
+                    except json.JSONDecodeError:
+                        memory_call_args = None
+                    if is_project_memory_call(memory_call_args):
+                        try:
+                            project_memory_args = project_memory_file_arguments(memory_call_args)
+                        except MemoryWriteToolError as exc:
+                            hallucinated_tool_calls_this_turn.append((chunk, {
+                                "tool_call_id": chunk.tool_call_id, "role": "tool", "name": chunk.function_name,
+                                "content": json.dumps({"status": "rejected", "message": str(exc)}),
+                            }))
+                            hallucinated_rejections_this_turn += 1
+                            continue
+                        logger.info("%s [MEMORY_WRITE] project target -> %s document_chars=%d", log_prefix,
+                                    PROJECT_MEMORY_FILE_TOOL, len(project_memory_args["content"]))
+                        chunk.function_name = _canonicalize_tool_name(PROJECT_MEMORY_FILE_TOOL)
+                        chunk.function_arguments_raw = json.dumps(project_memory_args)
+                        if hasattr(chunk, "function_arguments_parsed"):
+                            chunk.function_arguments_parsed = project_memory_args
 
                 tool_calls_for_this_turn.append(chunk)
 

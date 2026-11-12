@@ -74,18 +74,89 @@ CASES: dict[str, dict] = {
         "Create our press release as a React page for our website. " + NEWS + " " + STYLE
         + " Skip all questions and the fact check, use your recommended headline and write it now.",
     ]},
+    "project-style": {"format": "word", "project": True, "turns": [
+        "Set up our press style for press releases and save it to this project. " + STYLE
+        + " Media contact: Jonas Example, press officer, press@example.org. Mara Example, CEO, is usually quoted.",
+        "Yes, save the press style to this project's Memories.",
+    ], "reuse_turns": [
+        "Write a press release about our app launch. " + NEWS
+        + " Skip all questions and the fact check, use your recommended headline and write it now.",
+    ]},
     "not-investor-outreach": {"format": None, "expect_focus": False, "turns": [
         "Write a cold email to an angel investor for our seed round. We are Example Solar GmbH from Leipzig.",
     ]},
 }
 
 
-def run_case(cli: str, label: str, case: dict, out: Path, timeout: int) -> dict:
+PROJECT_NAME = "Example Solar press office"
+MEMORY_DIR = ".openmates/memories"
+
+
+def memory_count(cli: str) -> int:
+    listed = command(cli, ["settings", "memories", "list"])
+    entries = listed.get("memories", listed.get("entries", [])) if isinstance(listed, dict) else listed
+    return len(entries) if isinstance(entries, list) else -1
+
+
+def project_memory_files(cli: str, project_id: str) -> list[str]:
+    try:
+        listed = command(cli, ["projects", "files", "list", project_id, "--path", MEMORY_DIR])
+    except ProofError:
+        return []
+    text = json.dumps(listed)
+    return sorted(set(part.split('"')[0] for part in text.split(MEMORY_DIR + "/")[1:] if part.split('"')[0].endswith(".md")))
+
+
+def run_project_case(cli: str, label: str, case: dict, out: Path, timeout: int) -> dict:
+    """Save the press style to a Project, then reuse it in a second chat of that Project."""
+    result: dict = {"label": label, "status": "failed"}
+    project_id = None
+    try:
+        created = command(cli, ["projects", "create", PROJECT_NAME, "--write-policy", "apply_and_show"])
+        project_id = (created.get("project") or created).get("id") if isinstance(created, dict) else None
+        if not isinstance(project_id, str):
+            raise ProofError("project_id_missing")
+        command(cli, ["projects", "settings", project_id, "--focus-activation", "immediate"])
+        personal_before = memory_count(cli)
+        save = run_case(cli, f"{label}-save", {**case, "format": None, "expect_focus": True}, out, timeout,
+                        project_id=project_id)
+        files = project_memory_files(cli, project_id)
+        memory_text = ""
+        for name in files:
+            read = command(cli, ["projects", "files", "read", project_id, f"{MEMORY_DIR}/{name}"])
+            memory_text += json.dumps(read).lower()
+        write_receipt(out / f"{label}-project-memories.json", {"files": files})
+        result["save"] = save
+        result["project_memory_files"] = len(files)
+        result["project_memory_has_style"] = "3,000 apartments" in memory_text or "3000 apartments" in memory_text
+        result["personal_memories_unchanged"] = memory_count(cli) == personal_before
+        reuse = run_case(cli, f"{label}-reuse", {"format": "word", "turns": case["reuse_turns"]}, out, timeout,
+                         project_id=project_id, extra_tokens=["3,000 apartments"])
+        result["reuse"] = reuse
+        checks = [len(files) >= 1, result["project_memory_has_style"], result["personal_memories_unchanged"],
+                  reuse["status"] == "passed"]
+        result["status"] = "passed" if all(checks) else "failed"
+    except (ProofError, subprocess.TimeoutExpired) as exc:
+        result["reason"] = str(exc) if isinstance(exc, ProofError) else "timeout"
+    finally:
+        if project_id:
+            try:
+                command(cli, ["projects", "delete", project_id, "--confirm", project_id])
+                result["project_deleted"] = True
+            except (ProofError, subprocess.TimeoutExpired):
+                result["project_deleted"] = False
+    return result
+
+
+def run_case(cli: str, label: str, case: dict, out: Path, timeout: int, *, project_id: str | None = None,
+             extra_tokens: list[str] | None = None) -> dict:
     result: dict = {"label": label, "status": "failed", "turns": []}
     chat_id = None
     try:
         for index, prompt in enumerate(case["turns"]):
             args = (["chats", "new", prompt] if chat_id is None else ["chats", "send", "--chat", chat_id, prompt])
+            if project_id:
+                args += ["--project", project_id]
             reply = command(cli, [*args, "--personal", "--auto-approve", "--response-timeout-seconds", str(timeout)],
                             timeout=timeout + 30)
             write_receipt(out / f"{label}-turn{index + 1}.json", {"prompt": prompt, "reply": reply})
@@ -105,7 +176,7 @@ def run_case(cli: str, label: str, case: dict, out: Path, timeout: int) -> dict:
         checks = [activated is expect_focus]
         if case["format"]:
             result["format_produced"] = any(token in text for token in FORMAT_TOKENS[case["format"]])
-            result["structure_tokens"] = {token: token in text for token in STRUCTURE_TOKENS}
+            result["structure_tokens"] = {token: token in text for token in [*STRUCTURE_TOKENS, *(extra_tokens or [])]}
             checks += [result["format_produced"], all(result["structure_tokens"].values())]
         result["status"] = "passed" if all(checks) else "failed"
     except (ProofError, subprocess.TimeoutExpired) as exc:
@@ -169,7 +240,8 @@ def main() -> int:
         except DraftGuardError as exc:
             raise ProofError(str(exc)) from exc
         for label in args.case or sorted(CASES):
-            result = run_case(cli, label, CASES[label], out, args.timeout_seconds)
+            runner = run_project_case if CASES[label].get("project") else run_case
+            result = runner(cli, label, CASES[label], out, args.timeout_seconds)
             receipt["cases"].append(result)
             print(json.dumps(result), flush=True)
         receipt["status"] = "passed" if all(c["status"] == "passed" for c in receipt["cases"]) else "failed"

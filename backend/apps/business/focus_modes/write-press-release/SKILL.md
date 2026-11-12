@@ -58,8 +58,10 @@ phases:
       for future press releases. Recommend saving it to the active Project's
       Memories when a Project is active, because the style belongs to that
       company; otherwise offer a personal Memory that loads only when
-      mentioned. Save only after the user agrees. Honor a request to skip
-      this phase.
+      mentioned. Save only after the user agrees: in a Project, call
+      save_memory with target project and load_mode auto_include; otherwise
+      save_memory with load_mode mention_only. Honor a request to skip this
+      phase.
     requirements:
       - id: style_known
         text: A press style is loaded, derived from the user's material or answers, or the user chose neutral defaults or asked to skip.
@@ -137,7 +139,9 @@ phases:
       in another language, or another format. When the user's edits show a
       lasting preference (a name spelling, a phrase to avoid, a new
       boilerplate), ask once whether to add it to the press style memory and
-      update it only after the user agrees.
+      update it only after the user agrees (a Project Memory: read its file
+      in .openmates/memories and apply project_update_file; a personal
+      Memory: save_memory with action update).
     requirements:
       - id: check_reported
         text: A plain check of the release has been reported and the user's requested changes have been applied.

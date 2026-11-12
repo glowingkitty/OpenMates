@@ -56,6 +56,14 @@ decisions:
     fence; React uses an application_preview fence.
   reason: Requested by the user on 2026-11-12; reuses existing output paths.
   decided_at: '2026-11-12'
+- id: D-6
+  status: active
+  decision: save_memory target project is rewritten server-side into one project_create_file operation for .openmates/memories/<id>.md
+    with the canonical Memory document. It reuses the authorized Project file job path (client encryption in the Rust core,
+    placeholder, exclusivity, continuation, revision history); the personal memory write job, Rust and web shells are unchanged.
+    Project Memory updates use project_read_text plus project_update_file.
+  reason: No second encrypted write path; truthful results come from the existing Project file operation.
+  decided_at: '2026-11-12'
 scenarios:
 - id: S-1
   title: First press release without a style
@@ -281,7 +289,7 @@ tasks:
 - id: TASK-2
   title: 'Stage B: save_memory target project'
   status: pending
-  phase: blocked
+  phase: working_tasks
   covers:
     scenarios:
     - S-4
@@ -289,16 +297,15 @@ tasks:
     - AC-5
   expected_files: &id004
   - backend/apps/ai/processing/memory_write_tool.py
-  - packages/openmates-rust/src/client/memory_write_jobs.rs
-  - frontend/packages/ui/src/services/rustCore/memory/memoryWriteJobRunner.ts
-  - specifications/features/app-memories/specification.yml
+  - backend/apps/ai/processing/main_processor.py
+  - backend/tests/test_memory_write_tool.py
+  - specifications/features/projects/specification.yml
   verification_ids:
   - T-TOOL-PROJECT
   - T-REAL
   dependencies:
   - TASK-1
-  blockers:
-  - TASK-1567 (assistant-memory-writes) not yet integrated on dev
+  blockers: []
   follow_up_tasks: []
   ownership:
     files: *id004

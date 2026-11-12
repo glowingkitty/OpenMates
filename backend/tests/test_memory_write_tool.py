@@ -258,3 +258,69 @@ def test_workflow_writes_are_recorded_from_create_or_modify_results():
     ])
     tool.record_workflow_writes(request, "web", "search", [{"success": True, "workflow": {"workflow_id": "x"}}])
     assert request.turn_written_entries == [{"kind": "workflow", "target_id": "wf-1", "title": "Weekly CFP alert"}]
+
+
+# --- Project target (Plan: docs/plans/press-release-focus-mode/plan.yml, T-TOOL-PROJECT) ---
+
+def test_target_is_offered_only_with_project_target():
+    personal = tool.save_memory_tool()["function"]["parameters"]["properties"]
+    project = tool.save_memory_tool(project_target=True)["function"]["parameters"]["properties"]
+    assert "target" not in personal
+    assert project["target"]["enum"] == ["personal", "project"]
+
+
+def test_project_target_becomes_one_canonical_project_memory_file():
+    args = tool.project_memory_file_arguments({**GOOD, "target": "project", "load_mode": "auto_include"})
+    assert set(args) == {"path", "expected_base", "content"} and args["expected_base"] is None
+    assert args["path"].startswith(".openmates/memories/") and args["path"].endswith(".md")
+    assert args["content"] == build_memory_document(TITLE, WHEN, BODY, load_mode="auto_include")
+    parsed = parse_memory_md(args["content"], memory_id="draft", source="project", project_id="project-1")
+    assert parsed.title == TITLE
+    assert tool.project_memory_file_arguments({**GOOD, "target": "project"})["path"] != args["path"]
+
+
+@pytest.mark.parametrize("args, reason", [
+    ({**GOOD, "target": "project", "action": "update"}, "project_update_file"),
+    ({**GOOD, "target": "project", "memory_id": "m-1"}, "Unknown"),
+    ({**GOOD, "target": "project", "content": "api_key: abcdef123456"}, "secret"),
+    ({**GOOD, "target": "project", "load_mode": "always"}, "load_mode"),
+    ({**GOOD, "target": "personal"}, "target must be project"),
+])
+def test_project_target_rejections(args, reason):
+    with pytest.raises(tool.MemoryWriteToolError, match=reason):
+        tool.project_memory_file_arguments(args)
+
+
+def test_project_target_without_project_focus_is_rejected_and_nothing_is_dispatched(caplog):
+    published = []
+
+    class Cache:
+        async def set(self, *a, **k):
+            raise AssertionError("no job may be stored")
+
+        async def publish_event(self, *a, **k):
+            published.append(a)
+
+    caplog.set_level(logging.INFO)
+    result = asyncio.run(tool.dispatch_save_memory(
+        arguments={**GOOD, "target": "project"}, request=_request(), approved_memories=[], cache_service=Cache()))
+    assert result["status"] == "rejected" and "Project Focus" in result["message"]
+    assert not published
+    assert not any(marker in caplog.text for marker in PRIVATE)
+
+
+def test_personal_target_keeps_the_personal_job():
+    job = _prepare({**GOOD, "target": "personal"})
+    assert job["action"] == "create" and job["document"].startswith("---\n")
+
+
+def test_main_processor_rewrites_project_saves_only_with_authorized_project_tools():
+    from pathlib import Path
+
+    source = Path(__file__).resolve().parents[1].joinpath("apps/ai/processing/main_processor.py").read_text()
+    gate = "save_memory_project_target = bool(save_memory_available and project_file_tools_enabled and active_project_focus)"
+    assert gate in source
+    rewrite = source.index("chunk.function_name = _canonicalize_tool_name(PROJECT_MEMORY_FILE_TOOL)")
+    guard = source.rindex("save_memory_project_target", 0, rewrite)
+    assert "_canonicalize_tool_name(PROJECT_MEMORY_FILE_TOOL) in iteration_allowed_tool_names" in source[guard:rewrite]
+    assert rewrite < source.index("tool_calls_for_this_turn.append(chunk)", rewrite)

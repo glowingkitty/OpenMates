@@ -18,6 +18,13 @@ Wire contract (protocol 1), see ``SAVE_MEMORY_*`` constants:
                                                       memory_id, error_code}
   server -> client  ``memory_write_job_result_ack``  {job_id, chat_id, accepted, reason}
 
+Project target: under an authorized active Project Focus with Project file
+tools, ``target: "project"`` turns the call into one ``project_create_file``
+operation for ``.openmates/memories/<id>.md`` (see
+``project_memory_file_arguments``). The client then encrypts and stores it as a
+Project file through the existing Project file job path, with its revision
+history; nothing is written as a personal Memory.
+
 Privacy: title, when_to_use and content are never logged; logs carry ids,
 action and sizes only.
 """
@@ -58,6 +65,9 @@ MEMORY_WRITE_JOB_TTL_SECONDS = 120
 MEMORY_WRITE_POLL_SECONDS = 0.25
 _EXPIRED_CLAIM = "__expired__"
 _ERROR_CODE = re.compile(r"^[a-z0-9_]{1,64}$")
+SAVE_MEMORY_TARGETS = ("personal", "project")
+PROJECT_MEMORY_DIRECTORY = ".openmates/memories"
+PROJECT_MEMORY_FILE_TOOL = "project_create_file"
 
 SAVE_MEMORY_TOOL_INSTRUCTION = """Saving Memories
 save_memory creates or updates one personal Memory of the user. Use it only when
@@ -69,14 +79,28 @@ save secrets, passwords, keys or tokens. Say a Memory was saved or updated only
 after save_memory returned status applied; otherwise say plainly it was not saved.
 """
 
+SAVE_PROJECT_MEMORY_TOOL_INSTRUCTION = """Saving Memories to the active Project
+A Project is active with write access, so save_memory also accepts target
+"project": the Memory is stored in this Project's Memories, not in the user's
+personal Memories. Use it for knowledge that belongs to this Project or company
+(for example a press style), and only after the user agreed to save it there.
+It creates a new Project Memory; to change an existing one, read its file in
+.openmates/memories with project_read_text and apply project_update_file. Say it
+was saved only after the Project file operation reports success.
+"""
+
 
 class MemoryWriteToolError(ValueError):
     """A model-facing rejection. Messages never echo Memory text."""
 
 
-def save_memory_tool() -> dict[str, Any]:
-    """Internal-only function definition; no REST route or skill-use card exists."""
-    return {"type": "function", "function": {
+def save_memory_tool(*, project_target: bool = False) -> dict[str, Any]:
+    """Internal-only function definition; no REST route or skill-use card exists.
+
+    ``project_target`` adds the ``target`` choice; offer it only when the chat has an
+    authorized active Project Focus and the Project file tools in this turn.
+    """
+    tool = {"type": "function", "function": {
         "name": SAVE_MEMORY_TOOL_NAME,
         "description": ("Create or update one personal Memory of the user, saved encrypted by the user's device. "
                         "Only after the user asked to remember something or agreed to save it."),
@@ -92,6 +116,11 @@ def save_memory_tool() -> dict[str, Any]:
             "valid_until": {"type": "string", "description": "Optional ISO date."},
         }, "required": ["action", "title", "when_to_use", "content"], "additionalProperties": False},
     }}
+    if project_target:
+        tool["function"]["parameters"]["properties"]["target"] = {
+            "type": "string", "enum": list(SAVE_MEMORY_TARGETS),
+            "description": "personal (default) or project: save to the active Project's Memories."}
+    return tool
 
 
 def is_save_memory_tool_name(name: Any) -> bool:
@@ -122,9 +151,14 @@ def prepare_memory_write(arguments: Any, *, loaded_ids: set[str], chat_id: str, 
     """Validate the call into a client job. Raises MemoryWriteToolError with a model-facing reason."""
     if not isinstance(arguments, dict):
         raise MemoryWriteToolError("save_memory arguments must be an object.")
-    allowed = {"action", "memory_id", "title", "when_to_use", "content", "load_mode", "valid_from", "valid_until"}
+    allowed = {"action", "memory_id", "title", "when_to_use", "content", "load_mode", "valid_from", "valid_until",
+               "target"}
     if set(arguments) - allowed:
         raise MemoryWriteToolError("Unknown save_memory arguments.")
+    if arguments.get("target") not in (None, "personal"):
+        raise MemoryWriteToolError(
+            "Saving to a Project needs an active Project Focus with write access in this chat. Nothing was saved. "
+            "Offer a personal Memory instead, or tell the user they can add it in the Project's Memories tab.")
     action = arguments.get("action")
     if action not in ("create", "update"):
         raise MemoryWriteToolError("action must be create or update.")
@@ -149,6 +183,38 @@ def prepare_memory_write(arguments: Any, *, loaded_ids: set[str], chat_id: str, 
         "memory_id": memory_id, "document": fields["body"], "title": fields["title"],
         "chat_id": chat_id, "message_id": message_id, "expires_at": now + MEMORY_WRITE_JOB_TTL_SECONDS,
     }
+
+
+def is_project_memory_call(arguments: Any) -> bool:
+    return isinstance(arguments, dict) and arguments.get("target") == "project"
+
+
+def project_memory_file_arguments(arguments: Any) -> dict[str, Any]:
+    """Turn a ``target: "project"`` save into ``project_create_file`` arguments.
+
+    The document is the same canonical Memory Markdown that personal Memories use,
+    so the Project Memories tab and the Memory loader read it unchanged. Raises
+    MemoryWriteToolError with a model-facing reason.
+    """
+    if not is_project_memory_call(arguments):
+        raise MemoryWriteToolError("target must be project.")
+    allowed = {"action", "title", "when_to_use", "content", "load_mode", "valid_from", "valid_until", "target"}
+    if set(arguments) - allowed:
+        raise MemoryWriteToolError(
+            "Unknown save_memory arguments for a Project Memory (memory_id is only for personal updates).")
+    if arguments.get("action") != "create":
+        raise MemoryWriteToolError(
+            "save_memory only creates Project Memories. To change one, read its file in "
+            f"{PROJECT_MEMORY_DIRECTORY} with project_read_text and apply project_update_file.")
+    load_mode = arguments.get("load_mode") or DEFAULT_ASSISTANT_MEMORY_LOAD_MODE
+    if load_mode not in LOAD_MODES:
+        raise MemoryWriteToolError("load_mode must be auto_include, ask_first or mention_only.")
+    try:
+        fields = validated_memory_document(arguments, load_mode=load_mode)
+    except MemoryDocumentError as exc:
+        raise MemoryWriteToolError(_document_reason(str(exc))) from exc
+    return {"path": f"{PROJECT_MEMORY_DIRECTORY}/{uuid.uuid4()}.md", "expected_base": None,
+            "content": fields["body"]}
 
 
 def _document_reason(reason: str) -> str:
