@@ -125734,7 +125734,7 @@ assertions:
       surface: rest_api
     - &id16060
       path: backend/tests/test_app_packages_generic_contract.py
-      line: 406
+      line: 408
       name: test_flat_paused_skill_accepts_generic_contract_and_overlays_flat_delegate
       surface: rest_api
     - &id16061
@@ -125829,12 +125829,12 @@ assertions:
       surface: rest_api
     - &id16071
       path: backend/tests/test_app_packages_generic_contract.py
-      line: 406
+      line: 408
       name: test_flat_paused_skill_accepts_generic_contract_and_overlays_flat_delegate
       surface: rest_api
     - &id16072
       path: backend/tests/test_app_packages_generic_contract.py
-      line: 456
+      line: 458
       name: test_flat_base_app_dispatch_is_never_charged
       surface: rest_api
     - &id16073
@@ -126029,52 +126029,52 @@ assertions:
       surface: rest_api
     - &id16098
       path: backend/tests/test_app_packages_generic_contract.py
-      line: 305
+      line: 307
       name: test_delegate_returns_duplicate_results_once
       surface: rest_api
     - &id16099
       path: backend/tests/test_app_packages_generic_contract.py
-      line: 320
+      line: 322
       name: test_delegate_unknown_selector_runs_every_provider
       surface: rest_api
     - &id16100
       path: backend/tests/test_app_packages_generic_contract.py
-      line: 330
+      line: 332
       name: test_delegate_invalid_item_is_a_group_error_without_runner_call
       surface: rest_api
     - &id16101
       path: backend/tests/test_app_packages_generic_contract.py
-      line: 341
+      line: 343
       name: test_null_optional_fields_use_model_defaults
       surface: rest_api
     - &id16102
       path: backend/tests/test_app_packages_generic_contract.py
-      line: 351
+      line: 353
       name: test_provider_list_follows_the_original_response_model
       surface: rest_api
     - &id16103
       path: backend/tests/test_app_packages_generic_contract.py
-      line: 365
+      line: 367
       name: test_original_models_are_resolved_from_skill_module
       surface: rest_api
     - &id16104
       path: backend/tests/test_app_packages_generic_contract.py
-      line: 420
+      line: 422
       name: test_flat_delegate_passes_whole_input_and_keeps_original_shape
       surface: rest_api
     - &id16105
       path: backend/tests/test_app_packages_generic_contract.py
-      line: 443
+      line: 445
       name: test_flat_delegate_validation_selection_and_failures
       surface: rest_api
     - &id16106
       path: backend/tests/test_app_packages_generic_contract.py
-      line: 490
+      line: 492
       name: test_generic_validator_bounds_and_drops
       surface: rest_api
     - &id16107
       path: backend/tests/test_app_packages_generic_contract.py
-      line: 512
+      line: 514
       name: test_generic_results_are_count_and_size_bounded
       surface: rest_api
     - &id16108
@@ -126341,7 +126341,7 @@ assertions:
       surface: rest_api
     - &id16138
       path: backend/tests/test_app_packages_generic_contract.py
-      line: 474
+      line: 476
       name: test_optional_secret_is_passed_only_when_set
       surface: rest_api
     - &id16139
@@ -126421,17 +126421,17 @@ assertions:
       surface: rest_api
     - &id16149
       path: backend/tests/test_app_packages_generic_contract.py
-      line: 456
+      line: 458
       name: test_flat_base_app_dispatch_is_never_charged
       surface: rest_api
     - &id16150
       path: backend/tests/test_app_packages_generic_contract.py
-      line: 523
+      line: 525
       name: test_delegate_groups_are_never_charged
       surface: rest_api
     - &id16151
       path: backend/tests/test_app_packages_generic_contract.py
-      line: 540
+      line: 542
       name: test_flag_off_paused_skill_billing_unchanged
       surface: rest_api
     - &id16152

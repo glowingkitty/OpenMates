@@ -17,7 +17,7 @@ path resolves the class from this metadata, so no call site changes.
 from __future__ import annotations
 
 import copy
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Mapping, Optional
 
 from backend.shared.app_packages.generic_contract import (
     PROVIDER_SELECTOR_FIELDS,
@@ -85,8 +85,18 @@ PROVIDER_SELECTOR_DESCRIPTION = (
 )
 
 
-def ensure_provider_selector(skill: Dict[str, Any], provider_ids: List[str]) -> None:
+def _selector_description(provider_ids: List[str], names: Optional[Mapping[str, str]]) -> str:
+    """The filter description; ids whose display name differs are listed with it."""
+    named = [f"{pid} ({names[pid]})" for pid in provider_ids
+             if names and names.get(pid) and names[pid].strip().casefold() != pid]
+    return f"{PROVIDER_SELECTOR_DESCRIPTION} Ids: {', '.join(named)}." if named else PROVIDER_SELECTOR_DESCRIPTION
+
+
+def ensure_provider_selector(skill: Dict[str, Any], provider_ids: List[str],
+                             names: Optional[Mapping[str, str]] = None) -> None:
     """Declare a ``providers`` filter in the public request schema when it has no selector.
+
+    ``names`` maps ids to display names so a caller can tell which id is which provider.
 
     Callers reach the generic delegate through request models built from this
     schema, which drop undeclared fields; without a declared selector a named
@@ -106,14 +116,15 @@ def ensure_provider_selector(skill: Dict[str, Any], provider_ids: List[str]) -> 
     properties["providers"] = {
         "type": "array",
         "items": {"type": "string", "enum": list(provider_ids)},
-        "description": PROVIDER_SELECTOR_DESCRIPTION,
+        "description": _selector_description(list(provider_ids), names),
     }
 
 
 def _overlay_delegated_skill(skill: Dict[str, Any], providers: List[InstalledProvider]) -> None:
     """Serve a paused, provider-less skill through the generic delegate class."""
     _overlay_skill(skill, providers)
-    ensure_provider_selector(skill, list(dict.fromkeys(p.provider_id for p in providers)))
+    ensure_provider_selector(skill, list(dict.fromkeys(p.provider_id for p in providers)),
+                             {p.provider_id: p.name for p in providers})
     if not any(p.skill_hint for p in providers):
         # The built-in hint of a paused skill describes it as unavailable.
         skill.pop("preprocessor_hint", None)

@@ -292,8 +292,10 @@ def test_overlay_declares_provider_filter_in_request_item_schema():
     declared = item["properties"]["providers"]
     assert declared["type"] == "array" and declared["items"] == {"type": "string", "enum": [FIRST, SECOND]}
     flat = {"tool_schema": {"type": "object", "properties": {"query": {"type": "string"}}}}
-    overlay.ensure_provider_selector(flat, [FIRST])
-    assert flat["tool_schema"]["properties"]["providers"]["items"]["enum"] == [FIRST]
+    overlay.ensure_provider_selector(flat, [FIRST, SECOND], {FIRST: "First Shop", SECOND: SECOND})
+    assert flat["tool_schema"]["properties"]["providers"]["items"]["enum"] == [FIRST, SECOND]
+    # Ids are listed with their display name so a caller knows which id is which provider.
+    assert flat["tool_schema"]["properties"]["providers"]["description"].endswith(f"Ids: {FIRST} (First Shop).")
     # A schema that already has a selector is left as authored.
     authored = {"tool_schema": {"type": "object", "properties": {"provider": {"type": "string"}}}}
     overlay.ensure_provider_selector(authored, [FIRST])
