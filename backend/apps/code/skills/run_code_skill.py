@@ -445,14 +445,17 @@ def _is_safe_npm_version(value: str) -> bool:
     )
 
 
-def _validate_package_json_manifest(content: str) -> None:
+def _validate_package_json_manifest(content: str, *, allow_scripts: bool = False) -> None:
     try:
         package_json = json.loads(content)
     except json.JSONDecodeError as exc:
         raise CodeRunInlineValidationError("package.json is not valid JSON") from exc
     if not isinstance(package_json, dict):
         raise CodeRunInlineValidationError("package.json must be an object")
-    if package_json.get("scripts"):
+    # Plain Code Run executes one entry file, so npm scripts would be a hidden
+    # second entry point. A test run already executes its own declared commands
+    # (setup, server, test) in the sandbox, and every hosted app has scripts.
+    if package_json.get("scripts") and not allow_scripts:
         raise CodeRunInlineValidationError("package.json scripts are not supported in Code Run")
     for section in CODE_RUN_PACKAGE_JSON_UNSUPPORTED_DEPENDENCY_SECTIONS:
         if package_json.get(section):
@@ -470,12 +473,12 @@ def _validate_package_json_manifest(content: str) -> None:
                 raise CodeRunInlineValidationError("package.json contains unsupported dependency versions")
 
 
-def _validate_dependency_manifest(path: str, content: str) -> None:
+def _validate_dependency_manifest(path: str, content: str, *, allow_scripts: bool = False) -> None:
     filename = path.rsplit("/", 1)[-1]
     if filename == "requirements.txt":
         _validate_python_requirements_manifest(content)
     elif filename == "package.json":
-        _validate_package_json_manifest(content)
+        _validate_package_json_manifest(content, allow_scripts=allow_scripts)
 
 
 def collect_inline_code_files_for_assistant(request: RunCodeRequest) -> tuple[list[dict[str, Any]], str]:
@@ -502,7 +505,7 @@ def collect_inline_code_files_for_assistant(request: RunCodeRequest) -> tuple[li
             raise CodeRunInlineValidationError("Code Run file bundle is too large")
         if _looks_like_secret(content):
             raise CodeRunInlineValidationError(f"Code Run file {path} appears to contain a secret")
-        _validate_dependency_manifest(path, content)
+        _validate_dependency_manifest(path, content, allow_scripts=request.test_run is not None)
         content_bytes = content.encode("utf-8")
         files.append({
             "path": path,

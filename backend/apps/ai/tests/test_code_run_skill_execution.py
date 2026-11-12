@@ -427,3 +427,27 @@ async def test_test_run_does_not_create_chat_code_embeds_for_project_snapshot(mo
     assert result.created_embed_ids == []
     assert dispatch_calls[0]["target_embed_id"] is None
     assert [file["path"] for file in dispatch_calls[0]["files"]] == ["web-app/index.html", "web-app/tests/app.spec.ts"]
+
+
+# contract-test: direct surface=rest_api assertions=code-run.tests.project-snapshot
+def test_test_run_accepts_package_json_scripts_but_plain_run_refuses_them() -> None:
+    """A hosted Vite app always has npm scripts; only test runs may carry them."""
+    package_json = '{"scripts": {"dev": "vite"}, "dependencies": {"react": "^18.3.1"}}'
+    files = [
+        {"path": "web-app/package.json", "code": package_json},
+        {"path": "web-app/tests/app.spec.js", "code": "test('x', () => {})"},
+    ]
+    test_run = {
+        "kind": "browser",
+        "revisions": [{"path": "web-app/package.json", "revision": "r1"}],
+        "test_command": {"argv": ["npx", "playwright", "test"], "cwd": "web-app"},
+    }
+    collected, target = run_code_skill.collect_inline_code_files_for_assistant(
+        RunCodeRequest(entry_path="web-app/tests/app.spec.js", files=files, test_run=test_run)
+    )
+    assert target == "web-app/tests/app.spec.js"
+    assert {file["path"] for file in collected} == {"web-app/package.json", "web-app/tests/app.spec.js"}
+    with pytest.raises(run_code_skill.CodeRunInlineValidationError, match="scripts are not supported"):
+        run_code_skill.collect_inline_code_files_for_assistant(
+            RunCodeRequest(entry_path="web-app/tests/app.spec.js", files=files)
+        )
