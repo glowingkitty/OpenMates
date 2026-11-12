@@ -196,6 +196,10 @@ skills:
       This capability is currently unavailable because no permitted provider is configured.
     class_path: backend.apps.business.skills.search_trademarks.SearchTrademarksSkill
     pricing: {fixed: 1}
+    supplier_costs:
+      fixed:
+        none: true
+        note: Operator-installed provider; no official cost
     external_data: true
     provider_required: true
     providers: []
@@ -452,6 +456,10 @@ skills:
           errors: {type: array, items: {type: object}, x-ui: {basic: false}}
   - id: company_financials
     pricing: {fixed: 1} # Preserves the existing minimum-credit fallback.
+    supplier_costs:
+      fixed:
+        none: true
+        note: SEC EDGAR is free
     anonymous_access: inline
     name_translation_key: app_skills.business.company_financials
     description_translation_key: app_skills.business.company_financials.description

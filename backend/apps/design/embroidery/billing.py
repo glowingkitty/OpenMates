@@ -17,6 +17,7 @@ from typing import Any, Awaitable, Callable, Sequence
 import httpx
 
 from backend.apps.images.vector_script import script_run_credits
+from backend.shared.python_utils.catalog_unit_prices import skill_price, whole_credits
 from backend.apps.images.vector_author import VectorUsage
 from backend.shared.python_utils.billing_utils import MINIMUM_CREDITS_CHARGED, calculate_credits_from_tokens
 
@@ -27,6 +28,8 @@ SANDBOX_MODEL_REF = "e2b/sandbox"
 # Balance check before work starts: three started sandbox minutes are reserved, although a
 # conversion may run for up to 10 minutes. A longer run is charged in full afterwards and
 # may take the balance slightly below zero (overdraft policy, docs/architecture/billing.md).
+# Catalog price per started sandbox minute (design.embroidery pricing.per_minute).
+EMBROIDERY_CREDITS_PER_STARTED_MINUTE = whole_credits(skill_price("design", "embroidery", "per_minute"))
 RESERVED_SANDBOX_SECONDS = 180
 REWORK_ESTIMATE_OUTPUT_TOKENS = 8_000
 
@@ -82,7 +85,7 @@ async def embroidery_credits(
         raw_token_credits += step_credits
         steps.append({"step": "embroidery_rework", "model_used": entry.model_id, "input_tokens": entry.input_tokens,
                       "output_tokens": entry.output_tokens, "credits": round(step_credits, 4)})
-    sandbox_credits = script_run_credits(sandbox_seconds)
+    sandbox_credits = script_run_credits(sandbox_seconds, credits_per_started_minute=EMBROIDERY_CREDITS_PER_STARTED_MINUTE)
     steps.append({"step": "embroidery_sandbox", "model_used": SANDBOX_MODEL_REF,
                   "duration_seconds": round(sandbox_seconds, 2), "credits": sandbox_credits})
     token_credits = math.floor(raw_token_credits)
@@ -100,7 +103,7 @@ async def estimate_embroidery_credits(
     *, svg_chars: int, rework_possible: bool, rework_model: str, pricing_for: PricingLookup | None = None,
 ) -> int:
     """Reserve for the balance check: three sandbox minutes plus one rework when one may run."""
-    estimate = script_run_credits(RESERVED_SANDBOX_SECONDS)
+    estimate = script_run_credits(RESERVED_SANDBOX_SECONDS, credits_per_started_minute=EMBROIDERY_CREDITS_PER_STARTED_MINUTE)
     if rework_possible:
         rules = _token_rules(await (pricing_for or fetch_model_pricing)(rework_model), rework_model)
         input_tokens = svg_chars // 3 + 1_500

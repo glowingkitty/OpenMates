@@ -23,9 +23,9 @@ def test_omni_720p_charges_per_generated_second():
 
 # contract-test: supporting surface=rest_api assertions=videos-generate.billing.metered
 def test_omni_uses_resolution_specific_second_rate():
-    assert omni_clip_credits("360p", 8) == 276
-    assert omni_clip_credits("1080p", 8) == 1248
-    assert omni_clip_credits("4k", 8) == 2508
+    assert omni_clip_credits("360p", 8) == 280
+    assert omni_clip_credits("1080p", 8) == 1280
+    assert omni_clip_credits("4k", 8) == 2520
 
 
 # contract-test: supporting surface=gui.web assertions=videos-generate.billing.metered
@@ -61,5 +61,5 @@ def test_h3_promotion_expiry_and_fractional_output_duration():
     standard_price, standard = _get_h3_duration_pricing(datetime(2026, 11, 1, tzinfo=timezone.utc))
     assert promo_price == 0.01625
     assert standard_price == 0.025
-    assert calculate_total_credits(pricing_config=promo, duration_seconds=5.4) == 131
-    assert calculate_total_credits(pricing_config=standard, duration_seconds=5.4) == 202
+    assert calculate_total_credits(pricing_config=promo, duration_seconds=5.4) == 135
+    assert calculate_total_credits(pricing_config=standard, duration_seconds=5.4) == 216

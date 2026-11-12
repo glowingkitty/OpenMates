@@ -35,6 +35,9 @@ class BillingError(Exception):
     pass
 
 
+# One customer rounding step (credits per 1M tokens) allowed between derived context-band prices.
+CONTEXT_BAND_ROUNDING_CREDITS = Fraction(5)
+
 def has_credit_headroom(current_credits: int, estimated_credits: int) -> bool:
     """Return whether a planned charge stays within the allowed overdraft."""
     return current_credits - estimated_credits >= OVERDRAFT_LIMIT_CREDITS
@@ -303,13 +306,14 @@ def select_customer_context_band(
             raise BillingError("Invalid customer context band token unit") from exc
         if not base_unit.is_finite() or base_unit <= 0 or not band_unit.is_finite() or band_unit <= 0:
             raise BillingError("Invalid customer context band token unit")
-        if anthropic_band:
-            expected = Fraction(base_unit) / 5
-        elif category == "output":
-            expected = Fraction(base_unit) * Fraction(2, 3) // 1
-        else:
-            expected = Fraction(base_unit) / 2
-        if Fraction(band_unit) != expected:
+        multiplier = Fraction(5) if anthropic_band else Fraction(3, 2) if category == "output" else Fraction(2)
+        # Compare credits per 1M tokens. Each derived price is rounded up to a
+        # 5-credit step and stored as tokens per credit rounded down, so the
+        # band may differ from base x multiplier by one rounding step.
+        base_credits = Fraction(1_000_000) / Fraction(base_unit)
+        band_credits = Fraction(1_000_000) / Fraction(band_unit)
+        tolerance = CONTEXT_BAND_ROUNDING_CREDITS * multiplier + 1
+        if abs(band_credits - base_credits * multiplier) > tolerance:
             raise BillingError("Customer context band does not match the approved multiplier")
     if inference_host not in band["eligible_hosts"]:
         return None, base_rates

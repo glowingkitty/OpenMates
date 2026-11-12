@@ -17,4 +17,10 @@ required_keys:
     description: "Flightradar24 bearer token used by the Travel flight tracking provider."
 
 pricing:
-  per_request_credits: 5
+  per_request_credits: 25
+supplier_costs:
+  per_request_credits:
+    price: 0.014
+    currency: USD
+    source_url: https://fr24api.flightradar24.com/
+    note: 'Estimate: about 46 FR24 credits per call; plan rate unverified'

@@ -280,7 +280,7 @@ def test_the_price_comes_from_the_provider_pricing_entry() -> None:
     entry = _pricing_entry()
     assert entry["for_app_skill"] == "images.enhance"
     assert entry["costs"]["output_per_image"]["price"] == 0.0504
-    assert jobs.enhance_credits(SimpleNamespace(get_model_pricing=lambda *_: entry)) == 63
+    assert jobs.enhance_credits(SimpleNamespace(get_model_pricing=lambda *_: entry)) == 80
 
 
 # contract-test: direct surface=rest_api assertions=embed-user-edits.enhance.billed-once-refunded-on-failure
@@ -395,7 +395,7 @@ async def test_too_few_credits_is_402_without_a_job(world: World) -> None:
 async def test_a_replay_returns_the_same_job_and_dispatches_once(world: World) -> None:
     body = world.body()
     status, first = await _post(world, body)
-    assert status == 202 and first["state"] == "pending" and first["credits"] == 63
+    assert status == 202 and first["state"] == "pending" and first["credits"] == 80
     assert (first["base_version"], first["target_version"]) == (1, 2)
     status, again = await _post(world, body)
     assert status == 200 and again == first
@@ -513,12 +513,12 @@ async def test_a_produced_result_is_charged_once_and_handed_to_the_requester(wor
     assert (await worker.run(kwargs))["state"] == "ready"
     # A second delivery of the same task does nothing and never charges again.
     assert (await worker.run(kwargs))["state"] == "ready"
-    assert worker.charges == [{"event_id": billing_event_id(EMBED_ID, 2, operation_id), "credits": 63}]
+    assert worker.charges == [{"event_id": billing_event_id(EMBED_ID, 2, operation_id), "credits": 80}]
     assert worker.provider_calls[0]["image_bytes"] == world.source_png
     assert (worker.provider_calls[0]["width"], worker.provider_calls[0]["height"]) == (640, 360)
 
     job = world.directus.job(operation_id)
-    assert (job["state"], job["billing_state"], job["charged_credits"]) == ("ready", "charged", 63)
+    assert (job["state"], job["billing_state"], job["charged_credits"]) == ("ready", "charged", 80)
     assert {ref["key"] for ref in job["result_file_keys"]} == {
         meta["s3_key"] for meta in json.loads(await world.encryption.decrypt_with_user_key(
             job["encrypted_result"], VAULT_KEY))["files"].values()}
@@ -606,7 +606,7 @@ async def test_an_undelivered_uncommitted_result_is_refunded_and_deleted_on_expi
     assert (job["state"], job["billing_state"], job["encrypted_result"]) == ("expired", "refunded", None)
     assert all(key not in world.s3.objects for key in expiring_files)
     # The unknown charge is re-issued under the same identity and then refunded: net nothing.
-    assert worker_sweep.charges == [{"event_id": world.directus.job(unknown)["billing_event_id"], "credits": 63}]
+    assert worker_sweep.charges == [{"event_id": world.directus.job(unknown)["billing_event_id"], "credits": 80}]
     assert sorted(refund["event_id"] for refund in worker_sweep.refunds) == sorted([
         world.directus.job(expiring)["billing_event_id"], world.directus.job(unknown)["billing_event_id"]])
     assert world.directus.job(committed)["state"] == "committed"

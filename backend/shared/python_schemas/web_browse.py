@@ -17,7 +17,6 @@ IDLE_DELETE_SECONDS = 86400
 RUNTIME_USD_PER_SECOND = Decimal(
     "0.000046"
 )  # 2 vCPU / 4 GiB; E2B, reviewed 2026-10-26.
-CUSTOMER_MULTIPLIER = Decimal(2)
 SIGN_IN_NOTICE = (
     "You're signing in to a cloud browser. When you let AI continue, it can access "
     "information in this account. Relevant page content may be sent to our AI "
@@ -203,10 +202,12 @@ def owner_hash(user_id: str) -> str:
 
 
 def charged_credits(supplier_usd: str | Decimal) -> int:
+    """Cumulative supplier USD plus the configured margin (backend_config.yml pricing.margin_percent)."""
     from backend.shared.python_utils.billing_utils import floor_raw_credits
+    from backend.shared.python_utils.cost_plus_pricing import load_pricing_settings
 
     return floor_raw_credits(
-        Decimal(supplier_usd) * CUSTOMER_MULTIPLIER / Decimal("0.001")
+        Decimal(supplier_usd) * load_pricing_settings().multiplier / Decimal("0.001")
     )
 
 

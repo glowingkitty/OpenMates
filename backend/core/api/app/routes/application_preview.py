@@ -21,6 +21,7 @@ from urllib.parse import urlparse
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
+from backend.shared.python_utils.catalog_unit_prices import skill_price, whole_credits
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.feature_availability_guards import ensure_application_preview_enabled
 from backend.shared.providers.e2b_application_preview import (
@@ -33,7 +34,8 @@ from backend.shared.providers.e2b_application_preview import (
 
 router = APIRouter(prefix="/v1/applications", tags=["Application Preview"])
 
-APPLICATION_PREVIEW_CREDITS_PER_STARTED_MINUTE = 5
+# Previews run in the Code Run sandbox, so its catalog minute price applies.
+APPLICATION_PREVIEW_CREDITS_PER_STARTED_MINUTE = whole_credits(skill_price("code", "run", "per_minute"))
 APPLICATION_PREVIEW_AUTO_START_TIMEOUT_SECONDS = 60
 APPLICATION_PREVIEW_IDLE_TIMEOUT_SECONDS = 5 * 60
 APPLICATION_PREVIEW_HARD_TIMEOUT_SECONDS = 30 * 60

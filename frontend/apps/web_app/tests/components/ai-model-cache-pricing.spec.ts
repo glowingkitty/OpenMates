@@ -26,7 +26,7 @@ test.describe('AI model cache pricing preview', () => {
         await expect(page.getByTestId('ai-model-pricing-cache-write-1h-row')).toHaveCount(0);
       } else if (provider === 'openai') {
         await expect(page.getByTestId('ai-model-pricing-cache-write-row')).toContainText('Cache write');
-        await expect(page.getByTestId('ai-model-pricing-cache-write-row')).toContainText('132');
+        await expect(page.getByTestId('ai-model-pricing-cache-write-row')).toContainText('266');
         await expect(page.getByTestId('ai-model-pricing-cache-write-row')).not.toContainText('5 min');
       } else {
         await expect(page.getByTestId('ai-model-pricing-cache-write-row')).toContainText('Included in ordinary input');
@@ -42,19 +42,19 @@ test.describe('AI model cache pricing preview', () => {
     await page.goto('/dev/preview/settings/AiAskModelDetails?variant=catalog-haiku&theme=light&background=%23dbeafe&width=768&chrome=0');
     await waitForModelPricingPreview(page);
 
-    await expect(page.getByTestId('ai-model-pricing-input-row')).toContainText('3300');
+    await expect(page.getByTestId('ai-model-pricing-input-row')).toContainText('6666');
     await expect(page.getByTestId('ai-model-pricing-section')).toContainText('Standard');
-    await expect(page.getByTestId('ai-model-pricing-cache-read-row')).toContainText('33000');
-    await expect(page.getByTestId('ai-model-pricing-cache-write-row')).toContainText('2640');
-    await expect(page.getByTestId('ai-model-pricing-output-row')).toContainText('660');
+    await expect(page.getByTestId('ai-model-pricing-cache-read-row')).toContainText('66666');
+    await expect(page.getByTestId('ai-model-pricing-cache-write-row')).toContainText('5263');
+    await expect(page.getByTestId('ai-model-pricing-output-row')).toContainText('1333');
     await expect(page.getByTestId('ai-model-pricing-cache-write-1h-row')).toHaveCount(0);
     const tier = page.getByTestId('ai-model-long-context-tier');
     await expect(tier).toContainText('Over 100,000 input tokens');
     await expect(page.getByTestId('ai-model-long-context-explanation')).toContainText('whole request');
-    await expect(page.getByTestId('ai-model-long-context-input-row')).toContainText('660');
-    await expect(page.getByTestId('ai-model-long-context-cache-read-row')).toContainText('6600');
-    await expect(page.getByTestId('ai-model-long-context-cache-write-row')).toContainText('528');
-    await expect(page.getByTestId('ai-model-long-context-output-row')).toContainText('132');
+    await expect(page.getByTestId('ai-model-long-context-input-row')).toContainText('1333');
+    await expect(page.getByTestId('ai-model-long-context-cache-read-row')).toContainText('13333');
+    await expect(page.getByTestId('ai-model-long-context-cache-write-row')).toContainText('1063');
+    await expect(page.getByTestId('ai-model-long-context-output-row')).toContainText('266');
   });
 
   // contract-test: supporting surface=gui.web assertions=billing.surface.semantic-parity
@@ -63,10 +63,10 @@ test.describe('AI model cache pricing preview', () => {
     await waitForModelPricingPreview(page);
 
     await expect(page.getByTestId('ai-model-pricing-input-row')).toContainText('Uncached input');
-    await expect(page.getByTestId('ai-model-pricing-cache-read-row')).toContainText('1400');
-    await expect(page.getByTestId('ai-model-pricing-cache-write-row')).toContainText('28');
+    await expect(page.getByTestId('ai-model-pricing-cache-read-row')).toContainText('3333');
+    await expect(page.getByTestId('ai-model-pricing-cache-write-row')).toContainText('66.6');
     await expect(page.getByTestId('ai-model-pricing-cache-write-row')).toContainText('Cache write (5 min)');
-    await expect(page.getByTestId('ai-model-pricing-cache-write-1h-row')).toContainText('17');
+    await expect(page.getByTestId('ai-model-pricing-cache-write-1h-row')).toContainText('41.6');
     await expect(page.getByTestId('ai-model-pricing-output-row')).toContainText('Output (including thinking)');
     await expect(page.getByTestId('ai-model-pricing-cache-read-row')).not.toContainText('Unavailable');
     await expect(page.getByTestId('ai-model-cache-pricing-note')).toContainText('Cache reads reuse earlier input at a lower price.');
@@ -77,11 +77,11 @@ test.describe('AI model cache pricing preview', () => {
     await expect(page.getByTestId('ai-model-automatic-summary')).toContainText('normal authenticated personal and team chats');
     await expect(page.getByTestId('ai-model-automatic-summary')).toContainText('If no summary runs, there is no summary charge.');
     await expect(page.getByTestId('ai-model-summary-primary-input')).toContainText('Gemini 3.5 Flash-Lite');
-    await expect(page.getByTestId('ai-model-summary-primary-input')).toContainText('1100');
-    await expect(page.getByTestId('ai-model-summary-primary-output')).toContainText('130');
+    await expect(page.getByTestId('ai-model-summary-primary-input')).toContainText('2222');
+    await expect(page.getByTestId('ai-model-summary-primary-output')).toContainText('266');
     await expect(page.getByTestId('ai-model-summary-fallback-input')).toContainText('GPT-OSS-120b');
-    await expect(page.getByTestId('ai-model-summary-fallback-input')).toContainText('2200');
-    await expect(page.getByTestId('ai-model-summary-fallback-output')).toContainText('550');
+    await expect(page.getByTestId('ai-model-summary-fallback-input')).toContainText('4444');
+    await expect(page.getByTestId('ai-model-summary-fallback-output')).toContainText('1111');
   });
 
   // contract-test: supporting surface=gui.web assertions=billing.surface.semantic-parity
@@ -91,7 +91,7 @@ test.describe('AI model cache pricing preview', () => {
 
     await expect(page.getByTestId('ai-model-pricing-cache-read-row')).not.toContainText('Unavailable');
     await expect(page.getByTestId('ai-model-pricing-cache-write-row')).toContainText('Cache write');
-    await expect(page.getByTestId('ai-model-pricing-cache-write-row')).toContainText('2640');
+    await expect(page.getByTestId('ai-model-pricing-cache-write-row')).toContainText('5263');
     await expect(page.getByTestId('ai-model-pricing-cache-write-row')).not.toContainText('5 min');
     await expect(page.getByTestId('ai-model-long-context-cache-write-row')).toContainText('Cache write');
     await expect(page.getByTestId('ai-model-long-context-cache-write-row')).not.toContainText('5 min');
@@ -109,10 +109,10 @@ test.describe('AI model cache pricing preview', () => {
     await expect(page.getByTestId('ai-model-cache-pricing-note')).toBeVisible();
     await expect(page.getByTestId('ai-model-pricing-section')).toContainText('Standard');
     await expect(page.getByTestId('ai-model-long-context-tier')).toContainText('Over 272,000 input tokens');
-    await expect(page.getByTestId('ai-model-long-context-input-row')).toContainText('82.5');
-    await expect(page.getByTestId('ai-model-long-context-cache-read-row')).toContainText('1650');
+    await expect(page.getByTestId('ai-model-long-context-input-row')).toContainText('166');
+    await expect(page.getByTestId('ai-model-long-context-cache-read-row')).toContainText('3333');
     await expect(page.getByTestId('ai-model-long-context-cache-write-row')).toContainText('Included in ordinary input');
-    await expect(page.getByTestId('ai-model-long-context-output-row')).toContainText('20');
+    await expect(page.getByTestId('ai-model-long-context-output-row')).toContainText('44.4');
     await expect(page.getByTestId('ai-model-long-context-explanation')).toContainText('Total input includes cached input.');
     await expect(page.getByTestId('ai-model-long-context-explanation')).toContainText('whole request');
   });

@@ -27,9 +27,9 @@ def catalog_model(provider: str, model_id: str) -> dict:
 
 # contract-test: supporting surface=rest_api assertions=billing.models.scheduled-temporary-tariffs
 @pytest.mark.parametrize("day,promo,input_cost,input_unit", [
-    (date(2026, 10, 14), True, 2, 160),
-    (date(2026, 11, 30), True, 2, 160),
-    (date(2026, 12, 1), False, 4, 80),
+    (date(2026, 10, 14), True, 2, 333.3333),
+    (date(2026, 11, 30), True, 2, 333.3333),
+    (date(2026, 12, 1), False, 4, 166.6666),
 ])
 def test_argon_dates_switch_complete_tariffs_without_mutation(day, promo, input_cost, input_unit):
     model = catalog_model("google", "gemini-4-argon")
@@ -45,9 +45,10 @@ def test_argon_dates_switch_complete_tariffs_without_mutation(day, promo, input_
 
 # contract-test: supporting surface=rest_api assertions=billing.models.scheduled-temporary-tariffs
 @pytest.mark.parametrize("day,promo,input_cost,input_unit,cache_unit,output_unit", [
-    (date(2026, 11, 12), True, 2, 160, 3200, 30),
-    (date(2026, 11, 30), True, 2, 160, 3200, 30),
-    (date(2026, 12, 1), False, 4, 80, 1600, 15),
+    # Cost-plus 50%: $2/$0.10/$10 per 1M -> 3000/150/15000 credits; $4/$0.20/$20 -> 6000/300/30000.
+    (date(2026, 11, 12), True, 2, 333.3333, 6666.6666, 66.6666),
+    (date(2026, 11, 30), True, 2, 333.3333, 6666.6666, 66.6666),
+    (date(2026, 12, 1), False, 4, 166.6666, 3333.3333, 33.3333),
 ])
 def test_carbon_introductory_tariff_ends_after_november(
     day, promo, input_cost, input_unit, cache_unit, output_unit,
@@ -73,8 +74,10 @@ def test_same_manager_recomputes_catalog_prices_at_utc_boundary(monkeypatch):
     before = manager.get_provider_configs()["google"]["models"][0]
     monkeypatch.setattr(config_module, "utc_today", lambda: date(2027, 1, 1))
     after = manager.get_provider_config("google")["models"][0]
-    assert before["pricing"]["tokens"]["input"]["per_credit_unit"] == 450
-    assert after["pricing"]["tokens"]["input"]["per_credit_unit"] == 225
+    # The promotion halves AI Studio cost but the Vertex route bills 2x, so the
+    # highest eligible route keeps the customer price unchanged across the boundary.
+    assert before["pricing"]["tokens"]["input"]["per_credit_unit"] == 444.4444
+    assert after["pricing"]["tokens"]["input"]["per_credit_unit"] == 444.4444
     assert "active_temporary_price" not in after
     assert after["costs"]["output_per_million_token"]["price"] == 7.5
     assert before["supplier_cost_profiles"]["google"]["multiplier"] == 2
@@ -82,13 +85,13 @@ def test_same_manager_recomputes_catalog_prices_at_utc_boundary(monkeypatch):
     # Expired independent verification does not invent an extended cache TTL
     # or prevent ordinary input/output billing after the promotion ends.
     assert after["cache_pricing"]["enabled"] is False
-    assert snapshot_model_tariff(after)["pricing"]["tokens"]["output"]["per_credit_unit"] == 45
-    assert model["pricing"]["tokens"]["input"]["per_credit_unit"] == 225
+    assert snapshot_model_tariff(after)["pricing"]["tokens"]["output"]["per_credit_unit"] == 88.8888
+    assert model["pricing"]["tokens"]["input"]["per_credit_unit"] == 444.4444
 
 
 # contract-test: supporting surface=rest_api assertions=billing.models.unknown-promotion-expiry
 @pytest.mark.parametrize("provider,model_id,unit,guarantee", [
-    ("openai", "gpt-5.6-sol", 80, "2026-11-21"),
+    ("openai", "gpt-5.6-sol", 166.6666, "2026-11-21"),
 ])
 def test_undated_sales_do_not_invent_end_dates(provider, model_id, unit, guarantee):
     model = catalog_model(provider, model_id)
@@ -135,9 +138,9 @@ def test_closed_mistral_large_sale_returns_to_the_published_rate():
     during = resolve_model_tariff(model, on_date=date(2026, 10, 14))
     after = resolve_model_tariff(model, on_date=date(2026, 11, 9))
     assert during["active_temporary_price"]["id"] == "half-price-sale-2026"
-    assert during["pricing"]["tokens"]["input"]["per_credit_unit"] == 490
+    assert during["pricing"]["tokens"]["input"]["per_credit_unit"] == 980.3921
     assert "active_temporary_price" not in after
-    assert after["pricing"]["tokens"]["input"]["per_credit_unit"] == 476
+    assert after["pricing"]["tokens"]["input"]["per_credit_unit"] == 952.3809
     assert after["costs"]["input_per_million_token"]["price"] == 0.70
     assert after["costs"]["output_per_million_token"]["price"] == 2.10
 
@@ -253,7 +256,8 @@ def test_receipt_uses_frozen_sale_after_catalog_changes_and_settlement_replays(m
     first = build_model_usage_breakdown([bucket], changed_lookup)
     replay = build_model_usage_breakdown([bucket], changed_lookup)
     assert first == replay
-    assert first["credits_charged"] == 4
+    # 980/980.3921 + 4760/9523.8095 + 158/318.9792 credits (cost + 50%), floored.
+    assert first["credits_charged"] == 1
     assert frozen["active_temporary_price"]["id"] == "half-price-sale-2026"
     assert frozen["costs"]["input_per_million_token"]["price"] == 0.68
     regular = snapshot_model_tariff(model)
@@ -262,7 +266,7 @@ def test_receipt_uses_frozen_sale_after_catalog_changes_and_settlement_replays(m
 
 # contract-test: supporting surface=rest_api assertions=billing.models.verified-host-prices
 @pytest.mark.parametrize("host", ["google_ai_studio", "google"])
-@pytest.mark.parametrize("input_total,band,unit,input_cost", [(200000, "standard", 170, 2), (200001, "over_200k", 85, 4)])
+@pytest.mark.parametrize("input_total,band,unit,input_cost", [(200000, "standard", 333.3333, 2), (200001, "over_200k", 166.6666, 4)])
 def test_google_pro_full_request_context_boundary_without_cache_activation(host, input_total, band, unit, input_cost):
     model = catalog_model("google", "gemini-3.1-pro-preview")
     selected_band, rates = select_customer_context_band(model_pricing_details=model, inference_host=host, input_total=input_total)

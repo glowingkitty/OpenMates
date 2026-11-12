@@ -54,15 +54,15 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 40 # 333.33 / 8.00 = 41.67 -> 40 (conservative round-down)
+          per_credit_unit: 83.3333
         cache_read:
-          per_credit_unit: 1600 # 333.33 / 0.20 = 1666.67 -> 1600
+          per_credit_unit: 3333.3333
         cache_write:
-          per_credit_unit: 32 # 333.33 / 10.00 = 33.33 -> 32
+          per_credit_unit: 66.6666
         cache_write_1h:
-          per_credit_unit: 20 # 333.33 / 16.00 = 20.83 -> 20
+          per_credit_unit: 41.6666
         output:
-          per_credit_unit: 8 # 333.33 / 40.00 = 8.33 -> 8
+          per_credit_unit: 16.6666
     cache_pricing:
       enabled: true
       write_billing: separate
@@ -131,15 +131,15 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 80 # 333.33 / 4.00 = 83.33 -> 80 (conservative round-down)
+          per_credit_unit: 166.6666
         cache_read:
-          per_credit_unit: 1600
+          per_credit_unit: 3333.3333
         cache_write:
-          per_credit_unit: 64
+          per_credit_unit: 133.3333
         cache_write_1h:
-          per_credit_unit: 40
+          per_credit_unit: 83.3333
         output:
-          per_credit_unit: 15 # 333.33 / 20.00 = 16.67 -> 15 (conservative round-down)
+          per_credit_unit: 33.3333
     cache_pricing:
       enabled: true
       write_billing: separate
@@ -211,15 +211,15 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 170
+          per_credit_unit: 333.3333
         cache_read:
-          per_credit_unit: 3400
+          per_credit_unit: 6666.6666
         cache_write:
-          per_credit_unit: 136
+          per_credit_unit: 266.6666
         cache_write_1h:
-          per_credit_unit: 85
+          per_credit_unit: 166.6666
         output:
-          per_credit_unit: 35
+          per_credit_unit: 66.6666
     # Pricing verified 2026-10-08 against the official Sonnet 5.5 model card.
     cache_pricing:
       enabled: true
@@ -294,15 +294,15 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 3300
+          per_credit_unit: 6666.6666
         cache_read:
-          per_credit_unit: 33000
+          per_credit_unit: 66666.6666
         cache_write:
-          per_credit_unit: 2640
+          per_credit_unit: 5263.1578
         cache_write_1h:
-          per_credit_unit: 1650
+          per_credit_unit: 3333.3333
         output:
-          per_credit_unit: 660
+          per_credit_unit: 1333.3333
       context_bands:
         over_100k:
           min_input_tokens: 100001
@@ -310,15 +310,15 @@ models:
           - anthropic
           tokens:
             input:
-              per_credit_unit: 660
+              per_credit_unit: 1333.3333
             cache_read:
-              per_credit_unit: 6600
+              per_credit_unit: 13333.3333
             cache_write:
-              per_credit_unit: 528
+              per_credit_unit: 1063.8297
             cache_write_1h:
-              per_credit_unit: 330
+              per_credit_unit: 666.6666
             output:
-              per_credit_unit: 132
+              per_credit_unit: 266.6666
     cache_pricing:
       enabled: true
       write_billing: separate
@@ -405,15 +405,15 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 35
+          per_credit_unit: 66.6666
         cache_read:
-          per_credit_unit: 1400
+          per_credit_unit: 2666.6666
         cache_write:
-          per_credit_unit: 28
+          per_credit_unit: 53.3333
         cache_write_1h:
-          per_credit_unit: 17
+          per_credit_unit: 33.3333
         output:
-          per_credit_unit: 7
+          per_credit_unit: 13.3333
     cache_pricing:
       enabled: false
       write_billing: separate
@@ -485,15 +485,15 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 35
+          per_credit_unit: 66.6666
         cache_read:
-          per_credit_unit: 350
+          per_credit_unit: 666.6666
         cache_write:
-          per_credit_unit: 28
+          per_credit_unit: 53.3333
         cache_write_1h:
-          per_credit_unit: 17
+          per_credit_unit: 33.3333
         output:
-          per_credit_unit: 7
+          per_credit_unit: 13.3333
     cache_pricing:
       enabled: false
       write_billing: separate
@@ -563,15 +563,15 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 70
+          per_credit_unit: 133.3333
         cache_read:
-          per_credit_unit: 700
+          per_credit_unit: 1333.3333
         cache_write:
-          per_credit_unit: 56
+          per_credit_unit: 106.6666
         cache_write_1h:
-          per_credit_unit: 35
+          per_credit_unit: 66.6666
         output:
-          per_credit_unit: 15
+          per_credit_unit: 26.6666
     cache_pricing:
       enabled: false
       write_billing: separate
@@ -639,15 +639,15 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 170
+          per_credit_unit: 333.3333
         cache_read:
-          per_credit_unit: 1700
+          per_credit_unit: 3333.3333
         cache_write:
-          per_credit_unit: 136
+          per_credit_unit: 266.6666
         cache_write_1h:
-          per_credit_unit: 85
+          per_credit_unit: 166.6666
         output:
-          per_credit_unit: 35
+          per_credit_unit: 66.6666
     # Reviewed 2026-10-07 against the current Claude Sonnet 5 model card.
     # The earlier 2026-08-31 promotional-expiry comment was stale; the
     # current listed $2/$10 MTok input/output rates remain configured.
@@ -714,15 +714,15 @@ models:
     pricing: # Model-specific base pricing (example structure)
       tokens:
         input:
-          per_credit_unit: 350 # 1 credit per 350 input tokens (cheaper than Sonnet)
+          per_credit_unit: 666.6666
         cache_read:
-          per_credit_unit: 3500
+          per_credit_unit: 6666.6666
         cache_write:
-          per_credit_unit: 280
+          per_credit_unit: 533.3333
         cache_write_1h:
-          per_credit_unit: 175
+          per_credit_unit: 333.3333
         output:
-          per_credit_unit: 70 # 1 credit per 70 output tokens (cheaper than Sonnet)
+          per_credit_unit: 133.3333
     cache_pricing:
       enabled: false
       write_billing: separate
@@ -802,15 +802,15 @@ models:
     pricing: # Model-specific base pricing
       tokens:
         input:
-          per_credit_unit: 110 # 1 credit per 110 input tokens
+          per_credit_unit: 202.0202
         cache_read:
-          per_credit_unit: 1100
+          per_credit_unit: 2020.202
         cache_write:
-          per_credit_unit: 88
+          per_credit_unit: 161.5508
         cache_write_1h:
-          per_credit_unit: 55
+          per_credit_unit: 101.0101
         output:
-          per_credit_unit: 20 # 1 credit per 20 output tokens
+          per_credit_unit: 40.404
     cache_pricing:
       enabled: true
       write_billing: separate
@@ -897,15 +897,15 @@ models:
     pricing: # Model-specific base pricing (same as Opus 4.5)
       tokens:
         input:
-          per_credit_unit: 70 # 1 credit per 70 input tokens
+          per_credit_unit: 133.3333
         cache_read:
-          per_credit_unit: 700
+          per_credit_unit: 1333.3333
         cache_write:
-          per_credit_unit: 56
+          per_credit_unit: 106.6666
         cache_write_1h:
-          per_credit_unit: 35
+          per_credit_unit: 66.6666
         output:
-          per_credit_unit: 15 # 1 credit per 15 output tokens
+          per_credit_unit: 26.6666
     cache_pricing:
       enabled: false
       write_billing: separate
@@ -974,15 +974,15 @@ models:
     pricing: # Same pricing as Opus 4.6
       tokens:
         input:
-          per_credit_unit: 70
+          per_credit_unit: 133.3333
         cache_read:
-          per_credit_unit: 700
+          per_credit_unit: 1333.3333
         cache_write:
-          per_credit_unit: 56
+          per_credit_unit: 106.6666
         cache_write_1h:
-          per_credit_unit: 35
+          per_credit_unit: 66.6666
         output:
-          per_credit_unit: 15
+          per_credit_unit: 26.6666
     cache_pricing:
       enabled: false
       write_billing: separate
@@ -1047,15 +1047,15 @@ models:
     pricing: # Same token pricing as Opus 4.7 per Anthropic model overview
       tokens:
         input:
-          per_credit_unit: 70
+          per_credit_unit: 133.3333
         cache_read:
-          per_credit_unit: 700
+          per_credit_unit: 1333.3333
         cache_write:
-          per_credit_unit: 56
+          per_credit_unit: 106.6666
         cache_write_1h:
-          per_credit_unit: 35
+          per_credit_unit: 66.6666
         output:
-          per_credit_unit: 15
+          per_credit_unit: 26.6666
     cache_pricing:
       enabled: false
       write_billing: separate
@@ -1117,15 +1117,15 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 70
+          per_credit_unit: 133.3333
         cache_read:
-          per_credit_unit: 700
+          per_credit_unit: 1333.3333
         cache_write:
-          per_credit_unit: 56
+          per_credit_unit: 106.6666
         cache_write_1h:
-          per_credit_unit: 35
+          per_credit_unit: 66.6666
         output:
-          per_credit_unit: 15
+          per_credit_unit: 26.6666
     cache_pricing:
       enabled: false
       write_billing: separate

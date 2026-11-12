@@ -13,6 +13,7 @@ from __future__ import annotations
 from typing import Any, Optional, Sequence
 
 from backend.apps.images.vector_author import VectorUsage
+from backend.shared.python_utils.catalog_unit_prices import skill_price, whole_credits
 from backend.shared.python_utils.metered_author_billing import (
     PricingLookup,
     SANDBOX_MODEL_REF,
@@ -25,6 +26,8 @@ from backend.shared.python_utils.metered_author_billing import (
 __all__ = ["SANDBOX_MODEL_REF", "charge_modify_credits", "estimate_modify_credits", "fetch_model_pricing",
            "modify_credits"]
 
+# Catalog price per started sandbox minute (images.modify pricing.per_minute).
+MODIFY_SANDBOX_CREDITS_PER_STARTED_MINUTE = whole_credits(skill_price("images", "modify", "per_minute"))
 LABEL = "images.modify"
 # Balance check before work starts: one author call over the request and its pictures, one sandbox minute.
 ESTIMATE_BASE_INPUT_TOKENS = 2_500
@@ -38,7 +41,7 @@ async def modify_credits(
 ) -> tuple[int, dict[str, Any]]:
     """Credits of one delivered picture and the usage details recorded with the charge."""
     return await author_and_sandbox_credits(usage=usage, sandbox_seconds=sandbox_seconds, label=LABEL,
-                                            pricing_for=pricing_for)
+                                            sandbox_credits_per_started_minute=MODIFY_SANDBOX_CREDITS_PER_STARTED_MINUTE, pricing_for=pricing_for)
 
 
 async def estimate_modify_credits(
@@ -49,7 +52,7 @@ async def estimate_modify_credits(
         author_model=author_model,
         input_tokens=ESTIMATE_BASE_INPUT_TOKENS + ESTIMATE_INPUT_TOKENS_PER_PICTURE * max(1, picture_count),
         output_tokens=ESTIMATE_OUTPUT_TOKENS, sandbox_seconds=ESTIMATE_SANDBOX_SECONDS, label=LABEL,
-        pricing_for=pricing_for,
+        sandbox_credits_per_started_minute=MODIFY_SANDBOX_CREDITS_PER_STARTED_MINUTE, pricing_for=pricing_for,
     )
 
 

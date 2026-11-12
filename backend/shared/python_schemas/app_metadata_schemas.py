@@ -14,12 +14,12 @@ class IconColorGradient(BaseModel):
 
 class AppPricing(BaseModel):
     """Defines pricing structure for a skill if it's self-contained."""
-    tokens: Optional[Dict[str, Dict[str, int]]] = None # e.g., {"input": {"per_credit_unit": 1000}}
+    tokens: Optional[Dict[str, Dict[str, float]]] = None # e.g., {"input": {"per_credit_unit": 166.66}}
     cache_pricing: Optional[Dict[str, Any]] = None  # Optional activation/write policy; absent preserves legacy token billing.
     per_unit: Optional[Dict[str, Any]] = None # e.g., {"credits": 1, "unit_name": "image"}
     per_minute: Optional[float] = None # Display rate; metering can accumulate fractional credits.
-    per_second: Optional[int] = None # credits per second
-    fixed: Optional[int] = None # fixed credits per call
+    per_second: Optional[float] = None # credits per second; under 5 credits may be fractional
+    fixed: Optional[float] = None # fixed credits per call
 
 class AppSkillApiConfig(BaseModel):
     """
@@ -123,6 +123,7 @@ class AppSkillDefinition(BaseModel):
         ),
     )
     pricing: Optional[AppPricing] = None
+    supplier_costs: Optional[Dict[str, Dict[str, Any]]] = Field(default=None, description="Supplier cost per pricing key ({price, currency}, {none: true} or {model: provider/model}); scripts/derive_customer_prices.py derives pricing from it.")
     providers: Optional[List[ProviderRef]] = None  # Optional list of provider references — used for provider-level pricing lookup and availability checks
     provider_required: bool = Field(default=False, description="Whether execution requires at least one configured supported provider. Local-only skills may leave this false.")
     provider_contract: Optional[str] = Field(default=None, pattern=r"^[a-z0-9_]+\.[a-z0-9_]+@[1-9][0-9]*$", description="Versioned provider contract (e.g. 'events.search@1') that operator-installed app package providers may implement for this skill.")

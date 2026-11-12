@@ -22,10 +22,10 @@ test('Apps skill form shows the active model long-context tier but hides disable
   await expect(page.getByTestId('apps-skill-automatic-summary-explanation')).toContainText('billed separately only when needed');
   await expect(page.getByTestId('apps-skill-automatic-summary-explanation')).toContainText('normal authenticated personal and team chats');
   await expect(page.getByTestId('apps-skill-automatic-summary-explanation')).toContainText('Billing for workflows and orchestrated subchats remains unchanged.');
-  await expect(page.getByTestId('apps-skill-summary-primary-input')).toContainText('1100');
-  await expect(page.getByTestId('apps-skill-summary-primary-output')).toContainText('130');
-  await expect(page.getByTestId('apps-skill-summary-fallback-input')).toContainText('2200');
-  await expect(page.getByTestId('apps-skill-summary-fallback-output')).toContainText('550');
+  await expect(page.getByTestId('apps-skill-summary-primary-input')).toContainText('2222');
+  await expect(page.getByTestId('apps-skill-summary-primary-output')).toContainText('266');
+  await expect(page.getByTestId('apps-skill-summary-fallback-input')).toContainText('4444');
+  await expect(page.getByTestId('apps-skill-summary-fallback-output')).toContainText('1111');
 
   await page.goto(preview(760, 'longContextInactive'));
   await waitForComponentPreview(page);

@@ -99,6 +99,9 @@ skills:
       per_unit:
         credits: 120
         unit_name: track
+    supplier_costs:
+      per_unit:
+        model: google/lyria-3-pro-preview
     tool_schema:
       type: object
       properties:

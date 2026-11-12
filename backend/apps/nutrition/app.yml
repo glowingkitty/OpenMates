@@ -72,7 +72,13 @@ skills:
     class_path: backend.apps.nutrition.skills.search_recipes.SearchRecipesSkill
     pricing:
       per_unit:
-        credits: 5
+        credits: 2
+    supplier_costs:
+      per_unit:
+        price: 0.0009
+        currency: USD
+        source_url: https://developer.edamam.com/edamam-recipe-api
+        note: Assumes the Basic plan ($9 / 10,000 calls); plan unconfirmed
     providers:
       - name: Edamam
         requires_api_key: true

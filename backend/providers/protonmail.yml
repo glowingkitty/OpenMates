@@ -15,4 +15,8 @@ privacy_policy: "https://proton.me/legal/privacy"
 no_api_key: true
 
 pricing:
-  per_request_credits: 10
+  per_request_credits: 1
+supplier_costs:
+  per_request_credits:
+    none: true
+    note: Local Bridge; flat subscription, no per-request fee

@@ -22,3 +22,9 @@ logging:
 feature_flags:
   new_dashboard_feature: true
   experimental_analytics: false
+
+# Keep in sync with backend_config.yml; see the pricing comment there.
+pricing:
+  margin_percent: 50
+  rounding_step_credits: 5
+  zero_cost_minimum_credits: 1

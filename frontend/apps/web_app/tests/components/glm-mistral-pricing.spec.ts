@@ -17,7 +17,7 @@ const proofContract = defineVideoProof({
   }],
   assertions: [{
     id: 'billing.surface.semantic-parity', checkpoint: 'glm-pricing', devices: ['web-laptop'],
-    visual: 'GLM shows 238 input tokens, 2380 cached input tokens, and 75 output tokens per credit, with writes included.',
+    visual: 'GLM shows 476 input tokens, 4761 cached input tokens, and 151 output tokens per credit, with writes included.',
   }],
   tutorial: { readingWordsPerSecond: 2.5, minimumHoldMs: 1800, maximumHoldMs: 5000 },
 });
@@ -32,10 +32,10 @@ test('GLM catalog shows Mistral as its host and active cache prices', async ({ p
   await expect(page.getByTestId('ai-model-description')).toContainText('hosted by Mistral');
   await proof.assert('billing.surface.semantic-parity', async () => {
     await expect(page.getByTestId('ai-model-pricing-input-row')).toContainText('Uncached input');
-    await expect(page.getByTestId('ai-model-pricing-input-row')).toContainText('238');
-    await expect(page.getByTestId('ai-model-pricing-cache-read-row')).toContainText('2380');
+    await expect(page.getByTestId('ai-model-pricing-input-row')).toContainText('476');
+    await expect(page.getByTestId('ai-model-pricing-cache-read-row')).toContainText('4761');
     await expect(page.getByTestId('ai-model-pricing-cache-write-row')).toContainText('Included in ordinary input');
-    await expect(page.getByTestId('ai-model-pricing-output-row')).toContainText('75');
+    await expect(page.getByTestId('ai-model-pricing-output-row')).toContainText('151');
     await expect(page.getByTestId('ai-model-cache-pricing-note')).toContainText('Your receipt shows the usage charged.');
   });
   await proof.checkpoint('glm-pricing');

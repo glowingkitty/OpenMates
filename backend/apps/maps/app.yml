@@ -78,8 +78,14 @@ skills:
       - Geoapify
     pricing:
       per_unit:
-        credits: 40
+        credits: 55
     # Follow-up suggestions shown to users after search results
+    supplier_costs:
+      per_unit:
+        price: 0.035
+        currency: USD
+        source_url: https://developers.google.com/maps/billing-and-pricing/pricing
+        note: Google Places Text Search Enterprise; Geoapify within free plan
     suggestions_follow_up_requests:
       - "Show me more places nearby"
       - "Filter by rating"

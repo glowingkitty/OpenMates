@@ -189,14 +189,14 @@ def test_audio_app_metadata_exposes_generate_and_speak_contracts():
     provider_models = {model["id"]: model for model in provider_yml["models"]}
 
     assert {"generate", "speak"}.issubset(skills)
-    assert skills["generate"]["pricing"] == {"per_second": 20}
-    assert skills["speak"]["pricing"] == {"per_second": 2}
+    assert skills["generate"]["pricing"] == {"per_second": 15}
+    assert skills["speak"]["pricing"] == {"per_second": 2.51}
     assert provider_yml["logo_svg"] == "logos/elevenlabs.svg"
-    assert provider_models["eleven_flash_v2_5"]["pricing"] == {"per_second": 2}
-    assert provider_models["eleven_multilingual_v2"]["pricing"] == {"per_second": 4}
-    assert provider_models["eleven_v3"]["pricing"] == {"per_second": 4}
-    assert provider_models["eleven_v4"]["pricing"] == {"per_second": 4}
-    assert provider_models["eleven_v4_turbo"]["pricing"] == {"per_second": 2}
+    assert provider_models["eleven_flash_v2_5"]["pricing"] == {"per_second": 1.25}
+    assert provider_models["eleven_multilingual_v2"]["pricing"] == {"per_second": 2.51}
+    assert provider_models["eleven_v3"]["pricing"] == {"per_second": 2.51}
+    assert provider_models["eleven_v4"]["pricing"] == {"per_second": 2}
+    assert provider_models["eleven_v4_turbo"]["pricing"] == {"per_second": 1.01}
     for skill_id in ("generate", "speak"):
         skill = skills[skill_id]
         assert skill["api_config"] == {"expose_get": True, "expose_post": True}
@@ -546,23 +546,23 @@ async def test_audio_speak_calls_provider_only_after_safeguard_approval(monkeypa
 
     assert calls == [
         ("safeguard", text.strip()),
-        ("preflight", 60),
+        ("preflight", 38),
         ("tts", text.strip(), "eleven_v3"),
         ("store", "eleven_v3", 2.1),
-        ("charge", 9, "elevenlabs/eleven_v3"),
+        ("charge", 6, "elevenlabs/eleven_v3"),
     ]
     assert result["status"] == "finished"
     assert result["generation_type"] == "speech"
     assert result["voice"] == "warm_neutral"
     assert "audio_base64" not in result
     assert result["duration_seconds"] == 2.1
-    assert result["credits_charged"] == 9
+    assert result["credits_charged"] == 6
     assert "voice-mp3" not in str(result)
 
 
 # contract-test: direct surface=rest_api assertions=audio-speak.request.validated,audio-speak.output.playable-audio,audio-speak.billing.success-only
 @pytest.mark.asyncio
-@pytest.mark.parametrize("model,preflight,charge", [("eleven_flash_v2_5", 21, 5), ("eleven_v4", 42, 10), ("eleven_v4_turbo", 21, 5)])
+@pytest.mark.parametrize("model,preflight,charge", [("eleven_flash_v2_5", 14, 3), ("eleven_v4", 21, 5), ("eleven_v4_turbo", 11, 3)])
 async def test_audio_speak_accepts_selected_model_and_charges_model_rate(monkeypatch, model, preflight, charge):
     import backend.apps.audio.tasks.speak_task as speak_task_module
     import backend.apps.audio.skills.speak_skill as speak_skill_module

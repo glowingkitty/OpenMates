@@ -26,7 +26,6 @@ from backend.shared.python_utils.billing_utils import MINIMUM_CREDITS_CHARGED, c
 logger = logging.getLogger(__name__)
 
 INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
-SANDBOX_CREDITS_PER_STARTED_MINUTE = 5
 SANDBOX_MODEL_REF = "e2b/sandbox"
 
 PricingLookup = Callable[[str], Awaitable[Optional[dict[str, Any]]]]
@@ -40,11 +39,15 @@ def internal_headers() -> dict[str, str]:
     return headers
 
 
-def sandbox_run_credits(seconds: float) -> int:
-    """Credits for one sandbox run: every started minute is charged, a run that never started is free."""
+def sandbox_run_credits(seconds: float, *, credits_per_started_minute: int) -> int:
+    """Credits for one sandbox run: every started minute is charged, a run that never started is free.
+
+    The minute rate is the calling skill's catalog ``per_minute`` price, because
+    skills run differently sized sandboxes.
+    """
     if seconds <= 0:
         return 0
-    return math.ceil(seconds / 60) * SANDBOX_CREDITS_PER_STARTED_MINUTE
+    return math.ceil(seconds / 60) * credits_per_started_minute
 
 
 async def fetch_model_pricing(model_ref: str) -> Optional[dict[str, Any]]:
@@ -84,7 +87,7 @@ def usage_model_ref(entry: Any) -> str:
 
 async def author_and_sandbox_credits(
     *, usage: Sequence[Any], sandbox_seconds: Sequence[float], label: str,
-    pricing_for: Optional[PricingLookup] = None,
+    sandbox_credits_per_started_minute: int, pricing_for: Optional[PricingLookup] = None,
 ) -> tuple[int, dict[str, Any]]:
     """Credits of one delivered result and the usage details recorded with the charge."""
     lookup = pricing_for or fetch_model_pricing
@@ -105,7 +108,7 @@ async def author_and_sandbox_credits(
                       "output_tokens": entry.output_tokens, "credits": round(step_credits, 4)})
     sandbox_credits = 0
     for seconds in sandbox_seconds:
-        run_credits = sandbox_run_credits(seconds)
+        run_credits = sandbox_run_credits(seconds, credits_per_started_minute=sandbox_credits_per_started_minute)
         sandbox_credits += run_credits
         steps.append({"step": "sandbox_run", "model_used": SANDBOX_MODEL_REF, "duration_seconds": round(seconds, 2),
                       "credits": run_credits})
@@ -123,12 +126,13 @@ async def author_and_sandbox_credits(
 
 async def estimate_author_and_sandbox_credits(
     *, author_model: str, input_tokens: int, output_tokens: int, sandbox_seconds: float, label: str,
-    pricing_for: Optional[PricingLookup] = None,
+    sandbox_credits_per_started_minute: int, pricing_for: Optional[PricingLookup] = None,
 ) -> int:
     """Estimate for the balance check before any model or sandbox is used."""
     rules = token_rules(await (pricing_for or fetch_model_pricing)(author_model), author_model, label=label)
     tokens = math.ceil(calculate_credits_from_tokens(input_tokens, output_tokens, rules))
-    return max(MINIMUM_CREDITS_CHARGED, tokens + sandbox_run_credits(sandbox_seconds))
+    return max(MINIMUM_CREDITS_CHARGED, tokens + sandbox_run_credits(
+        sandbox_seconds, credits_per_started_minute=sandbox_credits_per_started_minute))
 
 
 async def post_skill_charge(payload: dict[str, Any], *, team_id: Optional[str], event_id: str) -> None:

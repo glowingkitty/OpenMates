@@ -30,9 +30,9 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 7900 # $0.042/M input using the standard 3x markup and rounding.
+          per_credit_unit: 15384.6153
         output:
-          per_credit_unit: 0 # Provider output is free.
+          per_credit_unit: 0
     costs:
       input_per_million_token:
         price: 0.042
@@ -65,9 +65,9 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 7900 # $0.042/M input using the standard 3x markup and rounding.
+          per_credit_unit: 15384.6153
         output:
-          per_credit_unit: 0 # Provider output is free.
+          per_credit_unit: 0
     costs:
       input_per_million_token:
         price: 0.042

@@ -418,7 +418,11 @@ skills:
     class_path: backend.apps.code.skills.search_repos_skill.SearchReposSkill
     pricing:
       per_unit:
-        credits: 10
+        credits: 1
+    supplier_costs:
+      per_unit:
+        none: true
+        note: GitHub public API
     providers:
       - name: GitHub
         no_api_key: true
@@ -532,7 +536,13 @@ skills:
     providers:
       - name: E2B
     pricing:
-      per_minute: 5
+      per_minute: 3
+    supplier_costs:
+      per_minute:
+        price: 0.00182
+        currency: USD
+        source_url: https://e2b.dev/pricing
+        note: E2B 2 vCPU, 512 MiB
     api_config:
       expose_post: false
     sdk_exposed: true
@@ -896,10 +906,18 @@ skills:
     pricing:
       tokens:
         input:
-          per_credit_unit: 200
+          per_credit_unit: 444.4444
         output:
-          per_credit_unit: 45
-      per_minute: 5
+          per_credit_unit: 88.8888
+      per_minute: 3
+    supplier_costs:
+      tokens:
+        model: google/gemini-3.7-flash
+      per_minute:
+        price: 0.00195
+        currency: USD
+        source_url: https://e2b.dev/pricing
+        note: E2B 2 vCPU, 1 GiB
     tool_schema:
       type: object
       properties:

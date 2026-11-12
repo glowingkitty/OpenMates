@@ -155,7 +155,11 @@ skills:
     class_path: backend.apps.home.skills.search_skill.SearchSkill
     pricing:
       per_unit:
-        credits: 10
+        credits: 1
+    supplier_costs:
+      per_unit:
+        none: true
+        note: Operator-installed provider; no official cost
     providers: []
     exclude_fields_for_llm:
       - type

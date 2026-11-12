@@ -95,8 +95,8 @@ def test_image_references_work_in_string_values_for_all_question_types(location:
             body["questions"]["safe"]["criteria"] = {"true": REFERENCE, "false": "Other"}
     parsed = DecideRequest.model_validate(body)
     assert parsed.assets[REFERENCE].format == "png"
-    assert decision_quote(has_assets=True) == 9
-    assert decision_quote() == 43
+    assert decision_quote(has_assets=True) == 5
+    assert decision_quote() == 23
     assert "data_base64" not in repr(parsed)
 
 
@@ -122,13 +122,13 @@ async def test_images_send_exact_wire_header_never_fallback_and_account_failure(
         skill = object.__new__(decide_skill.DecideSkill)
         if status == 200:
             result = await skill.execute(DecideRequest.model_validate(body))
-            assert result.usage.credits == 2
-            assert decision_result_credits(result.model_dump(), has_assets=True) == 2
+            assert result.usage.credits == 1
+            assert decision_result_credits(result.model_dump(), has_assets=True) == 1
         else:
             with pytest.raises(HTTPException) as caught:
                 await skill.execute(DecideRequest.model_validate(body))
             assert caught.value.status_code == (422 if status == 400 else 503)
-            assert caught.value.incurred_credits == 9
+            assert caught.value.incurred_credits == 5
     assert len(calls) == 1
     assert body["assets"][REFERENCE]["data_base64"] not in caplog.text
 
@@ -219,8 +219,8 @@ async def test_anonymous_large_image_uses_image_quote_in_availability_and_dispat
     assert len(json.dumps(body)) > 20_000
     availability = await anonymous.anonymous_app_skill_availability(_request(), "ai", "decide", body, None, None)
     assert availability.allowed is True
-    assert service.get_public_status.call_args.kwargs["estimated_credits"] == 9
+    assert service.get_public_status.call_args.kwargs["estimated_credits"] == 5
     response = await anonymous.anonymous_app_skill(_request(), "ai", "decide", body, None, None)
     assert response["credits_charged"] == 2
-    assert service.reserve_operation.call_args.kwargs["quoted_credits"] == 9
+    assert service.reserve_operation.call_args.kwargs["quoted_credits"] == 5
     assert service.finalize_charge.call_args.kwargs["actual_credits"] == 2

@@ -591,9 +591,15 @@ skills:
         display_name: OpenAI
       - name: e2b
         display_name: E2B
-    # Model tokens of every author and review call at the model's price plus 5 credits per started sandbox minute.
+    # Model tokens of every author and review call at the model's price plus the per_minute price per started sandbox minute.
     pricing:
-      per_minute: 5
+      per_minute: 4
+    supplier_costs:
+      per_minute:
+        price: 0.00222
+        currency: USD
+        source_url: https://e2b.dev/pricing
+        note: E2B 2 vCPU, 2 GiB; model tokens billed separately
     tool_schema:
       type: object
       properties:

@@ -140,8 +140,12 @@ skills:
       finding conversations to review manually. Costs 10 credits per request.
     pricing:
       per_unit:
-        credits: 10
+        credits: 1
         unit_name: request
+    supplier_costs:
+      per_unit:
+        none: true
+        note: Bluesky and Mastodon public APIs
     providers:
       - name: Bluesky
         no_api_key: true
@@ -287,8 +291,12 @@ skills:
       Omit platform to search every supported social platform. Costs 10 credits per request.
     pricing:
       per_unit:
-        credits: 10
+        credits: 1
         unit_name: request
+    supplier_costs:
+      per_unit:
+        none: true
+        note: Bluesky and Mastodon public APIs
     providers:
       - name: Bluesky
         no_api_key: true

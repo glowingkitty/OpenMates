@@ -146,7 +146,7 @@ def test_only_generated_svg_and_svg_code_embeds_are_vector_sources() -> None:
 
 # contract-test: direct surface=rest_api assertions=design-embroidery.billing.metered
 @pytest.mark.asyncio
-@pytest.mark.parametrize(("seconds", "credits"), [(21.0, 5), (60.0, 5), (61.0, 10), (179.0, 15)])
+@pytest.mark.parametrize(("seconds", "credits"), [(21.0, 4), (60.0, 4), (61.0, 8), (179.0, 12)])
 async def test_sandbox_time_is_charged_per_started_minute(seconds: float, credits: int) -> None:
     async def no_pricing(_model: str) -> None:
         raise AssertionError("no rework means no pricing lookup")
@@ -165,7 +165,7 @@ async def test_rework_tokens_are_added_and_unpriced_calls_are_never_free() -> No
 
     usage = [VectorUsage("drawing", "openai/gpt-6.1-sol", 4500, 2550)]
     total, details = await billing.embroidery_credits(sandbox_seconds=48.0, usage=usage, pricing_for=pricing)
-    assert total == 5 + 30  # 4.5 + 25.5 token credits floored once
+    assert total == 4 + 30  # 4.5 + 25.5 token credits floored once
     assert details["input_tokens"] == 4500 and details["output_tokens"] == 2550
 
     async def unpriced(_model: str) -> None:
@@ -203,7 +203,7 @@ def test_app_registration_routes_to_shared_media_worker() -> None:
     config = yaml.safe_load((REPO_ROOT / "backend/apps/design/app.yml").read_text(encoding="utf-8"))
     skill = next(item for item in config["skills"] if item["id"] == "embroidery")
     assert skill["api_config"] == {"expose_get": False, "expose_post": False}
-    assert skill["pricing"] == {"per_minute": 5}
+    assert skill["pricing"] == {"per_minute": 4}
     assert skill["tool_schema"]["required"] == ["source"]
     parent = next(item for item in config["embed_types"] if item["id"] == "embroidery")
     assert parent["child_type"] == "embroidery_design" and parent["child_frontend_type"] == "design-embroidery"

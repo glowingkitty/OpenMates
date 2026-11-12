@@ -150,7 +150,7 @@ async def test_video_generate_task_uses_mocked_provider_and_returns_rest_downloa
     provider_mock.assert_awaited_once()
     precheck_mock.assert_awaited_once_with(
         user_id="user-1",
-        estimated_credits=1248,
+        estimated_credits=1280,
         log_prefix="[Task ID: task-video-1]",
         operation_name="video generation",
     )

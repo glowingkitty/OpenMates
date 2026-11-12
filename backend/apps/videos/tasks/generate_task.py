@@ -25,10 +25,9 @@ from backend.core.api.app.services.s3.config import get_bucket_name
 from backend.core.api.app.tasks.base_task import BaseServiceTask
 from backend.core.api.app.tasks.celery_config import app
 from backend.apps.videos.tasks.generate_billing import (
-    GENERATED_MEDIA_COST_MARKUP,
-    USD_PER_CREDIT,
     omni_clip_credits,
     omni_clip_pricing,
+    video_second_pricing,
 )
 from backend.shared.providers.google.omni_video import OMNI_MODEL, generate_omni_video
 from backend.shared.providers.fal import h3_turbo
@@ -85,7 +84,7 @@ def _get_h3_duration_pricing(now: Optional[datetime] = None) -> tuple[float, dic
     # Official fal model page, verified 2026-10-19; promotion ends October 31.
     # https://fal.ai/models/minimax/h3-max-turbo/image-to-video
     price = 0.01625 if (now or datetime.now(timezone.utc)) < H3_PROMOTION_END else 0.025
-    return price, {"per_second": {"credits": price * GENERATED_MEDIA_COST_MARKUP / USD_PER_CREDIT, "unit_name": "video_second"}}
+    return price, video_second_pricing(price)
 
 
 def _h3_duration(value: Any) -> float:

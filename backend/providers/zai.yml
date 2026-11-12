@@ -49,11 +49,11 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 238 # About 3x $1.40/M at $0.001 per credit.
+          per_credit_unit: 476.1904
         cache_read:
-          per_credit_unit: 2380 # About 3x $0.14/M.
+          per_credit_unit: 4761.9047
         output:
-          per_credit_unit: 75 # About 3x $4.40/M, including reasoning tokens.
+          per_credit_unit: 151.5151
     cache_pricing:
       enabled: true
       write_billing: included_in_input
@@ -108,9 +108,9 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 275 # Based on $1.20/M input (OpenRouter): 333.33 / 1.20 = 277.8, rounded down
+          per_credit_unit: 555.5555
         output:
-          per_credit_unit: 80 # Based on $4.10/M output (OpenRouter): 333.33 / 4.10 = 81.3, rounded down
+          per_credit_unit: 162.6016
     costs:
       input_per_million_token:
         price: 1.20
@@ -161,9 +161,9 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 150
+          per_credit_unit: 296.2962
         output:
-          per_credit_unit: 120
+          per_credit_unit: 242.4242
     costs:
       input_per_million_token:
         price: 2.25

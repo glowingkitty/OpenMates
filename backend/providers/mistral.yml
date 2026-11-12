@@ -54,11 +54,11 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 476 # About 3x $0.70/M at $0.001 per credit.
+          per_credit_unit: 952.3809
         cache_read:
-          per_credit_unit: 4761 # About 3x $0.07/M.
+          per_credit_unit: 9523.8095
         output:
-          per_credit_unit: 158 # About 3x $2.10/M, including reasoning tokens.
+          per_credit_unit: 317.4603
     cache_pricing:
       enabled: true
       write_billing: included_in_input
@@ -91,11 +91,11 @@ models:
         pricing:
           tokens:
             input:
-              per_credit_unit: 490
+              per_credit_unit: 980.3921
             cache_read:
-              per_credit_unit: 4760
+              per_credit_unit: 9523.8095
             output:
-              per_credit_unit: 158
+              per_credit_unit: 318.9792
         costs:
           input_per_million_token:
             price: 0.68
@@ -163,11 +163,11 @@ models:
     pricing: # Current Small 4 API rates: $0.15 input / $0.60 output per million tokens.
       tokens:
         input:
-          per_credit_unit: 2200 # Approximately 3x $0.15/M at $0.001 per credit.
+          per_credit_unit: 4444.4444
         cache_read:
-          per_credit_unit: 22000
+          per_credit_unit: 40000
         output:
-          per_credit_unit: 550 # 1 credit per 550 output tokens ($0.60/M)
+          per_credit_unit: 1111.1111
     cache_pricing:
       enabled: true
       write_billing: included_in_input
@@ -226,11 +226,11 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 220 # 1 credit per ~220 input tokens ($1.50/M)
+          per_credit_unit: 444.4444
         cache_read:
-          per_credit_unit: 2200
+          per_credit_unit: 4444.4444
         output:
-          per_credit_unit: 45 # 1 credit per ~45 output tokens ($7.50/M)
+          per_credit_unit: 88.8888
     cache_pricing:
       enabled: false
       write_billing: included_in_input
@@ -278,7 +278,7 @@ models:
         region: "EU"
         country: "FR"
     pricing:
-      per_minute: 3 # Existing batch audio.transcribe price
+      per_minute: 5
     costs:
       per_minute:
         price: 0.003
@@ -305,7 +305,7 @@ models:
         region: "EU"
         country: "FR"
     pricing:
-      per_minute: 8 # Whole-credit ceiling of $0.006/min provider cost + 20%
+      per_minute: 10
     costs:
       per_minute:
         price: 0.006
@@ -323,7 +323,7 @@ models:
     default_server: "mistral"
     servers:
       - {id: "mistral", name: "Mistral", model_id: "voxtral-mini-transcribe-realtime-3-0", region: "EU", country: "FR"}
-    pricing: {per_minute: 10}
+    pricing: {per_minute: 15}
     costs:
       per_minute: {price: 0.008, currency: USD}
 
@@ -339,32 +339,11 @@ models:
     default_server: "mistral"
     servers:
       - {id: "mistral", name: "Mistral", model_id: "voxtral-mini-tts-3-0", region: "EU", country: "FR"}
+    pricing: {per_million_characters: 19500}
     costs:
       per_million_characters: {price: 13, currency: USD}
 
-# Pricing Formula:
-# 1. Cost per token = (your_cost_usd_per_million * markup) / 1,000,000
-# 2. Tokens per credit = credit_value_usd / cost_per_token
-#
-# Where:
-# - credit_value_usd = 0.001 (110 USD / 110,000 credits)
-# - markup = 3 (3x your cost)
-#
-# Simplified: tokens_per_credit = 0.001 /
-# ((your_cost_per_million * 3) / 1,000,000)
-# Or even simpler: tokens_per_credit = 333.33 / your_cost_per_million
-#
-# Examples:
-# - Input ($1.25/M): 333.33 / 1.25 = 267 tokens/credit → round to 300
-# - Output ($10/M): 333.33 / 10 = 33 tokens/credit → round to 30
-
-# FOR PER-UNIT PRICING (images, API calls, etc.):
-# 1. Your price to user = your_cost_per_unit * markup
-# 2. Credits per unit = your_price_to_user / credit_value_usd
-#
-# Simplified: credits_per_unit = (your_cost_per_unit * 3) / 0.001
-# Or even simpler: credits_per_unit = your_cost_per_unit * 3000
-#
-# Per-Unit Examples:
-# - Image ($0.04 each): 0.04 * 3000 = 120 credits per image
-# - API call ($0.01 each): 0.01 * 3000 = 30 credits per call
+# Customer pricing: every `pricing` value is derived from `costs` (supplier USD)
+# as cost x (1 + pricing.margin_percent in backend/config/backend_config.yml),
+# rounded up to 5-credit steps (1 credit = $0.001). Regenerate with
+# `python3 scripts/derive_customer_prices.py --write`; tests fail on drift.

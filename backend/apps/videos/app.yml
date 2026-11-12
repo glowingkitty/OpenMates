@@ -197,11 +197,19 @@ skills:
     # Generative clips: per measured second of the delivered clip at the model's per-resolution price
     # (Gemini Omni 720p: 105 credits; 360p 35, 1080p 156, 4k 314).
     # A change is charged once for what it used (added clip seconds, opening still, author tokens, render).
-    # Composed videos: author model tokens at the model's price plus 5 credits per started render minute.
+    # Composed videos: author model tokens at the model's price plus the per_minute price per started render minute.
     # A request without a delivered video is never charged.
     pricing:
       per_second: 105
-      per_minute: 5
+      per_minute: 10
+    supplier_costs:
+      per_second:
+        model: google/gemini-omni-1.2-flash
+      per_minute:
+        price: 0.00444
+        currency: USD
+        source_url: https://e2b.dev/pricing
+        note: E2B 4 vCPU, 4 GiB composed render
     tool_schema:
       type: object
       properties:

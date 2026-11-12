@@ -16,14 +16,18 @@ import time
 from dataclasses import dataclass
 from typing import Any, Optional
 
-# The Code Run price per started sandbox minute, shared with every metered sandbox skill.
-from backend.shared.python_utils.metered_author_billing import (
-    SANDBOX_CREDITS_PER_STARTED_MINUTE as SCRIPT_CREDITS_PER_STARTED_MINUTE,
-    sandbox_run_credits as script_run_credits,
-)
+from backend.shared.python_utils.catalog_unit_prices import skill_price, whole_credits
+from backend.shared.python_utils.metered_author_billing import sandbox_run_credits
 
-# Re-exported for the callers that price sandbox runs through this module.
+# Vector scripts run in the images sandbox; its catalog price applies per started minute.
+SCRIPT_CREDITS_PER_STARTED_MINUTE = whole_credits(skill_price("images", "modify", "per_minute"))
+
 __all__ = ["SCRIPT_CREDITS_PER_STARTED_MINUTE", "SCRIPT_RUN_LIMIT_SECONDS", "script_run_credits"]
+
+
+def script_run_credits(seconds: float, *, credits_per_started_minute: int = SCRIPT_CREDITS_PER_STARTED_MINUTE) -> int:
+    """Credits for one vector script run (every started minute charged)."""
+    return sandbox_run_credits(seconds, credits_per_started_minute=credits_per_started_minute)
 
 SCRIPT_RUN_LIMIT_SECONDS = 60
 MAX_ERROR_CHARS = 1500

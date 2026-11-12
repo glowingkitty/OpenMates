@@ -384,8 +384,8 @@ async def test_findings_trigger_exactly_one_rework_before_conversion(world: Worl
     assert "solved_gradient_or_filter" in codes and "solved_live_text" in codes
     texts = {note["code"]: note["text"] for note in content["notes"]}
     assert texts["solved_live_text"] == "Text redrawn as shapes or left out"
-    # 2 x 24 s sandbox = 5 credits; 4000/1000 + 3000/100 = 34 token credits.
-    assert world.charges[0]["credits"] == 39
+    # 2 x 24 s sandbox = 4 credits; 4000/1000 + 3000/100 = 34 token credits.
+    assert world.charges[0]["credits"] == 38
     assert result["billing_status"] == "charged"
 
 
@@ -453,7 +453,7 @@ async def test_failed_rework_continues_with_original_and_names_remaining_finding
     assert content["reworked"] is False
     codes = [note["code"] for note in content["notes"]]
     assert "rework_failed" in codes and "unsolved_more_than_12_colours" in codes
-    assert world.charges[0]["credits"] == 5
+    assert world.charges[0]["credits"] == 4
 
 
 # contract-test: direct surface=rest_api assertions=design-embroidery.convert.sandbox-inkstitch,design-embroidery.billing.metered

@@ -19,6 +19,7 @@
 -->
 
 <script lang="ts">
+    import { formatTokensPerCredit } from '../../utils/tokenRateFormat';
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     import { modelsMetadata, type AIModelMetadata } from '../../data/modelsMetadata';
@@ -63,7 +64,7 @@
     const automaticSummaryPricing = $derived(cachePricingActive ? getAutomaticSummaryPricing() : null);
 
     function tokenPrice(rate: number | undefined): string {
-        return rate ? `1 ${$text('common.credits')} ${$text('settings.ai_ask.ai_ask_settings.per')} ${rate} ${$text('settings.ai_ask.ai_ask_settings.tokens')}` : $text('settings.ai_ask.ai_ask_model_details.unavailable');
+        return rate ? `1 ${$text('common.credits')} ${$text('settings.ai_ask.ai_ask_settings.per')} ${formatTokensPerCredit(rate)} ${$text('settings.ai_ask.ai_ask_settings.tokens')}` : $text('settings.ai_ask.ai_ask_model_details.unavailable');
     }
     
     // Format release date for display
@@ -287,7 +288,7 @@
                             <Icon name="download" type="subsetting" size="24px" noAnimation={true} />
                             <span class="pricing-type">{$text('settings.ai_ask.ai_ask_model_details.uncached_input')}</span>
                             <span class="pricing-value">
-                                1 <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} /> {$text('settings.ai_ask.ai_ask_settings.per')} {model.pricing.input_tokens_per_credit} {$text('settings.ai_ask.ai_ask_settings.tokens')}
+                                1 <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} /> {$text('settings.ai_ask.ai_ask_settings.per')} {formatTokensPerCredit(model.pricing.input_tokens_per_credit)} {$text('settings.ai_ask.ai_ask_settings.tokens')}
                             </span>
                         </div>
                     {/if}
@@ -295,18 +296,18 @@
                         <div class="pricing-row" data-testid="app-model-pricing-cache-read-row">
                             <Icon name="coins" type="subsetting" size="24px" noAnimation={true} />
                             <span class="pricing-type">{$text('settings.ai_ask.ai_ask_model_details.cache_read')}</span>
-                            <span class="pricing-value">{cachePricingActive && model.pricing.cache_read_tokens_per_credit ? `1 ${$text('common.credits')} ${$text('settings.ai_ask.ai_ask_settings.per')} ${model.pricing.cache_read_tokens_per_credit} ${$text('settings.ai_ask.ai_ask_settings.tokens')}` : $text('settings.ai_ask.ai_ask_model_details.unavailable')}</span>
+                            <span class="pricing-value">{cachePricingActive && model.pricing.cache_read_tokens_per_credit ? `1 ${$text('common.credits')} ${$text('settings.ai_ask.ai_ask_settings.per')} ${formatTokensPerCredit(model.pricing.cache_read_tokens_per_credit)} ${$text('settings.ai_ask.ai_ask_settings.tokens')}` : $text('settings.ai_ask.ai_ask_model_details.unavailable')}</span>
                         </div>
                         <div class="pricing-row" data-testid="app-model-pricing-cache-write-row">
                             <Icon name="coins" type="subsetting" size="24px" noAnimation={true} />
                             <span class="pricing-type">{$text(`settings.ai_ask.ai_ask_model_details.${cacheWriteLabelKey(model.cache_pricing, model.default_server)}`)}</span>
-                            <span class="pricing-value">{cachePricingActive ? model.cache_pricing?.write_billing === 'included_in_input' ? $text('settings.ai_ask.ai_ask_model_details.included_in_input') : model.pricing.cache_write_tokens_per_credit ? `1 ${$text('common.credits')} ${$text('settings.ai_ask.ai_ask_settings.per')} ${model.pricing.cache_write_tokens_per_credit} ${$text('settings.ai_ask.ai_ask_settings.tokens')}` : $text('settings.ai_ask.ai_ask_model_details.unavailable') : $text('settings.ai_ask.ai_ask_model_details.unavailable')}</span>
+                            <span class="pricing-value">{cachePricingActive ? model.cache_pricing?.write_billing === 'included_in_input' ? $text('settings.ai_ask.ai_ask_model_details.included_in_input') : model.pricing.cache_write_tokens_per_credit ? `1 ${$text('common.credits')} ${$text('settings.ai_ask.ai_ask_settings.per')} ${formatTokensPerCredit(model.pricing.cache_write_tokens_per_credit)} ${$text('settings.ai_ask.ai_ask_settings.tokens')}` : $text('settings.ai_ask.ai_ask_model_details.unavailable') : $text('settings.ai_ask.ai_ask_model_details.unavailable')}</span>
                         </div>
                         {#if cachePricingActive && supportsOneHourCacheWrites(model.cache_pricing, model.default_server) && model.pricing.cache_write_1h_tokens_per_credit}
                             <div class="pricing-row" data-testid="app-model-pricing-cache-write-1h-row">
                                 <Icon name="coins" type="subsetting" size="24px" noAnimation={true} />
                                 <span class="pricing-type">{$text('settings.ai_ask.ai_ask_model_details.cache_write_1h')}</span>
-                                <span class="pricing-value">1 {$text('common.credits')} {$text('settings.ai_ask.ai_ask_settings.per')} {model.pricing.cache_write_1h_tokens_per_credit} {$text('settings.ai_ask.ai_ask_settings.tokens')}</span>
+                                <span class="pricing-value">1 {$text('common.credits')} {$text('settings.ai_ask.ai_ask_settings.per')} {formatTokensPerCredit(model.pricing.cache_write_1h_tokens_per_credit)} {$text('settings.ai_ask.ai_ask_settings.tokens')}</span>
                             </div>
                         {/if}
                     {/if}
@@ -315,7 +316,7 @@
                             <Icon name="coins" type="subsetting" size="24px" noAnimation={true} />
                             <span class="pricing-type">{$text('settings.ai_ask.ai_ask_model_details.billable_output')}</span>
                             <span class="pricing-value">
-                                1 <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} /> {$text('settings.ai_ask.ai_ask_settings.per')} {model.pricing.output_tokens_per_credit} {$text('settings.ai_ask.ai_ask_settings.tokens')}
+                                1 <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} /> {$text('settings.ai_ask.ai_ask_settings.per')} {formatTokensPerCredit(model.pricing.output_tokens_per_credit)} {$text('settings.ai_ask.ai_ask_settings.tokens')}
                             </span>
                         </div>
                     {/if}

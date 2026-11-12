@@ -776,7 +776,7 @@ async def test_jev_native_usage_has_exact_two_times_browse_price_and_no_public_s
     assert models.cost == Decimal("0.042")
     from backend.shared.python_schemas.web_browse import charged_credits
 
-    assert charged_credits(models.cost) == 84
+    assert charged_credits(models.cost) == 63
     models.after_attempt.assert_awaited_once()
 
 

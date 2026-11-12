@@ -21,4 +21,8 @@ rate_limits:
     requests_per_month: null
 
 pricing:
-  per_request_credits: 5
+  per_request_credits: 1
+supplier_costs:
+  per_request_credits:
+    none: true
+    note: Free public API

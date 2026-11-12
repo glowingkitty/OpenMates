@@ -17,16 +17,19 @@ from backend.scripts import test_kimi_k2_7_code as smoke
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
+# contract-test: infrastructure
 def test_extract_python_code_from_fenced_block():
     content = "Here is code:\n```python\ndef answer():\n    return 42\n```"
 
     assert smoke._extract_python_code(content) == "def answer():\n    return 42"
 
 
+# contract-test: infrastructure
 def test_smoke_script_targets_together_primary_model():
     assert smoke.MODEL_ID == "moonshotai/Kimi-K2.7-Code"
 
 
+# contract-test: infrastructure
 def test_kimi_k2_7_code_config_uses_together_primary_with_openrouter_fallback():
     provider_config = yaml.safe_load((REPO_ROOT / "backend/providers/moonshot.yml").read_text())
     model = next(model for model in provider_config["models"] if model["id"] == "kimi-k2.7-code")
@@ -38,6 +41,7 @@ def test_kimi_k2_7_code_config_uses_together_primary_with_openrouter_fallback():
     assert model["servers"][1]["model_id"] == "moonshotai/kimi-k2.7-code"
 
 
+# contract-test: infrastructure
 def test_kimi_k3_config_uses_together_primary_without_openrouter_fallback():
     provider_config = yaml.safe_load((REPO_ROOT / "backend/providers/moonshot.yml").read_text())
     model = next(model for model in provider_config["models"] if model["id"] == "kimi-k3")
@@ -46,15 +50,17 @@ def test_kimi_k3_config_uses_together_primary_without_openrouter_fallback():
     assert model["external_ids"]["together"] == "moonshotai/Kimi-K3"
     assert [server["id"] for server in model["servers"]] == ["together"]
     assert model["servers"][0]["model_id"] == "moonshotai/Kimi-K3"
-    assert model["pricing"]["tokens"]["input"]["per_credit_unit"] == 110
-    assert model["pricing"]["tokens"]["output"]["per_credit_unit"] == 20
+    assert model["pricing"]["tokens"]["input"]["per_credit_unit"] == 222.2222
+    assert model["pricing"]["tokens"]["output"]["per_credit_unit"] == 44.4444
 
 
+# contract-test: infrastructure
 def test_sandbox_rejects_imports():
     with pytest.raises(AssertionError, match="Forbidden syntax"):
         smoke._exec_generated("import os\n")
 
 
+# contract-test: infrastructure
 def test_longest_valid_parentheses_validator_accepts_correct_solution():
     namespace = smoke._exec_generated(
         "def longest_valid_parentheses(s: str) -> int:\n"
@@ -75,6 +81,7 @@ def test_longest_valid_parentheses_validator_accepts_correct_solution():
     smoke._validate_longest_valid_parentheses(namespace)
 
 
+# contract-test: infrastructure
 def test_top_k_validator_rejects_incorrect_solution():
     namespace = smoke._exec_generated("def top_k_frequent(nums: list[int], k: int) -> list[int]:\n    return nums[:k]\n")
 
@@ -82,6 +89,7 @@ def test_top_k_validator_rejects_incorrect_solution():
         smoke._validate_top_k_frequent(namespace)
 
 
+# contract-test: infrastructure
 def test_lru_cache_validator_accepts_correct_solution():
     namespace = smoke._exec_generated(
         "class LRUCache:\n"

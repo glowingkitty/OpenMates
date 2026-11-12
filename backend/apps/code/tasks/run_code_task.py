@@ -22,6 +22,7 @@ from typing import Any
 
 import httpx
 
+from backend.shared.python_utils.catalog_unit_prices import skill_price, whole_credits
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.tasks.celery_config import app, get_worker_cache_service
 from backend.apps.code.tasks.test_result_embed import persist_test_result_embed
@@ -64,7 +65,8 @@ except Exception:  # pragma: no cover - deployment image dependency guard
 logger = logging.getLogger(__name__)
 
 EXECUTION_TTL_SECONDS = 3600
-RUN_CREDITS_PER_MINUTE = 5
+# Catalog price per started sandbox minute (code.run pricing.per_minute).
+RUN_CREDITS_PER_MINUTE = whole_credits(skill_price("code", "run", "per_minute"))
 INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
 INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN")
 CODE_RUN_CHANNEL_PREFIX = "code_run_stream"

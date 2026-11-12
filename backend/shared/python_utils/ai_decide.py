@@ -112,7 +112,7 @@ def decision_configuration() -> tuple[str, dict[str, Any]]:
     pricing = catalog_model["pricing"]
     tokens = pricing["tokens"]
     unit = tokens["input"]["per_credit_unit"]
-    if type(unit) is not int or unit <= 0 or tokens["output"]["per_credit_unit"] != 0:
+    if type(unit) not in (int, float) or unit <= 0 or tokens["output"]["per_credit_unit"] != 0:
         raise ValueError("decision tariff has no reviewed public billing envelope")
     return model, pricing
 

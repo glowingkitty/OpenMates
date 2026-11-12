@@ -508,7 +508,13 @@ skills:
     class_path: backend.apps.travel.skills.get_flight.GetFlightSkill
     pricing:
       per_unit:
-        credits: 7
+        credits: 25
+    supplier_costs:
+      per_unit:
+        price: 0.014
+        currency: USD
+        source_url: https://fr24api.flightradar24.com/
+        note: 'Estimate: about 46 FR24 credits per call; plan rate unverified'
     providers:
       - name: Flightradar24
         no_api_key: true

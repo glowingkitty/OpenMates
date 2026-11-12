@@ -52,9 +52,9 @@ def test_reported_write_is_charged_once_and_missing_write_uses_ordinary_input() 
     missing = receipt({"cached_tokens": 12000})
     assert reported["billing_mode"] == "cache_aware"
     assert reported["billed_input_tokens"] == 1000
-    assert float(reported["category_credits"]["input"]) == pytest.approx(1000 / 165)
-    assert float(reported["category_credits"]["cache_read"]) == pytest.approx(12000 / 3300)
-    assert float(reported["category_credits"]["cache_write"]) == pytest.approx(2000 / 132)
+    assert float(reported["category_credits"]["input"]) == pytest.approx(1000 / 333.3333)
+    assert float(reported["category_credits"]["cache_read"]) == pytest.approx(12000 / 6666.6666)
+    assert float(reported["category_credits"]["cache_write"]) == pytest.approx(2000 / 266.6666)
     assert missing["billing_mode"] == "ordinary_input"
     assert missing["billed_input_tokens"] == 15000
     assert float(missing["category_credits"]["cache_write"]) == 0

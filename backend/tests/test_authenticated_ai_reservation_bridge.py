@@ -47,7 +47,7 @@ def _long_context_pricing():
         "input": {"per_credit_unit": 500},
         "cache_read": {"per_credit_unit": 1_000},
         "cache_write": {"per_credit_unit": 400},
-        "output": {"per_credit_unit": 6},
+        "output": {"per_credit_unit": 6.6666},
     }
     return {
         "default_server": "openai", "features": {"max_output_tokens": 1_000},
@@ -304,7 +304,7 @@ async def test_openai_long_context_quote_switches_cold_input_and_output_units_at
         )
 
     assert quote(272_000) == 346  # Cold writes use 800 tokens/credit; output uses 10.
-    assert quote(272_001) == 690  # Cold writes use 400 tokens/credit; output uses 6.
+    assert quote(272_001) == 689  # Cold writes use 400 tokens/credit; output uses 6.6666.
     assert quote(272_001, "mistral") == 346  # Ineligible route keeps base units and existing cold-write bound.
     pricing["cache_pricing"]["enabled"] = False
     assert quote(272_001) == 278  # Proposed tariffs remain inert while disabled.
@@ -326,7 +326,7 @@ async def test_remote_image_quote_reserves_model_context_and_long_context_rates(
             tools=None, output_token_limit=60, inference_host=host,
         )
 
-    assert quote("openai") == 760  # 300k cold input / 400, plus 60 output / 6.
+    assert quote("openai") == 759  # 300k cold input / 400, plus 60 output / 6.6666.
     assert quote("mistral") == 381  # Ineligible host uses base input and output rates.
 
 

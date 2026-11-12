@@ -47,6 +47,10 @@ rate_limits:
 pricing:
   per_request_credits: 1
 
+supplier_costs:
+  per_request_credits:
+    none: true
+    note: Free plan within the 3,000 credits/day guard
 cache:
   places_ttl_hours: 24
   geocode_ttl_days: 30

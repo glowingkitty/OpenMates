@@ -926,7 +926,8 @@ def test_fractional_billing_is_rounded_once_for_the_accumulated_cost():
     assert charged_credits(Decimal(0)) == 0
     assert charged_credits(Decimal("0.0002")) == 1
     assert charged_credits(Decimal("0.00149")) == 2
-    assert charged_credits(Decimal("0.0015")) == 3
+    assert charged_credits(Decimal("0.0015")) == 2
+    assert charged_credits(Decimal("0.002")) == 3
 
 
 # contract-test: supporting surface=rest_api assertions=web-browse.private-storage-and-api,web-browse.session-and-run

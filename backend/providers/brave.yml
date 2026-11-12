@@ -90,9 +90,14 @@ rate_limits:
 
 # Pricing information
 # Cost per request in credits (user-facing pricing, independent of Brave plan)
-# Users are always charged 10 credits per search request
-# If a user makes 5 parallel search requests, they are charged 50 credits total (5 * 10)
+# Cost-plus: $0.005 per request x 1.5 = 7.5 credits, rounded up to 10 credits per request.
 # Note: The Brave plan/preset only affects rate limits and available features,
 #       not the user-facing pricing
 pricing:
-  per_request_credits: 10 # Always 10 credits per search request for users
+  per_request_credits: 10
+supplier_costs:
+  per_request_credits:
+    price: 0.005
+    currency: USD
+    source_url: https://api-dashboard.search.brave.com/app/documentation/web-search/get-started
+    note: $5 per 1,000 requests

@@ -377,14 +377,14 @@ async def test_sandbox_time_and_a_flat_provider_fee_are_added_to_the_token_credi
     usage = [VectorUsage("scripting", "openai/gpt-6.1-sol", 600, 3000)]
 
     credits, details = await generate_task._vector_author_credits(usage, "[t]", [1.5, 61.0])
-    assert credits == 156 + 5 + 10
-    assert [call["credits"] for call in details["provider_calls"]] == [156.0, 5, 10]
+    assert credits == 156 + 4 + 8
+    assert [call["credits"] for call in details["provider_calls"]] == [156.0, 4, 8]
 
     review_only = [VectorUsage("review", "typesafe/jev-1.14", 900, 0)]
     credits, details = await generate_task._vector_author_credits(review_only, "[t]", flat_credits=100)
     assert credits == 103
     assert details["provider_calls"][-1] == {"step": "provider_flat_fee", "credits": 100}
-    assert (script_run_credits(0), script_run_credits(0.1), script_run_credits(60), script_run_credits(60.1)) == (0, 5, 5, 10)
+    assert (script_run_credits(0), script_run_credits(0.1), script_run_credits(60), script_run_credits(60.1)) == (0, 4, 4, 8)
 
 
 # contract-test: direct surface=rest_api assertions=images-generate.draft.flash-text-only

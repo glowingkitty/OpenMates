@@ -18,6 +18,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from backend.shared.python_utils.catalog_unit_prices import skill_price, whole_credits
 from backend.apps.base_skill import BaseSkill
 from backend.shared.python_utils.app_skill_helpers import execute_skill_via_celery
 from backend.shared.python_utils.billing_utils import get_usd_per_credit
@@ -38,7 +39,8 @@ DEFAULT_INPUT_TOKENS_PER_CREDIT = 200
 DEFAULT_OUTPUT_TOKENS_PER_CREDIT = 45
 DEFAULT_CACHE_READ_TOKENS_PER_CREDIT = 5000
 DEFAULT_CACHE_WRITE_TOKENS_PER_CREDIT = 5000
-DEFAULT_E2B_CREDITS_PER_STARTED_MINUTE = 5
+# Catalog price per started sandbox minute (code.image_to_html pricing.per_minute).
+DEFAULT_E2B_CREDITS_PER_STARTED_MINUTE = whole_credits(skill_price("code", "image_to_html", "per_minute"))
 DEFAULT_MINIMUM_CREDITS = 30
 DEFAULT_RESERVED_CREDITS_PER_REQUEST = 500
 

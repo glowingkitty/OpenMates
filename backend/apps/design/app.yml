@@ -203,7 +203,11 @@ skills:
       - name: Iconify
         no_api_key: true
     pricing:
-      fixed: 5
+      fixed: 1
+    supplier_costs:
+      fixed:
+        none: true
+        note: Iconify public API
     exclude_fields_for_llm:
       - svg_path
       - license_url
@@ -278,7 +282,13 @@ skills:
     providers:
       - name: E2B
     pricing:
-      per_minute: 5
+      per_minute: 4
+    supplier_costs:
+      per_minute:
+        price: 0.00222
+        currency: USD
+        source_url: https://e2b.dev/pricing
+        note: E2B 2 vCPU, 2 GiB
     exclude_fields_for_llm:
       - files
       - s3_base_url

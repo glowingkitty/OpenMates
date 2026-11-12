@@ -1945,7 +1945,7 @@ def test_chat_skill_billing_uses_audio_result_declared_credits() -> None:
         "audio",
         "generate",
         {"requests": [{"prompt": "ready"}, {"prompt": "done"}]},
-    ) == [20, 20]
+    ) == [15, 15]
     assert _get_variable_preflight_reserved_credits(
         "audio",
         "speak",

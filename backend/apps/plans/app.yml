@@ -23,6 +23,10 @@ skills:
         no_api_key: true
     pricing:
       fixed: 1
+    supplier_costs:
+      fixed:
+        none: true
+        note: Internal
     class_path: backend.apps.plans.skills.create_skill.CreateSkill
     tool_schema:
       type: object
@@ -52,6 +56,10 @@ skills:
         no_api_key: true
     pricing:
       fixed: 1
+    supplier_costs:
+      fixed:
+        none: true
+        note: Internal
     class_path: backend.apps.plans.skills.search_skill.SearchSkill
     tool_schema:
       type: object

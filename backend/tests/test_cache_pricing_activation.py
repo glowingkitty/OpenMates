@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from backend.shared.python_utils.cost_plus_pricing import load_pricing_settings
 from backend.apps.ai.processing.model_usage_tracker import build_model_usage_breakdown
 from backend.shared.python_utils.billing_utils import is_cache_tariff_admissible, snapshot_model_tariff
 
@@ -35,14 +36,14 @@ UPSTREAM_ANTHROPIC_TARIFFS = {
         "eligible_hosts": ["anthropic"],
         "requires_cache_retention_metric": True,
         "source_url": "https://platform.claude.com/docs/en/models/sonnet-5/overview",
-        "credits_per_million": {"input": 170, "cache_read": 1700, "cache_write": 136, "cache_write_1h": 85, "output": 35},
+        "credits_per_million": {"input": 333.3333, "cache_read": 3333.3333, "cache_write": 266.6666, "cache_write_1h": 166.6666, "output": 66.6666},
         "supplier_per_million": {"input": 2.0, "cache_read": 0.2, "cache_write": 2.5, "cache_write_1h": 4.0, "output": 10.0},
     },
     "claude-sonnet-4-6": {
         "eligible_hosts": ["anthropic", "aws_bedrock"],
         "requires_cache_retention_metric": False,
         "source_url": "https://platform.claude.com/docs/en/models/sonnet-4-6/overview",
-        "credits_per_million": {"input": 110, "cache_read": 1100, "cache_write": 88, "cache_write_1h": 55, "output": 20},
+        "credits_per_million": {"input": 202.0202, "cache_read": 2020.202, "cache_write": 161.5508, "cache_write_1h": 101.0101, "output": 40.404},
         "supplier_per_million": {"input": 3.0, "cache_read": 0.3, "cache_write": 3.75, "cache_write_1h": 6.0, "output": 15.0},
     },
 }
@@ -107,12 +108,8 @@ def test_active_category_prices_cover_configured_supplier_costs(provider: str, m
     for host in model["cache_pricing"]["eligible_hosts"]:
         profile = model.get("supplier_cost_profiles", {}).get(host, {})
         host_multiplier = Decimal(str(profile.get("multiplier", 1)))
-        # Direct routes target about 3x the supplier category cost. Regional
-        # gross premiums narrow the configured contribution on fallback hosts.
-        minimum_markup = (
-            Decimal("1.45") if host == "google" else
-            Decimal("2.5") if host == "aws_bedrock" else Decimal("2.7")
-        )
+        # Every eligible route sells at least at supplier cost plus the configured margin.
+        minimum_markup = load_pricing_settings().multiplier
         rates = model["pricing"]["tokens"]
         bands = [(None, rates)] + [
             (band_name, band["tokens"])
@@ -137,7 +134,9 @@ def test_active_category_prices_cover_configured_supplier_costs(provider: str, m
             if provider == "openai" and model["cache_pricing"]["requires_cache_write_metric"]:
                 write_cost = Decimal(str(model["costs"]["cache_write_per_million_token"]["price"]))
                 write_cost *= Decimal(str(profile.get("context_bands", {}).get(band_name, {}).get("cache_write", 1)))
-                assert Decimal(1000) / Decimal(str(category_rates["input"]["per_credit_unit"])) >= write_cost * Decimal("2.4")
+                # Writes cost 1.25x input, so the input fallback keeps cost + 50% / 1.25 = cost x 1.2.
+                fallback_floor = load_pricing_settings().multiplier / Decimal("1.25")
+                assert Decimal(1000) / Decimal(str(category_rates["input"]["per_credit_unit"])) >= write_cost * fallback_floor
 
 
 @pytest.mark.parametrize("provider,model_id,host,raw,expected_read,expected_write", [
@@ -226,5 +225,5 @@ def test_mistral_large_4_missing_read_counter_uses_regular_full_input_rate() -> 
     entry = build_model_usage_breakdown([bucket], lambda _provider, _model: model)["entries"][0]
     assert entry["billing_mode"] == "ordinary_input"
     assert entry["billed_input_tokens"] == 1000
-    assert entry["rates"]["input"] == "476"
+    assert entry["rates"]["input"] == "952.3809"
     assert float(entry["category_credits"]["cache_read"]) == 0

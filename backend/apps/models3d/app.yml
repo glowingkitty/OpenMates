@@ -248,8 +248,11 @@ skills:
       - Hi3D
     pricing:
       per_unit:
-        credits: 25
+        credits: 40
         unit_name: model
+    supplier_costs:
+      per_unit:
+        model: hi3d/hitem3dv2.1-fast-pbr
     tool_schema:
       type: object
       properties:

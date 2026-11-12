@@ -43,15 +43,15 @@ def test_catalog_routes_preview_with_regular_costs_and_customer_rates():
     assert model["servers"] == [{"id": "mistral", "name": "Mistral", "model_id": "mistral-large-4", "region": "EU",
         "country": "FR", "reasoning_control": {"parameter": "reasoning_effort", "levels": {"HIGH": "high"},
             "source_url": "https://docs.mistral.ai/studio/conversations/reasoning"}}]
-    for direction, expected, units in [("input", 0.70, 476), ("output", 2.10, 158)]:
+    for direction, expected, units in [("input", 0.70, 952.3809), ("output", 2.10, 317.4603)]:
         cost = model["costs"][f"{direction}_per_million_token"]
         assert cost["price"] == expected
         assert cost["max_context"] == 1000000
         assert model["pricing"]["tokens"][direction]["per_credit_unit"] == units
         charged = 1000 / model["pricing"]["tokens"][direction]["per_credit_unit"]
-        assert 3 <= charged / expected <= 3.1
+        assert 1.5 <= charged / expected <= 1.51
     assert model["costs"]["cached_input_per_million_token"]["price"] == 0.07
-    assert model["pricing"]["tokens"]["cache_read"]["per_credit_unit"] == 4761
+    assert model["pricing"]["tokens"]["cache_read"]["per_credit_unit"] == 9523.8095
 
 
 def test_reasoning_setting_preserves_legacy_models_and_rejects_invalid_values(monkeypatch):

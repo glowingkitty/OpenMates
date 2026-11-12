@@ -34,7 +34,7 @@ models:
         region: "US"
         country: "US"
     pricing:
-      per_second: 20
+      per_second: 15
     costs:
       output_per_second:
         price: 0.00727
@@ -61,7 +61,7 @@ models:
         region: "US"
         country: "US"
     pricing:
-      per_second: 2
+      per_second: 1.25
     costs:
       output_per_second:
         price: 0.000833
@@ -87,7 +87,7 @@ models:
         region: "US"
         country: "US"
     pricing:
-      per_second: 4
+      per_second: 2.51
     costs:
       output_per_second:
         price: 0.001667
@@ -113,7 +113,7 @@ models:
         region: "US"
         country: "US"
     pricing:
-      per_second: 4
+      per_second: 2.51
     costs:
       output_per_second:
         price: 0.001667
@@ -139,7 +139,7 @@ models:
         region: "US"
         country: "US"
     pricing:
-      per_second: 2
+      per_second: 1.25
     costs:
       output_per_second:
         price: 0.000833
@@ -163,7 +163,7 @@ models:
         region: "US"
         country: "US"
     pricing:
-      per_second: 4
+      per_second: 2
     costs:
       output_per_second:
         price: 0.001333
@@ -188,7 +188,7 @@ models:
         region: "US"
         country: "US"
     pricing:
-      per_second: 2
+      per_second: 1.01
     costs:
       output_per_second:
         price: 0.000667

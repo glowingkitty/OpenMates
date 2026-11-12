@@ -11,15 +11,15 @@ test.describe('App skill model long-context pricing preview', () => {
     await page.goto(preview('catalog-haiku'));
     await waitForComponentPreview(page);
 
-    await expect(page.getByTestId('app-model-pricing-cache-read-row')).toContainText('33000');
+    await expect(page.getByTestId('app-model-pricing-cache-read-row')).toContainText('66666');
     await expect(page.locator('.pricing-tier-title').first()).toContainText('Standard');
-    await expect(page.getByTestId('app-model-pricing-cache-write-row')).toContainText('2640');
+    await expect(page.getByTestId('app-model-pricing-cache-write-row')).toContainText('5263');
     await expect(page.getByTestId('app-model-pricing-cache-write-1h-row')).toHaveCount(0);
     const tier = page.getByTestId('app-model-long-context-tier');
     await expect(tier).toContainText('Over 100,000 input tokens');
-    await expect(tier).toContainText('6600');
-    await expect(tier).toContainText('528');
-    await expect(tier).toContainText('132');
+    await expect(tier).toContainText('13333');
+    await expect(tier).toContainText('1063');
+    await expect(tier).toContainText('266');
     await expect(tier).toContainText('whole request');
   });
   // contract-test: supporting surface=gui.web assertions=billing.surface.semantic-parity
@@ -27,7 +27,7 @@ test.describe('App skill model long-context pricing preview', () => {
     await page.goto(preview('long-context-active'));
     await waitForComponentPreview(page);
 
-    await expect(page.getByTestId('app-model-pricing-cache-read-row')).toContainText('3300');
+    await expect(page.getByTestId('app-model-pricing-cache-read-row')).toContainText('6666');
     await expect(page.getByTestId('app-model-pricing-cache-write-row')).toContainText('Included in ordinary input');
     await expect(page.getByTestId('app-model-pricing-cache-write-row')).not.toContainText('5 min');
     await expect(page.getByTestId('app-model-cache-pricing-note')).toContainText('Your receipt shows the usage charged.');
@@ -35,16 +35,16 @@ test.describe('App skill model long-context pricing preview', () => {
     const tier = page.getByTestId('app-model-long-context-tier');
     await expect(tier).toContainText('Over 272,000 input tokens');
     await expect(tier).toContainText('Total input includes cached input.');
-    await expect(tier).toContainText('82.5');
-    await expect(tier).toContainText('1650');
-    await expect(tier).toContainText('20');
+    await expect(tier).toContainText('166');
+    await expect(tier).toContainText('3333');
+    await expect(tier).toContainText('44.4');
     await expect(tier).toContainText('Included in ordinary input');
     await expect(page.getByTestId('app-model-automatic-summary')).toContainText('billed separately only when needed');
     await expect(page.getByTestId('app-model-automatic-summary')).toContainText('normal authenticated personal and team chats');
-    await expect(page.getByTestId('app-model-summary-primary-input')).toContainText('1100');
-    await expect(page.getByTestId('app-model-summary-primary-output')).toContainText('130');
-    await expect(page.getByTestId('app-model-summary-fallback-input')).toContainText('2200');
-    await expect(page.getByTestId('app-model-summary-fallback-output')).toContainText('550');
+    await expect(page.getByTestId('app-model-summary-primary-input')).toContainText('2222');
+    await expect(page.getByTestId('app-model-summary-primary-output')).toContainText('266');
+    await expect(page.getByTestId('app-model-summary-fallback-input')).toContainText('4444');
+    await expect(page.getByTestId('app-model-summary-fallback-output')).toContainText('1111');
   });
 
   // contract-test: supporting surface=gui.web assertions=billing.surface.semantic-parity

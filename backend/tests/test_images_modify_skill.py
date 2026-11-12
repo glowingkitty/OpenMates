@@ -284,15 +284,15 @@ async def test_billing_sums_tokens_once_and_five_credits_per_started_sandbox_min
     usage = [VectorUsage("author", "openai/gpt-6.1-sol", 2000, 500),
              VectorUsage("review", "openai/gpt-6.1-sol", 1500, 250)]
     credits, details = await modify_credits(usage=usage, sandbox_seconds=[4.0], pricing_for=_pricing)
-    # tokens: 2 + 2 + 1.5 + 1 = 6.5 -> 6; one started minute -> 5
-    assert credits == 11
+    # tokens: 2 + 2 + 1.5 + 1 = 6.5 -> 6; one started minute -> 4
+    assert credits == 10
     assert details["input_tokens"] == 3500 and details["sandbox_runs"] == 1
     assert details["provider_calls"][-1] == {"step": "sandbox_run", "model_used": "e2b/sandbox",
-                                             "duration_seconds": 4.0, "credits": 5}
+                                             "duration_seconds": 4.0, "credits": 4}
     two_runs, _ = await modify_credits(usage=usage, sandbox_seconds=[4.0, 61.0], pricing_for=_pricing)
-    assert two_runs == 6 + 5 + 10
+    assert two_runs == 6 + 4 + 8
     assert await estimate_modify_credits(picture_count=2, author_model="openai/gpt-6.1-sol",
-                                         pricing_for=_pricing) == 5 + 10 + 5
+                                         pricing_for=_pricing) == 5 + 10 + 4
 
 
 # contract-test: supporting surface=rest_api assertions=images-modify.billing.metered

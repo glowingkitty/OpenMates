@@ -178,7 +178,7 @@ def test_event_search_keeps_date_range_and_event_type_advanced() -> None:
     capability = WorkflowCapabilityRegistry(_FilesystemWorkflowMetadataRegistry()).get_capability(
         "events.search"
     )
-    assert capability.metadata["cost"]["per_unit"]["credits"] == 30
+    assert capability.metadata["cost"]["per_unit"]["credits"] == 1
     fields = capability.metadata["input_schema"]["properties"]["requests"]["items"]["properties"]
     for name in ("query", "location", "relevance_criteria"):
         assert fields[name]["x-ui"]["basic"] is True

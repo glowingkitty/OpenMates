@@ -15,11 +15,11 @@ class IconColorGradient(BaseModel):
 
 class AppPricing(BaseModel):
     """Defines pricing structure for a skill if it's self-contained."""
-    tokens: Optional[Dict[str, Dict[str, int]]] = None # e.g., {"input": {"per_credit_unit": 1000}}
+    tokens: Optional[Dict[str, Dict[str, float]]] = None # e.g., {"input": {"per_credit_unit": 166.66}}
     per_unit: Optional[Dict[str, Any]] = None # e.g., {"credits": 1, "unit_name": "image"}
     per_minute: Optional[float] = None # Display rate; metering can accumulate fractional credits.
-    per_second: Optional[int] = None # credits per second
-    fixed: Optional[int] = None # fixed credits per call
+    per_second: Optional[float] = None # credits per second; under 5 credits may be fractional
+    fixed: Optional[float] = None # fixed credits per call
 
 class AppSkillDefinition(BaseModel):
     """Defines the structure for a skill within an app's metadata."""

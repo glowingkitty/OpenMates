@@ -160,8 +160,8 @@ class TestModelSelector:
         assert model["for_app_skill"] == "ai.ask"
         assert model["allow_auto_select"] is True
         assert model["tier"] == "premium"
-        assert model["pricing"]["tokens"]["input"] == {"per_credit_unit": 225}
-        assert model["pricing"]["tokens"]["output"] == {"per_credit_unit": 45}
+        assert model["pricing"]["tokens"]["input"] == {"per_credit_unit": 444.4444}
+        assert model["pricing"]["tokens"]["output"] == {"per_credit_unit": 88.8888}
 
     def test_select_models_basic(self, mock_leaderboard_data):
         """Test basic model selection returns top-ranked models."""

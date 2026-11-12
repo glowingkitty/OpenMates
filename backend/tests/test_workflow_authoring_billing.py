@@ -64,13 +64,14 @@ def ledger(monkeypatch):
 
 # contract-test: supporting surface=rest_api assertions=billing.credits.idempotent-charge,workflows.authoring.compact-plan
 def test_catalog_prices_jev_from_standard_formula_and_keeps_it_out_of_chat_routing():
-    from backend.scripts.calculate_per_credit_unit import calculate_per_credit_unit
+    from backend.shared.python_utils.cost_plus_pricing import load_pricing_settings, tokens_per_credit
 
     jev = Catalog().get_model_pricing("typesafe", "jev-1.14")
     assert Catalog().get_model_pricing("typesafe", "jev-1.13") is not None
     assert jev["for_app_skill"] == "workflows.create-or-modify"
     assert jev["allow_auto_select"] is False
-    assert jev["pricing"]["tokens"]["input"]["per_credit_unit"] == calculate_per_credit_unit(0.042)
+    assert jev["pricing"]["tokens"]["input"]["per_credit_unit"] == tokens_per_credit(0.042, load_pricing_settings())
+    # The supplier does not charge for output, so the token category stays free.
     assert jev["pricing"]["tokens"]["output"]["per_credit_unit"] == 0
     assert calculate_total_credits(pricing_config=jev, input_tokens=7900, output_tokens=100) == 1
 

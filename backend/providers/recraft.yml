@@ -52,7 +52,7 @@ models:
         country: "US"
     pricing:
       per_unit:
-        credits: 50 # $0.04 / $0.001 = 40 break-even; 50 credits = $0.05 charged (~25% margin)
+        credits: 60
         unit_name: "image"
     costs:
       output_per_image:
@@ -78,7 +78,7 @@ models:
         country: "US"
     pricing:
       per_unit:
-        credits: 250 # $0.25 / $0.001 = 250 credits (exact break-even, no markup)
+        credits: 375
         unit_name: "image"
     costs:
       output_per_image:
@@ -104,7 +104,7 @@ models:
         country: "US"
     pricing:
       per_unit:
-        credits: 9 # $0.007 / $0.001 = 7 break-even; 9 credits = $0.009 charged (~25% margin)
+        credits: 15
         unit_name: "image"
     costs:
       output_per_image:
@@ -130,7 +130,7 @@ models:
         country: "US"
     pricing:
       per_unit:
-        credits: 100 # $0.08 / $0.001 = 80 break-even; 100 credits = $0.10 charged (~25% margin)
+        credits: 120
         unit_name: "image"
     costs:
       output_per_image:
@@ -156,7 +156,7 @@ models:
         country: "US"
     pricing:
       per_unit:
-        credits: 300 # $0.30 / $0.001 = 300 credits (exact break-even, no markup)
+        credits: 450
         unit_name: "image"
     costs:
       output_per_image:
@@ -182,7 +182,7 @@ models:
         country: "US"
     pricing:
       per_unit:
-        credits: 15 # $0.01 / $0.001 = 10 break-even; 15 credits = $0.015 charged (~50% margin)
+        credits: 15
         unit_name: "image"
     costs:
       output_per_image:

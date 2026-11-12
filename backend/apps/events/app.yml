@@ -46,7 +46,11 @@ skills:
     provider_contract: events.search@1
     pricing:
       per_unit:
-        credits: 30
+        credits: 1
+    supplier_costs:
+      per_unit:
+        none: true
+        note: Public schedule exports; installed providers have no official cost
     providers:
       - name: GPN24
         id: pretalx

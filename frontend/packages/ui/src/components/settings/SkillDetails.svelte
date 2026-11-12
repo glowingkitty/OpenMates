@@ -20,6 +20,7 @@
 -->
 
 <script lang="ts">
+    import { formatTokensPerCredit } from '../../utils/tokenRateFormat';
     import { appSkillsStore } from '../../stores/appSkillsStore';
     import { modelsMetadata, type AIModelMetadata } from '../../data/modelsMetadata';
     import { findProviderByName } from '../../data/providersMetadata';
@@ -108,7 +109,7 @@
                 tokenParts.push(
                     $text('settings.app_store.skills.pricing.tokens_per_credit')
                         .replace('{credits}', '1')
-                        .replace('{tokens}', String(pricing.tokens.input.per_credit_unit))
+                        .replace('{tokens}', formatTokensPerCredit(pricing.tokens.input.per_credit_unit))
                         .replace('{direction}', $text('settings.app_store.skills.pricing.input'))
                 );
             }
@@ -125,7 +126,7 @@
                     if (category === 'cache_write' && cachePricing.write_billing === 'included_in_input') {
                         tokenParts.push(`${$text(`settings.ai_ask.ai_ask_model_details.${label}`)}: ${$text('settings.ai_ask.ai_ask_model_details.included_in_input')}`);
                     } else if (pricing.tokens[category]?.per_credit_unit) {
-                        tokenParts.push(`${$text(`settings.ai_ask.ai_ask_model_details.${label}`)}: 1 ${$text('common.credits')} / ${pricing.tokens[category].per_credit_unit} ${$text('settings.ai_ask.ai_ask_settings.tokens')}`);
+                        tokenParts.push(`${$text(`settings.ai_ask.ai_ask_model_details.${label}`)}: 1 ${$text('common.credits')} / ${formatTokensPerCredit(pricing.tokens[category].per_credit_unit)} ${$text('settings.ai_ask.ai_ask_settings.tokens')}`);
                     }
                 }
             }
@@ -133,7 +134,7 @@
                 tokenParts.push(
                     $text('settings.app_store.skills.pricing.tokens_per_credit')
                         .replace('{credits}', '1')
-                        .replace('{tokens}', String(pricing.tokens.output.per_credit_unit))
+                        .replace('{tokens}', formatTokensPerCredit(pricing.tokens.output.per_credit_unit))
                         .replace('{direction}', $text('settings.app_store.skills.pricing.output'))
                 );
             }

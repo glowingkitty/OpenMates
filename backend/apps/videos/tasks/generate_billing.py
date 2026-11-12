@@ -16,6 +16,8 @@ from __future__ import annotations
 
 from typing import Any, Optional, Sequence
 
+from backend.shared.python_utils.catalog_unit_prices import skill_price, whole_credits
+from backend.shared.python_utils.cost_plus_pricing import credits_for_cost, load_pricing_settings
 from backend.shared.python_utils.metered_author_billing import (
     PricingLookup,
     author_and_sandbox_credits,
@@ -23,9 +25,9 @@ from backend.shared.python_utils.metered_author_billing import (
     post_skill_charge,
 )
 
+# Catalog price per started sandbox minute (videos.generate pricing.per_minute).
+COMPOSED_SANDBOX_CREDITS_PER_STARTED_MINUTE = whole_credits(skill_price("videos", "generate", "per_minute"))
 LABEL = "videos.generate composed"
-USD_PER_CREDIT = 0.001
-GENERATED_MEDIA_COST_MARKUP = 1.5
 # Gemini Omni (gemini-omni-1.2-flash) provider price per generated second by output resolution; source and
 # date in backend/providers/google.yml costs.output_per_second (backend/tests/test_video_generation_pricing.py
 # keeps both equal).
@@ -37,8 +39,13 @@ def omni_clip_pricing(resolution: str) -> tuple[float, dict[str, dict[str, Any]]
     price = OMNI_PRICE_USD_PER_SECOND.get(resolution)
     if price is None:
         raise ValueError(f"no Gemini Omni price for resolution {resolution!r}")
-    credits = price * GENERATED_MEDIA_COST_MARKUP / USD_PER_CREDIT
-    return price, {"per_second": {"credits": credits, "unit_name": "video_second"}}
+    return price, video_second_pricing(price)
+
+
+def video_second_pricing(usd_per_second: float) -> dict[str, dict[str, Any]]:
+    """Per-second credit config: supplier price plus the configured margin, rounded up to 5-credit steps."""
+    credits = float(credits_for_cost(usd_per_second, load_pricing_settings(), per_call=False))
+    return {"per_second": {"credits": credits, "unit_name": "video_second"}}
 
 
 def omni_clip_credits(resolution: str, duration_seconds: float) -> int:
@@ -57,7 +64,7 @@ async def composed_credits(
 ) -> tuple[int, dict[str, Any]]:
     """Credits of one delivered composed video and the usage details recorded with the charge."""
     return await author_and_sandbox_credits(usage=usage, sandbox_seconds=sandbox_seconds, label=LABEL,
-                                            pricing_for=pricing_for)
+                                            sandbox_credits_per_started_minute=COMPOSED_SANDBOX_CREDITS_PER_STARTED_MINUTE, pricing_for=pricing_for)
 
 
 async def estimate_composed_credits(
@@ -68,7 +75,7 @@ async def estimate_composed_credits(
         author_model=author_model,
         input_tokens=ESTIMATE_BASE_INPUT_TOKENS + ESTIMATE_INPUT_TOKENS_PER_PICTURE * picture_count,
         output_tokens=ESTIMATE_OUTPUT_TOKENS, sandbox_seconds=ESTIMATE_SANDBOX_SECONDS, label=LABEL,
-        pricing_for=pricing_for,
+        sandbox_credits_per_started_minute=COMPOSED_SANDBOX_CREDITS_PER_STARTED_MINUTE, pricing_for=pricing_for,
     )
 
 

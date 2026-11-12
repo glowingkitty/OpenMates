@@ -43,6 +43,10 @@ skills:
     class_path: backend.apps.hosting.skills.search_domains.SearchDomainsSkill
     pricing:
       fixed: 1
+    supplier_costs:
+      fixed:
+        none: true
+        note: Operator-installed provider; no official cost
     provider_required: true
     providers: []
     example_translation_keys:

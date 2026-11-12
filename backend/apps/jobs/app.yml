@@ -105,6 +105,10 @@ skills:
       per_unit:
         credits: 1
         unit_name: search
+    supplier_costs:
+      per_unit:
+        none: true
+        note: JobTech public API
     providers:
       - {name: JobTech, no_api_key: true}
     tool_schema:

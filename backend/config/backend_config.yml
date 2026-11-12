@@ -49,3 +49,15 @@ logging:
 feature_flags:
   new_dashboard_feature: true
   experimental_analytics: false
+
+# Customer pricing (cost-plus). Every customer credit price is derived from the
+# supplier cost (USD per billed unit) as cost x (1 + margin_percent / 100), at
+# 1 credit = $0.001, rounded up to rounding_step_credits. Prices under one step
+# keep their value (whole credits per call, 0.01 credits for continuous units).
+# Items without an external supplier cost charge zero_cost_minimum_credits per
+# billed unit. After changing a value run `python3 scripts/derive_customer_prices.py
+# --write` and deploy; OPENMATES_PRICING_MARGIN_PERCENT overrides the margin there.
+pricing:
+  margin_percent: 50
+  rounding_step_credits: 5
+  zero_cost_minimum_credits: 1

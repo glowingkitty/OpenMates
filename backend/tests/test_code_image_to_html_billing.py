@@ -26,7 +26,7 @@ def test_skill_response_usage_includes_actual_charge_metadata() -> None:
     )
 
     assert payload["usage"]["reserved_credits"] > payload["usage"]["credits_charged"]
-    assert payload["usage"]["e2b_credits"] == 10
+    assert payload["usage"]["e2b_credits"] == 6
     assert payload["usage"]["credits_refunded"] >= 0
 
 

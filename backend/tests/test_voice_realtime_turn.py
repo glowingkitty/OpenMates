@@ -208,7 +208,7 @@ def test_call_v3_profiles_preserve_all_curated_voices_and_manual_mistral_rate():
         assert call.elevenlabs_request()["voice_id"] == expected
         assert manual.provider == "mistral" and manual.model == ASSISTANT_RESPONSE_SPEECH_MODEL
     assert calculate_assistant_response_speech_credits(submitted_characters=1000, model=call.model) == 40
-    assert calculate_assistant_response_speech_credits(submitted_characters=1000, model=manual.model) == 13
+    assert calculate_assistant_response_speech_credits(submitted_characters=1000, model=manual.model) == 20
 
 
 # contract-test: supporting surface=rest_api assertions=video-call.audio.spoken-rich-response

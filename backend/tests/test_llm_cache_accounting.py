@@ -20,6 +20,7 @@ from backend.core.api.app.services.llm_usage_receipt import validate_public_llm_
 from backend.shared.python_schemas.llm_usage import normalize_provider_usage
 from backend.shared.python_utils.billing_utils import (
     BillingError,
+    CONTEXT_BAND_ROUNDING_CREDITS,
     calculate_cache_aware_supplier_cost,
     is_cache_tariff_admissible,
     select_customer_context_band,
@@ -86,8 +87,8 @@ def test_compression_fallback_cost_uses_actual_cerebras_route_without_changing_c
     )
     assert Decimal(cerebras["cost_usd"]) == Decimal("0.0011")
     assert Decimal(bedrock["cost_usd"]) == Decimal("0.00075")
-    assert snapshot["pricing"]["tokens"]["input"]["per_credit_unit"] == 2200
-    assert snapshot["pricing"]["tokens"]["output"]["per_credit_unit"] == 550
+    assert snapshot["pricing"]["tokens"]["input"]["per_credit_unit"] == 4444.4444
+    assert snapshot["pricing"]["tokens"]["output"]["per_credit_unit"] == 1111.1111
 
 
 def test_anthropic_exclusive_cache_input_is_inclusive_only_after_normalization() -> None:
@@ -572,8 +573,12 @@ def test_openai_long_context_catalog_units_match_approved_multipliers(model_id: 
     assert long_band == "over_272k" and set(long_rates) == set(base)
     for category, row in base.items():
         base_unit = Fraction(Decimal(str(row["per_credit_unit"])))
-        expected = base_unit * Fraction(2, 3) // 1 if category == "output" else base_unit / 2
-        assert Fraction(Decimal(str(long_rates[category]["per_credit_unit"]))) == expected
+        multiplier = Fraction(3, 2) if category == "output" else Fraction(2)
+        # Prices are derived as cost-plus, rounded up to 5-credit steps per 1M
+        # tokens, so the band is the base x multiplier within one rounding step.
+        base_credits = Fraction(1_000_000) / base_unit
+        band_credits = Fraction(1_000_000) / Fraction(Decimal(str(long_rates[category]["per_credit_unit"])))
+        assert abs(band_credits - base_credits * multiplier) <= CONTEXT_BAND_ROUNDING_CREDITS * multiplier + 1
 
 
 def test_openai_long_context_uses_actual_attempt_total_and_frozen_rates() -> None:
@@ -601,9 +606,9 @@ def test_openai_long_context_uses_actual_attempt_total_and_frozen_rates() -> Non
     assert len(receipt["entries"]) == 1
     entry = receipt["entries"][0]
     assert entry["context_band"] == "over_272k"
-    assert entry["rates"]["input"] == "82.5"
-    assert entry["rates"]["cache_read"] == "1650"
-    assert entry["rates"]["output"] == "20"
+    assert entry["rates"]["input"] == "166.6666"
+    assert entry["rates"]["cache_read"] == "3333.3333"
+    assert entry["rates"]["output"] == "44.4444"
     assert entry["pricing_version"] == frozen["pricing_version"]
     assert tracker.usage_by_model[0]["tariff_snapshot"] == frozen
 
@@ -620,7 +625,7 @@ def test_openai_fallback_attempts_choose_independent_context_bands_and_floor_onc
         tracker.record_reported_usage(model_id=usage.model_id, normalized_usage=usage)
     receipt = build_model_usage_breakdown(tracker.usage_by_model, _lookup({}))
     assert [entry["context_band"] for entry in receipt["entries"]] == ["standard", "over_272k"]
-    assert [entry["rates"]["output"] for entry in receipt["entries"]] == ["650", "433"]
+    assert [entry["rates"]["output"] for entry in receipt["entries"]] == ["1333.3333", "888.8888"]
     assert receipt["credits_charged"] == int(Decimal(receipt["raw_credits"]))
     assert receipt["credits_charged"] > 0
 
@@ -635,7 +640,7 @@ def test_openai_long_context_missing_cache_counter_uses_long_ordinary_input() ->
     assert long_entry["context_band"] == "over_272k"
     assert long_entry["billing_mode"] == "ordinary_input"
     assert long_entry["billed_input_tokens"] == 272_001
-    assert long_entry["rates"]["input"] == "82.5"
+    assert long_entry["rates"]["input"] == "166.6666"
     assert long_entry["rates"]["cache_read"] is None
     assert long_entry["category_credits"]["cache_read"] == "0"
 
@@ -643,10 +648,10 @@ def test_openai_long_context_missing_cache_counter_uses_long_ordinary_input() ->
     disabled["cache_pricing"]["enabled"] = False
     old_entry = build_model_usage_breakdown([usage], _lookup(disabled))["entries"][0]
     assert "context_band" not in old_entry
-    assert old_entry["rates"]["input"] == "165"
+    assert old_entry["rates"]["input"] == "333.3333"
     ineligible = build_model_usage_breakdown([{**usage, "inference_host": "openrouter"}], _lookup(model))["entries"][0]
     assert "context_band" not in ineligible
-    assert ineligible["rates"]["input"] == "165"
+    assert ineligible["rates"]["input"] == "333.3333"
 
 
 def test_openai_long_context_activation_rejects_malformed_or_missing_band() -> None:
@@ -668,7 +673,9 @@ def test_anthropic_haiku_long_context_uses_inclusive_cached_and_tool_input() -> 
     base = tariff["pricing"]["tokens"]
     for category, row in base.items():
         band_unit = tariff["pricing"]["context_bands"]["over_100k"]["tokens"][category]["per_credit_unit"]
-        assert Fraction(Decimal(str(band_unit))) == Fraction(Decimal(str(row["per_credit_unit"]))) / 5
+        base_credits = Fraction(1_000_000) / Fraction(Decimal(str(row["per_credit_unit"])))
+        band_credits = Fraction(1_000_000) / Fraction(Decimal(str(band_unit)))
+        assert abs(band_credits - base_credits * 5) <= CONTEXT_BAND_ROUNDING_CREDITS * 5 + 1
 
     # Anthropic's native input includes ordinary prompt and tool-result input;
     # cache reads and writes are added to get the inclusive threshold total.
@@ -688,7 +695,7 @@ def test_anthropic_haiku_long_context_uses_inclusive_cached_and_tool_input() -> 
             model_pricing_details=tariff, inference_host="anthropic", input_total=usage.input_total,
         )
         assert band == expected_band
-        assert rates["input"]["per_credit_unit"] == (3300 if expected_band == "standard" else 660)
+        assert rates["input"]["per_credit_unit"] == (6666.6666 if expected_band == "standard" else 1333.3333)
 
 
 def test_anthropic_haiku_attempts_freeze_receipt_rates_and_supplier_costs() -> None:
@@ -712,14 +719,14 @@ def test_anthropic_haiku_attempts_freeze_receipt_rates_and_supplier_costs() -> N
     receipt = build_model_usage_breakdown(tracker.usage_by_model, _lookup(model))
     assert [entry["context_band"] for entry in receipt["entries"]] == ["standard", "over_100k"]
     assert [entry["billing_mode"] for entry in receipt["entries"]] == ["cache_aware", "cache_aware"]
-    assert [entry["rates"]["input"] for entry in receipt["entries"]] == ["3300", "660"]
-    assert [entry["rates"]["cache_read"] for entry in receipt["entries"]] == ["33000", "6600"]
-    assert [entry["rates"]["cache_write"] for entry in receipt["entries"]] == ["2640", "528"]
-    assert [entry["rates"]["output"] for entry in receipt["entries"]] == ["660", "132"]
+    assert [entry["rates"]["input"] for entry in receipt["entries"]] == ["6666.6666", "1333.3333"]
+    assert [entry["rates"]["cache_read"] for entry in receipt["entries"]] == ["66666.6666", "13333.3333"]
+    assert [entry["rates"]["cache_write"] for entry in receipt["entries"]] == ["5263.1578", "1063.8297"]
+    assert [entry["rates"]["output"] for entry in receipt["entries"]] == ["1333.3333", "266.6666"]
     assert all(entry["rates"]["cache_write_1h"] is None for entry in receipt["entries"])
     assert all(entry["pricing_version"] == frozen["pricing_version"] for entry in receipt["entries"])
     assert all(bucket["tariff_snapshot"] == frozen for bucket in tracker.usage_by_model)
-    assert receipt["credits_charged"] == 181
+    assert receipt["credits_charged"] == 90
     validate_public_llm_usage_receipt(receipt)
 
     for usage, expected in (
@@ -797,8 +804,8 @@ def test_summary_receipt_selects_long_context_band_from_reported_inclusive_input
     ]
     receipt = build_summary_usage_breakdown(buckets, _lookup({}))
     assert [entry["context_band"] for entry in receipt["entries"]] == ["standard", "over_272k"]
-    assert [entry["rates"]["input"] for entry in receipt["entries"]] == ["165", "82.5"]
-    assert [entry["rates"]["output"] for entry in receipt["entries"]] == ["30", "20"]
+    assert [entry["rates"]["input"] for entry in receipt["entries"]] == ["333.3333", "166.6666"]
+    assert [entry["rates"]["output"] for entry in receipt["entries"]] == ["66.6666", "44.4444"]
     assert receipt["input_tokens"] == 544_001
     assert receipt["output_tokens"] == 60
 

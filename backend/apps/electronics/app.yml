@@ -109,7 +109,11 @@ skills:
     class_path: |
       backend.apps.electronics.skills.search_components.SearchComponentsSkill
     pricing:
-      fixed: 5
+      fixed: 1
+    supplier_costs:
+      fixed:
+        none: true
+        note: Operator-installed provider; no official cost
     tool_schema:
       type: object
       properties:

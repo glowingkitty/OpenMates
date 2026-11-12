@@ -215,8 +215,8 @@ async def test_composed_video_is_stored_charged_once_and_one_child(world: World)
 
     assert world.stored == 1 and len(world.published) == 1
     [charge] = world.charges
-    # 6500 input tokens / 1000 + 2900 output tokens / 500 = 12.3 → 12, plus 5 + 10 for a 50 s and a 70 s render.
-    assert charge["credits"] == 27 and charge["event_id"] == "child-1"
+    # 6500 input tokens / 1000 + 2900 output tokens / 500 = 12.3 → 12, plus 10 + 20 for a 50 s and a 70 s render (10 credits per started minute).
+    assert charge["credits"] == 42 and charge["event_id"] == "child-1"
     assert charge["usage_details"]["sandbox_runs"] == 2
     child = world.published[0]
     assert child["made_by"] == "composed" and child["routing_decided_by"] == "request_mode"
