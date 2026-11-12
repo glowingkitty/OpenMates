@@ -53,6 +53,7 @@ import { claimChatMessageNotification, isFinalizedChatMessage } from "./chatMess
 import { isDraftOnlyChatSurface, isPersistedDraftOnlyChat } from "../utils/chatDraftState";
 import { get } from "svelte/store";
 import { draftEditorUIState } from "./drafts/draftState";
+import { isDraftChatClaimedForSend } from "./drafts/draftSendClaims";
 import { activeTeamContext, isActiveTeamContext } from "../stores/teamStore";
 import { promoteDeferredTeamDraft } from "./drafts/draftContext";
 import { getWorkspaceCacheIdentity } from "./workspaceQueryCache";
@@ -873,7 +874,8 @@ export async function handleDraftDeletedImpl(
       }
       // Clearing an unsent draft also removes its route and navigation shell.
       // Established chats retain their history and only lose the draft fields.
-      if (shouldDeleteDraftOnlyChatOnReceipt(chat)) {
+      // A send in progress stores its first message in this chat next.
+      if (shouldDeleteDraftOnlyChatOnReceipt(chat) && !isDraftChatClaimedForSend(payload.chat_id)) {
         await chatDB.deleteChat(payload.chat_id);
         chatListCache.removeChat(payload.chat_id);
         chatMetadataCache.invalidateChat(payload.chat_id, 'metadata-sync-draft');

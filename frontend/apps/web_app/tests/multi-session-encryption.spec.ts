@@ -32,7 +32,8 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	getTestAccount,
-	withMockMarker
+	withMockMarker,
+	installE2EServerContentOverrideGate
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount, sendMessage } = require('./helpers/chat-test-helpers');
@@ -356,6 +357,8 @@ test('multi-session encryption: two simultaneous sessions can send and read 4 ch
 
 	try {
 		// ── Step 1: Log in both sessions ─────────────────────────────────
+		await installE2EServerContentOverrideGate(pageA, 'multi-session-encryption-a');
+		await installE2EServerContentOverrideGate(pageB, 'multi-session-encryption-b');
 		logA('Logging in Session A…');
 		logB('Logging in Session B…');
 
@@ -389,7 +392,7 @@ test('multi-session encryption: two simultaneous sessions can send and read 4 ch
                     const response = await fetch(endpoint, {
                         method: 'POST', credentials: 'include',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ deviceSignals: {} }),
+                        body: JSON.stringify({ session_id: crypto.randomUUID(), deviceSignals: {} }),
                     });
                     return { ok: response.ok, success: (await response.json()).success };
                 };

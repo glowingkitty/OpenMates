@@ -1,4 +1,5 @@
 import { getWorkspaceCacheIdentity } from "./workspaceQueryCache";
+import { isFirstSendStopped } from "./drafts/draftSendClaims";
 import {
   RECOMMENDATIONS_IN_BUILD, decryptRecommendationsState, encryptRecommendationsState,
   reconcileIncomingRecommendations,
@@ -1431,7 +1432,10 @@ export async function handleAITypingStartedImpl( // Changed to async
       return;
     }
 
-    const isNewChat = payload.icon_names && payload.icon_names.length > 0;
+    // A stopped first send restored its text as a draft: the late generated
+    // title/category/icon of that turn must not land on the message-less chat.
+    const isNewChat = payload.icon_names && payload.icon_names.length > 0 &&
+      !isFirstSendStopped(payload.chat_id);
 
     if (isNewChat) {
       console.info(

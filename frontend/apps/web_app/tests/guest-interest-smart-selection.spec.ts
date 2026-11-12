@@ -8,7 +8,7 @@ const landingExamples = require('../../../packages/ui/src/generated/landingExamp
 
 const storageKey = 'openmates.guest_interest_tags.v1';
 const retiredIntroChatIds = ['demo-for-everyone', 'demo-for-developers', 'demo-who-develops-openmates'];
-const selectedTags = ['software_development', 'privacy_personal_data', 'automation_workflows', 'project_management'];
+const MIN_INTERESTS_TO_CONTINUE = 4;
 
 async function openGuestWelcome(page: any) {
 	await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
@@ -40,7 +40,7 @@ test.describe('Guest interests and real example chats', () => {
 		await openGuestWelcome(page);
 		const expectedIds = landingExamples.map((example: { chatId: string }) => example.chatId);
 		await expect(page.getByTestId('chat-welcome-heading')).toHaveText('Hey there!');
-		await expect(page.getByTestId('guest-interest-prompt')).toHaveText('Continue where you left off');
+		await expect(page.getByTestId('guest-interest-prompt')).toHaveText('Explore some example chats:');
 		await expect.poll(() => visibleExampleIds(page)).toEqual(expectedIds);
 		await page.reload({ waitUntil: 'domcontentloaded' });
 		await expect(page.getByTestId('chat-welcome-heading')).toHaveText('Hey there!');
@@ -59,11 +59,16 @@ test.describe('Guest interests and real example chats', () => {
 		await expect(page.getByTestId('guest-interest-tags')).toBeVisible();
 		await expect(page.getByTestId('interest-tag-plan_trips')).toHaveAttribute('data-app-id', 'travel');
 		await expect(page.getByTestId('guest-interest-continue')).toHaveCount(0);
-		for (const tag of selectedTags) {
-			const button = page.getByTestId(`interest-tag-${tag}`);
+		// The rail offers only the best-ranked unselected tags, which change as interests are picked.
+		const selectedTags: string[] = [];
+		for (let picked = 0; picked < MIN_INTERESTS_TO_CONTINUE; picked++) {
+			const button = page.getByTestId('guest-interest-rail').locator('[data-interest-active="false"]').first();
+			await expect(button).toBeVisible();
+			const testId = (await button.getAttribute('data-testid')) as string;
+			selectedTags.push(testId.replace('interest-tag-', ''));
 			await button.scrollIntoViewIfNeeded();
 			await button.click();
-			await expect(button).toHaveAttribute('data-interest-active', 'true');
+			await expect(page.getByTestId(testId)).toHaveAttribute('data-interest-active', 'true');
 		}
 		await expect(page.getByTestId('guest-interest-continue')).toBeVisible();
 		await page.getByTestId('guest-interest-continue').click();

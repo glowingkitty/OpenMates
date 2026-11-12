@@ -419,6 +419,20 @@ _ISOLATED_NATIVE_BILLING_POST_PATHS = frozenset({
 })
 
 
+# Committed cassette groups that replay a real chat turn through the isolated
+# stack. The turn must reach the local CMS/Vault (message decryption) before it
+# hits the cassette; provider calls stay blocked by the same guard.
+_ISOLATED_REPLAY_GROUPS = frozenset({
+    "native_cache_tools_v1", "diagram_html_web", "mercury_auto_low",
+    "web_search_web", "web_search_zero_results",
+    "news_search_web", "code_docs_web", "code_search_repos_web",
+    "reminder_set_web", "web_read_web", "electronics_search_web",
+    "embed_diff_code_web", "embed_diff_doc_web", "embed_diff_sheet_web",
+    "events_search_web", "math_calculate_web", "models3d_search_web",
+    "travel_connections_web", "travel_stays_web", "videos_search_web",
+})
+
+
 def _allow_isolated_capacity_internal(raw_url: Any, method: Any = None) -> bool:
     """Permit exact internal CMS/Vault and billing transport in isolated replay."""
     receipt = live_mock_receipt_var.get()
@@ -436,8 +450,7 @@ def _allow_isolated_capacity_internal(raw_url: Any, method: Any = None) -> bool:
         and os.getenv("S3_ENDPOINT_URL") == "http://storage.ci.test:9000"
     )
     native_fixture = (
-        group in {"native_cache_tools_v1", "diagram_html_web", "mercury_auto_low",
-                  "web_search_web", "web_search_zero_results"}
+        group in _ISOLATED_REPLAY_GROUPS
         and os.getenv("CI") == "true"
         and os.getenv("OPENMATES_CI_AI_FIXTURES") == "1"
         and os.getenv("OPENMATES_STORAGE_CAPACITY_FIXTURES") is None

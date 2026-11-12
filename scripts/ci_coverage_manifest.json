@@ -715,7 +715,8 @@
         "web-rust-core-projects-remote-sources.spec.ts",
         "web-rust-core-chat-recommendations-flow.spec.ts",
         "memory-write-undo.spec.ts",
-        "web-rust-core-continue-carousel.spec.ts"
+        "web-rust-core-continue-carousel.spec.ts",
+        "report-issue-flow.spec.ts"
       ]
     },
     "external_integration": {

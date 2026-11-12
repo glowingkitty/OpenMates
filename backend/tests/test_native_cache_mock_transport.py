@@ -36,7 +36,7 @@ def _native_fixture_environment(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("group", ["native_cache_tools_v1", "diagram_html_web", "web_search_web", "web_search_zero_results"])
+@pytest.mark.parametrize("group", ["native_cache_tools_v1", "diagram_html_web", "web_search_web", "web_search_zero_results", "news_search_web", "embed_diff_code_web"])
 async def test_signed_mock_allows_only_isolated_internal_transport(
     monkeypatch: pytest.MonkeyPatch, group: str,
 ) -> None:
@@ -98,7 +98,7 @@ async def test_signed_mock_allows_only_isolated_internal_transport(
         deactivate_mock_mode()
 
 
-@pytest.mark.parametrize("group", ["native_cache_tools_v1", "diagram_html_web", "web_search_web", "web_search_zero_results"])
+@pytest.mark.parametrize("group", ["native_cache_tools_v1", "diagram_html_web", "web_search_web", "web_search_zero_results", "news_search_web", "embed_diff_code_web"])
 @pytest.mark.parametrize("invalid", [
     {"CI": "false"},
     {"OPENMATES_CI_ISOLATED": "0"},
@@ -127,7 +127,7 @@ def test_signed_mock_rejects_nonmarker_profiles(
         deactivate_mock_mode()
 
 
-@pytest.mark.parametrize("group", ["native_cache_tools_v1", "diagram_html_web", "web_search_web", "web_search_zero_results"])
+@pytest.mark.parametrize("group", ["native_cache_tools_v1", "diagram_html_web", "web_search_web", "web_search_zero_results", "news_search_web", "embed_diff_code_web"])
 def test_native_replay_rejects_storage_and_temp_upload_exceptions(monkeypatch, group):
     _native_fixture_environment(monkeypatch)
     monkeypatch.setenv("S3_ENDPOINT_URL", "http://storage.ci.test:9000")

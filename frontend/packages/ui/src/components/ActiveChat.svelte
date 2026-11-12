@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { markFirstSendStopped } from "../services/drafts/draftSendClaims";
     import { authoredResultMetadata } from '../utils/authoredResultPresentation';
 import { storageArchiveFetch } from "../config/api";
 import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
@@ -7478,6 +7479,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 console.warn('[ActiveChat] Failed to delete late cancelled new-chat message from server:', err);
             }
             if (preserveChatId) {
+                markFirstSendStopped(message.chat_id);
                 await restoreCancelledPersistedDraft(message.chat_id, draftText);
             } else {
                 await handleNewChatClick();
@@ -7862,6 +7864,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         }
 
         if (preserveChatId && cancelledChatId && text) {
+            markFirstSendStopped(cancelledChatId);
             await restoreCancelledPersistedDraft(cancelledChatId, text);
             if (sentMessageAlreadyApplied) {
                 try {

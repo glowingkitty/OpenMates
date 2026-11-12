@@ -15,6 +15,7 @@ import { authStore } from "../../stores/authStore"; // Import auth store to chec
 import { userProfile } from "../../stores/userProfile";
 import { activeTeamContext, isActiveTeamContext } from "../../stores/teamStore";
 import { isDraftOnlyChatSurface } from "../../utils/chatDraftState";
+import { isDraftChatClaimedForSend } from "./draftSendClaims";
 import { isPublicChat } from "../../demo_chats/convertToChat"; // Import to detect demo/legal chats
 import {
   saveSessionStorageDraft,
@@ -459,7 +460,9 @@ export async function clearCurrentDraft(expected?: {
     // Those reads can finish after a new draft was entered or persisted.
     // Never delete its chat based on the earlier empty-draft snapshot.
     if (!stillOwnsInitialDocument()) return;
-    if (chat && (chat.messages_v ?? 0) === 0 && isDraftOnlyChatSurface(chat, true) && (!messages || messages.length === 0)) {
+    // A send that claimed this chat stores its first message here next.
+    if (chat && (chat.messages_v ?? 0) === 0 && isDraftOnlyChatSurface(chat, true) && (!messages || messages.length === 0)
+      && !isDraftChatClaimedForSend(currentChatId)) {
       console.info(
         `[DraftService] Chat ${currentChatId} has no messages after draft deletion. Attempting to delete chat.`,
       );
@@ -617,7 +620,8 @@ async function discardStaleDraftWrite(chatId: string): Promise<void> {
     const chat = await chatDB.getRawChat(chatId);
     if (!chat) return;
     const messages = await chatDB.getMessagesForChat(chatId);
-    if ((chat.messages_v ?? 0) === 0 && isDraftOnlyChatSurface(chat, true) && (!messages || messages.length === 0)) {
+    if ((chat.messages_v ?? 0) === 0 && isDraftOnlyChatSurface(chat, true) && (!messages || messages.length === 0)
+      && !isDraftChatClaimedForSend(chatId)) {
       const result = await chatDB.deleteDraftOnlyChat(chatId);
       if (result.deleted) return;
     }
@@ -1033,6 +1037,15 @@ export const saveDraftDebounced = debounce(
         if (liveEditor && liveEditor !== editor && inspectDraftContent(liveEditor.getJSON()).hasMeaningfulContent) {
           console.debug(
             "[DraftService] Stale empty editor attempted to delete draft while live editor has content; skipping cleanup.",
+          );
+          return;
+        }
+
+        // The composer was emptied by a send of this chat's message; that send
+        // owns the draft cleanup once its message is stored.
+        if (isDraftChatClaimedForSend(currentChatIdForOperation)) {
+          console.debug(
+            "[DraftService] Editor empty because a send claimed this chat; skipping draft deletion.",
           );
           return;
         }

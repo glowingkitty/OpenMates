@@ -245,8 +245,8 @@ test('email categories and preview consent persist independently across reload a
     for (const key of ['ai-responses', 'workflow-runs', 'include-content', 'webhook-chats']) {
         original[key] = await preference(section, key).isChecked();
     }
-    await expect(section).toContainText('Allow chat and workflow titles and previews in email.');
-    await expect(section).toContainText('Your email provider can read this content.');
+    await expect(section).toContainText('Allow chat titles and message previews in email.');
+    await expect(section).toContainText('Your email provider can read included content.');
 
     // Keep a second client open on its initial backup settings snapshot while the first
     // changes chat categories. Its later save must not replay that snapshot over them.
