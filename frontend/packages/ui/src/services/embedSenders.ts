@@ -294,9 +294,33 @@ async function readEquivalentCanonicalHead(head: StoreEmbedPayload, historical =
     queuedContent, key, keySubject, verifiedKeyTypes, advancePrecondition };
 }
 
+/**
+ * A finished child reports no canonical revision, so availability cannot see that a
+ * later user-made version (Enhance, restore) superseded the queued one. When the
+ * current head conflicts, the queued version settles only if the server's stored row
+ * of that version reconstructs to exactly the queued content; otherwise the original
+ * conflict stands.
+ */
+async function readEquivalentCurrentOrSupersededChild(
+  head: StoreEmbedPayload,
+): Promise<Awaited<ReturnType<typeof readEquivalentCanonicalHead>>> {
+  try {
+    return await readEquivalentCanonicalHead(head);
+  } catch (current) {
+    if (!head.parent_embed_id || !(current instanceof CanonicalEmbedConflict)
+      || current.code !== "embed_identity_or_version_conflict") throw current;
+    try {
+      return await readEquivalentHistoricalHead(head);
+    } catch (historical) {
+      if (historical instanceof CanonicalEmbedConflict) throw current;
+      throw historical;
+    }
+  }
+}
+
 /** Reconcile an old queued root only against its authenticated historical source. */
 async function readEquivalentHistoricalHead(
-  head: StoreEmbedPayload, revision: CanonicalRevision,
+  head: StoreEmbedPayload, revision?: CanonicalRevision,
 ): Promise<Awaited<ReturnType<typeof readEquivalentCanonicalHead>>> {
   const canonical = await readEquivalentCanonicalHead(head, true, revision);
   const chat = await chatDB.getRawChat(head.chat_id!);
@@ -478,7 +502,7 @@ async function persistCanonicalEmbedOperation(
     case "read_current":
       // Read-only equivalence can prove durable canonical bytes even when
       // availability cannot grant a write capability (notably child embeds).
-      canonical = await readEquivalentCanonicalHead(head);
+      canonical = await readEquivalentCurrentOrSupersededChild(head);
       allowWrapperWrites = plan.allow_wrapper_writes;
       break;
     case "read_historical":
