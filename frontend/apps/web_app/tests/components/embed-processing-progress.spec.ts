@@ -24,6 +24,12 @@ test('a processing app skill embed shows live progress and updates on later fram
   await expect(progress).toHaveAttribute('data-sources-total', '4');
   await expect(progress).toHaveAttribute('data-sources-done', '0');
   await expect(progress).toHaveAttribute('data-result-count', '0');
+  // The stop control is the message input's red stop icon on a transparent button, never a filled button.
+  const stop = card.locator('.stop-button');
+  await expect(stop).toBeVisible();
+  await expect(stop).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+  await expect(stop).toHaveCSS('background-image', 'none');
+  await expect(stop.locator('.icon_stop_processing')).toHaveCSS('background-color', 'rgb(255, 0, 0)');
   await testInfo.attach('progress-first-frame', { body: await card.screenshot(), contentType: 'image/png' });
 
   // A later frame replaces the earlier one while the card stays processing.

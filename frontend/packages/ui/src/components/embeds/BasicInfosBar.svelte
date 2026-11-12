@@ -383,6 +383,11 @@
   .result-identity-status { font-size: var(--font-size-xs); color: var(--color-font-secondary); }
   .result-identity-actions { display: flex; align-items: center; gap: var(--spacing-2); }
   .result-identity-actions:empty { display: none; }
+  /* Same stop control as the message input: red pulsing icon on a transparent round button. */
+  .result-identity-actions .stop-button { width: 36px; height: 36px; min-width: auto !important; padding: 0 !important; margin: 0 !important; border: none !important; border-radius: 50%; background: none !important; background-color: transparent !important; box-shadow: none !important; filter: none !important; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background-color var(--duration-normal); }
+  .result-identity-actions .stop-button:hover, .result-identity-actions .stop-button:active { background-color: var(--color-grey-20) !important; scale: 1 !important; filter: none !important; }
+  .result-identity-actions .stop-button .clickable-icon.icon_stop_processing { width: 28px; height: 28px; background: red !important; transition: background var(--duration-normal) var(--easing-default); -webkit-mask-size: contain; mask-size: contain; -webkit-mask-position: center; mask-position: center; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; animation: stopButtonPulse 1.2s ease-in-out infinite; }
+  .result-identity-actions .stop-button:hover .clickable-icon.icon_stop_processing { background: darkred !important; animation-play-state: paused; }
   @container result-card (max-width: 220px) {
     .result-identity-header { grid-template-columns: minmax(0, 1fr); }
     .result-identity-actions { margin-inline-start: -46px; justify-self: end; }
