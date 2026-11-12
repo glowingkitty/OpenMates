@@ -828,24 +828,7 @@ impl Client {
             }
         }
         if text(c, "parent_embed_id").is_empty() && canonical_type.is_none() {
-            let decoded = Plain::new(super::toon::decode(required(c, "content")?)?);
-            let app = c.get("app_id").or_else(|| decoded.get("app_id"));
-            let skill = c.get("skill_id").or_else(|| decoded.get("skill_id"));
-            if app.is_some() || skill.is_some() {
-                let app = app.and_then(Value::as_str).ok_or(Error::Protocol)?;
-                let skill = skill.and_then(Value::as_str).ok_or(Error::Protocol)?;
-                if !regex::Regex::new(r"^[a-z][a-z0-9_]{0,63}$")
-                    .expect("static")
-                    .is_match(app)
-                    || !regex::Regex::new(r"^[a-z][a-z0-9_-]{0,63}$")
-                        .expect("static")
-                        .is_match(skill)
-                {
-                    return Err(Error::Protocol);
-                }
-                payload["app_id"] = json!(app);
-                payload["skill_id"] = json!(skill);
-            }
+            store_catalog_identity(&mut payload, c)?;
         }
         if let Some(task) = c.get("task_id").and_then(Value::as_str) {
             payload["hashed_task_id"] = json!(sha256(task))
@@ -1249,6 +1232,47 @@ async fn store_output_with_gate(
     gate()?;
     Ok(result.into_inner())
 }
+/// Catalog identity (`app_id`/`skill_id`) of a new sealed root embed head, as
+/// web `catalogContextFromSealedEmbed`: the sealed payload's own producer ids
+/// win, the decoded TOON content fills a missing one. An embed no skill
+/// produced (a focus-mode activation) names only its app inside the content;
+/// it has no catalog identity and is stored without one. A producer that names
+/// an app without a skill, or a malformed id, is refused.
+///
+/// # Errors
+/// `Protocol` for a refused identity or undecodable content.
+fn store_catalog_identity(payload: &mut Value, c: &Value) -> Result<()> {
+    let producer = |key: &str| c.get(key).filter(|v| !v.is_null());
+    let (producer_app, producer_skill) = (producer("app_id"), producer("skill_id"));
+    let decoded = Plain::new(super::toon::decode(required(c, "content")?)?);
+    let app = producer_app.or_else(|| decoded.get("app_id"));
+    let skill = producer_skill.or_else(|| decoded.get("skill_id"));
+    if (app.is_none() && skill.is_none()) || (skill.is_none() && producer_app.is_none()) {
+        // The raw producer fields copied before carry no identity here either.
+        if let Some(fields) = payload.as_object_mut() {
+            fields.remove("app_id");
+            fields.remove("skill_id");
+        }
+        return Ok(());
+    }
+    let app = app.and_then(Value::as_str).ok_or(Error::Protocol)?;
+    let skill = skill.and_then(Value::as_str).ok_or(Error::Protocol)?;
+    if !regex::Regex::new(r"^[a-z][a-z0-9_]{0,63}$")
+        .expect("static")
+        .is_match(app)
+        || !regex::Regex::new(r"^[a-z][a-z0-9_-]{0,63}$")
+            .expect("static")
+            .is_match(skill)
+    {
+        return Err(Error::Protocol);
+    }
+    payload["app_id"] = json!(app);
+    payload["skill_id"] = json!(skill);
+    Ok(())
+}
+#[cfg(test)]
+#[path = "recovery/catalog_identity_tests.rs"]
+mod catalog_identity_tests;
 #[cfg(test)]
 #[path = "../../tests/recovery_store_receipts/mod.rs"]
 mod store_receipt_tests;

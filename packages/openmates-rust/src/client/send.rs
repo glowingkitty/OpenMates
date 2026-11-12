@@ -952,20 +952,59 @@ fn should_wait_for_ai(message: &str, team: Option<&str>) -> bool {
 /// (authored results, calendar events); the assistant message id never owns them. They are
 /// already limited to this chat by `capture_artifact`, so once the turn's task is known they are
 /// tagged with it, which is the ownership proof `persist_stream_artifacts` requires.
+///
+/// One turn can run several server tasks in sequence (a focus-mode activation is
+/// answered by its auto-confirmed continuation task). An embed an earlier task of this
+/// same turn produced was admitted against that task's id when it streamed, so it is
+/// rebound to the final task too. A row naming any other task stays unbound and is
+/// refused at persistence.
 fn bind_turn_embeds(
     embeds: &BTreeMap<String, Value>,
     user_message: &str,
     task: &str,
+    earlier_tasks: &[String],
 ) -> Plain<BTreeMap<String, Value>> {
     let mut bound = embeds.clone();
     if !task.is_empty() {
         for row in bound.values_mut() {
-            if text(row, "task_id").is_empty() && text(row, "message_id") == user_message {
+            let row_task = text(row, "task_id");
+            let unbound = row_task.is_empty() && text(row, "message_id") == user_message;
+            let earlier = earlier_tasks
+                .iter()
+                .any(|earlier| frame_task_matches(row_task, earlier));
+            if unbound || earlier {
                 row["task_id"] = Value::String(task.into());
             }
         }
     }
     Plain::new(bound)
+}
+
+/// Upper bound on the server tasks one turn may hand over to (initial task plus its
+/// continuations); more is a protocol error rather than unbounded growth.
+const MAX_TURN_TASKS: usize = 16;
+
+/// Switch the turn to the task id a frame of this same turn names, remembering the
+/// previous one so `bind_turn_embeds` still owns the embeds it streamed.
+///
+/// # Errors
+/// `Protocol` when a turn hands over to more than [`MAX_TURN_TASKS`] tasks.
+fn adopt_turn_task(
+    task_id: &mut String,
+    next: &str,
+    earlier_tasks: &mut Vec<String>,
+) -> Result<()> {
+    if next.is_empty() || next == task_id.as_str() {
+        return Ok(());
+    }
+    if !task_id.is_empty() && !earlier_tasks.iter().any(|t| t == task_id.as_str()) {
+        if earlier_tasks.len() >= MAX_TURN_TASKS {
+            return Err(Error::Protocol);
+        }
+        earlier_tasks.push(std::mem::take(task_id));
+    }
+    *task_id = next.into();
+    Ok(())
 }
 
 /// Whether an embed frame's `task_id` names this turn's task. The first frame
@@ -1054,12 +1093,49 @@ mod consent_fence_tests {
             ("foreign".to_string(), json!({"message_id":"other","task_id":""})),
             ("tasked".to_string(), json!({"message_id":"human","task_id":"old"})),
         ]);
-        let bound = bind_turn_embeds(&embeds, "human", "task");
+        let bound = bind_turn_embeds(&embeds, "human", "task", &[]);
         assert_eq!(bound["own"]["task_id"], "task");
         assert_eq!(bound["foreign"]["task_id"], "");
         assert_eq!(bound["tasked"]["task_id"], "old");
-        let unknown = bind_turn_embeds(&embeds, "human", "");
+        let unknown = bind_turn_embeds(&embeds, "human", "", &[]);
         assert_eq!(unknown["own"]["task_id"], "");
+    }
+
+    // contract-test: supporting surface=sdks.rust assertions=sdk.surface.semantic-parity,auth.session.isolation
+    #[test]
+    fn embeds_of_a_task_the_turn_handed_over_from_are_rebound_to_the_final_task() {
+        // A focused turn: the activation task streams its embed, then the
+        // auto-confirmed continuation task answers.
+        let mut task = String::new();
+        let mut earlier = Vec::new();
+        adopt_turn_task(&mut task, "activation", &mut earlier).unwrap();
+        adopt_turn_task(&mut task, "", &mut earlier).unwrap();
+        adopt_turn_task(&mut task, "continuation", &mut earlier).unwrap();
+        adopt_turn_task(&mut task, "continuation", &mut earlier).unwrap();
+        assert_eq!(task, "continuation");
+        assert_eq!(earlier, ["activation".to_string()]);
+        let embeds = BTreeMap::from([
+            ("focus".to_string(), json!({"message_id":"human","task_id":"activation"})),
+            ("update".to_string(), json!({"message_id":"assistant","task_id":sha256("activation")})),
+            ("foreign".to_string(), json!({"message_id":"human","task_id":"other"})),
+        ]);
+        let bound = bind_turn_embeds(&embeds, "human", &task, &earlier);
+        assert_eq!(bound["focus"]["task_id"], "continuation");
+        assert_eq!(bound["update"]["task_id"], "continuation");
+        assert_eq!(bound["foreign"]["task_id"], "other");
+    }
+
+    // contract-test: supporting surface=sdks.rust assertions=sdk.surface.semantic-parity,auth.session.isolation
+    #[test]
+    fn a_turn_handing_over_to_unbounded_tasks_is_a_protocol_error() {
+        let (mut task, mut earlier) = (String::new(), Vec::new());
+        for n in 0..=MAX_TURN_TASKS {
+            adopt_turn_task(&mut task, &format!("t{n}"), &mut earlier).unwrap();
+        }
+        assert_eq!(
+            adopt_turn_task(&mut task, "overflow", &mut earlier),
+            Err(Error::Protocol)
+        );
     }
 
     // contract-test: supporting surface=sdks.rust assertions=sdk.surface.semantic-parity,auth.session.isolation

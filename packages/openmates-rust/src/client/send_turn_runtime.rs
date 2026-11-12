@@ -137,6 +137,8 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
         let mut deferred=Plain::new(std::collections::VecDeque::new());
         let mut consent_requests = std::collections::HashSet::new();
         let mut streamed_embeds=Plain::new(BTreeMap::new());
+        // Tasks this turn handed over from (focus continuation); they still own their embeds.
+        let mut earlier_tasks: Vec<String> = Vec::new();
         let mut checkpoints=Plain::new(vec![]);
         let mut generated_header=Plain::new(Value::Null);
         let mut recovery_outputs=Plain::new(BTreeMap::new());
@@ -175,8 +177,8 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
                     }).await?;
             }
             let same = belongs_to_turn(&p, id, message, turn);
-            if same && !text(&p, "task_id").is_empty() {
-                *task_id = text(&p, "task_id").into();
+            if same {
+                adopt_turn_task(task_id, text(&p, "task_id"), &mut earlier_tasks)?;
             }
             if owns_metadata(&p, id, message, turn, &task_id) {
                 observed.capture_owned(&kind, &p)?;
@@ -338,7 +340,7 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
                 && text(&p, "chat_id") == id
                 && text(&p, "user_message_id") == message
             {
-                *task_id = text(&p, "task_id").into()
+                adopt_turn_task(task_id, text(&p, "task_id"), &mut earlier_tasks)?;
             }
             if kind == "thinking_chunk"
                 && text(&p, "chat_id") == id
@@ -508,7 +510,7 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
                 assistant_id,
                 key,
                 &task_id,
-                &bind_turn_embeds(&streamed_embeds, message, &task_id),
+                &bind_turn_embeds(&streamed_embeds, message, &task_id, &earlier_tasks),
                 &checkpoints,
             )
             .await?;
@@ -517,7 +519,7 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
                 phases,
                 ws,
                 id,
-                &bind_turn_embeds(&streamed_embeds, message, &task_id),
+                &bind_turn_embeds(&streamed_embeds, message, &task_id, &earlier_tasks),
                 &mut observed,
             )
             .await?;
@@ -589,7 +591,7 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
                 assistant_id,
                 key,
                 &task_id,
-                &bind_turn_embeds(&streamed_embeds, message, &task_id),
+                &bind_turn_embeds(&streamed_embeds, message, &task_id, &earlier_tasks),
                 &checkpoints,
             )
             .await?;
@@ -598,7 +600,7 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
             phases,
             ws,
             id,
-            &bind_turn_embeds(&streamed_embeds, message, &task_id),
+            &bind_turn_embeds(&streamed_embeds, message, &task_id, &earlier_tasks),
             &mut observed,
         )
         .await?;

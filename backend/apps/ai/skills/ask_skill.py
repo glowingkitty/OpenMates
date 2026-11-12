@@ -451,6 +451,13 @@ class AskSkill(BaseSkill):
         # Prepare task arguments matching the expected signature:
         # process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: dict)
         request_data_dict = request.model_dump(exclude_none=True)
+        # `memory_catalog` is excluded from dumps (it never reaches logs or caches),
+        # but the task needs it to select personal Memories. Forward the body-free
+        # metadata snapshot, as the app-settings-memories continuation already does;
+        # without it a first-turn request silently loses every personal Memory.
+        if request.memory_catalog:
+            from backend.apps.ai.processing.rule_context import memory_catalog_snapshot
+            request_data_dict["memory_catalog"] = memory_catalog_snapshot(request.memory_catalog)
         skill_config_dict = self.parsed_default_config.model_dump() if self.parsed_default_config else {}
 
         if not self.celery_producer:
