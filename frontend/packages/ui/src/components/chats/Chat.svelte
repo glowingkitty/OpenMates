@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { vibrateDevice } from '../../services/eventSounds';
   import { isCreditRejection } from '../../utils/creditRejection';
   import type { Chat, TiptapJSON, Message } from '../../types/chat';
   import { onMount, onDestroy, tick } from 'svelte';
@@ -1124,9 +1125,7 @@
       showContextMenu = true;
       
       // Vibrate to provide haptic feedback (if supported)
-      if (navigator.vibrate) {
-        navigator.vibrate(50);
-      }
+      vibrateDevice(50);
       
       console.debug('[Chat] Context menu opened for chat (long-press):', chat?.chat_id);
     }, LONG_PRESS_DURATION);

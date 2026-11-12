@@ -19704,6 +19704,23 @@
         "export_hint": {
           "text": "Esporta e scarica tutti i tuoi dati"
         }
+      },
+      "sounds": {
+        "silent_mode": {
+          "text": "Modalità silenziosa"
+        },
+        "silent_mode_info": {
+          "text": "Disattiva suoni e vibrazioni su questo dispositivo"
+        },
+        "notice_title": {
+          "text": "I suoni sono attivi"
+        },
+        "notice_message": {
+          "text": "Un breve suono ti avvisa quando un messaggio è inviato correttamente, arriva una notifica o qualcosa non riesce."
+        },
+        "notice_turn_off": {
+          "text": "Disattiva i suoni"
+        }
       }
     },
     "buy_credits": {

@@ -250,3 +250,25 @@ web_duplicate_lifecycle:
     given: Alice has a notification configured to dismiss after ten seconds.
     when: The same notification triggers again four seconds after its first occurrence.
     then: Its count becomes two without restarting the progress indicator, and the single card still expires ten seconds after its first occurrence. If interaction had already paused dismissal, a duplicate leaves that timer paused; the card's existing actions retain their normal behavior.
+
+event_sounds:
+  - id: sent-message-sounds-once-and-offers-opt-out
+    assertion_ids: [notifications.sounds.important-events, notifications.sounds.first-cue-opt-out]
+    given: Alice has never heard an event sound on this laptop and silent mode is off.
+    when: She sends a message and the server admits it for processing.
+    then: One short sound plays and a notice titled "Sounds are on" appears with a "Turn off sounds" action. The same admission arriving on her phone, where she did not send the message, is silent.
+  - id: second-event-in-the-quiet-window-is-dropped
+    assertion_ids: [notifications.sounds.quiet-window]
+    given: An error sound finished one second ago.
+    when: A chat message notification becomes visible.
+    then: The notification card is shown without a sound, and no sound is played for it later.
+  - id: one-click-turns-sounds-off
+    assertion_ids: [notifications.sounds.first-cue-opt-out, notifications.sounds.silent-mode]
+    given: The "Sounds are on" notice is visible.
+    when: Alice selects "Turn off sounds".
+    then: Silent mode is on in Settings > Notifications, the next accepted message and the next error are silent, and after a reload silent mode is still on. Turning silent mode off again does not bring the notice back.
+  - id: no-sound-before-interaction
+    assertion_ids: [notifications.sounds.important-events]
+    given: Alice opened the web app in a new tab and has not clicked or typed yet.
+    when: An error notification becomes visible.
+    then: The card is shown silently and the one-time notice is not used up.

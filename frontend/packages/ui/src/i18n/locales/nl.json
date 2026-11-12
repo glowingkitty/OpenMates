@@ -19677,6 +19677,23 @@
         "export_hint": {
           "text": "Exporteer en download al uw gegevens"
         }
+      },
+      "sounds": {
+        "silent_mode": {
+          "text": "Stille modus"
+        },
+        "silent_mode_info": {
+          "text": "Zet geluiden en trillingen op dit apparaat uit"
+        },
+        "notice_title": {
+          "text": "Geluiden staan aan"
+        },
+        "notice_message": {
+          "text": "Een kort geluid laat je weten wanneer een bericht veilig is verzonden, een melding binnenkomt of iets mislukt."
+        },
+        "notice_turn_off": {
+          "text": "Geluiden uitzetten"
+        }
       }
     },
     "buy_credits": {

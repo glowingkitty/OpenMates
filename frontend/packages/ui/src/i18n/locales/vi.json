@@ -19677,6 +19677,23 @@
         "export_hint": {
           "text": "Xuất và tải xuống tất cả dữ liệu của bạn"
         }
+      },
+      "sounds": {
+        "silent_mode": {
+          "text": "Chế độ im lặng"
+        },
+        "silent_mode_info": {
+          "text": "Tắt âm thanh và rung trên thiết bị này"
+        },
+        "notice_title": {
+          "text": "Âm thanh đang bật"
+        },
+        "notice_message": {
+          "text": "Một âm thanh ngắn báo cho bạn khi tin nhắn đã gửi an toàn, có thông báo mới hoặc có lỗi xảy ra."
+        },
+        "notice_turn_off": {
+          "text": "Tắt âm thanh"
+        }
       }
     },
     "buy_credits": {

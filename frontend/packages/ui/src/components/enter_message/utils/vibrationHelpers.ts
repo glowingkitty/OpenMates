@@ -1,3 +1,4 @@
+import { vibrateDevice } from '../../../services/eventSounds';
 // src/components/MessageInput/utils/vibrationHelpers.ts
 /**
  * Vibrates the message field to indicate an error (e.g., trying to send an empty message).
@@ -17,7 +18,5 @@ export function vibrateMessageField() {
         easing: 'ease-in-out'
     });
 
-    if (navigator.vibrate) {
-        navigator.vibrate(100);
-    }
+    vibrateDevice(100);
 }

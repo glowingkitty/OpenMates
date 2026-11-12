@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { vibrateDevice } from '../services/eventSounds';
     import { markFirstSendStopped } from "../services/drafts/draftSendClaims";
     import { authoredResultMetadata } from '../utils/authoredResultPresentation';
 import { storageArchiveFetch } from "../config/api";
@@ -3192,7 +3193,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             resumeCardContextMenuY = resumeCardTouchStartY;
             resumeCardContextMenuChat = chat;
             resumeCardContextMenuShow = true;
-            if (navigator.vibrate) navigator.vibrate(50);
+            vibrateDevice(50);
         }, 500);
     }
 

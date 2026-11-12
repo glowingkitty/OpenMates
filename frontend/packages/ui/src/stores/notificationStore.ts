@@ -13,6 +13,7 @@
  * - software_update: Available software updates
  * - chat_message: New chat message notifications (with reply input)
  */
+import { playEventCue, type EventCue } from "../services/eventSounds";
 import { writable } from "svelte/store";
 
 /**
@@ -101,6 +102,15 @@ export interface NotificationOptions {
 export interface NotificationState {
   notifications: Notification[];
 }
+
+/** Only these kinds make a sound; confirmations and connection state stay quiet. */
+const NOTIFICATION_CUES: Partial<Record<NotificationType, EventCue>> = {
+  error: "error",
+  warning: "notification",
+  auto_logout: "notification",
+  chat_message: "notification",
+  backup_reminder: "notification",
+};
 
 const initialState: NotificationState = {
   notifications: [],
@@ -211,6 +221,9 @@ export const notificationStore = {
     });
 
     if (existingId) return existingId;
+
+    const cue = NOTIFICATION_CUES[type];
+    if (cue) playEventCue(cue);
 
     if (newNotification.duration) {
       const timer = setTimeout(() => {

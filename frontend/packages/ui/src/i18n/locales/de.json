@@ -23216,6 +23216,23 @@
         "export_hint": {
           "text": "Alle deine Daten exportieren und herunterladen"
         }
+      },
+      "sounds": {
+        "silent_mode": {
+          "text": "Lautlos-Modus"
+        },
+        "silent_mode_info": {
+          "text": "Schaltet Töne und Vibrationen auf diesem Gerät aus"
+        },
+        "notice_title": {
+          "text": "Töne sind an"
+        },
+        "notice_message": {
+          "text": "Ein kurzer Ton zeigt dir, wenn eine Nachricht sicher gesendet wurde, eine Benachrichtigung eintrifft oder etwas fehlschlägt."
+        },
+        "notice_turn_off": {
+          "text": "Töne ausschalten"
+        }
       }
     },
     "buy_credits": {

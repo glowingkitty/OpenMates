@@ -19677,6 +19677,23 @@
         "export_hint": {
           "text": "Ekspor dan unduh semua data Anda"
         }
+      },
+      "sounds": {
+        "silent_mode": {
+          "text": "Mode senyap"
+        },
+        "silent_mode_info": {
+          "text": "Mematikan suara dan getaran di perangkat ini"
+        },
+        "notice_title": {
+          "text": "Suara aktif"
+        },
+        "notice_message": {
+          "text": "Suara singkat memberi tahu saat pesan terkirim dengan aman, notifikasi tiba, atau terjadi kegagalan."
+        },
+        "notice_turn_off": {
+          "text": "Matikan suara"
+        }
       }
     },
     "buy_credits": {

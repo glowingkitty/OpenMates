@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { vibrateDevice } from '../services/eventSounds';
   import type { SvelteComponent } from 'svelte';
   import { onMount } from 'svelte';
   // Removed afterUpdate import for runes mode compatibility
@@ -1890,9 +1891,7 @@
       
       console.debug('[ChatMessage] Message long-pressed');
       
-      if (navigator.vibrate) {
-        navigator.vibrate(50);
-      }
+      vibrateDevice(50);
       messageTouchTimer = null;
     }, LONG_PRESS_DURATION);
   }

@@ -19677,6 +19677,23 @@
         "export_hint": {
           "text": "Eksportuj i pobierz wszystkie swoje dane"
         }
+      },
+      "sounds": {
+        "silent_mode": {
+          "text": "Tryb cichy"
+        },
+        "silent_mode_info": {
+          "text": "Wyłącza dźwięki i wibracje na tym urządzeniu"
+        },
+        "notice_title": {
+          "text": "Dźwięki są włączone"
+        },
+        "notice_message": {
+          "text": "Krótki dźwięk informuje, gdy wiadomość została bezpiecznie wysłana, przyszło powiadomienie lub coś się nie powiodło."
+        },
+        "notice_turn_off": {
+          "text": "Wyłącz dźwięki"
+        }
       }
     },
     "buy_credits": {

@@ -1,3 +1,4 @@
+import { noteLocalSend } from "./eventSounds";
 import { prepareSavedPersonalAdmissionHistory, selectPersonalPhasedAdmission } from './savedPersonalAdmissionHistory';
 import { withoutPresentationOnlyEvents } from './contextEntryEvents';
 import { initialChatHistoryGate } from './initialChatHistoryGate';
@@ -1613,6 +1614,7 @@ export async function sendNewMessageImpl(
 	holdAdmissionUntil?: (completion: Promise<void>) => void,
 ): Promise<void> {
 	const personalTurn = reservedTurn ?? reservePersonalChatTurn(message.chat_id, message.message_id);
+	noteLocalSend(message.message_id);
 	const voiceDiagnostics = createVoiceCallSendDiagnostics(message);
 	voiceDiagnostics.enter('sender');
 	const testMockMarker = ((message as unknown) as { testMockMarker?: unknown }).testMockMarker;

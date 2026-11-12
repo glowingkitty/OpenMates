@@ -101,7 +101,8 @@
       "execution": "e2e",
       "enabling_work": "Account-free notification-store events and bare standard, chat, count, and stack previews. The component marker selects the Vite-only runner; no backend, account, external provider, or AI inference is required.",
       "specs": [
-        "components/notification-grouping.spec.ts"
+        "components/notification-grouping.spec.ts",
+        "components/event-sounds.spec.ts"
       ]
     },
     "native_push_registration": {
@@ -656,6 +657,7 @@
         "embed-canonical-replay.spec.ts",
         "embed-json-leak.spec.ts",
         "embed-fullscreen-followup.spec.ts",
+        "event-sounds-chat.spec.ts",
         "focus-mode-career-insights.spec.ts",
         "focus-mode-rejection.spec.ts",
         "focus-mode-ui-after-activation.spec.ts",

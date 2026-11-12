@@ -19677,6 +19677,23 @@
         "export_hint": {
           "text": "모든 데이터 내보내기 및 다운로드"
         }
+      },
+      "sounds": {
+        "silent_mode": {
+          "text": "무음 모드"
+        },
+        "silent_mode_info": {
+          "text": "이 기기의 소리와 진동을 끕니다"
+        },
+        "notice_title": {
+          "text": "소리가 켜져 있습니다"
+        },
+        "notice_message": {
+          "text": "메시지가 안전하게 전송되거나 알림이 도착하거나 오류가 발생하면 짧은 소리로 알려 드립니다."
+        },
+        "notice_turn_off": {
+          "text": "소리 끄기"
+        }
       }
     },
     "buy_credits": {

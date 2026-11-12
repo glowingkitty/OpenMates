@@ -22,6 +22,7 @@
 -->
 
 <script lang="ts">
+    import { vibrateDevice } from '../../../services/eventSounds';
   import { onMount } from 'svelte';
   import { text } from '@repo/ui';
   import { pendingFocusActivationStore } from '../../../stores/pendingFocusActivationStore';
@@ -302,9 +303,7 @@
       // Prevent the subsequent touchend from triggering a click/reject
       event.preventDefault();
       // Haptic feedback
-      if (navigator.vibrate) {
-        navigator.vibrate(50);
-      }
+      vibrateDevice(50);
       if (!isPending && !isActivated) { _onDetails?.(focusId, appId); return; }
       _onContextMenu?.(event, { isActivated, isRejected });
     }, LONG_PRESS_DURATION);

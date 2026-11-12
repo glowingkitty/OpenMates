@@ -19704,6 +19704,23 @@
         "export_hint": {
           "text": "Exporte et télécharge toutes tes données"
         }
+      },
+      "sounds": {
+        "silent_mode": {
+          "text": "Mode silencieux"
+        },
+        "silent_mode_info": {
+          "text": "Désactive les sons et les vibrations sur cet appareil"
+        },
+        "notice_title": {
+          "text": "Les sons sont activés"
+        },
+        "notice_message": {
+          "text": "Un son bref vous indique qu'un message est bien envoyé, qu'une notification arrive ou qu'une erreur se produit."
+        },
+        "notice_turn_off": {
+          "text": "Désactiver les sons"
+        }
       }
     },
     "buy_credits": {

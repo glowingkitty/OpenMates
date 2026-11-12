@@ -19677,6 +19677,23 @@
         "export_hint": {
           "text": "すべてのデータをエクスポートしてダウンロードします"
         }
+      },
+      "sounds": {
+        "silent_mode": {
+          "text": "サイレントモード"
+        },
+        "silent_mode_info": {
+          "text": "このデバイスの音とバイブレーションをオフにします"
+        },
+        "notice_title": {
+          "text": "サウンドがオンです"
+        },
+        "notice_message": {
+          "text": "メッセージが確実に送信されたとき、通知が届いたとき、エラーが起きたときに短い音でお知らせします。"
+        },
+        "notice_turn_off": {
+          "text": "サウンドをオフにする"
+        }
       }
     },
     "buy_credits": {

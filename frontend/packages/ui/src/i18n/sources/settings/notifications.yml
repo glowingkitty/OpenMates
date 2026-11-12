@@ -278,3 +278,128 @@ backup.export_hint:
   sv: Exportera och ladda ner all din data
   he: ייצא והורד את כל הנתונים שלך
   verified_by_human: []
+
+sounds.silent_mode:
+  context: Quick toggle in Notifications settings that turns off event sounds and vibrations on this device
+  en: Silent mode
+  de: Lautlos-Modus
+  zh: 静音模式
+  fr: Mode silencieux
+  es: Modo silencioso
+  pt: Modo silencioso
+  ru: Беззвучный режим
+  ja: サイレントモード
+  ko: 무음 모드
+  it: Modalità silenziosa
+  tr: Sessiz mod
+  vi: Chế độ im lặng
+  id: Mode senyap
+  pl: Tryb cichy
+  nl: Stille modus
+  ar: الوضع الصامت
+  hi: साइलेंट मोड
+  th: โหมดเงียบ
+  cs: Tichý režim
+  sv: Tyst läge
+  he: מצב שקט
+  verified_by_human: []
+
+sounds.silent_mode_info:
+  context: Explanation below the silent mode toggle
+  en: Turns off sounds and vibrations on this device
+  de: Schaltet Töne und Vibrationen auf diesem Gerät aus
+  zh: 关闭此设备上的声音和振动
+  fr: Désactive les sons et les vibrations sur cet appareil
+  es: Desactiva los sonidos y las vibraciones en este dispositivo
+  pt: Desativa sons e vibrações neste dispositivo
+  ru: Отключает звуки и вибрацию на этом устройстве
+  ja: このデバイスの音とバイブレーションをオフにします
+  ko: 이 기기의 소리와 진동을 끕니다
+  it: Disattiva suoni e vibrazioni su questo dispositivo
+  tr: Bu cihazdaki sesleri ve titreşimleri kapatır
+  vi: Tắt âm thanh và rung trên thiết bị này
+  id: Mematikan suara dan getaran di perangkat ini
+  pl: Wyłącza dźwięki i wibracje na tym urządzeniu
+  nl: Zet geluiden en trillingen op dit apparaat uit
+  ar: يوقف الأصوات والاهتزازات على هذا الجهاز
+  hi: इस डिवाइस पर ध्वनि और कंपन बंद करता है
+  th: ปิดเสียงและการสั่นบนอุปกรณ์นี้
+  cs: Vypne zvuky a vibrace na tomto zařízení
+  sv: Stänger av ljud och vibrationer på den här enheten
+  he: מכבה צלילים ורטט במכשיר זה
+  verified_by_human: []
+
+sounds.notice_title:
+  context: Title of the one-time notice shown the first time an event sound plays
+  en: Sounds are on
+  de: Töne sind an
+  zh: 声音已开启
+  fr: Les sons sont activés
+  es: Los sonidos están activados
+  pt: Os sons estão ativados
+  ru: Звуки включены
+  ja: サウンドがオンです
+  ko: 소리가 켜져 있습니다
+  it: I suoni sono attivi
+  tr: Sesler açık
+  vi: Âm thanh đang bật
+  id: Suara aktif
+  pl: Dźwięki są włączone
+  nl: Geluiden staan aan
+  ar: الأصوات مفعّلة
+  hi: ध्वनियाँ चालू हैं
+  th: เสียงเปิดอยู่
+  cs: Zvuky jsou zapnuté
+  sv: Ljud är på
+  he: הצלילים פועלים
+  verified_by_human: []
+
+sounds.notice_message:
+  context: Body of the one-time notice explaining what event sounds are for
+  en: A short sound tells you when a message is sent safely, a notification arrives or something fails.
+  de: Ein kurzer Ton zeigt dir, wenn eine Nachricht sicher gesendet wurde, eine Benachrichtigung eintrifft oder etwas fehlschlägt.
+  zh: 消息安全发送、收到通知或出现错误时，会播放简短提示音。
+  fr: Un son bref vous indique qu'un message est bien envoyé, qu'une notification arrive ou qu'une erreur se produit.
+  es: Un sonido breve te avisa cuando un mensaje se envía correctamente, llega una notificación o algo falla.
+  pt: Um som curto avisa quando uma mensagem é enviada com segurança, chega uma notificação ou algo falha.
+  ru: Короткий звук сообщает, что сообщение надёжно отправлено, пришло уведомление или произошла ошибка.
+  ja: メッセージが確実に送信されたとき、通知が届いたとき、エラーが起きたときに短い音でお知らせします。
+  ko: 메시지가 안전하게 전송되거나 알림이 도착하거나 오류가 발생하면 짧은 소리로 알려 드립니다.
+  it: Un breve suono ti avvisa quando un messaggio è inviato correttamente, arriva una notifica o qualcosa non riesce.
+  tr: Kısa bir ses, mesaj güvenle gönderildiğinde, bildirim geldiğinde veya bir şey başarısız olduğunda sizi uyarır.
+  vi: Một âm thanh ngắn báo cho bạn khi tin nhắn đã gửi an toàn, có thông báo mới hoặc có lỗi xảy ra.
+  id: Suara singkat memberi tahu saat pesan terkirim dengan aman, notifikasi tiba, atau terjadi kegagalan.
+  pl: Krótki dźwięk informuje, gdy wiadomość została bezpiecznie wysłana, przyszło powiadomienie lub coś się nie powiodło.
+  nl: Een kort geluid laat je weten wanneer een bericht veilig is verzonden, een melding binnenkomt of iets mislukt.
+  ar: صوت قصير يخبرك عند إرسال الرسالة بأمان أو وصول إشعار أو حدوث خطأ.
+  hi: संदेश सुरक्षित रूप से भेजे जाने, सूचना आने या कुछ विफल होने पर एक छोटी ध्वनि बजती है।
+  th: เสียงสั้น ๆ จะบอกคุณเมื่อส่งข้อความสำเร็จ มีการแจ้งเตือนเข้ามา หรือเกิดข้อผิดพลาด
+  cs: Krátký zvuk vám oznámí, že zpráva byla bezpečně odeslána, přišlo oznámení nebo se něco nepovedlo.
+  sv: Ett kort ljud talar om när ett meddelande har skickats säkert, en avisering kommer eller något misslyckas.
+  he: צליל קצר מודיע כשהודעה נשלחה בבטחה, כשמגיעה התראה או כשמשהו נכשל.
+  verified_by_human: []
+
+sounds.notice_turn_off:
+  context: Button on the one-time sound notice that turns on silent mode with one click
+  en: Turn off sounds
+  de: Töne ausschalten
+  zh: 关闭声音
+  fr: Désactiver les sons
+  es: Desactivar sonidos
+  pt: Desativar sons
+  ru: Выключить звуки
+  ja: サウンドをオフにする
+  ko: 소리 끄기
+  it: Disattiva i suoni
+  tr: Sesleri kapat
+  vi: Tắt âm thanh
+  id: Matikan suara
+  pl: Wyłącz dźwięki
+  nl: Geluiden uitzetten
+  ar: إيقاف الأصوات
+  hi: ध्वनियाँ बंद करें
+  th: ปิดเสียง
+  cs: Vypnout zvuky
+  sv: Stäng av ljud
+  he: כיבוי צלילים
+  verified_by_human: []

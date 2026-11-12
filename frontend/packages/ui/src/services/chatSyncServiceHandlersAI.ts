@@ -1,3 +1,4 @@
+import { messageAccepted, replyFinished } from "./eventSounds";
 import { getWorkspaceCacheIdentity } from "./workspaceQueryCache";
 import { isFirstSendStopped } from "./drafts/draftSendClaims";
 import {
@@ -624,6 +625,7 @@ export function handleAITaskInitiatedImpl(
   serviceInstance.dispatchEvent(
     new CustomEvent("aiTaskInitiated", { detail: payload }),
   );
+  messageAccepted(payload.user_message_id);
 }
 
 // --- Thinking/Reasoning Event Handlers ---
@@ -821,6 +823,7 @@ export function handleAIMessageUpdateImpl(
       console.info(
         `[ChatSyncService:AI] AI Task ${payload.task_id} for chat ${payload.chat_id} considered ended due to final chunk marker.`,
       );
+      if (!payload.interrupted_by_revocation) replyFinished();
     } else {
       // Task info missing or mismatched - still dispatch event but log warning
       console.warn(

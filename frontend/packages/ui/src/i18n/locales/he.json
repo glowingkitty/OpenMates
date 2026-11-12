@@ -19677,6 +19677,23 @@
         "export_hint": {
           "text": "ייצא והורד את כל הנתונים שלך"
         }
+      },
+      "sounds": {
+        "silent_mode": {
+          "text": "מצב שקט"
+        },
+        "silent_mode_info": {
+          "text": "מכבה צלילים ורטט במכשיר זה"
+        },
+        "notice_title": {
+          "text": "הצלילים פועלים"
+        },
+        "notice_message": {
+          "text": "צליל קצר מודיע כשהודעה נשלחה בבטחה, כשמגיעה התראה או כשמשהו נכשל."
+        },
+        "notice_turn_off": {
+          "text": "כיבוי צלילים"
+        }
       }
     },
     "buy_credits": {

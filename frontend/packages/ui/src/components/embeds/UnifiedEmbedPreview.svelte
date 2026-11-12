@@ -34,6 +34,7 @@
 -->
 
 <script lang="ts">
+    import { vibrateDevice } from '../../services/eventSounds';
   import EmbedPreviewCorner from '@repo/public-site/components/results/EmbedPreviewCorner.svelte';
   import { text } from '../../i18n/translations';
   import AuthoredResultContextInfo from './AuthoredResultContextInfo.svelte';
@@ -769,9 +770,7 @@
         previewElement.dispatchEvent(contextMenuEvent);
         
         // Vibrate to provide haptic feedback (if supported)
-        if (navigator.vibrate) {
-          navigator.vibrate(50);
-        }
+        vibrateDevice(50);
       }
     }, LONG_PRESS_DURATION);
   }

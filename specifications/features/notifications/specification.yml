@@ -329,6 +329,45 @@ assertions:
     depends_on:
     - examples.focus_authoring_route
 
+  - id: notifications.sounds.important-events
+    type: behavior
+    must: >
+      First-party clients give a short, quiet sound for a small fixed set of
+      important events only: a message sent from this device is admitted by the
+      server (the user may leave without interrupting the chat), a new in-app
+      notification of kind chat message, warning, automatic logout or backup
+      reminder becomes visible, an error notification becomes visible, and a
+      reply finishes while the user is not looking at the app. Ordinary button
+      presses, confirmations, connection-state notices, messages sent from
+      another device, duplicates grouped into an existing card and replayed or
+      recovered events make no sound. On the web no sound plays before the
+      first user interaction with the page.
+    depends_on: [applies_to.gui, examples.event_sounds]
+  - id: notifications.sounds.quiet-window
+    type: behavior
+    must: >
+      After an event sound there is always silence: for three seconds after the
+      sound ends every further event sound is dropped. A dropped sound is never
+      queued, delayed or replayed later and does not extend the silence.
+    depends_on: [applies_to.gui, examples.event_sounds]
+  - id: notifications.sounds.first-cue-opt-out
+    type: behavior
+    must: >
+      The first time an event sound actually plays on a device, the client shows
+      a one-time in-app notice that explains the sounds and offers one action
+      that turns them off immediately. The notice itself makes no sound and is
+      not shown again on that device.
+    depends_on: [applies_to.gui, examples.event_sounds]
+  - id: notifications.sounds.silent-mode
+    type: behavior
+    must: >
+      The Notifications settings offer a silent mode quick toggle. Silent mode
+      is stored on the device only, applies immediately, survives reloads and
+      turns off event sounds and app-triggered vibrations. Visual notifications,
+      email and push delivery settings are unaffected, and operating-system
+      notification sound remains controlled by the operating system.
+    depends_on: [applies_to.gui, examples.event_sounds]
+
 applies_to:
   rest_api:
     required: true
@@ -370,3 +409,4 @@ examples:
   - web_duplicate_grouping
   - web_duplicate_lifecycle
   - focus_authoring_route
+  - event_sounds

@@ -23920,6 +23920,23 @@
         "export_hint": {
           "text": "Export and download all your data"
         }
+      },
+      "sounds": {
+        "silent_mode": {
+          "text": "Silent mode"
+        },
+        "silent_mode_info": {
+          "text": "Turns off sounds and vibrations on this device"
+        },
+        "notice_title": {
+          "text": "Sounds are on"
+        },
+        "notice_message": {
+          "text": "A short sound tells you when a message is sent safely, a notification arrives or something fails."
+        },
+        "notice_turn_off": {
+          "text": "Turn off sounds"
+        }
       }
     },
     "buy_credits": {

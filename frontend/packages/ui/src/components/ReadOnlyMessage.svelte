@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { vibrateDevice } from '../services/eventSounds';
     import { onMount, onDestroy, tick } from 'svelte';
     import { Editor } from '@tiptap/core';
     import StarterKit from '@tiptap/starter-kit';
@@ -417,9 +418,7 @@
                     });
                     
                     // Vibrate to provide haptic feedback (if supported)
-                    if (navigator.vibrate) {
-                        navigator.vibrate(50);
-                    }
+                    vibrateDevice(50);
                 }
             }
         }, LONG_PRESS_DURATION);

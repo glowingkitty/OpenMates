@@ -19677,6 +19677,23 @@
         "export_hint": {
           "text": "Exportera och ladda ner all din data"
         }
+      },
+      "sounds": {
+        "silent_mode": {
+          "text": "Tyst läge"
+        },
+        "silent_mode_info": {
+          "text": "Stänger av ljud och vibrationer på den här enheten"
+        },
+        "notice_title": {
+          "text": "Ljud är på"
+        },
+        "notice_message": {
+          "text": "Ett kort ljud talar om när ett meddelande har skickats säkert, en avisering kommer eller något misslyckas."
+        },
+        "notice_turn_off": {
+          "text": "Stäng av ljud"
+        }
       }
     },
     "buy_credits": {

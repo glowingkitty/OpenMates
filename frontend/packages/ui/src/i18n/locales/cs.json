@@ -19677,6 +19677,23 @@
         "export_hint": {
           "text": "Exportujte a stáhněte všechna svá data"
         }
+      },
+      "sounds": {
+        "silent_mode": {
+          "text": "Tichý režim"
+        },
+        "silent_mode_info": {
+          "text": "Vypne zvuky a vibrace na tomto zařízení"
+        },
+        "notice_title": {
+          "text": "Zvuky jsou zapnuté"
+        },
+        "notice_message": {
+          "text": "Krátký zvuk vám oznámí, že zpráva byla bezpečně odeslána, přišlo oznámení nebo se něco nepovedlo."
+        },
+        "notice_turn_off": {
+          "text": "Vypnout zvuky"
+        }
       }
     },
     "buy_credits": {

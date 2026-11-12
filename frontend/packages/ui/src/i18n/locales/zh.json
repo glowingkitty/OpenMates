@@ -19677,6 +19677,23 @@
         "export_hint": {
           "text": "导出并下载你的所有数据"
         }
+      },
+      "sounds": {
+        "silent_mode": {
+          "text": "静音模式"
+        },
+        "silent_mode_info": {
+          "text": "关闭此设备上的声音和振动"
+        },
+        "notice_title": {
+          "text": "声音已开启"
+        },
+        "notice_message": {
+          "text": "消息安全发送、收到通知或出现错误时，会播放简短提示音。"
+        },
+        "notice_turn_off": {
+          "text": "关闭声音"
+        }
       }
     },
     "buy_credits": {
