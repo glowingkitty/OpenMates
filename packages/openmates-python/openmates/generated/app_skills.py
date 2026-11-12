@@ -8604,6 +8604,7 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                 'type': 'string'},
                                                                                       'maxItems': 1,
                                                                                       'type': 'array',
+                                                                                      'x-assistant': False,
                                                                                       'x-ui': {'basic': False}},
                                                                   'instructions': {'description': 'What '
                                                                                                   'the '
@@ -8713,6 +8714,7 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                             'enum': ['gemini-omni-1.2-flash',
                                                                                      'minimax/h3-max-turbo/image-to-video'],
                                                                             'type': 'string',
+                                                                            'x-assistant': False,
                                                                             'x-ui': {'basic': False}},
                                                                   'resolution': {'description': 'Generative '
                                                                                                 'Gemini '

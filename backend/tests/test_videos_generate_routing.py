@@ -113,3 +113,19 @@ def test_assistant_tool_schema_does_not_offer_mode():
     offered = schema["properties"]["requests"]["items"]["properties"]
     assert "mode" not in offered
     assert {"instructions", "images"} <= set(offered)
+
+
+# contract-test: supporting surface=gui.web assertions=videos-generate.routing.generative-or-composed
+def test_assistant_tool_schema_offers_nothing_that_implies_a_route():
+    """A named model or a legacy first frame would force the generative route, so neither is offered."""
+    from pathlib import Path
+
+    import yaml
+
+    from backend.apps.ai.processing.tool_generator import _drop_assistant_hidden_properties
+
+    app = yaml.safe_load((Path(__file__).resolve().parents[1] / "apps/videos/app.yml").read_text())
+    schema = next(skill for skill in app["skills"] if skill["id"] == "generate")["tool_schema"]
+    _drop_assistant_hidden_properties(schema)
+    offered = set(schema["properties"]["requests"]["items"]["properties"])
+    assert not offered & {"mode", "model", "input_embed_ids"}

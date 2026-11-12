@@ -252,6 +252,8 @@ skills:
                 enum: ["360p", "480p", "720p", "1080p", "4k"]
                 description: Generative Gemini Omni clips 360p, 720p, 1080p or 4k (default 720p); H3 is fixed 480p.
               model:
+                # Not offered to the assistant: naming it would skip the routing model.
+                x-assistant: false
                 x-ui:
                   basic: false
                 type: string
@@ -280,6 +282,8 @@ skills:
                   the instructions to it, extend_start adds a new generated clip before it, extend_end
                   adds one after it (only for videos made of generated clips).
               input_embed_ids:
+                # Not offered to the assistant: naming it would skip the routing model.
+                x-assistant: false
                 x-ui:
                   basic: false
                 type: array

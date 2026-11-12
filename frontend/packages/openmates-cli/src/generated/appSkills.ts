@@ -8146,6 +8146,7 @@ export const APP_SKILL_METADATA = [
                 "description": "Generative Gemini Omni clips 360p, 720p, 1080p or 4k (default 720p); H3 is fixed 480p."
               },
               "model": {
+                "x-assistant": false,
                 "x-ui": {
                   "basic": false
                 },
@@ -8183,6 +8184,7 @@ export const APP_SKILL_METADATA = [
                 "description": "How source_video changes (it becomes the next version of the same video): edit applies the instructions to it, extend_start adds a new generated clip before it, extend_end adds one after it (only for videos made of generated clips).\n"
               },
               "input_embed_ids": {
+                "x-assistant": false,
                 "x-ui": {
                   "basic": false
                 },
