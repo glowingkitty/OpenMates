@@ -4,6 +4,18 @@ id: backend-rust-migration
 title: Backend Python to Rust, one unit at a time
 status: draft
 
+# Parked by user decision 2026-11-12. Nothing in this Plan is to be implemented
+# until the start trigger is met and the user approves the Plan.
+parked:
+  since: 2026-11-12
+  reason: Two migrations at once is the main risk; the client core migration finishes first.
+  start_trigger: The web app runs on the Rust client core by default and the old Swift files listed in docs/plans/client-core-one-core-three-shells/plan.yml are deleted. This matches the approved SDK Specification, which stays unchanged.
+  first_step_then: TASK-1 (baseline), then the scheduler and the reminder queue behind a flag.
+  until_then:
+    - Backend work continues in Python. No "new code in Rust" rule is in force; agent_instructions stages A to D start only with TASK-2.
+    - A truly standalone new service (own container, no need for auth, Directus, cache or billing internals) may be written in Rust when one comes up. No Rust foundation is built ahead of a consumer.
+    - New Python follows the three portability habits in .claude/rules/backend.md.
+
 goal: >
   (User request 2026-11-11.) Move the Python backend to Rust step by step,
   replacing existing parts one at a time the way the client core replaced
@@ -311,7 +323,7 @@ risks:
 
 open_questions:
   - id: Q-1
-    question: The approved SDK Specification (specifications/surfaces/sdk/examples.yml line 39) and docs/architecture/platforms/README.md line 53 say a backend Rust migration begins only after every client and its cleanup is complete. Starting now needs that sentence changed, which needs the user's confirmation.
+    question: Resolved 2026-11-12 - the Plan is parked until the clients are finished, so the approved SDK Specification sentence (backend Rust begins only after every client and its cleanup is complete) stays as it is.
   - id: Q-2
     question: Approve the order in D-1 (jobs first, realtime second, REST and AI last)?
   - id: Q-3
