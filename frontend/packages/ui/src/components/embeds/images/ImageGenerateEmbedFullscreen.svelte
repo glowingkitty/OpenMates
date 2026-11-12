@@ -37,6 +37,7 @@
   import { hasMediaEncryptionMetadata } from '../../../services/encryption/mediaEncryption';
   import SvgEmbedImage from '../code/SvgEmbedImage.svelte';
   import AiGeneratedBadge from '../AiGeneratedBadge.svelte';
+  import { containedFrame, trackContainedInset, type ContainedFrame, type ContainedInset } from '../containedMedia';
   import ImageModifyProgress from './ImageModifyProgress.svelte';
   import ImageModifyUnmet from './ImageModifyUnmet.svelte';
   import { isModifySkill, readImageModify, readUnmetRequirements } from './imageDraft';
@@ -140,6 +141,9 @@
   const startVersion = untrack(() => initialVersion ?? previewVersion ?? takeFullscreenVersion(embedId));
   let headVersion = $state<number | undefined>(untrack(() => versionCount));
   let shownVersion = $state<number | undefined>(startVersion);
+  // The "AI generated" badge sits on the visible picture, not on the margin beside it.
+  let pictureFrame = $state<ContainedFrame | null>(null);
+  const trackPicture = (inset: ContainedInset | null, element: HTMLElement) => (pictureFrame = containedFrame(element, inset));
   let versionContent = $state<Record<string, unknown> | null>(null);
   let versionError = $state<string | undefined>(undefined);
   let versionBadge = $derived(versionBadgeLabel(shownVersion ?? headVersion, headVersion));
@@ -523,7 +527,12 @@
     await requestEmbedFromServerOnce(embedId, 'user embed version saved', { chatId: projectId ? null : sourceChatId });
     noteEmbedHeadChanged(embedId);
     const head = await embedHead(embedId);
-    headVersion = head?.version ?? version ?? headVersion;
+    headVersion = Math.max(head?.version ?? 0, version ?? 0) || headVersion;
+    // The local row can still be the old head right after the save: open the saved version by number.
+    if (version !== null && !projectId && sourceChatId) {
+      await showVersion(version, await embedContentAtVersion(sourceChatId, embedId, version));
+      return;
+    }
     const stored = await resolveEmbed(embedId, { chatId: projectId ? null : sourceChatId });
     if (typeof stored?.content === 'string' && headVersion !== undefined) await showVersion(headVersion, stored.content);
   }
@@ -645,21 +654,21 @@
           {:else if fullImageUrl}
             <div class="image-wrapper" data-embed-version={shownVersion ?? 1}>
               <a href={fullImageUrl} target="_blank" rel="noopener noreferrer" class="image-link" title={$text('embeds.image_generate.open_full_size')} onclick={handleImageClick}>
-                <img src={fullImageUrl} alt={prompt || 'Generated image'} class="result-primary-media full-image" data-embed-version={shownVersion ?? 1} />
+                <img src={fullImageUrl} alt={prompt || 'Generated image'} class="result-primary-media full-image" data-embed-version={shownVersion ?? 1} use:trackContainedInset={trackPicture} />
               </a>
               {#if versionBadge}
                 <span class="version-badge" data-testid="image-generate-version-badge">{versionBadge}</span>
               {/if}
-              <AiGeneratedBadge variant="fullscreen" corner="top-left" detail={modelDisplayName} />
+              {@render pictureBadge()}
             </div>
           {:else if previewImageUrl && isLoadingImage}
             <!-- Progressive: show preview while full-res loads -->
             <div class="image-wrapper progressive">
-              <img src={previewImageUrl} alt={prompt || 'Generated image'} class="result-primary-media full-image preview-placeholder" />
+              <img src={previewImageUrl} alt={prompt || 'Generated image'} class="result-primary-media full-image preview-placeholder" use:trackContainedInset={trackPicture} />
               <div class="progressive-overlay">
                 <div class="loading-spinner small"></div>
               </div>
-              <AiGeneratedBadge variant="fullscreen" corner="top-left" detail={modelDisplayName} />
+              {@render pictureBadge()}
             </div>
           {:else if isLoadingImage}
             <div class="image-loading">
@@ -759,7 +768,19 @@
   {/snippet}
 </ResultEmbedFullscreen>
 
+{#snippet pictureBadge()}
+  <div class="picture-frame" style:top="{pictureFrame?.top ?? 0}px" style:left="{pictureFrame?.left ?? 0}px"
+    style:width={pictureFrame ? `${pictureFrame.width}px` : '100%'} style:height={pictureFrame ? `${pictureFrame.height}px` : '100%'}>
+    <AiGeneratedBadge variant="fullscreen" corner="top-left" detail={modelDisplayName} />
+  </div>
+{/snippet}
+
 <style>
+  .picture-frame {
+    position: absolute;
+    pointer-events: none;
+  }
+
 
   .image-section { width: 100%; box-sizing: border-box; }
   /* ===========================================

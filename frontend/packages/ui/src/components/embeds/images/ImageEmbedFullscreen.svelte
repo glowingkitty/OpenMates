@@ -34,7 +34,7 @@
   import { notificationStore } from '../../../stores/notificationStore';
   import { activeTeamId } from '../../../stores/teamStore';
   import { resolveEmbed, decodeToonContent, requestEmbedFromServerOnce } from '../../../services/embedResolver';
-  import { embedHead, noteEmbedHeadChanged } from '../../../services/rustCore/embeds/messageEmbedVersion';
+  import { embedContentAtVersion, embedHead, noteEmbedHeadChanged } from '../../../services/rustCore/embeds/messageEmbedVersion';
   import { EMBED_EDITS_ENABLED, enhanceImage, runningEnhance } from '../../../services/rustCore/embeds/embedEditSession';
   import { createImageEnhance, imageEditAvailability } from './imageEnhance.svelte';
 
@@ -241,8 +241,11 @@
     await requestEmbedFromServerOnce(embedId, 'user embed version saved', { chatId: projectId ? null : sourceChatId });
     noteEmbedHeadChanged(embedId);
     const head = await embedHead(embedId);
-    const stored = await resolveEmbed(embedId, { chatId: projectId ? null : sourceChatId });
-    const content = typeof stored?.content === 'string' ? await decodeToonContent(stored.content) : null;
+    // The local row can still be the old head right after the save: open the saved version by number.
+    const toon = version !== null && !projectId && sourceChatId
+      ? await embedContentAtVersion(sourceChatId, embedId, version)
+      : (await resolveEmbed(embedId, { chatId: projectId ? null : sourceChatId }))?.content;
+    const content = typeof toon === 'string' ? await decodeToonContent(toon) : null;
     if (!content) throw new Error(`embed_version_content_undecodable:${head?.version ?? version ?? ''}`);
     if (retainedPreviewKey) releaseCachedImage(retainedPreviewKey);
     if (retainedFullKey) releaseCachedImage(retainedFullKey);

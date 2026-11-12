@@ -287,9 +287,10 @@ async function openVersion(chatId: string, embedId: string, version: number): Pr
 	try {
 		return await client.unit.request('embedVersionContent', { embedId, version });
 	} catch (error) {
-		if (!(error instanceof UnitPortError) || error.code !== 'embed_version_unavailable' || version > head.version) throw error;
-		// Row K is not on this device (other device, cleared cache): the core validates the
-		// canonical page, the Worker stores its rows, and the read runs again.
+		if (!(error instanceof UnitPortError) || error.code !== 'embed_version_unavailable') throw error;
+		// Row K is not on this device (other device, cleared cache, or a version saved just now
+		// that is newer than the local head): the core validates the canonical page, the Worker
+		// stores its rows, and the read runs again. A version the server lacks still fails.
 		const page = await fetchVersionPage(chatId, embedId, version);
 		if (!page) throw error;
 		await client.unit.request('cacheVersionPage', { embedId, page });

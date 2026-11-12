@@ -44503,18 +44503,18 @@ assertions:
     supporting_tests:
     - &id5579
       path: frontend/apps/web_app/tests/components/ai-generated-badge.spec.ts
-      line: 22
+      line: 41
       name: marks a finished generated image preview without covering its buttons
         or version badge
       surface: gui.web
     - &id5580
       path: frontend/apps/web_app/tests/components/ai-generated-badge.spec.ts
-      line: 52
+      line: 61
       name: expands the preview badge on click and shows the label
       surface: gui.web
     - &id5581
       path: frontend/apps/web_app/tests/components/ai-generated-badge.spec.ts
-      line: 63
+      line: 72
       name: shows the badge over the image in fullscreen
       surface: gui.web
     tests:

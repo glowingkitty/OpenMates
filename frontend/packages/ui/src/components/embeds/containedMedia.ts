@@ -32,24 +32,48 @@ function naturalSize(element: HTMLImageElement | HTMLVideoElement): { width: num
     : { width: element.naturalWidth, height: element.naturalHeight };
 }
 
+/** Visible picture of a media element, in CSS pixels relative to its offset parent. */
+export interface ContainedFrame {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+}
+
 /**
- * Svelte action for an `<img>` or `<video>`: reports the picture inset on load
- * and whenever the element is resized. Null until the media size is known.
+ * Where the visible picture of `element` sits inside its offset parent (the
+ * nearest positioned ancestor), for overlays placed in that parent when the
+ * media element does not fill it. Null while `inset` is unknown.
+ */
+export function containedFrame(element: HTMLElement, inset: ContainedInset | null): ContainedFrame | null {
+  if (!inset) return null;
+  return {
+    top: element.offsetTop + inset.y,
+    left: element.offsetLeft + inset.x,
+    width: Math.max(0, element.clientWidth - 2 * inset.x),
+    height: Math.max(0, element.clientHeight - 2 * inset.y),
+  };
+}
+
+/**
+ * Svelte action for an `<img>` or `<video>`: reports the picture inset (and the
+ * element, for `containedFrame`) on load and whenever the element is resized.
+ * Null until the media size is known.
  */
 export function trackContainedInset(
   element: HTMLImageElement | HTMLVideoElement,
-  onInset: (inset: ContainedInset | null) => void,
+  onInset: (inset: ContainedInset | null, element: HTMLImageElement | HTMLVideoElement) => void,
 ) {
   let report = onInset;
   const measure = () =>
-    report(containedInset({ width: element.clientWidth, height: element.clientHeight }, naturalSize(element)));
+    report(containedInset({ width: element.clientWidth, height: element.clientHeight }, naturalSize(element)), element);
   const loadEvent = element instanceof HTMLVideoElement ? 'loadedmetadata' : 'load';
   element.addEventListener(loadEvent, measure);
   const observer = new ResizeObserver(measure);
   observer.observe(element);
   measure();
   return {
-    update(next: (inset: ContainedInset | null) => void) {
+    update(next: (inset: ContainedInset | null, element: HTMLImageElement | HTMLVideoElement) => void) {
       report = next;
     },
     destroy() {
