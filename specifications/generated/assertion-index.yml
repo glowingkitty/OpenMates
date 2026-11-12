@@ -20185,13 +20185,13 @@ assertions:
       surface: gui.web
     - &id2628
       path: frontend/apps/web_app/tests/shared-chat-open.spec.ts
-      line: 236
+      line: 303
       name: shared subchats reveal requested cursor pages and keep retry visible after
         a failed page
       surface: gui.web
     - &id2629
       path: frontend/apps/web_app/tests/shared-chat-open.spec.ts
-      line: 284
+      line: 308
       name: shared Plan settings shows a failed bounded page and retries only on request
       surface: gui.web
     - &id2630
@@ -94129,7 +94129,7 @@ assertions:
       surface: gui.web
     - &id11841
       path: frontend/apps/web_app/tests/shared-chat-open.spec.ts
-      line: 135
+      line: 145
       name: public shared chat shows audio transcript to logged-out visitors
       surface: gui.web
     supporting_tests:
@@ -94258,13 +94258,13 @@ assertions:
       surface: gui.web
     - &id11924
       path: frontend/apps/web_app/tests/shared-chat-open.spec.ts
-      line: 67
+      line: 77
       name: stale shared chat link shows invalid-link error instead of decrypted dummy
         content
       surface: gui.web
     - &id11925
       path: frontend/apps/web_app/tests/shared-chat-open.spec.ts
-      line: 135
+      line: 145
       name: public shared chat shows audio transcript to logged-out visitors
       surface: gui.web
     - &id11950
