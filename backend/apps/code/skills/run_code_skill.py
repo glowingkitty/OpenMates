@@ -28,6 +28,7 @@ from backend.shared.python_schemas.code_test_run import TestRunSpec
 CODE_RUN_ASSISTANT_AUTH_TTL_SECONDS = 60 * 60
 CODE_RUN_ASSISTANT_MAX_UNPROMPTED_RERUNS = 2
 CODE_RUN_ASSISTANT_MAX_AUTO_RUNS = 1 + CODE_RUN_ASSISTANT_MAX_UNPROMPTED_RERUNS
+CODE_RUN_ASSISTANT_MAX_TEST_RUNS_PER_TURN = 10
 CODE_RUN_ASSISTANT_MAX_FILES = 50
 CODE_RUN_ASSISTANT_MAX_FILE_CHARS = 1_000_000
 CODE_RUN_ASSISTANT_MAX_TOTAL_CHARS = 10_000_000
@@ -113,6 +114,10 @@ def assistant_code_run_attempt_key(chat_id: str, message_id: str, target_embed_i
 
 def assistant_code_run_inline_attempt_key(chat_id: str, message_id: str, target_path: str) -> str:
     return f"code_run_assistant_inline_attempts:{chat_id}:{message_id}:{target_path}"
+
+
+def assistant_test_run_budget_key(chat_id: str, message_id: str) -> str:
+    return f"code_run_assistant_test_runs:{chat_id}:{message_id}"
 
 
 async def _maybe_await(value: Any) -> Any:
@@ -207,6 +212,29 @@ async def _authorize_assistant_code_run(
     if attempt_count > CODE_RUN_ASSISTANT_MAX_AUTO_RUNS:
         return False, "Code Run already used the initial run and two unprompted reruns for this code. Ask the user before running it again."
     return True, "assistant_current_turn"
+
+
+async def _authorize_assistant_test_run(
+    cache_service: Any,
+    *,
+    chat_id: str,
+    message_id: str,
+) -> tuple[bool, str]:
+    """Count one automatic E2B test run against the turn's own budget of ten.
+
+    The counter is independent of the tool-call budget and of the per-code rerun limit.
+    """
+    run_count = await _increment_cache_counter(
+        cache_service,
+        assistant_test_run_budget_key(chat_id, message_id),
+        CODE_RUN_ASSISTANT_AUTH_TTL_SECONDS,
+    )
+    if run_count > CODE_RUN_ASSISTANT_MAX_TEST_RUNS_PER_TURN:
+        return False, (
+            f"Code Run already used {CODE_RUN_ASSISTANT_MAX_TEST_RUNS_PER_TURN} automatic test runs "
+            "in this turn. Ask the user before running tests again."
+        )
+    return True, "assistant_test_run_current_turn"
 
 
 async def _authorize_assistant_inline_code_run(
@@ -522,6 +550,12 @@ class RunCodeSkill(BaseSkill):
             )
             if rejection is not None:
                 return rejection
+            if request.target == "e2b":
+                authorized, reason = await _authorize_assistant_test_run(
+                    cache_service, chat_id=str(chat_id), message_id=str(message_id),
+                )
+                if not authorized:
+                    return RunCodeResponse(status="requires_confirmation", error=reason)
 
         if request.target == "remote_source":
             return await self._execute_remote(
@@ -542,7 +576,8 @@ class RunCodeSkill(BaseSkill):
                 files, target_path = collect_inline_code_files_for_assistant(request)
             except CodeRunInlineValidationError as exc:
                 return RunCodeResponse(status="error", error=str(exc))
-            authorized, reason = await _authorize_assistant_inline_code_run(
+            # Test runs are limited by their own per-turn budget above, not by the per-code rerun limit.
+            authorized, reason = (True, "assistant_test_run_current_turn") if request.test_run is not None else await _authorize_assistant_inline_code_run(
                 cache_service,
                 chat_id=str(chat_id),
                 message_id=str(message_id),

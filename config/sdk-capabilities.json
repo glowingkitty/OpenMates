@@ -11931,6 +11931,7 @@
             "client.source_host.SourceHostOperation.ReadFileChunk",
             "client.source_host.SourceHostOperation.ReadImageChunk",
             "client.source_host.SourceHostOperation.ReadText",
+            "client.source_host.SourceHostOperation.RunCommand",
             "client.source_host.SourceHostOperation.Search",
             "client.source_host.SourceHostOperation.UpdateFile",
             "client.source_host.SourceHostOptions",

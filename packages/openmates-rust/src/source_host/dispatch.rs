@@ -18,7 +18,7 @@
 use super::reads::{self, HostRoot};
 use super::worktrees::WorktreeArea;
 use super::writes::{self, Mutation, WriteRequest};
-use super::{HostError, HostResult, search};
+use super::{HostError, HostResult, command_sandbox, commands, search};
 use crate::client::{
     Client, SourceHostAdapter, SourceHostOperation, SourceHostRequest, SourceHostSession,
 };
@@ -135,6 +135,7 @@ fn operation_name(operation: SourceHostOperation) -> &'static str {
         SourceHostOperation::UpdateFile => "update_file",
         SourceHostOperation::CopyEntries => "copy_entries",
         SourceHostOperation::MoveEntries => "move_entries",
+        SourceHostOperation::RunCommand => commands::OPERATION,
     }
 }
 
@@ -264,6 +265,7 @@ async fn execute(
         SourceHostOperation::CopyEntries | SourceHostOperation::MoveEntries => {
             Err(HostError::failed("unsupported_operation"))
         }
+        SourceHostOperation::RunCommand => run_command(client, source, context, &args, key).await,
         SourceHostOperation::Search => {
             if args["include_content"] == true {
                 require_read_and_search(client, source).await?;
@@ -458,6 +460,55 @@ async fn write(
         &mut authority,
     )
     .await
+}
+
+/// `run_command`: the same digest and backend authorization as a write (a
+/// command can change the root), then one confined run. The sandbox tier is
+/// checked before authorization so an unconfinable host never consumes the
+/// approval; a live source root is held under the exclusive source lock so
+/// file commits of this or an npm host never interleave with the command.
+async fn run_command(
+    client: &mut Client,
+    source: &HostedSource,
+    context: &RequestContext,
+    args: &Value,
+    key: &[u8; 32],
+) -> HostResult<Value> {
+    let proposal = commands::validate(&args["command"])?;
+    let chat_id = args["chat_id"].as_str().ok_or_else(denied)?;
+    if Some(chat_id) != context.chat_id.as_deref()
+        || Some(proposal.operation_id.as_str()) != context.operation_id.as_deref()
+        || Some(commands::digest(key, &context.project_id, chat_id, &proposal)?)
+            != context.proposal_digest
+    {
+        return Err(denied());
+    }
+    let sandbox = tokio::task::spawn_blocking(command_sandbox::detect)
+        .await
+        .map_err(|_| HostError::failed("Host operation was interrupted"))?
+        .map_err(|unavailable| HostError::new(unavailable.code(), "No command sandbox tier is available"))?;
+    let route = source_route(
+        source,
+        &format!(
+            "/{}/requests/{}/authorize-write",
+            url::form_urlencoded::byte_serialize(source.source_id.as_bytes()).collect::<String>(),
+            url::form_urlencoded::byte_serialize(context.request_id.as_bytes()).collect::<String>()
+        ),
+    );
+    let body = json!({"source_session_id": context.source_session_id});
+    let authorized = authorize(client, &route, &body).await?;
+    if authorized["operation_id"] != proposal.operation_id.as_str() {
+        return Err(denied());
+    }
+    // Only an authorized command may create the chat worktree.
+    let root = request_root_blocking(source, context, true).await?;
+    let worktree = root.policy_source.is_some();
+    let _lock = if worktree {
+        None
+    } else {
+        Some(super::writes_journal::source_lock_exclusive().await?)
+    };
+    blocking(root, move |root| commands::run(&root, &proposal, &sandbox, worktree)).await
 }
 
 /// Fresh backend re-authorization with an unchanged scope and operation.

@@ -789,6 +789,15 @@ test('shows a hosted application inside its folder, not at the Project root', as
   await expect(cards).toHaveCount(2);
   await expect(cards.first()).toContainText('Recipe Manager');
   await expect(cards.first()).toContainText('3 files');
+  await expect(cards.first()).not.toContainText('Loading preview');
+  const breadcrumbs = page.locator('.project-breadcrumbs');
+  await expect(breadcrumbs).toHaveText(/^\s*\/\s*web-app\s*$/);
+  const rootCrumb = await page.getByRole('button', { name: 'Project root' }).boundingBox();
+  const folderCrumb = await breadcrumbs.locator('.breadcrumb-current').boundingBox();
+  expect(rootCrumb).not.toBeNull();
+  expect(folderCrumb).not.toBeNull();
+  expect(folderCrumb!.x - (rootCrumb!.x + rootCrumb!.width), 'even gap after the root slash').toBeLessThan(16);
+  await testInfo.attach('projects-hosted-application-breadcrumb', { body: await breadcrumbs.screenshot(), contentType: 'image/png' });
   // The application card leads its folder, ahead of the src subfolder.
   const applicationBox = await cards.first().boundingBox();
   const subfolderBox = await page.getByTestId('project-virtual-folder-card').boundingBox();

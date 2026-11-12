@@ -91,7 +91,8 @@ test(`fullscreen adopts a late preview once before screenshot (${responseMode})`
 	await expect(page.getByTestId('application-preview-iframe')).toHaveCount(0);
 	releaseStart();
 	await expect(status).toHaveAttribute('data-status', 'queued');
-	await expect(start).toBeDisabled();
+	await expect(start).toHaveCount(0);
+	await expect(page.getByTestId('application-stop-preview')).toBeVisible();
 	await expect.poll(() => opens).toBe(1);
 	if (responseMode !== 'reject-open') {
 		await expect.poll(() => statusReads, { timeout: 10_000 }).toBeGreaterThan(0);
@@ -127,6 +128,13 @@ test(`fullscreen adopts a late preview once before screenshot (${responseMode})`
 	await expect(page.getByTestId('application-fullscreen-screenshot')).toHaveCount(0);
 	const open = page.getByTestId('application-open-preview-window');
 	await expect(open).toBeEnabled();
+	await expect(start).toHaveCount(0);
+	await expect(page.getByTestId('application-stop-preview')).toBeVisible();
+	const actionsBox = await open.boundingBox();
+	const previewBox = await page.getByTestId('application-preview-panel').boundingBox();
+	expect(actionsBox).not.toBeNull();
+	expect(previewBox).not.toBeNull();
+	expect(actionsBox!.y + actionsBox!.height, 'action row must not cover the preview').toBeLessThanOrEqual(previewBox!.y + 1);
 	await open.hover();
 	await open.focus();
 	await expect(open).toBeFocused();
@@ -142,6 +150,8 @@ test(`fullscreen adopts a late preview once before screenshot (${responseMode})`
 	await page.getByTestId('application-stop-preview').click();
 	await expect(status).toHaveAttribute('data-status', 'stopped');
 	await expect(iframe).toHaveCount(0);
+	await expect(page.getByTestId('application-stop-preview')).toHaveCount(0);
+	await expect(page.getByTestId('application-open-preview-window')).toHaveCount(0);
 	await expect(start).toBeEnabled();
 	await testInfo.attach('application-preview-stopped', { body: await canvas.screenshot(), contentType: 'image/png' });
 });

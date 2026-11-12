@@ -79,9 +79,20 @@
     };
   });
 
+  // A tile whose load never settles (stalled request, lazy chunk) must end in
+  // the name fallback instead of an endless loading placeholder.
+  const PREVIEW_LOAD_TIMEOUT_MS = 12_000;
+
   async function loadPreview(): Promise<void> {
     const generation = ++loadGeneration;
-    isLoading = true;
+    // Re-resolves after embed availability changes keep the current preview
+    // visible instead of flashing the loading placeholder.
+    isLoading = previewComponent === null;
+    const timeout = setTimeout(() => {
+      if (generation !== loadGeneration || !isLoading) return;
+      console.warn('[ProjectBrowserItem] Preview load timed out:', item.target_id);
+      isLoading = false;
+    }, PREVIEW_LOAD_TIMEOUT_MS);
     try {
       const projectEmbed = await loadProjectEmbed?.(item);
       if (generation !== loadGeneration) return;
@@ -130,6 +141,7 @@
       resolvedEmbedData = null;
       resolvedContent = null;
     } finally {
+      clearTimeout(timeout);
       if (generation === loadGeneration) isLoading = false;
     }
   }

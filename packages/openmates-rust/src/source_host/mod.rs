@@ -11,6 +11,10 @@
 //! spec: specifications/features/projects (remote sources).
 
 mod attach;
+mod command_process;
+mod command_sandbox;
+mod command_scope;
+mod commands;
 mod dispatch;
 mod fs_safe;
 pub(crate) mod ignore_rules;
@@ -26,6 +30,10 @@ mod worktrees_git;
 mod writes;
 mod writes_journal;
 
+#[cfg(test)]
+mod command_sandbox_tests;
+#[cfg(test)]
+mod commands_tests;
 #[cfg(test)]
 mod ignore_rules_tests;
 #[cfg(test)]
@@ -59,7 +67,8 @@ use std::cmp::Ordering;
 use std::fmt;
 
 /// Capabilities the Rust host advertises for each source, in npm order. The
-/// Rust host does not run commands yet (`run_command` lands in a later slice).
+/// `run_command` operation is implemented (`commands.rs`) but not advertised
+/// until the binding check in `work::projects::source_host` admits it.
 pub const HOST_CAPABILITIES: [&str; 4] = ["read", "search", "import", "write_request"];
 
 /// A host operation failure carrying the exact npm wire error code

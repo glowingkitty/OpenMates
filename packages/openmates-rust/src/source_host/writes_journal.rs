@@ -173,7 +173,21 @@ pub(crate) struct SourceLock {
 /// # Errors
 /// `operation_failed` for an unsafe lock file or a timeout.
 pub(crate) async fn source_lock() -> HostResult<SourceLock> {
-    use rustix::fs::{FlockOperation, Mode, OFlags};
+    acquire_source_lock(rustix::fs::FlockOperation::NonBlockingLockShared).await
+}
+
+/// The exclusive side of [`source_lock`], held by a command that runs in the
+/// live source root (npm `wrapRemoteProjectSourceCommand`): it waits for file
+/// commits to finish and keeps new ones out until the command ends.
+///
+/// # Errors
+/// `operation_failed` for an unsafe lock file or a timeout.
+pub(crate) async fn source_lock_exclusive() -> HostResult<SourceLock> {
+    acquire_source_lock(rustix::fs::FlockOperation::NonBlockingLockExclusive).await
+}
+
+async fn acquire_source_lock(operation: rustix::fs::FlockOperation) -> HostResult<SourceLock> {
+    use rustix::fs::{Mode, OFlags};
     let directory = private_state_directory(&tmp_dir("openmates-project-source-locks"))?;
     let path = directory.join("source-writes.lock");
     let fd = rustix::fs::open(
@@ -189,7 +203,7 @@ pub(crate) async fn source_lock() -> HostResult<SourceLock> {
     }
     let deadline = tokio::time::Instant::now() + SOURCE_LOCK_TIMEOUT;
     loop {
-        match rustix::fs::flock(&file, FlockOperation::NonBlockingLockShared) {
+        match rustix::fs::flock(&file, operation) {
             Ok(()) => return Ok(SourceLock { _file: file }),
             Err(rustix::io::Errno::WOULDBLOCK) if tokio::time::Instant::now() < deadline => {
                 tokio::time::sleep(Duration::from_millis(50)).await;

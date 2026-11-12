@@ -25,6 +25,9 @@ pub enum SourceHostOperation {
     UpdateFile,
     CopyEntries,
     MoveEntries,
+    /// One confined argv command in the request root (needs the
+    /// `run_command` capability and, like a write, chat/operation/digest).
+    RunCommand,
 }
 impl SourceHostOperation {
     fn capability(self) -> ProjectSourceCapability {
@@ -33,6 +36,7 @@ impl SourceHostOperation {
             Self::CreateFile | Self::UpdateFile | Self::CopyEntries | Self::MoveEntries => {
                 ProjectSourceCapability::WriteRequest
             }
+            Self::RunCommand => ProjectSourceCapability::RunCommand,
             _ => ProjectSourceCapability::Read,
         }
     }
@@ -587,7 +591,9 @@ impl SourceHostSession {
         }
         if matches!(
             frame.operation,
-            SourceHostOperation::CreateFile | SourceHostOperation::UpdateFile
+            SourceHostOperation::CreateFile
+                | SourceHostOperation::UpdateFile
+                | SourceHostOperation::RunCommand
         ) {
             identifier(frame.chat_id.as_deref().ok_or(Error::Protocol)?)?;
             identifier(frame.operation_id.as_deref().ok_or(Error::Protocol)?)?;

@@ -2242,7 +2242,7 @@
             <nav class="project-breadcrumbs" aria-label="Project folder path">
               <button class="breadcrumb-button" type="button" onclick={openRoot} aria-label="Project root">/</button>
               {#each currentFolderTrail as folder, index (folder.folder_id)}
-                <span class="breadcrumb-separator">/</span>
+                {#if index > 0}<span class="breadcrumb-separator">/</span>{/if}
                 {#if index === currentFolderTrail.length - 1}
                   <span class="breadcrumb-current" aria-current="page">{folder.name || 'Untitled folder'}</span>
                 {:else}
@@ -3792,6 +3792,10 @@
   }
 
   .breadcrumb-button {
+    width: auto;
+    min-width: 0;
+    height: auto;
+    min-height: 0;
     padding: 0;
     background: transparent;
     color: var(--color-font-secondary);
