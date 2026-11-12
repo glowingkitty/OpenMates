@@ -192,7 +192,8 @@ Packages are rejected if they:
   (`skill.requests@1` only fits skills paused without any provider);
 - reuse a built-in provider id or a provider id from another installed package
   (inside one package the same id may serve several skills, once per skill; those
-  providers then share the same `SECRET__<PROVIDER ID>__<NAME>` values);
+  providers then share the same `SECRET__<PROVIDER ID>__<NAME>` values, and the
+  request on stdin names the target in `"app"` and `"skill"`);
 - contribute anything other than `providers`;
 - have no executable for the server's CPU type.
 

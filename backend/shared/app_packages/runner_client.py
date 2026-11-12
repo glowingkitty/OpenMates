@@ -55,6 +55,9 @@ async def run_provider(
         "package_id": provider.package_id,
         "version": provider.package_version,
         "provider_id": provider.provider_id,
+        # One id may serve several skills of a package; the target picks the contribution.
+        "app_id": provider.app_id,
+        "skill_id": provider.skill_id,
         "contract": provider.contract,
         "input": input_item,
         "secrets": secrets,

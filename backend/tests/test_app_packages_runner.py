@@ -121,6 +121,17 @@ def test_successful_run_returns_results(package_root):
 
 
 # contract-test: direct surface=rest_api assertions=instance-app-packages.isolated-runner
+def test_target_picks_the_contribution_and_is_named_to_the_provider(package_root):
+    targeted = _request("env", app_id="events", skill_id="search")
+    payload = runner.handle_run(targeted)["results"][0]["payload"]
+    assert (payload["app"], payload["skill"]) == ("events", "search")
+    # The same id is not contributed to another skill, and a half or malformed target is refused.
+    assert _error(_request(app_id="jobs", skill_id="search")) == "PACKAGE_UNAVAILABLE"
+    assert _error(_request(app_id="events")) == "INVALID_REQUEST"
+    assert _error(_request(app_id="Events", skill_id="search")) == "INVALID_REQUEST"
+
+
+# contract-test: direct surface=rest_api assertions=instance-app-packages.isolated-runner
 def test_minimal_environment_and_fresh_scratch(package_root):
     result = runner.handle_run(_request("env"))["results"][0]
     assert result["env"] == ["HOME", "LANG", "PATH", "TMPDIR"]

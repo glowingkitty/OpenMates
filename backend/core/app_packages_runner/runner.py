@@ -51,6 +51,7 @@ PROTOCOL_VERSION = 1
 PACKAGE_ID_RE = re.compile(r"^[a-z0-9]+(\.[a-z0-9_-]+)+$")
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$")
 PROVIDER_ID_RE = re.compile(r"^[a-z0-9_]{2,40}$")
+TARGET_ID_RE = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 logger = logging.getLogger("app_packages_runner")
@@ -131,9 +132,13 @@ def verify_package(package_id: str, version: str) -> tuple[Path, dict[str, Any]]
     return files_dir, manifest
 
 
-def find_entrypoint(files_dir: Path, manifest: dict[str, Any], provider_id: str, contract: str) -> Path:
+def find_entrypoint(files_dir: Path, manifest: dict[str, Any], provider_id: str, contract: str,
+                    target: tuple[str, str] | None = None) -> Path:
+    """Entrypoint of the contribution with this id; ``target`` (app, skill) picks one
+    when a package uses the same provider id for several skills."""
     providers = (manifest.get("contributes") or {}).get("providers") if isinstance(manifest.get("contributes"), dict) else None
-    match = next((item for item in providers or [] if isinstance(item, dict) and item.get("id") == provider_id), None)
+    match = next((item for item in providers or [] if isinstance(item, dict) and item.get("id") == provider_id
+                  and (target is None or (item.get("app"), item.get("skill")) == target)), None)
     if match is None or match.get("contract") != contract or match.get("runtime") != "executable":
         raise RunError("PACKAGE_UNAVAILABLE")
     entrypoint = str(match.get("entrypoint") or "").replace("{target}", platform.machine())
@@ -229,6 +234,16 @@ def execute(entrypoint: Path, payload: dict[str, Any], secrets: dict[str, str], 
     return {"ok": True, "results": output["results"]}
 
 
+def _request_target(body: dict[str, Any]) -> tuple[str, str] | None:
+    """Optional (app_id, skill_id) of the call; both or neither."""
+    app_id, skill_id = body.get("app_id"), body.get("skill_id")
+    if app_id is None and skill_id is None:
+        return None
+    if not all(isinstance(value, str) and TARGET_ID_RE.match(value) for value in (app_id, skill_id)):
+        raise RunError("INVALID_REQUEST")
+    return app_id, skill_id
+
+
 def _validate_request(body: Any) -> tuple[str, str, str, str, dict[str, Any], dict[str, str], float]:
     if not isinstance(body, dict):
         raise RunError("INVALID_REQUEST")
@@ -248,11 +263,14 @@ def _validate_request(body: Any) -> tuple[str, str, str, str, dict[str, Any], di
 
 def handle_run(body: Any) -> dict[str, Any]:
     package_id, version, provider_id, contract, data, secrets, timeout = _validate_request(body)
+    target = _request_target(body)
     with _run_slots:
         files_dir, manifest = verify_package(package_id, version)
-        entrypoint = find_entrypoint(files_dir, manifest, provider_id, contract)
+        entrypoint = find_entrypoint(files_dir, manifest, provider_id, contract, target)
         payload = {"protocol": PROTOCOL_VERSION, "contract": contract, "provider": provider_id,
                    "input": data, "secrets": secrets}
+        if target is not None:
+            payload["app"], payload["skill"] = target
         return execute(entrypoint, payload, secrets, timeout)
 
 

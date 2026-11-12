@@ -324,6 +324,7 @@ async def test_runner_client_sends_registry_identity_and_maps_errors(monkeypatch
                                                   client=client)
     assert seen["package_id"] == PACKAGE_ID and seen["version"] == VERSION
     assert seen["provider_id"] == PROVIDER_ID and seen["contract"] == contracts.EVENTS_SEARCH_V1
+    assert (seen["app_id"], seen["skill_id"]) == ("events", "search")
     assert result.ok is False and result.error_code == "TIMEOUT" and len(result.message) == 300
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(

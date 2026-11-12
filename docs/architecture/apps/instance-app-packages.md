@@ -131,7 +131,10 @@ Before running, the runner re-reads `registry.json`, requires
 `active[package_id] == {version, sha256 from install.json}`, and re-verifies every
 digest in `install.json`. It then executes the entrypoint with:
 
-- stdin: `{"protocol": 1, "contract": ..., "provider": ..., "input": ..., "secrets": ...}`
+- stdin: `{"protocol": 1, "contract": ..., "provider": ..., "input": ..., "secrets": ...}`,
+  plus `"app"` and `"skill"` (the target skill of the call). The server always sends
+  the target, and the runner uses it to pick the contribution when one package
+  uses the same provider id for several skills.
 - environment: only `PATH`, `HOME=/tmp/run`, `LANG=C.UTF-8`, `TMPDIR=/tmp/run`
 - working directory: a fresh temporary directory, removed afterwards
 - timeout: `min(timeout_seconds, 60)`; the whole process group is killed on timeout
