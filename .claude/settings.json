@@ -53,6 +53,11 @@
             "type": "command",
             "command": "$(git rev-parse --show-toplevel)/.claude/hooks/host-load-gate.sh pre-agent",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/subagent-model-guard.sh",
+            "timeout": 5
           }
         ]
       },

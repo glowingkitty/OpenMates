@@ -170,8 +170,9 @@ when a skill or this file points to it.
 - Skills, agents and hooks live in `.claude/`; edit them there directly.
 - Sub-agent budget: use the lean `lane-worker` agent for implementation lanes
   (`general-purpose` only when the lane needs web access, skills or its own
-  sub-agents). Sub-agents default to Sonnet (settings `env`); pass
-  `model: "opus"` only for hard implementation or architecture work. Give each
+  sub-agents). Sub-agents run on Sonnet (settings `env`), the `ci-runner` on
+  Haiku. Never pass `model: "opus"` or `"fable"` and never fork; a hook refuses
+  both, and only the user can waive it. Give each
   one a single bounded deliverable; split long lanes into fresh agents with a
   short handoff instead of one agent running for hundreds of turns. Ask for
   terse handbacks (outcome, commit, verification, blockers), no log dumps.
