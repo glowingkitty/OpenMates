@@ -523,10 +523,18 @@ def _trusted_focus_override(overrides: UserOverrides | None, focus_id: str) -> b
 
 
 def _forward_agentic_context(request: AskSkillRequest) -> dict:
-    return {field: getattr(request, field, []) for field in (
-        "accepted_plan_context", "custom_rule_documents", "memory_catalog", "project_focus_catalog", "project_focus_documents",
+    """JSON-safe agentic context for a pending Focus continuation (stored in Redis).
+
+    `memory_catalog` holds pydantic entries; it is forwarded as the body-free
+    metadata snapshot, otherwise storing the pending Focus context fails and the
+    Focus turn never continues.
+    """
+    context = {field: getattr(request, field, []) for field in (
+        "accepted_plan_context", "custom_rule_documents", "project_focus_catalog", "project_focus_documents",
         "project_context_documents", "related_task_candidates",
     )}
+    context["memory_catalog"] = memory_catalog_snapshot(request_memory_catalog(request))
+    return context
 
 
 async def _load_main_agentic_context(

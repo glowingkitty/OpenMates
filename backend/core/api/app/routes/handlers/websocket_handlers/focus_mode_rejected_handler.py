@@ -164,8 +164,8 @@ async def _trigger_continuation_without_focus(
             "agentic_context_turn_id": pending_context.get("agentic_context_turn_id"),
             "active_focus_id": None,  # Explicitly NO focus mode
             **{key: pending_context.get(key, []) for key in (
-                "accepted_plan_context", "project_focus_catalog", "custom_rule_documents", "project_context_documents",
-                "related_task_candidates", "project_focus_candidates",
+                "accepted_plan_context", "project_focus_catalog", "custom_rule_documents", "memory_catalog",
+                "project_context_documents", "related_task_candidates", "project_focus_candidates",
             )},
             "recovery_inference_task_id": pending_context.get("recovery_inference_task_id"),
             "recovery_preflight_id": pending_context.get("recovery_preflight_id"),
