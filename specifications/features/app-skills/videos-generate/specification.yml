@@ -173,6 +173,10 @@ assertions:
     type: behavior
     must: From the moment the request is accepted the result card shows that the video is being made and names the current step (deciding, writing the composition, creating the sound, rendering, correcting, generating). The sound step names what is being made (voice-over, sound effects, music). The card of a change of an existing video shows, while it runs, the picture of the video being changed, what kind of change it is and the change instruction. Nothing unfinished is stored as chat content.
     depends_on: [examples.progress]
+  - id: videos-generate.provenance.ai-label
+    type: invariant
+    must: Every finished video made by a generative video model (also an older video without a recorded kind) shows the shared small "AI generated" icon over its thumbnail on the card and over the playing clip in the fullscreen view; it expands on hover, focus or click to the label, in the fullscreen view also the model name (the card already names the maker once), and a click on it never opens the video. It is an overlay of the interface, never drawn into the video, and it does not cover the play button. A composed, code-rendered video shows no such icon.
+    depends_on: [models.VideoResult, examples.result]
   - id: videos-generate.result.video-with-timeline
     type: behavior
     must: The finished result is one video with a thumbnail, its length and size, how it was made, the pictures it used as sources, and a timeline. A composed video's timeline lists its named parts with start and length and the texts that can be edited; a generative video's timeline holds one clip per generated clip. A composed video keeps its composition with the video. In the chat the result card shows the thumbnail taken from the video with a play button and never a player; pressing it opens the video, which starts playing. The card names who made the video exactly once, as "Created by" followed by the model's display name.

@@ -85,8 +85,9 @@ for (const width of [1100, 390]) {
       const playBoxNow = (await play.boundingBox())!;
       await page.mouse.click(playBoxNow.x + playBoxNow.width / 2, playBoxNow.y + playBoxNow.height / 2);
       await expect(page.locator('body')).toHaveAttribute('data-video-generate-fullscreen-opens', '1');
+      // A press anywhere else on the thumbnail opens it too (bottom-right: the bottom-left holds the AI-generated badge).
       const thumbnailBox = (await thumbnail.boundingBox())!;
-      await page.mouse.click(thumbnailBox.x + 12, thumbnailBox.y + thumbnailBox.height - 12);
+      await page.mouse.click(thumbnailBox.x + thumbnailBox.width - 12, thumbnailBox.y + thumbnailBox.height - 12);
       await expect(page.locator('body')).toHaveAttribute('data-video-generate-fullscreen-opens', '2');
     }
 
@@ -204,6 +205,63 @@ test('a composed video without generated sound shows no audio rows', async ({ pa
   await openFullscreen(page, 'composed');
   await expect(page.getByTestId('video-timeline-audio-row')).toHaveCount(0);
   await expect(page.getByTestId('video-timeline-audio')).toHaveCount(0);
+});
+
+// contract-test: supporting surface=gui.web assertions=videos-generate.provenance.ai-label
+test('a gen-AI clip card shows the AI-generated badge on its thumbnail; a composed video card does not', async ({ page }, testInfo) => {
+  const card = await open(page, 'generative');
+  const thumbnail = card.getByTestId('video-generate-thumbnail');
+  const badge = card.getByTestId('ai-generated-badge');
+  await expect(badge).toHaveCount(1);
+  await expect(badge).toBeVisible();
+  const badgeBox = (await badge.boundingBox())!;
+  const thumbBox = (await thumbnail.boundingBox())!;
+  // Bottom-left on the picture, clear of the centred play button.
+  expect(intersects(badgeBox, thumbBox)).toBe(true);
+  expect(badgeBox.x).toBeLessThan(thumbBox.x + thumbBox.width / 2);
+  expect(badgeBox.y).toBeGreaterThan(thumbBox.y + thumbBox.height / 2);
+  expect(intersects(badgeBox, (await card.getByTestId('video-generate-play').boundingBox())!)).toBe(false);
+  await attach(testInfo, page, 'card-generative-badge');
+  // Clicking the badge opens its label and does not open the video; the model stays named once on the card.
+  await badge.click();
+  await expect(badge).toHaveAttribute('aria-expanded', 'true');
+  await expect(badge).toContainText('AI generated');
+  await expect(badge).not.toContainText('Gemini Omni');
+  await expect(page.getByTestId('embed-fullscreen-overlay')).toHaveCount(0);
+  await attach(testInfo, page, 'card-generative-badge-open');
+
+  const composedCard = await open(page, 'composed');
+  await expect(composedCard.getByTestId('video-generate-thumbnail')).toBeVisible();
+  await expect(composedCard.getByTestId('ai-generated-badge')).toHaveCount(0);
+});
+
+// contract-test: supporting surface=gui.web assertions=videos-generate.provenance.ai-label
+test('the fullscreen player shows the AI-generated badge on gen-AI clips only', async ({ page }, testInfo) => {
+  for (const variant of ['generative', 'legacy']) {
+    await openFullscreen(page, variant);
+    const video = page.getByTestId('video-generate-fullscreen-video');
+    const badge = page.getByTestId('video-generate-fullscreen').getByTestId('ai-generated-badge');
+    await expect(badge).toHaveCount(1);
+    await expect(badge).toBeVisible();
+    const box = (await badge.boundingBox())!;
+    const videoBox = (await video.boundingBox())!;
+    // Top-left on the playing clip.
+    expect(box.x).toBeGreaterThanOrEqual(videoBox.x - 0.5);
+    expect(box.y).toBeGreaterThanOrEqual(videoBox.y - 0.5);
+    expect(box.x).toBeLessThan(videoBox.x + videoBox.width / 2);
+    expect(box.y).toBeLessThan(videoBox.y + videoBox.height / 2);
+    if (variant === 'generative') {
+      await badge.click();
+      await expect(badge).toHaveAttribute('aria-expanded', 'true');
+      await expect(badge).toContainText('Gemini Omni 1.2 Flash');
+      await testInfo.attach('fullscreen-generative-badge', {
+        body: await page.getByTestId('video-generate-fullscreen').screenshot({ animations: 'disabled' }), contentType: 'image/png',
+      });
+    }
+  }
+  await openFullscreen(page, 'composed');
+  await expect(page.getByTestId('video-generate-fullscreen-video')).toBeVisible();
+  await expect(page.getByTestId('ai-generated-badge')).toHaveCount(0);
 });
 
 // contract-test: supporting surface=gui.web assertions=videos-generate.progress.shown-while-running

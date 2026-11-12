@@ -27,6 +27,9 @@
   import { EMBED_VERSIONS_ENABLED, embedContentAtVersion, embedHead, noteEmbedHeadChanged } from '../../../services/rustCore/embeds/messageEmbedVersion';
   import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedFullscreenRawData, type EmbedSourceChatContext } from '../../../types/embedFullscreen';
   import { hasMediaEncryptionMetadata } from '../../../services/encryption/mediaEncryption';
+  import AiGeneratedBadge from '../AiGeneratedBadge.svelte';
+  import { trackContainedInset, type ContainedInset } from '../containedMedia';
+  import { videoMakerName } from './videoGenerateCard';
   import {
     EMPTY_EDITS, buildEditRequestText, buildExtendRequestText, countEdits, formatSeconds, madeByOf,
     normalizeTimeline, resultingDurationFrames, synthesizeTimeline, type PendingEdits, type Translate,
@@ -80,6 +83,9 @@
   let inputEmbedIds = $derived(Array.isArray(dc.input_embed_ids) ? dc.input_embed_ids.filter((id): id is string => typeof id === 'string') : []);
   let sourceTitles = $derived(Array.isArray(dc.source_titles) ? dc.source_titles.filter((s): s is string => typeof s === 'string' && s.length > 0) : []);
   let madeBy = $derived(madeByOf(dc));
+  let maker = $derived(videoMakerName({ model, authorModel: typeof dc.author_model === 'string' ? dc.author_model : '', madeBy }));
+  // Visible picture inside the player box, so the AI-generated badge sits on the clip, not on letterbox bars.
+  let pictureInset = $state<ContainedInset | null>(null);
 
   let videoUrl = $state<string | undefined>();
   let error = $state<string | undefined>();
@@ -297,14 +303,22 @@
   {#snippet media({ requestFollowup, submitting })}
     <div class="video-fullscreen" data-testid="video-generate-fullscreen" data-made-by={madeBy} data-embed-version={shownVersion ?? 1}>
       {#if videoUrl}
+        <div class="player">
         <video class="result-primary-media" bind:this={videoEl} src={videoUrl} poster={previewImageUrl || undefined} controls playsinline autoplay
-          data-testid="video-generate-fullscreen-video"
+          data-testid="video-generate-fullscreen-video" use:trackContainedInset={(inset) => (pictureInset = inset)}
           onloadedmetadata={() => { loadedSeconds = videoEl?.duration ?? 0; }}
           ontimeupdate={() => { if (videoEl) currentTime = videoEl.currentTime; }}
           onplay={() => { cancelAnimationFrame(frame); frame = requestAnimationFrame(trackPlayhead); }}
           onpause={() => cancelAnimationFrame(frame)} onended={() => cancelAnimationFrame(frame)}>
           <track kind="captions" src="data:text/vtt,WEBVTT" />
         </video>
+          {#if madeBy === 'generative'}
+            <!-- Gen-AI clips only; code-rendered (composed) videos carry no AI-generated overlay. -->
+            <div class="picture-frame" style:inset={pictureInset ? `${pictureInset.y}px ${pictureInset.x}px` : '0'}>
+              <AiGeneratedBadge variant="fullscreen" corner="top-left" detail={maker} />
+            </div>
+          {/if}
+        </div>
       {:else if error}
         <p>{error}</p>
       {:else}
@@ -387,6 +401,8 @@
     display: grid; gap: var(--spacing-8); padding: 0; min-width: 0;
     --result-media-max-height: max(11rem, calc(var(--result-fullscreen-height, 100dvh) - 36rem - max(0px, var(--result-followup-height, 4rem) - 4rem)));
   }
+  .player { position: relative; justify-self: center; max-width: 100%; min-width: 0; }
+  .picture-frame { position: absolute; pointer-events: none; }
   video { display: block; width: auto; max-width: 100%; justify-self: center; max-height: var(--result-media-max-height); border-radius: var(--radius-5); background: var(--color-grey-100); }
   .hint { margin: 0; text-align: center; font-size: var(--font-size-small); color: var(--color-font-secondary); }
   dl { display: grid; grid-template-columns: max-content 1fr; gap: var(--spacing-4) var(--spacing-6); color: var(--color-font-primary); margin: 0; }

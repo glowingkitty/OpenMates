@@ -17,9 +17,10 @@
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import ResultEmbedCard from '../ResultEmbedCard.svelte';
   import VideoSourceThumbnail from './VideoSourceThumbnail.svelte';
+  import AiGeneratedBadge from '../AiGeneratedBadge.svelte';
   import { text } from '@repo/ui';
   import { createImageUrlOwner } from '../images/imageEmbedCrypto';
-  import { formatSeconds } from './videoTimelineModel';
+  import { formatSeconds, madeByOf } from './videoTimelineModel';
   import {
     EMPTY_VIDEO_PROGRESS, type VideoAudioKind, loadVideoThumbnail, readVideoProgress, videoChangeText, videoMakerName, videoStageText,
     type VideoChange, type VideoFiles, type VideoProgress, type VideoProgressStage,
@@ -106,6 +107,8 @@
       : [currentDurationSeconds ? formatSeconds(currentDurationSeconds) : '', currentResolution].filter(Boolean).join(' · ') || undefined,
   );
   const showSource = $derived(processing && !!progress.sourceEmbedId);
+  // Gen-AI clips carry the AI-generated overlay; code-rendered (composed) videos do not.
+  const generative = $derived(madeByOf({ made_by: currentMadeBy }) === 'generative');
 
   let thumbnailUrl = $state<string | undefined>();
   $effect(() => {
@@ -167,6 +170,10 @@
               {/if}
               <span class="play-button" data-testid="video-generate-play" aria-hidden="true"><span class="play-icon"></span></span>
             </button>
+            {#if generative}
+              <!-- No model line: the card already names the maker once ("Created by ..."). -->
+              <AiGeneratedBadge corner="bottom-left" />
+            {/if}
           {:else if showSource && progress.sourceEmbedId}
             <VideoSourceThumbnail embedId={progress.sourceEmbedId} />
           {:else if processing}

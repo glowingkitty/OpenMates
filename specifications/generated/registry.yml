@@ -399,7 +399,7 @@ specifications:
     version: 1
     status: draft
     path: features/app-skills/videos-generate
-    fingerprint: c9a5c36ea44e56baccf6276c6247863fb57f7ad700a81f9ef997723c4c44c617
+    fingerprint: e044e9ffaf3671e083d5af2cd3b666dfba744b93192917f88cce3bfa67149bb7
     required_applies_to:
     - rest_api
     - cli
@@ -5629,6 +5629,18 @@ assertions:
     specification_id: feature.app-skill.videos-generate
     type: behavior
     fingerprint: f386fc2814a4d50278f8f3dee60117580c30450666b4fa37c14179efad325fda
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  videos-generate.provenance.ai-label:
+    specification: feature.app-skill.videos-generate@1
+    specification_id: feature.app-skill.videos-generate
+    type: invariant
+    fingerprint: c35bd753da0782f1f0cabf28fa875394563230f3f07b87aa80d6f7f11e499d62
     required_applies_to:
     - rest_api
     - cli
