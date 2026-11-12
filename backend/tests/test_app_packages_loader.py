@@ -208,8 +208,8 @@ def test_overlay_appends_provider_and_lifts_default_enabled(monkeypatch, tmp_pat
     entry = skill["providers"][-1]
     assert entry == {"name": PROVIDER_ID, "id": PROVIDER_ID, "display_name": PROVIDER_NAME,
                      "no_api_key": False, "installed": True}
-    # The provider's own hint comes first; the event search also names its public web source.
-    assert skill["preprocessor_hint"] == f'{provider_entry()["skill_hint"]} {overlay.WEB_SOURCE_HINTS[("events", "search")]}'
+    # The web-source routing sentence leads; the provider's own hint follows.
+    assert skill["preprocessor_hint"] == f'{overlay.WEB_SOURCE_HINTS[("events", "search")]} {provider_entry()["skill_hint"]}'
 
 
 # contract-test: direct surface=rest_api assertions=instance-app-packages.instance-availability

@@ -126,8 +126,9 @@ def test_routing_hint_names_the_web_source_only_next_to_a_provider_hint():
 
     skill = {"id": "search", "preprocessor_hint": "Search events in a city."}
     overlay._add_web_source_hint("events", skill)
-    assert skill["preprocessor_hint"].startswith("Search events in a city. ") and "public web pages" in skill[
-        "preprocessor_hint"]
+    hint = skill["preprocessor_hint"]
+    assert hint.endswith(" Search events in a city.") and "public web pages" in hint
+    assert hint.startswith("Prefer this over web search")
     bare = {"id": "search"}
     overlay._add_web_source_hint("events", bare)
     other = {"id": "search_stays", "preprocessor_hint": "Stays."}

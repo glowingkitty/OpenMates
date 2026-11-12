@@ -67,10 +67,14 @@ def installed_provider_entry(provider: InstalledProvider) -> Dict[str, Any]:
 
 
 # Routing sentence for skills that also answer from public web pages (see web_source.py).
+# It leads the hint: provider hints describe city-bound platforms, and the router
+# otherwise sends region-wide or worldwide discovery questions to general web search.
 WEB_SOURCE_HINTS: Dict[tuple, str] = {
-    ("events", "search"): "Events and conferences without a city (a country, a region such as Europe, or "
-                          "worldwide) are also found, from public web pages: give only a topic query.",
-    ("shopping", "search_products"): "Products the listed shops do not carry are also found on public shop pages.",
+    ("events", "search"): "Prefer this over web search for any question about upcoming events or conferences, "
+                          "anywhere: in a city, a country, a region such as Europe, or worldwide. Results also "
+                          "come from public web pages; without a city give only a topic query.",
+    ("shopping", "search_products"): "Prefer this over web search for products to buy: results come from the "
+                                     "listed shops and from public shop pages.",
 }
 
 
@@ -78,7 +82,7 @@ def _add_web_source_hint(app_id: str, skill: Dict[str, Any]) -> None:
     extra = WEB_SOURCE_HINTS.get((app_id, str(skill.get("id"))))
     hint = skill.get("preprocessor_hint")
     if extra and isinstance(hint, str) and hint.strip():
-        skill["preprocessor_hint"] = f"{hint.strip()} {extra}"
+        skill["preprocessor_hint"] = f"{extra} {hint.strip()}"
 
 
 def _overlay_skill(skill: Dict[str, Any], providers: List[InstalledProvider]) -> None:
