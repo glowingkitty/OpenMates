@@ -205498,13 +205498,14 @@ assertions:
       surface: gui.web
     - &id26149
       path: frontend/packages/ui/src/services/rustCore/embeds/__tests__/embedWriteBinding.test.ts
-      line: 33
+      line: 34
       name: refuses embed_write_not_bound when the bind fails and nothing is bound
       surface: gui.web
     - &id26150
       path: frontend/packages/ui/src/services/rustCore/embeds/__tests__/embedWriteBinding.test.ts
-      line: 42
-      name: does not bind for a signed-out profile
+      line: 44
+      name: refuses a signed-out profile at once without binding or waiting for a
+        bind
       surface: gui.web
     - &id26151
       path: frontend/packages/ui/src/services/rustCore/embeds/__tests__/readOps.test.ts

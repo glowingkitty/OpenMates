@@ -56,6 +56,11 @@ async function bindAccountPrincipal(): Promise<void> {
 
 async function boundGeneration(core: SharedRustCore): Promise<number> {
 	const deadline = Date.now() + BIND_WAIT_MS;
+	if (core.generation === null && !(await getKeyFromStorage())) {
+		// Signed out (guest): no principal will ever bind and the unit cannot open
+		// without the master key, so refuse now instead of stalling every write.
+		throw new UnitPortError('embed_write_not_bound');
+	}
 	if (core.generation === null) {
 		try {
 			await bindAccountPrincipal();
