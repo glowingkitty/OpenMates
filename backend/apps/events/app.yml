@@ -43,6 +43,18 @@ skills:
     class_path: |
       backend.apps.events.skills.search_skill.SearchSkill
     # Operator-installed app packages may add providers implementing this contract.
+    # With such providers the search is no longer limited to official schedules; the
+    # overlay then shows the model these descriptions instead of the built-in ones.
+    installed_provider_descriptions:
+      properties.provider: >-
+        Event provider id to limit the search to; omit or use auto to search every available provider.
+      properties.requests: >-
+        Array of event searches. Use for upcoming events and conferences anywhere: in a city (set location), or in a
+        country, a region such as Europe or worldwide (omit location; results also come from public web pages). Set
+        conference only for the listed official schedules. IDs are generated when omitted.
+      properties.requests.items.properties.location: >-
+        City or place to search in. Omit for a country, a region such as Europe, or worldwide and give only the topic
+        in query.
     provider_contract: events.search@1
     pricing:
       per_unit:

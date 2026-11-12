@@ -161,6 +161,9 @@ class AppSkillDefinition(BaseModel):
     # Included alongside the skill identifier in the preprocessing prompt so the LLM can
     # make informed skill selection decisions without hardcoded guidance in base_instructions.yml.
     preprocessor_hint: Optional[str] = Field(default=None, description="Brief hint for the preprocessing LLM describing when to select this skill (1-3 sentences).")
+    # Tool-schema descriptions (dotted paths in tool_schema) used instead of the built-in ones
+    # when operator-installed providers serve this skill; applied by the app-package overlay.
+    installed_provider_descriptions: Optional[Dict[str, str]] = Field(default=None, description="Tool-schema descriptions by dotted path, used when installed providers serve this skill.")
     # REST API configuration — controls how the skill is exposed in the public API docs
     api_config: Optional[AppSkillApiConfig] = Field(default=None, description="REST API configuration for this skill. Controls GET/POST endpoint exposure in /docs.")
     workflow: Optional[AppSkillWorkflowConfig] = Field(default=None, description="Workflow automation contract for this skill.")

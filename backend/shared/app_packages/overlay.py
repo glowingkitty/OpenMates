@@ -85,7 +85,28 @@ def _add_web_source_hint(app_id: str, skill: Dict[str, Any]) -> None:
         skill["preprocessor_hint"] = f"{extra} {hint.strip()}"
 
 
+def _apply_installed_descriptions(skill: Dict[str, Any]) -> None:
+    """Swap tool-schema descriptions for the ones a skill declares for installed providers.
+
+    Built-in contract skills describe only their official sources ("general discovery is
+    unavailable"); once installed providers serve the skill, the model must see that the
+    wider search exists or it never calls the tool. Keys are dotted paths in tool_schema.
+    """
+    texts = skill.get("installed_provider_descriptions")
+    schema = skill.get("tool_schema")
+    if not isinstance(texts, dict) or not isinstance(schema, dict):
+        return
+    for path, text in texts.items():
+        node: Any = schema
+        for part in str(path).split("."):
+            node = node.get(part) if isinstance(node, dict) else None
+        if not isinstance(node, dict):
+            raise ValueError(f"installed_provider_descriptions path is not in tool_schema: {path}")
+        node["description"] = " ".join(str(text).split())
+
+
 def _overlay_skill(skill: Dict[str, Any], providers: List[InstalledProvider]) -> None:
+    _apply_installed_descriptions(skill)
     skill["providers"] = list(skill.get("providers") or []) + [installed_provider_entry(p) for p in providers]
     skill.pop("default_enabled", None)
     hints = list(dict.fromkeys(p.skill_hint for p in providers if p.skill_hint))

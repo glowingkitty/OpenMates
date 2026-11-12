@@ -134,3 +134,42 @@ def test_routing_hint_names_the_web_source_only_next_to_a_provider_hint():
     other = {"id": "search_stays", "preprocessor_hint": "Stays."}
     overlay._add_web_source_hint("travel", other)
     assert "preprocessor_hint" not in bare and other["preprocessor_hint"] == "Stays."
+
+
+# contract-test: supporting surface=rest_api assertions=instance-app-packages.web-source
+def test_installed_provider_descriptions_replace_tool_schema_texts():
+    from backend.shared.app_packages import overlay
+
+    skill = {
+        "id": "search",
+        "installed_provider_descriptions": {"properties.requests.items.properties.location": "City; omit for a region."},
+        "tool_schema": {"properties": {"requests": {"items": {"properties": {
+            "location": {"type": "string", "description": "A location alone does not enable discovery."}}}}}},
+    }
+    overlay._apply_installed_descriptions(skill)
+    location = skill["tool_schema"]["properties"]["requests"]["items"]["properties"]["location"]
+    assert location == {"type": "string", "description": "City; omit for a region."}
+
+
+# contract-test: supporting surface=rest_api assertions=instance-app-packages.web-source
+def test_installed_provider_description_with_unknown_path_fails_loudly():
+    import pytest
+    from backend.shared.app_packages import overlay
+
+    skill = {"installed_provider_descriptions": {"properties.missing": "x"}, "tool_schema": {"properties": {}}}
+    with pytest.raises(ValueError, match="properties.missing"):
+        overlay._apply_installed_descriptions(skill)
+
+
+# contract-test: supporting surface=rest_api assertions=instance-app-packages.web-source
+def test_events_app_declares_reachable_installed_provider_descriptions():
+    from pathlib import Path
+
+    import yaml
+    from backend.shared.app_packages import overlay
+
+    with open(Path(__file__).resolve().parents[1] / "apps/events/app.yml", encoding="utf-8") as handle:
+        skill = next(s for s in yaml.safe_load(handle)["skills"] if s["id"] == "search")
+    overlay._apply_installed_descriptions(skill)
+    requests = skill["tool_schema"]["properties"]["requests"]
+    assert "Europe" in requests["description"] and "unavailable" not in requests["description"]
