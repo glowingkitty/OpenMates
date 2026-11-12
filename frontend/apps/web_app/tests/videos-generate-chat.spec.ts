@@ -27,6 +27,7 @@ const { test, expect, attachConsoleListeners, attachNetworkListeners, allowConso
 const {
 	createSignupLogger,
 	createStepScreenshotter,
+	getE2EDebugUrl,
 	getTestAccount
 } = require('./signup-flow-helpers');
 
@@ -241,6 +242,11 @@ test.describe('videos.generate chat', () => {
 			// The assistant may answer with web, news or image search results; any of them feeds the video.
 			await expectReplyFromGemini(page, log, SEARCH_TIMEOUT);
 			await screenshot(page, 'web-results-found');
+			// Without a finished search there are no results whose pictures and texts could reach the video.
+			await expect(
+				page.locator('[data-skill-id="search"][data-status="finished"]').first(),
+				'the search returned results (a rate-limited search proves nothing about result pictures)'
+			).toBeVisible({ timeout: 30_000 });
 
 			await sendWithGemini(page, COMPOSED_PROMPT, log, screenshot, 'video');
 			await screenshotProgress(page, screenshot, 'video-progress', log);
@@ -364,6 +370,32 @@ test.describe('videos.generate chat', () => {
 				await deleteActiveChat(page, log);
 			}
 		}
+	});
+
+	// contract-test: supporting surface=gui.web assertions=videos-generate.billing.metered
+	test('the skill page in settings shows the full price', async ({ page }) => {
+		test.setTimeout(300_000);
+		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+		const log = createSignupLogger('videos-generate-price');
+		const screenshot = createStepScreenshotter(log, { filenamePrefix: 'videos-generate-price' });
+
+		await loginToTestAccount(page, log, screenshot);
+		await page.goto(getE2EDebugUrl('/#apps/videos'), { waitUntil: 'domcontentloaded' });
+		await page.getByTestId('apps-settings-open').click({ timeout: 60_000 });
+		const settings = page.getByTestId('settings-menu');
+		await expect(settings.locator('.app-details')).toBeVisible({ timeout: 30_000 });
+		await settings.getByTestId('settings-skill-cards-scroll').getByTestId('app-store-card')
+			.filter({ hasText: /Generate/ }).first().click();
+		await expect(settings.locator('.skill-details')).toBeVisible({ timeout: 30_000 });
+		const note = settings.getByTestId('skill-pricing-note').first();
+		await expect(note, 'the price note of the skill is shown').toBeVisible({ timeout: 60_000 });
+		await note.scrollIntoViewIfNeeded();
+		const text = (await note.innerText()).replace(/\s+/g, ' ');
+		log(`price note: ${text}`);
+		for (const price of ['34.5', '105', '156', '313.5', '5 credits per started minute']) {
+			expect(text, `the note names ${price}`).toContain(price);
+		}
+		await screenshot(page, 'skill-price');
 	});
 
 	// contract-test: direct surface=gui.web assertions=videos-generate.routing.generative-or-composed,videos-generate.composed.author-writes-composition,videos-generate.result.video-with-timeline

@@ -35,6 +35,8 @@ from uuid import uuid4
 from defusedxml import ElementTree as SafeElementTree
 from defusedxml.common import DefusedXmlException
 
+from backend.shared.python_utils.llm_stream_usage import stream_usage_tokens
+
 logger = logging.getLogger(__name__)
 
 # Ordered: the first model that produces a valid drawing answers, later ones are fallbacks.
@@ -354,9 +356,9 @@ async def _stream_draft(
         private_logging=True,
     ):
         if not isinstance(chunk, str):
-            if hasattr(chunk, "input_tokens") and hasattr(chunk, "output_tokens"):
-                input_tokens += int(chunk.input_tokens or 0)
-                output_tokens += int(chunk.output_tokens or 0)
+            if (tokens := stream_usage_tokens(chunk)) is not None:
+                input_tokens += tokens[0]
+                output_tokens += tokens[1]
             continue
         text += chunk
         now = time.monotonic()

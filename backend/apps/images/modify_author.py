@@ -46,6 +46,7 @@ from backend.apps.images.vector_author import (
     normalize_requirements,
 )
 from backend.shared.providers.e2b_image_edit import OUTPUT_TYPES, ImageEditInput, ImageEditRun, ImageEditSession
+from backend.shared.python_utils.llm_stream_usage import stream_usage_tokens
 
 logger = logging.getLogger(__name__)
 
@@ -138,9 +139,9 @@ async def _stream_program(
     ):
         if isinstance(chunk, str):
             text += chunk
-        elif hasattr(chunk, "input_tokens") and hasattr(chunk, "output_tokens"):
-            input_tokens += int(chunk.input_tokens or 0)
-            output_tokens += int(chunk.output_tokens or 0)
+        elif (tokens := stream_usage_tokens(chunk)) is not None:
+            input_tokens += tokens[0]
+            output_tokens += tokens[1]
     return text, input_tokens, output_tokens
 
 
