@@ -230,6 +230,16 @@ test('connection previews retain both journey legs and rail realtime provenance'
   await expect(page.getByTestId('result-map-preview')).toBeHidden();
 });
 
+// contract-test: supporting surface=gui.web assertions=travel-search.surface-parity
+test('bus and rail cards name places, not the stop codes in brackets', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1100, height: 900 });
+  await page.goto(preview('travel/TravelConnectionEmbedPreview', 900, 'busStopCodes'));
+  await waitForComponentPreview(page);
+  await expect(page.locator('.journey-airport')).toHaveText(['Munich', 'Vienna']);
+  await expect(page.getByTestId('embed-preview')).not.toContainText('VIB');
+  await testInfo.attach('travel-bus-stop-names', { body: await page.getByTestId('embed-preview').screenshot(), contentType: 'image/png' });
+});
+
 for (const width of [390, 900]) {
   // contract-test: supporting surface=gui.web assertions=travel-search.surface-parity
   test(`travel itinerary matches the PDF journey and explicit baggage states at ${width}px`, async ({ page }, testInfo) => {
