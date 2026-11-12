@@ -89,6 +89,24 @@ def test_apple_build_plan_compiles_all_targets_and_keeps_going():
     # Same build inputs as the test lanes, so a green build means the test lanes compile.
     assert "OPENMATES_CORE_TEST_SUPPORT=YES" in command
     assert "OTHER_SWIFT_FLAGS=$(inherited) -DOPENMATES_CORE_TEST_SUPPORT" in command
+    # The arm64 runner never builds the x86_64 Watch simulator core (tier-3, about 14 minutes).
+    assert "EXCLUDED_ARCHS=x86_64" in command
+
+
+@pytest.mark.parametrize(
+    "mode,specs", [("apple-unit", ["all"]), ("apple-ui", ["OpenMatesUITests/A"])]
+)
+def test_test_lanes_build_once_then_test_on_those_products(mode, specs):
+    build_only = ci_apple.xcode_plan("apple-build", Path("/out"), ["all"])[-1]
+    plan = ci_apple.xcode_plan(mode, Path("/out"), specs)
+    build, test = plan[-2], plan[-1]
+    # The compile step is the build lane's, so every test job lists all Swift errors itself.
+    assert build[:2] == build_only[:2]
+    assert test[1][:2] == ["xcodebuild", "test-without-building"]
+    assert "-IDEBuildingContinueBuildingAfterErrors=YES" not in test[1]
+    derived = build[1][build[1].index("-derivedDataPath") + 1]
+    assert test[1][test[1].index("-derivedDataPath") + 1] == derived
+    assert sum(1 for _, command, *_ in plan if command[:2] == ["xcodebuild", "build-for-testing"]) == 1
 
 
 def test_swift_errors_are_unique_relative_and_complete():

@@ -11,14 +11,14 @@ version the release Mac builds with), never on the shared dev host.
   apple-build  target `all`: compile only. `xcodebuild build-for-testing` of the OpenMates_iOS
                scheme (app, unit-test and UI-test targets) that keeps building after an error,
                so one run lists the Swift errors of every file it could reach. A target that
-               imports a module which failed to compile is not reached. The coordinator
-               admits apple-unit and apple-ui for a source only after this passed for it.
+               imports a module which failed to compile is not reached.
   apple-unit   targets `all` or `OpenMatesTests[/<Class>[/<test>]]`: generate the design tokens and locales the project
-               references, fetch the pinned Whistle link inputs, then `xcodebuild test` the
-               OpenMates_iOS scheme limited to the OpenMatesTests unit target
-               (XCUITest targets are never selected).
+               references, fetch the pinned Whistle link inputs, run the same build step as
+               apple-build (a failed build lists all Swift errors and ends the job), then
+               `xcodebuild test-without-building` on its products, limited to the
+               OpenMatesTests unit target (XCUITest targets are never selected).
   apple-ui     targets `OpenMatesUITests/<Class>[/<test>]` (one or more, never `all`): the same
-               generated inputs, then `xcodebuild test` of exactly those XCUITests in the
+               generated inputs and build step, then exactly those XCUITests in the
                iOS simulator, serially. The app under test is the Debug build, so tests
                that talk to a server reach the dev backend; the lane passes no secrets,
                so real-account tests skip themselves.
@@ -51,6 +51,7 @@ RESULT_BUNDLES = {
 SWIFT_ERROR = re.compile(r"^(?P<path>/\S[^:]*\.swift):(?P<line>\d+):(?P<column>\d+): error: (?P<text>.+)$")
 MAX_SWIFT_ERRORS = 400
 # Core test fixtures: the Rust feature (Xcode phase) and the Swift compilation condition.
+BUILD_STEP = "xcodebuild build-for-testing"
 TEST_SUPPORT_SETTING = "OPENMATES_CORE_TEST_SUPPORT=YES"
 TEST_SUPPORT_SWIFT_FLAGS = "OTHER_SWIFT_FLAGS=$(inherited) -DOPENMATES_CORE_TEST_SUPPORT"
 RUST_TEST_FLAGS = ["--locked", "--lib", "--bins", "--tests"]
@@ -151,42 +152,52 @@ def xcode_plan(mode: str, results: Path, specs: list[str]) -> list[Step]:
     """Ordered steps for the Xcode lanes: generated inputs, then the build or the selected tests."""
     build_only = mode == "apple-build"
     only = [] if build_only else [UNIT_TARGET] if specs == [ALL] else specs
-    command = [
-        "xcodebuild", "build-for-testing" if build_only else "test",
+    shared = [
         "-project", "apple/OpenMates.xcodeproj",
         "-scheme", "OpenMates_iOS",
         "-destination", f"platform=iOS Simulator,name={SIMULATOR}",
         "-derivedDataPath", str(results / "DerivedData"),
         "-clonedSourcePackagesDirPath", str(results / "SourcePackages"),
-        "-resultBundlePath", str(results / RESULT_BUNDLES[mode]),
         "-skipPackagePluginValidation", "-skipMacroValidation",
     ]
-    # A test that never returns (for example audio playback without an output device on the
-    # runner) is failed after its allowance instead of stalling the lane until the job timeout.
-    if build_only:
-        # Xcode's "Continue building after errors": every reachable file is compiled, so
-        # one run reports all Swift errors instead of the first failing batch.
-        command += ["-IDEBuildingContinueBuildingAfterErrors=YES"]
-    else:
-        command += [
-            "-test-timeouts-enabled", "YES",
-            "-default-test-execution-time-allowance", str(TEST_ALLOWANCE_SECONDS),
-            "-maximum-test-execution-time-allowance", str(TEST_ALLOWANCE_SECONDS),
-        ]
-    if mode == "apple-ui":
-        # One simulator, one test at a time: UI tests share the app's on-device state.
-        command += ["-parallel-testing-enabled", "NO"]
-    for selector in only:
-        command += ["-only-testing", selector]
     # The script phases (OpenMatesCore, LocalModelBridge) run cargo and read repository
     # files, which Xcode's script sandbox denies; the TestFlight build passes the same override.
-    command += ["CODE_SIGNING_ALLOWED=NO", "CODE_SIGN_IDENTITY=", "ENABLE_USER_SCRIPT_SANDBOXING=NO"]
-    # Both test lanes build the Debug app with the core's test fixtures: the OpenMatesCore phase
+    settings = ["CODE_SIGNING_ALLOWED=NO", "CODE_SIGN_IDENTITY=", "ENABLE_USER_SCRIPT_SANDBOXING=NO"]
+    # The runner and its simulators are arm64. Without this the embedded Watch app is also
+    # built for the x86_64 simulator, whose Rust core is a tier-3 build-std build (about
+    # 14 minutes) that no test uses.
+    settings += ["EXCLUDED_ARCHS=x86_64"]
+    # Every lane builds the Debug app with the core's test fixtures: the OpenMatesCore phase
     # adds `--features test-support` (build-xcframework.sh refuses it outside Debug), and the
     # Swift condition of the same name compiles the fixture glue that links against it (the UI
     # fixtures seed the core's cached chat list). They are always set together; a Release build
     # with the condition fails to compile. The core and TestFlight lanes never set either.
-    command += [TEST_SUPPORT_SETTING, TEST_SUPPORT_SWIFT_FLAGS]
+    settings += [TEST_SUPPORT_SETTING, TEST_SUPPORT_SWIFT_FLAGS]
+    # One build per job, for every lane. Xcode's "Continue building after errors" compiles
+    # every reachable file, so a failed build lists all Swift errors instead of the first batch.
+    build = [
+        "xcodebuild", "build-for-testing", *shared,
+        "-resultBundlePath", str(results / RESULT_BUNDLES["apple-build"]),
+        "-IDEBuildingContinueBuildingAfterErrors=YES", *settings,
+    ]
+    steps: list[Step] = [(BUILD_STEP, build, {}, "")]
+    if not build_only:
+        # The tests run on the products of the build above; nothing is compiled twice.
+        # A test that never returns (for example audio playback without an output device on
+        # the runner) is failed after its allowance instead of stalling the lane.
+        test = [
+            "xcodebuild", "test-without-building", *shared,
+            "-resultBundlePath", str(results / RESULT_BUNDLES[mode]),
+            "-test-timeouts-enabled", "YES",
+            "-default-test-execution-time-allowance", str(TEST_ALLOWANCE_SECONDS),
+            "-maximum-test-execution-time-allowance", str(TEST_ALLOWANCE_SECONDS),
+        ]
+        if mode == "apple-ui":
+            # One simulator, one test at a time: UI tests share the app's on-device state.
+            test += ["-parallel-testing-enabled", "NO"]
+        for selector in only:
+            test += ["-only-testing", selector]
+        steps.append((f"xcodebuild test {' '.join(only)}"[:160], test + settings, {}, ""))
     return [
         (
             "design tokens and locales",
@@ -203,10 +214,7 @@ def xcode_plan(mode: str, results: Path, specs: list[str]) -> list[Step]:
             {},
             "",
         ),
-        (
-            "xcodebuild build-for-testing" if build_only else f"xcodebuild test {' '.join(only)}"[:160],
-            command, {}, "",
-        ),
+        *steps,
     ]
 
 
@@ -253,7 +261,7 @@ def run(root: Path, results: list[dict], mode: str, specs: list[str]) -> None:
                     os.environ[key] = value
         row = checks.load_rows()[-1]
         failures = [line[:300] for line in row["excerpt"][:40]]
-        if mode == "apple-build" and code != 0 and command[0] == "xcodebuild":
+        if name == BUILD_STEP and code != 0:
             log = out / "rows" / f"{checks.slug(name)}.log"
             found = swift_errors(log.read_text(errors="replace").splitlines(), root) if log.is_file() else []
             if found:

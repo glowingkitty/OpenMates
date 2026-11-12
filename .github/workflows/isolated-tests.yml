@@ -1323,8 +1323,12 @@ jobs:
             subject/.tmp/apple-core-cargo
             subject/.tmp/apple-core-rustup
             subject/target/apple-core/cargo
-          key: apple-core-xcode-${{ inputs.mode }}-${{ hashFiles('subject/Cargo.lock', 'subject/packages/openmates-apple-bindings/build-xcframework.sh') }}
-          restore-keys: apple-core-xcode-${{ inputs.mode }}-
+          # One cache for the three Xcode modes: they build the same core with the same settings.
+          key: apple-core-xcode-shared-${{ hashFiles('subject/Cargo.lock', 'subject/packages/openmates-apple-bindings/build-xcframework.sh') }}
+          restore-keys: |
+            apple-core-xcode-shared-
+            apple-core-xcode-apple-build-
+            apple-core-xcode-apple-unit-
       - name: Restore Swift packages
         if: inputs.mode != 'apple-core'
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
@@ -1347,6 +1351,8 @@ jobs:
             subject/test-results/apple-core/rows/
             subject/test-results/apple-build/rows/
             subject/test-results/apple-build/swift-errors.txt
+            subject/test-results/apple-unit/swift-errors.txt
+            subject/test-results/apple-ui/swift-errors.txt
             subject/test-results/apple-unit/rows/
             subject/test-results/apple-ui/rows/
             subject/test-results/apple-unit/OpenMatesTests.xcresult

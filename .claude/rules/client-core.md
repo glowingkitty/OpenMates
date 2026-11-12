@@ -75,9 +75,9 @@ capability inventory and status: `docs/plans/client-core-one-core-three-shells/p
 - Web: the capability's existing Playwright specs with `VITE_OPENMATES_RUST_CORE=1`
   in isolated CI (`--mode e2e`). Today only `web-rust-core-*` specs build flag-on;
   plan TASK-3 opens the flag-on lane for the existing suite.
-- Apple: first `--mode apple-build --spec all` (compile only, all Swift errors in one
-  run; it gates the two test modes for that source), then XCTest on GitHub `macos-26`
-  (`--mode apple-unit`, `--mode apple-core`);
+- Apple: XCTest on GitHub `macos-26` (`--mode apple-unit`, `--mode apple-core`); each
+  Xcode job compiles first and lists all Swift errors of a failed build, then tests on
+  that build (`--mode apple-build --spec all` is the build alone);
   XCUITest there too (`--mode apple-ui --spec OpenMatesUITests/<Class>[/<test>]`,
   no secrets, so real-account tests skip). The coordinated Mac
   (`scripts/apple_remote.py`) is only for TestFlight, physical device/APNs and real-account tests. Apple web-parity tests are
