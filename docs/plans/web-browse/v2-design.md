@@ -110,11 +110,17 @@ identity, replay and the final result/settlement, and delegates the loop.
 2. Per step, in this order:
    - blocked / private-input / no-progress checks as today;
    - one planner call (below) on the current observation;
-   - a single Jev gate call for the step (injection question on the page, and
-     one `safe` question per planned action that is not plain link navigation,
-     scroll, wait or back). Any unsafe action, or a label/href matching
-     `DANGEROUS`, ends the run with `needs_user` and the reason; injection above
-     the threshold ends it as today;
+   - the gate: a label/href/URL matching `DANGEROUS` on any planned action ends
+     the run with `needs_user` before any model call. Then, concurrently, one
+     Jev page-injection question per step and one single-target Jev `safe`
+     decision per non-plain action, in the pre-v2 input shape
+     (`{goal, target, page_title}`; a submitting type adds an `effect` note;
+     typed text and field values never included). Plain actions ask no
+     question: scroll, wait, back, HTTPS link clicks and field preparation
+     (`select`, `type` without `submit`). Safe score below 0.95 ends the run
+     with `needs_user`; injection above the threshold ends it as today.
+     Content-free scores (`gate_injection_score`, `gate_safe_score` = step
+     minimum, `gate_safe_questions`) go to the run's verification metrics;
    - accepted planner notes are appended to the evidence ledger;
    - one `step` RPC with the planned actions.
 3. Finish when the planner returns `done`, or limits are reached. Limits,
@@ -128,7 +134,7 @@ Text helper call (same routing, metering and privacy rules as `generate`,
 4,096 output tokens). Input: goal, output schema, current page (url, title,
 dialogs, controls, visible text, a document-text excerpt of at most 24,000
 characters around the viewport), the evidence ledger so far, the last 8 action
-results. Output JSON, validated strictly:
+results. Output JSON, validated against the observation:
 
 ```json
 {"notes":[{"fact":"...","quote":"exact text copied from the page"}],
@@ -146,6 +152,22 @@ deleting, or missing personal information. Age-confirmation dialogs are
 `blocked` with reason `age_confirmation` (the user confirms their own age by
 taking control).
 
+Validation tolerates what cannot execute anything unintended: unknown
+top-level keys and extra action fields are dropped (every executed action is
+rebuilt from validated fields only); missing `notes`/`actions` mean `[]`,
+missing `done` means `false`, missing `blocked` or `"null"`/`""` mean `null`;
+malformed notes are dropped and counted with `rejected_notes`; only the first
+six actions are considered; `click` may target any observed control, while
+`type` needs a type control and `select` a select control with an observed
+option value (an exact option label maps to its value). Still rejected, with a
+fixed `plan_error_code` in the run metrics: unknown action kind
+(`unknown_kind`), unknown target (`unknown_target`), wrong target kind
+(`wrong_target_kind`), unobserved option (`unobserved_option`), missing or
+invalid fields (`missing_field`, `bad_field`), non-HTTPS or mixed `goto`
+(`bad_goto`), unknown `blocked` code (`unknown_blocked`), wrong types
+(`bad_shape`) and an unfinished plan without an action (`no_action`). One
+metered repair attempt receives `previous_plan_rejected`.
+
 Code accepts a note only when its `quote` (whitespace-normalised, at least 3
 characters) occurs in the current observation's `document_text`; rejected
 notes are counted in metrics, never stored.
@@ -154,7 +176,10 @@ notes are counted in metrics, never stored.
 
 `record["evidence"]`: list of `{url, title, notes:[{fact, quote}]}` per visited
 page, at most 60 pages and 400 notes, 600 characters per quote. Persisted in
-the encrypted session record so a takeover/continuation keeps it.
+the encrypted session record with `evidence_task` (a hash of the task text):
+a continuation of the same task after `needs_user` or take-over keeps the
+ledger and viewer steps; a new run with a different task text starts with an
+empty ledger and step list.
 
 ### Extraction and verification
 
@@ -163,17 +188,27 @@ the encrypted session record so a takeover/continuation keeps it.
   its normalised value occurs in the ledger quotes/facts or the current page
   text (numbers compare digit sequences).
 - One Jev verification over the whole answer with the ledger as observed
-  evidence (grounded / answer_complete / interaction_complete / empty), same
-  thresholds as today.
+  evidence and `interaction_history` (the run's executed steps as kind,
+  target label and page URL, never typed text, at most 80, plus the visited
+  URLs), questions grounded / answer_complete / interaction_complete / empty,
+  same thresholds as today.
 - Outcome:
-  - Jev accepts → `completed`.
-  - Jev rejects, but every leaf is matched and interaction is complete → the
-    existing quote-review helper decides, as today.
-  - Otherwise remove unmatched leaves (set to `null`, drop array items with no
-    matched leaf). If something matched remains and it validates against the
-    schema with unmatched optional fields removed → `completed` with
-    `missing` listing the JSON paths that were dropped and a `reason` that says
-    the result is partial. If nothing remains → `needs_user` as today.
+  - Jev accepts → `completed` (or `no_results`).
+  - Otherwise unmatched leaves are removed (set to `null`, array items with no
+    matched leaf dropped). If nothing matched, or the pruned answer does not
+    validate → `needs_user`.
+  - Otherwise one text-helper review (`verify_quotes`, admitted and metered)
+    of the pruned answer with up to 400 matched quotations (first 400 when
+    more), the bounded ledger and `interaction_history`, returning strict
+    booleans `grounded`, `answer_complete`, `interaction_complete`.
+    `interaction_complete` is true only when the history plus the observed
+    page show every required navigation, search submission, filter and form
+    step; a filled but unsubmitted search is false. Grounded, interaction
+    complete, answer complete and nothing pruned → `completed`; grounded and
+    interaction complete otherwise → `completed` with the partial `reason`
+    and `missing` (empty when only completeness failed); anything else →
+    `needs_user`. `review_grounded`, `review_complete`, `review_interaction`
+    are recorded as 0/1 in the verification metrics.
 - `BrowseResult` gains `missing: list[str] = []` and `sources` lists every
   ledger page that contributed a matched value, not only the last page.
 

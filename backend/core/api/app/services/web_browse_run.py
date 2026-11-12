@@ -9,8 +9,16 @@ with settlement. `BrowseRun.execute` owns everything in between:
    ledger, then one `step` RPC for the planned batch under the session lease
    with a pending-action journal entry.
 3. Finish: one extraction from the ledger plus the current page, code leaf
-   matching, one Jev verification and, when needed, a partial answer that
-   lists the `missing` paths. Output safety scanning runs last.
+   matching, one Jev verification with the run's interaction history and,
+   when Jev does not accept but code matched part of the answer, one
+   text-helper review of the pruned answer. A grounded review with finished
+   interactions completes the run, partially with `missing` paths when
+   something was pruned or the review found the answer incomplete. Output
+   safety scanning runs last.
+
+The ledger and viewer steps of a session carry over only to a run with the
+same task text (a continuation after needs_user or take-over); a new task on
+the session starts with an empty ledger.
 
 The run never holds the session lease during model calls; take-over is
 detected by reloading the record before any input crosses to the browser.
@@ -34,7 +42,6 @@ from backend.core.api.app.services.web_browse_evidence import (
     check_answer,
     extraction_context,
     page_text,
-    partial_answer,
 )
 from backend.core.api.app.services.web_browse_pool import BrowsePool, pool_size
 from backend.shared.providers.browser_planner import BLOCK_REASONS, control_index
@@ -55,8 +62,8 @@ RUNTIME_PROTOCOL = "preboot-v2"
 STEP_HISTORY = 80
 START_TIMINGS = ("ready", "pristine", "navigate", "settle", "observe")
 PARTIAL_REASON = (
-    "Partial result: some requested values could not be confirmed on the visited "
-    "pages and are listed as missing."
+    "Partial result: the visited pages do not establish every requested value; "
+    "values that could not be confirmed are listed as missing."
 )
 
 
@@ -77,6 +84,11 @@ def require_protocol(reply: dict[str, Any]) -> None:
         raise BrowserRuntimeOutdated(
             "This browser runs an outdated runtime; start a new Browse session."
         )
+
+
+def task_hash(task: str) -> str:
+    """Binds a saved ledger to the task text that produced it."""
+    return hashlib.sha256(task.encode()).hexdigest()
 
 
 def fingerprint(observation: dict[str, Any]) -> str:
@@ -130,7 +142,9 @@ class BrowseRun:
         # Loop state.
         self.ledger: list[dict[str, Any]] = []
         self.history: list[dict[str, Any]] = []
-        self.pages: set[str] = set()
+        # Ordered run-level trail of executed steps; never typed text.
+        self.trail: list[dict[str, Any]] = []
+        self.pages: dict[str, None] = {}
         self.executed = 0
         self.planner_steps = 0
         self.rejected_notes = 0
@@ -193,6 +207,12 @@ class BrowseRun:
         async with asyncio.timeout(90):
             async with self.store.lease(self.session_id):
                 record = await self.load()
+                digest = task_hash(self.request.task)
+                if record.get("evidence_task") != digest:
+                    # A different task never inherits another task's evidence.
+                    for key in ("evidence", "steps", "step_count"):
+                        record.pop(key, None)
+                    record["evidence_task"] = digest
                 self.ledger = list(record.get("evidence") or [])
                 if not record.get("provider"):
                     observation = await self.provision(record, driver)
@@ -317,7 +337,7 @@ class BrowseRun:
         )
         self.observation = observation
         if observation.get("url"):
-            self.pages.add(observation["url"])
+            self.pages.setdefault(observation["url"])
         record["latest_observation"] = observation
 
     # Steps -------------------------------------------------------------------
@@ -365,7 +385,7 @@ class BrowseRun:
         if denial:
             return self.finish("needs_user", denial)
         notes = accept_notes(self.ledger, observation, plan["notes"])
-        self.rejected_notes += notes.rejected
+        self.rejected_notes += notes.rejected + plan.get("malformed_notes", 0)
         self.dropped_notes += notes.dropped
         if plan["done"]:
             await self.answer()
@@ -438,6 +458,18 @@ class BrowseRun:
                     "An action outcome is uncertain; review the page before continuing.",
                 )
             outcomes = [r.get("outcome") for r in results]
+            controls = control_index(self.observation)
+            for r in results:
+                if r.get("outcome") == "executed":
+                    label = controls.get(str(r.get("target")), {}).get("label") or ""
+                    self.trail.append(
+                        {
+                            "kind": r.get("kind"),
+                            "label": str(label)[:80],
+                            "url": self.observation.get("url", ""),
+                        }
+                    )
+            self.trail = self.trail[-STEP_HISTORY:]
             self.history.extend(
                 {
                     "kind": r.get("kind"),
@@ -465,8 +497,11 @@ class BrowseRun:
 
     # Answer ------------------------------------------------------------------
 
+    def interaction_history(self) -> dict[str, Any]:
+        return {"steps": list(self.trail), "visited_urls": list(self.pages)}
+
     async def answer(self) -> None:
-        """Extract once, verify once, and fall back to a code-matched partial answer."""
+        """Extract once, verify with Jev, then review a code-matched answer once."""
         self.phase = "extract"
         async with self.store.lease(self.session_id):
             record = await self.load_active()
@@ -474,6 +509,7 @@ class BrowseRun:
             record["evidence"] = self.ledger
             await self.store.save(record)
         observation = self.observation
+        history = self.interaction_history()
         with private_inference_logging():
             started = time.monotonic()
             extracted = await self.models.generate(
@@ -490,7 +526,11 @@ class BrowseRun:
             self.phase = "verify"
             started = time.monotonic()
             verified = await self.models.verify(
-                self.request.task, observation, data, evidence=self.ledger
+                self.request.task,
+                observation,
+                data,
+                evidence=self.ledger,
+                history=history,
             )
             self.stage["verify_seconds"] += time.monotonic() - started
         check = check_answer(data, self.schema, self.ledger, observation)
@@ -506,22 +546,35 @@ class BrowseRun:
                 self.data = data
             self.sources = check.sources
             return
-        interaction = getattr(self.models, "verification", {}).get(
-            "interaction_score", 0.0
-        )
-        if (
-            data is not None
-            and interaction >= 0.95
-            and partial_answer(check, self.schema)
-        ):
-            self.finish("completed", PARTIAL_REASON)
-            self.data = check.pruned
-            self.missing = check.missing
-            self.sources = check.sources
+        if data is None or check.matched == 0 or not validator.is_valid(check.pruned):
+            self.finish(
+                "needs_user",
+                "The observed pages do not establish every requested result.",
+            )
             return
-        self.finish(
-            "needs_user", "The observed pages do not establish every requested result."
-        )
+        # Only the code-matched (pruned) answer is ever reviewed or returned.
+        with private_inference_logging():
+            self.phase = "review"
+            started = time.monotonic()
+            verdict = await self.models.review(
+                self.request.task,
+                observation,
+                check.pruned,
+                evidence=self.ledger,
+                history=history,
+            )
+            self.stage["verify_seconds"] += time.monotonic() - started
+        if not (verdict["grounded"] and verdict["interaction_complete"]):
+            self.finish(
+                "needs_user",
+                "The observed pages do not establish every requested result.",
+            )
+            return
+        full = verdict["answer_complete"] and not check.missing
+        self.finish("completed", None if full else PARTIAL_REASON)
+        self.data = check.pruned
+        self.missing = check.missing
+        self.sources = check.sources
 
     async def scan(self) -> None:
         """Mandatory output safety on returned data, sources and observations."""

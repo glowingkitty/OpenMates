@@ -17,6 +17,7 @@ from pydantic import ValidationError
 import pytest
 
 from backend.core.api.app.services.web_browse_service import BrowseService, BrowseStore
+from backend.shared.providers.browser_models import BrowserModelError
 from backend.shared.providers.e2b_browser import (
     BrowserAdmissionRejected,
     BrowserUnavailable,
@@ -189,6 +190,7 @@ class Models:
     verified = True
     planner_bound = Decimal("0.0001")
     planner_calls = []  # Class-level: replays must not add entries.
+    reviewed = {"grounded": True, "answer_complete": True, "interaction_complete": True}
 
     def __init__(self, secrets, *, before_attempt, after_attempt, **kwargs):
         self.before = before_attempt
@@ -198,6 +200,8 @@ class Models:
         self.queue = deepcopy(self.plans)
         self.verification = {"interaction_score": 0.99}
         self.evidence = None
+        self.histories = []
+        self.reviews = []
 
     async def plan(self, **kwargs):
         call = await self.before("typesafe/jev-1.14", "typesafe", self.planner_bound)
@@ -218,9 +222,14 @@ class Models:
         self.gates.append(deepcopy(actions))
         return self.gate_reason
 
-    async def verify(self, task, observation, data, evidence=None):
+    async def verify(self, task, observation, data, evidence=None, history=None):
         self.evidence = deepcopy(evidence)
+        self.histories.append(deepcopy(history))
         return self.verified
+
+    async def review(self, task, observation, data, *, evidence=None, history=None):
+        self.reviews.append(deepcopy(data))
+        return dict(self.reviewed)
 
     async def generate(self, *args):
         return deepcopy(self.extracted)
@@ -286,6 +295,7 @@ async def run(service, request=None, **kwargs):
 
 # contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.session-and-run,web-browse.cost-accounting
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.session-and-run,web-browse.cost-accounting
 async def test_observed_json_is_replayable_without_new_vm_calls_or_charges(service):
     request = arguments(
         output_schema={
@@ -319,6 +329,7 @@ async def test_observed_json_is_replayable_without_new_vm_calls_or_charges(servi
 # contract-test: supporting surface=rest_api assertions=web-browse.private-storage-and-api,web-browse.session-and-run,web-browse.cost-accounting
 @pytest.mark.asyncio
 @pytest.mark.parametrize("pristine", [True, False])
+# contract-test: supporting surface=rest_api assertions=web-browse.private-storage-and-api,web-browse.session-and-run,web-browse.cost-accounting
 async def test_pool_handoff_is_owner_bound_before_resuming_and_hidden_until_verified(
     service, monkeypatch, pristine
 ):
@@ -392,6 +403,7 @@ async def test_pool_handoff_is_owner_bound_before_resuming_and_hidden_until_veri
 
 # contract-test: supporting surface=rest_api assertions=web-browse.private-storage-and-api,web-browse.budgets-and-stop,web-browse.cost-accounting
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.private-storage-and-api,web-browse.budgets-and-stop,web-browse.cost-accounting
 async def test_empty_pool_does_not_cold_start_or_hold_customer_funds(
     service, monkeypatch
 ):
@@ -418,6 +430,7 @@ async def test_empty_pool_does_not_cold_start_or_hold_customer_funds(
 
 # contract-test: supporting surface=rest_api assertions=web-browse.private-storage-and-api,web-browse.exclusive-takeover
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.private-storage-and-api,web-browse.exclusive-takeover
 async def test_unverified_pool_handoff_exposes_neither_frames_nor_manual_input(service):
     result = await run(service)
     record = service.store.records[result.session_id]
@@ -437,6 +450,7 @@ async def test_unverified_pool_handoff_exposes_neither_frames_nor_manual_input(s
 
 # contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.truthful-completion,web-browse.cost-accounting
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.truthful-completion,web-browse.cost-accounting
 async def test_single_metered_extraction_never_returns_an_unverified_unmatched_answer(
     service,
 ):
@@ -454,7 +468,7 @@ async def test_single_metered_extraction_never_returns_an_unverified_unmatched_a
             await self.paid("0.0001")
             return {"data": {"fact": "Invented value"}}
 
-        async def verify(self, task, observation, data, evidence=None):
+        async def verify(self, task, observation, data, evidence=None, history=None):
             await self.paid("0.00001")
             self.verification = {"interaction_score": 0.99}
             return False
@@ -485,6 +499,7 @@ async def test_single_metered_extraction_never_returns_an_unverified_unmatched_a
 @pytest.mark.parametrize(
     "candidate", [{"data": None}, {"data": {"fact": None}, "needs_user": True}]
 )
+# contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.truthful-completion,web-browse.sign-in
 async def test_missing_facts_or_explicit_human_input_do_not_trigger_extraction_repair(
     service, candidate
 ):
@@ -502,6 +517,7 @@ async def test_missing_facts_or_explicit_human_input_do_not_trigger_extraction_r
 
 # contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.truthful-completion
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.truthful-completion
 async def test_rejected_answer_is_not_reextracted_to_seek_a_different_verdict(service):
     generated = AsyncMock(return_value={"data": {"fact": "Incomplete"}})
     verified = AsyncMock(side_effect=[False, True])
@@ -519,6 +535,7 @@ async def test_rejected_answer_is_not_reextracted_to_seek_a_different_verdict(se
 
 # contract-test: supporting surface=rest_api assertions=web-browse.session-and-run,web-browse.private-storage-and-api
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.session-and-run,web-browse.private-storage-and-api
 async def test_foreign_or_different_chat_cannot_observe_resume_or_spend(service):
     result = await run(service)
     calls = deepcopy(service.driver.calls)
@@ -542,6 +559,7 @@ async def test_foreign_or_different_chat_cannot_observe_resume_or_spend(service)
 
 # contract-test: supporting surface=rest_api assertions=web-browse.budgets-and-stop,web-browse.cost-accounting
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.budgets-and-stop,web-browse.cost-accounting
 async def test_tighter_followup_cap_cannot_silently_spend_the_existing_larger_cap(
     service,
 ):
@@ -559,6 +577,7 @@ async def test_tighter_followup_cap_cannot_silently_spend_the_existing_larger_ca
 
 # contract-test: supporting surface=rest_api assertions=web-browse.exclusive-takeover,web-browse.control-loop
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.exclusive-takeover,web-browse.control-loop
 async def test_takeover_during_inference_discards_pending_click(service):
     class DelayedModels(Models):
         started = asyncio.Event()
@@ -589,6 +608,7 @@ async def test_takeover_during_inference_discards_pending_click(service):
 
 # contract-test: supporting surface=rest_api assertions=web-browse.lifecycle,web-browse.cost-accounting
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.lifecycle,web-browse.cost-accounting
 async def test_pause_includes_startup_and_inference_then_costs_zero_without_waking(
     service,
 ):
@@ -614,6 +634,7 @@ async def test_pause_includes_startup_and_inference_then_costs_zero_without_waki
 
 # contract-test: supporting surface=rest_api assertions=web-browse.budgets-and-stop,web-browse.cost-accounting
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.budgets-and-stop,web-browse.cost-accounting
 async def test_insufficient_cap_does_not_start_paid_compute(service):
     result = await run(service, arguments(max_credits=1))
     assert result.status == "budget_exceeded"
@@ -626,6 +647,7 @@ async def test_insufficient_cap_does_not_start_paid_compute(service):
 
 # contract-test: supporting surface=rest_api assertions=web-browse.lifecycle,web-browse.session-and-run,web-browse.cost-accounting
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.lifecycle,web-browse.session-and-run,web-browse.cost-accounting
 async def test_followup_reconciles_native_idle_pause_before_resuming(service):
     # A needs_user run keeps its idle window; the native timeout then pauses it.
     service.models_factory = BlockedModels
@@ -671,6 +693,7 @@ async def test_followup_reconciles_native_idle_pause_before_resuming(service):
 
 # contract-test: supporting surface=rest_api assertions=web-browse.cost-accounting
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.cost-accounting
 async def test_pending_charge_keeps_same_intent_and_reservation_until_committed(
     service,
 ):
@@ -708,6 +731,7 @@ async def test_pending_charge_keeps_same_intent_and_reservation_until_committed(
 
 # contract-test: supporting surface=rest_api assertions=web-browse.budgets-and-stop,web-browse.cost-accounting
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.budgets-and-stop,web-browse.cost-accounting
 async def test_boot_failure_cleans_up_recoverable_paid_handle_and_reservation(service):
     service.driver.fail_start = True
     result = await run(service)
@@ -721,6 +745,7 @@ async def test_boot_failure_cleans_up_recoverable_paid_handle_and_reservation(se
 
 # contract-test: supporting surface=rest_api assertions=web-browse.cost-accounting,web-browse.budgets-and-stop
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.cost-accounting,web-browse.budgets-and-stop
 async def test_missing_native_usage_cannot_be_free_success_or_release_hold(service):
     class MissingUsage(Models):
         async def plan(self, **kwargs):
@@ -740,6 +765,7 @@ async def test_missing_native_usage_cannot_be_free_success_or_release_hold(servi
 
 # contract-test: supporting surface=rest_api assertions=web-browse.cost-accounting,web-browse.lifecycle
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.cost-accounting,web-browse.lifecycle
 async def test_known_resume_is_persisted_before_ingress_failure_and_can_be_settled(
     service,
 ):
@@ -767,6 +793,7 @@ async def test_known_resume_is_persisted_before_ingress_failure_and_can_be_settl
 
 # contract-test: supporting surface=rest_api assertions=web-browse.cost-accounting,web-browse.lifecycle,web-browse.private-storage-and-api
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.cost-accounting,web-browse.lifecycle,web-browse.private-storage-and-api
 async def test_close_preserves_only_resource_billing_evidence_for_an_unknown_hold(
     service,
 ):
@@ -792,6 +819,7 @@ async def test_close_preserves_only_resource_billing_evidence_for_an_unknown_hol
 
 # contract-test: supporting surface=rest_api assertions=web-browse.sign-in,web-browse.private-storage-and-api
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.sign-in,web-browse.private-storage-and-api
 async def test_stale_sign_in_consent_has_no_paid_or_control_side_effect(service):
     result = await run(service)
     await service.control(
@@ -811,6 +839,7 @@ async def test_stale_sign_in_consent_has_no_paid_or_control_side_effect(service)
 
 # contract-test: supporting surface=rest_api assertions=web-browse.exclusive-takeover,web-browse.private-storage-and-api
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.exclusive-takeover,web-browse.private-storage-and-api
 async def test_input_is_strictly_typed_and_rejected_outside_manual_control(service):
     with pytest.raises(ValidationError):
         BrowseControl.model_validate(
@@ -837,6 +866,7 @@ async def test_input_is_strictly_typed_and_rejected_outside_manual_control(servi
     "idle,expected",
     [(119, "ai"), (120, "paused"), (86399, "paused"), (86400, "expired")],
 )
+# contract-test: supporting surface=rest_api assertions=web-browse.lifecycle
 def test_lifecycle_boundaries(idle, expected):
     assert (
         session_lifecycle(
@@ -864,6 +894,7 @@ def test_output_schema_is_bounded_local_object_or_array(schema):
 
 # contract-test: supporting surface=rest_api assertions=web-browse.cost-accounting
 @pytest.mark.parametrize("seconds", [1, 17, 59, 60, 61, 90.5])
+# contract-test: supporting surface=rest_api assertions=web-browse.cost-accounting
 def test_allocated_compute_is_metered_by_elapsed_seconds_without_minute_blocks(
     service, monkeypatch, seconds
 ):
@@ -900,6 +931,7 @@ def test_fractional_billing_is_rounded_once_for_the_accumulated_cost():
 
 # contract-test: supporting surface=rest_api assertions=web-browse.private-storage-and-api,web-browse.session-and-run
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.private-storage-and-api,web-browse.session-and-run
 async def test_authoritative_store_checks_owner_before_decrypting():
     db = SimpleNamespace(get_items=AsyncMock(return_value=[]))
     encryption = SimpleNamespace(decrypt_with_user_key=AsyncMock())
@@ -914,6 +946,7 @@ async def test_authoritative_store_checks_owner_before_decrypting():
 
 # contract-test: supporting surface=rest_api assertions=web-browse.session-and-run,web-browse.budgets-and-stop
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.session-and-run,web-browse.budgets-and-stop
 async def test_prepared_job_is_stable_and_stop_prevents_queued_compute(service):
     request = arguments()
     job = await service.run(
@@ -961,6 +994,7 @@ async def test_prepared_job_is_stable_and_stop_prevents_queued_compute(service):
 
 # contract-test: supporting surface=rest_api assertions=web-browse.session-and-run,web-browse.structured-data
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.session-and-run,web-browse.structured-data
 async def test_distinct_followup_keeps_original_result_after_browser_close(service):
     first = await run(service)
     service.driver.observation["text"] = "A different observed fact"
@@ -985,6 +1019,7 @@ async def test_distinct_followup_keeps_original_result_after_browser_close(servi
 
 # contract-test: supporting surface=rest_api assertions=web-browse.session-and-run,web-browse.control-loop
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.session-and-run,web-browse.control-loop
 async def test_admitted_worker_executes_once_and_recovers_same_result(service):
     request = arguments()
     job = await service.run(
@@ -1019,6 +1054,7 @@ async def test_admitted_worker_executes_once_and_recovers_same_result(service):
 
 # contract-test: supporting surface=rest_api assertions=web-browse.lifecycle,web-browse.cost-accounting,web-browse.exclusive-takeover
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.lifecycle,web-browse.cost-accounting,web-browse.exclusive-takeover
 async def test_close_during_inference_settles_usage_after_draining_call(service):
     class DelayedModels(Models):
         started = asyncio.Event()
@@ -1046,6 +1082,7 @@ async def test_close_during_inference_settles_usage_after_draining_call(service)
 # contract-test: supporting surface=rest_api assertions=web-browse.cost-accounting,web-browse.budgets-and-stop,web-browse.session-and-run
 @pytest.mark.asyncio
 @pytest.mark.parametrize("known_rejection", [True, False])
+# contract-test: supporting surface=rest_api assertions=web-browse.cost-accounting,web-browse.budgets-and-stop,web-browse.session-and-run
 async def test_creation_rejection_releases_hold_but_uncertain_creation_stays_pending(
     service, known_rejection
 ):
@@ -1076,6 +1113,7 @@ async def test_creation_rejection_releases_hold_but_uncertain_creation_stays_pen
 
 # contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.truthful-completion
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.truthful-completion
 async def test_verified_empty_search_stays_no_results_when_schema_demands_records(
     service,
 ):
@@ -1099,6 +1137,7 @@ async def test_verified_empty_search_stays_no_results_when_schema_demands_record
 
 # contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.truthful-completion,web-browse.cost-accounting
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.truthful-completion,web-browse.cost-accounting
 async def test_missing_schema_still_extracts_and_verifies_a_metered_answer(service):
     expected = {"statement": "Observed fact", "source_url": "https://example.com/"}
     contexts = []
@@ -1118,7 +1157,7 @@ async def test_missing_schema_still_extracts_and_verifies_a_metered_answer(servi
             await self.after(call, attempt)
             return {"data": expected}
 
-        async def verify(self, task, observation, data, evidence=None):
+        async def verify(self, task, observation, data, evidence=None, history=None):
             assert data == expected
             assert "tables" not in data  # Snapshot metadata is not an authored answer.
             return True
@@ -1139,6 +1178,7 @@ async def test_missing_schema_still_extracts_and_verifies_a_metered_answer(servi
 
 # contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.truthful-completion
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.truthful-completion
 async def test_default_answer_schema_rejects_a_scalar_even_after_positive_review(
     service,
 ):
@@ -1196,6 +1236,7 @@ NEXT = {
 
 # contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.truthful-completion,web-browse.control-loop
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.truthful-completion,web-browse.control-loop
 async def test_facts_from_two_pages_survive_navigation_with_both_sources(service):
     service.driver.observation = shop_page(
         1, "Kit A costs 20,00 €. Ships in 2 days.", [NEXT]
@@ -1268,6 +1309,7 @@ async def test_facts_from_two_pages_survive_navigation_with_both_sources(service
 
 # contract-test: supporting surface=rest_api assertions=web-browse.truthful-completion,web-browse.network-and-content
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.truthful-completion,web-browse.network-and-content
 async def test_note_whose_quote_is_not_on_the_page_is_rejected(service):
     class InventedNote(Models):
         plans = [done_plan("Observed fact", "A quote the page never showed")]
@@ -1282,6 +1324,7 @@ async def test_note_whose_quote_is_not_on_the_page_is_rejected(service):
 
 # contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.truthful-completion
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.truthful-completion
 async def test_unconfirmed_fields_are_dropped_and_listed_as_missing(service):
     service.driver.observation = shop_page(1, "Kit A costs 20,00 €.")
 
@@ -1297,7 +1340,14 @@ async def test_unconfirmed_fields_are_dropped_and_listed_as_missing(service):
             }
         }
 
-    service.models_factory = PartialModels
+    reviews = []
+
+    def factory(*args, **kwargs):
+        models = PartialModels(*args, **kwargs)
+        models.reviews = reviews
+        return models
+
+    service.models_factory = factory
     result = await run(
         service,
         BrowseRequest(
@@ -1312,35 +1362,201 @@ async def test_unconfirmed_fields_are_dropped_and_listed_as_missing(service):
     assert result.sources == [
         {"url": "https://shop.example/page-1", "title": "Grow kits page 1"}
     ]
+    # Only the code-matched answer is reviewed; unmatched values never are.
+    assert reviews == [{"products": [{"name": "Kit A", "price": 20}]}]
 
 
 # contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.truthful-completion
 @pytest.mark.asyncio
-@pytest.mark.parametrize("interaction", [0.99, 0.2])
-async def test_nothing_matched_or_unfinished_interaction_needs_the_user(
-    service, interaction
-):
+@pytest.mark.parametrize(
+    "case", ["nothing_matched", "unfinished_interaction", "ungrounded"]
+)
+# contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.truthful-completion
+async def test_nothing_matched_or_unfinished_interaction_needs_the_user(service, case):
+    reviews = []
+
     class UnmatchedModels(Models):
         verified = False
         extracted = (
             {"data": {"products": [{"name": "Invented kit", "price": 12}]}}
-            if interaction > 0.9
-            else {"data": {"products": [{"name": "Observed fact", "url": "x"}]}}
+            if case == "nothing_matched"
+            else {"data": {"products": [{"name": "Observed fact"}]}}
         )
+        reviewed = {
+            "grounded": case != "ungrounded",
+            "answer_complete": True,
+            "interaction_complete": case != "unfinished_interaction",
+        }
 
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
-            self.verification = {"interaction_score": interaction}
+            self.reviews = reviews
 
     service.models_factory = UnmatchedModels
     result = await run(service, arguments(output_schema=SHOP_SCHEMA))
     assert result.status == "needs_user" and result.data is None
     assert result.missing == [] and not result.observations
+    # Nothing code-matched means no review call at all.
+    assert len(reviews) == (0 if case == "nothing_matched" else 1)
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.truthful-completion
+@pytest.mark.asyncio
+@pytest.mark.parametrize("complete", [True, False])
+# contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.truthful-completion
+async def test_a_large_code_matched_answer_rejected_by_jev_completes_after_review(
+    service, complete
+):
+    rows = [f"Record {i} located in Example Town" for i in range(40)]
+    service.driver.observation = shop_page(1, " ".join(rows))
+
+    class LargeModels(Models):
+        plans = [done_plan()]
+        verified = False  # Jev: grounded 0.63, answer_complete 0.78, interaction 0.56.
+        extracted = {"data": {"products": [{"name": r} for r in rows]}}
+        reviewed = {
+            "grounded": True,
+            "answer_complete": complete,
+            "interaction_complete": True,
+        }
+
+    service.models_factory = LargeModels
+    result = await run(
+        service,
+        BrowseRequest(
+            task="List all records",
+            start_url="https://shop.example/page-1",
+            output_schema=SHOP_SCHEMA,
+        ),
+    )
+    assert result.status == "completed"
+    assert result.data == LargeModels.extracted["data"]
+    assert result.missing == []
+    if complete:
+        assert result.reason is None
+    else:
+        assert "Partial result" in result.reason
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.truthful-completion,web-browse.private-storage-and-api
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.truthful-completion,web-browse.private-storage-and-api
+async def test_verification_sees_the_runs_executed_steps_without_typed_text(service):
+    search = {"id": "1", "kind": "type", "role": "searchbox", "label": "Find"}
+    service.driver.observation = shop_page(1, "Search the shop", [NEXT, search])
+    service.driver.pages = [shop_page(2, "Observed fact")]
+    models = []
+
+    class Searching(Models):
+        plans = [
+            action_plan(
+                {"kind": "type", "target": "1", "text": "secret words"},
+                {"kind": "click", "target": "0"},
+            ),
+            done_plan("Observed fact"),
+        ]
+
+    def factory(*args, **kwargs):
+        models.append(Searching(*args, **kwargs))
+        return models[-1]
+
+    service.models_factory = factory
+    result = await run(
+        service,
+        BrowseRequest(task="Search the shop", start_url="https://shop.example/page-1"),
+    )
+    assert result.status == "completed"
+    history = models[0].histories[0]
+    assert history["visited_urls"] == [
+        "https://shop.example/page-1",
+        "https://shop.example/page-2",
+    ]
+    assert [(s["kind"], s["label"]) for s in history["steps"]] == [
+        ("type", "Find"),
+        ("click", "Next page"),
+    ]
+    assert all(s["url"] == "https://shop.example/page-1" for s in history["steps"])
+    assert "secret words" not in str(history)
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.session-and-run,web-browse.truthful-completion
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.session-and-run,web-browse.truthful-completion
+async def test_a_new_task_on_the_session_starts_with_an_empty_ledger(service):
+    first = await run(service)
+    record = service.store.records[first.session_id]
+    assert record["evidence"] and not record.get("steps")
+    record["steps"] = [{"n": 1, "kind": "click", "label": "Earlier", "url": "u"}]
+    record["step_count"] = 1
+    models = []
+
+    def factory(*args, **kwargs):
+        models.append(Models(*args, **kwargs))
+        return models[-1]
+
+    service.models_factory = factory
+    # The same task continuing (after needs_user or take-over) keeps its ledger.
+    same = BrowseRequest(task=arguments().task, session_id=first.session_id)
+    await run(service, same, message_id="continuation")
+    assert [p["url"] for p in models[-1].evidence] == ["https://example.com/"]
+    assert service.store.records[first.session_id]["steps"][0]["label"] == "Earlier"
+    # A different task never inherits it.
+    service.driver.observation["text"] = "Another statement"
+    other = BrowseRequest(task="Read something else", session_id=first.session_id)
+
+    class Other(Models):
+        plans = [done_plan("Another statement")]
+        extracted = {"data": {"fact": "Another statement"}}
+
+    def other_factory(*args, **kwargs):
+        models.append(Other(*args, **kwargs))
+        return models[-1]
+
+    service.models_factory = other_factory
+    result = await run(service, other, message_id="new-task")
+    assert result.status == "completed"
+    assert models[-1].evidence == [
+        {
+            "url": "https://example.com/",
+            "title": service.driver.observation.get("title", ""),
+            "notes": [{"fact": "Another statement", "quote": "Another statement"}],
+        }
+    ]
+    record = service.store.records[first.session_id]
+    assert "steps" not in record or record["steps"] == []
+    assert result.metrics["evidence_notes"] == 1
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.text-helper
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.text-helper
+async def test_plan_error_code_and_dropped_notes_reach_the_run_metrics(service):
+    class Rejecting(Models):
+        async def plan(self, **kwargs):
+            raise BrowserModelError(
+                "The browser planner returned an invalid plan.",
+                purpose="plan",
+                plan_error_code="unknown_target",
+            )
+
+    service.models_factory = Rejecting
+    result = await run(service)
+    assert result.status == "failed"
+    assert result.metrics["plan_error_code"] == "unknown_target"
+    assert result.metrics["model_error_code"] == "invalid_plan"
+
+    class Malformed(Models):
+        plans = [{**done_plan("Observed fact"), "malformed_notes": 2}]
+
+    service.models_factory = Malformed
+    second = await run(service, message_id="second")
+    assert second.metrics["rejected_notes"] == 2
 
 
 # contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.lifecycle,web-browse.sign-in
 @pytest.mark.asyncio
 @pytest.mark.parametrize("code", ["age_confirmation", "sign_in", "payment"])
+# contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.lifecycle,web-browse.sign-in
 async def test_planner_block_needs_the_user_and_keeps_the_browser_running(
     service, code
 ):
@@ -1361,6 +1577,7 @@ async def test_planner_block_needs_the_user_and_keeps_the_browser_running(
 
 # contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.exclusive-takeover
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.exclusive-takeover
 async def test_unsafe_action_in_a_batch_sends_no_step(service):
     class Unsafe(Models):
         plans = [
@@ -1370,16 +1587,24 @@ async def test_unsafe_action_in_a_batch_sends_no_step(service):
         ]
         gate_reason = "The next action needs your review."
 
+        async def gate(self, task, observation, actions):
+            self.verification.update(gate_safe_score=0.4, gate_injection_score=0.01)
+            return await super().gate(task, observation, actions)
+
     service.models_factory = Unsafe
     result = await run(service)
     assert result.status == "needs_user"
     assert result.reason == "The next action needs your review."
+    # Content-free gate scores reach the metrics of a run that stops at the gate.
+    assert result.metrics["verification"]["gate_safe_score"] == 0.4
+    assert result.metrics["verification"]["gate_injection_score"] == 0.01
     assert not operations(service, "step")
     assert not service.store.records[result.session_id].get("pending_action")
 
 
 # contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.exclusive-takeover
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.exclusive-takeover
 async def test_uncertain_step_outcome_needs_the_user_and_is_never_retried(service):
     class Clicking(Models):
         plans = [action_plan({"kind": "click", "target": "0"}), done_plan()]
@@ -1396,6 +1621,7 @@ async def test_uncertain_step_outcome_needs_the_user_and_is_never_retried(servic
 
 # contract-test: supporting surface=rest_api assertions=web-browse.budgets-and-stop,web-browse.cost-accounting
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.budgets-and-stop,web-browse.cost-accounting
 async def test_budget_is_admitted_before_the_planner_call(service):
     class Expensive(Models):
         planner_bound = Decimal("5")
@@ -1413,6 +1639,7 @@ async def test_budget_is_admitted_before_the_planner_call(service):
 
 # contract-test: supporting surface=rest_api assertions=web-browse.lifecycle,web-browse.private-storage-and-api
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.lifecycle,web-browse.private-storage-and-api
 async def test_live_view_during_an_ai_run_never_waits_on_the_lease_or_the_runtime(
     service,
 ):
@@ -1443,6 +1670,7 @@ async def test_live_view_during_an_ai_run_never_waits_on_the_lease_or_the_runtim
 
 # contract-test: supporting surface=rest_api assertions=web-browse.exclusive-takeover,web-browse.private-storage-and-api
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.exclusive-takeover,web-browse.private-storage-and-api
 async def test_manual_control_reads_live_frames_from_the_runtime(service):
     service.models_factory = BlockedModels
     result = await run(service)
@@ -1455,6 +1683,7 @@ async def test_manual_control_reads_live_frames_from_the_runtime(service):
 
 # contract-test: supporting surface=rest_api assertions=web-browse.session-and-run,web-browse.lifecycle
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.session-and-run,web-browse.lifecycle
 async def test_existing_session_resumes_with_observe_and_rejects_an_old_runtime(
     service,
 ):

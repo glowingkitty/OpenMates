@@ -50,8 +50,9 @@ PLANNER_INSTRUCTIONS = (
     "Before leaving a page, record every fact relevant to the goal as a note: fact states it briefly, quote is text "
     "copied exactly from page.document_excerpt or page.text, or an exact observed link URL. Quotes are checked "
     "literally; paraphrased quotes are discarded. evidence holds notes already recorded on earlier pages. "
-    "Actions use control ids from page.controls: click {target}, type {target,text,submit?} (submit presses Enter), "
-    "select {target,value} with value one of that control's option values, scroll {delta between -800 and 800}, "
+    "Actions use control ids from page.controls: click {target} (any control), type {target,text,submit?} on a "
+    "type control (submit presses Enter), select {target,value} on a select control with value one of its option "
+    "values, scroll {delta between -800 and 800}, "
     "wait, back, goto {url} (an https URL, only as the single action). Up to six actions run in order; the batch "
     "stops after a navigation. Prefer few decisive actions. Dismissing cookie banners is allowed. Controls outside "
     "the viewport are valid targets. Typed text must be justified by the goal. "
@@ -66,8 +67,32 @@ PLANNER_INSTRUCTIONS = (
 )
 
 
+PLAN_ERROR_CODES = frozenset(
+    {
+        "bad_shape",
+        "unknown_blocked",
+        "unknown_kind",
+        "missing_field",
+        "unknown_target",
+        "wrong_target_kind",
+        "unobserved_option",
+        "bad_field",
+        "bad_goto",
+        "no_action",
+    }
+)
+
+
 class PlanInvalid(ValueError):
-    """The planner output does not satisfy the plan contract."""
+    """The planner output does not satisfy the plan contract.
+
+    `code` is a fixed, content-free reason from `PLAN_ERROR_CODES`; the message
+    goes back to the planner once as `previous_plan_rejected`.
+    """
+
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(message)
+        self.code = code if code in PLAN_ERROR_CODES else "bad_shape"
 
 
 def control_index(observation: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -183,40 +208,61 @@ def _safe_https(url: Any) -> bool:
     )
 
 
+def _reject(code: str, message: str) -> PlanInvalid:
+    return PlanInvalid(code, message)
+
+
+def _option_value(control: dict[str, Any], value: Any) -> str:
+    """Map a planned dropdown value (or an exact observed label) to an observed value."""
+    options = [o for o in control.get("options") or [] if isinstance(o, dict)]
+    if isinstance(value, str):
+        for option in options:
+            if option.get("value") == value:
+                return str(option["value"])
+        for option in options:
+            if option.get("label") == value and isinstance(option.get("value"), str):
+                return option["value"]
+    raise _reject("unobserved_option", "The option is not observed on that dropdown.")
+
+
 def _action(raw: Any, controls: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    """Rebuild one action from validated fields only; unknown extra fields are dropped."""
     if not isinstance(raw, dict) or raw.get("kind") not in ACTION_FIELDS:
-        raise PlanInvalid("Unknown action kind.")
+        raise _reject("unknown_kind", "Unknown action kind.")
     kind = raw["kind"]
-    required, optional = ACTION_FIELDS[kind]
-    keys = set(raw) - {"kind"}
-    if not required <= keys or keys - required - optional:
-        raise PlanInvalid("Unexpected action fields.")
+    required, _optional = ACTION_FIELDS[kind]
+    missing = sorted(required - set(raw))
+    if missing:
+        raise _reject("missing_field", f"The {kind} action needs {', '.join(missing)}.")
     action: dict[str, Any] = {"kind": kind}
     if "target" in required:
         target = raw["target"]
-        if isinstance(target, bool) or not isinstance(target, (str, int)):
-            raise PlanInvalid("Invalid target.")
-        control = controls.get(str(target))
-        if control is None or control.get("kind") != kind:
-            raise PlanInvalid("Target is not an observed control of this kind.")
+        control = (
+            None
+            if isinstance(target, bool) or not isinstance(target, (str, int))
+            else controls.get(str(target))
+        )
+        if control is None:
+            raise _reject("unknown_target", "The target is not an observed control id.")
+        # Clicking any observed control is harmless; typing and choosing need
+        # a control of the matching kind.
+        if kind in ("type", "select") and control.get("kind") != kind:
+            raise _reject(
+                "wrong_target_kind", f"The {kind} target must be a {kind} control."
+            )
         action["target"] = str(control["id"])
     if kind == "type":
         if not isinstance(raw["text"], str) or len(raw["text"]) > 2000:
-            raise PlanInvalid("Invalid field text.")
+            raise _reject(
+                "bad_field", "Typed text must be a string of at most 2000 characters."
+            )
         action["text"] = raw["text"]
         if "submit" in raw:
             if not isinstance(raw["submit"], bool):
-                raise PlanInvalid("Invalid submit flag.")
+                raise _reject("bad_field", "submit must be a boolean.")
             action["submit"] = raw["submit"]
     elif kind == "select":
-        values = [
-            o.get("value")
-            for o in controls[action["target"]].get("options") or []
-            if isinstance(o, dict)
-        ]
-        if not isinstance(raw["value"], str) or raw["value"] not in values:
-            raise PlanInvalid("The option is not observed.")
-        action["value"] = raw["value"]
+        action["value"] = _option_value(controls[action["target"]], raw["value"])
     elif kind == "scroll":
         delta = raw["delta"]
         if (
@@ -224,56 +270,93 @@ def _action(raw: Any, controls: dict[str, dict[str, Any]]) -> dict[str, Any]:
             or not isinstance(delta, int)
             or not 0 < abs(delta) <= 800
         ):
-            raise PlanInvalid("Invalid scroll delta.")
+            raise _reject("bad_field", "delta must be an integer between -800 and 800.")
         action["delta"] = delta
     elif kind == "goto":
         if not _safe_https(raw["url"]):
-            raise PlanInvalid("Use a public HTTPS URL.")
+            raise _reject("bad_goto", "goto needs a public HTTPS URL.")
         action["url"] = raw["url"]
     return action
 
 
-def validate_plan(raw: Any, observation: dict[str, Any]) -> dict[str, Any]:
-    """Validate planner JSON against the contract and the current observation."""
-    if not isinstance(raw, dict) or set(raw) != {"notes", "actions", "done", "blocked"}:
-        raise PlanInvalid(
-            "The plan must have exactly notes, actions, done and blocked."
-        )
-    notes, actions, done, blocked = (
-        raw[k] for k in ("notes", "actions", "done", "blocked")
-    )
-    if not isinstance(done, bool):
-        raise PlanInvalid("done must be a boolean.")
-    if blocked is not None and blocked not in BLOCK_REASONS:
-        raise PlanInvalid("Unknown blocked code.")
-    if not isinstance(notes, list) or len(notes) > MAX_NOTES_PER_PLAN:
-        raise PlanInvalid("Invalid notes.")
-    for note in notes:
+def _notes(raw: Any) -> tuple[list[dict[str, str]], int]:
+    """Well-formed notes plus the number of malformed or excess notes dropped."""
+    if raw is None:
+        return [], 0
+    if not isinstance(raw, list):
+        return [], 1
+    kept: list[dict[str, str]] = []
+    dropped = 0
+    for note in raw:
         if (
-            not isinstance(note, dict)
-            or set(note) != {"fact", "quote"}
-            or not all(isinstance(note[k], str) and len(note[k]) <= 2000 for k in note)
+            len(kept) < MAX_NOTES_PER_PLAN
+            and isinstance(note, dict)
+            and all(
+                isinstance(note.get(k), str) and len(note[k]) <= 2000
+                for k in ("fact", "quote")
+            )
         ):
-            raise PlanInvalid("Invalid note.")
-    if not isinstance(actions, list) or len(actions) > MAX_ACTIONS:
-        raise PlanInvalid("Invalid actions.")
+            kept.append({"fact": note["fact"], "quote": note["quote"]})
+        else:
+            dropped += 1
+    return kept, dropped
+
+
+def validate_plan(raw: Any, observation: dict[str, Any]) -> dict[str, Any]:
+    """Validate planner JSON against the contract and the current observation.
+
+    Tolerant only where tolerance cannot execute anything unintended: unknown
+    top-level keys and extra action fields are ignored, missing fields take
+    their inert defaults, malformed notes are dropped (and counted in
+    `malformed_notes`) and only the first six actions are considered. Every
+    executed action is rebuilt from validated fields.
+    """
+    if not isinstance(raw, dict):
+        raise _reject("bad_shape", "The plan must be one JSON object.")
+    done = raw.get("done", False)
+    blocked = raw.get("blocked")
+    if blocked in ("null", ""):
+        blocked = None
+    if not isinstance(done, bool):
+        raise _reject("bad_shape", "done must be a boolean.")
+    if blocked is not None and blocked not in BLOCK_REASONS:
+        raise _reject("unknown_blocked", "Unknown blocked code.")
+    notes, malformed = _notes(raw.get("notes"))
+    actions = raw.get("actions", [])
+    if actions is None:
+        actions = []
+    if not isinstance(actions, list):
+        raise _reject("bad_shape", "actions must be a list.")
+    result = {
+        "notes": notes,
+        "done": done,
+        "blocked": blocked,
+        "malformed_notes": malformed,
+    }
     if done or blocked:
         # A finished or blocked plan never executes input, whatever it lists.
-        return {"notes": notes, "actions": [], "done": done, "blocked": blocked}
+        return {**result, "actions": []}
     if not actions:
-        raise PlanInvalid("An unfinished plan needs an action.")
+        raise _reject("no_action", "An unfinished plan needs an action.")
     controls = control_index(observation)
-    checked = [_action(a, controls) for a in actions]
+    checked = [_action(a, controls) for a in actions[:MAX_ACTIONS]]
     if any(a["kind"] == "goto" for a in checked) and len(checked) > 1:
-        raise PlanInvalid("goto must be the only action.")
-    return {"notes": notes, "actions": checked, "done": False, "blocked": None}
+        raise _reject("bad_goto", "goto must be the only action.")
+    return {**result, "actions": checked}
 
 
 def plain_action(action: dict[str, Any], observation: dict[str, Any]) -> bool:
-    """Scroll, wait, back and plain HTTPS link navigation need no safety question."""
-    if action["kind"] in ("scroll", "wait", "back"):
+    """Actions that need no model safety question (the DANGEROUS check still applies).
+
+    Scroll, wait, back, plain HTTPS link navigation and field preparation:
+    choosing a dropdown option or typing without pressing Enter.
+    """
+    kind = action["kind"]
+    if kind in ("scroll", "wait", "back", "select"):
         return True
-    if action["kind"] != "click":
+    if kind == "type":
+        return not action.get("submit")
+    if kind != "click":
         return False
     control = control_index(observation).get(str(action.get("target")), {})
     return control.get("role") == "link" and str(control.get("href") or "").startswith(

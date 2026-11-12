@@ -36,6 +36,10 @@ control_loop:
     given: The user asks for the price of a grow kit and the shop's shipping countries, which are on two different pages.
     when: Browse reads the product page, notes the price with its quoted text, then opens the shipping page.
     then: The price noted on the first page is still part of the answer after navigating, and a note whose quotation is not on its page is discarded.
+  - id: new-task-fresh-evidence
+    given: A session finished one task and the user then asks a different question in the same session.
+    when: The new run starts.
+    then: It begins without the earlier task's recorded facts and step list, while a continuation of the same task after taking control keeps them.
   - id: absent-or-stale-visual-target
     given: A visual locator returns a box for a missing button, or the page changes after a decision.
     when: The worker validates that proposed click or receives a replayed delivery.
@@ -58,6 +62,10 @@ outcomes:
     given: The user asks for name, price and stock status of three products; the pages show names and prices but never stock status.
     when: Browse finishes and checks each value against what it recorded.
     then: It returns the three names and prices with their source pages and lists stock status as missing, without inventing it and without discarding the verified values.
+  - id: large-verified-list
+    given: The user asks for all forty records a search shows, and every returned value appears on the visited pages, but the completion check cannot confirm the long answer.
+    when: The review confirms the values' meaning and that the search was actually submitted.
+    then: Browse returns the forty records with their source pages instead of asking the user, marking it partial only when values were removed or the review found the answer incomplete.
   - id: empty-or-blocked
     given: The requested filters yield no workshops, or a provider failure prevents further actions.
     when: Browse stops.

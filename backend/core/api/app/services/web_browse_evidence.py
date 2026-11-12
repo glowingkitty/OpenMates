@@ -17,7 +17,6 @@ import re
 import unicodedata
 from typing import Any
 
-from jsonschema import Draft202012Validator
 
 from backend.shared.providers.browser_planner import bounded_ledger, document_excerpt
 
@@ -256,15 +255,6 @@ def check_answer(
             seen.add(sources[i].url)
             check.sources.append({"url": sources[i].url, "title": sources[i].title})
     return check
-
-
-def partial_answer(check: AnswerCheck, schema: dict[str, Any]) -> bool:
-    """A pruned answer qualifies when something matched remains and it validates."""
-    return (
-        bool(check.unmatched)
-        and check.matched > 0
-        and Draft202012Validator(schema).is_valid(check.pruned)
-    )
 
 
 def extraction_context(

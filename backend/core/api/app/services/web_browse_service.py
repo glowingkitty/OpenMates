@@ -490,6 +490,7 @@ class BrowseService:
         record.pop("latest_observation", None)
         record.pop("last_result", None)
         record.pop("evidence", None)
+        record.pop("evidence_task", None)
         record.pop("steps", None)
         await self.store.save(record)
 

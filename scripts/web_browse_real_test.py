@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -30,6 +31,7 @@ from personal_dev_draft_guard import DraftGuard, DraftGuardError
 from workflow_schedule_real_test import API_URL, ProofError, sessions, write_receipt
 
 ROOT = Path(__file__).resolve().parents[1]
+EMBED_REF = re.compile(r'\\"embed_id\\":\\"([0-9a-f-]{36})\\",\\"app_id\\":\\"web\\",\\"skill_id\\":\\"browse\\"')
 
 # expect_all / expect_any are matched case-insensitively against the whole saved chat.
 CASES: dict[str, dict] = {
@@ -76,7 +78,8 @@ CASES: dict[str, dict] = {
         ],
     },
     "missing-fact": {
-        "browse_required": True,
+        # Reading a static page without the browser is a correct way to answer this one.
+        "browse_required": False,
         "expect_any": ["not", "no phone", "could not", "couldn't", "doesn't", "does not"],
         "forbid": ["+1 ", "(555)"],
         "turns": [
@@ -90,7 +93,7 @@ CASES: dict[str, dict] = {
 def browse_results(node: object, found: list[dict]) -> list[dict]:
     """Collect saved Browse result objects from a `chats show` payload of unknown nesting."""
     if isinstance(node, dict):
-        if "run_id" in node and "session_id" in node and "status" in node:
+        if "run_id" in node and "session_id" in node and node.get("status") in RUN_STATUSES:
             found.append(node)
         for value in node.values():
             browse_results(value, found)
@@ -105,16 +108,19 @@ def browse_results(node: object, found: list[dict]) -> list[dict]:
     return found
 
 
+RUN_STATUSES = ("completed", "no_results", "needs_user", "failed", "cancelled")
+
+
 def summarize(result: dict) -> dict:
-    metrics = result.get("metrics") if isinstance(result.get("metrics"), dict) else {}
-    keep = ("total_seconds", "steps", "first_observation_seconds", "start_rpc_seconds", "planner_seconds",
-            "gate_seconds", "step_rpc_seconds", "store_seconds", "extract_seconds", "verify_seconds",
-            "pages_visited", "rejected_notes", "accrued_credits", "charged_credits", "error_kind", "error_phase")
+    """Content-free summary of one saved Browse result (metrics are stored flattened as metrics_<name>)."""
+    nested = result.get("metrics") if isinstance(result.get("metrics"), dict) else {}
+    metrics = {**nested, **{key[8:]: value for key, value in result.items()
+                            if key.startswith("metrics_") and isinstance(value, (int, float, str, bool))}}
     return {
         "status": result.get("status"), "reason": result.get("reason"), "url": result.get("url"),
         "missing": result.get("missing") or [], "sources": len(result.get("sources") or []),
-        "has_data": result.get("data") not in (None, {}, []),
-        "metrics": {key: metrics[key] for key in keep if key in metrics},
+        "has_data": any(result.get(key) not in (None, {}, [], "", "null", "{}") for key in ("data", "data_json")),
+        "metrics": metrics,
     }
 
 
@@ -139,7 +145,15 @@ def run_case(cli: str, label: str, case: dict, out: Path, timeout: int, keep_cha
         shown = command(cli, ["chats", "show", chat_id, "--personal"])
         write_receipt(out / f"{label}-chat.json", shown)
         text = json.dumps(shown, ensure_ascii=False).lower()
-        runs = [summarize(item) for item in browse_results(shown, [])]
+        found = browse_results(shown, [])
+        # Saved chats reference the Browse embed; its decrypted content holds the result.
+        embed_ids = sorted({m.group(1) for m in EMBED_REF.finditer(json.dumps(shown))})
+        for number, embed_id in enumerate(embed_ids, 1):
+            embed = command(cli, ["embeds", "show", embed_id, "--chat", chat_id])
+            write_receipt(out / f"{label}-embed{number}.json", embed)
+            text += json.dumps(embed, ensure_ascii=False).lower()
+            browse_results(embed, found)
+        runs = [summarize(item) for item in found]
         result["browse_runs"] = runs
         result["browse_ran"] = bool(runs)
         result["browse_delivered"] = any(run["status"] in ("completed", "no_results") for run in runs)
