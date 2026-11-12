@@ -100,6 +100,18 @@ def _zellij_env() -> dict[str, str]:
     return env
 
 
+def _chat_command(*claude_args: str) -> list[str]:
+    """Command for a zellij tab. Tabs inherit the zellij server's environment, and a
+    server started from cron has only the system PATH, so the chat could not find
+    user-installed tools (the `openmates` CLI). Put the user bin folders first."""
+    home = Path.home()
+    user_bins = [str(home / ".npm-global/bin"), str(home / ".local/bin")]
+    inherited = [part for part in os.environ.get("PATH", os.defpath).split(os.pathsep)
+                 if part and part not in user_bins]
+    path = os.pathsep.join([*user_bins, *inherited])
+    return ["/usr/bin/env", f"PATH={path}", CLAUDE_BIN, *claude_args]
+
+
 def _session_state(listing: str, name: str) -> str:
     """'live', 'exited' or 'missing' for `name` in `zellij list-sessions -n` output."""
     for line in listing.splitlines():
@@ -120,7 +132,7 @@ def ensure_zellij_session() -> None:
         _zellij("delete-session", ZELLIJ_SESSION, "--force", check=False)
     _zellij("attach", "--create-background", ZELLIJ_SESSION)
     _zellij("--session", ZELLIJ_SESSION, "action", "new-tab", "--name", "remote-control",
-            "--cwd", str(REPO_ROOT), "--", CLAUDE_BIN, "remote-control")
+            "--cwd", str(REPO_ROOT), "--", *_chat_command("remote-control"))
 
 
 def launch_claude_chat(title: str, prompt: str) -> str:
@@ -134,8 +146,10 @@ def launch_claude_chat(title: str, prompt: str) -> str:
     ensure_zellij_session()
     _zellij(
         "--session", ZELLIJ_SESSION, "action", "new-tab", "--name", title, "--cwd", str(REPO_ROOT),
-        "--", CLAUDE_BIN, "--remote-control", title, "--model", CLAUDE_MODEL,
-        "--effort", CLAUDE_EFFORT, "--permission-mode", "auto", prompt,
+        "--", *_chat_command(
+            "--remote-control", title, "--model", CLAUDE_MODEL,
+            "--effort", CLAUDE_EFFORT, "--permission-mode", "auto", prompt,
+        ),
     )
     return f"{ZELLIJ_SESSION}/{title}"
 

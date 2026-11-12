@@ -156,6 +156,18 @@ def test_launch_opens_persistent_remote_control_tab_with_sonnet_5_5_high(monkeyp
     assert not any("attach" in call for call in calls)
 
 
+# contract-test: supporting surface=tooling assertions=issue-reporting.automation.admin-dev-claude-chat
+def test_launched_chat_gets_user_bin_folders_first_on_path(tmp_path, monkeypatch):
+    monkeypatch.setattr(dispatch.Path, "home", classmethod(lambda cls: tmp_path))
+    monkeypatch.setenv("PATH", "/usr/bin:/bin")
+    calls = _fake_zellij(monkeypatch, "claude [Created 1h ago] \n")
+    dispatch.launch_claude_chat("title", "prompt")
+    chat = calls[-1][calls[-1].index("--") + 1:]
+    assert chat[0] == "/usr/bin/env"
+    assert chat[1] == f"PATH={tmp_path}/.npm-global/bin:{tmp_path}/.local/bin:/usr/bin:/bin"
+    assert chat[2] == dispatch.CLAUDE_BIN
+
+
 # contract-test: supporting surface=gui.web assertions=issue-reporting.automation.admin-dev-claude-chat
 def test_launch_recreates_missing_or_exited_session_with_bridge(monkeypatch):
     for listing, expect_delete in [("other [Created 1h ago]\n", False),
