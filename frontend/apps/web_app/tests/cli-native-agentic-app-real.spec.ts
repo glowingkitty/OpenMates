@@ -119,6 +119,8 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
 
     const turn = await run(['chats', 'new', PROMPT, '--json'], 900_000);
     chatId = pickString(turn, ['chatId', 'chat_id']);
+    // Recorded early so a leftover chat can be removed if the run is cut short.
+    fs.writeFileSync(info.outputPath('run-ids.private.json'), JSON.stringify({ chatId }), { mode: 0o600 });
     expect(chatId).toMatch(/^[0-9a-f-]{36}$/);
     const creations: unknown[] = turn.projectCreations ?? turn.project_creations ?? [];
     const adoptions: Row[] = turn.projectEmbedAdoptions ?? turn.project_embed_adoptions ?? [];
@@ -174,12 +176,16 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
     // Start the live preview from the chat's application card and wait for the running app.
     if (await embed.isVisible()) {
       await toggle.click();
-      await embed.click();
+      // In chat the card body is not a click target; the expand control opens the fullscreen.
+      await embed.getByTestId('result-preview-expand').click();
       const start = page.getByTestId('application-start-preview');
       const frame = page.getByTestId('application-preview-iframe');
-      await expect.soft(start.or(frame).first()).toBeVisible({ timeout: 30_000 });
+      await expect.soft(start.or(frame).first(), 'application fullscreen').toBeVisible({ timeout: 30_000 });
       if (await start.isVisible() && await start.isEnabled()) await start.click();
-      await expect.soft(frame, 'running application preview').toBeVisible({ timeout: 300_000 });
+      // Bounded well below the test timeout so cleanup always runs.
+      if (await start.or(frame).first().isVisible()) {
+        await expect.soft(frame, 'running application preview').toBeVisible({ timeout: 240_000 });
+      }
       if (await frame.isVisible()) {
         // The app renders inside the frame; a blank body means it did not boot.
         const body = page.frameLocator('[data-testid="application-preview-iframe"]').locator('body');
@@ -207,6 +213,8 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
         await folder.click();
         await expect.soft(page.getByTestId('project-item-card').first()).toBeVisible({ timeout: 60_000 });
         await expect.soft(page.getByText('Code snippet')).toHaveCount(0);
+        // The application card must resolve to its real preview, not stay on the loading tile.
+        await expect.soft(page.getByTestId('project-item-card').first(), 'application card in folder').toContainText(/files/, { timeout: 60_000 });
         await page.screenshot({ path: info.outputPath('project-web-app-folder.png'), fullPage: true });
       }
     }
