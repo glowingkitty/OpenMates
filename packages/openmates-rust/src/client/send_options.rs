@@ -17,6 +17,8 @@
 //!   confirmation waits. Bounded to prevent timer overflow/unbounded waits.
 //! - consent policies: `--auto-approve` / `--auto-approve-memories` explicitly
 //!   approve only fresh server-requested categories or the proposed batch.
+//! - `embeds`, `pii_exclusions`, `pii_mappings`: native-shell composer state
+//!   (attachments, un-redacted values, shell-made placeholders); never JSON.
 //!
 //! CLI-only work remains outside these options: JSON/human presentation,
 //! `--followup` selection, `--accept-task-proposals` post-actions, Team/personal
@@ -92,6 +94,24 @@ pub struct SendOptions {
     pub response_timeout_ms: Option<u64>,
     pub sub_chat_consent: SendConsentPolicy,
     pub memory_consent: SendConsentPolicy,
+    /// Chat and user-message ids the shell reserved for this turn (native
+    /// view-model shells only; `Client::turn_identity` validates them). Not
+    /// part of the SDK JSON options.
+    #[serde(skip)]
+    pub reserved_ids: Option<crate::client::ReservedTurnIds>,
+    /// Embeds the composer attaches (native shells only; not part of the SDK
+    /// JSON options). They become reference blocks in the message, the
+    /// cleartext inference `embeds` and the encrypted `encrypted_embeds`.
+    #[serde(skip)]
+    pub embeds: Vec<crate::client::SendEmbed>,
+    /// Values the user un-redacted in the composer; applied wherever
+    /// `pii_detection` prepares the text (saved and volatile turns).
+    #[serde(skip)]
+    pub pii_exclusions: crate::privacy::PiiExclusions,
+    /// Placeholders the shell already wrote (text or attachments) with their
+    /// originals; stored encrypted with the message so they restore.
+    #[serde(skip)]
+    pub pii_mappings: Vec<crate::client::SendPiiMapping>,
 }
 impl Default for SendOptions {
     fn default() -> Self {
@@ -109,11 +129,22 @@ impl Default for SendOptions {
             response_timeout_ms: None,
             sub_chat_consent: SendConsentPolicy::Caller,
             memory_consent: SendConsentPolicy::Caller,
+            reserved_ids: None,
+            embeds: Vec::new(),
+            pii_exclusions: crate::privacy::PiiExclusions::default(),
+            pii_mappings: Vec::new(),
         }
     }
 }
 impl SendOptions {
+    /// Refuse invalid options before any network effect.
+    ///
+    /// # Errors
+    /// `Invalid` for an out-of-range timeout, a non-canonical Project id, or
+    /// malformed attachments, PII exclusions or PII mappings.
     pub fn validate(&self) -> crate::Result<()> {
+        super::send_attachments::validate(&self.embeds, &self.pii_mappings, self.incognito)?;
+        self.pii_exclusions.validate()?;
         if self
             .response_timeout_ms
             .is_some_and(|value| !(1..=86_400_000).contains(&value))

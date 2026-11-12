@@ -35,8 +35,15 @@ final class CoreChatList: ObservableObject {
     @Published private(set) var completeness: ListCompletenessRecord?
     /// The last failed list call (`bootSync`, `refreshChats`, `switchTeam`); cancellations are not errors.
     @Published private(set) var lastError: CoreError?
-    /// Rows of the last event the sidebar cannot show (saved-item home entries).
+    /// Rows of the last event the sidebar cannot show (saved-item home entries,
+    /// flagged by the core's `isSavedItem`).
     private(set) var refusedRowCount = 0
+    /// Saved-item home entries of the last event, in core order. Like the web
+    /// sidebar, they are not chat rows; they are kept for the home cards.
+    @Published private(set) var savedItemIDs: [String] = []
+    /// Chats the account has in this scope as the core last reported it
+    /// (`nil` until reported). Counts chat rows only, not saved items.
+    @Published private(set) var totalCount: Int?
     /// Team the core list was last switched to (`nil`: personal, the scope after start).
     private(set) var coreTeamID: String?
 
@@ -103,8 +110,8 @@ final class CoreChatList: ObservableObject {
     /// Applies one core event; only `ChatList` and `Session` events matter here.
     func apply(_ event: ViewEventRecord) {
         switch event {
-        case .chatList(let rows, let completeness, _):
-            replace(rows: rows, completeness: completeness)
+        case .chatList(let rows, let completeness, let totalCount):
+            replace(rows: rows, completeness: completeness, totalCount: totalCount)
         case .session(let session):
             switch session {
             case .admitted:
@@ -121,12 +128,22 @@ final class CoreChatList: ObservableObject {
         }
     }
 
-    private func replace(rows: [ChatListRowRecord], completeness: ListCompletenessRecord) {
+    /// Chats known to the account but not in the list yet; the web sidebar's
+    /// "Load more (N)" count. Zero until the core reports a total.
+    var remainingChatCount: Int { max(0, (totalCount ?? chats.count) - chats.count) }
+
+    private func replace(rows: [ChatListRowRecord], completeness: ListCompletenessRecord, totalCount: UInt64?) {
         var mapped: [Chat] = []
         mapped.reserveCapacity(rows.count)
         var presentations: [String: ChatSidebarRowPresentation] = [:]
         var refused = 0
+        var savedItems: [String] = []
         for row in rows {
+            if row.isSavedItem {
+                savedItems.append(row.id)
+                refused += 1
+                continue
+            }
             guard let result = CoreChatRowMapper.map(row) else {
                 refused += 1
                 continue
@@ -136,6 +153,8 @@ final class CoreChatList: ObservableObject {
         }
         chatsByID = Dictionary(mapped.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         refusedRowCount = refused
+        savedItemIDs = savedItems
+        self.totalCount = totalCount.map { Int(clamping: $0) }
         self.presentations = presentations
         self.completeness = completeness
         chats = mapped
@@ -182,6 +201,8 @@ final class CoreChatList: ObservableObject {
         syncTask = nil
         chatsByID = [:]
         refusedRowCount = 0
+        savedItemIDs = []
+        totalCount = nil
         coreTeamID = nil
         presentations = [:]
         completeness = nil

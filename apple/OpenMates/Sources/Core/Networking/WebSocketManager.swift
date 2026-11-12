@@ -645,10 +645,6 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     /// same authenticated transport across preflight suspension points.
     var transportGeneration: Int { connectionGeneration }
 
-    func sendDraftSyncMessage(_ message: DraftSyncMessage) async throws {
-        try await send(WSOutboundMessage(type: message.type, payload: message.payload))
-    }
-
     func requestPhasedSync(
         clientChatVersions: [String: [String: Int]] = [:],
         clientChatIds: [String] = [],
@@ -2682,8 +2678,6 @@ extension ChatWebSocketTransport {
 }
 
 extension WebSocketManager: ChatWebSocketTransport {}
-
-extension WebSocketManager: DraftSyncTransport {}
 
 struct SyncClientState: Equatable {
     let clientChatVersions: [String: [String: Int]]

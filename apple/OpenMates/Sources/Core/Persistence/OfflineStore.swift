@@ -1423,14 +1423,6 @@ extension OfflineStore: ComposerDraftRepository {
         return try context.fetch(descriptor).filter { $0.isDraftTombstone != true }.map { $0.toRecord() }
     }
 
-    func allDeletionVersions() async throws -> [String: Int] {
-        guard let context = modelContext else { throw OfflineStoreDraftError.persistenceUnavailable }
-        let descriptor = FetchDescriptor<PersistedComposerDraft>()
-        return Dictionary(uniqueKeysWithValues: try context.fetch(descriptor)
-            .filter { $0.isDraftTombstone == true }
-            .map { ($0.chatId, $0.clearedDraftVersion ?? 0) })
-    }
-
     func apply(_ mutation: ComposerDraftMutation, knownVersion: Int, knownClearedVersion: Int,
                expectedScope: UUID?) async throws -> ComposerDraftApplication {
         if let expectedScope, expectedScope != scopeGeneration { throw OfflineStoreDraftError.staleSession }

@@ -148,6 +148,14 @@ final class CoreChatWindow {
         return openRequest
     }
 
+    /// A request id for a core action on the open window (send, edit, retry,
+    /// delete message), newer than the current open, so the windows it emits
+    /// are accepted; the open itself is unchanged. A later `begin` supersedes it.
+    func nextActionRequest() -> UInt64 {
+        nextRequest &+= 1
+        return nextRequest
+    }
+
     /// `begin` plus `open(request:chatId:)`.
     func open(chatId: String) async -> CoreChatOpenOutcome {
         await open(request: begin(chatId: chatId), chatId: chatId)
@@ -242,7 +250,8 @@ final class CoreChatWindow {
     }
 
     /// A window of the open chat from this open or a later request (a live
-    /// update reuses the open's request; a send uses its own, newer one).
+    /// update reuses the open's request; a send uses its own, newer one from
+    /// `nextActionRequest`).
     private func replace(request: UInt64, window: ChatWindowViewRecord) {
         guard window.chatId == chatId, request >= openRequest else { return }
         var mapped: [Message] = []

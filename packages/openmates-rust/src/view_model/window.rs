@@ -294,7 +294,7 @@ impl<S: ByteStore + 'static> ViewCore<S> {
             return Ok(record);
         }
         let mut cursor = window.older.clone();
-        self.client.set_operation_cancel(cancel.clone());
+        self.begin_client_operation(cancel);
         if cursor.is_none() {
             let latest = self
                 .client
@@ -338,7 +338,8 @@ impl<S: ByteStore + 'static> ViewCore<S> {
 
     /// One live read for the admitted monitor's pending invalidation `hint`
     /// (the open chat is the selected chat), made durable, committed and
-    /// published through [`Self::apply_live_models`]. The shell keeps owning
+    /// published through [`Self::apply_live_models`], then one
+    /// `DraftChanged` per draft the read changed. The shell keeps owning
     /// `hint` so a dropped or failed read can requeue it.
     ///
     /// # Errors
@@ -354,7 +355,10 @@ impl<S: ByteStore + 'static> ViewCore<S> {
         Box::pin(async move {
             let generation = self.session.ops().guard();
             let selected = self.open_chat_id().map(str::to_owned);
-            self.client.set_operation_cancel(cancel.clone());
+            // Before the read: a draft another device saved or cleared is
+            // told apart from this client's own (already cached) save.
+            let drafts = super::draft_flows::DraftSnapshot::capture(&self.client)?;
+            self.begin_client_operation(cancel);
             let monitor = self
                 .monitor
                 .as_ref()
@@ -375,7 +379,8 @@ impl<S: ByteStore + 'static> ViewCore<S> {
                 return Err(Error::Cancelled);
             }
             let models = publication.into_models()?;
-            self.apply_live_models(models, sink).await
+            self.apply_live_models(models, sink).await?;
+            super::draft_flows::publish_draft_changes(&self.client, drafts, sink).await
         })
     }
 

@@ -447,6 +447,16 @@ pub enum ViewEventRecord {
     },
     /// The current unit of work finished.
     Done,
+    /// The saved draft of `chat_id` changed on another device (saved or
+    /// cleared) and a refresh applied it: an open composer of that chat
+    /// shows `draft` (`nil`: cleared or chat gone). This core's own saves
+    /// and clears are never echoed (core `DraftChanged`).
+    DraftChanged {
+        /// Chat whose draft changed.
+        chat_id: String,
+        /// The draft as it is now.
+        draft: Option<crate::view_drafts::DraftViewRecord>,
+    },
     /// An inbound socket frame of a shell feature the core does not own yet
     /// (core `UnownedSocketFrame`; temporary strangler seam).
     UnownedSocketFrame {
@@ -789,6 +799,10 @@ impl From<ViewEvent> for ViewEventRecord {
                 error: error.into(),
             },
             ViewEvent::Done => Self::Done,
+            ViewEvent::DraftChanged { chat_id, draft } => Self::DraftChanged {
+                chat_id,
+                draft: draft.map(Into::into),
+            },
             ViewEvent::UnownedSocketFrame {
                 event_type,
                 payload_json,

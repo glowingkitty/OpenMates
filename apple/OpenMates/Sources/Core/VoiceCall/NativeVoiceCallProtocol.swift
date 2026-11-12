@@ -23,20 +23,46 @@ enum NativeVoiceCallError: String, Error, Equatable, Sendable {
     case audioUnavailable, audioQueueFull, startupTimedOut, connectionLost
     case contextUnavailable, contextTooLarge, persistenceFailed, textRejected
     case callUnavailable, unsupportedTransport
-    /// The OS stopped capture while the app was away from the screen. Ends the
+    /// The system took the microphone away and did not give it back. Ends the
     /// call cleanly (hangup, transcript kept, billing stopped), never a failure.
     case endedInBackground
 }
 
-/// Behaviour-based background loss, matching web d42568c213: a microphone
-/// interruption while the app is away, or a stopped engine on return, means
-/// the user can no longer speak. Foreground interruptions stay failures.
+/// System audio-session events of a running iOS call. Leaving the screen or
+/// locking it is deliberately not an event: with the `audio` background mode
+/// the call keeps capturing, playing and streaming (web ends only when the
+/// browser takes the microphone away, `endBecauseMicrophoneLost`).
+enum NativeVoiceCallAudioSessionEvent: Equatable, Sendable {
+    case interruptionBegan
+    case interruptionEnded(shouldResume: Bool)
+    case mediaServicesReset
+    case inputDeviceLost(otherInputAvailable: Bool)
+}
+
+enum NativeVoiceCallAudioSessionAction: Equatable, Sendable {
+    /// The system holds the audio for now (phone call, Siri); wait for its end.
+    case suspend
+    /// The system returned the audio: reactivate the session and continue.
+    case resume
+    case end(NativeVoiceCallError)
+}
+
+/// Only a microphone the system removes for good ends the call. An
+/// interruption the system lets resume continues the same call.
 enum NativeVoiceCallInterruptionPolicy {
-    static func interruptionError(appInBackground: Bool) -> NativeVoiceCallError {
-        appInBackground ? .endedInBackground : .audioUnavailable
-    }
-    static func returnError(captureInstalled: Bool, engineRunning: Bool) -> NativeVoiceCallError? {
-        captureInstalled && !engineRunning ? .endedInBackground : nil
+    static func action(for event: NativeVoiceCallAudioSessionEvent) -> NativeVoiceCallAudioSessionAction {
+        switch event {
+        case .interruptionBegan:
+            return .suspend
+        case .interruptionEnded(let shouldResume):
+            return shouldResume ? .resume : .end(.endedInBackground)
+        case .mediaServicesReset:
+            return .end(.endedInBackground)
+        case .inputDeviceLost(let otherInputAvailable):
+            // A lost headset with the built-in microphone left stays a visible
+            // failure (no silent capture on a new route), as before.
+            return otherInputAvailable ? .end(.audioUnavailable) : .end(.endedInBackground)
+        }
     }
 }
 

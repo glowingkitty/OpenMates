@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.video-call@14
+specification: feature.video-call@15
 launch:
 - id: start-in-existing-chat
   given: Maya is signed in with enough credits and her ramen chat open.
@@ -367,6 +367,21 @@ background_resume:
   when: The browser keeps microphone capture running.
   then: The call is not interrupted; if the connection drops it reconnects to the same chat when she returns, or shows
     a retryable message.
+- id: apple-app-in-background
+  given: Maya is in a live call in the OpenMates iPhone app and switches to another app or locks the screen.
+  when: She keeps talking and later comes back.
+  then: The call never stopped; she heard the answers off screen, the transcript and timer kept going and no notice
+    appears.
+- id: apple-interruption-resumes
+  given: Maya is in a live call in the OpenMates iPhone app when a short system interruption such as Siri takes the
+    audio.
+  when: The interruption ends and the system allows the app to resume.
+  then: The same call continues listening and speaking; it is not ended or restarted.
+- id: apple-microphone-taken
+  given: Maya is in a live call in the OpenMates iPhone app and answers a phone call that keeps the microphone.
+  when: The system ends the interruption without allowing the app to resume.
+  then: The call ends cleanly, her transcript is kept, billing stops and a notice says the call ended so she can call
+    again in the same chat.
 complete_turn:
 - id: trailing-negation
   given: Voxtral signals a likely end while Maya is saying book the expensive option, actually do not book it.

@@ -4,7 +4,8 @@
 //! the OPAQUE pair-login steps and password-v2 derivation, batched chat
 //! decryption (`chat_crypto`), the view-model actor `ViewModelCore` (cache
 //! directory, Keychain `CredentialStore`, `ViewListener` events mirrored in
-//! `view_records`, send in `view_send`, core-performed password, backup-code,
+//! `view_records`, send in `view_send` (per-turn options and receipt in
+//! `view_send_options`), core-performed password, backup-code,
 //! recovery-key and pair login in `view_login` (password migration records in
 //! `view_login_migration`, passkey login and device verification in
 //! `view_login_passkey`); the user payload and device verification in
@@ -20,8 +21,10 @@ mod error;
 mod pairing;
 mod view_account;
 mod view_adopt;
+mod view_chat_actions;
 mod view_core;
 mod view_draft_versions;
+mod view_drafts;
 mod view_embed_enhance;
 mod view_embeds;
 #[cfg(any(test, feature = "test-support"))]
@@ -40,6 +43,9 @@ mod view_record_details;
 mod view_records;
 mod view_region;
 mod view_send;
+mod view_send_attachments;
+mod view_send_options;
+mod view_send_stream;
 mod view_unowned;
 mod view_vault;
 mod view_session;
@@ -67,6 +73,7 @@ pub use view_account::{DeviceVerificationMethodRecord, SessionVerificationRecord
 pub use view_adopt::{AdoptedSessionRecord, SessionCookieRecord};
 pub use view_core::{CredentialStore, ViewListener, ViewModelCore};
 pub use view_draft_versions::{DraftVersionQueryRecord, ServerDraftVersionRecord};
+pub use view_drafts::DraftViewRecord;
 /// Image Enhance records and the socket-frame waker (`view_embed_enhance`).
 pub use view_embed_enhance::{
     ImageEnhanceJobRecord, ImageEnhanceSavedRecord, ImageEnhanceStateRecord, ImageEnhanceWaker,
@@ -103,6 +110,12 @@ pub use view_records::{
 };
 /// Server region preference of sends (`view_region`).
 pub use view_region::ServerRegionPreferenceRecord;
+/// Per-turn send options and the delivery receipt (`view_send_options`).
+pub use view_send_options::{
+    SendOptionsRecord, SendQueueModeRecord, SendReceiptRecord, SendStatusRecord,
+};
+/// A composer attachment of a turn (`view_send_attachments`).
+pub use view_send_attachments::SendEmbedRecord;
 pub use view_session::SessionInfoRecord;
 pub use view_upload::UploadRequestRecord;
 
@@ -124,9 +137,13 @@ mod test_api;
 #[cfg(test)]
 mod view_account_tests;
 #[cfg(test)]
+mod view_chat_actions_tests;
+#[cfg(test)]
 mod view_core_tests;
 #[cfg(test)]
 mod view_draft_unowned_tests;
+#[cfg(test)]
+mod view_drafts_tests;
 #[cfg(test)]
 mod view_embeds_tests;
 #[cfg(test)]
@@ -145,6 +162,10 @@ mod view_memories_tests;
 mod view_pair_cancel_tests;
 #[cfg(test)]
 mod view_region_tests;
+#[cfg(test)]
+mod view_send_attachments_tests;
+#[cfg(test)]
+mod view_send_options_tests;
 #[cfg(test)]
 mod view_send_tests;
 #[cfg(test)]

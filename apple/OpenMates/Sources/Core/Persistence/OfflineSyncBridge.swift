@@ -197,7 +197,7 @@ final class OfflineSyncBridge: ObservableObject {
                         guard isCurrentPrefetch(runID) else { return }
                         snapshot = try await writer.decode(data, chatId: chat.id)
                     } else {
-                        guard let wsManager else { throw OfflineDraftReplayError.transportUnavailable }
+                        guard let wsManager else { throw OfflinePrefetchError.transportUnavailable }
                         let response = try await wsManager.requestChatContentBatch(chatId: chat.id, beforeSend: { [weak self] in
                             guard let self, self.isCurrentPrefetch(runID) else { throw CancellationError() }
                         })
@@ -407,33 +407,10 @@ final class OfflineSyncBridge: ObservableObject {
         ])
     }
 
-    func queueDraftUpdate(_ record: ComposerDraftRecord) {
-        guard isCurrentSession else { return }
-        offlineStore.queueOfflineAction(type: "update_draft", payload: [
-            "chat_id": record.chatId,
-            "encrypted_draft_md": record.encryptedMarkdown,
-            "encrypted_draft_preview": record.encryptedPreview,
-            "revision": record.revision,
-            "draft_v": record.draftVersion,
-        ])
-    }
-
-    func queueDraftDelete(chatId: String) {
-        guard isCurrentSession else { return }
-        offlineStore.queueOfflineAction(type: "delete_draft", payload: ["chat_id": chatId])
-    }
-
-    func cascadeDeleteChat(chatId: String) {
-        deleteChat(chatId, preservingDraftTombstone: false)
-    }
-
+    /// Local cleanup after the draft of a draft-only chat was cleared.
     func cascadeDeleteDraftOnlyChat(chatId: String) {
-        deleteChat(chatId, preservingDraftTombstone: true)
-    }
-
-    private func deleteChat(_ chatId: String, preservingDraftTombstone: Bool) {
         guard isCurrentSession else { return }
-        offlineStore.deleteChat(chatId, preservingDraftTombstone: preservingDraftTombstone)
+        offlineStore.deleteChat(chatId, preservingDraftTombstone: true)
         ChatKeyManager.shared.removeKey(for: chatId)
         EmbedKeyManager.shared.removeKeys(for: chatId)
         PendingUploadStore.shared.clearForChat(chatId)
@@ -477,11 +454,9 @@ final class OfflineSyncBridge: ObservableObject {
                     try await replayArchiveChat(payload)
                 case "hide_chat":
                     try await replayHideChat(payload)
-                case "update_draft":
-                    try await replayDraftUpdate(payload)
-                case "delete_draft":
-                    try await replayDraftDelete(payload)
                 default:
+                    // Includes draft actions queued by older builds: drafts
+                    // now go through the core and old queued ones are dropped.
                     break
                 }
                 guard isCurrentSession, generation == offlineStore.scopeGeneration else { return }
@@ -539,31 +514,6 @@ final class OfflineSyncBridge: ObservableObject {
         )
     }
 
-    private func replayDraftUpdate(_ payload: [String: Any]) async throws {
-        guard let chatId = payload["chat_id"] as? String,
-              let encryptedMarkdown = payload["encrypted_draft_md"] as? String,
-              let encryptedPreview = payload["encrypted_draft_preview"] as? String else {
-            throw OfflineDraftReplayError.invalidEncryptedPayload
-        }
-        guard let wsManager else { throw OfflineDraftReplayError.transportUnavailable }
-        try await wsManager.sendDraftSyncMessage(DraftSyncMessage(type: "update_draft", payload: [
-            "chat_id": chatId,
-            "encrypted_draft_md": encryptedMarkdown,
-            "encrypted_draft_preview": encryptedPreview,
-        ]))
-    }
-
-    private func replayDraftDelete(_ payload: [String: Any]) async throws {
-        guard let chatId = payload["chat_id"] as? String else {
-            throw OfflineDraftReplayError.invalidEncryptedPayload
-        }
-        guard let wsManager else { throw OfflineDraftReplayError.transportUnavailable }
-        try await wsManager.sendDraftSyncMessage(DraftSyncMessage(
-            type: "delete_draft",
-            payload: ["chat_id": chatId]
-        ))
-    }
-
     // Stop old-session callbacks without deleting its queued offline work.
     func stopSession() {
         isSessionActive = false
@@ -575,10 +525,9 @@ final class OfflineSyncBridge: ObservableObject {
 
 }
 
-extension OfflineSyncBridge: DraftSyncOfflineActions {}
+extension OfflineSyncBridge: DraftOnlyChatCleanup {}
 
-private enum OfflineDraftReplayError: Error {
-    case invalidEncryptedPayload
+private enum OfflinePrefetchError: Error {
     case transportUnavailable
 }
 

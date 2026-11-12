@@ -2,7 +2,8 @@
 // append of transient MP3 chunks) and assistantSpeechQueue.ts (1.25x playback with
 // preserved pitch, source-time position for word progress).
 // Specification: specifications/features/video-call/specification.yml
-// Assertions: video-call.audio.spoken-rich-response, video-call.audio.single-owner
+// Assertions: video-call.audio.spoken-rich-response, video-call.audio.single-owner,
+// video-call.audio.background-resume
 //
 // Gapless live-call speech output on the call's own AVAudioEngine: MP3 bytes are
 // parsed with AudioFileStream, decoded with AVAudioConverter and scheduled back to
@@ -177,6 +178,13 @@ final class NativeVoiceCallSpeechEngineOutput: NativeVoiceCallSpeechSink {
         started = false; finished = false; outstanding = 0
         scheduledFrames = 0; scheduledEnd = 0; starvedFrames = 0
         if engine != nil { node.stop() }
+    }
+
+    /// A system interruption stops the engine and this node; once the engine
+    /// runs again the speech already scheduled continues from where it was.
+    func resumeAfterInterruption() {
+        guard started, engine?.isRunning == true else { return }
+        node.play()
     }
 
     var sourcePositionMilliseconds: Int {

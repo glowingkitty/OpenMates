@@ -307,8 +307,8 @@ struct AppSkillUseRenderer: View {
             return AnyView(ImagesSearchEmbedRenderer(model: model, mode: .preview, onOpenEmbed: onOpenEmbed))
         } else if appId == "videos", skillId == "search" {
             return AnyView(VideosSearchEmbedRenderer(model: model, mode: .preview, onOpenEmbed: onOpenEmbed))
-        } else if appId == "images", skillId == "generate" || skillId == "generate_draft" {
-            return AnyView(ImageGenerateEmbedRenderer(data: data, mode: .preview))
+        } else if appId == "images", ImageGenerateCardState.skillIds.contains(skillId) {
+            return AnyView(ImageGenerateEmbedRenderer(data: data, mode: .preview, status: embed.status, skillId: skillId))
         } else if appId == "images", skillId == "view" {
             let model = ImageViewSkillModel(embed: embed, allEmbedRecords: allEmbedRecords)
             return AnyView(ImageEmbedRenderer(
@@ -488,8 +488,8 @@ struct AppSkillUseRenderer: View {
             ImagesSearchEmbedRenderer(model: model, mode: .fullscreen, onOpenEmbed: onOpenEmbed)
         } else if appId == "videos", skillId == "search" {
             VideosSearchEmbedRenderer(model: model, mode: .fullscreen, onOpenEmbed: onOpenEmbed)
-        } else if appId == "images", skillId == "generate" || skillId == "generate_draft" {
-            ImageGenerateEmbedRenderer(data: data, mode: .fullscreen)
+        } else if appId == "images", ImageGenerateCardState.skillIds.contains(skillId) {
+            ImageGenerateEmbedRenderer(data: data, mode: .fullscreen, status: embed.status, skillId: skillId)
         } else if appId == "images", skillId == "view" {
             let model = ImageViewSkillModel(embed: embed, allEmbedRecords: allEmbedRecords)
             ImageEmbedRenderer(
@@ -2243,7 +2243,8 @@ private struct RainRadarFullscreen: View {
                 Text(locationName).font(.omSmall).foregroundStyle(Color.grey70)
             }
             Text(model.summaryInTenMinutes ?? (unavailable ? AppStrings.rainRadarUnavailable : AppStrings.rainRadarNoRain))
-                .font(.omH1.weight(.bold))
+                .font(.omH3.weight(.bold))
+                .fixedSize(horizontal: false, vertical: true)
                 .foregroundStyle(Color.grey100)
             if let nextTwoHours = model.summaryNextTwoHours {
                 Text(nextTwoHours).font(.omSmall).foregroundStyle(Color.grey70)

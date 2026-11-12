@@ -2,21 +2,20 @@
 //! the optimistic user message, the streamed reply relayed in order as
 //! `Stream` events and applied to the open window (`send_turn.rs`),
 //! persistence even after a cancel, and the completed, failed or cancelled
-//! end state. Moved from the TUI `runtime.rs` (`send_message` and its relay
-//! task); spec `a2-design.md` (View model) and `architecture.sync` (send).
-//!
-//! Ordering: every stream update is emitted before the window it changed;
-//! updates the client queued before a dropped send (a shell's cancel grace
-//! ran out) still reach [`ViewSink::emit_detached`], so a `Submitted` fence
-//! is never lost and a shell never resends a turn that may have committed.
+//! end state. This joined send keeps the actor for the whole turn; the split
+//! turn that streams beside the actor is `send_stream.rs`. Moved from the
+//! TUI `runtime.rs` (`send_message` and its relay task, now `send_relay.rs`);
+//! spec `a2-design.md` (View model) and `architecture.sync` (send).
 use super::{
     ChatWindowRecord, ChatWindowSource, ListCompleteness, PiiRestoration, RequestId, ViewErrorKind,
     ViewEvent,
     actor::ViewCore,
     actor_host::{ViewHost, ViewSink},
     chat_window_from_chat,
+    live_turns::LiveTurns,
+    send_relay::{Relay, Windows},
+    send_request::{SendTurnOptions, TurnSummary},
     send_turn::SendTurn,
-    stream_event_from_update,
     window::OpenWindow,
 };
 use crate::{
@@ -26,52 +25,32 @@ use crate::{
     model::{Chat, StreamUpdate},
 };
 use futures_util::future::BoxFuture;
-use std::sync::{Arc, Mutex, PoisonError};
+use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
 /// Capacity of the client-to-actor stream channel; a slow sink applies
 /// back-pressure to the client's reader instead of buffering without bound.
-const STREAM_CAPACITY: usize = 64;
+pub(super) const STREAM_CAPACITY: usize = 64;
 
-/// The cancel token of the running send, shared with [`SendCancelHandle`].
-pub(super) type ForegroundSlot = Arc<Mutex<Option<CancellationToken>>>;
-
-/// Cancels the running send without borrowing the actor (a shell's priority
-/// lane holds it while the actor is busy with the send). Cheap to clone.
+/// Cancels the running sends without borrowing the actor (a shell's priority
+/// lane holds it while the actor is busy, and a streaming turn runs beside
+/// the actor). Cheap to clone.
 #[derive(Clone)]
 pub struct SendCancelHandle {
-    slot: ForegroundSlot,
+    turns: Arc<LiveTurns>,
 }
 
 impl SendCancelHandle {
-    pub(super) fn new(slot: ForegroundSlot) -> Self {
-        Self { slot }
+    pub(super) fn new(turns: Arc<LiveTurns>) -> Self {
+        Self { turns }
     }
 
-    /// Cancel the running send; returns whether one was running. The send
+    /// Cancel every running send; returns whether one was running. Each send
     /// then persists what was admitted, publishes its cancelled end state and
     /// ends with `Cancelled`.
     pub fn cancel(&self) -> bool {
-        // A poisoned lock only means a panic elsewhere; the token stays valid.
-        let slot = self.slot.lock().unwrap_or_else(PoisonError::into_inner);
-        slot.as_ref().map(CancellationToken::cancel).is_some()
-    }
-}
-
-/// Clears the foreground slot when the send ends or is dropped.
-struct Foreground(ForegroundSlot);
-
-impl Foreground {
-    fn register(slot: &ForegroundSlot, token: CancellationToken) -> Self {
-        *slot.lock().unwrap_or_else(PoisonError::into_inner) = Some(token);
-        Self(slot.clone())
-    }
-}
-
-impl Drop for Foreground {
-    fn drop(&mut self) {
-        *self.0.lock().unwrap_or_else(PoisonError::into_inner) = None;
+        self.turns.cancel_all()
     }
 }
 
@@ -88,13 +67,61 @@ pub(super) trait TurnDispatch: Send {
         updates: mpsc::Sender<StreamUpdate>,
         cancel: CancellationToken,
     ) -> BoxFuture<'a, Result<Chat>>;
+
+    /// The user message id the shell reserved for this turn, shown on the
+    /// optimistic message from the start (`None`: a provisional id until
+    /// `Started`).
+    fn reserved_user_id(&self) -> Option<&str> {
+        None
+    }
+
+    /// The delivery facts of the finished dispatch (status, ids, queue
+    /// position), taken once after a successful dispatch.
+    fn take_summary(&mut self) -> Option<TurnSummary> {
+        None
+    }
 }
 
-/// `Client::send` with default options (`Client::send_message`), the
-/// encrypted turn over the chat socket, plus the actor's Memory-write opt-in.
+/// `Client::send`, the encrypted turn over the chat socket, with the actor's
+/// Memory-write opt-in and server region plus the shell's per-turn options
+/// (`SendTurnOptions`; default: today's `Client::send_message` turn).
 pub(super) struct ClientDispatch {
     memory_write_jobs: bool,
     server_region: ServerRegionPreference,
+    turn: SendTurnOptions,
+    summary: Option<TurnSummary>,
+}
+
+impl ClientDispatch {
+    /// The dispatcher of one turn of `core` with `turn` options.
+    pub(super) fn new<S: ByteStore + 'static>(core: &ViewCore<S>, turn: SendTurnOptions) -> Self {
+        Self {
+            memory_write_jobs: core.memory_write_jobs,
+            server_region: core.server_region,
+            turn,
+            summary: None,
+        }
+    }
+
+    /// The client options of the turn: the shell's per-turn options plus the
+    /// actor's Memory-write opt-in and server region.
+    pub(super) fn options(&self) -> SendOptions {
+        SendOptions {
+            memory_write_jobs: self.memory_write_jobs,
+            server_region: self.server_region,
+            ..self.turn.send_options()
+        }
+    }
+
+    /// The user message id the shell reserved for this turn.
+    pub(super) fn reserved(&self) -> Option<&str> {
+        self.turn.reserved.message_id.as_deref()
+    }
+
+    /// Keep the delivery facts of a finished turn.
+    pub(super) fn set_summary(&mut self, summary: TurnSummary) {
+        self.summary = Some(summary);
+    }
 }
 
 impl TurnDispatch for ClientDispatch {
@@ -106,15 +133,20 @@ impl TurnDispatch for ClientDispatch {
         updates: mpsc::Sender<StreamUpdate>,
         cancel: CancellationToken,
     ) -> BoxFuture<'a, Result<Chat>> {
-        let options = SendOptions {
-            memory_write_jobs: self.memory_write_jobs,
-            server_region: self.server_region,
-            ..SendOptions::default()
-        };
+        let options = self.options();
         Box::pin(async move {
             let outcome = client.send(chat_id, text, options, updates, cancel).await?;
+            self.summary = Some(TurnSummary::from_outcome(&outcome));
             Ok(outcome.chat)
         })
+    }
+
+    fn reserved_user_id(&self) -> Option<&str> {
+        self.reserved()
+    }
+
+    fn take_summary(&mut self) -> Option<TurnSummary> {
+        self.summary.take()
     }
 }
 
@@ -142,10 +174,7 @@ pub fn send<'a, S: ByteStore + 'static, H: ViewHost<S>>(
     cancel: &'a CancellationToken,
 ) -> BoxFuture<'a, Result<ChatWindowRecord>> {
     Box::pin(async move {
-        let mut dispatch = ClientDispatch {
-            memory_write_jobs: host.core().memory_write_jobs,
-            server_region: host.core().server_region,
-        };
+        let mut dispatch = ClientDispatch::new(host.core(), SendTurnOptions::default());
         host.core_mut()
             .send_turn(request, chat_id, text, sink, cancel, &mut dispatch)
             .await
@@ -194,8 +223,14 @@ impl<S: ByteStore + 'static> ViewCore<S> {
             return Err(Error::Cancelled);
         }
         let turn_cancel = cancel.child_token();
-        let _foreground = Foreground::register(&self.foreground, turn_cancel.clone());
+        let live = Arc::new(
+            self.foreground
+                .register(chat_id.as_deref(), turn_cancel.clone()),
+        );
         let mut turn = SendTurn::new(request, chat_id.clone(), &text, self.open_chat_id());
+        if let Some(id) = dispatch.reserved_user_id() {
+            turn.reserve_user_id(id);
+        }
         if let Some(event) = turn.begin(&mut self.window) {
             sink.emit(event).await?;
         }
@@ -207,8 +242,30 @@ impl<S: ByteStore + 'static> ViewCore<S> {
                 sink,
                 &turn_cancel,
                 dispatch,
+                live.clone(),
             )
             .await;
+        let record = self
+            .finish_turn(request, &mut turn, sent, &turn_cancel, sink)
+            .await;
+        drop(live);
+        record
+    }
+
+    /// The end of a turn on the actor: persist, then publish the cancelled,
+    /// failed or sent state (`send_turn` and the stream step of
+    /// `send_stream.rs`).
+    ///
+    /// # Errors
+    /// `Cancelled` after a cancel; the send or persistence error; sink errors.
+    pub(super) async fn finish_turn<K: ViewSink>(
+        &mut self,
+        request: RequestId,
+        turn: &mut SendTurn,
+        sent: Result<Chat>,
+        turn_cancel: &CancellationToken,
+        sink: &K,
+    ) -> Result<ChatWindowRecord> {
         // Preserve rotated cookies and any admitted encrypted state, also
         // after a cancel.
         let persisted = self.persist().await;
@@ -259,6 +316,21 @@ impl<S: ByteStore + 'static> ViewCore<S> {
         Ok(record)
     }
 
+    /// The turn text with resolved mentions, as `chats send` resolves them:
+    /// an unknown mention fails before dispatch.
+    ///
+    /// # Errors
+    /// `Invalid` for an unknown `@mention`; mention lookup errors.
+    pub(super) async fn resolve_turn_text(&mut self, text: &str) -> Result<String> {
+        let resolved = self.client.resolve_mentions(text).await?;
+        if !resolved.unresolved.is_empty() {
+            return Err(Error::Invalid(
+                "Unknown @mention. Nothing was sent; check the mention name.",
+            ));
+        }
+        Ok(resolved.processed_message)
+    }
+
     /// Resolve mentions, then run the client's send and the relay of its
     /// updates concurrently (the client and the window are disjoint fields).
     async fn dispatch_turn<K: ViewSink, D: TurnDispatch>(
@@ -269,140 +341,18 @@ impl<S: ByteStore + 'static> ViewCore<S> {
         sink: &K,
         cancel: &CancellationToken,
         dispatch: &mut D,
+        live: Arc<super::live_turns::LiveTurnGuard>,
     ) -> Result<Chat> {
-        // Same send-time mention resolution as `chats send`: an unknown
-        // mention fails before dispatch.
-        let resolved = self.client.resolve_mentions(text).await?;
-        if !resolved.unresolved.is_empty() {
-            return Err(Error::Invalid(
-                "Unknown @mention. Nothing was sent; check the mention name.",
-            ));
-        }
+        let text = self.resolve_turn_text(text).await?;
         let (updates, receiver) = mpsc::channel(STREAM_CAPACITY);
-        let mut relay = Relay {
-            sink,
-            receiver,
-            request: turn.request(),
-            chat_id: turn.chat_id().to_owned(),
-            pending: None,
-            malformed: None,
-            finished: false,
-        };
+        let mut relay = Relay::new(sink, receiver, turn, live);
         let (client, window) = (&mut self.client, &mut self.window);
         let (sent, relayed) = futures_util::join!(
-            dispatch.dispatch(
-                client,
-                chat_id,
-                &resolved.processed_message,
-                updates,
-                cancel.clone()
-            ),
-            relay.run(turn, window, cancel),
+            dispatch.dispatch(client, chat_id, &text, updates, cancel.clone()),
+            relay.run::<S>(turn, Windows::Owned(window), cancel),
         );
         let chat = sent?;
         relayed?;
         Ok(chat)
-    }
-}
-
-/// Forwards the client's stream updates to the sink in order.
-struct Relay<'k, K: ViewSink> {
-    sink: &'k K,
-    receiver: mpsc::Receiver<StreamUpdate>,
-    request: RequestId,
-    chat_id: String,
-    /// A `Stream` event whose emit is in flight; re-delivered on drop.
-    pending: Option<ViewEvent>,
-    /// The first update that could not be shown (malformed consent item).
-    malformed: Option<Error>,
-    finished: bool,
-}
-
-impl<K: ViewSink> Relay<'_, K> {
-    fn stream_event(&mut self, update: &StreamUpdate) -> Result<ViewEvent> {
-        if let StreamUpdate::Started { chat_id, .. } = update {
-            self.chat_id.clone_from(chat_id);
-        }
-        let event = stream_event_from_update(update).map_err(|_| Error::Protocol)?;
-        Ok(ViewEvent::Stream {
-            request: self.request,
-            chat_id: self.chat_id.clone(),
-            event,
-        })
-    }
-
-    /// Relay until the client closes the channel. After a cancel no window
-    /// is published and no reply text is applied, but `Stream` events and
-    /// the delivery facts (`Started`, `Submitted`, `Admitted`) still count.
-    /// A malformed update is skipped (and reported at the end) so later
-    /// fences still go out. After a sink error the rest is drained without
-    /// publishing, so the client never blocks on a full channel.
-    async fn run(
-        &mut self,
-        turn: &mut SendTurn,
-        window: &mut Option<OpenWindow>,
-        cancel: &CancellationToken,
-    ) -> Result<()> {
-        let mut outcome = Ok(());
-        while let Some(update) = self.receiver.recv().await {
-            if outcome.is_err() {
-                continue;
-            }
-            let apply = !cancel.is_cancelled();
-            outcome = self.publish(&update, turn, window, apply).await;
-        }
-        self.finished = true;
-        match self.malformed.take() {
-            Some(error) => outcome.and(Err(error)),
-            None => outcome,
-        }
-    }
-
-    async fn publish(
-        &mut self,
-        update: &StreamUpdate,
-        turn: &mut SendTurn,
-        window: &mut Option<OpenWindow>,
-        apply: bool,
-    ) -> Result<()> {
-        let event = match self.stream_event(update) {
-            Ok(event) => event,
-            Err(error) => {
-                self.malformed.get_or_insert(error);
-                return Ok(());
-            }
-        };
-        self.pending = Some(event.clone());
-        self.sink.emit(event).await?;
-        self.pending = None;
-        if !apply {
-            // Cancelled: delivery facts still count for the end state.
-            turn.apply_fence(update, window);
-        } else if let Some(changed) = turn.apply(update, window) {
-            self.sink.emit(changed).await?;
-        }
-        Ok(())
-    }
-}
-
-impl<K: ViewSink> Drop for Relay<'_, K> {
-    fn drop(&mut self) {
-        if self.finished {
-            return;
-        }
-        // The send was dropped mid-stream: hand every queued update to the
-        // shell so its delivery fences survive the drop.
-        self.receiver.close();
-        let mut events: Vec<ViewEvent> = self.pending.take().into_iter().collect();
-        while let Ok(update) = self.receiver.try_recv() {
-            // A malformed consent update cannot be shown; the fences around
-            // it still go out.
-            if let Ok(event) = self.stream_event(&update) {
-                events.push(event);
-            }
-        }
-        if !events.is_empty() {
-            self.sink.emit_detached(events);
-        }
     }
 }

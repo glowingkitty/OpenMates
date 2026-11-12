@@ -764,6 +764,7 @@ struct EmbedFullscreenContainer: View {
         guard !Task.isCancelled, currentEmbed?.id == embed.id else { return }
         let reloadsTimeline = !isEnhanceType(embed)
         versionEdits.onHeadChanged = { _ in
+            NotificationCenter.default.post(name: .embedVersionHeadChanged, object: nil, userInfo: ["embedId": embed.id])
             guard reloadsTimeline else { return }
             Task { await openVersionHistory(for: embed) }
         }

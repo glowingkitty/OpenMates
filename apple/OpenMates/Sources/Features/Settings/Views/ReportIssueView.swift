@@ -120,26 +120,14 @@ struct ReportIssueView: View {
     }
 
     var body: some View {
-        OMSettingsPage(title: AppStrings.settingsReportIssue, subtitle: AppStrings.reportIssueDescription, showsHeader: false) {
-            Color.clear
-                .frame(height: 0)
-                .accessibilityIdentifier("settings-report-issue-form")
-
-            if let submittedIssueReference {
-                submittedView(reference: submittedIssueReference)
-            } else {
-                formView
-            }
-
-            #if DEBUG
-            if ProcessInfo.processInfo.arguments.contains("--ui-test-report-issue-success"),
-               let uiTestIssueLogPayloadText {
-                Text(uiTestIssueLogPayloadText)
-                    .font(.omMicro)
-                    .foregroundStyle(Color.fontTertiary)
-                    .accessibilityIdentifier("report-issue-debug-log-payload")
-            }
-            #endif
+        // The container keeps the appearance handlers below on a stable view
+        // while the page identity changes after a successful submission.
+        ZStack {
+            reportIssuePage
+                // The success confirmation replaces the much taller form. A new
+                // page identity starts it at the top instead of keeping the
+                // form's scroll offset, which left only the footer in view.
+                .id(submittedIssueReference == nil ? "report-issue-form" : "report-issue-submitted")
         }
         .onAppear {
             NativeDiagnostics.event(
@@ -159,6 +147,30 @@ struct ReportIssueView: View {
                 category: "report_issue",
                 flags: ["included": included]
             )
+        }
+    }
+
+    private var reportIssuePage: some View {
+        OMSettingsPage(title: AppStrings.settingsReportIssue, subtitle: AppStrings.reportIssueDescription, showsHeader: false, lazyContent: false) {
+            Color.clear
+                .frame(height: 0)
+                .accessibilityIdentifier("settings-report-issue-form")
+
+            if let submittedIssueReference {
+                submittedView(reference: submittedIssueReference)
+            } else {
+                formView
+            }
+
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("--ui-test-report-issue-success"),
+               let uiTestIssueLogPayloadText {
+                Text(uiTestIssueLogPayloadText)
+                    .font(.omMicro)
+                    .foregroundStyle(Color.fontTertiary)
+                    .accessibilityIdentifier("report-issue-debug-log-payload")
+            }
+            #endif
         }
     }
 

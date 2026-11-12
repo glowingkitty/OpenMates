@@ -74,6 +74,12 @@ impl SendTurn {
         }
     }
 
+    /// Show the optimistic user message under the shell-reserved `id` (the
+    /// client sends the turn with it, so `Started` names the same id).
+    pub(super) fn reserve_user_id(&mut self, id: &str) {
+        id.clone_into(&mut self.user_id);
+    }
+
     /// The send request this turn answers.
     pub(super) fn request(&self) -> RequestId {
         self.request

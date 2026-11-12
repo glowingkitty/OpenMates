@@ -114,6 +114,9 @@ pub(super) struct Host {
     pub(super) calls: Vec<(String, usize)>,
     /// What `offline_cache_allowed` answers.
     pub(super) offline_allowed: bool,
+    /// A ciphertext snapshot applied during `recover_before_list`, as the
+    /// rows another device's refresh would bring.
+    pub(super) recovered_snapshot: Option<serde_json::Value>,
 }
 
 impl ViewHost<FileByteStore> for Host {
@@ -149,6 +152,11 @@ impl ViewHost<FileByteStore> for Host {
         Box::pin(async move {
             self.calls
                 .push((format!("recover {recovery:?}"), sink.events().len()));
+            if let Some(snapshot) = self.recovered_snapshot.take() {
+                self.core
+                    .client_mut()
+                    .restore_ciphertext_snapshot(&snapshot)?;
+            }
             Ok(None)
         })
     }
@@ -208,6 +216,7 @@ pub(super) fn fixture() -> Fixture {
             core,
             calls: Vec::new(),
             offline_allowed: true,
+            recovered_snapshot: None,
         },
         credentials,
         _dir: dir,

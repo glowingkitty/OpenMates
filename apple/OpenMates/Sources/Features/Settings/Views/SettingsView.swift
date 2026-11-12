@@ -833,6 +833,13 @@ struct SettingsView: View {
                     onBillingClick: { navigateTo(.billing) }
                 )
             }
+            // A container over a single container merges with it and the outer
+            // name wins, hiding settings-main-header behind this shell. This
+            // zero-size sibling keeps the banner its own node, as the workspace
+            // settings anchor does.
+            Color.clear
+                .frame(width: 0, height: 0)
+                .accessibilityIdentifier("settings-banner-shell-anchor")
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("settings-banner-shell")
@@ -1626,6 +1633,9 @@ private struct SettingsMainBanner: View {
         .contentShape(Rectangle())
         .clipShape(UnevenRoundedRectangle(bottomLeadingRadius: 14, bottomTrailingRadius: 14))
         .shadow(color: .black.opacity(0.2), radius: 16, x: 0, y: 4)
+        // Contain, so the header name does not overwrite the identifiers of the
+        // avatar, username and credits buttons inside it.
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("settings-main-header")
     }
 

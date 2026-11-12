@@ -1,14 +1,43 @@
 //! Send and cancel on `ViewModelCore`: the core view-model send
-//! (`openmates_sdk::view_model::send`, the encrypted turn, its stream relay
-//! and the `SendState` end states) and its priority-lane cancel
+//! (`openmates_sdk::view_model::begin_send`, the encrypted turn admitted on
+//! the actor, its reply streamed beside it by `view_send_stream.rs`, and the
+//! `SendState` end states) and its priority-lane cancel
 //! (`SendCancelHandle`), exported to Swift. Bindings only marshal. Plan
 //! `apple-client-core-migration` (A2 L9 for Apple, A5); spec `client-core`.
 use crate::core::CoreCancellation;
-use crate::view_core::{ViewModelCore, lock};
+use crate::view_core::{AppleHost, Shared, ViewModelCore, lock};
 use crate::{CoreError, view_records::ChatWindowViewRecord};
-use openmates_sdk::view_model::{self, RequestId, SendCancelHandle, ViewHost};
+use openmates_sdk::client::server_region::ServerRegionPreference;
+use openmates_sdk::view_model::{RequestId, SendCancelHandle, SendTurnOptions, ViewHost};
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
+
+/// The device-local send settings Swift set (assistant Memory writes, server
+/// region), read once per send and applied on the actor right before the
+/// turn. Edits and retries (`view_chat_actions.rs`) send the same way.
+#[derive(Clone, Copy)]
+pub(crate) struct SendSettings {
+    memory_writes: bool,
+    region: ServerRegionPreference,
+}
+
+impl SendSettings {
+    /// The settings current in `shared`.
+    pub(crate) fn read(shared: &Shared) -> Self {
+        Self {
+            memory_writes: shared.memory_write_jobs.load(Ordering::SeqCst),
+            region: crate::view_region::preference_of(
+                shared.server_region_global.load(Ordering::SeqCst),
+            ),
+        }
+    }
+
+    /// Apply to the actor's core before a send.
+    pub(crate) fn apply(self, host: &mut AppleHost) {
+        host.core_mut().set_memory_write_jobs(self.memory_writes);
+        host.core_mut().set_server_region(self.region);
+    }
+}
 
 #[uniffi::export]
 impl ViewModelCore {
@@ -21,8 +50,10 @@ impl ViewModelCore {
     /// that is not open emits `Stream` events and the list only. A failed
     /// send keeps the user message with `Failed`; a cancel (through
     /// `cancellation` or `cancelSend`) publishes `Cancelled` and ends with
-    /// `CoreError.Cancelled`. Runs on the actor, so other commands wait for it;
-    /// `logout` cancels it.
+    /// `CoreError.Cancelled`. Only the admission runs on the actor; while the
+    /// reply streams, other commands are served: a second send into the same
+    /// chat comes back queued, a send into another chat streams alongside,
+    /// and `stopReply`, `cancelSend` and `logout` end it.
     ///
     /// # Errors
     /// `Authentication` when signed out; `Invalid` for empty text, an unknown
@@ -37,18 +68,18 @@ impl ViewModelCore {
     ) -> Result<ChatWindowViewRecord, CoreError> {
         let (shared, token) = (self.shared.clone(), self.foreground(cancellation));
         self.run(async move {
-            let memory_writes = shared.memory_write_jobs.load(Ordering::SeqCst);
-            let region = crate::view_region::preference_of(
-                shared.server_region_global.load(Ordering::SeqCst),
-            );
-            let record = shared
-                .signed_in(token, move |host, sink, cancel| {
-                    host.core_mut().set_memory_write_jobs(memory_writes);
-                    host.core_mut().set_server_region(region);
-                    view_model::send(host, RequestId(request), chat_id, text, sink, cancel)
-                })
+            let settings = SendSettings::read(&shared);
+            let receipt = shared
+                .stream_send(
+                    token,
+                    settings,
+                    RequestId(request),
+                    chat_id,
+                    text,
+                    SendTurnOptions::default(),
+                )
                 .await?;
-            Ok(ChatWindowViewRecord::from(record))
+            Ok(ChatWindowViewRecord::from(receipt.window))
         })
         .await
     }

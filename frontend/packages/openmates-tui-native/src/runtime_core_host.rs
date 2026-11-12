@@ -95,6 +95,9 @@ impl TerminalSink {
             // every feature it has runs in the core, so no socket frame is
             // forwarded to it. Ignored should one arrive.
             ViewEvent::UnownedSocketFrame { .. } | ViewEvent::UnownedSocketFramesDropped { .. } => None,
+            // The terminal has no draft composer to refresh; the chat list
+            // event of the same refresh already shows the draft preview.
+            ViewEvent::DraftChanged { .. } => None,
             _ => return Err(Error::Invalid("This view event is not routed by the terminal.")),
         })
     }

@@ -13,6 +13,7 @@
 use super::{
     ListCompleteness, SessionEvent, ViewCommand, ViewEvent,
     actor_host::{ListRecovery, ViewHost, ViewSink},
+    draft_flows::{DraftSnapshot, publish_draft_changes},
     send_flows, window_flows,
 };
 use crate::{
@@ -145,6 +146,7 @@ pub fn boot_sync<'a, S: ByteStore + 'static, H: ViewHost<S>>(
             return Ok(());
         }
         let generation = host.core().shell().ops().guard();
+        let drafts = DraftSnapshot::capture(host.core().client())?;
         // Reuse only the same-batch complete inventory returned after actual
         // recovery admission and its durable save; no cache is promoted.
         let proof = host
@@ -165,7 +167,8 @@ pub fn boot_sync<'a, S: ByteStore + 'static, H: ViewHost<S>>(
         let event = host
             .core()
             .chat_list_event(items, network_list_completeness(complete))?;
-        sink.emit(event).await
+        sink.emit(event).await?;
+        publish_draft_changes(host.core().client(), drafts, sink).await
     })
 }
 
@@ -182,21 +185,26 @@ pub fn refresh_chats<'a, S: ByteStore + 'static, H: ViewHost<S>>(
     cancel: &'a CancellationToken,
 ) -> BoxFuture<'a, Result<()>> {
     Box::pin(async move {
+        // Before any read: a draft another device saved or cleared is told
+        // apart from this client's own (already cached) save.
+        let drafts = DraftSnapshot::capture(host.core().client())?;
         let client = host.core().client();
         let feed = client.has_chat_sync_cursor() && client.supports_cached_default_chat_list();
         if feed && host.recovery_idle().await {
+            host.core_mut().begin_client_operation(cancel);
             let client = host.core_mut().client_mut();
-            client.set_operation_cancel(cancel.clone());
             if let Some(items) = client.chat_list_from_feed().await? {
                 host.core_mut().persist().await?;
-                return sink.emit(list_event(host, items)?).await;
+                sink.emit(list_event(host, items)?).await?;
+                return publish_draft_changes(host.core().client(), drafts, sink).await;
             }
         }
         host.recover_before_list(sink, ListRecovery::Refresh)
             .await?;
         let items = host.core_mut().client_mut().list(Workspace::Chats).await?;
         host.core_mut().persist().await?;
-        sink.emit(list_event(host, items)?).await
+        sink.emit(list_event(host, items)?).await?;
+        publish_draft_changes(host.core().client(), drafts, sink).await
     })
 }
 
@@ -238,6 +246,8 @@ pub fn logout<'a, S: ByteStore + 'static, H: ViewHost<S>>(
     sink: &'a H::Sink,
 ) -> BoxFuture<'a, Result<()>> {
     Box::pin(async move {
+        // Turns streaming beside the actor stop before the session goes.
+        host.core().foreground.cancel_all();
         host.core_mut().retire_window();
         host.core_mut().set_chat_monitor(None);
         let result = host.core_mut().logout().await;

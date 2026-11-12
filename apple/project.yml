@@ -251,7 +251,11 @@ targets:
           - org.openmates.app.viewChat
           - org.openmates.app.composeChat
           - org.openmates.app.browseChats
-        NSMicrophoneUsageDescription: OpenMates uses the microphone to record voice messages you choose to send in chat.
+        NSMicrophoneUsageDescription: OpenMates uses the microphone to record voice messages you choose to send in chat and for voice calls you start.
+        # A running voice call keeps capturing and speaking off screen; the call's
+        # audio session is active only while a call runs (macOS ignores this key).
+        UIBackgroundModes:
+          - audio
         NSSupportsLiveActivities: true
         NSCameraUsageDescription: OpenMates uses the camera when you choose to attach a photo
           to a chat.

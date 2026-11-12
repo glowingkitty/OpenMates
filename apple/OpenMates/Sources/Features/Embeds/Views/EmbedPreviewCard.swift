@@ -9,6 +9,7 @@
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
+//          frontend/packages/ui/src/components/embeds/images/ImageGenerateEmbedPreview.svelte (skillName, status line)
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
@@ -109,7 +110,7 @@ enum EmbedVisualSkillIcon {
         case "app:health:search_appointments": return fullscreen ? "health" : "search"
         case "health-appointment": return "health"
         case "home-listing": return fullscreen ? "home" : "search"
-        case "app:images:generate", "app:images:generate_draft", "app:music:generate": return "ai"
+        case "app:images:generate", "app:images:generate_draft", "app:images:modify", "app:music:generate": return "ai"
         case "image", "images-image-result": return "image"
         case "jobs-job-result": return "jobs"
         case "app:mail:search", "mail-email": return "mail"
@@ -669,7 +670,9 @@ struct EmbedPreviewCard: View {
         case .audioGenerate, .audioSpeak: return "Generate SFX"
         case .calendarListCalendars, .calendarGetEvents, .calendarCreateEvent,
              .calendarUpdateEvent, .calendarDeleteEvent: return AppStrings.search
-        case .imagesGenerate, .imagesGenerateDraft, .videosGenerate, .musicGenerate: return "Generate"
+        case .imagesGenerate: return AppStrings.imageGenerateSkillGenerate
+        case .imagesGenerateDraft: return AppStrings.imageGenerateSkillDraft
+        case .videosGenerate, .musicGenerate: return "Generate"
         case .financeCheckAccounts: return AppStrings.financeCheckAccounts
         case .mathCalculate: return "Calculate"
         case .reminderSet, .reminderList, .reminderCancel: return AppStrings.setReminder
@@ -799,6 +802,9 @@ struct EmbedPreviewCard: View {
             if embedType == .electronicsPcbSchematic { return "Atopile" }
             return AppStrings.localized("common.processing")
         }
+        // BasicInfosBar.svelte displayedStatusText for the image generation card.
+        if isImageGenerateCard, embed.status == .cancelled { return AppStrings.imageGenerateCancelled }
+        if isImageGenerateCard, embed.status == .error { return AppStrings.imageGenerateStatusError }
         switch embedType {
         case .financeCheckAccounts:
             let accounts = embed.rawData?["account_count"]?.value as? Int ?? 0
@@ -930,6 +936,12 @@ struct EmbedPreviewCard: View {
             ?? host(from: firstString(in: embed.rawData ?? [:], keys: ["source_page_url", "url"]))
     }
 
+    private var isImageGenerateCard: Bool {
+        if embedType == .imagesGenerate || embedType == .imagesGenerateDraft { return true }
+        let skillId = embed.skillId ?? embed.rawData?["skill_id"]?.value as? String ?? ""
+        return embed.isAppSkillUse && appId == "images" && ImageGenerateCardState.skillIds.contains(skillId)
+    }
+
     private var skillDisplayName: String {
         let appId = embed.appId ?? embed.rawData?["app_id"]?.value as? String ?? "web"
         let skillId = embed.skillId ?? embed.rawData?["skill_id"]?.value as? String ?? "search"
@@ -940,12 +952,21 @@ struct EmbedPreviewCard: View {
             return AppStrings.videoGetTranscript
         case ("images", "view"):
             return LocalizationManager.shared.text("common.view")
+        // ImageGenerateEmbedPreview.svelte skillName.
+        case ("images", "generate"):
+            return AppStrings.imageGenerateSkillGenerate
+        case ("images", "generate_draft"):
+            return AppStrings.imageGenerateSkillDraft
+        case ("images", "modify"):
+            return AppStrings.imageModifyTitle
         case ("travel", "search_connections"):
             return "Search connections"
         case ("weather", "forecast"):
             return AppStrings.weatherForecast
         case ("code", "get_docs"):
             return AppStrings.localized("app_skills.code.get_docs")
+        case ("weather", "rain_radar"), ("weather", "rain-radar"):
+            return AppStrings.localized("apps.weather.rain_radar")
         default:
             let key = "app_skills.\(appId).\(skillId.replacingOccurrences(of: "-", with: "_"))"
             let localized = AppStrings.localized(key)

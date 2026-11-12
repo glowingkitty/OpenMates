@@ -2268,7 +2268,7 @@ struct MainAppView: View {
             pendingPushChatDidChange(nil, pushManager.pendingChatId)
             Task {
                 await syncBridge?.replayPendingActions()
-                await DraftService.shared.reconcileAfterReconnect()
+                await DraftService.shared.refreshLocalPreviews()
                 await flushQueuedNotificationReplies()
             }
         }
@@ -4176,8 +4176,9 @@ struct MainAppView: View {
         // Filter/sort once per sidebar render. Draft-preview updates consume
         // this snapshot instead of repeating the full user-chat projection.
         let filteredChats = filteredSidebarUserChats
+        let appliesChatDisplayLimit = isAuthenticated && searchText.isEmpty && chatProjectLocation == nil
         let snapshot = ChatSidebarDisplayPolicy.snapshot(sortedUserChats: filteredChats,
-            appliesDisplayLimit: isAuthenticated && searchText.isEmpty && chatProjectLocation == nil,
+            appliesDisplayLimit: appliesChatDisplayLimit,
             limit: visibleUserChatLimit, selectedChatID: selectedChatId,
             lastActiveChatID: lastActiveSidebarSelection?.chatID(in: sidebarAccountScope) ?? authManager.currentUser?.lastOpened)
         let locale = Locale(identifier: LocalizationManager.shared.currentLanguage.code)
@@ -4191,9 +4192,11 @@ struct MainAppView: View {
         let emptyMessage: String? = widgetRunningChatsOnly ? (running.isEmpty ? AppStrings.localized("apple.active_chats_widget.empty") : nil) : snapshot.visibleChats.isEmpty && isAuthenticated &&
             publicSections.first(where: { $0.id == PublicChatGroup.intro.rawValue })?.chats.isEmpty == true
             ? AppStrings.noChats : nil
-        // The core has no account total yet: "show more" counts the listed rows only.
+        // "Show more" counts the account total the core reported, like the web
+        // "Load more (N)"; a search or project filter counts the filtered rows only.
+        let accountTotal = appliesChatDisplayLimit ? coreChatList.totalCount ?? 0 : 0
         let loadMore: ChatSidebarLoadMore? = !widgetRunningChatsOnly && snapshot.shouldShowMore ? ChatSidebarLoadMore(
-            totalCount: snapshot.filteredCount, loadedCount: visibleUserChatLimit, isLoading: false) : nil
+            totalCount: max(snapshot.filteredCount, accountTotal), loadedCount: visibleUserChatLimit, isLoading: false) : nil
         return ChatSidebarPresentation(userSections: userSections, publicSections: publicSections,
             emptyMessage: emptyMessage, loadMore: loadMore)
     }
@@ -5028,7 +5031,7 @@ struct MainAppView: View {
             maintainOfflineWorkspaces(force: true)
             pushManager.refreshRegistration()
         }
-        appSession.configureDraftSyncIfNeeded()
+        appSession.configureDraftsIfNeeded()
 
         if isWindowDraftUITestEnabled {
             appSession.isInitialSyncComplete = true
@@ -5234,15 +5237,17 @@ struct MainAppView: View {
     private func deleteChat(_ id: String) {
         let generation = OfflineStore.shared.scopeGeneration
         let scope = sidebarAccountScope
-        Task {
+        Task { @MainActor in
+            // The core deletes on every device, closes the chat's window and
+            // emits the chat list; the Swift stores drop their copy.
             do {
-                let _: Data = try await APIClient.shared.request(.delete, path: "/v1/chats/\(id)")
+                try await CoreChatActions.shared.deleteChat(chatId: id)
                 guard sidebarAccountScope == scope, generation == OfflineStore.shared.scopeGeneration,
                       isAuthenticated else { return }
                 applySyncedChatDeletion(id)
-                await coreChatList.refresh()
             } catch {
-                print("[MainApp] Failed to delete chat: \(error)")
+                guard let message = CoreChatActions.userMessage(for: error) else { return }
+                ToastManager.shared.show(message, type: .error)
             }
         }
     }
@@ -5488,6 +5493,13 @@ struct MainAppView: View {
         #if os(macOS)
         if !isForeground && NSApp.isActive && appSession.hasVisibleChatWindow { return }
         #endif
+        #if os(iOS)
+        // A voice call keeps running in the background and needs this chat
+        // socket; announce the background state once the call has ended.
+        if !isForeground, NativeVoiceCallBackgroundPresence.shared.deferWhileCallRuns(
+            callRunning: AssistantSpeechAppRuntime.shared.hasLiveCallReservation,
+            { sendNativeClientLifecycle(isForeground: false) }) { return }
+        #endif
         wsManager.recoveryLifecycleChanged(isForeground: isForeground)
         Task { @MainActor in
             await sendNativeClientLifecycleMessage(isForeground: isForeground)
@@ -5702,10 +5714,6 @@ struct MainAppView: View {
         let messageTransport = notification.userInfo?["transportGeneration"] as? Int
         let messageTeam = teamContext.snapshot
         Task { @MainActor in
-            guard messageScope == nil || messageScope == OfflineStore.shared.scopeGeneration,
-                  messageTransport == nil || messageTransport == wsManager.transportGeneration,
-                  teamContext.isCurrent(messageTeam) else { return }
-            await DraftService.shared.handleSyncEvent(type: type, raw: raw)
             guard messageScope == nil || messageScope == OfflineStore.shared.scopeGeneration,
                   messageTransport == nil || messageTransport == wsManager.transportGeneration,
                   teamContext.isCurrent(messageTeam) else { return }
@@ -6614,10 +6622,6 @@ struct MainAppView: View {
                   appSession.ownsSharedSync(windowRuntimeID) else { return }
             traceNativeStartupSync("phase=syncEventStarted type=\(type) cancelled=\(Task.isCancelled)")
             let start = NativeSyncPerfLog.now()
-            await DraftService.shared.handleSyncEvent(type: type, raw: raw)
-            guard expectedScope == OfflineStore.shared.scopeGeneration,
-                  expectedTransport == wsManager.transportGeneration,
-                  appSession.ownsSharedSync(windowRuntimeID) else { return }
             await processSyncEvent(type: type, raw: raw, expectedScope: expectedScope, expectedTransport: expectedTransport)
             traceNativeStartupSync("phase=syncEventEnded type=\(type)")
             NativeSyncPerfLog.info(
@@ -6626,6 +6630,8 @@ struct MainAppView: View {
         }
     }
 
+    /// Draft events of the legacy socket: drafts go through the core
+    /// (`CoreDrafts`), so these are not chat updates and are ignored here.
     private static let draftSyncEventTypes: Set<String> = [
         "chat_draft_updated",
         "draft_update_receipt",
@@ -10902,7 +10908,7 @@ struct NewChatWelcomeView: View {
                 category: "apple_composer"
             )
             let draft = try await loadNewChatDraftForRestore(
-                chatId: selectedAlias ?? DraftSyncCoordinator.syntheticNewChatId
+                chatId: selectedAlias ?? DraftService.syntheticNewChatId
             )
             let restoredID = selectedAlias ?? DraftService.shared.activeNewChatDraftId
             if let draft, let restoredID,
@@ -11078,7 +11084,7 @@ struct NewChatWelcomeView: View {
 
     private func applyInboundNewChatDraftIfCurrent(chatId: String) async {
         guard !isCreatingChat else { return }
-        if chatId != modelDraftID && chatId != DraftSyncCoordinator.syntheticNewChatId {
+        if chatId != modelDraftID && chatId != DraftService.syntheticNewChatId {
             guard restoreExistingNewChatDraft, freshSessionRequest == 0,
                   !hasClaimedLegacyDraft,
                   composerSession.canonicalMarkdown.isEmpty,
@@ -11090,7 +11096,7 @@ struct NewChatWelcomeView: View {
         let revision = composerSession.revision
         let scopeGeneration = OfflineStore.shared.scopeGeneration
         guard chatId == requestedDraftID ||
-                (chatId == DraftSyncCoordinator.syntheticNewChatId &&
+                (chatId == DraftService.syntheticNewChatId &&
                  DraftService.shared.activeNewChatDraftId == requestedDraftID) else { return }
         do {
             let draft = try await loadNewChatDraftForRestore(chatId: requestedDraftID)

@@ -10,6 +10,7 @@
 // Svelte:  frontend/apps/web_app/src/routes/dev/preview/embeds/[app=embedApp]/+page.svelte
 //          frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+//          (chat-card parity fixtures: DevChatCardsParityFixture.swift)
 // CSS:     frontend/packages/ui/src/components/enter_message/EmbeddPreview.styles.css
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift
@@ -119,8 +120,12 @@ struct DevPreviewRootView: View {
         case .composerDraftEdit:
             DevMessageEditFixtureView()
         case .embeds:
-            DevEmbedPreviewGalleryView(initialApp: configuration.appSlug)
-                .overlay { ToastOverlay() }
+            if let chatCards = DevChatCardsFixtureKind.fromLaunchArguments() {
+                DevChatCardsParityFixture(kind: chatCards)
+            } else {
+                DevEmbedPreviewGalleryView(initialApp: configuration.appSlug)
+                    .overlay { ToastOverlay() }
+            }
         }
     }
 }

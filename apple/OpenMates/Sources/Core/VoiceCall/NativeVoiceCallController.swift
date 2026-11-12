@@ -172,7 +172,7 @@ actor NativeVoiceCallController {
     }
     private func fail(_ error: NativeVoiceCallError, token: UUID) async {
         guard generation == token else { return }
-        // Capture lost while away ends like a hangup (web endBecauseMicrophoneLost).
+        // A microphone the system removed for good ends like a hangup (web endBecauseMicrophoneLost).
         await finish(error: error, sendHangup: error == .endedInBackground)
     }
 

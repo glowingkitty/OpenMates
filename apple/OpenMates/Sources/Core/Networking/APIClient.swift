@@ -776,8 +776,10 @@ actor APIClient {
     }
 
     /// URLSession transport of uploads and the Watch (cookie jar of the
-    /// shared app group). App REST does not come here.
-    private func execute(_ request: URLRequest, using transport: URLSession,
+    /// shared app group). App REST does not come here. Internal (not private)
+    /// so the iOS test target can drive the Watch pair-completion cookie fence,
+    /// which no iOS entry point reaches since pair login moved into the core.
+    func execute(_ request: URLRequest, using transport: URLSession,
                          cookieAuthority: (@MainActor @Sendable () throws -> Void)? = nil,
                          authenticationURL: URL? = nil,
                          verifyCookieResponse: (@MainActor @Sendable (HTTPURLResponse, Data) throws -> Void)? = nil) async throws -> Data {

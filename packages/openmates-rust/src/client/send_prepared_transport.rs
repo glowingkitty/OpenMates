@@ -23,11 +23,9 @@ impl Client {
         let generation = self.generation;
         let wrapping = self.wrapping_capability().await?;
         Self::require_turn_slug_index(&wrapping,options.slug.is_some())?;
-        let id = chat_id
-            .map(str::to_owned)
-            .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+        // Caller-reserved ids (a new chat's id, the user message id) or fresh ones.
+        let (id, message) = self.turn_identity(chat_id, options.reserved_ids.as_ref())?;
         let turn = uuid::Uuid::new_v4().to_string();
-        let message = uuid::Uuid::new_v4().to_string();
         if let Some(observation) = &self.scoped_send_observation {
             let mut observation = observation.lock().map_err(|_| Error::Cancelled)?;
             observation.identity = Some(SavedSendRecoveryIdentity { chat: id.clone(), turn: turn.clone(), message: message.clone() });

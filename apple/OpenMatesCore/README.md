@@ -55,6 +55,23 @@ window). A fresh sign-in after logout begins in the core (see below).
 - `send(request:chatId:text:cancellation:)` sends a turn; the user message
   carries `sendState` (`Sending` … `Delivered`, `Failed`, `Cancelled`).
   `cancelSend()` cancels the running send without waiting for the actor.
+- `sendWithOptions(request:chatId:text:options:cancellation:)` is `send` with
+  a `SendOptionsRecord` (all fields default to the plain send):
+  `piiDetection` (placeholders for detected personal data, mappings stored
+  encrypted with the message), `incognito` (volatile first turn only; nothing
+  stored, not in `ChatList`), `slug`, `reservedChatId` (the NEW chat's id,
+  `chatId` nil) and `reservedMessageId` (the optimistic user message carries
+  it from the first event). Ids are canonical lowercase UUIDs. Refused
+  combinations and malformed ids are `Invalid` before anything is shown; a
+  reserved id that already exists is `Conflict`. It returns a
+  `SendReceiptRecord`: the sent window, `status` (`Completed`,
+  `WaitingForUser`, `Queued`), the chat, user and assistant ids, and for a
+  queued turn `queueMode` (`FollowUp`, `Steer`) and `queueRevision`.
+  Not covered yet (core work): attachments and composer embeds,
+  caller-supplied PII mappings or exclusions, incognito continuations, a
+  second send while this core's own reply streams (the actor runs one
+  command at a time, so `openChat` of another chat also waits for the turn),
+  and the task id of a reply this core did not start.
 - Passwords, codes and PINs are only call arguments; the binding zeroizes them
   after the core call and never stores or logs them.
 
@@ -170,6 +187,31 @@ the server default).
   fastest server); applies from the next `send`.
 - `serverRegionPreferenceFromStored(value:)`: reads a stored text value the way
   every shell does (`"global"` is `.global`, anything else `.eu`).
+
+## Chat and message actions on `ViewModelCore`
+
+Each call runs one core operation, persists, then republishes what changed
+(`ChatList`, or the open window as `ChatWindow` events with Swift's `request`).
+All take an optional `CoreCancellation` and throw typed `CoreError`s;
+malformed ids are `Invalid` before any network request.
+
+- `deleteChat(chatId:)`: deletes on every device (a draft-only chat loses its
+  draft), closes its window, emits `ChatList`.
+- `deleteMessage(request:chatId:messageId:)`: personal chats only; re-reads
+  the open window.
+- `editMessage(request:chatId:messageId:text:)`: removes the edited user
+  message and every later one, re-reads the open window, then sends `text`
+  like `send` (same events, `cancelSend`, send settings). Returns the sent
+  window.
+- `retryLastTurn(request:chatId:)`: rewinds before the newest unanswered user
+  turn and sends it again like `send`.
+- `forkChat(chatId:messageId:title:)`: copies the chat up to and including the
+  message into a new encrypted chat; returns its id and emits `ChatList`.
+- `saveDraft(chatId:markdown:)` (returns the chat id; `nil` creates a chat)
+  and `clearDraft(chatId:)`: encrypted drafts with versioned tombstones; emit
+  `ChatList`.
+- `stopReply(chatId:taskId:)`: stops a reply this core did not start. Stop the
+  core's own `send`, `editMessage` or `retryLastTurn` with `cancelSend()`.
 
 ## Session ownership and un-migrated Swift code
 

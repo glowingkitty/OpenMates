@@ -63,6 +63,10 @@ pub mod draft_preview;
 mod chat_read;
 mod draft_read;
 pub use draft_read::DraftReadAdmission;
+#[cfg(not(target_arch = "wasm32"))]
+mod draft_cached;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) use draft_cached::DraftFingerprint;
 mod embed;
 pub mod chat_files;
 pub mod assistant_speech;
@@ -147,8 +151,12 @@ mod sync_feed;
 mod mention_context;
 mod search;
 mod send;
+// Composer attachments and caller PII mappings of a turn (native shells).
+mod send_attachments;
 mod send_observations;
 mod send_options;
+// Caller-reserved chat and message ids of a turn (Apple and web shells).
+mod send_reserved_ids;
 mod sync;
 mod sync_windows;
 mod sync_capability;
@@ -161,6 +169,8 @@ pub mod saved_chat_read;
 pub mod full_chat_read;
 pub mod chat_details;
 pub mod chat_rewrite;
+// Delete message, edit truncation and stop reply (plan apple-client-core-migration A5).
+pub mod message_actions;
 pub use chat_list_freshness::CacheClockEvidence;
 pub use sync::FreshChatInventory;
 mod project_create_request;
@@ -207,6 +217,13 @@ pub use pair::PairChallenge;
 pub use send_options::{
     SendConsentPolicy, SendMemoryRequest, SendOptions, SendOutcome, SendQueueMode, SendStatus,
 };
+/// Ids a shell reserves for its next turn (`SendOptions::reserved_ids`).
+pub use send_reserved_ids::ReservedTurnIds;
+/// The split saved turn (admission on the actor, stream beside it).
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) use send::split::{AdmittedTurn, ClientLease, LeasedClient};
+/// Attachments and caller PII mappings of a turn (`SendOptions::embeds`, `pii_mappings`).
+pub use send_attachments::{SendEmbed, SendPiiMapping};
 
 /// Fixed SDK identity used by authorization and device-access policy.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

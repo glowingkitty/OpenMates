@@ -304,4 +304,85 @@ final class CoreEmbedVersionsTests: XCTestCase {
         XCTAssertEqual(EmbedEditFailure.classify(EmbedEditError.VersionConflict(currentVersion: nil)), .versionConflict)
         XCTAssertEqual(EmbedEditFailure.classify(EmbedEditError.AccessDenied(code: "forbidden")), .refused("forbidden"))
     }
+
+    // contract-test: supporting surface=gui.apple assertions=embed-user-edits.event.chat-notice
+    @MainActor
+    func testNoticeReconcileRunsOncePerChatOpenAndLogsFailures() async {
+        final class FakeNoticeClient: EmbedNoticeCoreClient {
+            var chats: [String] = []
+            var results: [Result<EmbedNoticeReconcileRecord, EmbedEditError>] = []
+            func reconcileNotices(chatId: String) async throws -> EmbedNoticeReconcileRecord {
+                chats.append(chatId)
+                return try results.removeFirst().get()
+            }
+        }
+        let written = EmbedNoticeReconcileRecord(written: 2, alreadyPresent: 0, unresolvedMessageIds: [], deferredCode: nil)
+        let client = FakeNoticeClient()
+        client.results = [.success(written), .failure(.Offline), .success(written)]
+        let reconciler = EmbedNoticeReconciler(client: client)
+        let firstOpen = UUID()
+
+        let first = await reconciler.reconcileOnOpen(chatId: "chat-1", openToken: firstOpen)
+        let repeated = await reconciler.reconcileOnOpen(chatId: "chat-1", openToken: firstOpen)
+        XCTAssertEqual(first?.written, 2)
+        XCTAssertNil(repeated, "The same open never reconciles twice")
+        XCTAssertEqual(client.chats, ["chat-1"])
+
+        let failed = await reconciler.reconcileOnOpen(chatId: "chat-1", openToken: UUID())
+        XCTAssertNil(failed, "A typed failure is logged and reports nothing")
+        let reopened = await reconciler.reconcileOnOpen(chatId: "chat-2", openToken: UUID())
+        XCTAssertEqual(reopened?.written, 2)
+        XCTAssertEqual(client.chats, ["chat-1", "chat-1", "chat-2"], "Each new open reconciles once")
+
+        let noCore = EmbedNoticeReconciler(client: nil)
+        let skipped = await noCore.reconcileOnOpen(chatId: "chat-1", openToken: UUID())
+        XCTAssertNil(skipped)
+    }
+
+    private func timelineMessage(_ id: String, _ role: MessageRole, _ content: String) -> Message {
+        Message(id: id, chatId: "chat-1", role: role, content: content,
+            encryptedContent: nil, createdAt: "2026-11-12T10:00:00Z", updatedAt: nil,
+            appId: nil, isStreaming: false, embedRefs: nil)
+    }
+
+    private func group(_ messageIds: [String], count: UInt64, action: EmbedUpdateActionRecord,
+                       restoredFrom: Int64? = nil) -> EmbedUpdatedGroupRecord {
+        EmbedUpdatedGroupRecord(embedId: "e1", embedRef: "image-1", embedKind: .image, latestVersion: 3,
+            changeCount: count, latestAction: action, latestCreatedAt: 1, restoredFrom: restoredFrom,
+            surface: .chat, messageIds: messageIds)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=embed-user-edits.event.chat-notice
+    @MainActor
+    func testEmbedUpdatedPlacementShowsRunAtNewestMessageAndHidesOlder() {
+        let messages = [
+            timelineMessage("m1", .user, "hello"),
+            timelineMessage("s1", .system, "{\"type\":\"embed_updated\"}"),
+            timelineMessage("s2", .system, "{\"type\":\"embed_updated\"}"),
+        ]
+        var rows: [EmbedTimelineRowRecord] = []
+        let placement = EmbedUpdatedPlacement(messages: messages) { input in
+            rows = input
+            return [.message(index: 0, messageId: "m1"),
+                    .embedUpdated(group: self.group(["s1", "s2"], count: 2, action: .enhance))]
+        }
+        XCTAssertEqual(rows.map(\.messageId), ["m1", "s1", "s2"])
+        XCTAssertEqual(rows[0].content, "", "Only candidate rows carry content")
+        XCTAssertEqual(placement.shown["s2"]?.changeCount, 2)
+        XCTAssertNil(placement.shown["s1"])
+        XCTAssertEqual(placement.hidden, ["s1"])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=embed-user-edits.event.collapse
+    @MainActor
+    func testEmbedUpdatedPlacementSkipsTheCoreWithoutCandidates() {
+        var called = false
+        let placement = EmbedUpdatedPlacement(messages: [timelineMessage("m1", .assistant, "hi")]) { _ in
+            called = true
+            return []
+        }
+        XCTAssertFalse(called)
+        XCTAssertEqual(placement, .empty)
+        XCTAssertEqual(EmbedUpdatedPlacement.candidateKey([timelineMessage("m1", .assistant, "hi")]), "")
+    }
 }

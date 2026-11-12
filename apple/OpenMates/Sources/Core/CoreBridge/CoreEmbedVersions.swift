@@ -44,8 +44,46 @@ protocol EmbedVersionsCoreClient: AnyObject {
     func rememberEnhanceOperation(_ operationId: String?, embedId: String)
 }
 
+/// The core call that writes a chat's pending "embed updated" notices.
 @MainActor
-final class CoreEmbedVersions: EmbedVersionsCoreClient {
+protocol EmbedNoticeCoreClient: AnyObject {
+    func reconcileNotices(chatId: String) async throws -> EmbedNoticeReconcileRecord
+}
+
+/// Runs the notice reconcile once per chat open (web `ChatHistory.svelte`
+/// reconciles once per chat); a failure is logged, never shown.
+@MainActor
+final class EmbedNoticeReconciler {
+    private let client: EmbedNoticeCoreClient?
+    private var reconciledOpen: UUID?
+
+    init(client: EmbedNoticeCoreClient?) {
+        self.client = client
+    }
+
+    /// Reconciles `chatId` for the open identified by `openToken`; a second
+    /// call for the same open does nothing. `nil`: skipped or failed.
+    func reconcileOnOpen(chatId: String, openToken: UUID) async -> EmbedNoticeReconcileRecord? {
+        guard let client, reconciledOpen != openToken else { return nil }
+        reconciledOpen = openToken
+        do {
+            let report = try await client.reconcileNotices(chatId: chatId)
+            if let deferred = report.deferredCode {
+                NativeDiagnostics.info("core_embed_notices_deferred code=\(deferred)", category: "core_bridge")
+            }
+            return report
+        } catch {
+            let failure = EmbedEditFailure.classify(error)
+            if failure != .cancelled {
+                NativeDiagnostics.error("core_embed_notices_failed class=\(failure.code)", category: "core_bridge")
+            }
+            return nil
+        }
+    }
+}
+
+@MainActor
+final class CoreEmbedVersions: EmbedVersionsCoreClient, EmbedNoticeCoreClient {
     private static var instance: CoreEmbedVersions?
 
     /// The app's client over `CoreSession.shared`; `nil` when the core could
@@ -114,6 +152,14 @@ final class CoreEmbedVersions: EmbedVersionsCoreClient {
 
     func rememberEnhanceOperation(_ operationId: String?, embedId: String) {
         pending[embedId] = operationId
+    }
+
+    /// Writes the `embed_updated` events the server lists as pending for
+    /// `chatId` (offline and Team chats come back as `deferredCode`).
+    func reconcileNotices(chatId: String) async throws -> EmbedNoticeReconcileRecord {
+        try await run("reconcile_notices") { core, cancellation in
+            try await core.reconcileEmbedUpdateNotices(chatId: chatId, cancellation: cancellation)
+        }
     }
 
     /// Enhance frames wake a running wait; sign-out forgets unsettled jobs

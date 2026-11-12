@@ -219,7 +219,7 @@ final class AppSessionCoordinator: ObservableObject {
     private var offlineBridgeStorage: OfflineSyncBridge?
     private var didLoadFromDisk = false
     private var didStartNetworkMonitoring = false
-    private var didConfigureDraftSync = false
+    private var didConfigureDrafts = false
     private var windowOwnership = SharedSocketWindowOwnership()
     @Published var isInitialSyncComplete = false
     #if DEBUG
@@ -280,10 +280,10 @@ final class AppSessionCoordinator: ObservableObject {
         return bridge
     }
 
-    func configureDraftSyncIfNeeded() {
-        guard !didConfigureDraftSync, let bridge = offlineBridgeStorage else { return }
-        DraftService.shared.configureSync(chatStore: chatStore, transport: webSocketManager, offlineActions: bridge)
-        didConfigureDraftSync = true
+    func configureDraftsIfNeeded() {
+        guard !didConfigureDrafts, let bridge = offlineBridgeStorage else { return }
+        DraftService.shared.configure(chatStore: chatStore, draftOnlyCleanup: bridge)
+        didConfigureDrafts = true
     }
 
     func resetTransientRuntime() {
@@ -299,7 +299,7 @@ final class AppSessionCoordinator: ObservableObject {
         webSocketManager.recoveryCoordinator?.reset()
         chatStore.clearInMemory()
         didLoadFromDisk = false
-        didConfigureDraftSync = false
+        didConfigureDrafts = false
         isInitialSyncComplete = false
         // Keep mounted windows registered through logout/account replacement.
         // OfflineStore scope and transport generations fence old account work.
@@ -362,7 +362,9 @@ struct OpenMatesApp: App {
         #endif
         // The client core, its cache and its listener exist from app start,
         // and so do its chat list, which holds the cached list before the network,
-        // and its chat window, the message source of the open chat.
+        // and its chat window, the message source of the open chat, and its chat
+        // actions (send, edit, stop, delete, fork), which stream into that window,
+        // and its composer drafts (save, clear).
         #if OPENMATES_CORE_TEST_SUPPORT
         // UI-test fixtures: the core starts over seeded rows; `launch()` keeps it.
         _ = CoreUITestSeed.launchIfRequested()
@@ -370,6 +372,8 @@ struct OpenMatesApp: App {
         CoreSession.launch()
         CoreChatList.launch()
         CoreChatWindow.launch()
+        CoreChatActions.launch()
+        CoreDrafts.launch()
         #if OPENMATES_CORE_TEST_SUPPORT
         CoreUITestSeed.startIfLaunched()
         #endif

@@ -110,14 +110,16 @@ impl Client {
                 memories.push(json!({"id":doc["id"],"app_id":"openmates","item_type":"memories","data":{"document":doc["document"]}}));
             }
         }
-        let prepared = Plain::new(if options.pii_detection {
-            crate::privacy::prepare(input, &memories, existing)?
-        } else {
-            crate::privacy::PreparedPrivacy {
-                text: input.into(),
-                mappings: vec![],
-            }
-        });
+        // Attachment references join the text before privacy preparation (it
+        // never cuts into reference blocks), so the stored message, the
+        // inference content and the PII mappings all see the same text.
+        let composed = Plain::new(super::send_attachments::content_with_references(
+            input,
+            &options.embeds,
+        ));
+        let prepared = Plain::new(super::send_attachments::prepare_turn_privacy(
+            &composed, &memories, existing, options,
+        )?);
         if cancel.is_cancelled() || self.generation != generation {
             return Err(Error::Cancelled);
         }
@@ -163,6 +165,41 @@ impl Client {
         if new_chat {
             inference["encrypted_chat_key"] = json!(wrapped)
         }
+        // Attachments: cleartext copies for the inference cache and the
+        // client-encrypted bundle the server stores with the message.
+        let cleartext_embeds = Plain::new(super::send_attachments::cleartext_embeds(
+            &options.embeds,
+            created,
+        ));
+        if !cleartext_embeds.is_empty() {
+            inference["embeds"] = json!(cleartext_embeds.as_slice());
+        }
+        let encrypted_embeds = if cleartext_embeds.is_empty() {
+            vec![]
+        } else {
+            // The bundle is bound to the owner: the server checks its hash.
+            let owner = text(&self.user, "id");
+            let owner = if owner.is_empty() {
+                required(&self.user, "user_id")?
+            } else {
+                owner
+            }
+            .to_owned();
+            let scope = super::send_attachments::BundleScope {
+                chat_id: id,
+                message_id: message,
+                user_id: &owner,
+                created,
+            };
+            let bundle =
+                super::send_attachments::encrypted_bundle(&options.embeds, &scope, key, &master)
+                    .await?;
+            turn_scope.check_chat(self, id)?;
+            bundle
+        };
+        if !encrypted_embeds.is_empty() {
+            inference["encrypted_embeds"] = Value::Array(encrypted_embeds.clone());
+        }
         if let Some(rows)=self.history.get(id){
             let mut history=Plain::new(vec![]);
             for row in rows{
@@ -188,6 +225,10 @@ impl Client {
                 inference.wipe();*inference=replacement.into_inner();
                 if new_chat {
                     inference["encrypted_chat_key"] = json!(wrapped)
+                }
+                // A Team message without AI still stores its attachments.
+                if !encrypted_embeds.is_empty() {
+                    inference["encrypted_embeds"] = Value::Array(encrypted_embeds.clone());
                 }
             }
             if wait_ai {
@@ -250,3 +291,4 @@ impl Client {
         Ok(PreparedTurnContext{team,projects,sender,memories,prepared,wait_ai,focus_state:Plain::new(focus_state)})
     }
 }
+

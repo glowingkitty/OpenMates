@@ -272,13 +272,21 @@ progress:
       - "The test-support fixture is not callable from Swift tests yet: the committed bindings stay product-only, so test-only Swift bindings must be generated separately."
       - "Server switch: the binding fixes the API URL at creation; follow the terminal app (refuse a stored session of another server, new core per server)."
       - "uploads (upload host, multipart) and streaming HTTP clients cannot use httpRequest and still run in Swift."
+  working_rules_2026_11_12:
+    note: Owner corrections; they apply to every further lane of this plan.
+    rules:
+      - "One job compiles and tests: apple-unit and apple-ui build first (all Swift errors listed on failure, no x86_64 Watch build, Rust cache shared between the modes) and test on that build; submit both together and fix all listed errors in one round. No separate compile job before them, no static compile-review lanes."
+      - "Deploy each green candidate before starting lanes that edit the worktree. At deploy time refresh the base and regenerate the bindings, config/sdk-capabilities.json and the specification indexes. One deploy per green batch."
+      - "Sub-agents run on the default model; the stronger model only for hard core design (actor and streaming, crypto, send pipeline). Lanes end after about 80 turns and hand off to a fresh agent."
+      - "Critical path: Swift send, edit and stop through the core and deletion of the old Swift send pipeline. Workflow editor, slides viewer, Watch and notification variants wait until that is deployed."
+      - "Overview only after a deploy or a CI result, at most every 3 hours; the CI runner reports, no polling."
   audit_against_parent_plan_2026_11_11:
     note: Read-only audit of the parent plan, client-core rules and Specifications. Details and per-lane rules are in a4-design.md.
     owner_decisions:
       - "2026-11-11: no runtime switch and no twin phase in the Apple app; each lane replaces Swift code directly."
       - "2026-11-12 (exception to AC-5, decided by the implementing agent with the owner's leave): drafts and queued sends that exist only in the old SwiftData cache of an existing install are not carried over when that cache is retired. Synced data returns from the server; the release note must say so."
       - "2026-11-12: web parity of screens, embeds and features is part of this plan (task A8); the three audit reports are summarised under parity_audit_2026_11_12."
-      - "Open: should a running voice call survive iOS backgrounding (needs the background audio mode)."
+      - "2026-11-12: a running voice call continues while the app is in the background (background audio mode; assertion video-call.audio.background-resume)."
     open_items:
       - "sdk-conformance has not run for any core deploy of this plan (submit needs --spec sdk-conformance without preparation)."
       - "Parent plan capability inventory: Apple cells still read swift-only; update with commits (crypto-keys, pairing, session and view-model exposure)."
@@ -300,26 +308,56 @@ progress:
       - "Voice calls were broken against the current server: start needs speech_output_transport mp3_turn_stream_v2, ready carries no mate_category, assistant speech arrives as MP3 frames on the chat socket."
       - "Memories settings were broken: the typed /v1/sdk/memories route answers 410; the web uses unified Memory documents."
       - "Signup already matches the web (password or passkey, then completion; web commit 5d84ffdad7 moved the security steps to Settings), so the audit line about missing signup steps was wrong. Missing: embed versions and Enhance, recommendations card, assistant-created Projects, workflow editor pane, slides viewer, server region preference, font setting, image-generate card states, notification variants, dictation guest and report-issue purposes, word-progress display."
-    built_not_deployed_2026_11_12:
+    deployed_03a7aed_2026_11_12:
       core_and_binding:
         - "Chat list: isSavedItem per row, totalCount and completeness on the list event, chat_total_count; a 401 on the password-v2 routes returns its status instead of wiping the session (this closes two lane_2_remaining lines and one A2 remaining line above)."
         - "Memories binding (view_memories.rs): list, read, create, update, delete, delete expired, assistant write opt-in, write notices, undo, typed Memory error codes."
-        - "Embed versions binding (view_embeds.rs, view_embed_enhance.rs): version history, commit edit, restore, Enhance start, wait, status and save, update-notice reconcile, timeline folding. Core gained embed_version_history and embed_edit_head; dev added embed_user_edit_head in parallel, the two should be unified."
+        - "Embed versions binding (view_embeds.rs, view_embed_enhance.rs): version history, commit edit, restore, Enhance start, wait, status and save, update-notice reconcile, timeline folding. The binding uses dev's embed_user_edit_head; the core keeps embed_version_history."
       swift:
         - "Chat window from the core (CoreChatWindow, CoreMessageMapper); the REST cold-open path is deleted."
-        - "Voice call on the current protocol with MP3 speech playback; jobs and rain-radar embeds; web-order chat and message menus; collaborative learning mode; billing address page; memories settings on the binding (in progress)."
+        - "Voice call on the current protocol with MP3 speech playback; jobs and rain-radar embeds; web-order chat and message menus; collaborative learning mode; billing address page; Memories settings on Memory documents (typed-memory service deleted); embed versions and Enhance in the fullscreen; server region preference in the core and binding."
       open_after_memory_cleanup:
         - "Voice call: a memory request during a call is refused; offering personal Memory documents to a call (as the web does) needs the Memory records wired into the call permission prompt."
         - "Hide personal data settings: saving is broken (the REST save route answers 410; the web saves over the socket with store_app_settings_memories_entry). Needs a core call."
         - "Embed Save/Saved (encrypted saved flag on the embed, web savedEmbedService.ts) has no Apple button; the old save-as-memory button is deleted."
-        - "Server region preference: the core sends it per turn (setServerRegionPreference); Swift must store the choice and add the Settings toggle."
-        - "Chat timeline: embed-updated row (embedUpdateTimeline), image refresh after a new version, credit cost on Enhance."
       not_possible_yet:
         - "Image crop as a new version (the core cannot send a new file with a revision); reading the content of an older embed version."
+    built_after_03a7aed_not_deployed:
+      core_and_binding:
+        - "Chat actions (client/message_actions.rs, view_model/chat_actions.rs, view_chat_actions.rs): deleteChat, deleteMessage, editMessage, retryLastTurn, forkChat, saveDraft, clearDraft, stopReply."
+        - "sendWithOptions (view_send_options.rs, view_model/send_request.rs, client/send_reserved_ids.rs): PII detection switch, first-turn incognito, queued receipt (status, mode, revision), caller-reserved chat and message ids."
+        - "An already cancelled caller no longer races the forwarding task (view_core.rs)."
+      swift:
+        - "Server region setting (device-local) with the Settings toggle; sidebar show-more count from the core total; embed-updated row and image refresh after a new version; delete chat, delete message and fork through the core for personal chats."
+        - "Fixes found by apple-ui on 03a7aed: voice call bar keeps its buttons' identifiers; rain radar title and headline size; settings header and page identifiers (pre-existing since 77cb81e)."
+        - "Tests moved to the current boundary: WatchPairCookieCancellationTests drive the Watch transport directly (iOS pair login runs in the core); sheet fullscreen mount waiter 20 s."
+      send_not_switched_core_gaps:
+        - "A send turn cannot carry embeds or attachments (client/send_prepared_turn.rs)."
+        - "Caller-supplied PII mappings or exclusions (composer un-redact)."
+        - "The core is busy for the whole streamed turn (Client::send holds &mut Client); a second send, queued edit and steer need the stream off the actor (model: client/owned_saved_send*)."
+        - "Incognito continuation (no in-memory transcript for volatile chats)."
+        - "Task id of a reply this core did not start: client/monitor.rs drops ai_typing_started and non-final ai_message_update (file owned by another lane)."
+        - "Edit, delete and fork in team and Direct chats are refused by the core."
+        - "Server region on the web is stored in the synced profile (server_region_preference); Apple stores it on the device until the core syncs it."
+      second_round_2026_11_12:
+        note: Built after the block above, in the same worktree; CI on candidate a12696a4. The first three send_not_switched_core_gaps lines above are closed by this round.
+        core_and_binding:
+          - "Send split: the actor only admits a turn (Client::admit_send, client/send_split.rs); the stream runs on its own task (view_model/live_turns.rs, send_relay.rs, send_stream.rs), so a second send, edit and stop work while a reply streams."
+          - "A send turn carries embeds and attachments (client/send_attachments.rs, SendEmbedRecord) and caller-supplied PII exclusions and mappings (privacy/exclusions.rs)."
+          - "Drafts: draft() read and a DraftChanged event from live refresh, list refresh and boot sync (client/draft_cached.rs, view_model/draft_view.rs, draft_flows.rs, view_drafts.rs)."
+        swift:
+          - "Drafts through the core (CoreDrafts.swift); DraftSyncCoordinator and its parity tests deleted. The encrypted local draft copy stays because the core has no offline draft outbox."
+          - "Voice call continues in the background."
+          - "Chat cards: image-generate card states, project-created card, recommendations card (built, not mounted: the binding has no recommendations data); ChatCardsParityUITests."
+        open:
+          - "Swift send, edit and stop still use ChatSendPipeline and StreamingClient; switching them to sendWithOptions and deleting the old code is the next lane."
+          - "Drafts: no offline outbox in the core; unsynced state is tracked in memory only; a remote clear while the app is closed can bring the local copy back; the welcome composer has no unsaved-typing guard."
+          - "Send: no stored-embed availability check, the bundle is rebuilt on retry, the optimistic message has no reference blocks, upload keys still come from Swift; incognito turns run whole on the actor; the terminal app still uses the joined send."
+      unit_suite_on_03a7aed: "26 failing (baseline 39 on fbd4396): 16 baseline failures gone, 23 unchanged, 3 new (2 pair cookie tests, 1 sheet fullscreen waiter), addressed in the built changes above."
   A3:
     state: A3a done (batched decrypt); A3b not started
     remaining: about 20 Swift files still call CryptoManager, decryptChatField or decryptMessageContent; chat key bytes still cross into Swift; decide the core-held key store
-  A4: {state: "in progress: lane 0 (record fields) deployed in 6d15ee2; lane 1 (core session at app start, all logins, session, logout, REST, uploads) built and green in apple-unit on candidate cc53ee79; lane 2 first slice (sidebar from the core) built", needs: "deploy; apple-ui run for the seeded sidebar and the passkey device-verification screen; lane 3 chat window; an end-to-end cold-start measurement before and after"}
+  A4: {state: "in progress: lane 0 (record fields) deployed in 6d15ee2; lane 1 (core session at app start, all logins, session, logout, REST, uploads), lane 2 (sidebar) and lane 3 (chat window) deployed in 03a7aed, apple-unit build green on candidate ec1f735a", needs: "apple-ui run for the seeded sidebar and the passkey device-verification screen; lane 3 chat window; an end-to-end cold-start measurement before and after"}
   A5_to_A7: {state: not started}
   not_run: [apple-ui suite, "e2e cli-rust-chat-sync-feed, cli-session-cookie-rotation and cli-pair-login for 6d15ee2 (CI runner DNS failure in Install browser, three attempts)", full terminal app suite in CI, app size after linking (static library is 164 MB per slice before linking), Watch runtime behaviour, Keychain store on a signed build]
   known_unrelated_failures:

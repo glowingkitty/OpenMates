@@ -24,7 +24,7 @@ use super::{
     ChatWindowRecord, ListCompleteness, ViewEvent, ViewSink,
     arrange::arrange_chat_list,
     chat_list_row_from_item,
-    send_flows::ForegroundSlot,
+    live_turns::LiveTurns,
     unowned_flows::{UnownedFrameSender, UnownedSeam},
     window::OpenWindow,
 };
@@ -42,8 +42,8 @@ pub struct ViewCore<S: ByteStore + 'static> {
     pub(super) monitor: Option<ChatMonitor>,
     /// The one open chat window (`OpenChat` until `CloseChat`).
     pub(super) window: Option<OpenWindow>,
-    /// Cancel token of the running send (`SendCancelHandle`).
-    pub(super) foreground: ForegroundSlot,
+    /// The running turns (`SendCancelHandle`, `stop_reply`, streaming turns).
+    pub(super) foreground: Arc<LiveTurns>,
     /// Passthrough of socket frames the core does not own (temporary
     /// strangler seam, removed when A5/A6 move the remaining features into
     /// the core).
@@ -71,7 +71,7 @@ impl<S: ByteStore + 'static> ViewCore<S> {
             eager_cached_content: true,
             monitor: None,
             window: None,
-            foreground: ForegroundSlot::default(),
+            foreground: Arc::default(),
             unowned: UnownedSeam::default(),
             memory_write_jobs: false,
             server_region: ServerRegionPreference::Eu,
@@ -163,6 +163,16 @@ impl<S: ByteStore + 'static> ViewCore<S> {
     /// [`Self::persist`] or [`Self::persist_for`].
     pub fn client_mut(&mut self) -> &mut Client {
         &mut self.client
+    }
+
+    /// Bind the client's operation token to `cancel` before a client call,
+    /// unless a turn runs: its stream depends on the current token (a new
+    /// one would cancel it), so the call then runs under the turn's token
+    /// and checks its own `cancel` in the view-model flow only.
+    pub(super) fn begin_client_operation(&mut self, cancel: &CancellationToken) {
+        if !self.foreground.any() {
+            self.client.set_operation_cancel(cancel.clone());
+        }
     }
 
     /// The session runtime (cache façade and ordered queue).

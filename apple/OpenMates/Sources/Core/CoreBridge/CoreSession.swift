@@ -118,7 +118,9 @@ final class CoreSession: ObservableObject {
     static func launch() {
         guard shared == nil else { return }
         do {
-            shared = try CoreSession(config: appConfig(), credentials: KeychainCredentialStore())
+            let session = try CoreSession(config: appConfig(), credentials: KeychainCredentialStore())
+            shared = session
+            ServerRegionSetting.shared.attach(core: session.core)
         } catch {
             launchError = error
             NativeDiagnostics.error(

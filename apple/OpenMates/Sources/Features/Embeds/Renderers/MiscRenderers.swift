@@ -1721,6 +1721,9 @@ struct FocusModeRenderer: View {
         return focusID.components(separatedBy: "-").first ?? "ai"
     }
 
+    /// `.focus-mode-bar` border-radius: 30px (pill of the 61px bar; no radius token).
+    private static let barCornerRadius: CGFloat = 30
+
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
     var embedID: String = ""
@@ -1749,6 +1752,15 @@ struct FocusModeRenderer: View {
     }
 
     var body: some View {
+        // Assistant-created Project: FocusModeActivationEmbed.svelte {#if projectCreated}.
+        if mode == .preview, let created = ProjectCreatedFocus(data: data, focusName: focusName) {
+            ProjectCreatedCardView(created: created, focusID: focusID)
+        } else {
+            focusBody
+        }
+    }
+
+    private var focusBody: some View {
         Group {
             if mode == .preview {
                 HStack(spacing: .spacing5) {
@@ -1760,7 +1772,7 @@ struct FocusModeRenderer: View {
                                 .foregroundStyle(.white)
                         }
                     Icon("insight", size: 29)
-                        .foregroundStyle(Color(hex: 0x5951D0))
+                        .foregroundStyle(LinearGradient.iconFocus)
                     VStack(alignment: .leading, spacing: .spacing1) {
                         Text(focusName)
                             .font(.omP.weight(.semibold))
@@ -1778,7 +1790,7 @@ struct FocusModeRenderer: View {
                 }
                 .frame(maxWidth: 380, maxHeight: 61)
                 .background(Color.grey30)
-                .clipShape(RoundedRectangle(cornerRadius: 30))
+                .clipShape(RoundedRectangle(cornerRadius: Self.barCornerRadius))
                 .accessibilityIdentifier("focus-mode-bar")
                 .overlay(alignment: .bottomLeading) {
                     if isPending, let entry {

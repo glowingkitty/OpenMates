@@ -2135,6 +2135,106 @@ public protocol ViewModelCoreProtocol: AnyObject, Sendable {
     func adoptSession(session: AdoptedSessionRecord, cancellation: CoreCancellation?) async throws 
     
     /**
+     * Clear the draft of `chat_id` with its versioned tombstone (a
+     * draft-only chat disappears), then emit `ChatList`.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid` for a malformed or
+     * volatile id; `Unavailable(team_draft_clear_unavailable)` in a team
+     * scope; `Conflict`, `Offline`; `Cancelled`.
+     */
+    func clearDraft(chatId: String, cancellation: CoreCancellation?) async throws 
+    
+    /**
+     * Delete chat `chat_id` on every device (a draft-only chat loses its
+     * draft instead), close its window when open, then emit `ChatList`.
+     * Runs on the actor, so it waits for a running command.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid` for a malformed or
+     * volatile chat id; `Protocol` when the server refuses; `Offline`;
+     * `Cancelled`. Nothing is published on failure.
+     */
+    func deleteChat(chatId: String, cancellation: CoreCancellation?) async throws 
+    
+    /**
+     * Delete message `message_id` of personal chat `chat_id` on every
+     * device. When that chat is the open window it is read again and
+     * emitted as `ChatWindow` events carrying `request`.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid` for a malformed chat id or
+     * an empty message id; `Forbidden` in a team scope; `Protocol` when the
+     * server refuses; `Offline` without an answer in 20 seconds;
+     * `Cancelled`.
+     */
+    func deleteMessage(request: UInt64, chatId: String, messageId: String, cancellation: CoreCancellation?) async throws 
+    
+    /**
+     * Edit user message `message_id` of personal chat `chat_id`: the core
+     * removes it and every later message, reads the open window again, then
+     * sends `text` as `request` exactly like `send` (same events, same
+     * `cancelSend`, same send settings). Returns the sent window
+     * (`Canonical`). A failed send keeps the truncation.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid` for empty text, an
+     * assistant or unknown message; `Forbidden` in a team scope; rewind,
+     * delete and send errors as `deleteMessage` and `send`; `Cancelled`.
+     */
+    func editMessage(request: UInt64, chatId: String, messageId: String, text: String, cancellation: CoreCancellation?) async throws  -> ChatWindowViewRecord
+    
+    /**
+     * Fork personal chat `chat_id` up to and including `message_id` into a
+     * new encrypted chat titled `title` (`nil`: "Fork of <title>"), then
+     * refresh and emit `ChatList`. Returns the new chat's id.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid` for a malformed id or an
+     * unknown message; `Forbidden` in a team scope; `Invalid` for a Direct
+     * chat; server refusals; `Protocol`, `Offline`; `Cancelled`.
+     */
+    func forkChat(chatId: String, messageId: String, title: String?, cancellation: CoreCancellation?) async throws  -> String
+    
+    /**
+     * Retry the newest unanswered user turn of personal chat `chat_id`:
+     * the core rewinds to the message before it, reads the open window
+     * again and sends the same text as `request` like `send`. Returns the
+     * sent window (`Canonical`).
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid` for a malformed id, when
+     * no turn is retryable or it is the first message; `Forbidden` in a
+     * team scope; rewind and send errors; `Cancelled`.
+     */
+    func retryLastTurn(request: UInt64, chatId: String, cancellation: CoreCancellation?) async throws  -> ChatWindowViewRecord
+    
+    /**
+     * Save `markdown` as the encrypted draft of `chat_id` (`nil`: a new
+     * chat), then emit `ChatList`. Returns the draft's chat id.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid` for a malformed id, a
+     * volatile chat or an oversized draft; `Forbidden` in a team scope;
+     * `Offline`; `Cancelled`.
+     */
+    func saveDraft(chatId: String?, markdown: String, cancellation: CoreCancellation?) async throws  -> String
+    
+    /**
+     * Stop assistant task `task_id` in `chat_id` (a reply this core did not
+     * start, for example one from another device). To stop this core's own
+     * running `send`, `editMessage` or `retryLastTurn`, call `cancelSend`:
+     * this call queues behind the running command. The reply then ends
+     * through the normal stream events.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid` for a malformed chat id or
+     * an empty task id; `Protocol` when the server refuses; `Offline`
+     * without an answer in 20 seconds; `Cancelled`.
+     */
+    func stopReply(chatId: String, taskId: String, cancellation: CoreCancellation?) async throws 
+    
+    /**
      * Swift stored the payload of `revision` (see
      * `CredentialStore.credentialsChanged`). Callable from any thread.
      *
@@ -2260,6 +2360,21 @@ public protocol ViewModelCoreProtocol: AnyObject, Sendable {
      * Swift's; `Cancelled`.
      */
     func draftVersions(chats: [DraftVersionQueryRecord], cancellation: CoreCancellation?) async throws  -> [ServerDraftVersionRecord]
+    
+    /**
+     * The saved draft of personal chat `chat_id` for its composer (`nil`:
+     * none). Online the core reads the server's current draft, so a draft
+     * typed on another device is restored, and emits `ChatList` when it
+     * differs from the cached one; offline it returns the cached draft.
+     * Runs on the actor, so it waits for a running command.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid` for a malformed or
+     * volatile id (before any network); `Unavailable(team_draft_read_unavailable)`
+     * in a team scope; `Conflict` when the server's draft is older than the
+     * cached one; `Crypto`; `Cancelled`.
+     */
+    func draft(chatId: String, cancellation: CoreCancellation?) async throws  -> DraftViewRecord?
     
     /**
      * Enhance the head version of image `embed_id` and save the result as
@@ -2748,8 +2863,10 @@ public protocol ViewModelCoreProtocol: AnyObject, Sendable {
      * that is not open emits `Stream` events and the list only. A failed
      * send keeps the user message with `Failed`; a cancel (through
      * `cancellation` or `cancelSend`) publishes `Cancelled` and ends with
-     * `CoreError.Cancelled`. Runs on the actor, so other commands wait for it;
-     * `logout` cancels it.
+     * `CoreError.Cancelled`. Only the admission runs on the actor; while the
+     * reply streams, other commands are served: a second send into the same
+     * chat comes back queued, a send into another chat streams alongside,
+     * and `stopReply`, `cancelSend` and `logout` end it.
      *
      * # Errors
      * `Authentication` when signed out; `Invalid` for empty text, an unknown
@@ -2757,6 +2874,27 @@ public protocol ViewModelCoreProtocol: AnyObject, Sendable {
      * persistence errors; `Cancelled` when cancelled.
      */
     func send(request: UInt64, chatId: String?, text: String, cancellation: CoreCancellation?) async throws  -> ChatWindowViewRecord
+    
+    /**
+     * `send` with per-turn `options`; returns the sent window plus the
+     * delivery receipt. Same events (all carrying `request`), the same
+     * `cancelSend`, the same send settings (Memory writes, server region).
+     * With `reservedMessageId` the optimistic user message carries that id
+     * from the first event instead of a provisional one. Like `send`, only
+     * the admission runs on the actor; while the reply streams other
+     * commands are served (a second send into the chat returns `Queued`).
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid` before anything is shown
+     * for an incognito turn into an existing chat, a slug or reserved chat id
+     * with `chatId`, a slug on an incognito chat; `Invalid` for a
+     * non-canonical reserved id or one equal to the chat id; `Invalid` before
+     * anything is shown for a malformed or duplicate embed id or type, empty
+     * or oversized embed content, a stored-reference embed in an incognito
+     * chat, or a malformed exclusion or PII mapping; `Conflict` when
+     * a reserved chat or message id already exists; otherwise as `send`.
+     */
+    func sendWithOptions(request: UInt64, chatId: String?, text: String, options: SendOptionsRecord, cancellation: CoreCancellation?) async throws  -> SendReceiptRecord
     
     /**
      * The signed-in session (`nil` while signed out). Waits for a running
@@ -3043,6 +3181,218 @@ open func adoptSession(session: AdoptedSessionRecord, cancellation: CoreCancella
 }
     
     /**
+     * Clear the draft of `chat_id` with its versioned tombstone (a
+     * draft-only chat disappears), then emit `ChatList`.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid` for a malformed or
+     * volatile id; `Unavailable(team_draft_clear_unavailable)` in a team
+     * scope; `Conflict`, `Offline`; `Cancelled`.
+     */
+open func clearDraft(chatId: String, cancellation: CoreCancellation?)async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_clear_draft(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(chatId),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_void,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_void,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Delete chat `chat_id` on every device (a draft-only chat loses its
+     * draft instead), close its window when open, then emit `ChatList`.
+     * Runs on the actor, so it waits for a running command.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid` for a malformed or
+     * volatile chat id; `Protocol` when the server refuses; `Offline`;
+     * `Cancelled`. Nothing is published on failure.
+     */
+open func deleteChat(chatId: String, cancellation: CoreCancellation?)async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_delete_chat(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(chatId),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_void,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_void,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Delete message `message_id` of personal chat `chat_id` on every
+     * device. When that chat is the open window it is read again and
+     * emitted as `ChatWindow` events carrying `request`.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid` for a malformed chat id or
+     * an empty message id; `Forbidden` in a team scope; `Protocol` when the
+     * server refuses; `Offline` without an answer in 20 seconds;
+     * `Cancelled`.
+     */
+open func deleteMessage(request: UInt64, chatId: String, messageId: String, cancellation: CoreCancellation?)async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_delete_message(
+                        self.uniffiCloneHandle(),FfiConverterUInt64.lower(request),FfiConverterString.lower(chatId),FfiConverterString.lower(messageId),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_void,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_void,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Edit user message `message_id` of personal chat `chat_id`: the core
+     * removes it and every later message, reads the open window again, then
+     * sends `text` as `request` exactly like `send` (same events, same
+     * `cancelSend`, same send settings). Returns the sent window
+     * (`Canonical`). A failed send keeps the truncation.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid` for empty text, an
+     * assistant or unknown message; `Forbidden` in a team scope; rewind,
+     * delete and send errors as `deleteMessage` and `send`; `Cancelled`.
+     */
+open func editMessage(request: UInt64, chatId: String, messageId: String, text: String, cancellation: CoreCancellation?)async throws  -> ChatWindowViewRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_edit_message(
+                        self.uniffiCloneHandle(),FfiConverterUInt64.lower(request),FfiConverterString.lower(chatId),FfiConverterString.lower(messageId),FfiConverterString.lower(text),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeChatWindowViewRecord_lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Fork personal chat `chat_id` up to and including `message_id` into a
+     * new encrypted chat titled `title` (`nil`: "Fork of <title>"), then
+     * refresh and emit `ChatList`. Returns the new chat's id.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid` for a malformed id or an
+     * unknown message; `Forbidden` in a team scope; `Invalid` for a Direct
+     * chat; server refusals; `Protocol`, `Offline`; `Cancelled`.
+     */
+open func forkChat(chatId: String, messageId: String, title: String?, cancellation: CoreCancellation?)async throws  -> String  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_fork_chat(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(chatId),FfiConverterString.lower(messageId),FfiConverterOptionString.lower(title),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterString.lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Retry the newest unanswered user turn of personal chat `chat_id`:
+     * the core rewinds to the message before it, reads the open window
+     * again and sends the same text as `request` like `send`. Returns the
+     * sent window (`Canonical`).
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid` for a malformed id, when
+     * no turn is retryable or it is the first message; `Forbidden` in a
+     * team scope; rewind and send errors; `Cancelled`.
+     */
+open func retryLastTurn(request: UInt64, chatId: String, cancellation: CoreCancellation?)async throws  -> ChatWindowViewRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_retry_last_turn(
+                        self.uniffiCloneHandle(),FfiConverterUInt64.lower(request),FfiConverterString.lower(chatId),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeChatWindowViewRecord_lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Save `markdown` as the encrypted draft of `chat_id` (`nil`: a new
+     * chat), then emit `ChatList`. Returns the draft's chat id.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid` for a malformed id, a
+     * volatile chat or an oversized draft; `Forbidden` in a team scope;
+     * `Offline`; `Cancelled`.
+     */
+open func saveDraft(chatId: String?, markdown: String, cancellation: CoreCancellation?)async throws  -> String  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_save_draft(
+                        self.uniffiCloneHandle(),FfiConverterOptionString.lower(chatId),FfiConverterString.lower(markdown),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterString.lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Stop assistant task `task_id` in `chat_id` (a reply this core did not
+     * start, for example one from another device). To stop this core's own
+     * running `send`, `editMessage` or `retryLastTurn`, call `cancelSend`:
+     * this call queues behind the running command. The reply then ends
+     * through the normal stream events.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid` for a malformed chat id or
+     * an empty task id; `Protocol` when the server refuses; `Offline`
+     * without an answer in 20 seconds; `Cancelled`.
+     */
+open func stopReply(chatId: String, taskId: String, cancellation: CoreCancellation?)async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_stop_reply(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(chatId),FfiConverterString.lower(taskId),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_void,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_void,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
      * Swift stored the payload of `revision` (see
      * `CredentialStore.credentialsChanged`). Callable from any thread.
      *
@@ -3312,6 +3662,35 @@ open func draftVersions(chats: [DraftVersionQueryRecord], cancellation: CoreCanc
             completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
             freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
             liftFunc: FfiConverterSequenceTypeServerDraftVersionRecord.lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * The saved draft of personal chat `chat_id` for its composer (`nil`:
+     * none). Online the core reads the server's current draft, so a draft
+     * typed on another device is restored, and emits `ChatList` when it
+     * differs from the cached one; offline it returns the cached draft.
+     * Runs on the actor, so it waits for a running command.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid` for a malformed or
+     * volatile id (before any network); `Unavailable(team_draft_read_unavailable)`
+     * in a team scope; `Conflict` when the server's draft is older than the
+     * cached one; `Crypto`; `Cancelled`.
+     */
+open func draft(chatId: String, cancellation: CoreCancellation?)async throws  -> DraftViewRecord?  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_draft(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(chatId),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterOptionTypeDraftViewRecord.lift,
             errorHandler: FfiConverterTypeCoreError_lift
         )
 }
@@ -4302,8 +4681,10 @@ open func cancelSend() -> Bool  {
      * that is not open emits `Stream` events and the list only. A failed
      * send keeps the user message with `Failed`; a cancel (through
      * `cancellation` or `cancelSend`) publishes `Cancelled` and ends with
-     * `CoreError.Cancelled`. Runs on the actor, so other commands wait for it;
-     * `logout` cancels it.
+     * `CoreError.Cancelled`. Only the admission runs on the actor; while the
+     * reply streams, other commands are served: a second send into the same
+     * chat comes back queued, a send into another chat streams alongside,
+     * and `stopReply`, `cancelSend` and `logout` end it.
      *
      * # Errors
      * `Authentication` when signed out; `Invalid` for empty text, an unknown
@@ -4322,6 +4703,41 @@ open func send(request: UInt64, chatId: String?, text: String, cancellation: Cor
             completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
             freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
             liftFunc: FfiConverterTypeChatWindowViewRecord_lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * `send` with per-turn `options`; returns the sent window plus the
+     * delivery receipt. Same events (all carrying `request`), the same
+     * `cancelSend`, the same send settings (Memory writes, server region).
+     * With `reservedMessageId` the optimistic user message carries that id
+     * from the first event instead of a provisional one. Like `send`, only
+     * the admission runs on the actor; while the reply streams other
+     * commands are served (a second send into the chat returns `Queued`).
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid` before anything is shown
+     * for an incognito turn into an existing chat, a slug or reserved chat id
+     * with `chatId`, a slug on an incognito chat; `Invalid` for a
+     * non-canonical reserved id or one equal to the chat id; `Invalid` before
+     * anything is shown for a malformed or duplicate embed id or type, empty
+     * or oversized embed content, a stored-reference embed in an incognito
+     * chat, or a malformed exclusion or PII mapping; `Conflict` when
+     * a reserved chat or message id already exists; otherwise as `send`.
+     */
+open func sendWithOptions(request: UInt64, chatId: String?, text: String, options: SendOptionsRecord, cancellation: CoreCancellation?)async throws  -> SendReceiptRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_send_with_options(
+                        self.uniffiCloneHandle(),FfiConverterUInt64.lower(request),FfiConverterOptionString.lower(chatId),FfiConverterString.lower(text),FfiConverterTypeSendOptionsRecord_lower(options),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeSendReceiptRecord_lift,
             errorHandler: FfiConverterTypeCoreError_lift
         )
 }
@@ -5898,6 +6314,96 @@ public func FfiConverterTypeDraftVersionQueryRecord_lift(_ buf: RustBuffer) thro
 #endif
 public func FfiConverterTypeDraftVersionQueryRecord_lower(_ value: DraftVersionQueryRecord) -> RustBuffer {
     return FfiConverterTypeDraftVersionQueryRecord.lower(value)
+}
+
+
+/**
+ * One chat's saved draft, decrypted (core `DraftView`). Plaintext: show it
+ * in the composer only; never log or store it (the core caches it encrypted).
+ */
+public struct DraftViewRecord: Equatable, Hashable {
+    /**
+     * Chat the draft belongs to.
+     */
+    public var chatId: String
+    /**
+     * Full draft markdown.
+     */
+    public var markdown: String
+    /**
+     * Decrypted short preview, when the draft carries one.
+     */
+    public var preview: String?
+    /**
+     * Server draft version; a later save or clear has a higher one.
+     */
+    public var draftV: UInt64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Chat the draft belongs to.
+         */chatId: String, 
+        /**
+         * Full draft markdown.
+         */markdown: String, 
+        /**
+         * Decrypted short preview, when the draft carries one.
+         */preview: String?, 
+        /**
+         * Server draft version; a later save or clear has a higher one.
+         */draftV: UInt64) {
+        self.chatId = chatId
+        self.markdown = markdown
+        self.preview = preview
+        self.draftV = draftV
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension DraftViewRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDraftViewRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DraftViewRecord {
+        return
+            try DraftViewRecord(
+                chatId: FfiConverterString.read(from: &buf), 
+                markdown: FfiConverterString.read(from: &buf), 
+                preview: FfiConverterOptionString.read(from: &buf), 
+                draftV: FfiConverterUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: DraftViewRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.chatId, into: &buf)
+        FfiConverterString.write(value.markdown, into: &buf)
+        FfiConverterOptionString.write(value.preview, into: &buf)
+        FfiConverterUInt64.write(value.draftV, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDraftViewRecord_lift(_ buf: RustBuffer) throws -> DraftViewRecord {
+    return try FfiConverterTypeDraftViewRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDraftViewRecord_lower(_ value: DraftViewRecord) -> RustBuffer {
+    return FfiConverterTypeDraftViewRecord.lower(value)
 }
 
 
@@ -8634,6 +9140,400 @@ public func FfiConverterTypeProbeRecord_lift(_ buf: RustBuffer) throws -> ProbeR
 #endif
 public func FfiConverterTypeProbeRecord_lower(_ value: ProbeRecord) -> RustBuffer {
     return FfiConverterTypeProbeRecord.lower(value)
+}
+
+
+/**
+ * One embed the composer attaches to the turn (an upload, a recording, a
+ * pasted code or text block, a URL preview, or an embed already stored).
+ */
+public struct SendEmbedRecord: Equatable, Hashable {
+    /**
+     * The embed id (for an upload: the upload's `embedId`).
+     */
+    public var embedId: String
+    /**
+     * The embed type (`image`, `pdf`, `code-code`, `audio-recording`, …).
+     */
+    public var embedType: String
+    /**
+     * The type in the message's reference block; nil uses `embedType`.
+     */
+    public var referenceType: String?
+    /**
+     * `finished` or `processing` (an upload still being processed).
+     */
+    public var status: String
+    /**
+     * The plaintext content of a new embed, as prepared by the composer.
+     * Nil attaches an embed that is already stored (reference only).
+     */
+    public var content: String?
+    /**
+     * Optional preview text.
+     */
+    public var textPreview: String?
+    /**
+     * Child embed ids of a composite embed.
+     */
+    public var childEmbedIds: [String]?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The embed id (for an upload: the upload's `embedId`).
+         */embedId: String, 
+        /**
+         * The embed type (`image`, `pdf`, `code-code`, `audio-recording`, …).
+         */embedType: String, 
+        /**
+         * The type in the message's reference block; nil uses `embedType`.
+         */referenceType: String? = nil, 
+        /**
+         * `finished` or `processing` (an upload still being processed).
+         */status: String = "finished", 
+        /**
+         * The plaintext content of a new embed, as prepared by the composer.
+         * Nil attaches an embed that is already stored (reference only).
+         */content: String? = nil, 
+        /**
+         * Optional preview text.
+         */textPreview: String? = nil, 
+        /**
+         * Child embed ids of a composite embed.
+         */childEmbedIds: [String]? = nil) {
+        self.embedId = embedId
+        self.embedType = embedType
+        self.referenceType = referenceType
+        self.status = status
+        self.content = content
+        self.textPreview = textPreview
+        self.childEmbedIds = childEmbedIds
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SendEmbedRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSendEmbedRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SendEmbedRecord {
+        return
+            try SendEmbedRecord(
+                embedId: FfiConverterString.read(from: &buf), 
+                embedType: FfiConverterString.read(from: &buf), 
+                referenceType: FfiConverterOptionString.read(from: &buf), 
+                status: FfiConverterString.read(from: &buf), 
+                content: FfiConverterOptionString.read(from: &buf), 
+                textPreview: FfiConverterOptionString.read(from: &buf), 
+                childEmbedIds: FfiConverterOptionSequenceString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SendEmbedRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.embedId, into: &buf)
+        FfiConverterString.write(value.embedType, into: &buf)
+        FfiConverterOptionString.write(value.referenceType, into: &buf)
+        FfiConverterString.write(value.status, into: &buf)
+        FfiConverterOptionString.write(value.content, into: &buf)
+        FfiConverterOptionString.write(value.textPreview, into: &buf)
+        FfiConverterOptionSequenceString.write(value.childEmbedIds, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSendEmbedRecord_lift(_ buf: RustBuffer) throws -> SendEmbedRecord {
+    return try FfiConverterTypeSendEmbedRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSendEmbedRecord_lower(_ value: SendEmbedRecord) -> RustBuffer {
+    return FfiConverterTypeSendEmbedRecord.lower(value)
+}
+
+
+/**
+ * The options of one turn. All defaults give the plain `send`.
+ */
+public struct SendOptionsRecord: Equatable, Hashable {
+    /**
+     * Replace detected personal data with placeholders before the turn
+     * leaves the device; the mappings are stored encrypted with the message.
+     */
+    public var piiDetection: Bool
+    /**
+     * An incognito (volatile) chat: nothing is stored. Only a first turn
+     * (`chatId` nil) is supported; the chat is not in `ChatList`.
+     */
+    public var incognito: Bool
+    /**
+     * The slug of a new saved chat (`chatId` nil only).
+     */
+    public var slug: String?
+    /**
+     * The id of the NEW chat, reserved by Swift before the send (`chatId`
+     * nil only); canonical lowercase UUID, unknown to the core.
+     */
+    public var reservedChatId: String?
+    /**
+     * The user message's id, reserved by Swift; the optimistic message
+     * carries it from the first event. Canonical lowercase UUID.
+     */
+    public var reservedMessageId: String?
+    /**
+     * Embeds the composer attaches; the core appends their reference blocks
+     * to the text and encrypts them (a turn of attachments only may have an
+     * empty text).
+     */
+    public var embeds: [SendEmbedRecord]
+    /**
+     * Exact detected values the user un-redacted; they stay in clear.
+     */
+    public var excludedPiiOriginals: [String]
+    /**
+     * Known placeholders whose mapping must not be re-applied.
+     */
+    public var excludedPiiPlaceholders: [String]
+    /**
+     * Placeholders Swift already wrote (text or attachments) with their
+     * originals; stored encrypted with the message.
+     */
+    public var piiMappings: [PiiMappingRecord]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Replace detected personal data with placeholders before the turn
+         * leaves the device; the mappings are stored encrypted with the message.
+         */piiDetection: Bool = true, 
+        /**
+         * An incognito (volatile) chat: nothing is stored. Only a first turn
+         * (`chatId` nil) is supported; the chat is not in `ChatList`.
+         */incognito: Bool = false, 
+        /**
+         * The slug of a new saved chat (`chatId` nil only).
+         */slug: String? = nil, 
+        /**
+         * The id of the NEW chat, reserved by Swift before the send (`chatId`
+         * nil only); canonical lowercase UUID, unknown to the core.
+         */reservedChatId: String? = nil, 
+        /**
+         * The user message's id, reserved by Swift; the optimistic message
+         * carries it from the first event. Canonical lowercase UUID.
+         */reservedMessageId: String? = nil, 
+        /**
+         * Embeds the composer attaches; the core appends their reference blocks
+         * to the text and encrypts them (a turn of attachments only may have an
+         * empty text).
+         */embeds: [SendEmbedRecord] = [], 
+        /**
+         * Exact detected values the user un-redacted; they stay in clear.
+         */excludedPiiOriginals: [String] = [], 
+        /**
+         * Known placeholders whose mapping must not be re-applied.
+         */excludedPiiPlaceholders: [String] = [], 
+        /**
+         * Placeholders Swift already wrote (text or attachments) with their
+         * originals; stored encrypted with the message.
+         */piiMappings: [PiiMappingRecord] = []) {
+        self.piiDetection = piiDetection
+        self.incognito = incognito
+        self.slug = slug
+        self.reservedChatId = reservedChatId
+        self.reservedMessageId = reservedMessageId
+        self.embeds = embeds
+        self.excludedPiiOriginals = excludedPiiOriginals
+        self.excludedPiiPlaceholders = excludedPiiPlaceholders
+        self.piiMappings = piiMappings
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SendOptionsRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSendOptionsRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SendOptionsRecord {
+        return
+            try SendOptionsRecord(
+                piiDetection: FfiConverterBool.read(from: &buf), 
+                incognito: FfiConverterBool.read(from: &buf), 
+                slug: FfiConverterOptionString.read(from: &buf), 
+                reservedChatId: FfiConverterOptionString.read(from: &buf), 
+                reservedMessageId: FfiConverterOptionString.read(from: &buf), 
+                embeds: FfiConverterSequenceTypeSendEmbedRecord.read(from: &buf), 
+                excludedPiiOriginals: FfiConverterSequenceString.read(from: &buf), 
+                excludedPiiPlaceholders: FfiConverterSequenceString.read(from: &buf), 
+                piiMappings: FfiConverterSequenceTypePiiMappingRecord.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SendOptionsRecord, into buf: inout [UInt8]) {
+        FfiConverterBool.write(value.piiDetection, into: &buf)
+        FfiConverterBool.write(value.incognito, into: &buf)
+        FfiConverterOptionString.write(value.slug, into: &buf)
+        FfiConverterOptionString.write(value.reservedChatId, into: &buf)
+        FfiConverterOptionString.write(value.reservedMessageId, into: &buf)
+        FfiConverterSequenceTypeSendEmbedRecord.write(value.embeds, into: &buf)
+        FfiConverterSequenceString.write(value.excludedPiiOriginals, into: &buf)
+        FfiConverterSequenceString.write(value.excludedPiiPlaceholders, into: &buf)
+        FfiConverterSequenceTypePiiMappingRecord.write(value.piiMappings, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSendOptionsRecord_lift(_ buf: RustBuffer) throws -> SendOptionsRecord {
+    return try FfiConverterTypeSendOptionsRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSendOptionsRecord_lower(_ value: SendOptionsRecord) -> RustBuffer {
+    return FfiConverterTypeSendOptionsRecord.lower(value)
+}
+
+
+/**
+ * The sent window and the turn's delivery facts.
+ */
+public struct SendReceiptRecord: Equatable, Hashable {
+    /**
+     * The sent chat's window (`Canonical`).
+     */
+    public var window: ChatWindowViewRecord
+    /**
+     * How the turn ended.
+     */
+    public var status: SendStatusRecord
+    /**
+     * The turn's chat id (the reserved or new id for a new chat).
+     */
+    public var chatId: String
+    /**
+     * The user message id.
+     */
+    public var userMessageId: String?
+    /**
+     * The assistant reply id; nil while queued and for team sends.
+     */
+    public var assistantMessageId: String?
+    /**
+     * Set only for `Queued`.
+     */
+    public var queueMode: SendQueueModeRecord?
+    /**
+     * The queued message's revision (for later queued edits); `Queued` only.
+     */
+    public var queueRevision: UInt64?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The sent chat's window (`Canonical`).
+         */window: ChatWindowViewRecord, 
+        /**
+         * How the turn ended.
+         */status: SendStatusRecord, 
+        /**
+         * The turn's chat id (the reserved or new id for a new chat).
+         */chatId: String, 
+        /**
+         * The user message id.
+         */userMessageId: String?, 
+        /**
+         * The assistant reply id; nil while queued and for team sends.
+         */assistantMessageId: String?, 
+        /**
+         * Set only for `Queued`.
+         */queueMode: SendQueueModeRecord?, 
+        /**
+         * The queued message's revision (for later queued edits); `Queued` only.
+         */queueRevision: UInt64?) {
+        self.window = window
+        self.status = status
+        self.chatId = chatId
+        self.userMessageId = userMessageId
+        self.assistantMessageId = assistantMessageId
+        self.queueMode = queueMode
+        self.queueRevision = queueRevision
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SendReceiptRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSendReceiptRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SendReceiptRecord {
+        return
+            try SendReceiptRecord(
+                window: FfiConverterTypeChatWindowViewRecord.read(from: &buf), 
+                status: FfiConverterTypeSendStatusRecord.read(from: &buf), 
+                chatId: FfiConverterString.read(from: &buf), 
+                userMessageId: FfiConverterOptionString.read(from: &buf), 
+                assistantMessageId: FfiConverterOptionString.read(from: &buf), 
+                queueMode: FfiConverterOptionTypeSendQueueModeRecord.read(from: &buf), 
+                queueRevision: FfiConverterOptionUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SendReceiptRecord, into buf: inout [UInt8]) {
+        FfiConverterTypeChatWindowViewRecord.write(value.window, into: &buf)
+        FfiConverterTypeSendStatusRecord.write(value.status, into: &buf)
+        FfiConverterString.write(value.chatId, into: &buf)
+        FfiConverterOptionString.write(value.userMessageId, into: &buf)
+        FfiConverterOptionString.write(value.assistantMessageId, into: &buf)
+        FfiConverterOptionTypeSendQueueModeRecord.write(value.queueMode, into: &buf)
+        FfiConverterOptionUInt64.write(value.queueRevision, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSendReceiptRecord_lift(_ buf: RustBuffer) throws -> SendReceiptRecord {
+    return try FfiConverterTypeSendReceiptRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSendReceiptRecord_lower(_ value: SendReceiptRecord) -> RustBuffer {
+    return FfiConverterTypeSendReceiptRecord.lower(value)
 }
 
 
@@ -12211,6 +13111,81 @@ public func FfiConverterTypePiiRestorationRecord_lower(_ value: PiiRestorationRe
 
 
 /**
+ * How a queued turn waits.
+ */
+
+public enum SendQueueModeRecord: Equatable, Hashable {
+    
+    /**
+     * Answered after the active reply.
+     */
+    case followUp
+    /**
+     * Steers the active reply at its next safe boundary.
+     */
+    case steer
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension SendQueueModeRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSendQueueModeRecord: FfiConverterRustBuffer {
+    typealias SwiftType = SendQueueModeRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SendQueueModeRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .followUp
+        
+        case 2: return .steer
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: SendQueueModeRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .followUp:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .steer:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSendQueueModeRecord_lift(_ buf: RustBuffer) throws -> SendQueueModeRecord {
+    return try FfiConverterTypeSendQueueModeRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSendQueueModeRecord_lower(_ value: SendQueueModeRecord) -> RustBuffer {
+    return FfiConverterTypeSendQueueModeRecord.lower(value)
+}
+
+
+
+/**
  * Delivery state of a message the user sent from this device (core
  * `SendState`).
  */
@@ -12328,6 +13303,91 @@ public func FfiConverterTypeSendStateRecord_lift(_ buf: RustBuffer) throws -> Se
 #endif
 public func FfiConverterTypeSendStateRecord_lower(_ value: SendStateRecord) -> RustBuffer {
     return FfiConverterTypeSendStateRecord.lower(value)
+}
+
+
+
+/**
+ * How a turn ended.
+ */
+
+public enum SendStatusRecord: Equatable, Hashable {
+    
+    /**
+     * The assistant replied.
+     */
+    case completed
+    /**
+     * The assistant asks the user a question before it goes on.
+     */
+    case waitingForUser
+    /**
+     * Saved and queued behind an active reply of this chat; no reply yet.
+     */
+    case queued
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension SendStatusRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSendStatusRecord: FfiConverterRustBuffer {
+    typealias SwiftType = SendStatusRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SendStatusRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .completed
+        
+        case 2: return .waitingForUser
+        
+        case 3: return .queued
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: SendStatusRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .completed:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .waitingForUser:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .queued:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSendStatusRecord_lift(_ buf: RustBuffer) throws -> SendStatusRecord {
+    return try FfiConverterTypeSendStatusRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSendStatusRecord_lower(_ value: SendStatusRecord) -> RustBuffer {
+    return FfiConverterTypeSendStatusRecord.lower(value)
 }
 
 
@@ -13273,6 +14333,20 @@ public enum ViewEventRecord: Equatable, Hashable {
      */
     case done
     /**
+     * The saved draft of `chat_id` changed on another device (saved or
+     * cleared) and a refresh applied it: an open composer of that chat
+     * shows `draft` (`nil`: cleared or chat gone). This core's own saves
+     * and clears are never echoed (core `DraftChanged`).
+     */
+    case draftChanged(
+        /**
+         * Chat whose draft changed.
+         */chatId: String, 
+        /**
+         * The draft as it is now.
+         */draft: DraftViewRecord?
+    )
+    /**
      * An inbound socket frame of a shell feature the core does not own yet
      * (core `UnownedSocketFrame`; temporary strangler seam).
      */
@@ -13346,10 +14420,13 @@ public struct FfiConverterTypeViewEventRecord: FfiConverterRustBuffer {
         
         case 11: return .done
         
-        case 12: return .unownedSocketFrame(eventType: try FfiConverterString.read(from: &buf), payloadJson: try FfiConverterString.read(from: &buf)
+        case 12: return .draftChanged(chatId: try FfiConverterString.read(from: &buf), draft: try FfiConverterOptionTypeDraftViewRecord.read(from: &buf)
         )
         
-        case 13: return .unownedSocketFramesDropped(count: try FfiConverterUInt64.read(from: &buf)
+        case 13: return .unownedSocketFrame(eventType: try FfiConverterString.read(from: &buf), payloadJson: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 14: return .unownedSocketFramesDropped(count: try FfiConverterUInt64.read(from: &buf)
         )
         
         default: throw UniffiInternalError.unexpectedEnumCase
@@ -13424,14 +14501,20 @@ public struct FfiConverterTypeViewEventRecord: FfiConverterRustBuffer {
             writeInt(&buf, Int32(11))
         
         
-        case let .unownedSocketFrame(eventType,payloadJson):
+        case let .draftChanged(chatId,draft):
             writeInt(&buf, Int32(12))
+            FfiConverterString.write(chatId, into: &buf)
+            FfiConverterOptionTypeDraftViewRecord.write(draft, into: &buf)
+            
+        
+        case let .unownedSocketFrame(eventType,payloadJson):
+            writeInt(&buf, Int32(13))
             FfiConverterString.write(eventType, into: &buf)
             FfiConverterString.write(payloadJson, into: &buf)
             
         
         case let .unownedSocketFramesDropped(count):
-            writeInt(&buf, Int32(13))
+            writeInt(&buf, Int32(14))
             FfiConverterUInt64.write(count, into: &buf)
             
         }
@@ -13721,6 +14804,30 @@ fileprivate struct FfiConverterOptionTypeCredentialSnapshotRecord: FfiConverterR
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeDraftViewRecord: FfiConverterRustBuffer {
+    typealias SwiftType = DraftViewRecord?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeDraftViewRecord.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeDraftViewRecord.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeMemoryFieldsRecord: FfiConverterRustBuffer {
     typealias SwiftType = MemoryFieldsRecord?
 
@@ -13865,6 +14972,30 @@ fileprivate struct FfiConverterOptionTypeMemoryLoadModeRecord: FfiConverterRustB
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeSendQueueModeRecord: FfiConverterRustBuffer {
+    typealias SwiftType = SendQueueModeRecord?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeSendQueueModeRecord.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeSendQueueModeRecord.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeSendStateRecord: FfiConverterRustBuffer {
     typealias SwiftType = SendStateRecord?
 
@@ -13905,6 +15036,30 @@ fileprivate struct FfiConverterOptionTypeSessionVerificationRecord: FfiConverter
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeSessionVerificationRecord.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionSequenceString: FfiConverterRustBuffer {
+    typealias SwiftType = [String]?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterSequenceString.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterSequenceString.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -14280,6 +15435,31 @@ fileprivate struct FfiConverterSequenceTypePiiMappingRecord: FfiConverterRustBuf
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypePiiMappingRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeSendEmbedRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [SendEmbedRecord]
+
+    public static func write(_ value: [SendEmbedRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeSendEmbedRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [SendEmbedRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [SendEmbedRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeSendEmbedRecord.read(from: &buf))
         }
         return seq
     }
@@ -14853,6 +16033,30 @@ private let initializationResult: InitializationResult = {
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_adopt_session() != 31921) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_clear_draft() != 47493) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_delete_chat() != 14621) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_delete_message() != 60546) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_edit_message() != 6478) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_fork_chat() != 25175) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_retry_last_turn() != 2221) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_save_draft() != 15245) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_stop_reply() != 1173) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_acknowledge_credentials() != 21570) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -14884,6 +16088,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_draft_versions() != 23118) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_draft() != 41847) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_enhance_image() != 29649) {
@@ -15000,7 +16207,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_cancel_send() != 12295) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_send() != 30391) {
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_send() != 49155) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_send_with_options() != 40331) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_session_info() != 51951) {

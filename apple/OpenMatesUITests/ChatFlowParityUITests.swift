@@ -49,13 +49,25 @@ final class ChatFlowParityUITests: XCTestCase {
         let openedReference = app.staticTexts["markdown-repair-opened-reference"]
         XCTAssertTrue(openedReference.waitForExistence(timeout: 5))
         XCTAssertEqual(openedReference.label, "none")
-        screenZen.tap()
-        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(
-            predicate: NSPredicate(format: "label == %@", "apps.apple.com-JJi"), object: openedReference)], timeout: 5), .completed)
-        events.tap()
-        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(
-            predicate: NSPredicate(format: "label == %@", "events-JJi"), object: openedReference)], timeout: 5), .completed)
+        XCTAssertEqual(tapReference(screenZen, opens: "apps.apple.com-JJi", receipt: openedReference), .completed)
+        XCTAssertEqual(tapReference(events, opens: "events-JJi", receipt: openedReference), .completed)
         attachScreenshot(name: "Assistant nested Markdown and explicit Events break")
+    }
+
+    /// Taps an inline reference until the fixture records exactly that embed.
+    /// This case usually runs first on a cold simulator (141 s instead of 28 s
+    /// in CI), where the first synthesized touch can be dropped while the
+    /// rendered fixture is already settled. Opening is idempotent, so one
+    /// retry cannot mask a wrong target: the exact embed id is still required.
+    private func tapReference(_ reference: XCUIElement, opens embedID: String,
+                              receipt: XCUIElement) -> XCTWaiter.Result {
+        let opened = NSPredicate(format: "label == %@", embedID)
+        var result = XCTWaiter.Result.timedOut
+        for _ in 0..<2 where result != .completed {
+            reference.tap()
+            result = XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: opened, object: receipt)], timeout: 5)
+        }
+        return result
     }
 
     // contract-test: supporting surface=gui.apple assertions=landing-onboarding.uses-real-chat-shell,workspace-shell.nav.released-surfaces-visible
@@ -70,6 +82,12 @@ final class ChatFlowParityUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["compact-logo-button"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.descendants(matching: .any)["daily-inspiration-card"].waitForExistence(timeout: 15))
         XCTAssertTrue(app.descendants(matching: .any)["daily-inspiration-carousel-progress"].waitForExistence(timeout: 15))
+        let selectInterests = app.descendants(matching: .any)["guest-interest-select-interests"].firstMatch
+        XCTAssertTrue(selectInterests.waitForExistence(timeout: 15), "Guest home starts with the Select interests link")
+        XCTAssertTrue(selectInterests.isHittable)
+        XCTAssertFalse(app.descendants(matching: .any)["guest-interest-tags"].exists,
+                       "Interest tags appear only after the Select interests link is tapped")
+        selectInterests.tap()
         XCTAssertTrue(app.descendants(matching: .any)["guest-interest-tags"].waitForExistence(timeout: 15))
         XCTAssertTrue(app.staticTexts["What are your interests?"].exists)
         XCTAssertFalse(app.staticTexts["common.skip"].exists)
@@ -83,7 +101,9 @@ final class ChatFlowParityUITests: XCTestCase {
             "Guest interest rail should span the available welcome surface instead of using a narrow centered cap"
         )
 
-        XCTAssertTrue(app.buttons["interest-tag-privacy"].waitForExistence(timeout: 5))
+        // The guest picker offers only topics backed by a bundled public
+        // example; science is backed by the Artemis II example.
+        XCTAssertTrue(app.buttons["interest-tag-science"].waitForExistence(timeout: 5))
         XCTAssertEqual(
             app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "chat.interests.")).count,
             0,
@@ -106,7 +126,7 @@ final class ChatFlowParityUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["workflows-home"].waitForExistence(timeout: 5))
 
         openWorkspace("chats", in: app)
-        XCTAssertTrue(app.descendants(matching: .any)["guest-interest-tags"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["guest-interest-select-interests"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.tables.firstMatch.exists, "Product chat UI must not render default List/table chrome")
 
         attachScreenshot(name: "Unauthenticated new-chat parity surface")
@@ -177,15 +197,16 @@ final class ChatFlowParityUITests: XCTestCase {
         XCTAssertTrue(headerContract.label.contains("chat-compact-header-icon=false"))
         XCTAssertFalse(app.descendants(matching: .any)["chat-header-icon"].exists)
 
-        let userMessage = app.staticTexts
+        // Message prose is a selectable text view (message-selectable-text-<id>), not a static text.
+        let userMessage = app.textViews
             .containing(NSPredicate(format: "label CONTAINS %@", "Seeded user message"))
             .firstMatch
-        let assistantMessage = app.staticTexts
+        let assistantMessage = app.textViews
             .containing(NSPredicate(format: "label CONTAINS %@", "Seeded assistant message"))
             .firstMatch
         XCTAssertTrue(userMessage.waitForExistence(timeout: 5))
         XCTAssertTrue(assistantMessage.waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Latest assistant response visible after bounded open"].exists)
+        XCTAssertTrue(app.textViews.matching(NSPredicate(format: "label == %@", "Latest assistant response visible after bounded open")).firstMatch.exists)
         XCTAssertTrue(app.descendants(matching: .any)["message-editor"].exists)
         XCTAssertFalse(app.tables.firstMatch.exists, "Product chat UI must not render default List/table chrome")
 
@@ -233,7 +254,8 @@ final class ChatFlowParityUITests: XCTestCase {
         XCTAssertTrue(scrollToBottom.waitForExistence(timeout: 12))
         scrollToBottom.tap()
 
-        let latestAssistantMessage = app.staticTexts["Latest assistant response visible after bounded open"]
+        let latestAssistantMessage = app.textViews
+            .matching(NSPredicate(format: "label == %@", "Latest assistant response visible after bounded open")).firstMatch
         XCTAssertTrue(latestAssistantMessage.waitForExistence(timeout: 12))
         XCTAssertFalse(app.staticTexts["Native Chat Opening Preview"].exists)
         XCTAssertFalse(app.tables.firstMatch.exists, "Product chat UI must not render default List/table chrome")
@@ -247,11 +269,19 @@ final class ChatFlowParityUITests: XCTestCase {
         app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-start-new-chat"]
         app.launch()
 
+        let selectInterests = app.descendants(matching: .any)["guest-interest-select-interests"].firstMatch
+        XCTAssertTrue(selectInterests.waitForExistence(timeout: 15), "Guest home starts with the Select interests link")
+        XCTAssertTrue(selectInterests.isHittable)
+        XCTAssertFalse(app.descendants(matching: .any)["guest-interest-tags"].exists,
+                       "Interest tags appear only after the Select interests link is tapped")
+        selectInterests.tap()
         XCTAssertTrue(app.descendants(matching: .any)["guest-interest-tags"].waitForExistence(timeout: 15))
-        XCTAssertFalse(app.descendants(matching: .any)["guest-interest-continue"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["guest-interest-continue"].exists,
+                       "Continue needs at least one selected topic")
 
-        tapVisibleInterestTags(count: 3, in: app)
-        XCTAssertFalse(app.descendants(matching: .any)["guest-interest-continue"].exists)
+        // The guest picker narrows the public example catalog, so one selected
+        // topic is enough to continue (exact narrowing:
+        // LandingOnboardingParityUITests).
         tapVisibleInterestTags(count: 1, in: app)
 
         let continueButton = app.descendants(matching: .any)["guest-interest-continue"]
@@ -259,14 +289,11 @@ final class ChatFlowParityUITests: XCTestCase {
         continueButton.tap()
 
         XCTAssertTrue(app.buttons["guest-interest-select-interests"].waitForExistence(timeout: 5))
-        XCTAssertTrue(
-            waitForAnyButton(
-                ["welcome-chat-card-demo-for-everyone", "welcome-chat-compact-card-demo-for-everyone"],
-                in: app,
-                timeout: 10
-            ),
-            "Expected either the regular or compact demo-for-everyone card to exist"
-        )
+        let exampleCards = app.descendants(matching: .any).matching(NSPredicate(
+            format: "identifier BEGINSWITH %@ OR identifier BEGINSWITH %@",
+            "welcome-chat-card-example-", "welcome-chat-compact-card-example-"))
+        XCTAssertTrue(exampleCards.firstMatch.waitForExistence(timeout: 10),
+                      "The selected topic keeps its matching public example cards on the welcome surface")
 
         let messageEditor = waitForMessageEditor(in: app)
         messageEditor.tap()
@@ -283,13 +310,21 @@ final class ChatFlowParityUITests: XCTestCase {
         app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-start-new-chat"]
         app.launch()
 
-        XCTAssertTrue(app.descendants(matching: .any)["guest-interest-tags"].waitForExistence(timeout: 15))
+        let selectInterests = app.descendants(matching: .any)["guest-interest-select-interests"].firstMatch
+        XCTAssertTrue(selectInterests.waitForExistence(timeout: 15), "Guest home starts with the Select interests link")
+        XCTAssertTrue(selectInterests.isHittable)
+        XCTAssertFalse(app.descendants(matching: .any)["guest-interest-tags"].exists,
+                       "Interest tags appear only after the Select interests link is tapped")
         XCTAssertFalse(app.buttons["new-chat-suggestion-card-chat.new_chat_suggestions.discover_web_search"].exists)
 
         let messageEditor = waitForMessageEditor(in: app)
         messageEditor.tap()
 
-        XCTAssertTrue(app.buttons["message-input-fullscreen-button"].waitForExistence(timeout: 5))
+        // Focus reveals the action row; Expand appears only once the text
+        // overflows three lines (ComposerVisualParityUITests).
+        XCTAssertTrue(app.buttons["composer-attachment-toggle"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["message-input-fullscreen-button"].exists,
+                       "An empty focused editor has no overflow action")
 
         let messageField = app.descendants(matching: .any)["message-field"]
         XCTAssertTrue(messageField.waitForExistence(timeout: 5))
@@ -345,7 +380,11 @@ final class ChatFlowParityUITests: XCTestCase {
         ]
         app.launch()
 
-        XCTAssertTrue(app.descendants(matching: .any)["guest-interest-tags"].waitForExistence(timeout: 15))
+        let selectInterests = app.descendants(matching: .any)["guest-interest-select-interests"].firstMatch
+        XCTAssertTrue(selectInterests.waitForExistence(timeout: 15), "Guest home starts with the Select interests link")
+        XCTAssertTrue(selectInterests.isHittable)
+        XCTAssertFalse(app.descendants(matching: .any)["guest-interest-tags"].exists,
+                       "Interest tags appear only after the Select interests link is tapped")
         let messageEditor = waitForMessageEditor(in: app)
         messageEditor.tap()
 
@@ -479,11 +518,15 @@ final class ChatFlowParityUITests: XCTestCase {
         XCTAssertTrue(back.isHittable)
         XCTAssertEqual(back.frame.midX, grid.frame.midX, accuracy: 2, "Back to recent should be centered")
         func waitForHydration(_ index: Int) {
-            let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
-                receipt.exists && receipt.label.components(separatedBy: ";").first?.dropFirst("hydrated=".count)
-                    .split(separator: ",").contains(Substring("ui-test-grid-\(index)")) == true
-                    && receipt.label.contains("records=65;preserved=true")
-            }, object: nil)
+            let metadata = XCTAttachment(string: "Waiting for ui-test-grid-\(index); receipt: " + (receipt.exists ? receipt.label : "missing"))
+            metadata.name = "Encrypted welcome grid metadata before hydration wait \(index)"
+            metadata.lifetime = .keepAlways
+            add(metadata)
+            // One snapshot per poll: with the keyboard up each accessibility
+            // query takes seconds, and three queries per poll outran the wait.
+            let hydratedPattern = "hydrated=([^;]*,)?ui-test-grid-\(index)(,[^;]*)?;records=65;preserved=true(;.*)?"
+            let ready = XCTNSPredicateExpectation(
+                predicate: NSPredicate(format: "exists == true AND label MATCHES %@", hydratedPattern), object: receipt)
             XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 10), .completed,
                 "Production grid demand and key-arrival retry must hydrate title, category, icon and summary")
         }
@@ -500,6 +543,10 @@ final class ChatFlowParityUITests: XCTestCase {
         XCTAssertTrue(search.isHittable)
         search.tap()
         search.typeText("Encrypted Grid Chat 64")
+        // Submit the query so the keyboard closes before polling. With the
+        // keyboard up, the receipt and card queries stopped resolving in CI
+        // although the recording shows card 64 hydrated with title and summary.
+        search.typeText("\n")
         waitForHydration(64)
         let result = app.buttons["welcome-chat-card-ui-test-grid-64"]
         let titled = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
@@ -507,7 +554,6 @@ final class ChatFlowParityUITests: XCTestCase {
                 && result.label.contains("Preserved grid summary 64")
         }, object: nil)
         XCTAssertEqual(XCTWaiter.wait(for: [titled], timeout: 10), .completed)
-        search.typeText("\n")
         for _ in 0..<5 where !result.isHittable { scroll.swipeDown() }
         XCTAssertTrue(result.isHittable)
         attachScreenshot(name: "Encrypted older welcome grid card after delayed key and search")
@@ -566,7 +612,7 @@ final class ChatFlowParityUITests: XCTestCase {
         let returnToChats = app.descendants(matching: .any)["workspace-placeholder-return-to-chats"]
         if returnToChats.exists && returnToChats.isHittable {
             returnToChats.tap()
-            XCTAssertTrue(app.descendants(matching: .any)["guest-interest-tags"].waitForExistence(timeout: 5))
+            XCTAssertTrue(app.descendants(matching: .any)["guest-interest-select-interests"].waitForExistence(timeout: 5))
             if workspace == "chats" { return }
         }
 
@@ -601,17 +647,6 @@ final class ChatFlowParityUITests: XCTestCase {
 
         XCTFail("Expected message composer input to exist as an editor or composer wrapper")
         return candidates[0]
-    }
-
-    private func waitForAnyButton(_ identifiers: [String], in app: XCUIApplication, timeout: TimeInterval) -> Bool {
-        let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline {
-            if identifiers.contains(where: { app.buttons[$0].exists }) {
-                return true
-            }
-            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
-        }
-        return identifiers.contains(where: { app.buttons[$0].exists })
     }
 
     private func waitForFrameHeight(atLeast minimumHeight: CGFloat, element: XCUIElement, timeout: TimeInterval) {

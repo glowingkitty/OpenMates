@@ -105,6 +105,8 @@ struct NativeVoiceCallBar: View {
         .frame(maxWidth: coordinator.minimized ? 224 : 390).frame(height: 68)
         .background(LinearGradient.primary)
         .clipShape(RoundedRectangle(cornerRadius: .radius6))
+        // Keeps the buttons' own identifiers: without it the bar's identifier replaces theirs.
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier(coordinator.minimized ? "voice-call-minimized" : "voice-call-bar")
     }
     private func control(_ symbol: String, label: String, id: String, destructive: Bool = false, muted: Bool = false,

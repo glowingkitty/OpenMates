@@ -393,7 +393,6 @@ final class AuthManager: ObservableObject {
             currentUser = cached
             sessionValidationState = .offlineAuthenticated
             state = .authenticated
-            await migrateLegacyComposerDrafts()
         } catch {
             logCoreFailure("restore_profile", error)
         }
@@ -423,7 +422,6 @@ final class AuthManager: ObservableObject {
             }
             state = .authenticated
             schedulePairDeadline(expiresAt, generation: generation)
-            await migrateLegacyComposerDrafts()
         } catch {
             guard generation == admissionGeneration else { return }
             logCoreFailure("admitted_profile", error)
@@ -657,14 +655,6 @@ final class AuthManager: ObservableObject {
             ChatKeyManager.shared.clearAll()
             EmbedKeyManager.shared.clearAll()
             try store.activate(userId: user.id, apiBaseURL: apiBaseURL)
-        }
-    }
-
-    private func migrateLegacyComposerDrafts() async {
-        do {
-            try await DraftService.shared.migrateLegacyDraftsAfterUnlock()
-        } catch {
-            NativeDiagnostics.error("phase=draftMigration.failed errorType=\(type(of: error))", category: "composer_drafts")
         }
     }
 

@@ -1,6 +1,7 @@
 //! Commands a shell sends to the view-model actor and events it receives back.
 //! Request ids are typed so a stale reply can be matched to the request that
 //! caused it. Spec: `a2-design.md` (View model); served by `actor_flows.rs`.
+use super::draft_view::DraftView;
 use super::error::ViewErrorKind;
 use super::records::{ChatListRow, ChatWindowRecord, ListCompleteness, MessageRecord, StreamEvent};
 use crate::session::Session;
@@ -207,6 +208,17 @@ pub enum ViewEvent {
     },
     /// The current unit of work finished.
     Done,
+    /// The saved draft of `chat_id` changed outside this client (saved or
+    /// cleared on another device) and a refresh applied it: an open composer
+    /// of that chat shows `draft` (`None`: cleared, or the chat is gone).
+    /// This client's own saves and clears are never echoed. Follows the
+    /// `ChatList` (and `ChatWindow`) events of the same refresh.
+    DraftChanged {
+        /// Chat whose draft changed.
+        chat_id: String,
+        /// The draft as it is now; `None` when there is none.
+        draft: Option<DraftView>,
+    },
     /// An inbound socket frame whose type the core does not own
     /// (`classify_socket_event`), for a shell feature that is not in the
     /// core yet. Delivered in socket arrival order by the forwarder that

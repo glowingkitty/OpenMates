@@ -155,6 +155,26 @@ final class CoreChatListTests: XCTestCase {
 
     // contract-test: supporting surface=gui.apple assertions=client-core.viewmodel.capability-contract
     @MainActor
+    func testSavedItemsAreKeptApartAndTheCoreTotalGivesTheRemainingCount() throws {
+        let (list, session) = try makeList()
+        XCTAssertNil(list.totalCount)
+        XCTAssertEqual(list.remainingChatCount, 0)
+        session.events.send(.chatList(
+            rows: [Self.row("embed:saved-1", title: "Saved recipe"), Self.row("chat-a"), Self.row("chat-b")],
+            completeness: .partial, totalCount: 5))
+        XCTAssertEqual(list.chats.map(\.id), ["chat-a", "chat-b"])
+        XCTAssertEqual(list.savedItemIDs, ["embed:saved-1"])
+        XCTAssertEqual(list.totalCount, 5)
+        XCTAssertEqual(list.remainingChatCount, 3)
+        session.events.send(.chatList(rows: [Self.row("chat-a"), Self.row("chat-b")], completeness: .complete, totalCount: 2))
+        XCTAssertEqual(list.savedItemIDs, [])
+        XCTAssertEqual(list.remainingChatCount, 0)
+        session.events.send(.session(event: .signedOut))
+        XCTAssertNil(list.totalCount)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=client-core.viewmodel.capability-contract
+    @MainActor
     func testATeamScopeListReplacesThePersonalListAndASignedOutSwitchIsTyped() async throws {
         let (list, session) = try makeList()
         session.events.send(.chatList(rows: [Self.row("personal-chat")], completeness: .complete, totalCount: nil))

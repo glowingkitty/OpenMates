@@ -457,6 +457,10 @@ impl ViewModelCore {
         *lock(&self.foreground) = token.clone();
         if let Some(cancellation) = cancellation {
             let (caller, forward) = (cancellation.token.clone(), token.clone());
+            // An already cancelled caller must not race the forwarding task.
+            if caller.is_cancelled() {
+                forward.cancel();
+            }
             self.handle.spawn(async move {
                 tokio::select! {
                     () = caller.cancelled() => forward.cancel(),
@@ -477,6 +481,10 @@ impl ViewModelCore {
         let token = self.shutdown.child_token();
         if let Some(cancellation) = cancellation {
             let (caller, forward) = (cancellation.token.clone(), token.clone());
+            // An already cancelled caller must not race the forwarding task.
+            if caller.is_cancelled() {
+                forward.cancel();
+            }
             self.handle.spawn(async move {
                 tokio::select! {
                     () = caller.cancelled() => forward.cancel(),

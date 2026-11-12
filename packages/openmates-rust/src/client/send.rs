@@ -14,6 +14,9 @@ pub(in crate::client) mod prepared_transport;
 pub(in crate::client) mod refusal_trace;
 #[path="send_turn_runtime.rs"]
 pub(in crate::client) mod turn_runtime;
+#[cfg(not(target_arch="wasm32"))]
+#[path="send_split.rs"]
+pub(in crate::client) mod split;
 impl Wipe for crate::privacy::PreparedPrivacy {
     fn wipe(&mut self){let Self{text,mappings}=self;text.wipe();mappings.wipe();}
 }
@@ -473,7 +476,10 @@ impl Client {
         if cancel.is_cancelled() {
             return Err(Error::Cancelled);
         }
-        if text_input.trim().is_empty() || text_input.len() > 1_000_000 {
+        // An attachment-only turn is valid: its text is the reference blocks.
+        if (text_input.trim().is_empty() && options.embeds.is_empty())
+            || text_input.len() > 1_000_000
+        {
             return Err(Error::Invalid("Enter a message of at most 1 MB."));
         }
         Ok(())

@@ -127,7 +127,7 @@ pub fn mark_read<'a, S: ByteStore + 'static, H: ViewHost<S>>(
 ) -> BoxFuture<'a, Result<()>> {
     Box::pin(async move {
         let core = host.core_mut();
-        core.client_mut().set_operation_cancel(cancel.clone());
+        core.begin_client_operation(cancel);
         core.client_mut().mark_chat_read(&chat_id).await?;
         core.persist().await
     })

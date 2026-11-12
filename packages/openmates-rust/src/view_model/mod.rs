@@ -26,6 +26,8 @@ mod actor_flows;
 #[cfg(not(target_arch = "wasm32"))]
 mod actor_host;
 mod arrange;
+#[cfg(not(target_arch = "wasm32"))]
+mod chat_actions;
 mod convert;
 #[cfg(not(target_arch = "wasm32"))]
 mod enrich;
@@ -36,9 +38,20 @@ mod first_page;
 mod metadata;
 mod records;
 #[cfg(not(target_arch = "wasm32"))]
+mod live_turns;
+#[cfg(not(target_arch = "wasm32"))]
 mod send_flows;
 #[cfg(not(target_arch = "wasm32"))]
+mod send_relay;
+#[cfg(not(target_arch = "wasm32"))]
+mod send_stream;
+#[cfg(not(target_arch = "wasm32"))]
+mod send_request;
+#[cfg(not(target_arch = "wasm32"))]
 mod send_turn;
+#[cfg(not(target_arch = "wasm32"))]
+mod draft_flows;
+mod draft_view;
 #[cfg(not(target_arch = "wasm32"))]
 mod draft_versions;
 mod socket_frames;
@@ -59,6 +72,17 @@ pub use actor_host::{ListRecovery, ViewHost, ViewSink};
 pub use arrange::{
     SAVED_ITEM_ID_PREFIX, arrange_chat_list, arrange_chat_list_at, place_home_entries,
 };
+/// Chat and message actions: delete, edit, retry, fork, drafts, stop reply.
+#[cfg(not(target_arch = "wasm32"))]
+pub use chat_actions::{
+    clear_draft, delete_chat, delete_message, edit_message, fork_chat, retry_turn, save_draft,
+    stop_reply,
+};
+/// Read a chat's saved draft for its composer.
+#[cfg(not(target_arch = "wasm32"))]
+pub use draft_flows::draft;
+/// A decrypted composer draft (`draft`, `ViewEvent::DraftChanged`).
+pub use draft_view::DraftView;
 #[cfg(not(target_arch = "wasm32"))]
 pub use draft_versions::{DraftVersionQuery, ServerDraftVersion, draft_versions};
 pub use convert::{
@@ -74,6 +98,16 @@ pub use records::{
 };
 #[cfg(not(target_arch = "wasm32"))]
 pub use send_flows::{SendCancelHandle, cancel_send, send};
+/// A send whose reply streams beside the actor (admission on the actor, the
+/// stream on the shell's task through a `ViewLease`).
+#[cfg(not(target_arch = "wasm32"))]
+pub use send_stream::{
+    LeasedCore, TurnOwner, TurnStream, ViewLease, begin_send, begin_send_with,
+};
+/// A send with per-turn options (privacy, incognito, slug, reserved ids) and
+/// its delivery receipt.
+#[cfg(not(target_arch = "wasm32"))]
+pub use send_request::{SendReceipt, SendTurnOptions, send_with};
 pub use socket_frames::{
     CORE_AND_SHELL_EVENT_TYPES, CORE_EVENT_TYPES, SocketEventOwner, classify_socket_event,
     forwards_to_shell, shell_may_send,
@@ -92,14 +126,22 @@ pub use window_flows::{close_chat, load_older, mark_read, open_chat};
 mod actor_tests;
 #[cfg(test)]
 mod arrange_tests;
+#[cfg(all(test, unix))]
+mod chat_actions_tests;
 #[cfg(test)]
 mod convert_tests;
+#[cfg(all(test, unix))]
+mod draft_flows_tests;
 #[cfg(all(test, unix))]
 mod draft_versions_tests;
 #[cfg(test)]
 mod events_tests;
 #[cfg(all(test, unix))]
+mod send_request_tests;
+#[cfg(all(test, unix))]
 mod send_tests;
+#[cfg(all(test, unix))]
+mod send_stream_tests;
 #[cfg(test)]
 mod socket_frames_tests;
 #[cfg(all(test, unix))]

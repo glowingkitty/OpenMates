@@ -939,6 +939,10 @@ struct OMSettingsPage<Content: View>: View {
     var contentHorizontalPadding: CGFloat = .spacing5
     var contentVerticalSpacing: CGFloat = .spacing8
     var scrollAccessibilityIdentifier: String?
+    /// Short text-entry forms pass false. When the keyboard leaves a compact
+    /// (landscape) panel no visible rows, a lazy stack unloads the focused
+    /// field, which drops focus and dismisses the keyboard mid-entry.
+    var lazyContent = true
     @ViewBuilder let content: Content
 
     init(
@@ -950,6 +954,7 @@ struct OMSettingsPage<Content: View>: View {
         contentHorizontalPadding: CGFloat = .spacing5,
         contentVerticalSpacing: CGFloat = .spacing8,
         scrollAccessibilityIdentifier: String? = nil,
+        lazyContent: Bool = true,
         @ViewBuilder content: () -> Content
     ) {
         self.title = title
@@ -960,6 +965,7 @@ struct OMSettingsPage<Content: View>: View {
         self.contentHorizontalPadding = contentHorizontalPadding
         self.contentVerticalSpacing = contentVerticalSpacing
         self.scrollAccessibilityIdentifier = scrollAccessibilityIdentifier
+        self.lazyContent = lazyContent
         self.content = content()
     }
 
@@ -975,7 +981,7 @@ struct OMSettingsPage<Content: View>: View {
 
                 GeometryReader { scrollFrame in
                     ScrollView {
-                        LazyVStack(alignment: .leading, spacing: contentVerticalSpacing) {
+                        pageStack {
                             GeometryReader { contentFrame in
                                 Color.clear.preference(
                                     key: OMSettingsScrollOffsetPreferenceKey.self,
@@ -1013,6 +1019,15 @@ struct OMSettingsPage<Content: View>: View {
                 }
             }
             .background(Color.grey20)
+        }
+    }
+
+    @ViewBuilder
+    private func pageStack<Rows: View>(@ViewBuilder rows: () -> Rows) -> some View {
+        if lazyContent {
+            LazyVStack(alignment: .leading, spacing: contentVerticalSpacing, content: rows)
+        } else {
+            VStack(alignment: .leading, spacing: contentVerticalSpacing, content: rows)
         }
     }
 

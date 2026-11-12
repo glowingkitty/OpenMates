@@ -30,6 +30,18 @@ pub trait ViewSink: Send + Sync {
     }
 }
 
+/// A borrowed sink delivers to the sink it borrows (the joined send's relay
+/// borrows the caller's sink; a streaming turn owns a clone).
+impl<K: ViewSink + ?Sized> ViewSink for &K {
+    fn emit(&self, event: ViewEvent) -> BoxFuture<'_, Result<()>> {
+        (**self).emit(event)
+    }
+
+    fn emit_detached(&self, events: Vec<ViewEvent>) {
+        (**self).emit_detached(events);
+    }
+}
+
 /// Which chat list read a recovery pass precedes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ListRecovery {

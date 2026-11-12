@@ -663,6 +663,9 @@ final class ChatViewModel: ObservableObject {
         var firstUsefulRenderMs = 0
     }
 
+    /// Writes this chat's pending "embed updated" notices once per chat open.
+    lazy var embedNoticeReconciler = EmbedNoticeReconciler(client: CoreEmbedVersions.live())
+
     @Published var chat: Chat?
     @Published var messages: [Message] = [] {
         didSet { interactiveQuestionAnswers = AppleInteractiveQuestionHistory.answers(in: messages) }
@@ -821,6 +824,8 @@ final class ChatViewModel: ObservableObject {
     /// Saved chats read their messages from the core window (`ChatViewModel+CoreWindow.swift`).
     let coreWindow: CoreChatWindow
     var coreBinding = ChatCoreWindowBinding()
+    /// Message deletes and forks of personal core chats (`ChatViewModel+CoreActions.swift`).
+    let coreActions: CoreChatActions
 
     init(
         messageDecryptor: @escaping @MainActor ([Message], String) async -> [Message] = {
@@ -831,6 +836,7 @@ final class ChatViewModel: ObservableObject {
         offlineStore: OfflineStore = .shared,
         processingCoordinator: ActiveChatsCoordinator = .shared,
         coreWindow: CoreChatWindow = .shared,
+        coreActions: CoreChatActions = .shared,
         messageWindowFetcher: @escaping @MainActor (String, String?, ChatMessageWindowQuery) async throws -> ChatMessageWindowPage = {
             try await ChatMessageWindowClient.fetch(chatId: $0, teamId: $1, query: $2)
         }
@@ -851,6 +857,7 @@ final class ChatViewModel: ObservableObject {
         self.offlineStore = offlineStore
         self.processingCoordinator = processingCoordinator
         self.coreWindow = coreWindow
+        self.coreActions = coreActions
         self.messageWindowFetcher = messageWindowFetcher
         #if DEBUG
         let args = ProcessInfo.processInfo.arguments
@@ -3351,12 +3358,12 @@ final class ChatViewModel: ObservableObject {
     // MARK: - Message actions
 
     func containsMessageForEdit(_ id: String) -> Bool { allMessages.contains { $0.id == id } }
-    private var canMutatePersonalMessages: Bool {
+    var canMutatePersonalMessages: Bool {
         guard let chat else { return false }
         return chat.teamId == nil && chat.isSharedByOthers != true && TeamWorkspaceContext.shared.snapshot.teamID == nil
             && !IncognitoChatSession.isIncognitoChatId(chat.id) && !isStreaming
     }
-    private var canForkReadableMessages: Bool {
+    var canForkReadableMessages: Bool {
         guard let chat, !isStreaming, !IncognitoChatSession.isIncognitoChatId(chat.id) else { return false }
         if let teamID = chat.teamId { return TeamWorkspaceContext.shared.snapshot.teamID == teamID && ChatKeyManager.shared.hasKey(for: chat.id) }
         return chat.isSharedByOthers != true && TeamWorkspaceContext.shared.snapshot.teamID == nil
@@ -3423,12 +3430,7 @@ final class ChatViewModel: ObservableObject {
             refreshWindowBoundaries(); historyWindowRevision += 1; return
         }
         #endif
-        do {
-            guard let fence = await captureMessageActionFence(), canMutatePersonalMessages else { throw MessageContextActionError.unavailable }
-            let complete = try await completeMessagesForAction(fence: fence)
-            guard complete.first?.id != messageId, complete.contains(where: { $0.id == messageId }) else { throw MessageContextActionError.unavailable }
-            try await deleteOwnedMessage(messageId, fence: fence)
-        } catch { self.error = AppStrings.error }
+        await deleteMessageThroughCore(messageId)
     }
 
     func prepareForkContext(_ messageID: String) async throws -> NativeMessageForkContext {
@@ -3448,6 +3450,10 @@ final class ChatViewModel: ObservableObject {
         #if DEBUG
         if isolatedHistory { return false }
         #endif
+        if let source = chat, canForkThroughCore(source) {
+            return await forkThroughCore(chatId: source.id, messageId: messageId, title: title)
+        }
+        // Still Swift: forks of readable Team chats (the core forks personal chats only).
         do {
             guard let fence = await captureMessageActionFence(), canForkReadableMessages,
                   let source = chat, let socket = wsManager else { throw MessageContextActionError.unavailable }
@@ -3466,7 +3472,13 @@ final class ChatViewModel: ObservableObject {
 
     // MARK: - Embed loading
 
-    func loadEmbeds(for messageIds: [String]) async {
+    /// An embed got a new version (Enhance, restore, edit): fetch the chat's
+    /// embeds again so the timeline cards show the new version.
+    func refreshEmbedsAfterVersionChange() async {
+        await loadEmbeds(for: messages.map(\.id), forceFetch: true)
+    }
+
+    func loadEmbeds(for messageIds: [String], forceFetch: Bool = false) async {
         guard let chatId = chat?.id else { return }
         let generation = loadGeneration
         let scopeGeneration = accountScopeGeneration()
@@ -3521,7 +3533,7 @@ final class ChatViewModel: ObservableObject {
         let hasIncompleteReference = requiredEmbedIds.contains { id in
             embedRecords[id].map(Self.embedRecordRequiresHydration) ?? true
         }
-        if !hasUnresolvedCompositeParent,
+        if !forceFetch, !hasUnresolvedCompositeParent,
            !hasEncryptedUndecryptedRecord, !hasIncompleteReference,
            !requiredEmbedIds.isEmpty,
            requiredEmbedIds.isSubset(of: loadedEmbedIds) {

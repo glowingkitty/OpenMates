@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.video-call
-version: 14
+version: 15
 status: draft
 title: Chat-bound Voice And Video Calls
 summary: Voxtral transcription and Eleven v4 Turbo speech connect authenticated web and supported Apple calls to the existing encrypted chat pre/main/post
@@ -465,7 +465,11 @@ assertions:
     restores capture and reconnects a lost call connection to the same chat without a second consent or duplicate chat,
     waits for the server to release the previous connection, preserves the conversation and unsent turn writes, and
     resumes listening. When a kept call cannot be restored it ends with an explicit retryable message, never silently.
-    The supported native Apple apps keep the call running in the background. Platform limits are never presented as success.
+    The supported native Apple apps keep the call running in the background and with the screen locked; microphone
+    capture, the call connection, assistant speech and the call timer continue. They end it, with the same clean ending
+    and notice, only when the system takes the microphone away and does not give it back (an interruption that does not
+    allow resuming, an audio services reset, or the input device lost with no other microphone); an interruption that
+    allows resuming continues the same call. Platform limits are never presented as success.
   depends_on:
   - examples.background_resume
 - id: video-call.audio.complete-turn-admission
@@ -537,3 +541,7 @@ notes:
     incremental text input while retaining Voxtral transcription and shared processing.
     This records behavior authorization; it does not assert that a new exact-fingerprint
     review was separately presented or acknowledged.
+  version_15_apple_background_call: >-
+    Direct user instruction on 2026-11-12 ("voice call must continue in background")
+    authorizes native Apple calls that keep running off screen and end only when the
+    system removes the microphone for good. Web behavior is unchanged.

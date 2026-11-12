@@ -31,6 +31,7 @@ struct SettingsAIFullView: View {
     var onChildNavigationChanged: ((SettingsChildBannerNavigation?) -> Void)? = nil
     @EnvironmentObject private var authManager: AuthManager
     @ObservedObject private var modelCatalog = NativeModelCatalogRuntime.shared
+    @ObservedObject private var serverRegion = ServerRegionSetting.shared
     @State private var defaultSimpleModel = ""
     @State private var defaultComplexModel = ""
     @State private var defaultMostDemandingModel = ""
@@ -122,6 +123,24 @@ struct SettingsAIFullView: View {
                 }
                 .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("ai-default-models-group")
+            }
+
+            VStack(alignment: .leading, spacing: .spacing5) {
+                AISettingsHeading(title: AppStrings.aiServerRegionHeading, icon: "settings")
+                HStack(spacing: AISettingsMetrics.rowGap) {
+                    AISettingsFamilyRow(title: AppStrings.aiPreferEUServers,
+                        subtitle: AppStrings.aiPreferEUServersDescription, logo: "settings", trailingPadding: 0) {
+                        serverRegion.setPrefersEU(!serverRegion.prefersEU)
+                    }
+                    AISettingsToggle(isOn: Binding(
+                        get: { serverRegion.prefersEU },
+                        set: { serverRegion.setPrefersEU($0) }),
+                        accessibilityIdentifier: "ai-server-region-eu-toggle")
+                        .accessibilityLabel(AppStrings.aiPreferEUServers)
+                        .padding(.trailing, .spacing10)
+                }
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("ai-server-region-group")
             }
 
             VStack(alignment: .leading, spacing: .spacing5) {

@@ -590,6 +590,9 @@ enum AppStrings {
 
     // MARK: - Settings - AI
     static var aiModelProviders: String { L("settings.ai") }
+    static var aiServerRegionHeading: String { L("settings.ai_ask.ai_ask_settings.server_region") }
+    static var aiPreferEUServers: String { L("settings.ai_ask.ai_ask_settings.prefer_eu_servers") }
+    static var aiPreferEUServersDescription: String { L("settings.ai_ask.ai_ask_settings.prefer_eu_servers_description") }
     static var defaultModels: String { L("settings.ai_ask.ai_ask_settings.default_models") }
     static var autoSelectModel: String { L("settings.ai_ask.ai_ask_settings.auto_select_model") }
     static var autoSelectDescription: String { L("settings.ai_ask.ai_ask_settings.auto_select_description") }

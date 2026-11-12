@@ -406,7 +406,10 @@ struct SettingsPasswordView: View {
     }
 
     var body: some View {
-        OMSettingsPage(title: AppStrings.password, scrollAccessibilityIdentifier: "settings-password-form-scroll") {
+        // Keep the fields mounted: in a landscape panel the keyboard leaves no
+        // visible rows, and a lazy stack would unload the focused field.
+        OMSettingsPage(title: AppStrings.password, scrollAccessibilityIdentifier: "settings-password-form-scroll",
+                       lazyContent: false) {
             OMSettingsSection {
                 VStack(alignment: .leading, spacing: .spacing3) {
                     if usesEmail {

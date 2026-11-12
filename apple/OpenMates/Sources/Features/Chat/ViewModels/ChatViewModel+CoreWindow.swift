@@ -161,6 +161,16 @@ extension ChatViewModel {
         }
         guard coreBinding.token == token else { return }
         if !initialEmbeds.isEmpty { await applySyncedEmbeds(initialEmbeds) }
+        if !IncognitoChatSession.isIncognitoChatId(chatId) {
+            // Edits made on other devices: written notices arrive as system
+            // messages (the timeline refolds on them); the embeds are refetched.
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                let report = await self.embedNoticeReconciler.reconcileOnOpen(chatId: chatId, openToken: token)
+                guard let report, report.written > 0, self.coreBinding.token == token else { return }
+                await self.refreshEmbedsAfterVersionChange()
+            }
+        }
         Task { @MainActor [weak self] in
             await self?.flushPendingSubChatSpawns()
             await self?.flushPendingSubChatCompletions()
