@@ -110,17 +110,6 @@ struct MessageEditView: View {
 // Web Edit uses a normal encrypted replacement send after deleting its suffix.
 // This pure plan never derives a boundary from text or a partial rendered window.
 enum MessageContextActionError: Error { case unavailable, missingBoundary, staleContext, incompleteHistory }
-struct MessageEditPlan {
-    let retained: [Message]
-    let removed: [Message]
-    static func make(messages: [Message], chatID: String, messageID: String) throws -> Self {
-        guard messages.allSatisfy({ $0.chatId == chatID }), Set(messages.map(\.id)).count == messages.count,
-              let index = messages.firstIndex(where: { $0.id == messageID }), messages[index].role == .user else {
-            throw MessageContextActionError.missingBoundary
-        }
-        return .init(retained: Array(messages[..<index]), removed: Array(messages[index...]))
-    }
-}
 enum RememberMessageDraft {
     static func format(_ content: String) -> String {
         let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -150,17 +139,6 @@ enum RememberMessageDraft {
             .max(by: { ($0["created_at"] as? Int ?? 0) < ($1["created_at"] as? Int ?? 0) })?["compressed_up_to_timestamp"] as? Int
     }
 
-}
-
-enum MessageEditExecutor {
-    static func removeSuffix(_ plan: MessageEditPlan, validate: () throws -> Void,
-                             remove: (String) async throws -> Void,
-                             isolation: isolated (any Actor)? = #isolation) async throws {
-        // Keep the original edit boundary until its dependants are gone, so a
-        // partial transport failure leaves an addressable retry boundary.
-        for message in plan.removed.reversed() { try validate(); try await remove(message.id) }
-        try validate()
-    }
 }
 
 struct MessageForkPrepared {

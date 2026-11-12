@@ -187,9 +187,9 @@ final class ChatSettingsParityUITests: XCTestCase {
         let selected = NSPredicate(format: "isSelected == true")
         XCTAssertTrue(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: selected, object: files)], timeout: 3) == .completed,
                       "The Files tap must activate its tab before reading metadata")
-        let filename = app.staticTexts["audio-speak-openmates-welcome-message.mp3"]
+        let filename = app.staticTexts["audio-generate-openmates-success-chime.mp3"]
         XCTAssertTrue(filename.waitForExistence(timeout: 3)); reveal(filename, in: app.scrollViews["chat-settings-scroll"])
-        XCTAssertTrue(app.staticTexts["Audio | 4.6s | 73 KB"].exists)
+        XCTAssertTrue(app.staticTexts["Audio | 0.8s | 14 KB"].exists)
         XCTAssertTrue(app.staticTexts["1 downloadable item"].exists)
         XCTAssertLessThanOrEqual(filename.frame.height, 26)
         let fileRow = app.buttons["chat-settings-file-row"]
@@ -218,7 +218,7 @@ final class ChatSettingsParityUITests: XCTestCase {
         let selected = NSPredicate(format: "isSelected == true")
         XCTAssertTrue(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: selected, object: files)], timeout: 3) == .completed,
                       "The Files tap must activate its tab before accessing downloads")
-        let filename = "audio-speak-openmates-welcome-message.mp3"
+        let filename = "audio-generate-openmates-success-chime.mp3"
         let file = app.buttons["chat-settings-file-row"]
         XCTAssertTrue(file.waitForExistence(timeout: 3))
         XCTAssertTrue(file.label.contains(filename))

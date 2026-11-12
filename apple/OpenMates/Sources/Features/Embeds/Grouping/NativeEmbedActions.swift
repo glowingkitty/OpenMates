@@ -222,10 +222,12 @@ final class NativeEmbedActionController: NSObject, ObservableObject {
     #if os(iOS)
     static func makeEvent(_ input: EmbedCalendarEvent, store: EKEventStore) -> EKEvent {
         let event = EKEvent(eventStore: store)
-        event.title = input.title; event.isAllDay = input.allDay
+        event.title = input.title
         event.startDate = input.allDay ? localCivilDate(input.start, timeZone: input.timeZone) : input.start
         event.endDate = input.allDay ? localCivilDate(input.end, timeZone: input.timeZone) : input.end
-        event.timeZone = input.timeZone; event.location = input.location; event.notes = input.notes; event.url = input.sourceURL
+        // All-day events are floating: assigning a time zone makes EventKit drop the all-day flag.
+        event.isAllDay = input.allDay
+        event.timeZone = input.allDay ? nil : input.timeZone; event.location = input.location; event.notes = input.notes; event.url = input.sourceURL
         return event
     }
     private static func localCivilDate(_ date: Date, timeZone: TimeZone) -> Date {

@@ -532,29 +532,6 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         }
     }
 
-    /// Existing revision transport; local UI changes only after the exact
-    /// server receipt. An immutable package can be retried without reciphering.
-    func reviseQueuedMessage(_ request: ChatQueuedRevisionRequest,
-                             validateAuthority: @escaping @MainActor () throws -> Void) async throws -> Int {
-        let response = try await reviseQueuedMessageWithReceipt(request, validateAuthority: validateAuthority)
-        guard let type = response.type else { throw ChatQueuedRevisionError.invalidReceipt }
-        return try request.validateReceipt(response.fields, type: type)
-    }
-    func reviseQueuedMessageWithReceipt(_ request: ChatQueuedRevisionRequest,
-                             validateAuthority: @escaping @MainActor () throws -> Void,
-                             afterReceipt: (@MainActor () throws -> Void)? = nil) async throws -> WebSocketResponse {
-        let response = try await sendAndWait(WSOutboundMessage(type: "revise_queued_message", payload: request.payload()),
-            responseTypes: ["queued_message_updated", "queued_message_revision_rejected"],
-            matching: { fields in
-                fields["chat_id"] as? String == request.chatID && fields["message_id"] as? String == request.messageID
-                    && fields["client_request_id"] as? String == request.clientRequestID
-            }, preSendValidation: validateAuthority)
-        try (afterReceipt ?? validateAuthority)()
-        guard let type = response.type else { throw ChatQueuedRevisionError.invalidReceipt }
-        _ = try request.validateReceipt(response.fields, type: type)
-        return response
-    }
-
     func personalPrivacySnapshotForSend(turnID: String, knownGeneration: String?) async throws -> [String: Any]? {
         guard personalPrivacyCapabilityGeneration == connectionGeneration else { return nil }
         let requestID = UUID().uuidString

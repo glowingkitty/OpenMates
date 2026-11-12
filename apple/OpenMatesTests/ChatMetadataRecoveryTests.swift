@@ -139,7 +139,9 @@ final class ChatMetadataRecoveryTests: XCTestCase {
     func testShippingManagerTokenRefreshRetainsPendingCiphertextButNewSessionClearsIt() async throws {
         let v = try vector(), transport = MetadataTestTransport(), manager = WebSocketManager()
         manager.debugConnectionAttempt = {}
-        XCTAssertTrue(manager.advertisedClientCapabilities.isEmpty)
+        // The deployed profile always advertises canonical embed receipts; only metadata recovery is optional.
+        let baselineCapabilities = manager.advertisedClientCapabilities
+        XCTAssertFalse(baselineCapabilities.contains("chat_metadata_recovery"))
         manager.connect(sessionId: "same-session", token: "old")
         let fields = try XCTUnwrap(v["job"] as? [String: Any]), chatKey = try key(v)
         let failed = expectation(description: "lost ACK"), applied = expectation(description: "reconnect applied")
@@ -148,7 +150,7 @@ final class ChatMetadataRecoveryTests: XCTestCase {
             owner: { "11111111-1111-4111-8111-111111111111" }, chatKey: { _ in chatKey },
             wrappedKey: { _ in "wrapped" }, hasShell: { _ in true }, apply: { _, _, _, _, _ in applied.fulfill() })
         manager.configureMetadataRecovery(coordinator)
-        XCTAssertEqual(manager.advertisedClientCapabilities, ["chat_metadata_recovery"])
+        XCTAssertEqual(manager.advertisedClientCapabilities, ["chat_metadata_recovery"] + baselineCapabilities)
         coordinator.available(["jobs": [fields]]); await coordinator.syncReady()
         await fulfillment(of: [failed], timeout: 5)
         manager.connect(sessionId: "same-session", token: "rotated")

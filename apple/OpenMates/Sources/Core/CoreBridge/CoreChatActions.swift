@@ -21,9 +21,10 @@
 // through `taskId(for:)`. `stop(chatId:)` ends this device's own send with
 // `cancelSend()` and a reply it did not start with `stopReply` by that task
 // id. Delete message, delete chat and fork are single core calls.
-// The app uses delete chat, delete message and fork (personal chats); its
-// send, edit and stop stay on the Swift pipeline until the view models move
-// their call sites, so turns and stop here are not called yet.
+// The app's signed-in send, edit, stop, consent answers, queued-message
+// revisions (edit and steer of a queued follow-up, `reviseQueued`) and voice
+// call turns (`CoreSendMapping.options(voiceCall:)`) all run through here.
+// A rejected revision keeps the core's typed reason as `CoreQueuedRevisionRejection`.
 // Every call goes through `CoreSession.perform` (the app's client) or an
 // injected fake (tests), logs a `core.actions.*` timing line and keeps the
 // core's typed `CoreError` in `lastError`; nothing is retried here.
@@ -54,9 +55,28 @@ protocol ChatActionsCoreClient: AnyObject, Sendable {
     func answerConsent(chatId: String, requestId: String, approvedItemIds: [String]) async throws
 }
 
+/// The core call behind `CoreChatActions.reviseQueued`; kept apart from
+/// `ChatActionsCoreClient` so a client without queue support stays valid.
+@MainActor
+protocol QueuedRevisionCoreClient: AnyObject, Sendable {
+    /// Revises queued message `messageId` at `revision`: new `text` and/or a queue mode change.
+    func reviseQueuedMessage(chatId: String, messageId: String, revision: UInt64, text: String?,
+                             modeChange: SendQueueModeRecord?,
+                             options: SendOptionsRecord) async throws -> QueuedRevisionReceiptRecord
+}
+
+/// Why the core rejected a queued-message revision.
+enum CoreQueuedRevisionRejection: Error, Equatable {
+    /// The message left the queue or its revision moved on.
+    case conflict
+    case forbidden
+    case invalid
+    case unavailable
+}
+
 /// The app's core calls, each with a `CoreCancellation` tied to the calling task.
 @MainActor
-final class CoreSessionChatActionsClient: ChatActionsCoreClient {
+final class CoreSessionChatActionsClient: ChatActionsCoreClient, QueuedRevisionCoreClient {
     private let session: CoreSession
 
     init(session: CoreSession) {
@@ -113,6 +133,15 @@ final class CoreSessionChatActionsClient: ChatActionsCoreClient {
         }
     }
 
+    func reviseQueuedMessage(chatId: String, messageId: String, revision: UInt64, text: String?,
+                             modeChange: SendQueueModeRecord?,
+                             options: SendOptionsRecord) async throws -> QueuedRevisionReceiptRecord {
+        try await session.perform { core, cancellation in
+            try await core.reviseQueuedMessage(chatId: chatId, messageId: messageId, revision: revision, text: text,
+                                               modeChange: modeChange, options: options, cancellation: cancellation)
+        }
+    }
+
     func answerConsent(chatId: String, requestId: String, approvedItemIds: [String]) async throws {
         let core = session.core
         try await Task.detached {
@@ -161,6 +190,10 @@ struct CoreTurnEnd: Equatable {
     let wasAccepted: Bool
     /// The core's receipt of a send or edit (`nil` for a retry, a refusal or a cancellation).
     var receipt: SendReceiptRecord?
+    /// The final reply text from the turn's `Completed` stream event (`nil` when
+    /// the turn ended without a reply, e.g. queued, refused or cancelled). Shells
+    /// without a chat window (App Intents) read the answer from here.
+    var replyText: String? = nil
 
     /// The core saved the message and queued it behind an active reply of its chat.
     var isQueued: Bool { receipt?.status == .queued }
@@ -196,6 +229,7 @@ final class CoreChatActions: ObservableObject {
 
     private struct Runtime {
         var accepted = false
+        var replyText: String?
         var waiter: CheckedContinuation<CoreTurnAcceptance, Never>?
         var onEnd: (@MainActor (CoreTurnEnd) -> Void)?
         var task: Task<Void, Never>?
@@ -215,6 +249,7 @@ final class CoreChatActions: ObservableObject {
     var isAttached: Bool { client != nil }
 
     private var client: ChatActionsCoreClient?
+    private var revisionClient: QueuedRevisionCoreClient?
     private let window: CoreChatWindow
     private var subscription: AnyCancellable?
     private var runtimes: [UInt64: Runtime] = [:]
@@ -237,6 +272,7 @@ final class CoreChatActions: ObservableObject {
     /// Runs actions through `client` and follows the core's `events`.
     func attach(client: ChatActionsCoreClient, events: AnyPublisher<ViewEventRecord, Never>) {
         self.client = client
+        revisionClient = client as? QueuedRevisionCoreClient
         subscription = events.sink { [weak self] event in
             self?.apply(event)
         }
@@ -253,7 +289,6 @@ final class CoreChatActions: ObservableObject {
         taskIDs[chatId]
     }
 
-    /// Not used by the app yet: the view models adopt this when they move their call sites.
     /// Starts `turn` in saved chat `chatId` (`nil`: a new chat, send only) and
     /// returns once the core accepted or refused it; the reply keeps streaming
     /// through the window afterwards. Turns of other chats run in parallel and
@@ -286,7 +321,6 @@ final class CoreChatActions: ObservableObject {
         }
     }
 
-    /// Not used by the app yet: the view models adopt this when they move their call sites.
     /// Stops the reply of `chatId`: `cancelSend` (and the call's cancellation)
     /// for this device's own running send, else `stopReply` by the task id the
     /// core assigned to a reply this call did not start.
@@ -305,7 +339,6 @@ final class CoreChatActions: ObservableObject {
         return .stoppedReply(taskId: taskId)
     }
 
-    /// Not used by the app yet: the view models adopt this when they move their call sites.
     /// Stops reply task `taskId` of `chatId` that this core did not start.
     func stopReply(chatId: String, taskId: String) async throws {
         let client = try attachedClient()
@@ -345,6 +378,51 @@ final class CoreChatActions: ObservableObject {
             try await client.answerConsent(chatId: chatId, requestId: requestId, approvedItemIds: approvedItemIds)
         }
         if pendingConsent[chatId]?.requestId == requestId { pendingConsent[chatId] = nil }
+    }
+
+    /// Revises queued message `messageId` of `chatId` (expected `revision`):
+    /// `text` replaces its content (`nil` keeps it), `mode` changes the queue
+    /// mode (`nil` keeps it; `.steer` steers the active reply at its next safe
+    /// boundary). Throws `CoreQueuedRevisionRejection` for the core's typed
+    /// refusals; other core errors (offline, cancelled) pass through.
+    func reviseQueued(chatId: String, messageId: String, revision: Int, text: String?,
+                      mode: ChatQueuedSendMode?,
+                      options: SendOptionsRecord = SendOptionsRecord()) async throws -> QueuedRevisionReceiptRecord {
+        guard let revisionClient else {
+            NativeSyncPerfLog.warning("phase=core.actions outcome=no_core ms=0")
+            throw CoreChatActionsError.noCore
+        }
+        guard revision >= 1 else { throw CoreQueuedRevisionRejection.invalid }
+        let modeChange: SendQueueModeRecord? = mode.map { $0 == .steer ? .steer : .followUp }
+        do {
+            return try await timed("revise_queued") {
+                try await revisionClient.reviseQueuedMessage(
+                    chatId: chatId, messageId: messageId, revision: UInt64(revision), text: text,
+                    modeChange: modeChange, options: options)
+            }
+        } catch let failure as CoreError {
+            guard let rejection = Self.rejection(failure) else { throw failure }
+            throw rejection
+        }
+    }
+
+    /// The text the chat shows for a refused queued revision; `nil` for a cancellation.
+    static func queuedRevisionMessage(for error: Error) -> String? {
+        if let rejection = error as? CoreQueuedRevisionRejection {
+            return rejection == .conflict ? AppStrings.queuedFollowupConflict : AppStrings.queuedFollowupUnavailable
+        }
+        if let coreError = error as? CoreError, coreError == .Cancelled { return nil }
+        return AppStrings.queuedFollowupUnavailable
+    }
+
+    private static func rejection(_ error: CoreError) -> CoreQueuedRevisionRejection? {
+        switch error {
+        case .Conflict: return .conflict
+        case .Forbidden: return .forbidden
+        case .Invalid(_): return .invalid
+        case .Unavailable(_, _): return .unavailable
+        default: return nil
+        }
     }
 
     /// The text the chat shows for a failed action; `nil` for a cancellation.
@@ -411,7 +489,7 @@ final class CoreChatActions: ObservableObject {
             }
         }
         runtime.onEnd?(CoreTurnEnd(outcome: outcome, wasAccepted: runtime.accepted || outcome == .completed,
-                                   receipt: receipt))
+                                   receipt: receipt, replyText: runtime.replyText))
     }
 
     private func accept(request: UInt64) {
@@ -448,9 +526,10 @@ final class CoreChatActions: ObservableObject {
         switch progress {
         case .taskAssigned(let chatId, _, let taskId):
             taskIDs[chatId] = taskId
-        case .completed(let chatId, let messageId, _):
+        case .completed(let chatId, let messageId, let content):
             taskIDs[chatId] = nil
             guard runtimes[request] != nil else { return }
+            runtimes[request]?.replyText = content
             turnMessageIDs.insert(messageId)
             accept(request: request)
         case .started(let chatId, let messageId, _):

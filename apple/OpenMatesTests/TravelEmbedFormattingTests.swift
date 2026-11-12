@@ -200,7 +200,8 @@ final class TravelEmbedFormattingTests: XCTestCase {
         ]]])
         let loaded = TravelSearchPresentation(embed: fixture.primaryEmbed, data: data)
         XCTAssertEqual(loaded.resultCount, 1)
-        XCTAssertEqual(loaded.route, "Munich → London")
+        // Request identity stays stable when result rows hydrate later.
+        XCTAssertEqual(loaded.route, "Berlin → Prague")
         XCTAssertEqual(loaded.priceText(), "EUR 50")
         XCTAssertTrue(loaded.previewProviderText?.contains("Google") == true)
     }

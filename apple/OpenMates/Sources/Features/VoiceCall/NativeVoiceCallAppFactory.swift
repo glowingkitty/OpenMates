@@ -46,7 +46,6 @@ final class NativeVoiceCallAppFactory: NativeVoiceCallAppDriving {
     private var pumpDirty = false
     private var pumpID: UUID?
     private let directory: URL
-    private let sendPipeline = ChatSendPipeline()
 
     init(auth: AuthManager, store: ChatStore, socket: WebSocketManager,
          ordinaryInferenceActive: @escaping @MainActor (String) -> Bool) {
@@ -346,29 +345,44 @@ final class NativeVoiceCallAppFactory: NativeVoiceCallAppDriving {
     }
     private func submitTurn(scope: NativeVoiceCallScope, transcript: NativeVoiceCallTranscript) async throws {
         try check(scope)
-        guard transcript.role == .user, transcript.final, let chat = store.chat(for: scope.chatID) else {
+        guard transcript.role == .user, transcript.final, store.chat(for: scope.chatID) != nil else {
             throw NativeVoiceCallError.contextUnavailable
         }
         await controller.updateAssistantState(speaking: false, generating: true, messageID: nil, text: "")
         let heardBoundary = AssistantSpeechAppRuntime.shared.pendingHeardBoundary(chatID: scope.chatID)
-        let result = try await sendPipeline.sendUserMessage(content: transcript.text, in: chat,
-            existingMessages: store.messages(for: scope.chatID), wsManager: socket, chatStore: store,
-            waitForInferenceReceipt: true,
-            createdAtOverride: ISO8601DateFormatter().string(from: Date(timeIntervalSince1970: Double(transcript.createdAt))),
-            validateRemoteSend: { [weak self] in
-                guard let self else { throw NativeVoiceCallError.scopeChanged }; try self.check(scope)
-            }, voiceCallTurn: .init(callID: transcript.callID, turnID: transcript.messageID, heardBoundary: heardBoundary),
-            messageId: transcript.messageID)
+        // The core stores the turn, starts the reply and shows both through the
+        // chat window; this only reports whether the core admitted the turn.
+        let options = CoreSendMapping.options(
+            reservedMessageId: transcript.messageID,
+            voiceCall: CoreSendMapping.voiceCallTurn(
+                callID: transcript.callID, turnID: transcript.messageID, heardBoundary: heardBoundary))
+        let acceptance = await CoreChatActions.shared.startTurn(
+            .send(text: transcript.text, options: options), chatId: scope.chatID, onEnd: { _ in })
         try check(scope)
-        store.upsertChat(result.chat)
-        store.appendMessage(result.message, to: scope.chatID)
-        AssistantSpeechAppRuntime.shared.acceptHeardBoundary(heardBoundary, chatID: scope.chatID)
+        switch acceptance {
+        case .accepted:
+            AssistantSpeechAppRuntime.shared.acceptHeardBoundary(heardBoundary, chatID: scope.chatID)
+        case .rejected(let failure):
+            throw failure == .Offline ? NativeVoiceCallError.connectionLost : NativeVoiceCallError.textRejected
+        case .cancelled:
+            throw NativeVoiceCallError.scopeChanged
+        case .noCore:
+            throw NativeVoiceCallError.contextUnavailable
+        }
     }
     private func interruptAssistant(scope: NativeVoiceCallScope, messageID: String?, taskID: String?) async throws {
         try check(scope)
         guard await AssistantSpeechAppRuntime.shared.interruptLiveCallSpeech(chatID: scope.chatID, messageID: messageID, taskID: taskID) else { return }
         try check(scope)
-        try await sendPipeline.sendCancelAITask(taskId: taskID, chatId: scope.chatID, wsManager: socket)
+        do {
+            if let taskID {
+                try await CoreChatActions.shared.stopReply(chatId: scope.chatID, taskId: taskID)
+            } else {
+                try await CoreChatActions.shared.stop(chatId: scope.chatID)
+            }
+        } catch CoreChatActionsError.noCore {
+            throw NativeVoiceCallError.contextUnavailable
+        }
     }
     private func receive(_ event: NativeVoiceCallEvent) async {
         if case .state(let snapshot) = event, snapshot.status == .live {

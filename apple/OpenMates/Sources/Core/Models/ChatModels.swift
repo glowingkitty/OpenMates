@@ -925,63 +925,6 @@ struct ChatPreparedPrivacyGeneration: Equatable, Sendable {
     }
 }
 
-enum ChatQueuedRevisionError: Error, Equatable {
-    case invalidRequest
-    case rejected(reason: String, currentRevision: Int?, retryable: Bool)
-    case invalidReceipt
-}
-
-/// Immutable transport package for the existing revision API. Plaintext is only
-/// the privacy-filtered inference value paired with its encrypted durable body.
-struct ChatQueuedRevisionRequest: Sendable {
-    let chatID: String
-    let messageID: String
-    let expectedRevision: Int
-    let clientRequestID: String
-    private let bytes: Data
-    enum Mode: String, Sendable { case followUp = "follow_up", steer }
-
-    init(chatID: String, messageID: String, expectedRevision: Int, clientRequestID: String = UUID().uuidString,
-         mode: Mode, teamID: String?, content: String? = nil, encryptedContent: String? = nil,
-         encryptedPIIMappings: String? = nil) throws {
-        guard !chatID.isEmpty, (1...255).contains(messageID.count), expectedRevision >= 1,
-              expectedRevision < Int.max, (1...128).contains(clientRequestID.count) else { throw ChatQueuedRevisionError.invalidRequest }
-        var fields: [String: Any] = ["chat_id": chatID, "message_id": messageID,
-            "expected_revision": expectedRevision, "client_request_id": clientRequestID, "queue_mode": mode.rawValue]
-        if let teamID { fields["team_id"] = teamID }
-        if let content {
-            guard !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                  content.utf8.count <= 2 * 1024 * 1024, let encryptedContent, !encryptedContent.isEmpty else { throw ChatQueuedRevisionError.invalidRequest }
-            fields["content"] = content; fields["encrypted_content"] = encryptedContent
-            fields["encrypted_pii_mappings"] = encryptedPIIMappings.map { $0 as Any } ?? NSNull()
-        } else if encryptedContent != nil || encryptedPIIMappings != nil { throw ChatQueuedRevisionError.invalidRequest }
-        self.chatID = chatID; self.messageID = messageID; self.expectedRevision = expectedRevision; self.clientRequestID = clientRequestID
-        bytes = try JSONSerialization.data(withJSONObject: fields, options: [.sortedKeys])
-    }
-    func payload() throws -> [String: Any] {
-        guard let fields = try JSONSerialization.jsonObject(with: bytes) as? [String: Any] else { throw ChatQueuedRevisionError.invalidRequest }
-        return fields
-    }
-    func validateReceipt(_ fields: [String: Any], type: String) throws -> Int {
-        guard fields["chat_id"] as? String == chatID, fields["message_id"] as? String == messageID,
-              fields["client_request_id"] as? String == clientRequestID else { throw ChatQueuedRevisionError.invalidReceipt }
-        if type == "queued_message_revision_rejected" {
-            guard let reason = fields["reason_code"] as? String, !reason.isEmpty else { throw ChatQueuedRevisionError.invalidReceipt }
-            throw ChatQueuedRevisionError.rejected(reason: reason, currentRevision: fields["current_revision"] as? Int,
-                retryable: fields["retryable"] as? Bool == true)
-        }
-        guard type == "queued_message_updated", let revision = fields["queue_revision"] as? Int,
-              revision == expectedRevision + 1,
-              fields["queue_mode"] as? String == (try payload())["queue_mode"] as? String else { throw ChatQueuedRevisionError.invalidReceipt }
-        if let content = (try payload())["encrypted_content"] as? String {
-            guard fields["encrypted_content"] as? String == content else { throw ChatQueuedRevisionError.invalidReceipt }
-            let expectedMappings = (try payload())["encrypted_pii_mappings"]
-            guard NSDictionary(dictionary: ["value": fields["encrypted_pii_mappings"] ?? NSNull()]).isEqual(to: ["value": expectedMappings ?? NSNull()]) else { throw ChatQueuedRevisionError.invalidReceipt }
-        }
-        return revision
-    }
-}
-
 struct ChatTransientAssistantResponse: Identifiable, Equatable, Sendable {
     let id: String
     let chatId: String

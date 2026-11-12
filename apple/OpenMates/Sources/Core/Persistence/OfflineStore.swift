@@ -433,7 +433,7 @@ final class PersistedEmbedKey {
 @Model
 final class PendingOfflineAction {
     @Attribute(.unique) var id: String
-    var actionType: String  // "send_message", "delete_message", "create_chat"
+    var actionType: String  // "delete_message", "create_chat"
     var payloadJSON: Data?
     var createdAt: Date
     var retryCount: Int

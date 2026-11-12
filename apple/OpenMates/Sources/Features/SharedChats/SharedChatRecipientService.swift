@@ -322,6 +322,7 @@ struct SharedChatRecipientService {
             safe["chatId"] = id
             safe["id"] = messageID
             safe["message_id"] = messageID
+            safe["client_message_id"] = messageID
             safe["role"] = ["assistant", "system"].contains(row["role"] as? String ?? "") ? row["role"] : "user"
             // Plaintext supplied alongside ciphertext is untrusted and cannot bypass authentication.
             for name in ["content", "sender_name", "senderName", "model_name", "modelName", "category",

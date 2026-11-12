@@ -95,7 +95,8 @@ enum CoreSendMapping {
         excludedPiiOriginals: Set<String> = [],
         excludedPiiPlaceholders: Set<String> = [],
         piiMappings: [PIIMapping] = [],
-        projectId: String? = nil
+        projectId: String? = nil,
+        voiceCall: VoiceCallTurnRecord? = nil
     ) -> SendOptionsRecord {
         SendOptionsRecord(
             piiDetection: piiDetection,
@@ -107,6 +108,21 @@ enum CoreSendMapping {
             excludedPiiOriginals: excludedPiiOriginals.sorted(),
             excludedPiiPlaceholders: excludedPiiPlaceholders.sorted(),
             piiMappings: piiMappings.map(piiMapping),
-            projectId: projectId)
+            projectId: projectId,
+            voiceCall: voiceCall)
+    }
+
+    /// The voice-call fields of a transcribed turn (call id, turn id and what the user heard of the interrupted reply).
+    static func voiceCallTurn(callID: String, turnID: String,
+                              heardBoundary: NativeVoiceCallHeardBoundary?) -> VoiceCallTurnRecord {
+        VoiceCallTurnRecord(
+            callId: callID, turnId: turnID,
+            heardBoundary: heardBoundary.map {
+                VoiceHeardBoundaryRecord(
+                    assistantMessageId: $0.assistantMessageID,
+                    completedSequences: $0.completedSequences.map { UInt32(clamping: $0) },
+                    activeSequence: $0.activeSequence.map { UInt32(clamping: $0) },
+                    activeOffsetMs: UInt32(clamping: $0.activeOffsetMilliseconds))
+            })
     }
 }

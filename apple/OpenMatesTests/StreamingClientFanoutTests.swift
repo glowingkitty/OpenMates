@@ -354,6 +354,9 @@ final class StreamingClientFanoutTests: XCTestCase {
         await client.dispatch(task(), for: "chat")
         await client.dispatch(.typingStarted(chatId: "chat", messageId: "message", metadata: nil), for: "chat")
         await client.dispatch(.thinkingChunk(chatId: "chat", messageId: "message", content: "Previous thought."), for: "chat")
+        // A completed turn is terminal; a second assistant message in one turn
+        // is only admitted when the first one declares that the turn continues.
+        await client.dispatch(.messageFinality(chatId: "chat", messageId: "message", taskId: nil, continuesTurn: true), for: "chat")
         await client.dispatch(chunk(1, content: "Previous answer", final: true), for: "chat")
         await client.dispatch(.typingStarted(chatId: "chat", messageId: "next-message", metadata: nil), for: "chat")
         await client.dispatch(.thinkingChunk(chatId: "chat", messageId: "next-message", content: "Current thought."), for: "chat")

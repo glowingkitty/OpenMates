@@ -208,7 +208,7 @@ final class OfflineSyncBridge: ObservableObject {
                           OfflineRecentChatPolicy.revision(of: current) == revision else { continue }
                     let validatedWrapper = try await validateSnapshotKey(chat: chat, snapshot: snapshot)
                     guard isCurrentPrefetch(runID), offlineStore.chatDeletionVersion(chat.id) == deletionVersion else { return }
-                    let pending = pendingUserMessageIds(in: chat.id).union(chatStore.pendingAssistantRecoveryMessageIds(in: chat.id))
+                    let pending = chatStore.pendingAssistantRecoveryMessageIds(in: chat.id)
                     try await writer.persist(snapshot, chat: chat, validatedWrapper: validatedWrapper, preserving: pending, fence: writeFence)
                     guard isCurrentPrefetch(runID), offlineStore.chatDeletionVersion(chat.id) == deletionVersion else { return }
                     guard writeFence.isCurrent else { continue }
@@ -306,16 +306,6 @@ final class OfflineSyncBridge: ObservableObject {
         startOfflinePrefetchIfEligible(reason: "metadataChanged")
     }
 
-    func pendingUserMessageIds(in chatId: String) -> Set<String> {
-        guard isCurrentSession else { return [] }
-        return Set(offlineStore.loadPendingActions().compactMap { action in
-            guard action.actionType == "send_message", let data = action.payloadJSON,
-                  let payload = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  payload["chat_id"] as? String == chatId else { return nil }
-            return payload["message_id"] as? String
-        })
-    }
-
     func onMessagesReceived(_ messages: [Message], chatId: String) {
         guard isCurrentSession else { return }
         offlineStore.persistMessages(messages, chatId: chatId)
@@ -357,25 +347,6 @@ final class OfflineSyncBridge: ObservableObject {
     }
 
     // MARK: - Queue offline actions
-
-    func sendMessageOffline(chatId: String, messageId: String, content: String) {
-        guard isCurrentSession else { return }
-        let userMessage = Message(
-            id: messageId, chatId: chatId, role: .user,
-            content: content, encryptedContent: nil,
-            createdAt: ISO8601DateFormatter().string(from: Date()),
-            updatedAt: nil, appId: nil, isStreaming: nil, embedRefs: nil
-        )
-        chatStore.appendMessage(userMessage, to: chatId)
-        offlineStore.persistMessages([userMessage], chatId: chatId)
-
-        offlineStore.queueOfflineAction(type: "send_message", payload: [
-            "chat_id": chatId,
-            "message_id": messageId,
-            "content": content,
-            "created_at": Int(Date().timeIntervalSince1970),
-        ])
-    }
 
     func deleteMessageOffline(chatId: String, messageId: String) {
         guard isCurrentSession else { return }
@@ -425,8 +396,16 @@ final class OfflineSyncBridge: ObservableObject {
         let generation = offlineStore.scopeGeneration
         let actions = offlineStore.loadPendingActions()
         guard !actions.isEmpty else { return }
+        // Sends queued by older builds are not carried over: sending now goes
+        // through the core. Drop them once, counted without content.
+        let legacySends = actions.filter { $0.actionType == "send_message" }
+        for action in legacySends { offlineStore.removePendingAction(action.id) }
+        if !legacySends.isEmpty {
+            NativeDiagnostics.event("legacy_queued_sends_discarded", category: "offline", level: .warning,
+                counts: ["count": legacySends.count])
+        }
 
-        for action in actions {
+        for action in actions where action.actionType != "send_message" {
             guard isCurrentSession, generation == offlineStore.scopeGeneration else { return }
             guard action.retryCount < 3 else {
                 offlineStore.removePendingAction(action.id)
@@ -444,8 +423,6 @@ final class OfflineSyncBridge: ObservableObject {
                 case "chat_read_status_update":
                     guard let wsManager, wsManager.connectionState == .connected else { return }
                     try await wsManager.send(WSOutboundMessage(type: "chat_read_status_update", payload: payload))
-                case "send_message":
-                    try await replaySendMessage(payload)
                 case "delete_message":
                     try await replayDeleteMessage(payload)
                 case "pin_chat":
@@ -467,19 +444,6 @@ final class OfflineSyncBridge: ObservableObject {
                 offlineStore.incrementRetry(action.id)
             }
         }
-    }
-
-    private func replaySendMessage(_ payload: [String: Any]) async throws {
-        guard let chatId = payload["chat_id"] as? String,
-              let content = payload["content"] as? String else { return }
-        guard let chat = chatStore.chat(for: chatId) else { return }
-        _ = try await ChatSendPipeline().sendUserMessage(
-            content: content,
-            in: chat,
-            existingMessages: chatStore.messages(for: chatId),
-            wsManager: wsManager,
-            chatStore: chatStore
-        )
     }
 
     private func replayDeleteMessage(_ payload: [String: Any]) async throws {

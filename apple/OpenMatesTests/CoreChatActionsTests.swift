@@ -163,7 +163,8 @@ final class CoreChatActionsTests: XCTestCase {
         client.finishSend(chatId: Self.chatID)
         await waitUntil { !recorder.ends.isEmpty }
         XCTAssertEqual(recorder.ends, [CoreTurnEnd(
-            outcome: .completed, wasAccepted: true, receipt: FakeChatActionsClient.receipt(chatId: Self.chatID))])
+            outcome: .completed, wasAccepted: true, receipt: FakeChatActionsClient.receipt(chatId: Self.chatID),
+            replyText: "Use matte tiles.")], "the turn end carries the final reply for window-less callers")
         XCTAssertTrue(actions.activeTurns.isEmpty)
         XCTAssertTrue(actions.turnMessageIDs.contains("reply-1"))
     }

@@ -198,33 +198,6 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertTrue(prepared.validateReuse(scope: scope, freshGeneration: "generation-a", mutationRevision: 2, now: now.addingTimeInterval(30)))
     }
 
-    // contract-test: supporting surface=gui.apple assertions=chats.message.identity-idempotent,chats.persistence.client-encrypted
-    func testQueuedRevisionUsesStableIdentityImmutableEncryptionAndExactReceipt() throws {
-        let request = try ChatQueuedRevisionRequest(chatID: "chat", messageID: "queued", expectedRevision: 3,
-            clientRequestID: "request", mode: .followUp, teamID: nil, content: "Filtered text",
-            encryptedContent: "synthetic-cipher", encryptedPIIMappings: "synthetic-mappings")
-        let first = try request.payload(), retry = try request.payload()
-        XCTAssertTrue(NSDictionary(dictionary: first).isEqual(to: retry))
-        XCTAssertEqual(first["message_id"] as? String, "queued")
-        var accepted: [String: Any] = ["chat_id": "chat", "message_id": "queued", "client_request_id": "request",
-            "queue_revision": 4, "queue_mode": "follow_up", "encrypted_content": "synthetic-cipher",
-            "encrypted_pii_mappings": "synthetic-mappings"]
-        XCTAssertEqual(try request.validateReceipt(accepted, type: "queued_message_updated"), 4)
-        accepted["encrypted_content"] = "different-cipher"
-        XCTAssertThrowsError(try request.validateReceipt(accepted, type: "queued_message_updated"))
-        let conflict: [String: Any] = ["chat_id": "chat", "message_id": "queued", "client_request_id": "request",
-            "reason_code": "conflict", "current_revision": 4, "retryable": true]
-        XCTAssertThrowsError(try request.validateReceipt(conflict, type: "queued_message_revision_rejected")) {
-            XCTAssertEqual($0 as? ChatQueuedRevisionError, .rejected(reason: "conflict", currentRevision: 4, retryable: true))
-        }
-        XCTAssertThrowsError(try ChatQueuedRevisionRequest(chatID: "chat", messageID: "queued", expectedRevision: 3,
-            mode: .followUp, teamID: nil, content: "Changed text"))
-        let steer = try ChatQueuedRevisionRequest(chatID: "chat", messageID: "queued", expectedRevision: 3, mode: .steer, teamID: "team")
-        XCTAssertNil(try steer.payload()["content"])
-        XCTAssertNil(try steer.payload()["encrypted_content"])
-        XCTAssertEqual(try steer.payload()["queue_mode"] as? String, "steer")
-    }
-
     // contract-test: supporting surface=gui.apple assertions=message-input.drafts.preview-persistence
     func testAcceptedSendClearsOnlyUneditedSnapshotAndRejectedPreparationKeepsDraft() async {
         let composer = NativeComposerSession(canonicalMarkdown: "Synthetic pending draft")

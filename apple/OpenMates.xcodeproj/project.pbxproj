@@ -1101,6 +1101,8 @@
 		0C0EC0DE1A2B3C4D5E6F7311 /* CoreChatWindowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C0EC0DE1A2B3C4D5E6F7310 /* CoreChatWindowTests.swift */; };
 		0C0EC0DE1A2B3C4D5E6F7B08 /* CoreChatActionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C0EC0DE1A2B3C4D5E6F7B07 /* CoreChatActionsTests.swift */; };
 		0C0EC0DE1A2B3C4D5E6F7E02 /* ChatViewModelCoreTurnsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C0EC0DE1A2B3C4D5E6F7E01 /* ChatViewModelCoreTurnsTests.swift */; };
+		0C0EC0DE1A2B3C4D5E6FA502 /* AskOpenMatesIntentCoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C0EC0DE1A2B3C4D5E6FA501 /* AskOpenMatesIntentCoreTests.swift */; };
+		0C0EC0DE1A2B3C4D5E6F7F02 /* CoreQueuedRevisionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C0EC0DE1A2B3C4D5E6F7F01 /* CoreQueuedRevisionTests.swift */; };
 		0D0EC0DE1A2B3C4D5E6F7C05 /* CoreDraftsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D0EC0DE1A2B3C4D5E6F7C04 /* CoreDraftsTests.swift */; };
 		0E0EC0DE1A2B3C4D5E6F7D05 /* CoreSendMappingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E0EC0DE1A2B3C4D5E6F7D04 /* CoreSendMappingTests.swift */; };
 		0C0EC0DE1A2B3C4D5E6F71A2 /* CoreLegacyAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C0EC0DE1A2B3C4D5E6F71A1 /* CoreLegacyAccess.swift */; };
@@ -2624,6 +2626,8 @@
 		0C0EC0DE1A2B3C4D5E6F7310 /* CoreChatWindowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreChatWindowTests.swift; sourceTree = "<group>"; };
 		0C0EC0DE1A2B3C4D5E6F7B07 /* CoreChatActionsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreChatActionsTests.swift; sourceTree = "<group>"; };
 		0C0EC0DE1A2B3C4D5E6F7E01 /* ChatViewModelCoreTurnsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModelCoreTurnsTests.swift; sourceTree = "<group>"; };
+		0C0EC0DE1A2B3C4D5E6FA501 /* AskOpenMatesIntentCoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AskOpenMatesIntentCoreTests.swift; sourceTree = "<group>"; };
+		0C0EC0DE1A2B3C4D5E6F7F01 /* CoreQueuedRevisionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreQueuedRevisionTests.swift; sourceTree = "<group>"; };
 		0D0EC0DE1A2B3C4D5E6F7C04 /* CoreDraftsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDraftsTests.swift; sourceTree = "<group>"; };
 		0E0EC0DE1A2B3C4D5E6F7D04 /* CoreSendMappingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreSendMappingTests.swift; sourceTree = "<group>"; };
 		0C0EC0DE1A2B3C4D5E6F71A1 /* CoreLegacyAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreLegacyAccess.swift; sourceTree = "<group>"; };
@@ -3483,6 +3487,8 @@
 				0C0EC0DE1A2B3C4D5E6F7310 /* CoreChatWindowTests.swift */,
 				0C0EC0DE1A2B3C4D5E6F7B07 /* CoreChatActionsTests.swift */,
 				0C0EC0DE1A2B3C4D5E6F7E01 /* ChatViewModelCoreTurnsTests.swift */,
+				0C0EC0DE1A2B3C4D5E6FA501 /* AskOpenMatesIntentCoreTests.swift */,
+				0C0EC0DE1A2B3C4D5E6F7F01 /* CoreQueuedRevisionTests.swift */,
 				0D0EC0DE1A2B3C4D5E6F7C04 /* CoreDraftsTests.swift */,
 				0E0EC0DE1A2B3C4D5E6F7D04 /* CoreSendMappingTests.swift */,
 				0C0EC0DE1A2B3C4D5E6F71F1 /* AuthManagerCoreTests.swift */,
@@ -7069,6 +7075,8 @@
 				0C0EC0DE1A2B3C4D5E6F7311 /* CoreChatWindowTests.swift in Sources */,
 				0C0EC0DE1A2B3C4D5E6F7B08 /* CoreChatActionsTests.swift in Sources */,
 				0C0EC0DE1A2B3C4D5E6F7E02 /* ChatViewModelCoreTurnsTests.swift in Sources */,
+				0C0EC0DE1A2B3C4D5E6FA502 /* AskOpenMatesIntentCoreTests.swift in Sources */,
+				0C0EC0DE1A2B3C4D5E6F7F02 /* CoreQueuedRevisionTests.swift in Sources */,
 				0D0EC0DE1A2B3C4D5E6F7C05 /* CoreDraftsTests.swift in Sources */,
 				0E0EC0DE1A2B3C4D5E6F7D05 /* CoreSendMappingTests.swift in Sources */,
 				0C0EC0DE1A2B3C4D5E6F71F2 /* AuthManagerCoreTests.swift in Sources */,

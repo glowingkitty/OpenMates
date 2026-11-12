@@ -717,13 +717,11 @@ final class ChatViewModel: ObservableObject {
     var pendingQueuedEvents: [String: [String: Any]] = [:]
     private var queuedEventOperations: [String: UUID] = [:]
     private var queuedHistoryFlights: [String: UUID] = [:]
-    private var retainedQueuedRequests: [String: (request: ChatQueuedRevisionRequest, input: String)] = [:]
     private var queuedOwnerScope: UUID?
     private var queuedOwnerChatID: String?
     private var queuedOwnerTeamEpoch: UInt64?
     private var queuedSnapshotLast: (scope: ChatPreparationScope, chatID: String, date: Date)?
     private var queuedSnapshotFlight: UUID?
-    private var queuedUpdateOperations: [String: UUID] = [:]
     private var completedQueuedEdit: (session: ChatQueuedEditSession, submitted: ComposerDocumentV1, revision: Int)?
 
     @Published var followUpSuggestions: [String] = []
@@ -1534,8 +1532,7 @@ final class ChatViewModel: ObservableObject {
             current, incoming: incoming, lifecycle: streamingLifecycle, chatID: chatId,
             pendingMessageIDs: pendingStreamingCompletionIDs(chatId: chatId))
         return ChatMessageWindowPage.merge(incoming, preserving: preserved,
-            pendingIds: foregroundPendingIDs(chatId: chatId, actionType: "send_message")
-                .union(pendingStreamingCompletionIDs(chatId: chatId)))
+            pendingIds: pendingStreamingCompletionIDs(chatId: chatId))
             .filter { !deleted.contains($0.id) && !($0.serverMessageId.map(deleted.contains) ?? false) }
     }
 
@@ -1655,14 +1652,12 @@ final class ChatViewModel: ObservableObject {
                         nextRemote.end = page.endCursor ?? nextRemote.end; nextRemote.hasNewer = page.hasMoreAfter
                     }
                 } else {
-                    let pendingIds = foregroundPendingIDs(chatId: chatId, actionType: "send_message")
                     source = mergeForegroundMessages(foregroundPageMessages(page),
-                        preserving: allMessages.filter { $0.isStreaming == true || $0.encryptedContent == nil || pendingIds.contains($0.id) }, chatId: chatId)
+                        preserving: allMessages.filter { $0.isStreaming == true || $0.encryptedContent == nil }, chatId: chatId)
                     nextRemote = RemoteHistory(page)
                     if query.afterBeginning { nextRemote.hasOlder = false }
                 }
-                let cachePendingIDs = foregroundPendingIDs(chatId: chatId, actionType: "send_message")
-                    .union(pendingStreamingCompletionIDs(chatId: chatId))
+                let cachePendingIDs = pendingStreamingCompletionIDs(chatId: chatId)
                 let retained = ChatMessageWindowPage.retainedForeground(source, newest: query.direction != .before,
                     pendingIds: cachePendingIDs)
                 let retainedIDs = Set(retained.map(\.id))
@@ -1697,10 +1692,9 @@ final class ChatViewModel: ObservableObject {
                         && !pendingCompletionIDs.contains(row.id)
                         && !(row.serverMessageId.map(pendingCompletionIDs.contains) ?? false)
                 }.flatMap { [$0.id, $0.serverMessageId].compactMap { $0 } })
-                let queuedIds = foregroundPendingIDs(chatId: chatId, actionType: "send_message")
                 let pending = allMessages.filter {
                     !savedSourceIDs.contains($0.id) && !($0.serverMessageId.map(savedSourceIDs.contains) ?? false)
-                        && ($0.isStreaming == true || queuedIds.contains($0.id) || ($0.encryptedContent == nil && $0.content != nil))
+                        && ($0.isStreaming == true || ($0.encryptedContent == nil && $0.content != nil))
                 }
                 let pendingIds = Set(pending.map(\.id))
                 source = ChatMessageWindowPage.merge(source.filter { !pendingIds.contains($0.id) }, preserving: pending)
@@ -1755,7 +1749,7 @@ final class ChatViewModel: ObservableObject {
             updatedAt: nil, appId: nil, isStreaming: false, embedRefs: nil, queueRevision: 1, queueMode: "follow_up",
             queueDispatchStatus: "queued", queueDispatchMode: "follow_up", deliveryStatus: "queued"))
     }
-    private func reviseQueuedFollowupFixture(messageID: String, content: String?, mode: ChatQueuedRevisionRequest.Mode,
+    private func reviseQueuedFollowupFixture(messageID: String, content: String?, mode: ChatQueuedSendMode,
                                              expected: ChatQueuedFollowupState?) -> Bool? {
         guard isQueuedFollowupFixture, messageID == "synthetic-queued-followup" else { return nil }
         guard let expected, queuedFollowups[messageID] == expected,
@@ -1993,8 +1987,8 @@ final class ChatViewModel: ObservableObject {
         queuedOwnerScope = current; queuedOwnerChatID = chat?.id; queuedOwnerTeamEpoch = teamEpoch
         queuedSnapshotLast = nil; queuedSnapshotFlight = nil
         queuedFollowups.removeAll(); queuedTerminalMessageIDs.removeAll(); completedSubChatIDs.removeAll()
-        pendingQueuedEvents.removeAll(); queuedEventOperations.removeAll(); queuedHistoryFlights.removeAll(); retainedQueuedRequests.removeAll(); queuedEditSession = nil; completedQueuedEdit = nil
-        updatingQueuedMessageIDs.removeAll(); queuedUpdateOperations.removeAll(); queuedFollowupError = nil
+        pendingQueuedEvents.removeAll(); queuedEventOperations.removeAll(); queuedHistoryFlights.removeAll(); queuedEditSession = nil; completedQueuedEdit = nil
+        updatingQueuedMessageIDs.removeAll(); queuedFollowupError = nil
     }
     private func hydrateQueuedFollowupsFromHistory() {
         adoptQueuedScope()
@@ -2203,71 +2197,34 @@ final class ChatViewModel: ObservableObject {
             expected: queuedFollowups[messageID])
     }
     private func reviseQueuedFollowup(messageID: String, content: String?, mappings: [PIIMapping], excludedOriginals: Set<String>,
-                                      mode: ChatQueuedRevisionRequest.Mode, expected: ChatQueuedFollowupState?) async -> Bool {
+                                      mode: ChatQueuedSendMode, expected: ChatQueuedFollowupState?) async -> Bool {
         #if DEBUG
         if let result = reviseQueuedFollowupFixture(messageID: messageID, content: content, mode: mode, expected: expected) { return result }
         #endif
         guard let expected, expected.editable, queuedFollowups[messageID] == expected,
-              let socket = wsManager, let currentChat = chat, currentChat.id == expected.chatID,
+              let currentChat = chat, currentChat.id == expected.chatID,
               updatingQueuedMessageIDs.insert(messageID).inserted else { return false }
-        let operationID = UUID()
-        queuedUpdateOperations[messageID] = operationID
-        defer {
-            if queuedUpdateOperations[messageID] == operationID {
-                queuedUpdateOperations.removeValue(forKey: messageID); updatingQueuedMessageIDs.remove(messageID)
-            }
-        }
-        let scope = NativePersonalPrivacyRuntime.scope(socket: socket), deletion = offlineStore.chatDeletionVersion(currentChat.id)
-        let admissionLease: ChatSavedSendAdmissionGate.Lease
-        do { admissionLease = try await ChatSavedSendAdmissionGate.shared.acquire(.init(scope: scope, chatID: currentChat.id)) }
-        catch { return false }
-        defer { admissionLease.release() }
-        var privacyRequestID: String?
-        let input = (content ?? "") + "\u{0}" + mode.rawValue + "\u{0}" + String(expected.revision)
-        func validate() throws {
-            try NativePersonalPrivacyRuntime.require(scope, socket: socket)
-            if let privacyRequestID { try NativePersonalPrivacyRuntime.shared.requireReceiptCurrent(turnID: privacyRequestID, socket: socket) }
-            guard chat?.id == currentChat.id, currentChat.teamId == scope.teamID,
-                  queuedFollowups[messageID] == expected, !queuedTerminalMessageIDs.contains(messageID),
-                  offlineStore.chatDeletionVersion(currentChat.id) == deletion else { throw ChatQueuedRevisionError.invalidReceipt }
-        }
+        defer { updatingQueuedMessageIDs.remove(messageID) }
+        let options = CoreSendMapping.options(
+            excludedPiiOriginals: excludedOriginals, piiMappings: mappings)
         do {
-            try validate()
-            let request: ChatQueuedRevisionRequest
-            if let retained = retainedQueuedRequests[messageID] {
-                guard retained.input == input else { throw ChatQueuedRevisionError.invalidReceipt }; request = retained.request
-            } else {
-                request = try await sendPipeline.prepareQueuedRevision(state: expected, chat: currentChat, content: content,
-                    piiMappings: mappings, excludedOriginals: excludedOriginals, mode: mode,
-                    existingMessages: allMessages, socket: socket, validate: validate)
-                try validate(); retainedQueuedRequests[messageID] = (request, input)
-            }
-            guard let original = allMessages.first(where: { $0.id == messageID }) else { throw ChatQueuedRevisionError.invalidReceipt }
-            try await NativePersonalPrivacyRuntime.shared.verifyQueuedRevision(request, fallbackContent: original.content ?? "",
-                mappings: original.piiMappings ?? [], socket: socket)
-            privacyRequestID = request.clientRequestID
-            try validate()
-            let validateReceiptAuthority: @MainActor () throws -> Void = {
-                try NativePersonalPrivacyRuntime.require(scope, socket: socket)
-                guard self.chat?.id == currentChat.id, self.offlineStore.chatDeletionVersion(currentChat.id) == deletion else {
-                    throw ChatQueuedRevisionError.invalidReceipt
-                }
-            }
-            let response = try await socket.reviseQueuedMessageWithReceipt(request, validateAuthority: validate, afterReceipt: validateReceiptAuthority)
-            try validateReceiptAuthority()
-            await applyQueuedFollowupEvent(type: "queued_message_updated", fields: response.fields)
-            retainedQueuedRequests.removeValue(forKey: messageID); queuedFollowupError = nil
+            // An edit keeps the queue mode; a steer changes it. The core checks
+            // the revision, encrypts and stores the change and reports typed refusals.
+            let receipt = try await coreActions.reviseQueued(
+                chatId: currentChat.id, messageId: messageID, revision: expected.revision, text: content,
+                mode: mode == expected.mode ? nil : mode, options: options)
+            guard chat?.id == currentChat.id else { return false }
+            await applyQueuedFollowupEvent(type: "queued_message_updated", fields: [
+                "chat_id": receipt.chatId, "message_id": receipt.messageId,
+                "queue_revision": Int(receipt.queueRevision),
+                "queue_mode": receipt.queueMode == .steer ? ChatQueuedSendMode.steer.rawValue
+                    : ChatQueuedSendMode.followUp.rawValue])
+            queuedFollowupError = nil
             return true
-        } catch let error as ChatQueuedRevisionError {
-            guard NativePersonalPrivacyRuntime.scope(socket: socket) == scope, chat?.id == currentChat.id else { return false }
-            if case .rejected(let reason, _, _) = error {
-                retainedQueuedRequests.removeValue(forKey: messageID)
-                queuedFollowupError = ["conflict", "not_queued", "inactive"].contains(reason) ? AppStrings.queuedFollowupConflict : AppStrings.queuedFollowupUnavailable
-                await refreshQueuedFollowups(force: true)
-            } else { queuedFollowupError = AppStrings.queuedFollowupConflict }
-            return false
         } catch {
-            if NativePersonalPrivacyRuntime.scope(socket: socket) == scope, chat?.id == currentChat.id { queuedFollowupError = AppStrings.queuedFollowupUnavailable }
+            guard chat?.id == currentChat.id else { return false }
+            if let message = CoreChatActions.queuedRevisionMessage(for: error) { queuedFollowupError = message }
+            if error as? CoreQueuedRevisionRejection == .conflict { await refreshQueuedFollowups(force: true) }
             return false
         }
     }
@@ -2335,7 +2292,13 @@ final class ChatViewModel: ObservableObject {
         if AnonymousFreeUsageService.shared.isAnonymousChat(currentChat.id) {
             return await sendAnonymousMessage(content, in: currentChat)
         }
-        if !broadcastToSiblings, ownsCoreWindow(currentChat.id), coreActions.isAttached {
+        // Signed-in sends and every edit run through the core. Only a send that
+        // broadcasts to sibling sub-chats (the core has no such option yet) and a
+        // send in a chat whose rows do not come from the core window (no core
+        // attached, window not bound yet) stay on the Swift pipeline below, so the
+        // sent row and its reply still render.
+        if editingMessageID != nil
+            || (!broadcastToSiblings && coreActions.isAttached && ownsCoreWindow(currentChat.id)) {
             return await sendThroughCore(
                 content, in: currentChat, piiMappings: piiMappings,
                 excludedPIIOriginals: excludedPIIOriginals, excludedPIIPlaceholders: excludedPIIPlaceholders,
@@ -2343,22 +2306,6 @@ final class ChatViewModel: ObservableObject {
         }
         let editingScope = OfflineStore.shared.scopeGeneration
         do {
-            let mutationFence = await captureMessageActionFence()
-            var editPlan: MessageEditPlan?
-            if let editingMessageID {
-                guard let mutationFence, mutationFence.chatID == currentChat.id, canMutatePersonalMessages else { throw MessageContextActionError.unavailable }
-                let complete = try await completeMessagesForAction(fence: mutationFence)
-                editPlan = try MessageEditPlan.make(messages: complete, chatID: currentChat.id, messageID: editingMessageID)
-            }
-            let retainedHistory = editPlan?.retained ?? allMessages
-            let preparedDeletion: (() async throws -> Void)? = editPlan.map { plan in
-                { [weak self] in
-                    guard let self, let mutationFence else { throw MessageContextActionError.staleContext }
-                    try self.requireMessageActionFence(mutationFence)
-                    try await MessageEditExecutor.removeSuffix(plan, validate: { try self.requireMessageActionFence(mutationFence) },
-                        remove: { try await self.deleteOwnedMessage($0, fence: mutationFence) })
-                }
-            }
             let composerEmbeds = explicitComposerEmbeds ?? pendingComposerEmbeds
             let mergedPIIMappings = sendPipeline.combinedPIIMappings(
                 textMappings: piiMappings,
@@ -2367,7 +2314,7 @@ final class ChatViewModel: ObservableObject {
             let result = try await sendPipeline.sendUserMessage(
                 content: content,
                 in: currentChat,
-                existingMessages: retainedHistory,
+                existingMessages: allMessages,
                 wsManager: wsManager,
                 chatStore: chatStore,
                 waitForInferenceReceipt: messageId != nil,
@@ -2377,14 +2324,8 @@ final class ChatViewModel: ObservableObject {
                 excludedPIIOriginals: excludedPIIOriginals,
                 excludedPIIPlaceholders: excludedPIIPlaceholders,
                 broadcastToSiblings: broadcastToSiblings,
-                createdAtOverride: editPlan?.removed.first?.createdAt,
-                beforePreparedSend: preparedDeletion,
-                validateRemoteSend: editingMessageID == nil ? nil : { [weak self] in
-                    guard let self, let mutationFence else { throw MessageContextActionError.staleContext }; try self.requireMessageActionFence(mutationFence)
-                },
                 messageId: messageId
             )
-            if editingMessageID != nil, let mutationFence { try requireMessageActionFence(mutationFence) }
             let provisionalTitle = allMessages.contains(where: { $0.role == .user })
                 ? nil
                 : ChatHeaderPresentation.provisionalTitle(
@@ -7113,32 +7054,6 @@ final class ChatSendPipeline {
             return canonicalStreamContent ?? ""
         }
         return displayContent ?? ""
-    }
-
-    func prepareQueuedRevision(state: ChatQueuedFollowupState, chat: Chat, content: String?, piiMappings: [PIIMapping],
-                               excludedOriginals: Set<String>, mode: ChatQueuedRevisionRequest.Mode,
-                               existingMessages: [Message], socket: WebSocketManager,
-                               validate: @escaping @MainActor () throws -> Void) async throws -> ChatQueuedRevisionRequest {
-        try validate()
-        let requestID = UUID().uuidString
-        let receipt = try await NativePersonalPrivacyRuntime.shared.freshForQueuedRevision(requestID: requestID, socket: socket)
-        try validate()
-        guard let content else {
-            return try ChatQueuedRevisionRequest(chatID: chat.id, messageID: state.messageID, expectedRevision: state.revision,
-                clientRequestID: requestID, mode: mode, teamID: chat.teamId)
-        }
-        guard let key = ChatKeyManager.shared.key(for: chat.id) else { throw ChatSendError.chatKeyMismatch }
-        let initial = contentAndMappingsForSend(content: content, existingMessages: existingMessages,
-            piiMappings: piiMappings, excludedPIIOriginals: excludedOriginals)
-        let filtered = try NativePersonalPrivacyRuntime.shared.filter(initial.content, receipt: receipt,
-            socket: socket, existingMappings: initial.piiMappings, excludedOriginals: excludedOriginals)
-        let ciphertext = try await crypto.encryptContent(filtered.content, key: key)
-        let mappingCiphertext = try await encryptPIIMappings(filtered.mappings, key: key)
-        try validate()
-        try NativePersonalPrivacyRuntime.shared.requireReceiptCurrent(turnID: requestID, socket: socket)
-        return try ChatQueuedRevisionRequest(chatID: chat.id, messageID: state.messageID, expectedRevision: state.revision,
-            clientRequestID: requestID, mode: mode, teamID: chat.teamId, content: filtered.content,
-            encryptedContent: ciphertext, encryptedPIIMappings: mappingCiphertext)
     }
 
     func sendPostProcessingMetadata(

@@ -66,17 +66,19 @@ final class SkillApplicationParityTests: XCTestCase {
         XCTAssertEqual(code.type, EmbedType.codeCode.rawValue)
         XCTAssertEqual(code.appId, "code")
         let normalizedCode = AppleCodeEmbedContent(data: code.rawData)
-        XCTAssertEqual(normalizedCode.language, "html")
-        XCTAssertEqual(normalizedCode.filename, "index.html")
-        XCTAssertTrue(normalizedCode.code.contains("Rendered index.html"))
+        // The default gallery code embed mirrors the web Svelte example; the
+        // hydrated index.html variant needs --dev-code-hydrated-index.
+        XCTAssertEqual(normalizedCode.language, "typescript")
+        XCTAssertEqual(normalizedCode.filename, "MyComponent.svelte")
+        XCTAssertFalse(normalizedCode.code.isEmpty)
         XCTAssertFalse(code.isAppSkillUse)
 
         let application = try XCTUnwrap(skillsById["code-application"]?.primaryEmbed)
         XCTAssertEqual(application.type, EmbedType.codeApplication.rawValue)
         XCTAssertEqual(application.appId, "code")
         XCTAssertEqual(application.status, .finished)
-        XCTAssertEqual(application.rawData?["title"]?.value as? String, "Habit Garden")
-        XCTAssertEqual(application.rawData?["framework"]?.value as? String, "vite")
+        XCTAssertEqual(application.rawData?["name"]?.value as? String, "Recipe Manager")
+        XCTAssertEqual(application.rawData?["framework"]?.value as? String, "Svelte")
         XCTAssertFalse(application.isAppSkillUse)
 
         let docs = try XCTUnwrap(skillsById["code-get-docs"]?.primaryEmbed)
@@ -738,15 +740,17 @@ final class SkillApplicationParityTests: XCTestCase {
             DevEmbedPreviewFixtures.skills(for: .pdf).first { $0.id == "pdf" }?.primaryEmbed
         )
         XCTAssertEqual(pdf.type, EmbedType.pdf.rawValue)
-        XCTAssertEqual(pdf.rawData?["filename"]?.value as? String, "Q4 2025 Report.pdf")
-        XCTAssertEqual(pdf.rawData?["page_count"]?.value as? Int, 18)
+        XCTAssertEqual(pdf.rawData?["filename"]?.value as? String, "Q4-2025-Annual-Report.pdf")
+        XCTAssertEqual(pdf.rawData?["page_count"]?.value as? Int, 42)
 
         let generatedVideo = try XCTUnwrap(
             DevEmbedPreviewFixtures.skills(for: .videos).first { $0.id == "videos-generate" }?.primaryEmbed
         )
         XCTAssertTrue(generatedVideo.isAppSkillUse)
         XCTAssertEqual(generatedVideo.type, EmbedType.videosGenerate.rawValue)
-        XCTAssertEqual(generatedVideo.rawData?["title"]?.value as? String, "Product launch promo")
+        // The generation fixture is the in-progress request: it carries no title and no prompt text.
+        XCTAssertEqual(generatedVideo.status, .processing)
+        XCTAssertEqual(generatedVideo.rawData?["prompt"]?.value as? String, "")
     }
 
     // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity,chats.rendering.inline-entity-interaction
@@ -995,14 +999,15 @@ final class SkillApplicationParityTests: XCTestCase {
     func testEmbedGalleryDataGroupsUseNamedVariantsAndExcludeStatusTemplates() throws {
         let code = try XCTUnwrap(DevEmbedPreviewFixtures.skill(forRegistryKey: "code-code"))
         let data = DevEmbedPreviewFixtures.dataVariants(for: code)
-        XCTAssertEqual(data.map(\.name), ["default", "bash", "python", "svelte", "html", "javascript", "css"])
+        XCTAssertEqual(data.map(\.name), ["default", "bash", "python", "svelte", "html", "javascript", "css",
+            "markdown-absent-filename", "markdown-json-null", "markdown-string-null", "markdown-blank-filename", "markdown-real-filename"])
         let python = try XCTUnwrap(data.first { $0.name == "python" }?.skill.primaryEmbed)
         XCTAssertEqual(python.rawData?["filename"]?.value as? String, "embed_service.py")
         XCTAssertTrue((python.rawData?["code"]?.value as? String)?.contains("async def resolve_embed") == true)
         XCTAssertTrue(DevEmbedPreviewFixtures.supportsLargeGroup(code))
         let search = try XCTUnwrap(DevEmbedPreviewFixtures.skill(forRegistryKey: "app:web:search"))
         XCTAssertFalse(DevEmbedPreviewFixtures.supportsLargeGroup(search))
-        XCTAssertEqual(DevEmbedPreviewFixtures.dataVariants(for: search).map(\.name), ["default", "cancelled"])
+        XCTAssertEqual(DevEmbedPreviewFixtures.dataVariants(for: search).map(\.name), ["default", "cancelled", "input-loading", "input-partial", "input-complete"])
         let sheet = try XCTUnwrap(DevEmbedPreviewFixtures.skill(forRegistryKey: "sheets-sheet"))
         XCTAssertTrue(DevEmbedPreviewFixtures.dataVariants(for: sheet).map(\.name).contains("mobileWide"),
                       "The web excludes the exact mobile template, not every variant whose name contains mobile.")

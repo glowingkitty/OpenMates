@@ -768,17 +768,14 @@ struct MainAppView: View {
             await nativeVoiceCalls.configure(auth: authManager, store: chatStore, socket: wsManager,
                 ordinaryInferenceActive: { chatID in
                     if NativeVoiceCallSendAdmission.shared.isPreparing(chatID: chatID) { return true }
+                    // Typed sends run through the core; its turn is the ordinary inference in flight.
+                    if CoreChatActions.shared.hasActiveTurn(in: chatID) { return true }
                     if sidebarActivity.processingIDs.contains(chatID) || ActiveChatsCoordinator.shared.policy.items[chatID] != nil { return true }
                     if !chatStore.pendingAssistantRecoveryMessageIds(in: chatID).isEmpty { return true }
                     if PendingAssistantResponseQueue.shared.all().contains(where: { $0.chatId == chatID }) { return true }
                     if PendingAssistantResponseQueue.recovery(ownerId: authManager.currentUser?.id ?? "", apiBaseURL: ServerProfile.current().apiBaseURL)
                         .all().contains(where: { $0.chatId == chatID }) { return true }
-                    return OfflineStore.shared.loadPendingActions().contains { action in
-                        guard action.actionType == "send_message", let bytes = action.payloadJSON,
-                              let fields = try? JSONSerialization.jsonObject(with: bytes) as? [String: Any]
-                        else { return false }
-                        return fields["chat_id"] as? String == chatID
-                    }
+                    return false
                 }, artifacts: { scope, callID, frame in
                     try await routeVoiceCallArtifact(scope: scope, callID: callID, frame: frame)
                 })
@@ -6702,13 +6699,15 @@ struct MainAppView: View {
               let chat = chatStore.chat(for: chatId) else { return }
         Task { @MainActor in
             do {
-                _ = try await ChatSendPipeline().sendUserMessage(
-                    content: content,
-                    in: chat,
-                    existingMessages: chatStore.messages(for: chatId),
-                    wsManager: wsManager,
-                    chatStore: chatStore
-                )
+                let acceptance = await CoreChatActions.shared.startTurn(
+                    .send(text: content, options: CoreSendMapping.options()), chatId: chat.id
+                ) { _ in }
+                switch acceptance {
+                case .accepted: break
+                case .rejected(let failure): throw failure
+                case .cancelled: throw CancellationError()
+                case .noCore: throw CoreChatActionsError.noCore
+                }
             } catch {
                 print("[MainApp] Deferred upload send failed for chat \(chatId.prefix(8)): \(error)")
             }

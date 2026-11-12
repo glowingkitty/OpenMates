@@ -10,7 +10,7 @@ struct ChatQueuedFollowupState: Equatable, Sendable, Identifiable {
     let chatID: String
     let messageID: String
     let revision: Int
-    let mode: ChatQueuedRevisionRequest.Mode
+    let mode: ChatQueuedSendMode
     let phase: Phase
     var id: String { messageID }
     var editable: Bool { phase == .queued }
@@ -19,12 +19,12 @@ struct ChatQueuedFollowupState: Equatable, Sendable, Identifiable {
         guard let chat = fields["chat_id"] as? String ?? chatID, !chat.isEmpty,
               let message = fields["message_id"] as? String ?? fields["user_message_id"] as? String, !message.isEmpty,
               let revision = fields["queue_revision"] as? Int, revision >= 1,
-              let mode = fields["queue_mode"] as? String, let mode = ChatQueuedRevisionRequest.Mode(rawValue: mode) else { return nil }
+              let mode = fields["queue_mode"] as? String, let mode = ChatQueuedSendMode(rawValue: mode) else { return nil }
         return Self(chatID: chat, messageID: message, revision: revision, mode: mode, phase: .queued)
     }
     static func from(_ message: Message) -> Self? {
         guard message.role == .user, let revision = message.queueRevision, revision >= 1,
-              let rawMode = message.queueMode ?? message.queueDispatchMode, let mode = ChatQueuedRevisionRequest.Mode(rawValue: rawMode),
+              let rawMode = message.queueMode ?? message.queueDispatchMode, let mode = ChatQueuedSendMode(rawValue: rawMode),
               message.queueDispatchStatus == "queued" || message.deliveryStatus == "queued" else { return nil }
         return Self(chatID: message.chatId, messageID: message.id, revision: revision, mode: mode, phase: .queued)
     }
@@ -151,3 +151,6 @@ final class ChatSavedSendAdmissionGate {
         } else { owned.remove(key) }
     }
 }
+
+/// Queue mode of a follow-up message waiting behind an active reply.
+enum ChatQueuedSendMode: String, Sendable { case followUp = "follow_up", steer }

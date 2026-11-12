@@ -970,7 +970,7 @@ enum WatchMessageContentSanitizer {
         case "ice": return "ICE"
         case "ic": return "IC"
         case "ec": return "EC"
-        case "ExampleCoach", "ExampleCoachzug": return "ExampleCoach"
+        case "examplecoach", "examplecoachzug": return "ExampleCoach"
         default:
             return raw.count <= 4 ? raw.uppercased() : raw.capitalized
         }
