@@ -19,7 +19,7 @@ import asyncio
 import json
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Sequence, Tuple
 
 from backend.shared.app_packages.contracts import validate_contract_results
 from backend.shared.app_packages.loader import get_installed_provider
@@ -113,17 +113,35 @@ def drop_duplicate_results(outcomes: Sequence[InstalledProviderOutcome]) -> int:
     return len(dropped)
 
 
+async def _run_one_reporting(app_id: str, skill_id: str, provider_id: str, input_item: Dict[str, Any],
+                             secrets_manager: Any,
+                             on_provider_done: Optional[Callable[[InstalledProviderOutcome], Awaitable[None]]],
+                             ) -> InstalledProviderOutcome:
+    outcome = await _run_one(app_id, skill_id, provider_id, input_item, secrets_manager)
+    if on_provider_done is not None:
+        try:
+            await on_provider_done(outcome)
+        except (RuntimeError, OSError, ValueError, TypeError) as exc:
+            logger.warning("[AppPackages] Progress callback for '%s' failed: %s", provider_id, exc)
+    return outcome
+
 async def run_installed_providers(
     app_id: str,
     skill_id: str,
     provider_ids: Sequence[str],
     input_item: Dict[str, Any],
     secrets_manager: Any,
+    on_provider_done: Optional[Callable[[InstalledProviderOutcome], Awaitable[None]]] = None,
 ) -> List[InstalledProviderOutcome]:
-    """Run the given installed providers concurrently; order follows ``provider_ids``."""
+    """Run the given installed providers concurrently; order follows ``provider_ids``.
+
+    ``on_provider_done`` is awaited as each provider finishes (before de-duplication);
+    a failing callback never fails the provider.
+    """
     unique = list(dict.fromkeys(provider_ids))
     outcomes = list(await asyncio.gather(*(
-        _run_one(app_id, skill_id, provider_id, input_item, secrets_manager) for provider_id in unique
+        _run_one_reporting(app_id, skill_id, provider_id, input_item, secrets_manager, on_provider_done)
+        for provider_id in unique
     )))
     dropped = drop_duplicate_results(outcomes)
     if dropped:

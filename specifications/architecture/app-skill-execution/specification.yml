@@ -292,6 +292,12 @@ assertions:
       and discovery controls are removed while meaningful generic historical rendering and tests remain.
     depends_on:
     - examples.provider_history
+  - id: app-skills.progress.live-status
+    type: behavior
+    must: While an app skill embed is processing and the server re-sends it with a progress object (sources total,
+      sources done, result count, increasing sequence), the card shows a translated live status line with those
+      counts, a later frame replaces an earlier one and a frame with a lower sequence is ignored. Skills that report no
+      progress keep the plain processing text.
 
 applies_to:
   rest_api: {required: true}

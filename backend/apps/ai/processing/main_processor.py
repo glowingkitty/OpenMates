@@ -239,6 +239,7 @@ from backend.apps.ai.sub_chat_orchestration import (
     validate_sub_chat_capacity,
 )
 # Import skill executor
+from backend.apps.skill_progress import open_progress_channel, skill_progress_scope
 from backend.apps.ai.processing.skill_executor import (
     execute_skill_with_multiple_requests,
     SkillCancelledException,
@@ -8928,23 +8929,31 @@ async def handle_main_processing(
                     async def execute() -> List[Dict[str, Any]]:
                         if preparation_error := candidate.get("preparation_error"):
                             raise preparation_error
+                        progress_channel = open_progress_channel(
+                            cache_service=cache_service, directus_service=directus_service,
+                            encryption_service=encryption_service, placeholder=candidate["placeholder"],
+                            chat_id=request_data.chat_id, message_id=request_data.message_id,
+                            user_id=request_data.user_id, user_id_hash=request_data.user_id_hash,
+                            task_id=task_id, external_request=bool(request_data.is_external),
+                        )
                         with ai_phase_span("tool"):
-                            return await execute_skill_with_multiple_requests(
-                                app_id=candidate["app_id"],
-                                skill_id=candidate["skill_id"],
-                                arguments=candidate["arguments"],
-                                timeout=get_skill_timeout(candidate["app_id"], candidate["skill_id"], candidate["arguments"]),
-                                chat_id=request_data.chat_id,
-                                message_id=request_data.message_id,
-                                user_id=request_data.user_id,
-                                team_id=request_data.team_id,
-                                skill_task_id=candidate["skill_task_id"],
-                                cache_service=cache_service,
-                                encryption_service=encryption_service,
-                                secrets_manager=secrets_manager,
-                                max_retries=0 if getattr(request_data, "is_anonymous", False) else 1,
-                                is_anonymous=bool(getattr(request_data, "is_anonymous", False)),
-                            )
+                            async with skill_progress_scope(progress_channel):
+                                return await execute_skill_with_multiple_requests(
+                                    app_id=candidate["app_id"],
+                                    skill_id=candidate["skill_id"],
+                                    arguments=candidate["arguments"],
+                                    timeout=get_skill_timeout(candidate["app_id"], candidate["skill_id"], candidate["arguments"]),
+                                    chat_id=request_data.chat_id,
+                                    message_id=request_data.message_id,
+                                    user_id=request_data.user_id,
+                                    team_id=request_data.team_id,
+                                    skill_task_id=candidate["skill_task_id"],
+                                    cache_service=cache_service,
+                                    encryption_service=encryption_service,
+                                    secrets_manager=secrets_manager,
+                                    max_retries=0 if getattr(request_data, "is_anonymous", False) else 1,
+                                    is_anonymous=bool(getattr(request_data, "is_anonymous", False)),
+                                )
 
                     return execute
 
@@ -10498,25 +10507,33 @@ async def handle_main_processing(
                                 raise parallel_outcome
                             results = parallel_outcome
                         else:
+                            progress_channel = open_progress_channel(
+                                cache_service=cache_service, directus_service=directus_service,
+                                encryption_service=encryption_service, placeholder=placeholder_embed_data,
+                                chat_id=request_data.chat_id, message_id=request_data.message_id,
+                                user_id=request_data.user_id, user_id_hash=request_data.user_id_hash,
+                                task_id=task_id, external_request=bool(request_data.is_external),
+                            )
                             with ai_phase_span("tool"):
                                 provider_dispatch_attempted = True
                                 delegated_primary_read.observe_attempt(tool_name)
-                                results = await execute_skill_with_multiple_requests(
-                                    app_id=app_id,
-                                    skill_id=skill_id,
-                                    arguments=skill_arguments,
-                                    timeout=90.0 if natural_workflow_authoring else get_skill_timeout(app_id, skill_id, skill_arguments),
-                                    chat_id=request_data.chat_id,
-                                    message_id=request_data.message_id,
-                                    user_id=request_data.user_id,
-                                    team_id=request_data.team_id,
-                                    skill_task_id=skill_task_id,
-                                    cache_service=cache_service,
-                                    encryption_service=encryption_service,
-                                    secrets_manager=secrets_manager,
-                                    max_retries=0 if natural_workflow_authoring or getattr(request_data, "is_anonymous", False) or (same_turn_intent_batch_id and (app_id, skill_id) in ASYNC_SKILLS) else 1,
-                                    is_anonymous=bool(getattr(request_data, "is_anonymous", False)),
-                                )
+                                async with skill_progress_scope(progress_channel):
+                                    results = await execute_skill_with_multiple_requests(
+                                        app_id=app_id,
+                                        skill_id=skill_id,
+                                        arguments=skill_arguments,
+                                        timeout=90.0 if natural_workflow_authoring else get_skill_timeout(app_id, skill_id, skill_arguments),
+                                        chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
+                                        user_id=request_data.user_id,
+                                        team_id=request_data.team_id,
+                                        skill_task_id=skill_task_id,
+                                        cache_service=cache_service,
+                                        encryption_service=encryption_service,
+                                        secrets_manager=secrets_manager,
+                                        max_retries=0 if natural_workflow_authoring or getattr(request_data, "is_anonymous", False) or (same_turn_intent_batch_id and (app_id, skill_id) in ASYNC_SKILLS) else 1,
+                                        is_anonymous=bool(getattr(request_data, "is_anonymous", False)),
+                                    )
                         results, ascii_sanitization_stats = sanitize_text_payload_for_ascii_smuggling(
                             results,
                             log_prefix=f"{log_prefix}[{app_id}.{skill_id}] ",

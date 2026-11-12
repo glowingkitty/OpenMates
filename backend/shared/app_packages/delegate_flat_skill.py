@@ -44,10 +44,12 @@ from backend.shared.app_packages.delegate_skill import (
     is_model,
     keep_selectors,
     module_models,
+    report_provider,
     select_provider_ids,
     validate_request_item,
 )
 from backend.shared.app_packages.generic_contract import PROVIDER_SELECTOR_FIELDS
+from backend.apps.skill_progress import SkillProgress
 from backend.shared.app_packages.loader import InstalledProvider
 from backend.shared.app_packages.provider_dispatch import run_installed_providers
 
@@ -220,9 +222,13 @@ class InstalledProviderFlatSkill(InstalledProviderSkill):
             return build_flat_response(error_group(None, error or "Invalid request."), providers, models)
         # Selectors are read from the call: the request model may not declare them.
         selectors = {key: kwargs[key] for key in PROVIDER_SELECTOR_FIELDS if key in kwargs}
+        provider_ids = select_provider_ids({**raw, **selectors}, providers)
+        progress = SkillProgress(self)
+        await progress.add_sources(len(provider_ids))
         outcomes = await run_installed_providers(
-            self.app_id, self.skill_id, select_provider_ids({**raw, **selectors}, providers),
+            self.app_id, self.skill_id, provider_ids,
             keep_selectors(contract_input, selectors), secrets_manager,
+            on_provider_done=report_provider(progress),
         )
         return build_flat_response(build_group(None, outcomes), providers, models,
                                    echoed_input_fields(models, contract_input))

@@ -23,6 +23,7 @@
   import { handleImageError } from '../../utils/offlineImageHandler';
   import { proxyImage, MAX_WIDTH_FAVICON } from '../../utils/imageProxy';
   import { resolveIconName } from '../../utils/iconNameResolver';
+  import { formatEmbedProgress, type EmbedProgress } from './embedProgress';
   
   /**
    * Props interface for basic info bar
@@ -58,6 +59,8 @@
     showSkillIcon?: boolean;
     /** Custom status text (overrides default status text) */
     customStatusText?: string;
+    /** Live progress of a running skill; replaces the status text while processing */
+    progress?: EmbedProgress | null;
     /** Optional snippet rendered before the title text (e.g., a small category circle for chat embeds) */
     titleIcon?: import('svelte').Snippet;
     /** Optional snippet rendered between the app icon and the status text (e.g., a play button for audio embeds) */
@@ -80,6 +83,7 @@
     faviconIsCircular = false,
     showSkillIcon = true,
     customStatusText,
+    progress = null,
     titleIcon,
     actionButton
   }: Props = $props();
@@ -174,6 +178,15 @@
 
   // Text shown in the status-value line. During hint phases shows the interaction prompt;
   // at settled it shows the custom text (or nothing, since the line collapses).
+  // Generic progress wins over a skill-specific custom text only while processing.
+  let progressActive = $derived(status === 'processing' && !!progress);
+  let progressAttrs = $derived(progressActive && progress ? {
+    'data-testid': 'embed-progress',
+    'data-sources-done': String(progress.sources_done),
+    'data-sources-total': String(progress.sources_total),
+    'data-result-count': String(progress.result_count),
+    title: formatEmbedProgress(progress, $text),
+  } : { 'data-testid': 'embed-status-value' });
   let displayedStatusText = $derived(() => {
     if (status === 'finished' && hintPhase === 'encrypted') {
       return $text('embeds.stored_encrypted');
@@ -181,6 +194,7 @@
     if (status === 'finished' && hintPhase !== 'settled') {
       return isMobile ? $text('embeds.tap_to_show_details') : $text('embeds.click_to_show_details');
     }
+    if (progressActive && progress) return formatEmbedProgress(progress, $text);
     if (customStatusText) return customStatusText;
     if (status === 'processing') return $text('common.processing');
     if (status === 'cancelled') return $text('embeds.cancelled');
@@ -231,7 +245,7 @@
         <span>{skillName}</span>
       </span>
       {#if showStatus && !statusValueCollapsed}
-        <span class="result-identity-status" data-testid="embed-status-value">{displayedStatusText()}</span>
+        <span class="result-identity-status" {...progressAttrs}>{displayedStatusText()}</span>
       {/if}
     </div>
     <div class="result-identity-actions">
@@ -273,7 +287,7 @@
         <div class="status-value-wrapper" class:collapsed={statusValueCollapsed}>
           <span
             class="status-value"
-            data-testid="embed-status-value"
+            {...progressAttrs}
             class:processing-shimmer={status === 'processing'}
             class:fading={statusValueFading}
           >{displayedStatusText()}</span>
@@ -334,7 +348,7 @@
         <div class="status-value-wrapper" class:collapsed={statusValueCollapsed}>
           <span
             class="status-value"
-            data-testid="embed-status-value"
+            {...progressAttrs}
             class:processing-shimmer={status === 'processing'}
             class:fading={statusValueFading}
           >{displayedStatusText()}</span>

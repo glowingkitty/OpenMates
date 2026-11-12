@@ -29,17 +29,19 @@ import logging
 from dataclasses import dataclass
 from functools import lru_cache
 from types import ModuleType
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Type, get_args, get_origin
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Sequence, Tuple, Type, get_args, get_origin
 
 from pydantic import BaseModel, ValidationError
 
 from backend.apps.base_skill import BaseSkill
+from backend.apps.skill_progress import SkillProgress
 from backend.shared.app_packages.generic_contract import (
     GENERIC_CONTRACTS,
     PROVIDER_SELECTOR_FIELDS,
 )
 from backend.shared.app_packages.loader import InstalledProvider, get_installed_providers
 from backend.shared.app_packages.provider_dispatch import InstalledProviderOutcome, run_installed_providers
+from backend.shared.app_packages.web_source import delegate_web_kind, run_web_source
 from backend.shared.app_packages.result_photo_relevance import (
     CRITERIA_FIELD,
     rank_results_by_photos,
@@ -231,6 +233,15 @@ def select_provider_ids(item: Dict[str, Any], providers: Sequence[InstalledProvi
     return list(dict.fromkeys(chosen)) or [provider.provider_id for provider in providers]
 
 
+def names_providers(item: Any) -> bool:
+    """True when the request item names the providers to use."""
+    if not isinstance(item, dict):
+        return False
+    return any(isinstance(value, str) and value.strip().casefold() not in ("", "auto")
+               for field in PROVIDER_SELECTOR_FIELDS
+               for value in (item[field] if isinstance(item.get(field), list) else [item.get(field)]))
+
+
 def keep_selectors(contract_input: Dict[str, Any], raw: Dict[str, Any]) -> Dict[str, Any]:
     """Contract input plus the selector fields of the call that the item model dropped.
 
@@ -297,6 +308,17 @@ def build_response(groups: List[Dict[str, Any]], providers: Sequence[InstalledPr
     return response
 
 
+def report_provider(progress: Optional[SkillProgress]) -> Optional[Callable[[InstalledProviderOutcome], Awaitable[None]]]:
+    """``on_provider_done`` callback counting each finished provider on ``progress``."""
+    if progress is None:
+        return None
+
+    async def report(outcome: InstalledProviderOutcome) -> None:
+        await progress.source_done(len(outcome.results))
+
+    return report
+
+
 class InstalledProviderSkill(BaseSkill):
     """Serve a paused built-in skill through its installed ``skill.requests@1`` providers."""
 
@@ -316,7 +338,9 @@ class InstalledProviderSkill(BaseSkill):
         return [p for p in get_installed_providers(self.app_id, self.skill_id) if p.contract in GENERIC_CONTRACTS]
 
     async def _serve_item(self, index: int, raw: Any, models: OriginalSkillModels,
-                          providers: Sequence[InstalledProvider], secrets_manager: Any) -> Dict[str, Any]:
+                          providers: Sequence[InstalledProvider], secrets_manager: Any,
+                          progress: Optional[SkillProgress] = None) -> Dict[str, Any]:
+        """Serve one request item. ``progress`` counts this item's sources across the whole call."""
         request_id = raw.get("id") if isinstance(raw, dict) and raw.get("id") is not None else index + 1
         if index >= MAX_REQUESTS_PER_CALL:
             return error_group(request_id, TOO_MANY_REQUESTS_ERROR)
@@ -327,15 +351,32 @@ class InstalledProviderSkill(BaseSkill):
             return error_group(request_id, error or "Invalid request.")
         ranked = wants_photo_ranking(self.app_id, self.skill_id, contract_input)
         provider_input = keep_selectors(contract_input, raw)
-        outcomes = await run_installed_providers(
-            # Selectors are read from the raw item: the item model may not declare them.
-            self.app_id, self.skill_id, select_provider_ids(raw, providers),
+        # Selectors are read from the raw item: the item model may not declare them.
+        provider_ids = select_provider_ids(raw, providers)
+        # The web is searched too unless the caller named the providers to use.
+        web_kind = None if names_providers(raw) else delegate_web_kind(self.app_id, self.skill_id)
+        if progress is not None:
+            await progress.add_sources(len(provider_ids) + int(web_kind is not None))
+        searches: List[Awaitable[Any]] = [run_installed_providers(
+            self.app_id, self.skill_id, provider_ids,
             widen_candidate_pool(provider_input) if ranked else provider_input, secrets_manager,
-        )
+            on_provider_done=report_provider(progress),
+        )]
+        if web_kind is not None:
+            searches.append(self._search_web(web_kind, contract_input, secrets_manager, progress))
+        outcomes, *web_outcomes = await asyncio.gather(*searches)
+        outcomes = [*outcomes, *web_outcomes]
         group = build_group(request_id, outcomes)
         if ranked and group["results"]:
             await self._rank_group(group, contract_input, secrets_manager)
         return group
+
+    async def _search_web(self, kind: str, contract_input: Dict[str, Any], secrets_manager: Any,
+                          progress: Optional[SkillProgress]) -> InstalledProviderOutcome:
+        outcome = await run_web_source(kind, contract_input, secrets_manager)
+        if progress is not None:
+            await progress.source_done(len(outcome.results))
+        return outcome
 
     async def _rank_group(self, group: Dict[str, Any], contract_input: Dict[str, Any], secrets_manager: Any) -> None:
         """Order the group by criteria fit judged on result photos; then apply the requested limit."""
@@ -353,7 +394,9 @@ class InstalledProviderSkill(BaseSkill):
         models = resolve_original_skill_models(self._original_class_path())
         providers = self._providers()
         items = [requests] if isinstance(requests, dict) else list(requests or [])
+        progress = SkillProgress(self)
         groups = list(await asyncio.gather(*(
-            self._serve_item(index, item, models, providers, secrets_manager) for index, item in enumerate(items)
+            self._serve_item(index, item, models, providers, secrets_manager, progress)
+            for index, item in enumerate(items)
         )))
         return build_response(groups, providers, models.response_defaults, models.provider_objects)

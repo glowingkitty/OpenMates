@@ -930,7 +930,9 @@ class EmbedService(SlidesEmbedMixin):
                 "embed_id": embed_id,
                 "embed_reference": embed_reference,
                 "embed_ref": placeholder_content["embed_ref"],
-                "skill_task_id": skill_task_id  # Return skill_task_id for cancellation tracking
+                "skill_task_id": skill_task_id,  # Return skill_task_id for cancellation tracking
+                # Original placeholder content: live progress frames re-send it plus a progress field
+                "placeholder_content": placeholder_content,
             }
 
         except Exception as e:

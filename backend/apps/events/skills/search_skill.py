@@ -1,5 +1,6 @@
 """Search documented official conference schedules; other discovery is unavailable."""
-from datetime import datetime
+import asyncio
+from datetime import datetime, timezone
 import logging
 import os
 import re
@@ -14,7 +15,10 @@ from backend.apps.events.providers import pretalx as pretalx_provider
 from backend.apps.events.provider_aliases import PROVIDER_ALIASES, VALID_PROVIDERS
 from backend.shared.app_packages.contracts import events_search_input
 from backend.shared.app_packages.loader import get_installed_providers
-from backend.shared.app_packages.provider_dispatch import run_installed_providers
+from backend.apps.skill_progress import SkillProgress
+from backend.shared.app_packages.contracts import validate_events_search_result
+from backend.shared.app_packages.provider_dispatch import InstalledProviderOutcome, run_installed_providers
+from backend.shared.app_packages.web_source import KIND_EVENT, WEB_PROVIDER_ID, run_web_source
 from backend.shared.python_utils.search_relevance import (
     MAX_RELEVANCE_CRITERIA_CHARS, normalize_url_for_deduplication,
     stable_deduplicate_candidates, normalize_relevance_criteria, rank_search_candidates,
@@ -834,9 +838,10 @@ class SearchSkill(BaseSkill):
         errors: List[str] = []
         warnings: List[str] = []
         providers: List[str] = []
+        progress = SkillProgress(self)
         for item in valid:
             identity, events, message, total, dispatched, provider_warnings = await self._process_single_search_request(
-                item, item["id"], secrets_manager)
+                item, item["id"], secrets_manager, progress=progress)
             providers.extend(provider for provider in dispatched if provider not in providers)
             # Provider ids that contributed results; billing re-checks them
             # against the server's installation registry.
@@ -855,9 +860,31 @@ class SearchSkill(BaseSkill):
         return SearchResponse(results=groups, provider=provider, providers=providers,
                               error="; ".join(errors) or None, warnings=warnings)
 
+    async def _search_web(self, req: Dict[str, Any], secrets_manager: Any, progress: Optional[SkillProgress],
+                          *, past_events: bool) -> InstalledProviderOutcome:
+        """Events found on public web pages, as contract-valid results labelled with their source page."""
+        outcome = await run_web_source(KIND_EVENT, req, secrets_manager)
+        today = datetime.now(timezone.utc).date().isoformat()
+        kept: List[Dict[str, Any]] = []
+        for row in outcome.results:
+            event = validate_events_search_result(row)
+            last_day = str(row.get("date_end") or row.get("date_start") or "")[:10]
+            if event is None or (not past_events and last_day < today):
+                continue
+            kept.append({**event, **{key: row[key] for key in
+                                     ("provider", "provider_id", "source_page_url", "source_page_title")}})
+        outcome.results = kept
+        if progress is not None:
+            await progress.source_done(len(kept))
+        return outcome
+
     async def _process_single_search_request(self, req: Dict[str, Any], request_id: Any,
-                                             secrets_manager: Any = None, **kwargs: Any) -> Tuple:
-        """Fetch and validate one bounded candidate pool from built-in and installed providers."""
+                                             secrets_manager: Any = None, progress: Optional[SkillProgress] = None,
+                                             **kwargs: Any) -> Tuple:
+        """Fetch and validate one bounded candidate pool from built-in and installed providers.
+
+        ``progress`` counts the sources of this item (built-in conference source plus installed providers).
+        """
         choices = req.get("providers") or [req.get("provider") or "auto"]
         normalized = [_PROVIDER_ALIASES.get(str(value).lower().strip(), str(value).lower().strip())
                       for value in choices]
@@ -882,6 +909,14 @@ class SearchSkill(BaseSkill):
         total = 0
         dispatched: List[str] = []
         failures: List[str] = []
+        # General discovery (no known conference) on a server with installed event providers also
+        # searches public web pages; the caller naming providers switches that off.
+        run_web = bool(query) and not conference and "auto" in normalized and bool(selected_installed)
+        if progress is not None:
+            await progress.add_sources(int(run_builtin) + len(selected_installed) + int(run_web))
+        web_search = asyncio.create_task(self._search_web(
+            {**req, "query": query}, secrets_manager, progress, past_events=bool(req.get("past_events")),
+        )) if run_web else None
         if run_builtin:
             dispatched.append(_BUILTIN_PROVIDER)
             builtin_events, total, error = await self._search_pretalx(
@@ -891,16 +926,30 @@ class SearchSkill(BaseSkill):
             if error:
                 failures.append("Conference schedule search is unavailable.")
             events.extend(builtin_events)
+            if progress is not None:
+                await progress.source_done(len(builtin_events))
         if selected_installed:
+            async def provider_done(outcome: InstalledProviderOutcome) -> None:
+                if progress is not None:
+                    await progress.source_done(len(outcome.results))
+
             outcomes = await run_installed_providers(
                 _APP_ID, _SKILL_ID, selected_installed,
-                events_search_input({**req, "query": query or None, "count": target}), secrets_manager)
+                events_search_input({**req, "query": query or None, "count": target}), secrets_manager,
+                on_provider_done=provider_done)
             for outcome in outcomes:
                 dispatched.append(outcome.provider_id)
                 events.extend(outcome.results)
                 total += len(outcome.results)
                 if outcome.error:
                     failures.append(outcome.error)
+        if web_search is not None:
+            outcome = await web_search
+            dispatched.append(WEB_PROVIDER_ID)
+            events.extend(outcome.results)
+            total += len(outcome.results)
+            if outcome.error:
+                failures.append(outcome.error)
         if failures and not events:
             return request_id, [], " ".join(failures), 0, dispatched, []
         results = []

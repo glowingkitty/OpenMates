@@ -82,6 +82,9 @@ def get_skill_timeout(app_id: str, skill_id: str, arguments: Dict[str, Any]) -> 
     # parallel batch can wait up to SEARCH_SLOT_BUDGET_SECONDS before its call.
     if (app_id, skill_id) == ("nutrition", "search_recipes"):
         return 60.0
+    # General event discovery also reads public web pages and extracts events from them.
+    if (app_id, skill_id) == ("events", "search"):
+        return 40.0
     if (app_id, skill_id) == ("travel", "search_stays"):
         # Ranking stays by their photos adds bounded image loading and decision time.
         return 45.0 if _names_relevance_criteria(arguments) else DEFAULT_SKILL_TIMEOUT

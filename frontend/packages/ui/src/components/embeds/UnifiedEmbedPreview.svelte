@@ -45,6 +45,7 @@
   const sourceChatId = sourceChatContext?.exampleChatId ?? sourceChatContext?.lookupChatId ?? sourceChatContext?.chatId ?? null;
   import { onMount, onDestroy, getContext} from 'svelte';
   import BasicInfosBar from './BasicInfosBar.svelte';
+  import { nextEmbedProgress, parseEmbedProgress, type EmbedProgress } from './embedProgress';
   import InputEmbedThumbnails from './InputEmbedThumbnails.svelte';
   import SavedEmbedPreviewAction from './SavedEmbedPreviewAction.svelte';
   import { chatSyncService } from '../../services/chatSyncService';
@@ -175,6 +176,9 @@
   // Once the store says "finished", the $effect must NOT revert to statusProp
   // (which may still be "processing" from the HTML attribute baked during streaming).
   let storeResolved = $state(false);
+
+  // Live progress from repeated "processing" frames; the highest seq wins.
+  let progressState = $state<EmbedProgress | null>(null);
 
   // Use local status as the source of truth (allows updates from embed events)
   let status = $derived(localStatus ?? statusProp ?? 'processing');
@@ -311,6 +315,9 @@
           const decodedContent = await decodeToonContent(embedData.content);
           if (decodedContent) {
             needsContentRecovery = false; // Content delivered — cancel pending retries
+            if (embedData.status === 'processing') {
+              progressState = nextEmbedProgress(progressState, parseEmbedProgress(decodedContent.progress));
+            }
             storedInputEmbedIds = Array.isArray(decodedContent.input_embed_ids)
               ? decodedContent.input_embed_ids.filter((id): id is string => typeof id === 'string') : [];
             // Recovery can retain stale outer status metadata. The decrypted
@@ -1006,7 +1013,7 @@
       <div class="content-result-layout">
         <BasicInfosBar {appId} {skillId} {skillIconName} {appIconName} {status} {skillName} {taskId}
           isMobile={useMobileLayout} presentation="content" onStop={handleStop} {showStatus}
-          {faviconUrl} {faviconIsCircular} {customStatusText} {titleIcon} actionButton={specializedHeaderActions} />
+          {faviconUrl} {faviconIsCircular} {customStatusText} progress={progressState} {titleIcon} actionButton={specializedHeaderActions} />
         <div class="details-section" class:full-width-image={hasFullWidthImage}>
           {#if inputEmbedIds.length}<InputEmbedThumbnails {inputEmbedIds} />{/if}
           {#if details}
@@ -1035,6 +1042,7 @@
         {faviconIsCircular}
         showSkillIcon={shouldShowSkillIcon}
         customStatusText={customStatusText}
+        progress={progressState}
         {titleIcon}
         {actionButton}
       />
@@ -1073,6 +1081,7 @@
         {faviconIsCircular}
         showSkillIcon={shouldShowSkillIcon}
         customStatusText={customStatusText}
+        progress={progressState}
         {titleIcon}
         actionButton={previewTools ? specializedHeaderActions : actionButton}
       />

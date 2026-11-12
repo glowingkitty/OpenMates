@@ -1039,6 +1039,7 @@
         "teams-chat-collaboration-real.spec.ts",
         "vector-graphic-chat.spec.ts",
         "design-embroidery-chat.spec.ts",
+        "skill-search-live-progress-chat.spec.ts",
         "videos-generate-chat.spec.ts"
       ]
     },
@@ -1098,6 +1099,7 @@
         "components/interactive-html-visuals.spec.ts",
         "components/result-catalog-design.spec.ts",
         "components/media-result-layout.spec.ts",
+        "components/embed-processing-progress.spec.ts",
         "components/embed-fullscreen-followup.spec.ts",
         "components/result-travel-event-design.spec.ts",
         "components/result-shopping-lifestyle-design.spec.ts",

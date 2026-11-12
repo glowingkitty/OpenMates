@@ -18,6 +18,7 @@ scope:
   - A dedicated runner container without OpenMates secrets, databases or internal service access.
   - Operator-configured provider credentials using the existing server environment commands.
   - Credit behavior for request groups served only by installed providers.
+  - Public web pages as an additional source of product search and event search on servers with installed providers.
   excludes:
   - Packages installed by ordinary users or teams, sandboxed per-user execution and Project imports.
   - New standalone skills, focus modes or complete custom apps contributed by packages (reported as unsupported).
@@ -130,6 +131,24 @@ assertions:
   - models.ProviderInvocation
   - examples.contract
   - models.GenericSkillRequestsContract
+- id: instance-app-packages.web-source
+  type: behavior
+  must: On a server with installed providers for product search or event search, a request item that does not
+    name providers is also answered from public web pages. A web search finds candidate pages, the robots-aware
+    public reader fetches a bounded number of them and a small model extracts results of the skill's result
+    shape from each page; only the item's search facts (query, place, dates, criteria, country) leave the
+    server. Page text and model output are untrusted. A web result is kept only when its title is written on
+    its page (and, for an event, the year and day of its date); a price or fee only when that text appears
+    verbatim on the page; a link or picture only when that URL appears on the page, otherwise the result links
+    to the page it was found on. Every web result names its source page and carries the provider id web, and
+    passes through the same merge, ranking, limit and progress reporting as provider results. Event search
+    uses the web only for general discovery, never for a known conference schedule, and drops past events
+    unless they were requested. A denied, unreadable or slow page, an invalid model answer or an unavailable
+    web search only reduces the web results or adds a warning; it never fails the request or other sources.
+    A request item that names providers is answered by those providers only.
+  depends_on:
+  - models.ProviderInvocation
+  - examples.contract
 - id: instance-app-packages.isolated-runner
   type: security
   must: Installed package code executes only inside the dedicated app-packages-runner container. That container

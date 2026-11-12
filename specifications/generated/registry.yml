@@ -11,7 +11,7 @@ specifications:
     version: 1
     status: draft
     path: architecture/app-skill-execution
-    fingerprint: adea85c020b5e66bb0810d93d4ecb31fb7c33578a4ca6bb658ece775c69e6dac
+    fingerprint: fa3fc1d925dd6efe8d38d6b4dbb5f442500f04b1f99b6681435c21cdd2341bc8
     required_applies_to:
     - rest_api
     - cli
@@ -724,7 +724,7 @@ specifications:
     version: 1
     status: draft
     path: features/instance-app-packages
-    fingerprint: 55bd6e74ea03f3b50b13db7d834b3464a690be6812a458f7ae6b071cd6136032
+    fingerprint: 77fa07b87b388dd76a7bead771bdcc4f38abee836899ba2bcf0f67bbe4ba617d
     required_applies_to:
     - rest_api
     - cli
@@ -1426,6 +1426,18 @@ assertions:
     specification_id: architecture.app-skill-execution
     type: parity
     fingerprint: d1d082f31bfe0ff16861141490ebd308fc9dcb43ba791446a5f47847291f0f30
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  app-skills.progress.live-status:
+    specification: architecture.app-skill-execution@1
+    specification_id: architecture.app-skill-execution
+    type: behavior
+    fingerprint: 74017c04540c00d5f52ca5e4bd913b24224a37bad09f16dce0c812b76f0a4ccd
     required_applies_to:
     - rest_api
     - cli
@@ -9427,6 +9439,15 @@ assertions:
     specification_id: feature.instance-app-packages
     type: behavior
     fingerprint: e2c929df2457fab4663d67f8325886c7b0c4c8219589ce0ec73fa169e8e11bac
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  instance-app-packages.web-source:
+    specification: feature.instance-app-packages@1
+    specification_id: feature.instance-app-packages
+    type: behavior
+    fingerprint: 44111b7562bde45a6b686eb2c5b1eebfe4f332ac1d1979206cfbd086a666cbe9
     required_applies_to:
     - rest_api
     - cli

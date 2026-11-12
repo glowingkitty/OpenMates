@@ -10,6 +10,8 @@ import time # For generating timestamps
 import logging
 import hashlib
 
+from backend.apps.skill_progress import publish_current_progress
+
 # Import shared utilities
 from backend.shared.python_utils.billing_utils import calculate_total_credits, MINIMUM_CREDITS_CHARGED
 
@@ -152,6 +154,14 @@ class BaseSkill:
         Should handle the core logic of the skill.
         """
         raise NotImplementedError("Each skill must implement the 'execute' method.")
+
+    async def publish_progress(self, *, sources_total: int, sources_done: int, result_count: int) -> None:
+        """Report live progress to the processing embed of this call (see ``backend/apps/skill_progress.py``).
+
+        A silent no-op without a chat placeholder or for external API requests; never raises.
+        """
+        await publish_current_progress(sources_total=sources_total, sources_done=sources_done,
+                                       result_count=result_count)
 
     @classmethod
     def resolve_preview_metadata(cls, request: Dict[str, Any]) -> Dict[str, Any]:

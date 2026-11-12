@@ -282,6 +282,24 @@ concurrently, at most 10 items per call:
    `unavailable`) and the group gets `relevance_ranking` (`photos_and_facts` or
    `unavailable`). Any failure (no photos, download or decision error, time
    limit) keeps the provider order.
+7. Web source (`web_source`, `backend/shared/python_utils/web_result_extraction.py`):
+   for `shopping.search_products` and general `events.search` discovery, a request
+   item that names no providers is also answered from public web pages. One web
+   search finds up to five pages, the robots-aware public reader fetches them
+   and a small model (chosen by `backend/scripts/benchmark_web_result_extraction.py`)
+   extracts results of a strict schema from each page. Rows are rebuilt field by
+   field: the title must be written on the page (events: also year and day of
+   the date), a price or fee is kept only when its text appears verbatim, a link
+   or picture only when that URL appears on the page (else the result links to
+   its source page). Results carry `provider_id: web`, the site name as
+   `provider`, `source_page_url` and `source_page_title`, and go through the same
+   merge, photo ranking, limit and progress frames. Failures only reduce the web
+   results or add a warning.
+
+**Live progress.** While a chat call runs, the delegate and the events search
+report each finished source through `backend/apps/skill_progress.py`: the
+processing embed is re-sent with `progress` (`sources_total`, `sources_done`,
+`result_count`, `seq`), never persisted.
 
 **Flat schemas** (`InstalledProviderFlatSkill`, set as `class_path` instead).
 The tool input (call arguments named by the public `tool_schema` properties;
