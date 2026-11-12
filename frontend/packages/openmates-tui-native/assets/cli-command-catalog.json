@@ -468,6 +468,7 @@
       "command",
       "confidence",
       "confirm",
+      "confirm-machine-project",
       "constraints",
       "context",
       "corrected",
@@ -476,6 +477,7 @@
       "criterion",
       "cursor",
       "decisions",
+      "decline-machine-project",
       "delivery-id",
       "description",
       "dry-run",
@@ -511,6 +513,7 @@
       "lifecycle",
       "lifecycle-status",
       "limit",
+      "machine-project-host",
       "max-entries",
       "message",
       "newest-first",
@@ -3362,6 +3365,18 @@
       }
     },
     {
+      "long": "confirm-machine-project",
+      "arity": "switch",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/cli/send_machine.rs",
+          "line": 1
+        }
+      ]
+    },
+    {
       "long": "confirm-restore",
       "arity": "switch",
       "repeatable": true,
@@ -3923,18 +3938,6 @@
       ]
     },
     {
-      "long": "host",
-      "arity": "value",
-      "repeatable": true,
-      "sensitive": false,
-      "sources": [
-        {
-          "path": "frontend/packages/openmates-tui-native/src/cli/projects/remote_create.rs",
-          "line": 1
-        }
-      ]
-    },
-    {
       "long": "daily",
       "arity": "value",
       "repeatable": true,
@@ -4059,6 +4062,18 @@
         {
           "path": "frontend/packages/openmates-cli/src/cli.ts",
           "line": 2546
+        }
+      ]
+    },
+    {
+      "long": "decline-machine-project",
+      "arity": "switch",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/cli/send_machine.rs",
+          "line": 1
         }
       ]
     },
@@ -6649,6 +6664,18 @@
           "path": "frontend/packages/openmates-cli/src/cli.ts",
           "line": 14583,
           "symbol": "printHelp"
+        }
+      ]
+    },
+    {
+      "long": "host",
+      "arity": "value",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/cli/projects/remote_create.rs",
+          "line": 1
         }
       ]
     },
@@ -11090,6 +11117,18 @@
           "path": "frontend/packages/openmates-cli/src/generated/appSkills.ts",
           "line": 1,
           "symbol": "APP_SKILL_METADATA:music/generate"
+        }
+      ]
+    },
+    {
+      "long": "machine-project-host",
+      "arity": "value",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/cli/send_machine.rs",
+          "line": 1
         }
       ]
     },
@@ -32018,6 +32057,7 @@
       "usages": [
         "chats send --chat abc \"@best what's the weather?\"",
         "chats send [--chat <id>] [--slug <slug>] [--project <slug|id>] [--incognito] <message> [--json] [--auto-approve] [--auto-approve-memories] [--accept-task-proposals] [--no-pii-detection] [--no-task-update-jobs]",
+        "chats send <message> [--chat <id>] (--confirm-machine-project | --machine-project-host <device-hash> | --decline-machine-project)  # explicit confirmation to create a Project folder on your machine",
         "chats send --chat <id> --followup <n> [--json] [--auto-approve] [--auto-approve-memories]"
       ],
       "positionals": [
@@ -32036,10 +32076,13 @@
         "auto-approve",
         "auto-approve-memories",
         "chat",
+        "confirm-machine-project",
+        "decline-machine-project",
         "followup",
         "help",
         "incognito",
         "json",
+        "machine-project-host",
         "no-pii-detection",
         "no-task-update-jobs",
         "profile",
@@ -64554,7 +64597,7 @@
   ],
   "coverage": {
     "command_patterns": 754,
-    "flags": 627,
+    "flags": 630,
     "native_handlers_partial": 749,
     "unsupported": 5,
     "feature_complete": false

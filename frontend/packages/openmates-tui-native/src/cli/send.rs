@@ -232,6 +232,9 @@ impl Presentation {
             SendStatus::WaitingForUser => output.stderr = "OpenMates needs more input to continue. Rerun with --json to inspect the structured waiting state.\n".into(),
             SendStatus::Completed=>{},
         }
+        if outcome.project_creations.iter().any(|card| card["status"] == "confirmation_required") {
+            output.stderr.push_str(super::send_machine::HINT);
+        }
         Ok(output)
     }
 }
@@ -291,6 +294,9 @@ fn options(invocation: &Invocation, interactive: bool) -> Result<SendOptions, Cl
         "response-timeout-seconds",
         "no-pii-detection",
     ];
+    if invocation.command_path() == "chats send" {
+        allowed.extend(super::send_machine::FLAGS);
+    }
     if interactive {
         allowed.extend(["question-json", "answer-json"]);
     }
@@ -327,6 +333,9 @@ fn options(invocation: &Invocation, interactive: bool) -> Result<SendOptions, Cl
         task_update_jobs: !invocation.boolean("no-task-update-jobs"),
         // The CLI renders the created-Project card and offers `projects undo-create`.
         project_create_requests: true,
+        // Without --confirm-machine-project / --machine-project-host / --decline-machine-project
+        // a one-shot send cannot ask, so the request is answered as unavailable.
+        machine_project: Some(super::send_machine::decision(invocation)?),
         // Assistant Project file tool calls run in this chat; `--auto-approve` also
         // approves always-ask file writes, otherwise they are declined with a notice.
         project_file_jobs: true,

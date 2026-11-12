@@ -41,11 +41,12 @@ PROJECT_CREATE_FOCUS_ACTIVATED_EVENT = "focus_mode_activated"
 PROJECT_CREATE_WRITE_MODE = "apply_and_show"
 # Application kind -> dedicated Project subfolder for its files.
 PROJECT_CREATE_KINDS: dict[str, str] = {"web_app": "web-app", "native_app": "native-app"}
-PROJECT_CREATE_RESULT_STATUSES = frozenset({"created", "failed", "undone"})
+PROJECT_CREATE_RESULT_STATUSES = frozenset({"created", "failed", "undone", "confirmed", "declined"})
+PROJECT_CREATE_LOCATION_MACHINE = "machine"
 # A reported Project must be new for this request, not an older one rebound.
 PROJECT_CREATE_MAX_AGE_SKEW_SECONDS = 10 * 60
 _REQUEST_ID_RE = re.compile(r"^project-create-request-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
-_FAILURE_CODE_RE = re.compile(r"^[A-Z0-9_]{1,64}$")
+_FAILURE_CODE_RE = re.compile(r"^[A-Za-z0-9_]{1,64}$")
 MAX_PROJECT_NAME_CHARS = 120
 MAX_PROJECT_DESCRIPTION_CHARS = 400
 
@@ -61,7 +62,7 @@ def new_project_create_request_id() -> str:
 def build_project_create_action(
     *, request_id: str, name: str, chat_id: str | None, message_id: str | None,
     team_id: str | None, origin: str, kind: str | None = None, description: str = "",
-    created_at: float | None = None,
+    created_at: float | None = None, location: str = "cloud", machine_hint: str = "",
 ) -> dict[str, Any]:
     """Return the ``pending_client_action`` for one client-executed creation.
 
@@ -75,8 +76,11 @@ def build_project_create_action(
     project_name = " ".join(str(name or "").split())[:MAX_PROJECT_NAME_CHARS]
     if not project_name:
         raise ValueError("Project create requires a name")
+    if location not in {"cloud", PROJECT_CREATE_LOCATION_MACHINE}:
+        raise ValueError("Unsupported Project location")
+    on_machine = location == PROJECT_CREATE_LOCATION_MACHINE
     now = time.time() if created_at is None else created_at
-    return {
+    action = {
         "contract": PROJECT_CREATE_CONTRACT,
         "version": PROJECT_CREATE_CONTRACT_VERSION,
         "request_id": request_id,
@@ -96,6 +100,15 @@ def build_project_create_action(
         "expires_at": int(now + PROJECT_CREATE_REQUEST_TTL),
         "notification_queued": False,
     }
+    if on_machine:
+        # Nothing is created before the user confirms: the client asks, lists
+        # the user's machines and answers confirmed, declined or failed.
+        action.update({
+            "location": location, "confirmation_required": True,
+            "machine_hint": " ".join(str(machine_hint or "").split())[:60],
+            "focus": {"activate": "after_confirmation", "countdown_seconds": 0},
+        })
+    return action
 
 
 def outbound_create_event(payload: Any) -> dict[str, Any] | None:
@@ -122,6 +135,18 @@ def parse_project_create_result(payload: Any) -> dict[str, Any]:
             or status not in PROJECT_CREATE_RESULT_STATUSES):
         raise ProjectWriteAuthorizationError("INVALID_PROJECT_CREATE_RESULT", status_code=422)
     result: dict[str, Any] = {"chat_id": chat_id, "request_id": request_id, "status": status}
+    if status == "declined":
+        return result
+    if status == "confirmed":
+        # Machine creation: the client created the encrypted Project and the host
+        # created the folder. Verified like a cloud creation, plus the source.
+        machine = {key: payload.get(key) for key in ("source_id", "path", "folder_name")}
+        limits = {"source_id": 128, "path": 1024, "folder_name": 255}
+        if any(not isinstance(machine[key], str) or not 0 < len(machine[key]) <= limit
+               for key, limit in limits.items()):
+            raise ProjectWriteAuthorizationError("INVALID_PROJECT_CREATE_RESULT", status_code=422)
+        result["machine"] = machine
+        status = "created"
     if status == "created":
         project_id, focus_id = payload.get("project_id"), payload.get("focus_id")
         try:
@@ -131,14 +156,63 @@ def parse_project_create_result(payload: Any) -> dict[str, Any]:
         if not isinstance(focus_id, str):
             raise ProjectWriteAuthorizationError("INVALID_PROJECT_CREATE_RESULT", status_code=422)
         result["focus_id"] = normalize_focus_id(focus_id)
+        result["status"] = "created"
     else:
         code = payload.get("error_code")
         result["error_code"] = code if isinstance(code, str) and _FAILURE_CODE_RE.fullmatch(code) else None
     return result
 
 
+MACHINE_FAILURE_MEANINGS: dict[str, str] = {
+    "no_machine_host": "no machine is connected through remote access",
+    "creation_not_configured": ("the machine owner has not set a folder for new Projects; they can set one with "
+                                "the CLI command `openmates remote-access new-projects-folder set <path>`"),
+    "invalid_project_name": "the Project name cannot be used as a folder name",
+    "creation_folder_unavailable": "the configured folder for new Projects is not available on the machine",
+    "identity_missing": "the machine could not confirm who is asking",
+    "target_exists": "a folder with that name already exists on the machine",
+}
+
+
+def require_report_matches_location(pending: dict[str, Any], report: dict[str, Any]) -> None:
+    """Machine requests accept only confirmed, declined or failed; cloud ones never those."""
+    machine_report = report["status"] == "declined" or "machine" in report
+    if pending.get("location") == PROJECT_CREATE_LOCATION_MACHINE:
+        valid = machine_report or report["status"] == "failed"
+    else:
+        valid = not machine_report
+    if not valid:
+        raise ProjectWriteAuthorizationError("INVALID_PROJECT_CREATE_RESULT", status_code=422)
+
+
+def machine_continuation_result(report: dict[str, Any]) -> dict[str, Any]:
+    """Tool-completion row for a machine request. Contains no Project name."""
+    if report["status"] == "declined":
+        return {"project_created": False, "access_granted": False, "status": "declined",
+                "message": ("The user declined creating the Project on their machine. Nothing was created. Do not "
+                            "use Project file tools in this turn; answer in the chat instead.")}
+    if report["status"] == "created":
+        machine = report["machine"]
+        return {
+            "project_id": report["project_id"], "project_created": True, "access_granted": True,
+            "write_mode": PROJECT_CREATE_WRITE_MODE, "location": "machine", "folder_name": machine["folder_name"],
+            "message": ("A new Project was created on the user's machine (folder "
+                        f"`{machine['folder_name']}`, a Git repository on branch main) and its Work on focus is "
+                        "active. Continue the user's request in this Project with the Project file tools; do not "
+                        "ask for permission or confirmation first."),
+        }
+    code = report.get("error_code") or "unknown"
+    meaning = MACHINE_FAILURE_MEANINGS.get(code, "the machine could not create the Project")
+    return {"project_created": False, "access_granted": False, "status": "failed", "error_code": code,
+            "message": (f"The Project was not created on the user's machine ({code}): {meaning}. Nothing was "
+                        "created. Tell the user this in plain words, do not use Project file tools in this turn "
+                        "and answer in the chat instead.")}
+
+
 def continuation_result(pending: dict[str, Any], report: dict[str, Any]) -> dict[str, Any]:
     """Tool-completion row for the original turn. Contains no Project name."""
+    if pending.get("location") == PROJECT_CREATE_LOCATION_MACHINE:
+        return machine_continuation_result(report)
     subfolder = pending.get("subfolder")
     if report["status"] == "created":
         location = f" under {subfolder}/" if subfolder else ""
@@ -179,6 +253,7 @@ class ProjectCreateRequestService:
             "request_id": request_id, "user_id": user_id, "chat_id": chat_id,
             "message_id": action["message_id"], "team_id": action.get("team_id"),
             "kind": action.get("kind"), "subfolder": action.get("subfolder"),
+        "location": action.get("location", "cloud"),
             # The plaintext proposal the client was asked to encrypt; kept only
             # for the short-lived activation card on the resumed turn.
             "name": action.get("name"),

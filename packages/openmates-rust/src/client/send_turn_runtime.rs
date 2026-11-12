@@ -270,6 +270,7 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
                 // The turn waits for our report; creation and its reply frames are
                 // handled here and the stream resumes afterwards in this same loop.
                 trace.phase = SendPhase::ProjectPhase;
+                observed.project_create.machine_decision = options.machine_project.clone();
                 phases.project_create(ws, &kind, &p, id, &mut observed.project_create).await?;
                 trace.phase = SendPhase::FrameValidation;
             }

@@ -28,6 +28,10 @@ from typing import Any, Awaitable, Callable, Optional
 
 from backend.apps.ai.processing.jev_decisions import evaluate_jev_decisions
 from backend.apps.ai.processing.jev_preprocessing import _messages as jev_messages
+from backend.apps.ai.processing.project_machine_location import (
+    PROJECT_LOCATION_CLOUD, PROJECT_LOCATION_MACHINE, PROJECT_LOCATION_QUESTION,
+    PROJECT_LOCATION_QUESTION_ID, classify_project_location, machine_hint,
+)
 from backend.apps.ai.processing.project_file_tools import declines_project_file_work
 from backend.apps.ai.processing.workspace_ask_planner import WorkspaceAskPlanningError, run_app_project_name
 from backend.core.api.app.services.project_create_request_service import (
@@ -71,6 +75,8 @@ class ProjectCreateProposal:
     proposed_name: str
     confidence: float
     outcome: str = "create_project"
+    location: str = PROJECT_LOCATION_CLOUD
+    machine_hint: str = ""
 
     def as_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -172,7 +178,8 @@ async def decide_project_creation(
     try:
         response = await evaluate_jev_decisions(
             state={"messages": jev_messages(message_history)},
-            questions={PROJECT_CREATION_QUESTION_ID: PROJECT_CREATION_QUESTION},
+            questions={PROJECT_CREATION_QUESTION_ID: PROJECT_CREATION_QUESTION,
+                       PROJECT_LOCATION_QUESTION_ID: PROJECT_LOCATION_QUESTION},
             secrets_manager=secrets_manager, model_id=model_id,
             telemetry_task_id=telemetry_task_id, telemetry_purpose="project_create_decision",
         )
@@ -195,6 +202,8 @@ async def decide_project_creation(
     if not name:
         logger.warning("%s Project name proposal was empty; no Project is created", log_prefix)
         return None
-    return ProjectCreateProposal(kind=kind, subfolder=PROJECT_CREATE_KINDS[kind],
-                                 proposed_name=name, confidence=round(confidence, 3))
+    location = classify_project_location(response.answers.get(PROJECT_LOCATION_QUESTION_ID), text)
+    return ProjectCreateProposal(
+        kind=kind, subfolder=PROJECT_CREATE_KINDS[kind], proposed_name=name, confidence=round(confidence, 3),
+        location=location, machine_hint=machine_hint(text) if location == PROJECT_LOCATION_MACHINE else "")
 

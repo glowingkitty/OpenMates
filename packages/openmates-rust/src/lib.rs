@@ -83,7 +83,7 @@ mod web_search_query_tests;
 mod web_search_tests;
 pub use client::{
     Client, ClientIdentity, ClientOptions, PasswordLoginOptions, CredentialEvent, CredentialSnapshot, PairChallenge,
-    SendConsentPolicy, SendMemoryRequest, SendOptions, SendOutcome, SendQueueMode, SendStatus,
+    MachineProjectDecision, SendConsentPolicy, SendMemoryRequest, SendOptions, SendOutcome, SendQueueMode, SendStatus,
 };
 pub use error::{Error, Result};
 pub use session::Session;

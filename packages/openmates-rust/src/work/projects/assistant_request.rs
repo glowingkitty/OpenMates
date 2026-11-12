@@ -46,6 +46,20 @@ pub struct ProjectCreateRequest {
     pub subfolder: String,
     /// Unix seconds after which the server rejects the report.
     pub expires_at: u64,
+    /// Where the Project lives; a machine request needs the user's confirmation.
+    pub(crate) location: ProjectCreateLocation,
+    /// Short plaintext hint naming the wanted machine (may be empty).
+    pub(crate) machine_hint: String,
+}
+
+/// Where the requested Project is created.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ProjectCreateLocation {
+    /// Encrypted Project in the cloud, created automatically.
+    Cloud,
+    /// Project plus a folder on one of the user's machines, only after the user
+    /// confirmed it.
+    Machine,
 }
 
 /// Why a request was refused; the code is the report's `error_code`.
@@ -94,25 +108,42 @@ impl ProjectCreateRequest {
             || action["chat_id"] != chat_id
             || payload["request_id"] != action["request_id"]
             || action["write_mode"] != "apply_and_show"
-            || action["focus"]["activate"] != "immediate"
             || id.is_none()
         {
             return refuse(ProjectCreateRefusal::Invalid);
         }
+        let (location, focus_policy) = match action["location"].as_str() {
+            None if action["location"].is_null() => (ProjectCreateLocation::Cloud, "immediate"),
+            Some("cloud") => (ProjectCreateLocation::Cloud, "immediate"),
+            Some("machine") if action["confirmation_required"] == true => {
+                (ProjectCreateLocation::Machine, "after_confirmation")
+            }
+            _ => return refuse(ProjectCreateRefusal::Invalid),
+        };
+        if action["focus"]["activate"] != focus_policy {
+            return refuse(ProjectCreateRefusal::Invalid);
+        }
+        let machine_hint = match &action["machine_hint"] {
+            Value::Null => String::new(),
+            Value::String(hint) if hint.chars().count() <= 60 => hint.clone(),
+            _ => return refuse(ProjectCreateRefusal::Invalid),
+        };
         let text = |field: &str| action[field].as_str().map(str::to_owned);
+        // A machine request may leave the application kind open.
+        let open_kind = location == ProjectCreateLocation::Machine && action["kind"].is_null();
         let (Some(name), Some(description), Some(kind), Some(subfolder), Some(expires_at)) = (
             text("name").map(|v| v.trim().to_owned()),
             Some(text("description").unwrap_or_default()),
-            text("kind"),
-            text("subfolder"),
+            text("kind").or_else(|| open_kind.then(String::new)),
+            text("subfolder").or_else(|| open_kind.then(String::new)),
             action["expires_at"].as_u64(),
         ) else {
             return refuse(ProjectCreateRefusal::Invalid);
         };
         let folder_matches = matches!(
             (kind.as_str(), subfolder.as_str()),
-            ("web_app", "web-app") | ("native_app", "native-app")
-        );
+            ("web_app", "web-app") | ("native_app", "native-app") | ("", "")
+        ) && (open_kind || !kind.is_empty());
         let team_id = match &action["team_id"] {
             Value::Null => None,
             Value::String(team) if uuid::Uuid::parse_str(team).is_ok() => Some(team.clone()),
@@ -137,6 +168,8 @@ impl ProjectCreateRequest {
             kind,
             subfolder,
             expires_at,
+            location,
+            machine_hint,
         })
     }
 }

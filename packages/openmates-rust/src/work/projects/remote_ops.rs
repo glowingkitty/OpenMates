@@ -305,6 +305,36 @@ impl RemoteOpCode {
             other => Self::Other(other.to_owned()),
         }
     }
+
+    /// The wire code of this variant (inverse of [`RemoteOpCode::from_wire`]).
+    pub(crate) fn wire(&self) -> &str {
+        match self {
+            Self::InvalidRequest => "invalid_request",
+            Self::NoWorktree => "no_worktree",
+            Self::ConfinementUnavailable => "confinement_unavailable",
+            Self::LaunchFailed => "launch_failed",
+            Self::OperationFailed => "operation_failed",
+            Self::NothingToCommit => "nothing_to_commit",
+            Self::IdentityMissing => "identity_missing",
+            Self::WorktreeDirty => "worktree_dirty",
+            Self::TargetBranchUnavailable => "target_branch_unavailable",
+            Self::TargetCheckedOutDirty => "target_checked_out_dirty",
+            Self::LandFailed => "land_failed",
+            Self::WriteAuthorizationDenied => "write_authorization_denied",
+            Self::SourceCapabilityDenied => "source_capability_denied",
+            Self::SourceOffline => "source_offline",
+            Self::ProtocolTimeout => "protocol_timeout",
+            Self::SourceSessionChanged => "source_session_changed",
+            Self::SourceNotFound => "source_not_found",
+            Self::SourceSelectionRequired => "source_selection_required",
+            Self::CreationNotConfigured => "creation_not_configured",
+            Self::InvalidProjectName => "invalid_project_name",
+            Self::CreationFolderUnavailable => "creation_folder_unavailable",
+            Self::TargetExists => "target_exists",
+            Self::CreationCompletionFailed => "creation_completion_failed",
+            Self::Other(code) => code,
+        }
+    }
 }
 
 /// A typed failure of a remote command or Git operation.

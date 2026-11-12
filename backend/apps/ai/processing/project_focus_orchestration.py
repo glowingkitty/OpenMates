@@ -61,6 +61,7 @@ async def request_project_creation(*, task_id: str, directus_service: Any, reque
         request_id=new_project_create_request_id(), name=proposal["proposed_name"],
         chat_id=request_data.chat_id, message_id=request_data.message_id,
         team_id=request_data.team_id, origin="preprocessor", kind=proposal["kind"],
+        location=proposal.get("location", "cloud"), machine_hint=proposal.get("machine_hint", ""),
     )
     await cache_async_skill_continuation_context(
         cache_service=cache_service, async_task_id=action["request_id"], request_data=request_data,

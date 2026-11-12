@@ -175,6 +175,7 @@ pub use chat_list_freshness::CacheClockEvidence;
 pub use sync::FreshChatInventory;
 mod project_create_request;
 use project_create_request::PROJECT_CREATE_CAPABILITY;
+pub use project_create_request::MachineProjectDecision;
 pub mod memory_document_fields;
 mod memory_frontmatter;
 pub mod memory_documents;

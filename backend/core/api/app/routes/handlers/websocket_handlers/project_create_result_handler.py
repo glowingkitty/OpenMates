@@ -31,6 +31,7 @@ from backend.core.api.app.services.project_create_request_service import (
     continuation_result,
     parse_project_create_result,
     require_new_project,
+    require_report_matches_location,
 )
 from backend.core.api.app.services.project_write_authorization_service import (
     ProjectWriteAuthorizationError,
@@ -96,6 +97,7 @@ async def handle_project_create_result(
         service = ProjectCreateRequestService(cache_service)
         pending = await service.require_pending(user_id=user_id, chat_id=report["chat_id"],
                                                 request_id=report["request_id"])
+        require_report_matches_location(pending, report)
         if report["status"] == "created":
             await _require_created_project(
                 authorization=ProjectWriteAuthorizationService(directus_service, cache_service),

@@ -10,11 +10,21 @@ pub(in crate::cli) fn card_text(card: &Value) -> String {
     let field = |name: &str| super::super::terminal_text(card[name].as_str().unwrap_or(""));
     let chat = field("chatId");
     match card["status"].as_str() {
+        Some("created") if card["location"] == "machine" => format!(
+            "Created project {} on your machine: {}\n",
+            field("name"),
+            super::super::terminal_text(card["machine"]["path"].as_str().unwrap_or(""))
+        ),
         Some("created") => format!(
             "Created project {} (files go to {}/). Undo: openmates projects undo-create --chat {chat}\n",
             field("name"),
             field("subfolder")
         ),
+        Some("confirmation_required") => format!(
+            "Project {} was not created: it needs your confirmation to create it on a machine.\n",
+            field("name")
+        ),
+        Some("declined") => format!("Project {} was declined; nothing was created.\n", field("name")),
         Some("undone") => format!("Project {} was removed again (undone).\n", field("name")),
         _ => format!(
             "No project was created ({}); the assistant answered in the chat.\n",

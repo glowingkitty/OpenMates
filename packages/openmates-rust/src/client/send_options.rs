@@ -77,6 +77,11 @@ pub struct SendOptions {
     /// advertise `project_create_requests` and the core executes the request.
     /// Only a shell that renders the created-Project card may set this.
     pub project_create_requests: bool,
+    /// The shell's answer to a machine Project confirmation card, applied during
+    /// the turn (the server accepts the report only from the live turn socket).
+    /// `None` leaves the card pending. Not part of the SDK JSON options.
+    #[serde(skip)]
+    pub machine_project: Option<crate::client::MachineProjectDecision>,
     /// Opt in to assistant Project file jobs: the socket and the turn advertise
     /// `project_file_jobs` and the core executes hosted file tool calls. Native
     /// shells only; always-ask writes follow `approve_project_file_writes`.
@@ -122,6 +127,7 @@ impl Default for SendOptions {
             pii_detection: true,
             task_update_jobs: true,
             project_create_requests: false,
+            machine_project: None,
             project_file_jobs: false,
             approve_project_file_writes: false,
             memory_write_jobs: false,

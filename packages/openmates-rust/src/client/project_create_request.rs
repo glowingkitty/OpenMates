@@ -11,7 +11,14 @@
 use super::plaintext::Wipe;
 use super::transport::{Socket, send};
 use super::*;
-use crate::work::{CreatedProjectRecord, ProjectCreateRefusal, ProjectCreateRequest, ProjectFilters};
+use crate::work::{
+    CreatedProjectRecord, ProjectCreateLocation, ProjectCreateRefusal, ProjectCreateRequest,
+    ProjectFilters,
+};
+
+#[path = "project_create_machine.rs"]
+mod machine;
+pub use machine::MachineProjectDecision;
 
 /// WebSocket and turn capability that opts into `project_create_requested`.
 pub(super) const PROJECT_CREATE_CAPABILITY: &str = "project_create_requests";
@@ -25,6 +32,10 @@ enum Status {
     Created,
     Failed,
     Undone,
+    /// Machine request waiting for the user's decision; nothing exists yet.
+    ConfirmationRequired,
+    /// The user declined creating the Project on their machine.
+    Declined,
 }
 
 impl Status {
@@ -33,6 +44,8 @@ impl Status {
             Self::Created => "created",
             Self::Failed => "failed",
             Self::Undone => "undone",
+            Self::ConfirmationRequired => "confirmation_required",
+            Self::Declined => "declined",
         }
     }
 }
@@ -48,6 +61,25 @@ struct Entry {
     failure_reported: bool,
     /// The chat's encrypted active focus now names this Project's default focus.
     focus_persisted: bool,
+    /// The validated machine request, kept until the user decides.
+    request: Option<ProjectCreateRequest>,
+    /// Folder created on the machine (`sourceId`, `path`, `folderName`).
+    machine: Option<Value>,
+}
+
+impl Entry {
+    fn new(status: Status) -> Self {
+        Self {
+            status,
+            record: None,
+            error_code: None,
+            confirmed: false,
+            failure_reported: false,
+            focus_persisted: false,
+            request: None,
+            machine: None,
+        }
+    }
 }
 
 /// Requests handled during one send, keyed by request id (idempotency).
@@ -60,6 +92,8 @@ pub(super) struct ProjectCreateState {
     adoptions: Vec<Value>,
     /// Assistant Memory write jobs of this turn (`memory_write_jobs`).
     pub(super) memory_jobs: super::memory_write_jobs::MemoryJobState,
+    /// The shell's answer to a machine confirmation card of this turn.
+    pub(super) machine_decision: Option<MachineProjectDecision>,
 }
 
 impl ProjectCreateState {
@@ -73,12 +107,23 @@ impl ProjectCreateState {
                     .as_ref()
                     .and_then(|record| serde_json::to_value(record).ok())
                     .unwrap_or_else(|| json!({"requestId": request_id}));
+                if let Some(request) = &entry.request {
+                    card["name"] = json!(request.name);
+                    card["kind"] = json!(request.kind);
+                    card["chatId"] = json!(request.chat_id);
+                    card["location"] = json!("machine");
+                    card["machineHint"] = json!(request.machine_hint);
+                }
+                if let Some(machine) = &entry.machine {
+                    card["machine"] = machine.clone();
+                }
                 card["status"] = json!(entry.status.wire());
                 card["confirmed"] = json!(entry.confirmed);
                 if let Some(code) = &entry.error_code {
                     card["errorCode"] = json!(code);
                 }
-                card["undoAvailable"] = json!(entry.status == Status::Created);
+                card["undoAvailable"] =
+                    json!(entry.status == Status::Created && entry.machine.is_none());
                 card["focusPersisted"] = json!(entry.focus_persisted);
                 card
             })
@@ -95,7 +140,10 @@ impl ProjectCreateState {
     pub(super) fn mark_focus_persisted(&mut self, focus_id: &str) {
         for entry in self.entries.values_mut() {
             if entry.status == Status::Created
-                && entry.record.as_ref().is_some_and(|record| record.focus_id == focus_id)
+                && entry
+                    .record
+                    .as_ref()
+                    .is_some_and(|record| record.focus_id == focus_id)
             {
                 entry.focus_persisted = true;
             }
@@ -120,6 +168,7 @@ impl Wipe for ProjectCreateState {
     fn wipe(&mut self) {
         // Records hold the decrypted Project name; reports hold Project paths.
         self.entries.clear();
+        self.machine_decision = None;
         self.file_jobs.clear();
         self.adoptions.clear();
         self.memory_jobs.clear();
@@ -141,8 +190,14 @@ fn failure_code(error: Error) -> &'static str {
 fn echo_code(code: &str) -> String {
     let valid = !code.is_empty()
         && code.len() <= 64
-        && code.bytes().all(|b| b.is_ascii_uppercase() || b.is_ascii_digit() || b == b'_');
-    if valid { code.to_owned() } else { "PROJECT_CREATE_FAILED".to_owned() }
+        && code
+            .bytes()
+            .all(|b| b.is_ascii_uppercase() || b.is_ascii_digit() || b == b'_');
+    if valid {
+        code.to_owned()
+    } else {
+        "PROJECT_CREATE_FAILED".to_owned()
+    }
 }
 
 fn report(chat: &str, request: &str, status: Status, code: Option<&str>) -> Value {
@@ -168,7 +223,9 @@ impl Client {
     ) -> Result<()> {
         #[cfg(all(feature = "workflow-yaml", unix))]
         if kind.starts_with("project_file_operation_") {
-            return self.project_file_job_event(ws, kind, event, chat, &mut state.file_jobs).await;
+            return self
+                .project_file_job_event(ws, kind, event, chat, &mut state.file_jobs)
+                .await;
         }
         #[cfg(all(feature = "workflow-yaml", unix))]
         if kind == super::project_embed_adoption::TURN_ADOPTION_KIND {
@@ -177,7 +234,14 @@ impl Client {
         // Memory write jobs share this turn phase so the owned driver needs no new call.
         if super::memory_write_jobs::is_job_frame(kind) {
             // Boxed: keeps this rare path out of every send future's stack frame.
-            return Box::pin(self.memory_write_job_event(ws, kind, event, chat, &mut state.memory_jobs)).await;
+            return Box::pin(self.memory_write_job_event(
+                ws,
+                kind,
+                event,
+                chat,
+                &mut state.memory_jobs,
+            ))
+            .await;
         }
         let outgoing = self
             .project_create_report(kind, event, chat, now_ms() / 1000, state)
@@ -205,7 +269,10 @@ impl Client {
         state: &mut ProjectCreateState,
     ) -> Result<Option<Value>> {
         match kind {
-            "project_create_requested" => self.project_create_requested(event, chat, now_s, state).await,
+            "project_create_requested" => {
+                self.project_create_requested(event, chat, now_s, state)
+                    .await
+            }
             "project_create_confirmed" => {
                 if let Some(entry) = state.entries.get_mut(text(event, "request_id")) {
                     entry.confirmed = true;
@@ -236,6 +303,9 @@ impl Client {
         if state.entries.len() >= MAX_REQUESTS {
             return Err(Error::Protocol);
         }
+        if request.location == ProjectCreateLocation::Machine {
+            return self.machine_request_received(request, chat, state).await;
+        }
         let filters = ProjectFilters {
             personal: request.team_id.is_none(),
             team_id: request.team_id.clone(),
@@ -248,21 +318,14 @@ impl Client {
             .await;
         let entry = match created {
             Ok(record) => Entry {
-                status: Status::Created,
                 record: Some(record),
-                error_code: None,
-                confirmed: false,
-                failure_reported: false,
-                focus_persisted: false,
+                ..Entry::new(Status::Created)
             },
             Err(Error::Cancelled) => return Err(Error::Cancelled),
             Err(error) => Entry {
-                status: Status::Failed,
-                record: None,
                 error_code: Some(failure_code(error).to_owned()),
-                confirmed: false,
                 failure_reported: true,
-                focus_persisted: false,
+                ..Entry::new(Status::Failed)
             },
         };
         let payload = match (&entry.record, &entry.error_code) {
@@ -293,12 +356,9 @@ impl Client {
         state.entries.insert(
             id.to_owned(),
             Entry {
-                status: Status::Failed,
-                record: None,
                 error_code: Some(refusal.code().to_owned()),
-                confirmed: false,
                 failure_reported: true,
-                focus_persisted: false,
+                ..Entry::new(Status::Failed)
             },
         );
         Ok(Some(report(chat, id, Status::Failed, Some(refusal.code()))))
@@ -330,9 +390,15 @@ impl Client {
                 team_id: record.team_id.clone(),
                 include_archived: None,
             };
-            self.projects().with_filters(filters).undo_created(&record.chat_id).await?;
+            self.projects()
+                .with_filters(filters)
+                .undo_created(&record.chat_id)
+                .await?;
         }
-        if matches!(code.as_str(), "PROJECT_CREATE_REQUEST_EXPIRED" | "PROJECT_CREATE_REQUEST_STALE") {
+        if matches!(
+            code.as_str(),
+            "PROJECT_CREATE_REQUEST_EXPIRED" | "PROJECT_CREATE_REQUEST_STALE"
+        ) {
             return Ok(None);
         }
         Ok(Some(report(chat, &request, Status::Failed, Some(&code))))
@@ -357,7 +423,11 @@ impl Client {
         let Some(entry) = state.entries.get_mut(request_id) else {
             return Ok(None);
         };
-        let Some(record) = entry.record.clone().filter(|_| entry.status == Status::Created) else {
+        let Some(record) = entry
+            .record
+            .clone()
+            .filter(|_| entry.status == Status::Created && entry.machine.is_none())
+        else {
             return Ok(None);
         };
         let filters = ProjectFilters {
@@ -365,9 +435,15 @@ impl Client {
             team_id: record.team_id.clone(),
             include_archived: None,
         };
-        self.projects().with_filters(filters).undo_created(&record.chat_id).await?;
+        self.projects()
+            .with_filters(filters)
+            .undo_created(&record.chat_id)
+            .await?;
         entry.status = Status::Undone;
-        entry.record = Some(CreatedProjectRecord { undo_available: false, ..record });
+        entry.record = Some(CreatedProjectRecord {
+            undo_available: false,
+            ..record
+        });
         let reported = !entry.confirmed;
         Ok(reported.then(|| report(chat, request_id, Status::Undone, None)))
     }

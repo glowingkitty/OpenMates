@@ -72,7 +72,8 @@ async def test_recipe_web_app_creates_project_outcome(monkeypatch):
     proposal, jev, namer = await _decide(monkeypatch, _request())
     assert proposal is not None
     assert proposal.as_dict() == {"kind": "web_app", "subfolder": "web-app", "proposed_name": "Recipe Manager",
-                                  "confidence": 0.9, "outcome": "create_project"}
+                                  "confidence": 0.9, "outcome": "create_project",
+                                  "location": "cloud", "machine_hint": ""}
     jev.assert_awaited_once()
     namer.assert_awaited_once()
 
@@ -215,13 +216,13 @@ def _handler(monkeypatch, async_skill_continuation):
 
 
 async def _report(monkeypatch, async_skill_continuation, payload, *, focus_project=PROJECT, write_mode="apply_and_show",
-                  claim=True, created_at=None, publish=None, on_dispatch=None):
+                  claim=True, created_at=None, publish=None, on_dispatch=None, location="cloud"):
     from backend.core.api.app.services.project_create_request_service import ProjectCreateRequestService
     handler = _handler(monkeypatch, async_skill_continuation)
     now = int(time.time())
     pending = {"request_id": REQUEST, "user_id": "owner", "chat_id": "chat", "message_id": "turn",
                "team_id": None, "kind": "web_app", "subfolder": "web-app", "name": "Recipe Manager",
-               "created_at": now, "expires_at": now + 600}
+               "location": location, "created_at": now, "expires_at": now + 600}
     key = ProjectCreateRequestService.key("owner", "chat")
     redis = SimpleNamespace(set=AsyncMock(return_value=claim), publish=publish or AsyncMock())
 
@@ -316,3 +317,109 @@ async def test_continuation_activates_created_project_or_declines(monkeypatch, a
     payload = celery.sent[0]["kwargs"]["request_data_dict"]
     assert payload["active_focus_id"] == (None if created else "jobs-career_insights")
     assert payload["project_access_declined"] is (not created)
+
+
+MACHINE = {"source_id": "src-1", "path": "/home/me/projects/recipe-manager", "folder_name": "recipe-manager"}
+CONFIRMED = {**CREATED, "status": "confirmed", **MACHINE}
+MACHINE_REQUEST = _request(current_user_content="build me a recipe web app in a folder on my laptop")
+
+
+def _machine_answers(location, confidence=0.9):
+    answers = _answer("web_app").answers
+    answers["project_location"] = ChoiceAnswer(type="choice", choice=location, confidence=confidence,
+                                               probabilities={location: confidence})
+    return DecisionResponse(model="jev", answers=answers)
+
+
+async def _decide_location(monkeypatch, request, location, confidence=0.9):
+    from backend.apps.ai.processing import project_creation_routing as routing
+    jev = AsyncMock(return_value=_machine_answers(location, confidence))
+    monkeypatch.setattr(routing, "evaluate_jev_decisions", jev)
+    proposal = await routing.decide_project_creation(
+        request_data=request, user_overrides=None, cache_service=_Cache(), secrets_manager=None,
+        model_id="jev", message_history=[], telemetry_task_id="t", log_prefix="test", early_decisions=EARLY,
+        harm_threshold=7.0, misuse_threshold=7.0, name_proposer=AsyncMock(return_value="Recipe Manager"),
+    )
+    jev.assert_awaited_once()
+    return proposal
+
+
+# contract-test: supporting surface=rest_api assertions=projects.creation.machine-folder
+@pytest.mark.asyncio
+async def test_explicit_machine_wording_routes_to_machine_with_hint(monkeypatch):
+    proposal = await _decide_location(monkeypatch, MACHINE_REQUEST, "machine")
+    assert proposal.location == "machine" and proposal.machine_hint == "my laptop"
+
+
+# contract-test: supporting surface=rest_api assertions=projects.creation.machine-folder
+@pytest.mark.asyncio
+@pytest.mark.parametrize("text,location,confidence", [
+    ("build me a recipe web app", "machine", 0.95),
+    ("build me a recipe web app on my laptop", "machine", 0.5),
+    ("build me a recipe web app on my laptop", "cloud", 0.95),
+    ("build me a recipe web app for my laptop store", "machine", 0.95),
+])
+async def test_ambiguous_or_unconfirmed_wording_stays_cloud(monkeypatch, text, location, confidence):
+    proposal = await _decide_location(monkeypatch, _request(current_user_content=text), location, confidence)
+    assert proposal.location == "cloud" and proposal.machine_hint == ""
+
+
+# contract-test: supporting surface=rest_api assertions=projects.creation.machine-folder
+def test_machine_action_requires_confirmation_and_delays_focus():
+    from backend.core.api.app.services.project_create_request_service import build_project_create_action
+    action = build_project_create_action(
+        request_id=REQUEST, name="Recipe Manager", chat_id="chat", message_id="turn", team_id=None,
+        origin="preprocessor", kind="web_app", location="machine", machine_hint="my laptop")
+    assert action["location"] == "machine" and action["confirmation_required"] is True
+    assert action["machine_hint"] == "my laptop" and action["focus"]["activate"] == "after_confirmation"
+    cloud = build_project_create_action(
+        request_id=REQUEST, name="Recipe Manager", chat_id="chat", message_id="turn", team_id=None,
+        origin="preprocessor", kind="web_app")
+    assert "location" not in cloud and "confirmation_required" not in cloud
+
+
+# contract-test: supporting surface=rest_api assertions=projects.creation.machine-folder
+@pytest.mark.asyncio
+async def test_confirmed_machine_report_resumes_turn_in_project(monkeypatch, async_skill_continuation):
+    dispatch, sent, _, _ = await _report(monkeypatch, async_skill_continuation, CONFIRMED, location="machine")
+    row = dispatch.await_args.kwargs["completed_results"][0]
+    assert row["access_granted"] is True and row["folder_name"] == "recipe-manager"
+    assert sent["type"] == "project_create_confirmed" and sent["payload"]["status"] == "created"
+
+
+# contract-test: supporting surface=rest_api assertions=projects.creation.machine-folder
+@pytest.mark.asyncio
+async def test_declined_machine_report_creates_nothing(monkeypatch, async_skill_continuation):
+    dispatch, sent, _, _ = await _report(
+        monkeypatch, async_skill_continuation,
+        {"chat_id": "chat", "request_id": REQUEST, "status": "declined"}, location="machine")
+    row = dispatch.await_args.kwargs["completed_results"][0]
+    assert row["access_granted"] is False and row["project_created"] is False and row["status"] == "declined"
+    assert sent["type"] == "project_create_confirmed"
+
+
+# contract-test: supporting surface=rest_api assertions=projects.creation.machine-folder
+@pytest.mark.asyncio
+@pytest.mark.parametrize("code", ["no_machine_host", "creation_not_configured", "target_exists"])
+async def test_failed_machine_report_explains_code_and_creates_nothing(monkeypatch, async_skill_continuation, code):
+    dispatch, _, _, _ = await _report(
+        monkeypatch, async_skill_continuation,
+        {"chat_id": "chat", "request_id": REQUEST, "status": "failed", "error_code": code}, location="machine")
+    row = dispatch.await_args.kwargs["completed_results"][0]
+    assert row["project_created"] is False and row["error_code"] == code and code in row["message"]
+    if code == "creation_not_configured":
+        assert "openmates remote-access new-projects-folder set <path>" in row["message"]
+
+
+# contract-test: supporting surface=rest_api assertions=projects.creation.machine-folder
+@pytest.mark.asyncio
+@pytest.mark.parametrize("location,payload", [
+    ("cloud", CONFIRMED),
+    ("cloud", {"chat_id": "chat", "request_id": REQUEST, "status": "declined"}),
+    ("machine", CREATED),
+    ("machine", {"chat_id": "chat", "request_id": REQUEST, "status": "undone"}),
+])
+async def test_report_kind_must_match_request_location(monkeypatch, async_skill_continuation, location, payload):
+    dispatch, sent, _, _ = await _report(monkeypatch, async_skill_continuation, payload, location=location)
+    dispatch.assert_not_awaited()
+    assert sent["type"] == "project_create_error" and sent["payload"]["code"] == "INVALID_PROJECT_CREATE_RESULT"

@@ -216,6 +216,42 @@ impl Projects<'_> {
         Ok(group_machine_hosts(&rows, &project.key)?)
     }
 
+    /// Distinct connected machines across all of the user's active Projects in
+    /// the current scope. Unlike [`Projects::machine_hosts`] it needs no Project
+    /// selector, so it works before the new Project exists; a machine hosting
+    /// sources of several Projects is listed once with all their names.
+    ///
+    /// # Errors
+    /// Project listing, transport and decryption errors.
+    pub async fn machine_hosts_any(
+        &mut self,
+    ) -> std::result::Result<Vec<MachineHost>, RemoteOpError> {
+        self.scope()?;
+        let projects = self.list_resolved(Some(false)).await?;
+        let mut hosts: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        for project in projects {
+            let project_id = string(&project.raw, "project_id")?.to_owned();
+            let rows = self.list_sources_raw(&project_id).await?;
+            for host in group_machine_hosts(&rows, &project.key)? {
+                hosts
+                    .entry(host.host_device_hash)
+                    .or_default()
+                    .extend(host.source_names);
+            }
+        }
+        Ok(hosts
+            .into_iter()
+            .map(|(host_device_hash, mut source_names)| {
+                source_names.sort();
+                source_names.dedup();
+                MachineHost {
+                    host_device_hash,
+                    source_names,
+                }
+            })
+            .collect())
+    }
+
     /// Create the placeholder source for a new folder on the machine
     /// `host_device_hash` (it must be connected). The machine binds the
     /// placeholder; then [`Projects::create_machine_source`] asks it to create

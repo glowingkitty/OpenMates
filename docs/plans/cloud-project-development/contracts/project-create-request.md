@@ -213,3 +213,33 @@ report `failed` so the turn answers in the chat instead of waiting until expiry.
 - After a `project_create_error` for a created Project the core deletes the
   Project and reports `failed` once (never for expired/stale), so no orphan stays.
 - Native app requests get the Project and files but no live preview yet.
+
+## 8. Machine location (`location: "machine"`)
+
+When the user explicitly asks for the new Project on their own machine, the request
+action carries three extra fields; cloud requests are unchanged and carry none of them.
+
+| Field | Meaning |
+|---|---|
+| `location` | `"machine"`. Absent means cloud. |
+| `confirmation_required` | `true`. The client creates nothing before the user confirms. |
+| `machine_hint` | The user's own wording of the target machine (may be empty). |
+| `focus.activate` | `"after_confirmation"` instead of `"immediate"`. |
+
+The client shows a confirmation with the Project name and lets the user pick one of
+their machines connected through remote access. On confirm it creates the encrypted
+Project and activates its default focus as in section 4, then proposes a placeholder
+source on the chosen machine and asks that machine to create the folder
+(`create_source`, see `specifications/features/projects` assertion
+`projects.creation.machine-folder`). Reports for a machine request:
+
+- `confirmed` with `project_id`, `focus_id`, `source_id`, `path`, `folder_name`. The
+  server handles it like `created`; the model sees only `folder_name`.
+- `declined`: nothing was created; the turn answers without a Project.
+- `failed` with `error_code` (`[A-Za-z0-9_]{1,64}`), e.g. `no_machine_host`,
+  `creation_not_configured`, `invalid_project_name`, `creation_folder_unavailable`,
+  `identity_missing`, `target_exists`. The client removes the cloud Project it created
+  for this request first; the assistant explains the code in plain words.
+
+`created`/`undone` on a machine request and `confirmed`/`declined` on a cloud request
+are refused with `INVALID_PROJECT_CREATE_RESULT`.

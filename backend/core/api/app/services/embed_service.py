@@ -2101,14 +2101,18 @@ class EmbedService(SlidesEmbedMixin):
         task_id: Optional[str] = None,
         provenance: Optional[str] = None,
         log_prefix: str = "",
+        embed_id: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
-        """Create a finished generated-application parent embed for code file embeds."""
+        """Create a finished generated-application parent embed for code file embeds.
+
+        Passing an existing ``embed_id`` re-publishes that parent with a fuller file list.
+        """
         try:
             hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
             hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
             hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
 
-            embed_id = str(uuid.uuid4())
+            embed_id = embed_id or str(uuid.uuid4())
             child_embed_ids = [str(ref.get("embed_id")) for ref in file_refs if ref.get("embed_id")]
             embed_ref = self._generate_direct_embed_ref(
                 "application",

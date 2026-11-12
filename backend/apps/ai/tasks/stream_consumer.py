@@ -10,8 +10,9 @@ import json
 import uuid
 import httpx
 import asyncio
+from collections import deque
 from contextlib import contextmanager
-from typing import Dict, Any, List, Optional, AsyncIterator, Union, Callable, Awaitable
+from typing import Dict, Any, List, Optional, AsyncIterator, Union, Callable, Awaitable, Deque
 
 from celery.exceptions import SoftTimeLimitExceeded
 from celery.states import REVOKED as TASK_STATE_REVOKED
@@ -5042,6 +5043,8 @@ APPLICATION_PREVIEW_SOURCE_EXTENSIONS = (
 APPLICATION_PREVIEW_MAIN_FILES = (
     "src/main.ts",
     "src/main.js",
+    "src/main.tsx",
+    "src/main.jsx",
     "src/App.svelte",
     "src/App.tsx",
     "src/App.jsx",
@@ -5921,6 +5924,19 @@ def _parse_application_preview_json_bundle_files(
     return files if has_manifest and has_source else []
 
 
+async def _with_chunks_after_closing_fence(
+    stream: AsyncIterator[Any],
+    chunks_after_closing_fence: Deque[str],
+) -> AsyncIterator[Any]:
+    """Yield the provider stream, then any text the consumer split off after a closing fence."""
+    async for item in stream:
+        yield item
+        while chunks_after_closing_fence:
+            yield chunks_after_closing_fence.popleft()
+    while chunks_after_closing_fence:
+        yield chunks_after_closing_fence.popleft()
+
+
 def _extract_application_preview_files_from_markdown_code_block(
     response_text: str,
 ) -> tuple[List[Dict[str, str]], str]:
@@ -6057,14 +6073,24 @@ def _build_application_manifest_from_code_embeds(
     }
 
 
+def _embed_id_from_reference_block(reference_block: str) -> Optional[str]:
+    match = re.search(r'"embed_id"\s*:\s*"([^"]+)"', reference_block)
+    return match.group(1) if match else None
+
+
 def _has_stream_ready_application_manifest(code_embeds: List[Dict[str, str]]) -> bool:
     manifest = _build_application_manifest_from_code_embeds(code_embeds)
     if not manifest:
         return False
 
     paths = {ref["path"] for ref in manifest["file_refs"]}
-    has_entrypoint = any(path in paths for path in APPLICATION_PREVIEW_MAIN_FILES)
-    return has_entrypoint and len(paths) >= 3
+    # index.html alone is not enough while streaming: the script entry files
+    # usually follow it, and files streamed after the parent exists need a
+    # manifest refresh. Wait for a real script entry instead.
+    has_script_entry = any(
+        path in paths for path in APPLICATION_PREVIEW_MAIN_FILES if path != "index.html"
+    )
+    return has_script_entry and len(paths) >= 3
 
 
 def _record_generated_code_file_embed(
@@ -6308,6 +6334,7 @@ async def _create_application_parent_embed_reference(
     user_vault_key_id: str,
     log_prefix: str,
     response_text: str = "",
+    existing_application_embed_id: Optional[str] = None,
 ) -> Optional[str]:
     if should_disable_learning_mode_application_artifact(_learning_mode_context(request_data)):
         logger.info("%s Skipping generated application parent because Learning Mode is active", log_prefix)
@@ -6369,6 +6396,7 @@ async def _create_application_parent_embed_reference(
         task_id=task_id,
         provenance="fallback_stream_inference",
         log_prefix=log_prefix,
+        embed_id=existing_application_embed_id,
     )
     if not application_embed_data:
         return None
@@ -6907,6 +6935,8 @@ async def _consume_main_processing_stream(
     generated_code_file_embeds: List[Dict[str, str]] = []
     full_replacement_reused_refs: set[str] = set()
     application_parent_embed_created = False
+    streaming_application_embed_id: Optional[str] = None
+    streaming_application_file_count = 0
     # New state: when LLM streams ``` and language separately, wait for next chunk
     waiting_for_code_language = False
     # pending_code_fence_chunk = ""  # Store the original ``` chunk to replay if needed (currently unused)
@@ -6977,11 +7007,14 @@ async def _consume_main_processing_stream(
     debug_metadata: Dict[str, Any] = {}
     suggested_followup_message: Optional[str] = None
     
+    chunks_after_closing_fence: Deque[str] = deque()
     pre_main_scope = ai_phase_span("pre_main")
     pre_main_scope.__enter__()
     pre_main_open = True
     try:
-        async for chunk in main_processing_stream:
+        async for chunk in _with_chunks_after_closing_fence(
+            main_processing_stream, chunks_after_closing_fence
+        ):
             # Internal setup frames do not publish answer content. Let the
             # provider run while sealed metadata persists, then join before
             # any visible content or recovery terminal can be published.
@@ -9218,6 +9251,15 @@ async def _consume_main_processing_stream(
                         closing_fence_idx = chunk.find('```')
                         code_chunk_content = chunk[:closing_fence_idx]
                         current_code_content += code_chunk_content
+                        # Providers can stream the end of one block together with
+                        # text or the opening fence of the next block. Every exit of
+                        # this branch finishes only the current block, so whatever
+                        # follows the closing fence is processed as the next chunk.
+                        # Leading line breaks are dropped: an embed reference already
+                        # ends with a blank line, and fence detection reads line one.
+                        text_after_closing_fence = chunk[closing_fence_idx + 3:].lstrip("\r\n")
+                        if text_after_closing_fence.strip():
+                            chunks_after_closing_fence.append(text_after_closing_fence)
                         
                         # HARDENING: Check if this was a suspicious code block (fake tool call)
                         # 'tool_code' is ALWAYS a fake tool call.
@@ -9905,6 +9947,14 @@ async def _consume_main_processing_stream(
                                             final_response_chunks.append(application_reference)
                                             stream_chunk_count += 1
                                             application_parent_embed_created = True
+                                            streaming_application_embed_id = _embed_id_from_reference_block(
+                                                application_reference
+                                            )
+                                            streaming_application_file_count = len(
+                                                _build_application_manifest_from_code_embeds(
+                                                    generated_code_file_embeds
+                                                )["file_refs"]
+                                            )
                                             logger.info(
                                                 f"{log_prefix} Published streaming generated application embed reference "
                                                 f"after {len(generated_code_file_embeds)} file embed(s)"
@@ -10589,6 +10639,38 @@ async def _consume_main_processing_stream(
                     )
         except Exception as e:
             logger.error(f"{log_prefix} Error creating early generated application parent embed: {e}", exc_info=True)
+
+    # Files streamed after the streaming application parent was created are not in
+    # its manifest yet. Re-publish the same parent embed with the complete file list.
+    if (
+        streaming_application_embed_id
+        and generated_code_file_embeds
+        and cache_service
+        and directus_service
+        and encryption_service
+        and user_vault_key_id
+        and not was_revoked_during_stream
+    ):
+        late_manifest = _build_application_manifest_from_code_embeds(generated_code_file_embeds)
+        if late_manifest and len(late_manifest["file_refs"]) > streaming_application_file_count:
+            refreshed_reference = await _create_application_parent_embed_reference(
+                generated_code_file_embeds=generated_code_file_embeds,
+                cache_service=cache_service,
+                directus_service=directus_service,
+                encryption_service=encryption_service,
+                request_data=request_data,
+                task_id=task_id,
+                user_vault_key_id=user_vault_key_id,
+                log_prefix=log_prefix,
+                response_text=aggregated_response,
+                existing_application_embed_id=streaming_application_embed_id,
+            )
+            if refreshed_reference:
+                streaming_application_file_count = len(late_manifest["file_refs"])
+                logger.info(
+                    f"{log_prefix} Refreshed streaming application embed {streaming_application_embed_id} "
+                    f"with {streaming_application_file_count} file(s)"
+                )
 
     # Post-aggregation sweep: strip garbled number sequences from the final response.
     # The per-chunk garbled filter (above) catches large individual chunks, but Gemini

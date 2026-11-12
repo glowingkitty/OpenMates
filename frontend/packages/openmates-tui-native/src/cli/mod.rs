@@ -46,6 +46,7 @@ mod remote_access;
 #[cfg(unix)]
 mod remote_access_folder;
 mod send;
+mod send_machine;
 pub mod signup;
 mod utility;
 pub use send::execute_anonymous;

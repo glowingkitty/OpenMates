@@ -82,6 +82,25 @@ it prints the stable code and the pending placeholder source id; retry with
 `--source <placeholder-id>` instead of `--host`, or remove the placeholder with
 `openmates projects sources remove`.
 
+### From a chat
+
+When you ask in a chat for a new project on your own machine, the assistant
+asks for confirmation before anything is created. In the CLI you answer that
+request on the same `chats send` call:
+
+```bash
+openmates chats send "Start a new project on my machine for a recipe manager" --confirm-machine-project
+openmates chats send "..." --machine-project-host <device-hash>   # pick one of several machines
+openmates chats send "..." --decline-machine-project
+```
+
+`--confirm-machine-project` works when exactly one connected machine can create
+folders; with several, name one with `--machine-project-host` (list them with
+`openmates projects remote hosts`). Without any of these flags nothing is
+created, and the CLI prints which flag to add. On success the Project, its focus
+and the new folder exist together; if the machine refuses, the new Project is
+removed again and the stable error code is shown.
+
 Live filesystem hosting and requests are CLI-only; stored encrypted Project data
 is the separate surface intended for npm and pip SDK parity.
 
