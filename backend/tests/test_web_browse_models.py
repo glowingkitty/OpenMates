@@ -971,3 +971,28 @@ def test_plan_keeps_the_valid_actions_before_a_bad_one_and_rejects_a_bad_first_a
             {"notes": [], "actions": [bad, good], "done": False, "blocked": None},
             observation,
         )
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.control-loop
+@pytest.mark.parametrize(
+    "spelled",
+    [
+        {"action": "click", "target": "1"},
+        {"click": {"target": "1"}},
+        {"kind": "Press", "target": "1"},
+    ],
+)
+def test_plan_accepts_harmless_spellings_of_an_action_and_still_validates_the_target(
+    spelled,
+):
+    from backend.shared.providers.browser_planner import PlanInvalid, validate_plan
+
+    observation = {
+        "controls": [{"id": "1", "kind": "click", "role": "button", "label": "Next"}]
+    }
+    plan = validate_plan(
+        {"notes": [], "actions": [spelled], "done": False, "blocked": None}, observation
+    )
+    assert plan["actions"] == [{"kind": "click", "target": "1"}]
+    with pytest.raises(PlanInvalid):
+        validate_plan({"actions": [{"action": "click", "target": "9"}]}, observation)

@@ -225,10 +225,45 @@ def _option_value(control: dict[str, Any], value: Any) -> str:
     raise _reject("unobserved_option", "The option is not observed on that dropdown.")
 
 
+KIND_ALIASES = {
+    "navigate": "goto",
+    "open": "goto",
+    "visit": "goto",
+    "press": "click",
+    "tap": "click",
+    "fill": "type",
+    "input": "type",
+}
+
+
+def _normal_action(raw: Any) -> Any:
+    """Accept harmless spellings of one action: `action` for `kind`, {"click": {...}}, common aliases.
+
+    Only the spelling is normalized; every field is still validated afterwards.
+    """
+    if not isinstance(raw, dict):
+        return raw
+    if "kind" not in raw and isinstance(raw.get("action"), str):
+        raw = {**raw, "kind": raw["action"]}
+    elif "kind" not in raw and len(raw) == 1:
+        name, fields = next(iter(raw.items()))
+        raw = {**fields, "kind": name} if isinstance(fields, dict) else raw
+    kind = raw.get("kind")
+    if isinstance(kind, str):
+        kind = kind.strip().lower()
+        raw = {**raw, "kind": KIND_ALIASES.get(kind, kind)}
+    return raw
+
+
 def _action(raw: Any, controls: dict[str, dict[str, Any]]) -> dict[str, Any]:
     """Rebuild one action from validated fields only; unknown extra fields are dropped."""
+    raw = _normal_action(raw)
     if not isinstance(raw, dict) or raw.get("kind") not in ACTION_FIELDS:
-        raise _reject("unknown_kind", "Unknown action kind.")
+        raise _reject(
+            "unknown_kind",
+            'Every action must be an object like {"kind":"click","target":"3"} with kind one of '
+            "click, type, select, scroll, wait, back, goto.",
+        )
     kind = raw["kind"]
     required, _optional = ACTION_FIELDS[kind]
     missing = sorted(required - set(raw))
