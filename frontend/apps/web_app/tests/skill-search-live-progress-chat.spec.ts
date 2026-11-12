@@ -103,7 +103,12 @@ for (const searchCase of CASES) {
 			}
 
 			const finished = page.locator(`${card}[data-status="finished"]`).first();
-			await expect(finished).toBeVisible({ timeout: ANSWER_TIMEOUT });
+			// Once the answer is written the used-apps group collapses; open it to see the card.
+			const toggle = page.getByTestId('message-assistant').last().getByTestId('assistant-activity-toggle').first();
+			await expect(async () => {
+				if ((await toggle.count()) && (await toggle.getAttribute('aria-expanded')) === 'false') await toggle.click();
+				await expect(finished).toBeVisible({ timeout: 3000 });
+			}).toPass({ timeout: ANSWER_TIMEOUT });
 			await expect(page.locator(`${card} [data-testid="embed-progress"]`)).toHaveCount(0);
 			await expect(page.getByTestId('typing-indicator')).not.toBeVisible({ timeout: ANSWER_TIMEOUT });
 			const generatedBy = page.getByTestId('message-assistant').last().getByTestId('generated-by');
@@ -112,6 +117,10 @@ for (const searchCase of CASES) {
 			await screenshot(page, 'results', { fullPage: false });
 			await page.getByTestId('message-assistant').last().scrollIntoViewIfNeeded();
 			await screenshot(page, 'answer', { fullPage: false });
+		} catch (error) {
+			// The chat is deleted below; keep what it looked like when the check failed.
+			await screenshot(page, 'failure-state', { fullPage: false });
+			throw error;
 		} finally {
 			if (process.env.KEEP_SEARCH_PROGRESS_CHAT !== '1') await deleteActiveChat(page, log);
 		}

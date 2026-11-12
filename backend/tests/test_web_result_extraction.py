@@ -118,3 +118,18 @@ def test_schema_is_strict_and_only_product_search_is_delegated():
         assert item["additionalProperties"] is False and set(item["required"]) == set(item["properties"])
     assert web_source.delegate_web_kind("shopping", "search_products") == extraction.KIND_PRODUCT
     assert web_source.delegate_web_kind("travel", "search_stays") is None
+
+
+# contract-test: supporting surface=rest_api assertions=instance-app-packages.web-source
+def test_routing_hint_names_the_web_source_only_next_to_a_provider_hint():
+    from backend.shared.app_packages import overlay
+
+    skill = {"id": "search", "preprocessor_hint": "Search events in a city."}
+    overlay._add_web_source_hint("events", skill)
+    assert skill["preprocessor_hint"].startswith("Search events in a city. ") and "public web pages" in skill[
+        "preprocessor_hint"]
+    bare = {"id": "search"}
+    overlay._add_web_source_hint("events", bare)
+    other = {"id": "search_stays", "preprocessor_hint": "Stays."}
+    overlay._add_web_source_hint("travel", other)
+    assert "preprocessor_hint" not in bare and other["preprocessor_hint"] == "Stays."
