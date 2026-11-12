@@ -162072,7 +162072,7 @@ assertions:
       surface: gui.apple
     - &id20651
       path: frontend/apps/web_app/tests/settings-translation-coverage.spec.ts
-      line: 297
+      line: 316
       name: settings catalog and visible settings/sub-settings menus have no missing
         translation placeholders
       surface: gui.web
@@ -162870,7 +162870,7 @@ assertions:
       surface: gui.web
     - &id20748
       path: frontend/apps/web_app/tests/settings-translation-coverage.spec.ts
-      line: 297
+      line: 316
       name: settings catalog and visible settings/sub-settings menus have no missing
         translation placeholders
       surface: gui.web
@@ -163022,7 +163022,7 @@ assertions:
     direct_tests:
     - &id20759
       path: frontend/apps/web_app/tests/settings-translation-coverage.spec.ts
-      line: 297
+      line: 316
       name: settings catalog and visible settings/sub-settings menus have no missing
         translation placeholders
       surface: gui.web
@@ -163041,7 +163041,7 @@ assertions:
     direct_tests:
     - &id20760
       path: frontend/apps/web_app/tests/settings-translation-coverage.spec.ts
-      line: 297
+      line: 316
       name: settings catalog and visible settings/sub-settings menus have no missing
         translation placeholders
       surface: gui.web
