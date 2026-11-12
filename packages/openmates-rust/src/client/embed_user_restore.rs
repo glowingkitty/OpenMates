@@ -75,8 +75,9 @@ impl Client {
         &mut self,
         embed_id: &str,
     ) -> RevisionResult<(EmbedHead, Option<String>)> {
-        self.require_session()?;
-        self.embed_detail(embed_id).await?;
+        // Both credential kinds: a web session reads through its opaque master.
+        self.require_credentials()?;
+        self.edit_fetch_embed(embed_id).await?;
         let row = self.embeds.get(embed_id).ok_or(Error::Protocol)?;
         let now_seconds = i64::try_from(crate::client::now_ms() / 1000).unwrap_or(i64::MAX);
         let head = EmbedHead::from_cached_row(embed_id, row, now_seconds)?;

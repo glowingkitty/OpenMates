@@ -3,14 +3,18 @@
  *
  * Saves a manually edited deck as the next version of its deck embed. The markup
  * is the Rust core's serialised deck (always normaliser output, so the stored head
- * matches what the backend normaliser produces for assistant edits). The save is
- * the shared client-authored revision commit (`embedUserRevision.ts`): one atomic
- * server commit checked against the head revision and stored content hash, and
- * the local cache is written only after the server receipt. A stale edit is
- * refused (`conflict`) instead of overwriting the newer head. A Project deck keeps
- * the Project revision path (`commitEmbedContentRevision`).
+ * matches what the backend normaliser produces for assistant edits).
+ *
+ * A personal chat or Project deck is saved by the client core
+ * (`embedContentEdit.ts`): it refuses a stale edit (`embed_version_conflict`)
+ * instead of overwriting the newer head, and writes the "Slides updated" event
+ * into the deck's chat (also for an edit made in the Projects workspace). Team
+ * decks keep the earlier paths: the chat revision commit (`embedUserRevision.ts`,
+ * conflict -> `conflict`) and the Project revision (`commitEmbedContentRevision`).
  */
 import { commitEmbedUserRevision } from '../../../services/embedUserRevision';
+import { EMBED_EDITS_ENABLED } from '../../../services/rustCore/embeds/embedEditSession';
+import { chatTeamOf, contentEditScope, saveContentEdit } from '../../../services/rustCore/embeds/embedContentEdit';
 import { commitEmbedContentRevision, isHeadPersisted, type EmbedVersionContext } from '../../../services/embedDiffStore';
 import type { DeckAspect } from '../../../services/rustCore/deckDocument/deckDocumentTypes';
 
@@ -62,6 +66,17 @@ export async function saveEditedDeck(
 	context: EmbedVersionContext
 ): Promise<DeckSaveResult> {
 	if (edited.markup === head.markup) return { saved: false };
+	if (EMBED_EDITS_ENABLED) {
+		const scope = contentEditScope({
+			chatId: context.chatId, chatTeamId: context.projectId ? null : (context.teamId ?? await chatTeamOf(context.chatId)),
+			projectId: context.projectId, projectTeamId: context.teamId
+		});
+		if (scope) {
+			const saved = await saveContentEdit(head.embedId, scope, head.version,
+				(version) => ({ ...deckVersionContent(head.content, edited, edited.markup, version), status: 'finished' }));
+			return { saved: true, version: saved.version };
+		}
+	}
 	if (context.projectId) return saveProjectDeck(head, edited, context);
 	if (!context.chatId) throw new Error('A deck edit needs its chat or Project');
 	const result = await commitEmbedUserRevision({

@@ -20,11 +20,13 @@ use zeroize::Zeroizing;
 
 #[path = "embed_user_edit_client.rs"]
 mod client_io;
+#[path = "embed_user_edit_keys.rs"]
+mod edit_keys;
 #[path = "embed_user_revision_refusal.rs"]
 pub(crate) mod refusal;
 #[path = "embed_user_restore.rs"]
 mod restore;
-pub use client_io::{EmbedRevisionOutcome, EventDelivery};
+pub use client_io::{EmbedRevisionOutcome, EventDelivery, EventNotice};
 
 /// Highest version the server accepts (`MAX_VERSION` of the route).
 pub const MAX_REVISION: i64 = 2_147_483_647;
@@ -82,13 +84,47 @@ impl UserRevisionError {
             }
             Self::BaseSnapshotRequired => "base_snapshot_required",
             Self::KeyUnavailable => "embed_key_unavailable",
-            Self::Transport(Error::Offline) => "offline",
-            Self::Transport(Error::Expired) => "session_expired",
-            Self::Transport(Error::Cancelled) => "cancelled",
-            Self::Transport(Error::Crypto) => "encryption_failed",
-            Self::Transport(_) => "transport_failed",
+            Self::Transport(error) => transport_code(error),
         }
     }
+}
+
+/// Stable code of a `Transport` failure, named after the core [`Error`] that
+/// caused it, so a shell (and a test log) can tell an offline device from a
+/// refused socket, a local guard or a malformed answer. Codes carry no server
+/// text, ids or key material: `Error::Invalid`'s message is replaced by
+/// `invalid_request`, and `Error::Unavailable` keeps only its static code.
+/// `transport_failed` is the last fallback, for an `Unavailable` whose static
+/// code is not a stable snake-case code.
+pub(crate) fn transport_code(error: &Error) -> &'static str {
+    match error {
+        Error::Offline => "offline",
+        Error::Expired => "session_expired",
+        Error::Cancelled => "cancelled",
+        Error::Crypto => "encryption_failed",
+        Error::Forbidden => "forbidden",
+        Error::Protocol => "protocol",
+        Error::Conflict => "conflict",
+        Error::Io => "io_failed",
+        Error::Locked => "credential_store_locked",
+        Error::Authentication => "authentication_failed",
+        Error::TwoFactorRequired => "two_factor_required",
+        Error::SignupRequired => "signup_required",
+        Error::VerificationRequired => "verification_required",
+        Error::Invalid(_) => "invalid_request",
+        Error::Unavailable { code, .. } if stable_code(code) => code,
+        Error::Unavailable { .. } => "transport_failed",
+    }
+}
+
+/// `^[a-z][a-z0-9_]{0,63}$`, the code shape every binding forwards unchanged.
+fn stable_code(code: &str) -> bool {
+    let bytes = code.as_bytes();
+    (1..=64).contains(&bytes.len())
+        && bytes[0].is_ascii_lowercase()
+        && bytes
+            .iter()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || *b == b'_')
 }
 
 impl fmt::Display for UserRevisionError {
@@ -242,6 +278,23 @@ impl EmbedHead {
             encrypted_content,
             created_at: super::embed_write::normalize_to_unix_seconds(stamp, now_seconds),
             hashed_chat_id: text_field(object, "hashed_chat_id").map(str::to_owned),
+        })
+    }
+
+    /// Refuse a content edit made on version `base` when this (freshly read
+    /// server) head is another version: the edit would silently replace a
+    /// version the user never saw (the compare-and-swap only guards the head
+    /// it is given).
+    ///
+    /// # Errors
+    /// `VersionConflict` carrying this head's version.
+    pub fn require_version(&self, base: i64) -> RevisionResult<()> {
+        if self.version == base {
+            return Ok(());
+        }
+        Err(UserRevisionError::VersionConflict {
+            current_revision: Some(self.version),
+            current_content_hash: None,
         })
     }
 }

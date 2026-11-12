@@ -120,7 +120,9 @@ units:
     vectors: []
     open_gaps:
     - No flag-on web-rust-core spec yet; image-enhance.spec.ts (image fullscreen Enhance and restore) and cli-native-embed-user-edits.spec.ts cover the flow outside the web-rust-core set.
-    - Only the image fullscreen (Enhance, restore) and the chat history (notice reconcile, event grouping) call the unit; content edits (slides and the other editors) and EmbedVersionTimeline restore still use the TypeScript embedDiffStore path.
+    - Personal chat and Project content edits of the diagram, slides and sheet editors save through the unit (commitContentRevision) with the flag on; with the flag off, and for Team chats and Team Projects, they keep the TypeScript paths (embedUserRevision.ts commit_chat_diagram_revision, embedDiffStore.commitEmbedContentRevision), so that code cannot be deleted before the flip and a Team-scope core save.
+    - The web app has no document editor yet (docs embeds only restore through EmbedVersionTimeline); EmbedVersionTimeline restore still uses the TypeScript embedDiffStore path.
+    - slides-manual-edit.spec.ts (always --web-rust-core) and diagram-html-editing.spec.ts (chat-row checks only with --web-rust-core) cover the edit chat row; sheet-edit-real.spec.ts checks it only on a Rust core dev build.
     spec_assertions:
     - embed-user-edits.edit.next-version
     - embed-user-edits.restore.creates-version

@@ -130,12 +130,14 @@ impl BrowserCoreClient {
     }
 
     /// Commit a user edit of a diagram, slides, sheet or document embed as its
-    /// next version. `head_json` is the cached `embeds` row the edit was made
-    /// on, `scope_json` `{kind: "chat", chat_id, team_id?}` or `{kind:
-    /// "project", project_id, team_id?}`, `content` the new head plaintext
-    /// (TOON), `identity_json` `{embed_ref, embed_kind}` or `undefined` (read
-    /// from the cached embed). Resolves to `EmbedRevisionOutcome` JSON
-    /// (`{commit: {committed, cache_synchronized}, event: {state, code?}}`).
+    /// next version. `head_json` is the head from `embed_user_edit_head`,
+    /// `base_version` the version the edit was made on (another head version
+    /// rejects with `embed_version_conflict`), `scope_json` `{kind: "chat",
+    /// chat_id, team_id?}` or `{kind: "project", project_id, team_id?}`,
+    /// `content` the new head plaintext (TOON), `identity_json` `{embed_ref,
+    /// embed_kind}` or `undefined` (read from the cached embed). Resolves to
+    /// `EmbedRevisionOutcome` JSON (`{commit: {committed, cache_synchronized},
+    /// event: {state, code?}}`).
     #[allow(clippy::too_many_arguments)] // One flat argument per wire field of the commit.
     pub async fn commit_embed_content_revision(
         &mut self,
@@ -143,6 +145,7 @@ impl BrowserCoreClient {
         generation: f64,
         embed_id: &str,
         head_json: &str,
+        base_version: f64,
         scope_json: &str,
         content: String,
         text_preview: Option<String>,
@@ -152,8 +155,11 @@ impl BrowserCoreClient {
         let content = Zeroizing::new(content);
         let text_preview = text_preview.map(Zeroizing::new);
         self.writable(handle, generation)?;
+        let head = head(embed_id, head_json)?;
+        head.require_version(version(base_version)?)
+            .map_err(|error| JsValue::from_str(error.code()))?;
         let request = UserRevisionRequest::content_edit(
-            head(embed_id, head_json)?,
+            head,
             scope(scope_json)?,
             content,
             text_preview,

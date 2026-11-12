@@ -33,6 +33,16 @@ version_conflict:
   en: This image was changed elsewhere. The newest version is shown now.
   de: Dieses Bild wurde woanders geändert. Jetzt wird die neueste Version angezeigt.
   verified_by_human: []
+edit_conflict:
+  context: Error when a diagram, slide deck, sheet or document was changed elsewhere before this edit was saved; nothing was overwritten and the edit was not saved
+  en: This was changed elsewhere, so your edit was not saved. Reload and try again.
+  de: Dies wurde woanders geändert, deshalb wurde deine Änderung nicht gespeichert. Lade neu und versuche es erneut.
+  verified_by_human: []
+edit_failed:
+  context: Error when saving an edit of a diagram, slide deck, sheet or document did not work; nothing changed
+  en: Your edit could not be saved. Please try again.
+  de: Deine Änderung konnte nicht gespeichert werden. Bitte versuche es erneut.
+  verified_by_human: []
 restore_failed:
   context: Error when restoring an earlier version of an embed did not work; nothing changed
   en: The version could not be restored. Please try again.

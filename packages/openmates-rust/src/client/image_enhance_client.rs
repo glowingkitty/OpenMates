@@ -16,7 +16,6 @@ use crate::client::{Client, now_ms, segment};
 use crate::error::Error;
 use reqwest::Method;
 use serde_json::Value;
-use std::collections::HashSet;
 use std::time::Duration;
 use zeroize::Zeroizing;
 
@@ -84,8 +83,7 @@ impl Client {
         &mut self,
         head: &EmbedHead,
     ) -> ImageEnhanceResult<Zeroizing<String>> {
-        let wrapping = self.wrapping_key().await?;
-        let key = match self.embed_key(&head.embed_id, &wrapping, &mut HashSet::new()) {
+        let key = match self.edit_embed_key(&head.embed_id).await {
             Ok(key) => key,
             Err(Error::Forbidden | Error::Protocol) => {
                 return Err(ImageEnhanceError::KeyUnavailable);
@@ -96,7 +94,8 @@ impl Client {
     }
 
     fn enhance_session(&self) -> ImageEnhanceResult<()> {
-        self.require_session()?;
+        // Both credential kinds: a web session has no native master key.
+        self.require_credentials()?;
         self.verify_private_operation()?;
         Ok(())
     }

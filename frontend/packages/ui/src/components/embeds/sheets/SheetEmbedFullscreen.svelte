@@ -34,6 +34,8 @@
     setMarkdownTableCell,
   } from './sheetEmbedContent';
   import { commitEmbedContentRevision } from '../../../services/embedDiffStore';
+  import { EMBED_EDITS_ENABLED } from '../../../services/rustCore/embeds/embedEditSession';
+  import { chatTeamOf, contentEditScope, saveContentEdit } from '../../../services/rustCore/embeds/embedContentEdit';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
   import { includeOriginalPIIInDraftEmbed, loadEmbedPIIMappings } from '../../enter_message/services/codeEmbedService';
   import { piiVisibilityStore } from '../../../stores/piiVisibilityStore';
@@ -245,29 +247,43 @@
     node.select();
   }
 
+  /** Saves a cell edit as the next version: through the client core (which also notes it in the sheet's chat), else the earlier revision path. */
+  async function saveRevision(baseVersion: number, baseContent: string, next: string): Promise<number> {
+    const build = (content: string, newVersion: number) => ({
+      ...dc,
+      table: content,
+      ...(typeof dc.code === 'string' ? { code: content } : {}),
+      version_number: newVersion,
+    });
+    const scope = EMBED_EDITS_ENABLED ? contentEditScope({
+      chatId, chatTeamId: projectId ? null : (teamId ?? await chatTeamOf(chatId)), projectId, projectTeamId: teamId,
+    }) : null;
+    if (scope) return (await saveContentEdit(embedId!, scope, baseVersion, (newVersion) => build(next, newVersion))).version;
+    const result = await commitEmbedContentRevision(embedId!, next, {
+      currentVersion: baseVersion,
+      currentContent: baseContent,
+      chatId,
+      projectId,
+      teamId,
+      buildRestoredContent: build,
+    });
+    return result.version_number;
+  }
+
   async function persistEdit(prev: string, next: string) {
     const baseVersion = persistedVersion || versionNumber;
     const baseContent = persistedTable || prev;
     try {
-      const result = await commitEmbedContentRevision(embedId!, next, {
-        currentVersion: baseVersion,
-        currentContent: baseContent,
-        chatId,
-        projectId,
-        teamId,
-        buildRestoredContent: (content, newVersion) => ({
-          ...dc,
-          table: content,
-          ...(typeof dc.code === 'string' ? { code: content } : {}),
-          version_number: newVersion,
-        }),
-      });
+      const version = await saveRevision(baseVersion, baseContent, next);
       persistedTable = next;
-      persistedVersion = result.version_number;
-      localVersion = result.version_number;
+      persistedVersion = version;
+      localVersion = version;
     } catch (error) {
       console.error('[SheetEmbedFullscreen] Failed to save cell edit:', error);
-      notificationStore.error(error instanceof Error ? error.message : String(error));
+      const code = EMBED_EDITS_ENABLED ? (error as { code?: unknown } | null)?.code : undefined;
+      notificationStore.error(code === 'embed_version_conflict' ? $text('embed_user_edits.edit_conflict')
+        : typeof code === 'string' ? $text('embed_user_edits.edit_failed')
+        : error instanceof Error ? error.message : String(error));
       localTable = baseContent;
       persistedTable = baseContent;
     }

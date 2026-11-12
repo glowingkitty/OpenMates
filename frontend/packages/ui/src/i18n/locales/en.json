@@ -7223,6 +7223,12 @@
     "version_conflict": {
       "text": "This image was changed elsewhere. The newest version is shown now."
     },
+    "edit_conflict": {
+      "text": "This was changed elsewhere, so your edit was not saved. Reload and try again."
+    },
+    "edit_failed": {
+      "text": "Your edit could not be saved. Please try again."
+    },
     "restore_failed": {
       "text": "The version could not be restored. Please try again."
     },

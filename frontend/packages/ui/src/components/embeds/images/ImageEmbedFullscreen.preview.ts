@@ -39,4 +39,9 @@ export const variants = {
     fileSize: 856320,
     fileType: "image/png",
   },
+
+  /** Enhance round button states (embed-user-edits.enhance.button) */
+  enhanceIdle: { ...defaultProps, onEnhance: () => {} },
+  enhanceRunning: { ...defaultProps, onEnhance: () => {}, enhanceState: "running" },
+  enhanceNotAllowed: { ...defaultProps, onEnhance: () => {}, canEnhance: false },
 };

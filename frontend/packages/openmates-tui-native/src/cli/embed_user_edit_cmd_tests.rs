@@ -54,6 +54,7 @@ fn outcome(
             cache_synchronized: true,
         },
         event,
+        notice: None,
     }
 }
 

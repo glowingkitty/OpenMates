@@ -60,3 +60,16 @@ it('keeps an uploading editor image local, then resolves its server ID after upl
     id: 'server-embed-id', localOnly: false, status: 'finished',
   });
 });
+
+// contract-test: supporting surface=gui.web assertions=embed-user-edits.enhance.button
+it('passes the persisted upload embed id in the image fullscreen event', () => {
+  const content = document.createElement('div');
+  const listener = vi.fn();
+  content.addEventListener('imagefullscreen', listener);
+  new ImageRenderer().render({ content, container: content, attrs: {
+    id: 'draft-node-id', type: 'image', status: 'finished', contentRef: 'embed:server-embed-id',
+    s3Files: { preview: { s3_key: 'encrypted-image' } }, aesKey: 'key',
+  } } as unknown as Parameters<ImageRenderer['render']>[0]);
+  mocks.mount.mock.calls[mocks.mount.mock.calls.length - 1]?.[1].props.onFullscreen();
+  expect(listener.mock.calls[0][0].detail).toMatchObject({ embedId: 'server-embed-id' });
+});

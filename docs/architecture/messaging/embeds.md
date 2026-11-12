@@ -204,6 +204,33 @@ Changed identities and unverifiable canonical digests still fail verification;
 continuously arriving new outputs have a bounded refresh count. Unrelated saved
 chat browsing can continue while an unverified recovery record remains pending.
 
+### User-made versions and the chat event
+
+A user edit of an embed (diagram, slide deck, sheet, enhanced or restored image)
+is one more version in the embed's single version history, written through
+`POST /v1/embeds/{embed_id}/user-revisions`. The commit carries the version the
+editor was based on; a stale base is refused with `embed_version_conflict` and
+nothing is written. The embed has the same history wherever it is opened.
+
+Each accepted user version adds one client-written, encrypted `system` message
+`embed_updated` (id `embed-updated-<embed_id>-v<version>`) to the chat the embed
+belongs to, also when the edit was made from the Projects workspace. An embed
+that belongs to a Project only gets no chat event. Clients that were offline
+read missed events from `GET /v1/chats/{chat_id}/pending-embed-notices`.
+
+Image Enhance is server-made: `POST /v1/images/enhance` starts the operation,
+`GET /v1/images/enhance/{operation_id}` and the `image_enhance_ready` /
+`image_enhance_failed` WebSocket events report it, and the client stores the
+result as the next version of the same embed. The old picture stays restorable.
+
+The client side (head read, base-version check, commit, restore, event message)
+lives in the shared Rust core (`embed_user_revision.rs`, `embed_user_restore.rs`);
+the web app reaches it through the embedEdit Worker unit and the CLI through
+`openmates embeds`. A web page starts with a local, cache-read core session; a
+user edit that meets it asks the page for the existing upgrade to a
+server-checked session (bounded wait) and sends once more. A refusal after that
+shows the editor's error state; there is no TypeScript write path. Contract: `specifications/features/embed-user-edits/`.
+
 ### Embed Types (`encrypted_type` values)
 
 `app_skill_use` · `website` · `place` · `event` · `code` · `application` · `file` · `sheet` · `document` · `image` · `video` · `audio` · `pdf`

@@ -7,7 +7,10 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 
-import { createEmbedEditHandlers, enhanceResult, revisionResult, type EmbedEditDeps } from '../embedEditUnit';
+import {
+	createEmbedEditHandlers, EMBED_EDIT_BORROW_TIMEOUT_MS, EMBED_EDIT_USER_BORROW_TIMEOUT_MS, ENHANCE_MAX_BUSY_READS,
+	enhanceResult, revisionResult, type EmbedEditDeps
+} from '../embedEditUnit';
 import type { CoreClientBorrow } from '../../drafts/coreClientBorrow';
 
 const SIGNAL = new AbortController().signal;
@@ -17,7 +20,7 @@ const headRead = () => vi.fn(async (_handle: string, _generation: number, embedI
 	JSON.stringify({ head: { ...HEAD, embed_id: embedId }, chat_id: null }));
 
 const committed = {
-	commit: { committed: { version: 3, base_version: 2, encrypted_content: 'x' }, cache_synchronized: true },
+	commit: { committed: { version: 3, base_version: 2, encrypted_content: 'x', content_hash: 'h' }, cache_synchronized: true },
 	event: { state: 'written' }
 };
 
@@ -43,13 +46,13 @@ function setup(client: Record<string, unknown>, borrowed: CoreClientBorrow | 'no
 		sleep: (_ms, woken) => new Promise<void>((resolve) => { wake = resolve; void woken.then(resolve); })
 	};
 	const handlers = createEmbedEditHandlers(binding, `p${Math.random()}`, deps, new AbortController().signal);
-	return { handlers, release, wakeTimer: () => wake?.() };
+	return { handlers, release, deps, wakeTimer: () => wake?.() };
 }
 
 describe('embedEdit result mapping', () => {
 	// contract-test: direct surface=gui.web assertions=embed-user-edits.edit.next-version
 	it('keeps only the version, event and cache state of a committed revision', () => {
-		expect(revisionResult(committed)).toEqual({ version: 3, base_version: 2, event: { state: 'written' }, cache_synchronized: true });
+		expect(revisionResult(committed)).toEqual({ version: 3, base_version: 2, event: { state: 'written' }, cache_synchronized: true, content_hash: 'h' });
 	});
 
 	// contract-test: direct surface=gui.web assertions=embed-user-edits.enhance.button,embed-user-edits.edit.next-version
@@ -57,6 +60,13 @@ describe('embedEdit result mapping', () => {
 		expect(enhanceResult({ state: 'committed', operation_id: 'op', outcome: committed }))
 			.toEqual({ operation_id: 'op', version: 3, event: { state: 'written' } });
 		expect(enhanceResult({ state: 'already_committed', operation_id: 'op', version: 4 })).toEqual({ operation_id: 'op', version: 4 });
+	});
+
+	// contract-test: direct surface=gui.web assertions=embed-user-edits.event.chat-notice
+	it('passes the written chat row through to the page', () => {
+		const notice = { chat_id: 'chat', message_id: 'event', created_at: 1, content: '{"type":"embed_updated"}' };
+		expect(revisionResult({ ...committed, notice }).notice).toEqual(notice);
+		expect(enhanceResult({ state: 'committed', operation_id: 'op', outcome: { ...committed, notice } }).notice).toEqual(notice);
 	});
 
 	// contract-test: direct surface=gui.web assertions=embed-user-edits.edit.next-version
@@ -126,6 +136,47 @@ describe('embedEdit Enhance run', () => {
 		const leaky = setup({ reconcile_embed_update_notices: async () => { throw new Error('secret detail: key=abc'); } });
 		await expect(leaky.handlers.reconcileNotices({ chatId: 'c' }, SIGNAL) as Promise<unknown>).rejects.toMatchObject({ code: 'embed_edit_failed' });
 		expect(leaky.release).toHaveBeenCalledTimes(1);
+		const local = setup({}, 'local');
+		await expect(local.handlers.restoreVersion({ embedId: 'e', scope, restoredFrom: 1 }, SIGNAL) as Promise<unknown>)
+			.rejects.toMatchObject({ code: 'local_session' });
+	});
+
+	// contract-test: direct surface=gui.web assertions=embed-user-edits.edit.next-version,embed-user-edits.enhance.button
+	it('waits longer for a busy core on a user-pressed write than on the chat-open reconcile', async () => {
+		const { handlers, deps } = setup({
+			embed_user_edit_head: headRead(),
+			commit_embed_content_revision: vi.fn(async () => JSON.stringify(committed)),
+			reconcile_embed_update_notices: vi.fn(async () => JSON.stringify({ written: 0 }))
+		});
+		await handlers.commitContentRevision({ embedId: 'e7', scope, baseVersion: 2, content: 'c' }, SIGNAL);
+		await handlers.reconcileNotices({ chatId: 'c' }, SIGNAL);
+		const bounds = (deps.borrow as ReturnType<typeof vi.fn>).mock.calls.map((call) => call[2]);
+		expect(bounds).toEqual([EMBED_EDIT_USER_BORROW_TIMEOUT_MS, EMBED_EDIT_BORROW_TIMEOUT_MS]);
+		expect(EMBED_EDIT_USER_BORROW_TIMEOUT_MS).toBeGreaterThan(EMBED_EDIT_BORROW_TIMEOUT_MS);
+	});
+
+	// contract-test: direct surface=gui.web assertions=embed-user-edits.enhance.button
+	it('reads a pending job again when the core stays busy, and gives up with core_busy only after the bound', async () => {
+		const client = {
+			embed_user_edit_head: headRead(),
+			start_image_enhance: vi.fn(async () => JSON.stringify({ operation_id: 'op-3', state: 'pending' })),
+			wait_image_enhance: vi.fn(async () => JSON.stringify({ operation_id: 'op-3', state: 'ready' })),
+			save_image_enhance_result: vi.fn(async () => JSON.stringify({ state: 'committed', operation_id: 'op-3', outcome: committed }))
+		};
+		const lent = { client, status: { handle: 'h', generation: 1, principal: 'p' }, release: vi.fn() } as unknown as CoreClientBorrow;
+		const borrow = vi.fn<EmbedEditDeps['borrow']>()
+			.mockResolvedValueOnce(lent).mockResolvedValueOnce('busy').mockResolvedValueOnce('busy').mockResolvedValue(lent);
+		const handlers = createEmbedEditHandlers(binding, `p${Math.random()}`, { borrow, sleep: async () => {} }, new AbortController().signal);
+		await expect(handlers.enhanceImage({ embedId: 'e8', scope }, SIGNAL) as Promise<unknown>)
+			.resolves.toEqual({ operation_id: 'op-3', version: 3, event: { state: 'written' } });
+		expect(client.wait_image_enhance).toHaveBeenCalledTimes(1);
+		expect(borrow.mock.calls.map((call) => call[2])).toEqual([EMBED_EDIT_USER_BORROW_TIMEOUT_MS, EMBED_EDIT_BORROW_TIMEOUT_MS,
+			EMBED_EDIT_BORROW_TIMEOUT_MS, EMBED_EDIT_BORROW_TIMEOUT_MS, EMBED_EDIT_USER_BORROW_TIMEOUT_MS]);
+
+		const stuck = vi.fn<EmbedEditDeps['borrow']>().mockResolvedValueOnce(lent).mockResolvedValue('busy');
+		const blocked = createEmbedEditHandlers(binding, `p${Math.random()}`, { borrow: stuck, sleep: async () => {} }, new AbortController().signal);
+		await expect(blocked.enhanceImage({ embedId: 'e9', scope }, SIGNAL) as Promise<unknown>).rejects.toMatchObject({ code: 'core_busy' });
+		expect(stuck).toHaveBeenCalledTimes(1 + ENHANCE_MAX_BUSY_READS);
 	});
 
 	// contract-test: direct surface=gui.web assertions=embed-user-edits.restore.creates-version
@@ -141,7 +192,7 @@ describe('embedEdit Enhance run', () => {
 		const restore = vi.fn(async () => JSON.stringify(committed));
 		const { handlers, release } = setup({ embed_user_edit_head: headRead(), restore_embed_version: restore });
 		await expect(handlers.restoreVersion({ embedId: 'e3', scope, restoredFrom: 1 }, SIGNAL) as Promise<unknown>)
-			.resolves.toEqual({ version: 3, base_version: 2, event: { state: 'written' }, cache_synchronized: true });
+			.resolves.toEqual({ version: 3, base_version: 2, event: { state: 'written' }, cache_synchronized: true, content_hash: 'h' });
 		expect(restore).toHaveBeenCalledWith('h', 1, 'e3', JSON.stringify({ ...HEAD, embed_id: 'e3' }), JSON.stringify(scope), 1);
 		expect(release).toHaveBeenCalledTimes(1);
 		const failing = setup({ embed_user_edit_head: vi.fn().mockRejectedValue('embed_key_unavailable'), restore_embed_version: restore });
@@ -149,5 +200,40 @@ describe('embedEdit Enhance run', () => {
 			.rejects.toMatchObject({ code: 'embed_key_unavailable' });
 		expect(restore).toHaveBeenCalledTimes(1);
 		expect(failing.release).toHaveBeenCalledTimes(1);
+	});
+
+	// contract-test: direct surface=gui.web assertions=embed-user-edits.edit.next-version,embed-user-edits.event.chat-notice
+	it('commits a content edit on the head the core read, with the version the edit was made on', async () => {
+		const commit = vi.fn(async () => JSON.stringify(committed));
+		const { handlers, release } = setup({ embed_user_edit_head: headRead(), commit_embed_content_revision: commit });
+		await expect(handlers.commitContentRevision({ embedId: 'e4', scope, baseVersion: 2, content: 'title: Plan v3' }, SIGNAL) as Promise<unknown>)
+			.resolves.toEqual({ version: 3, base_version: 2, event: { state: 'written' }, cache_synchronized: true, content_hash: 'h' });
+		expect(commit).toHaveBeenCalledWith('h', 1, 'e4', JSON.stringify({ ...HEAD, embed_id: 'e4' }), 2, JSON.stringify(scope), 'title: Plan v3');
+		expect(release).toHaveBeenCalledTimes(1);
+	});
+
+	// contract-test: direct surface=gui.web assertions=embed-user-edits.event.project-edit-reaches-chat
+	it('commits a Projects workspace edit in Project scope so the core writes the event into the embed chat', async () => {
+		const commit = vi.fn(async () => JSON.stringify({ ...committed, event: { state: 'no_chat' } }));
+		const project = { kind: 'project', project_id: 'project-1' } as const;
+		const { handlers } = setup({ embed_user_edit_head: headRead(), commit_embed_content_revision: commit });
+		await expect(handlers.commitContentRevision({ embedId: 'e5', scope: project, baseVersion: 2, content: 'c' }, SIGNAL) as Promise<unknown>)
+			.resolves.toMatchObject({ version: 3, event: { state: 'no_chat' } });
+		expect(commit).toHaveBeenCalledWith('h', 1, 'e5', JSON.stringify({ ...HEAD, embed_id: 'e5' }), 2, JSON.stringify(project), 'c');
+	});
+
+	// contract-test: direct surface=gui.web assertions=embed-user-edits.edit.next-version
+	it('passes the core conflict code through and refuses a bad request before borrowing', async () => {
+		const commit = vi.fn().mockRejectedValue('embed_version_conflict');
+		const { handlers, release } = setup({ embed_user_edit_head: headRead(), commit_embed_content_revision: commit });
+		await expect(handlers.commitContentRevision({ embedId: 'e6', scope, baseVersion: 1, content: 'c' }, SIGNAL) as Promise<unknown>)
+			.rejects.toMatchObject({ code: 'embed_version_conflict' });
+		expect(release).toHaveBeenCalledTimes(1);
+		await expect(handlers.commitContentRevision({ embedId: 'e6', scope, baseVersion: 0, content: 'c' }, SIGNAL) as Promise<unknown>)
+			.rejects.toMatchObject({ code: 'embed_edit_bad_version' });
+		await expect(handlers.commitContentRevision({ embedId: 'e6', scope, baseVersion: 1, content: '' }, SIGNAL) as Promise<unknown>)
+			.rejects.toMatchObject({ code: 'embed_edit_bad_content' });
+		expect(release).toHaveBeenCalledTimes(1);
+		expect(commit).toHaveBeenCalledTimes(1);
 	});
 });

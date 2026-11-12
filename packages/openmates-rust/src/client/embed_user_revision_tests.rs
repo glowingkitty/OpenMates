@@ -512,3 +512,55 @@ fn content_edit_is_a_file_less_edit_of_the_head() {
             .is_none()
     );
 }
+
+#[test]
+fn a_content_edit_of_an_older_version_is_a_version_conflict() {
+    let head = head();
+    assert_eq!(head.require_version(2), Ok(()));
+    let refused = head.require_version(1).expect_err("stale base");
+    assert_eq!(refused.code(), "embed_version_conflict");
+    assert_eq!(
+        refused,
+        UserRevisionError::VersionConflict {
+            current_revision: Some(2),
+            current_content_hash: None
+        }
+    );
+}
+
+#[test]
+fn transport_failures_keep_a_specific_stable_code_without_detail() {
+    let cases = [
+        (Error::Offline, "offline"),
+        (Error::Expired, "session_expired"),
+        (Error::Cancelled, "cancelled"),
+        (Error::Crypto, "encryption_failed"),
+        (Error::Forbidden, "forbidden"),
+        (Error::Protocol, "protocol"),
+        (Error::Conflict, "conflict"),
+        (Error::Io, "io_failed"),
+        (Error::Authentication, "authentication_failed"),
+        (Error::VerificationRequired, "verification_required"),
+        (
+            Error::Invalid("secret detail: embed 1234"),
+            "invalid_request",
+        ),
+        (
+            Error::Unavailable {
+                code: "browser_offline_read_only",
+                reason: "LOCAL_PROFILE_DOES_NOT_GRANT_SERVER_OR_STREAM_AUTHORITY",
+            },
+            "browser_offline_read_only",
+        ),
+        (
+            Error::Unavailable {
+                code: "Not A Code",
+                reason: "X",
+            },
+            "transport_failed",
+        ),
+    ];
+    for (error, code) in cases {
+        assert_eq!(UserRevisionError::Transport(error).code(), code);
+    }
+}

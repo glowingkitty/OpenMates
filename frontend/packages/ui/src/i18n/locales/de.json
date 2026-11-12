@@ -7194,6 +7194,12 @@
     "version_conflict": {
       "text": "Dieses Bild wurde woanders geändert. Jetzt wird die neueste Version angezeigt."
     },
+    "edit_conflict": {
+      "text": "Dies wurde woanders geändert, deshalb wurde deine Änderung nicht gespeichert. Lade neu und versuche es erneut."
+    },
+    "edit_failed": {
+      "text": "Deine Änderung konnte nicht gespeichert werden. Bitte versuche es erneut."
+    },
     "restore_failed": {
       "text": "Die Version konnte nicht wiederhergestellt werden. Bitte versuche es erneut."
     },

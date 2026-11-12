@@ -1037,6 +1037,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     // Image embed fullscreen — triggered by clicking an in-editor upload embed
     let showImageEmbedFullscreen = $state(false);
     let imageEmbedFullscreenData = $state<{
+        embedId?: string;
         src?: string;
         filename?: string;
         s3Files?: Record<string, { s3_key: string; width: number; height: number; size_bytes: number; format: string }>;
@@ -1462,6 +1463,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     function handleImageFullscreen(event: CustomEvent) {
         console.debug('[ActiveChat] Received imagefullscreen event:', event.detail);
         imageEmbedFullscreenData = {
+            embedId: event.detail.embedId,
             src: event.detail.src,
             filename: event.detail.filename,
             s3Files: event.detail.s3Files,
@@ -15545,6 +15547,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                             ai_detection: imageEmbedFullscreenData.aiDetection,
                         },
                     }}
+                    embedId={imageEmbedFullscreenData.embedId}
                     onClose={handleCloseImageEmbedFullscreen}
                 />
             {/if}

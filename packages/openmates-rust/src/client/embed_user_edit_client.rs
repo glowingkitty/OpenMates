@@ -10,7 +10,8 @@ use super::{
 };
 use crate::client::embed_updated_event::{
     EmbedEventIdentity, EmbedKind, EmbedUpdatedWriter, EventWrite, NoticeReconcileReport,
-    SystemEventSink, parse_pending_notices, reconcile_notices, valid_embed_ref,
+    SystemEventSink, build_embed_updated_event, parse_pending_notices, reconcile_notices,
+    valid_embed_ref,
 };
 use crate::client::embed_write::keys::OsNonces;
 use crate::client::transport::{Socket, send, wait};
@@ -20,7 +21,7 @@ use crate::error::{Error, Result};
 use reqwest::Method;
 use serde::Serialize;
 use serde_json::{Value, json};
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::collections::{BTreeMap, BTreeSet};
 use std::time::Duration;
 
 /// The server confirms a stored system message well within this.
@@ -45,6 +46,23 @@ pub enum EventDelivery {
     },
 }
 
+/// The chat row of a written (or already written) `embed_updated` event, for
+/// the shell that saved the version. The server broadcasts a stored system
+/// message to the user's *other* devices only, so the saving device shows the
+/// row from this value; after a reload it comes from the stored history.
+/// `content` is the event JSON the chat stores (no key material).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct EventNotice {
+    /// Chat the event was written to.
+    pub chat_id: String,
+    /// Deterministic message id of the event (duplicates are no-ops).
+    pub message_id: String,
+    /// Unix seconds of the event.
+    pub created_at: i64,
+    /// Plaintext system message content (the `embed_updated` event JSON).
+    pub content: String,
+}
+
 /// Result of [`Client::commit_embed_user_revision`].
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct EmbedRevisionOutcome {
@@ -52,6 +70,9 @@ pub struct EmbedRevisionOutcome {
     pub commit: UserRevisionCommit,
     /// The chat event of the version.
     pub event: EventDelivery,
+    /// The chat row to show now when the event is written; `None` otherwise.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub notice: Option<EventNotice>,
 }
 
 fn transport_error(error: Error) -> UserRevisionError {
@@ -136,13 +157,7 @@ impl SystemEventSink for ClientEventSink<'_> {
         content: &str,
         created_at: i64,
     ) -> Result<()> {
-        let key = match self.client.chats.get(chat_id).cloned() {
-            Some(row) => {
-                let wrapping = self.client.wrapping_key().await?;
-                self.client.chat_key(&row, &wrapping)?
-            }
-            None => self.client.work_chat_key(chat_id).await?,
-        };
+        let key = self.client.edit_chat_key(chat_id).await?;
         // Same shape as the web `chat_system_message_added` write and the
         // Memory notice; the deterministic id makes a duplicate a no-op.
         let mut payload = json!({"chat_id": chat_id, "message": {
@@ -187,12 +202,8 @@ impl Client {
     /// Ref and kind of a cached embed from its decrypted content (`embed_ref`,
     /// `app_id`, `skill_id`); `None` when the embed is not cached here, its key
     /// is unavailable, or its type is not user-editable.
-    fn embed_event_identity(
-        &self,
-        embed_id: &str,
-        wrapping: &[u8; 32],
-    ) -> Option<EmbedEventIdentity> {
-        let item = self.decrypt_embed_item(embed_id, wrapping).ok()?;
+    async fn embed_event_identity(&mut self, embed_id: &str) -> Option<EmbedEventIdentity> {
+        let item = self.edit_embed_item(embed_id).await.ok()?;
         let content = &item.fields["content"];
         let embed_kind =
             EmbedKind::from_app_skill(text(content, "app_id"), text(content, "skill_id"))?;
@@ -223,10 +234,10 @@ impl Client {
         request: UserRevisionRequest,
         identity: Option<EmbedEventIdentity>,
     ) -> RevisionResult<EmbedRevisionOutcome> {
-        self.require_session()?;
+        // Both credential kinds: a web session has no native master key.
+        self.require_credentials()?;
         self.verify_private_operation()?;
-        let wrapping = self.wrapping_key().await?;
-        let key = match self.embed_key(&request.head.embed_id, &wrapping, &mut HashSet::new()) {
+        let key = match self.edit_embed_key(&request.head.embed_id).await {
             Ok(key) => key,
             Err(Error::Forbidden | Error::Protocol) => {
                 return Err(UserRevisionError::KeyUnavailable);
@@ -236,10 +247,12 @@ impl Client {
         let prepared = prepare_user_revision(&request, &key, now_ms() as i64, &mut OsNonces)?;
         drop(key);
         let commit = commit_prepared(&mut ClientRevisionIo { client: self }, prepared).await?;
-        let event = self
-            .announce(&commit, &request.scope, identity, &wrapping)
-            .await;
-        Ok(EmbedRevisionOutcome { commit, event })
+        let (event, notice) = self.announce(&commit, &request.scope, identity).await;
+        Ok(EmbedRevisionOutcome {
+            commit,
+            event,
+            notice,
+        })
     }
 
     async fn announce(
@@ -247,11 +260,10 @@ impl Client {
         commit: &UserRevisionCommit,
         scope: &RevisionScope,
         identity: Option<EmbedEventIdentity>,
-        wrapping: &[u8; 32],
-    ) -> EventDelivery {
+    ) -> (EventDelivery, Option<EventNotice>) {
         let committed = &commit.committed;
         if !committed.pending_notice {
-            return EventDelivery::NoChat;
+            return (EventDelivery::NoChat, None);
         }
         let chat_id = match scope {
             RevisionScope::Chat { chat_id, .. } => Some(chat_id.clone()),
@@ -261,16 +273,16 @@ impl Client {
                 .and_then(|hash| self.chats.keys().find(|id| sha256(id) == hash).cloned()),
         };
         let Some(chat_id) = chat_id else {
-            return EventDelivery::Deferred {
-                code: "home_chat_unavailable",
-            };
+            let code = "home_chat_unavailable";
+            return (EventDelivery::Deferred { code }, None);
         };
-        let Some(identity) =
-            identity.or_else(|| self.embed_event_identity(&committed.embed_id, wrapping))
-        else {
-            return EventDelivery::Deferred {
-                code: "embed_identity_unavailable",
-            };
+        let identity = match identity {
+            Some(identity) => Some(identity),
+            None => self.embed_event_identity(&committed.embed_id).await,
+        };
+        let Some(identity) = identity else {
+            let code = "embed_identity_unavailable";
+            return (EventDelivery::Deferred { code }, None);
         };
         let known = self.history_message_ids(&chat_id);
         let event = committed.event(&identity);
@@ -282,13 +294,23 @@ impl Client {
             .write(&mut sink, &chat_id, &event, &known)
             .await;
         sink.close().await;
-        match written {
+        let delivery = match written {
             Ok(EventWrite::Written) => EventDelivery::Written,
             Ok(EventWrite::AlreadyWritten) => EventDelivery::AlreadyWritten,
-            Err(error) => EventDelivery::Deferred {
-                code: error_code(&error),
-            },
-        }
+            Err(error) => {
+                let code = error_code(&error);
+                return (EventDelivery::Deferred { code }, None);
+            }
+        };
+        let notice = build_embed_updated_event(&event)
+            .ok()
+            .map(|content| EventNotice {
+                chat_id,
+                message_id: event.message_id(),
+                created_at: event.created_at,
+                content,
+            });
+        (delivery, notice)
     }
 
     /// Write the `embed_updated` events of `chat_id` that the server still
@@ -306,7 +328,7 @@ impl Client {
     ) -> Result<NoticeReconcileReport> {
         uuid::Uuid::parse_str(chat_id)
             .map_err(|_| Error::Invalid("A full chat ID is required."))?;
-        self.require_session()?;
+        self.require_credentials()?;
         let path = self.scoped(&format!(
             "/v1/chats/{}/pending-embed-notices",
             segment(chat_id)
@@ -323,7 +345,6 @@ impl Client {
                 ..NoticeReconcileReport::default()
             });
         }
-        let wrapping = self.wrapping_key().await?;
         let mut identities: BTreeMap<String, Option<EmbedEventIdentity>> = BTreeMap::new();
         for notice in notices
             .iter()
@@ -335,12 +356,12 @@ impl Client {
             // A failed fetch leaves the notice unresolved (it stays pending on
             // the server); it never stops the other notices of the chat.
             if !self.embeds.contains_key(&notice.embed_id)
-                && self.embed_detail(&notice.embed_id).await.is_err()
+                && self.edit_fetch_embed(&notice.embed_id).await.is_err()
             {
                 identities.insert(notice.embed_id.clone(), None);
                 continue;
             }
-            let identity = self.embed_event_identity(&notice.embed_id, &wrapping);
+            let identity = self.embed_event_identity(&notice.embed_id).await;
             identities.insert(notice.embed_id.clone(), identity);
         }
         let mut writer = EmbedUpdatedWriter::new();

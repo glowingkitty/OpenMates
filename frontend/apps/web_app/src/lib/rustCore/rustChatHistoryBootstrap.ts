@@ -14,6 +14,7 @@ import type { LocalSavedChatSession, ProductionSavedChatSession } from '@openmat
 import type { SavedChatReadback, LocalChatReadback } from '@openmates/ui/src/services/rustCore/savedReadProtocol';
 import { createRustCoreWorker, createRustLocalSession, createRustSecondDeviceSession, preloadRustAdmissionModules, prewarmRustCoreWorker } from './rustCoreLoader';
 import { registerRustCoreWorkerFactory } from '@openmates/ui/src/services/rustCore/host/workerFactoryRegistry';
+import { notifyServerCheckedSession, registerServerCheckedSession } from '@openmates/ui/src/services/rustCore/host/serverSessionRegistry';
 
 /** Measurement-only opt-out: lets one flag build record the TS baseline. */
 export const RUST_HISTORY_OPT_OUT_KEY = 'openmates_rust_core_history';
@@ -105,7 +106,7 @@ export function installRustChatHistory(): () => void {
 		if (session && !session.signal.aborted) return Promise.resolve(session);
 		if (!pending) markRustStage('session-start');
 		pending ??= admit()
-			.then((created) => { session = created; markRustStage('session-ready'); return created; },
+			.then((created) => { session = created; markRustStage('session-ready'); notifyServerCheckedSession(); return created; },
 				(error: unknown) => {
 					const code = rustFailureCode(error);
 					markRustStage(`session-failed-${code}`);
@@ -206,6 +207,12 @@ export function installRustChatHistory(): () => void {
 			reconcile: () => afterRender().then(() => enqueue(() => serverRead(chatId, anchorMessageId))) };
 	};
 
+	// A user-pressed server write of a sibling unit (embed edits) refused on the
+	// local-only session asks for this same server-checked upgrade, e.g. in a chat
+	// created after login, which never needed a server read. Chat-open work never
+	// asks for it; it waits for `notifyServerCheckedSession`.
+	const unregisterServerSession = registerServerCheckedSession(() => ensureSession().then(() => undefined));
+
 	const uninstall = installRustChatHistorySource({
 		readWindow: ({ chatId, anchorMessageId }) => enqueue(() => read(chatId, anchorMessageId))
 	});
@@ -222,5 +229,5 @@ export function installRustChatHistory(): () => void {
 				.catch(() => undefined);
 		}
 	});
-	return () => { stopAuth(); uninstall(); lifetime.abort(); local?.close(); session?.close(); unregisterWorker(); };
+	return () => { stopAuth(); uninstall(); unregisterServerSession(); lifetime.abort(); local?.close(); session?.close(); unregisterWorker(); };
 }

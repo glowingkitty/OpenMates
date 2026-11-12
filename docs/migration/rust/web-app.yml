@@ -9,10 +9,10 @@ flag:
   default: 'off'
   flag_off_behavior: original TypeScript path, byte-identical build output (guarded in CI)
 summary:
-  total: 107930
+  total: 107933
   done: 8441
   partial: 0
-  missing: 99489
+  missing: 99492
   percent: 7.8
 worker_namespaces_installed_not_progress:
   installed: 18
@@ -21,7 +21,7 @@ worker_namespaces_installed_not_progress:
 port_ledger:
   unit: TS code lines
   portable_files: 458
-  portable_code_lines: 107930
+  portable_code_lines: 107933
   ported_code_lines: 8441
   percent: 7.8
   ported_by_proof:
@@ -35,8 +35,8 @@ port_ledger:
     files: 55
     code_lines: 9550
   bridge_excluded:
-    files: 221
-    code_lines: 20107
+    files: 223
+    code_lines: 20333
   slices:
   - id: rust-web-auth-session-lane-behind-vite-openmates-cd767f7
     commit: cd767f7058
@@ -480,8 +480,9 @@ units:
     call (Rust `embed_write::read`, its three fields in one batched WebCrypto call). The unit holds no account state,
     so it is a pre-bind namespace like `crypto`: the embed key arrives per request (as the crypto...'
   typescript_fallback: none declared (4 files)
-  unit_tests: [childRevision.test.ts, embedEditUnit.test.ts, embedKeyResolution.test.ts, embedUnits.test.ts, messageEmbedVersion.test.ts,
-    messageParentIds.test.ts, readOps.test.ts, rustRecoveredChildRevision.test.ts]
+  unit_tests: [childRevision.test.ts, embedContentEdit.test.ts, embedEditSession.test.ts, embedEditUnit.test.ts,
+    embedKeyResolution.test.ts, embedUnits.test.ts, messageEmbedVersion.test.ts, messageParentIds.test.ts, readOps.test.ts,
+    rustRecoveredChildRevision.test.ts]
   e2e_specs: [web-rust-core-embeds.spec.ts]
   vectors: [packages/openmates-rust/src/toon_decode_ts_vectors.json]
   open_gaps: [Embed RSS +1..+77 MB vs TypeScript in the embeds bench (noisy); see performance-history.yml.]
@@ -496,8 +497,9 @@ units:
     and the revision-history decisions (embedWriteAdapter.ts sequences them); this unit persists the prepared rows
     (embe...
   typescript_fallback: none declared (4 files)
-  unit_tests: [childRevision.test.ts, embedEditUnit.test.ts, embedKeyResolution.test.ts, embedUnits.test.ts, messageEmbedVersion.test.ts,
-    messageParentIds.test.ts, readOps.test.ts, rustRecoveredChildRevision.test.ts]
+  unit_tests: [childRevision.test.ts, embedContentEdit.test.ts, embedEditSession.test.ts, embedEditUnit.test.ts,
+    embedKeyResolution.test.ts, embedUnits.test.ts, messageEmbedVersion.test.ts, messageParentIds.test.ts, readOps.test.ts,
+    rustRecoveredChildRevision.test.ts]
   e2e_specs: [web-rust-core-embeds.spec.ts]
   vectors: []
   open_gaps: [Streamed write is wired for send_embed_data only.]
@@ -722,9 +724,14 @@ units:
   e2e_specs: []
   vectors: []
   open_gaps: [No flag-on web-rust-core spec yet; image-enhance.spec.ts (image fullscreen Enhance and restore) and
-      cli-native-embed-user-edits.spec.ts cover the flow outside the web-rust-core set., 'Only the image fullscreen
-      (Enhance, restore) and the chat history (notice reconcile, event grouping) call the unit; content edits (slides
-      and the other editors) and EmbedVersionTimeline restore still use the TypeScript embedDiffStore path.']
+      cli-native-embed-user-edits.spec.ts cover the flow outside the web-rust-core set., 'Personal chat and Project
+      content edits of the diagram, slides and sheet editors save through the unit (commitContentRevision) with
+      the flag on; with the flag off, and for Team chats and Team Projects, they keep the TypeScript paths (embedUserRevision.ts
+      commit_chat_diagram_revision, embedDiffStore.commitEmbedContentRevision), so that code cannot be deleted before
+      the flip and a Team-scope core save.', The web app has no document editor yet (docs embeds only restore through
+      EmbedVersionTimeline); EmbedVersionTimeline restore still uses the TypeScript embedDiffStore path., slides-manual-edit.spec.ts
+      (always --web-rust-core) and diagram-html-editing.spec.ts (chat-row checks only with --web-rust-core) cover
+      the edit chat row; sheet-edit-real.spec.ts checks it only on a Rust core dev build.]
   spec_assertions: [embed-user-edits.edit.next-version, embed-user-edits.restore.creates-version, embed-user-edits.enhance.button,
     embed-user-edits.event.chat-notice, embed-user-edits.event.project-edit-reaches-chat, embed-user-edits.event.collapse]
   spec_gaps: ['The Worker''s Enhance run (one run per image in the Worker realm, frame wake-up, rejoin after a page

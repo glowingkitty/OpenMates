@@ -14,6 +14,7 @@
   import { diagramMeasureScript, nextDiagramPresentationHeight, readDiagramMeasurement } from './diagramHtmlMeasure';
   import { diagramEditorScript } from './diagramHtmlRuntime';
   import { saveDiagramHtmlRevision } from './diagramHtmlRevision';
+  import { EMBED_EDITS_ENABLED } from '../../../services/rustCore/embeds/embedEditSession';
   import { classifyDiagramRevisionBroadcast } from './diagramHtmlReceipt';
   import { resolveDiagramVersionView } from './diagramHtmlHistory';
 
@@ -232,10 +233,17 @@
         void requestEmbedFromServerOnce(embedId, 'diagram local cache reconciliation');
       }
     } catch (caught) {
-      error = caught instanceof Error ? caught.message : $text('diagrams.save_failed');
+      error = saveErrorText(caught);
     } finally {
       saving = false;
     }
+  }
+  /** A core refusal carries a stable `code` (Rust core builds); the earlier path an English message. */
+  function saveErrorText(caught: unknown): string {
+    const code = EMBED_EDITS_ENABLED ? (caught as { code?: unknown } | null)?.code : undefined;
+    if (code === 'embed_version_conflict') return $text('diagrams.conflict');
+    if (typeof code === 'string') return $text('diagrams.save_failed');
+    return caught instanceof Error ? caught.message : $text('diagrams.save_failed');
   }
   async function exportHtml() {
     try {
@@ -278,7 +286,7 @@
       }
       return { version: result.version, content: source };
     } catch (caught) {
-      error = caught instanceof Error ? caught.message : $text('diagrams.save_failed');
+      error = saveErrorText(caught);
       throw caught;
     } finally {
       saving = false;

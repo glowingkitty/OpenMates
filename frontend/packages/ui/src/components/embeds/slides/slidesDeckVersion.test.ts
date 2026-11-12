@@ -21,6 +21,21 @@ vi.mock('../../../services/embedUserRevision', () => ({
 			: commit(...args)
 }));
 
+/** Rust core build (VITE_OPENMATES_RUST_CORE): personal decks save through the client core. */
+let coreOn = false;
+const coreSave = vi.fn();
+const chatTeam = vi.fn(async (_chatId: unknown): Promise<string | null> => null);
+vi.mock('../../../services/rustCore/embeds/embedEditSession', () => ({ get EMBED_EDITS_ENABLED() { return coreOn; } }));
+vi.mock('../../../services/rustCore/embeds/embedContentEdit', async () => {
+	const actual = await vi.importActual<typeof import('../../../services/rustCore/embeds/embedContentEdit')>(
+		'../../../services/rustCore/embeds/embedContentEdit');
+	return {
+		contentEditScope: actual.contentEditScope,
+		chatTeamOf: (chatId: unknown) => chatTeam(chatId),
+		saveContentEdit: (...args: unknown[]) => coreSave(...args)
+	};
+});
+
 import { deckVersionContent, saveEditedDeck, type DeckHead, type EditedDeck } from './slidesDeckVersion';
 
 const BASE = '<deck title="Plan" aspect="16:9" template="builtin:plain">\n  <slide id="s1">\n  </slide>\n</deck>\n';
@@ -44,6 +59,10 @@ async function failureOf(promise: Promise<unknown>): Promise<{ message?: unknown
 beforeEach(() => {
 	commit.mockReset();
 	projectCommit.mockReset();
+	coreSave.mockReset();
+	chatTeam.mockReset();
+	chatTeam.mockResolvedValue(null);
+	coreOn = false;
 	rejectWith = null;
 });
 
@@ -117,5 +136,42 @@ describe('deckVersionContent', () => {
 	it('keeps the embed ref and ids and replaces the deck facts', () => {
 		const next = deckVersionContent(head.content, { title: 'T', aspect: '4:3', slideCount: 2 }, 'M', 9);
 		expect(next).toMatchObject({ embed_ref: 'plan-AbC', app_id: 'slides', type: 'deck', slides_markup: 'M', title: 'T', aspect: '4:3', slide_count: 2, version_number: 9 });
+	});
+});
+
+describe('saveEditedDeck with the Rust core', () => {
+	const SAVED = { version: 4, base_version: 3, event: { state: 'written' }, cache_synchronized: true };
+
+	// contract-test: direct surface=gui.web assertions=embed-user-edits.edit.next-version,embed-user-edits.event.chat-notice
+	it('saves a personal chat deck through the core on the version the edit was made on', async () => {
+		coreOn = true;
+		coreSave.mockResolvedValue(SAVED);
+		await expect(saveEditedDeck(head, edited, { chatId: 'chat-1' })).resolves.toEqual({ saved: true, version: 4 });
+		const [embedId, scope, base, build] = coreSave.mock.calls[0] as [string, unknown, number, (version: number) => unknown];
+		expect([embedId, scope, base]).toEqual(['deck-1', { kind: 'chat', chat_id: 'chat-1' }, 3]);
+		expect(build(4)).toEqual({ ...head.content, slides_markup: EDITED, title: 'Launch plan', slide_count: 1, aspect: '16:9', version_number: 4, status: 'finished' });
+		expect(commit).not.toHaveBeenCalled();
+	});
+
+	// contract-test: direct surface=gui.web assertions=embed-user-edits.event.project-edit-reaches-chat
+	it('saves a Projects workspace deck in Project scope', async () => {
+		coreOn = true;
+		coreSave.mockResolvedValue(SAVED);
+		await saveEditedDeck(head, edited, { chatId: 'chat-1', projectId: 'project-1' });
+		expect(coreSave.mock.calls[0][1]).toEqual({ kind: 'project', project_id: 'project-1' });
+		expect(projectCommit).not.toHaveBeenCalled();
+	});
+
+	// contract-test: direct surface=gui.web assertions=embed-user-edits.edit.next-version
+	it('keeps Team decks on the earlier paths and lets a core conflict reach the editor', async () => {
+		coreOn = true;
+		chatTeam.mockResolvedValue('team-1');
+		commit.mockResolvedValue({ version: 4, cacheSynchronized: true });
+		await saveEditedDeck(head, edited, { chatId: 'chat-1' });
+		expect(commit).toHaveBeenCalledTimes(1);
+		chatTeam.mockResolvedValue(null);
+		coreSave.mockRejectedValue(Object.assign(new Error('embed_version_conflict'), { code: 'embed_version_conflict' }));
+		const failure = await failureOf(saveEditedDeck(head, edited, { chatId: 'chat-1' }));
+		expect((failure as { code?: unknown } | null)?.code).toBe('embed_version_conflict');
 	});
 });

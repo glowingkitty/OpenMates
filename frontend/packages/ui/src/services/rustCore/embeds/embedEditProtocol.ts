@@ -1,7 +1,7 @@
 /**
  * `embedEdit` unit protocol of the shared Rust core Worker: user-made embed
- * versions (`feature.embed-user-edits`): image Enhance, restore of an earlier
- * version, the chat-open reconcile of pending "embed updated" notices and the
+ * versions (`feature.embed-user-edits`): content edits of diagrams, slides,
+ * sheets and documents, image Enhance, restore of an earlier version, the chat-open reconcile of pending "embed updated" notices and the
  * folding of `embed_updated` chat events. VITE_OPENMATES_RUST_CORE builds only.
  *
  * The Rust core (browser_embed_user_edit.rs, free function
@@ -39,12 +39,27 @@ export type EmbedEventDelivery =
 	| { state: 'no_chat' }
 	| { state: 'deferred'; code: string };
 
+/**
+ * Core `EventNotice`: the chat row of a written `embed_updated` event. The
+ * server broadcasts it to the user's other devices only, so the saving page
+ * shows it from here. `content` is the event JSON (no key material).
+ */
+export interface EmbedEventNotice {
+	chat_id: string;
+	message_id: string;
+	created_at: number;
+	content: string;
+}
+
 /** The fields of the core `EmbedRevisionOutcome` the page uses (ciphertext stays in the Worker). */
 export interface EmbedRevisionResult {
 	version: number;
 	base_version: number;
 	event: EmbedEventDelivery;
 	cache_synchronized: boolean;
+	/** SHA-256 of the committed head ciphertext (the server's `current_content_hash`). */
+	content_hash: string;
+	notice?: EmbedEventNotice;
 }
 
 /** Core `ImageEnhanceSaved`, reduced to what the page shows. */
@@ -53,6 +68,7 @@ export interface ImageEnhanceResult {
 	version: number;
 	/** Absent for `already_committed` (saved earlier by this or another device). */
 	event?: EmbedEventDelivery;
+	notice?: EmbedEventNotice;
 }
 
 /** Enhance of `embedId` currently running in this Worker (survives a page reload while the Worker lives). */
@@ -86,6 +102,15 @@ export type EmbedEditProtocol = {
 	runningEnhance: { request: { embedId: string }; response: RunningEnhance | null };
 	/** Forwards one WebSocket frame (`image_enhance_ready` / `image_enhance_failed`); true when it woke a run. */
 	enhanceFrame: { request: { type: string; payload: unknown }; response: boolean };
+	/**
+	 * Saves a user content edit (diagram, slides, sheet, document) made on version
+	 * `baseVersion` as the next version; `content` is the new head plaintext (TOON).
+	 * The core refuses with `embed_version_conflict` when the head moved meanwhile.
+	 */
+	commitContentRevision: {
+		request: { embedId: string; scope: EmbedEditScope; baseVersion: number; content: string };
+		response: EmbedRevisionResult;
+	};
 	/** Restores version `restoredFrom` as the next version of the embed. */
 	restoreVersion: { request: { embedId: string; scope: EmbedEditScope; restoredFrom: number }; response: EmbedRevisionResult };
 	/** Writes the chat's pending `embed_updated` events (edits made in the Projects workspace or elsewhere). */

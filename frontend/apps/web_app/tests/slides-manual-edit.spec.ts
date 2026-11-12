@@ -10,8 +10,9 @@ export {};
  * provider boundaries and returns a ```slides fence, which the real stream
  * consumer normalises into a deck embed. The edit then runs in the shared
  * Worker's Rust core (deck replica, operations, markup), Done stores the edited
- * deck as version 2 through the client-encrypted embed revision path, and a
- * reload reads it back from the real backend.
+ * deck as version 2 through the client core's user revision commit (which also
+ * writes the "Slides edited · version 2" chat event, embed-user-edits
+ * event.chat-notice), and a reload reads both back from the real backend.
  *
  * Run: ci_coordinator.py submit --mode e2e --web-rust-core --spec slides-manual-edit.spec.ts
  */
@@ -28,7 +29,7 @@ const { email, password, otpKey } = getTestAccount();
 const PROMPT = 'Create a two-slide launch plan deck. MERCURY_ROUTING_E2E:slides_deck <<<TEST_LIVE_MOCK:mercury_auto_low>>>';
 const EDITED_TITLE = 'Launch day';
 
-// contract-test: direct surface=gui.web assertions=slides.editor.direct-manipulation,slides.editor.save-checked-version,chats.persistence.client-encrypted
+// contract-test: direct surface=gui.web assertions=slides.editor.direct-manipulation,slides.editor.save-checked-version,chats.persistence.client-encrypted,embed-user-edits.edit.next-version,embed-user-edits.event.chat-notice
 test('a manual deck edit is saved as a new version and survives a reload', async ({ page }: { page: any }) => {
 	test.setTimeout(300_000);
 	test.skip(process.env.CI !== 'true' || process.env.CI_TEST_MODE !== 'e2e'
@@ -52,25 +53,13 @@ test('a manual deck edit is saved as a new version and survives a reload', async
 	});
 	page.on('console', (message: any) => {
 		const textValue = message.text();
-		if ((message.type() === 'warning' || message.type() === 'error') && /\[(EmbedSenders|EmbedDiffStore|EmbedVersionTimeline|Slides[A-Za-z]*)\]|Post-admission|Canonical embed/.test(textValue)) {
+		if ((message.type() === 'warning' || message.type() === 'error') && /\[(EmbedSenders|EmbedDiffStore|EmbedVersionTimeline|embedEditSession|Slides[A-Za-z]*)\]|Post-admission|Canonical embed/.test(textValue)) {
 			log(`Browser ${message.type()}: ${textValue.slice(0, 400)}`);
 		}
 	});
-	// The save is the atomic user revision commit: its receipt proves the server
-	// took version 2 against the expected version and content hash.
-	const revisions: Array<{ status?: string; version?: number; code?: string }> = [];
-	page.on('websocket', (socket: any) => {
-		socket.on('framereceived', ({ payload }: { payload: string | Buffer }) => {
-			try {
-				const message = JSON.parse(String(payload));
-				if (message.type === 'commit_chat_diagram_revision_result') {
-					const receipt = message.payload ?? {};
-					revisions.push({ status: receipt.status, version: receipt.current_revision, code: receipt.code });
-					log('Deck revision receipt.', revisions[revisions.length - 1]);
-				}
-			} catch { /* Non-JSON frames do not contain revision receipts. */ }
-		});
-	});
+	// The save is the client core's user revision commit; its chat event row
+	// ("Slides edited · version N") proves which version the server took.
+	const editNotices = () => page.locator('[data-testid="embed-updated-event"][data-action="edit"]');
 	await page.setViewportSize({ width: 1440, height: 1000 });
 	await installE2EServerContentOverrideGate(page, 'slides-manual-edit');
 	await loginToTestAccount(page, log, screenshot);
@@ -128,7 +117,6 @@ test('a manual deck edit is saved as a new version and survives a reload', async
 		await page.getByTestId('slides-editor-done').click();
 		await expect(editor()).toHaveCount(0, { timeout: 30_000 });
 		await expect(page.getByTestId('slides-editor-save-failed')).toHaveCount(0);
-		await expect.poll(() => revisions, { timeout: 30_000 }).toEqual([{ status: 'committed', version: 2, code: undefined }]);
 		await expect(overlay.getByTestId('version-dot-2')).toBeVisible({ timeout: 30_000 });
 		await expect(overlay.getByTestId('version-dot-1')).toBeVisible();
 		await overlay.getByTestId('slide-strip-item').first().click();
@@ -137,7 +125,14 @@ test('a manual deck edit is saved as a new version and survives a reload', async
 
 		// The open deck adds its embed deep link to the URL; reload the plain chat like the diagram spec does.
 		await closeFullscreen(page, overlay, { returnToChatUrl: chatUrl });
+		// embed-user-edits.event.chat-notice: the chat shows the edit as one quiet row, without a reload.
+		await expect(editNotices()).toHaveCount(1, { timeout: 60_000 });
+		await expect(editNotices().first()).toContainText('2');
+		await expect(editNotices().first()).toHaveAttribute('data-change-count', '1');
+		await expect(page.locator('[data-testid="message-system"]').filter({ hasText: '"embed_updated"' })).toHaveCount(0);
+		await screenshot(page, 'deck-edit-chat-notice');
 		await reloadChatWorkspace(page, chatUrl, log);
+		await expect(editNotices()).toHaveCount(1, { timeout: 90_000 });
 		overlay = await openDeck();
 		await expect(overlay.getByTestId('slide-canvas').first()).toContainText(EDITED_TITLE, { timeout: 30_000 });
 		await expect(overlay.getByTestId('version-dot-2')).toBeVisible({ timeout: 30_000 });
@@ -155,7 +150,11 @@ test('a manual deck edit is saved as a new version and survives a reload', async
 		await expect(editor()).toHaveCount(0);
 		await expect(overlay.getByTestId('version-dot-2')).toBeVisible({ timeout: 30_000 });
 		await expect(overlay.getByTestId('version-dot-3')).toHaveCount(0);
-		expect(revisions, 'an unchanged Done sends no further revision').toHaveLength(1);
+		// An unchanged Done writes no further version, so no further chat event either.
+		await closeFullscreen(page, overlay, { returnToChatUrl: chatUrl });
+		await expect(editNotices()).toHaveCount(1);
+		await expect(editNotices().first()).toHaveAttribute('data-change-count', '1');
+		await expect(editNotices().first()).toContainText('2');
 		completed = true;
 	} finally {
 		// Playwright's own failure screenshot is taken after cleanup; keep the failing state.

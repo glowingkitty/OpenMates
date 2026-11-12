@@ -57,6 +57,11 @@ impl Client {
     }
     pub(super) fn decrypt_embed_item(&self, id: &str, wrapping: &[u8; 32]) -> Result<Item> {
         let key = self.embed_key(id, wrapping, &mut std::collections::HashSet::new())?;
+        self.decrypt_embed_row(id, &key)
+    }
+    /// Decrypt cached embed row `id` with its already-resolved embed key; the
+    /// key source (raw master or opaque browser capability) is the caller's.
+    pub(super) fn decrypt_embed_row(&self, id: &str, key: &[u8; 32]) -> Result<Item> {
         let row = self.embeds.get(id).ok_or(Error::Protocol)?;
         let kind = decrypt_optional(row, "encrypted_type", &key)?;
         let preview = decrypt_optional(row, "encrypted_text_preview", &key)?;
