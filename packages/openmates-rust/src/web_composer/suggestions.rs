@@ -1,7 +1,7 @@
-//! Composer ghost-suggestion payload validation: port of
-//! `decodeComposerGhostSuggestion` (`composerGhostDecode.ts`). The op answers only
+//! Composer ghost-suggestion payload validation (the only implementation;
+//! the TypeScript decoder is deleted). The op answers only
 //! whether the payload is a usable suggestion; the page re-parses the same text
-//! itself so extra fields survive exactly as in the TypeScript path.
+//! itself so extra fields survive unchanged.
 //! spec: specifications/features/message-input#message-input.suggestions.contextual
 use super::protocol;
 use super::utf16::{js_trim, len16};

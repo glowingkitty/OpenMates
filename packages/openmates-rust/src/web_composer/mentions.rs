@@ -1,6 +1,6 @@
 //! Mention and saved-embed suggestion ranking: score/filter/sort/cut of @-mention
-//! results and of the saved-embed index. Ports of `rankMentionResults`
-//! (`mentionRanking.ts`) and `rankSavedEmbedIndex` (`embedSuggestionSearch.ts`).
+//! results and of the saved-embed index. Mention ranking runs only here;
+//! `rankSavedEmbedIndex` still has a TypeScript twin (`embedSuggestionSearch.ts`).
 //! Both ops return indices into the caller's list, never text; the page keeps its
 //! result objects and reorders them, so no string leaves the Worker.
 //! spec: specifications/features/message-input#message-input.suggestions.contextual

@@ -1,4 +1,4 @@
-//! Row decisions of the `chats` IndexedDB store (port of `db/chatRowPolicy.ts`):
+//! Row decisions of the `chats` IndexedDB store (the only implementation):
 //! stored defaults, the keyless draft-only sync shell, candidate-key bookkeeping
 //! and the draft-field / Team draft-intent merges. The page reads the row,
 //! asks for the decision and writes the patch; no IO here.

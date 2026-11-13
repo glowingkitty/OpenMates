@@ -1,5 +1,5 @@
 //! Message-window cache, offline cache budget and quota-recovery decisions of
-//! the IndexedDB layer (port of `db/cachePolicy.ts`): window request planning,
+//! the IndexedDB layer (the only implementation; the TypeScript policy is deleted): window request planning,
 //! window page records and eviction plans, the budget trim gates and the
 //! quota retry flow. Callers pass facts and act on the answers; no IO here.
 //!

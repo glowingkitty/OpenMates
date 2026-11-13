@@ -1,6 +1,5 @@
-//! Replays the TypeScript-generated cache and chat-row vectors (`policy_vectors.json`,
-//! checked against `db/cachePolicy.ts` and `db/chatRowPolicy.ts` by
-//! `persistCacheVectors.test.ts`) through the JSON entry points the shared Worker
+//! Replays the frozen cache and chat-row vectors (`policy_vectors.json`, recorded
+//! from the deleted TypeScript policy) through the JSON entry points the shared Worker
 //! `persist` unit serves.
 //!
 //! spec: specifications/architecture/storage-lifecycle#storage.client.shared-policy-existing-adapters

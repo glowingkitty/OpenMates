@@ -1,5 +1,5 @@
-//! Message-row write policy of the `messages` IndexedDB store (port of
-//! `db/messageRowPolicy.ts`): which version of a message wins by status
+//! Message-row write policy of the `messages` IndexedDB store (the only
+//! implementation): which version of a message wins by status
 //! priority, when new encrypted fields force a write, which rows are content
 //! duplicates and which cached rows are safe to evict.
 //!

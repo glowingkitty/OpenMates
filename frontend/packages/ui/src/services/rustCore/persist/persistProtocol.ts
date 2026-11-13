@@ -2,8 +2,7 @@
  * `persist` unit protocol of the shared Rust core Worker (unitPort.ts wire v1).
  *
  * IndexedDB stays the store; the row decisions of the `messages` store run in
- * shared Rust (packages/openmates-rust/src/web_persist/, port of
- * db/messageRowPolicy.ts). The page keeps the schema, transactions, encryption
+ * shared Rust only (packages/openmates-rust/src/web_persist/). The page keeps the schema, transactions, encryption
  * and every read/write: it sends stored/incoming rows and gets decisions back.
  * Only a malformed payload refuses, with the fixed code `protocol`.
  *
@@ -12,7 +11,7 @@
 import type { UnitProtocol } from '../host/unitPort';
 import type { Message } from '../../../types/chat';
 import type * as cache from '../../db/cacheTypes';
-import type * as chatRows from '../../db/chatRowPolicy';
+import type * as chatRows from '../../db/chatRowTypes';
 
 export interface PersistUnitProtocol extends UnitProtocol {
 	/** `shouldUpdateMessage` for each stored/incoming pair, in order. */
@@ -40,7 +39,7 @@ export interface PersistUnitProtocol extends UnitProtocol {
 		request: { messages: Array<{ chat_id: string; message_id: string }> };
 		response: { deleteIds: string[] };
 	};
-	/** Window read plan (db/cachePolicy.ts planMessageWindow). */
+	/** Window read plan (planMessageWindow). */
 	windowPlan: { request: cache.WindowPlanInput; response: cache.WindowPlan };
 	windowResultMeta: { request: cache.WindowResultMetaInput; response: cache.WindowResultMeta };
 	windowPageRecord: { request: cache.WindowPageRecordInput; response: cache.WindowPageRecord };
@@ -71,8 +70,8 @@ export interface PersistUnitProtocol extends UnitProtocol {
 	};
 	chatsPageSize: { request: { limit: number }; response: { size: number } };
 	chatDefaults: {
-		request: { chat: Parameters<typeof chatRows.chatRowDefaults>[0]; now: number };
-		response: ReturnType<typeof chatRows.chatRowDefaults>;
+		request: { chat: chatRows.ChatRowDefaultsInput; now: number };
+		response: chatRows.ChatRowDefaults;
 	};
 	keylessDraftOnly: {
 		request: { chat: Record<string, unknown>; existing: Record<string, unknown> | null };

@@ -1,5 +1,5 @@
-//! Replays the TypeScript-generated vectors (`ts_vectors.json`, checked against
-//! `db/messageRowPolicy.ts` by `persistPolicyVectors.test.ts`) through the same
+//! Replays the frozen message-row vectors (`ts_vectors.json`, recorded from the
+//! deleted TypeScript policy) through the same
 //! JSON entry points the shared Worker `persist` unit serves.
 //!
 //! spec: specifications/architecture/storage-lifecycle#storage.client.shared-policy-existing-adapters

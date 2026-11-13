@@ -1,6 +1,7 @@
 //! Paste classification of the message composer: prose stays text, obvious code
 //! becomes a code embed, long or formatted documents a docs embed, tabular
-//! clipboard data a sheet embed. Port of `pasteClassification.ts`.
+//! clipboard data a sheet embed. The only implementation (the TypeScript
+//! classifier is deleted).
 //! spec: specifications/features/message-input#message-input.embeds.gated-send
 use super::protocol;
 use super::utf16::{WS_CLASS, js_trim, len16};
