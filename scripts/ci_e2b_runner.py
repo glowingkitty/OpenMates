@@ -296,7 +296,11 @@ def create_e2b_sandbox(timeout_minutes: int, label: str):
 # --------------------------------------------------------------------------
 
 APT_PACKAGES = ["sudo", "git", "curl", "wget", "jq", "zip", "unzip", "zstd", "xz-utils", "python3", "python3-pip",
-                "python3-venv", "build-essential", "ca-certificates", "gnupg", "docker.io", "docker-compose-v2", "gh"]
+                "python3-venv", "build-essential", "ca-certificates", "gnupg", "docker.io", "docker-compose-v2",
+                "docker-buildx", "gh", "lsb-release", "ffmpeg", "xvfb", "dnsutils", "pkg-config", "libssl-dev",
+                "rsync", "file", "iproute2", "procps"]
+# GitHub's ubuntu-24.04 image ships these; workflow steps call them directly.
+RUSTUP_PATH = "/home/user/.cargo/bin"
 
 
 def template_definition():
@@ -316,6 +320,9 @@ def template_definition():
                  f"{RUNNER_DIR}/bin/installdependencies.sh && chown -R user:user /home/user")
         .set_user("user")
         .set_workdir("/home/user")
+        .run_cmd("curl -fsSL https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain none")
+        # The runner reads PATH for every job from `.path`; keep rustup/cargo on it like the hosted image.
+        .run_cmd(f"echo '{RUSTUP_PATH}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' > {RUNNER_DIR}/.path")
     )
 
 

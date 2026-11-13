@@ -64,6 +64,12 @@ TERMINAL = ("success", "failure", "cancelled")
 
 E2B_FORCE_MODES = frozenset({"component", "pytest", "e2e"})
 E2B_TIMEOUT_MINUTES = 60  # isolated-tests.yml timeout for component/pytest/e2e.
+E2B_RUST_CORE_TIMEOUT_MINUTES = 90  # the workflow's timeout when the web Rust core is built.
+
+
+def e2b_timeout_minutes(job: dict) -> int:
+    """The E2B runner must outlive the job's own workflow timeout."""
+    return E2B_RUST_CORE_TIMEOUT_MINUTES if job.get("web_rust_core") else E2B_TIMEOUT_MINUTES
 
 
 def e2b_module():
@@ -1256,7 +1262,7 @@ class Queue:
             registration = e2b.start(
                 github.repo,
                 job["token"],
-                E2B_TIMEOUT_MINUTES,
+                e2b_timeout_minutes(job),
                 Path(__file__).resolve().parents[1],
             )
             if registration is None:

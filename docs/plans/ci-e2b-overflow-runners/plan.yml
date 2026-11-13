@@ -50,7 +50,7 @@ acceptance_criteria:
     scenario: S-1
     text: With hosted slots full and an E2B slot free, a queued component or pytest job is dispatched to a fresh E2B JIT runner; otherwise it waits for GitHub and never runs on the dev server.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-UNIT, T-REAL-COMPONENT, T-REAL-PYTEST]
@@ -58,7 +58,7 @@ acceptance_criteria:
     scenario: S-2
     text: ci_results admits E2B evidence only for the registered runner and rejects other self-hosted runners, mismatched ids or names and missing labels.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-UNIT]
@@ -66,7 +66,7 @@ acceptance_criteria:
     scenario: S-1
     text: The sandbox is removed when the job ends or times out, its slot is released and spend is recorded in the daily ledger.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-UNIT, T-REAL-COMPONENT]
@@ -74,7 +74,7 @@ acceptance_criteria:
     scenario: S-3
     text: One real e2e job runs on an E2B runner with Docker and its peak memory against the 8 GB limit is reported.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: manual
     verification_ids: [T-PILOT-E2E]
@@ -88,7 +88,7 @@ tests:
     assertions: [overflow only when hosted full and E2B slot free, registered-runner admission, sandbox cleanup and slot release]
     covers: [AC-1, AC-2, AC-3]
     red_phase: {required: false, expected: not_applicable, evidence: {}}
-    green_phase: {required: true, expected: pass, evidence: {}}
+    green_phase: {required: true, expected: pass, evidence: {command: 'python3 -m pytest scripts/tests/test_ci_e2b_runner.py scripts/tests/test_ci_coordinator.py scripts/tests/test_ci_results.py', result: pass, recorded_at: '2026-11-13'}}
   - id: T-REAL-COMPONENT
     type: manual
     file: scripts/ci_e2b_runner.py
@@ -98,7 +98,7 @@ tests:
     assertions: [run succeeds on the registered E2B runner, evidence admitted, sandbox removed]
     covers: [AC-1, AC-3]
     red_phase: {required: false, expected: not_applicable, evidence: {}}
-    green_phase: {required: true, expected: pass, evidence: {}}
+    green_phase: {required: true, expected: pass, evidence: {job: e6afa83fb7fb, run_id: 43498593558, spec: components/agent-context-message.spec.ts, runner_id: 27, result: success, evidence_admitted: true, seconds: 359, cost_usd: 0.053, peak_memory_mb: 4007, sandbox_removed: true, source: 934dbb9106296f987ee64836934936f58fd1573c}}
   - id: T-REAL-PYTEST
     type: manual
     file: scripts/ci_e2b_runner.py
@@ -108,7 +108,7 @@ tests:
     assertions: [run succeeds on the registered E2B runner, evidence admitted]
     covers: [AC-1]
     red_phase: {required: false, expected: not_applicable, evidence: {}}
-    green_phase: {required: true, expected: pass, evidence: {}}
+    green_phase: {required: true, expected: pass, evidence: {job: 2592dea1, run_id: 43497190184, spec: backend/tests/test_image_safety_pipeline.py, result: success, evidence_admitted: true, seconds: 108, cost_usd: 0.016, peak_memory_mb: 864, source: 934dbb9106296f987ee64836934936f58fd1573c}}
   - id: T-PILOT-E2E
     type: manual
     file: scripts/ci_e2b_runner.py
@@ -118,12 +118,12 @@ tests:
     assertions: [e2e outcome and peak sandbox memory reported]
     covers: [AC-4]
     red_phase: {required: false, expected: not_applicable, evidence: {}}
-    green_phase: {required: true, expected: pass, evidence: {}}
+    green_phase: {required: true, expected: pass, evidence: {job: 7c8b26bc682f, run_id: 43499525611, spec: event-sounds-chat.spec.ts, runner_id: 28, result: success, docker_stack: true, seconds: 745, cost_usd: 0.110, peak_memory_mb: 5201, memory_limit_mb: 8192, verdict: 8 GB is enough for one e2e spec with prepared builds, source: 934dbb9106296f987ee64836934936f58fd1573c}}
 tasks:
   - id: TASK-1
     title: E2B runner template and launcher (JIT registration, sandbox lifetime, slot, spend)
-    status: in_progress
-    phase: working_tasks
+    status: done
+    phase: complete
     covers: {scenarios: [S-1], acceptance_criteria: [AC-3]}
     expected_files: [scripts/ci_e2b_runner.py, scripts/tests/test_ci_e2b_runner.py]
     verification_ids: [T-UNIT]
@@ -133,8 +133,8 @@ tasks:
     ownership: {files: [scripts/ci_e2b_runner.py, scripts/tests/test_ci_e2b_runner.py], shared_files: [scripts/e2b_dev_capacity.py]}
   - id: TASK-2
     title: Workflow runner input, coordinator overflow, proof admission
-    status: pending
-    phase: drafting
+    status: done
+    phase: complete
     covers: {scenarios: [S-1, S-2], acceptance_criteria: [AC-1, AC-2]}
     expected_files: [.github/workflows/isolated-tests.yml, scripts/ci_coordinator.py, scripts/ci_results.py]
     verification_ids: [T-UNIT]
@@ -144,8 +144,8 @@ tasks:
     ownership: {files: [.github/workflows/isolated-tests.yml, scripts/ci_coordinator.py, scripts/ci_results.py], shared_files: []}
   - id: TASK-3
     title: Real component and pytest runs on E2B, then the Docker e2e pilot
-    status: pending
-    phase: drafting
+    status: done
+    phase: complete
     covers: {scenarios: [S-1, S-3], acceptance_criteria: [AC-1, AC-3, AC-4]}
     expected_files: [docs/plans/ci-e2b-overflow-runners/plan.yml]
     verification_ids: [T-REAL-COMPONENT, T-REAL-PYTEST, T-PILOT-E2E]
@@ -154,7 +154,7 @@ tasks:
     follow_up_tasks: []
     ownership: {files: [docs/plans/ci-e2b-overflow-runners/plan.yml], shared_files: []}
 implementation_state:
-  subject_commit: 479a13eab02de7d7bc24a10ba0604c41d419edd5
+  subject_commit: 934dbb9106296f987ee64836934936f58fd1573c
 approvals:
   specification:
     status: not_required
@@ -174,7 +174,7 @@ decisions:
   - id: D-2
     status: active
     decision: >
-      E2B admission requires labels self-hosted, openmates-e2b and the job-unique label, plus runner id and name equal to the
+      E2B admission requires labels openmates-e2b and the job-unique label (JIT runners carry only their registered labels), plus runner id and name equal to the
       registration recorded in the coordinator queue before dispatch. Hosted rules stay unchanged; runner_environment self-hosted is
       accepted only for such a job.
     reason: Binds evidence to the exact single-use runner the coordinator created.
@@ -192,10 +192,18 @@ attempts:
     outcome: planned
     approach: Build the runner template and launcher, then wire coordinator, workflow and admission, then real runs.
     recorded_at: '2026-11-13'
+  - id: A-2
+    task_id: TASK-3
+    outcome: succeeded
+    approach: >
+      First real runs failed on template gaps (lsb_release for setup-python, rustup for the web Rust core build); the template gained
+      those packages and a user-level rustup. Then pytest, component and the Docker e2e pilot all succeeded on E2B runners with
+      admitted evidence.
+    recorded_at: '2026-11-13'
 handoff:
-  current_task_id: TASK-1
-  next_action: Build the E2B runner template and launcher with unit tests.
+  current_task_id: TASK-3
+  next_action: Owner decides whether to turn on automatic overflow (logs/ci-coordinator/e2b-overflow.json).
   command: python3 scripts/plan_validate.py docs/plans/ci-e2b-overflow-runners/plan.yml
-  expected_outcome: Valid plan; launcher registers a JIT runner and removes the sandbox after one job.
-  last_verified_commit: 479a13eab02de7d7bc24a10ba0604c41d419edd5
+  expected_outcome: Valid plan; component, pytest and e2e proven green on E2B runners.
+  last_verified_commit: 934dbb9106296f987ee64836934936f58fd1573c
   blocker: null

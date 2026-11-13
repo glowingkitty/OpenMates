@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 import datetime as dt
 
 import pytest
-from scripts.ci_coordinator import Queue, GitHub, GitHubError, enqueue_submission
+from scripts.ci_coordinator import Queue, GitHub, GitHubError, e2b_timeout_minutes, enqueue_submission
 
 
 class Remote:
@@ -1254,3 +1254,9 @@ def test_failed_e2b_dispatch_deletes_runner_registration(tmp_path, monkeypatch):
     remote.dispatch = dispatch
     q.tick(remote, 100)
     assert remote.deleted == [77]
+
+
+# contract-test: tooling
+def test_e2b_runner_outlives_the_workflow_timeout():
+    assert e2b_timeout_minutes({"web_rust_core": 1}) == 90
+    assert e2b_timeout_minutes({"web_rust_core": 0}) == 60
