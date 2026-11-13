@@ -34,6 +34,20 @@ pub(super) fn output_settling(state: &Value, attempts: u32) -> bool {
     attempts < OUTPUT_SETTLE_ATTEMPTS && matches!(state.as_str(), Some("PREPARING" | "PENDING"))
 }
 
+/// Pause between replays of a turn another device completed.
+pub(super) const TERMINAL_REPLAY_RETRY: std::time::Duration = std::time::Duration::from_secs(2);
+/// Replays of a turn another device completed, the first one included.
+pub(super) const TERMINAL_REPLAY_ATTEMPTS: u32 = 10;
+
+/// True when a replay of a turn another device completed may run again. That
+/// device replays the same outputs at the same time, so a read or store can
+/// lose the race (`Protocol` for a refused frame, `Conflict` for a version
+/// fence). The next replay re-reads each output's status and skips what the
+/// other device acknowledged; the server fences still decide every write.
+pub(super) fn terminal_replay_retry(error: &Error, attempts: u32) -> bool {
+    attempts + 1 < TERMINAL_REPLAY_ATTEMPTS && matches!(error, Error::Protocol | Error::Conflict)
+}
+
 /// True when another device already acknowledged this output and the replay
 /// may skip it. The server verifies the ciphertext digest of message, metadata
 /// and checkpoint outputs inside the acknowledging transaction and reports
@@ -153,6 +167,7 @@ impl Client {
                         scope.check(self)?;
                         continue;
                     }
+                    super::send::refusal_trace::note("replay_output_unsettled");
                     return Err(Error::Protocol);
                 }
                 Err(e) => return Err(e),
@@ -1311,6 +1326,7 @@ fn acknowledged(value: &Value) -> Result<()> {
     if value["state"] == "ACKNOWLEDGED" {
         Ok(())
     } else {
+        super::send::refusal_trace::note("replay_output_not_acknowledged");
         Err(Error::Protocol)
     }
 }

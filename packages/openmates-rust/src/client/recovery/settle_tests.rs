@@ -1,6 +1,9 @@
 //! Replay waits for an output another device is still settling, never for an
 //! absent one, and skips outputs another device already acknowledged.
-use super::{acknowledged_elsewhere, output_settling};
+use super::{
+    acknowledged_elsewhere, output_settling, terminal_replay_retry, TERMINAL_REPLAY_ATTEMPTS,
+};
+use crate::Error;
 use serde_json::json;
 
 // contract-test: supporting surface=cli assertions=projects.agentic.long-turn-stays-online
@@ -41,4 +44,20 @@ fn embed_acknowledgement_needs_a_verified_canonical_row() {
         "message",
         &json!({"state": "PENDING"})
     ));
+}
+
+// contract-test: supporting surface=cli assertions=projects.agentic.long-turn-stays-online
+#[test]
+fn replay_of_a_turn_another_device_completed_retries_lost_races_within_the_bound() {
+    assert!(terminal_replay_retry(&Error::Protocol, 0));
+    assert!(terminal_replay_retry(
+        &Error::Conflict,
+        TERMINAL_REPLAY_ATTEMPTS - 2
+    ));
+    assert!(!terminal_replay_retry(
+        &Error::Protocol,
+        TERMINAL_REPLAY_ATTEMPTS - 1
+    ));
+    assert!(!terminal_replay_retry(&Error::Crypto, 0));
+    assert!(!terminal_replay_retry(&Error::Forbidden, 0));
 }

@@ -530,8 +530,21 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
             // as proof that another device completed the same job.
             let selected_outputs=Client::select_turn_outputs(recovery_outputs,id,turn);
             trace.phase = SendPhase::ReplayArtifacts;
-            phases.replay_outputs(ws, &selected_outputs, Some((id, key)))
-                .await?;
+            // The device that completed the job replays the same outputs now;
+            // replay again until its acknowledgements settle (see the policy).
+            let mut replays=0u32;
+            loop {
+                match phases.replay_outputs(ws, &selected_outputs, Some((id, key))).await {
+                    Ok(_)=>break,
+                    Err(error) if super::recovery::terminal_replay_retry(&error,replays)
+                        && crate::platform::time::Instant::now()+super::recovery::TERMINAL_REPLAY_RETRY<turn_deadline.at() => {
+                        replays+=1;
+                        tokio::select! {biased;_=cancel.cancelled()=>return Err(Error::Cancelled),_=crate::platform::time::sleep(super::recovery::TERMINAL_REPLAY_RETRY)=>{}}
+                        phases.check(turn_scope,id,generation).await?;
+                    }
+                    Err(error)=>return Err(error),
+                }
+            }
             phases.persist_stream_artifacts(
                 ws,
                 id,
