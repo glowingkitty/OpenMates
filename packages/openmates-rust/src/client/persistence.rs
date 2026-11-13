@@ -96,6 +96,11 @@ impl Client {
                     || text(head, "parent_embed_id") != parent
                     || text(head, "hashed_message_id") != sha256(message_id)
                 {
+                    super::send::refusal_trace::note(if head["version_number"].as_u64().unwrap_or(1) != version {
+                        "stream_artifact_version_differs"
+                    } else {
+                        "stream_artifact_identity_differs"
+                    });
                     return Err(Error::Protocol);
                 }
                 let canonical_source = zeroize::Zeroizing::new(crypto::decrypt_combined(
@@ -107,6 +112,7 @@ impl Client {
                     &embed_key,
                 )?);
                 if canonical_source.as_str() != source || canonical_kind.as_str() != kind {
+                    super::send::refusal_trace::note("stream_artifact_content_differs");
                     return Err(Error::Protocol);
                 }
                 scope.check_chat(self, chat)?;

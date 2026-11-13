@@ -197,6 +197,11 @@ fn write_protocol_phase(
             trace.final_seen,
             trace.frame_text()
         );
+        // A labelled Protocol exit (static label, never ids) names its site.
+        let site = refusal_trace::take();
+        if site != "none" {
+            let _ = writeln!(writer, "OpenMates-Test-Send-Site: {site}");
+        }
     }
 }
 #[cfg(test)]
