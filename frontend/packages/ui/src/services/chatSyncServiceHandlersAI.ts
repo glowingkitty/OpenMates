@@ -978,6 +978,22 @@ export async function handleAIBackgroundResponseCompletedImpl(
       return;
     }
 
+    // In a sealed-recovery turn (recovery_turn_id set) the server seals every
+    // terminal reply into a recovery record and marks it with a recovery
+    // protocol version. A completion without one is an interim agent step
+    // (awaiting an async skill or child chats): the server keeps it out of
+    // storage and rejects a client write for it. The continuation reuses the
+    // same assistant message id, and a local "synced" interim copy would
+    // outrank the real final in the message policy, so this device waits for
+    // the sealed final. Task and typing state stay as they are. Legacy turns
+    // keep the client-persisted interim below.
+    if (payload.recovery_turn_id && payload.recovery_protocol_version == null) {
+      console.info(
+        `[ChatSyncService:AI] Skipping interim background completion ${payload.message_id}: no sealed recovery record yet`,
+      );
+      return;
+    }
+
     // Get chat from DB or incognito service to update messages_v
     let chat: Chat | null = null;
     let isIncognitoChat = false;

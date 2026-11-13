@@ -922,6 +922,29 @@ describe("handleAIBackgroundResponseCompletedImpl", () => {
     );
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.completion.recovery-takeover
+  it("neither saves nor sends an interim agent step of a sealed-recovery turn", async () => {
+    mockChatDB.getChat.mockResolvedValue({
+      chat_id: "chat-1", title: "Recipe Manager", messages_v: 1,
+      last_edited_overall_timestamp: 100,
+    });
+    const activeAITasks = new Map([["chat-1", { taskId: "task-1", userMessageId: "user-1" }]]);
+    const service = {
+      activeAITasks, dispatchEvent: vi.fn(), sendCompletedAIResponse: vi.fn(),
+    } as unknown as ChatSynchronizationService;
+
+    await handleAIBackgroundResponseCompletedImpl(service, {
+      chat_id: "chat-1", message_id: "assistant-1", user_message_id: "user-1",
+      task_id: "task-1", full_content: "Running the browser test now.",
+      awaiting_async_skill_continuation: true, recovery_turn_id: "turn-1",
+    });
+
+    expect(mockChatDB.saveMessage).not.toHaveBeenCalled();
+    expect(service.sendCompletedAIResponse).not.toHaveBeenCalled();
+    expect(activeAITasks.get("chat-1")?.taskId).toBe("task-1");
+    expect(mockAiTypingStore.clearTyping).not.toHaveBeenCalled();
+  });
+
   // contract-test: direct surface=gui.web assertions=chats.completion.pending-delivery,chats.local-state.precedence
   it("does not notify when the completed background response is for the visibly open chat", async () => {
     const chat = {
