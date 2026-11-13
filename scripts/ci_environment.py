@@ -1707,12 +1707,19 @@ def require_runner():
         and json.loads(os.environ.get("CI_SPECS_JSON", "[]"))
         == ["storage-capacity-target.spec.ts"]
     )
+    # A single-use E2B overflow runner (scripts/ci_e2b_runner.py) is a disposable
+    # sandbox like a hosted runner; ci_results admits its evidence only when
+    # GitHub's job record names the runner the coordinator registered.
+    e2b_overflow = os.environ.get(
+        "RUNNER_ENVIRONMENT"
+    ) == "self-hosted" and os.environ.get("RUNNER_NAME", "").startswith("openmates-e2b-")
     if os.environ.get("GITHUB_ACTIONS") != "true" or (
         os.environ.get("RUNNER_ENVIRONMENT") != "github-hosted"
         and not dedicated_capacity
+        and not e2b_overflow
     ):
         raise RuntimeError(
-            "Isolated stacks require GitHub-hosted or dedicated capacity runners"
+            "Isolated stacks require GitHub-hosted, dedicated capacity or E2B overflow runners"
         )
 
 

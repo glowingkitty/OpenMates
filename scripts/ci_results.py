@@ -57,6 +57,39 @@ def valid_selfhost_result(report, job, root, expected_harness_commit):
         return False
 
 
+def expected_runner_environment(job: dict) -> str:
+    """GitHub-hosted, except for a job bound to its coordinator-registered E2B runner."""
+    return "self-hosted" if job.get("e2b_runner") else "github-hosted"
+
+
+def admitted_e2b_runner(job: dict, entry: dict) -> bool:
+    """Admit only the exact single-use runner the coordinator registered (D-2).
+
+    GitHub's jobs API, not the runner, reports labels, runner id and name. All
+    must match the registration stored before dispatch; any other self-hosted
+    runner, mismatch or missing label is rejected.
+    """
+    try:
+        registration = json.loads(job.get("e2b_runner") or "")
+    except ValueError:
+        return False
+    if not isinstance(registration, dict):
+        return False
+    labels = set(entry.get("labels", []))
+    return (
+        # GitHub gives JIT runners only their registered labels (no
+        # "self-hosted"); runner id and name below bind the entry to this job.
+        {"openmates-e2b", str(registration.get("label", ""))}.issubset(
+            labels
+        )
+        and bool(registration.get("label"))
+        and entry.get("runner_id") is not None
+        and entry.get("runner_id") == registration.get("runner_id")
+        and bool(registration.get("runner_name"))
+        and entry.get("runner_name") == registration.get("runner_name")
+    )
+
+
 def green_e2e_source_and_egress_verified(
     environment: dict,
     job: dict,
@@ -81,7 +114,7 @@ def green_e2e_source_and_egress_verified(
             environment.get("frontend") is not None
             or environment.get("environment") != "github-isolated"
             or environment.get("shared_dev_dns") != "rejected"
-            or environment.get("runner_environment") != "github-hosted"
+            or environment.get("runner_environment") != expected_runner_environment(job)
             or job.get("run_id") is None
             or str(environment.get("run_id")) != str(job["run_id"])
             or not harness
@@ -153,7 +186,7 @@ def green_e2e_source_and_egress_verified(
         if (
             environment.get("frontend") is not None
             or environment.get("shared_dev_dns") != "rejected"
-            or environment.get("runner_environment") != "github-hosted"
+            or environment.get("runner_environment") != expected_runner_environment(job)
             or job.get("run_id") is None
             or environment.get("run_id") is None
             or str(environment["run_id"]) != str(job["run_id"])
@@ -402,7 +435,7 @@ def valid_backend_probe_receipt(
         and environment.get("source_commit") == job["source"]
         and str(environment.get("run_id")) == str(job["run_id"])
         and environment.get("harness_commit") == expected_harness_commit
-        and environment.get("runner_environment") == "github-hosted"
+        and environment.get("runner_environment") == expected_runner_environment(job)
         and environment.get("shared_dev_dns") == "rejected"
         and environment.get("shared_dev_https") == "rejected"
         and environment.get("provider_egress") == "rejected-internal-network"
@@ -1727,6 +1760,8 @@ def _fetch_reserved(github, job: dict, root: Path) -> dict:
 
     def admitted_runner(entry):
         labels = set(entry.get("labels", []))
+        if job.get("e2b_runner"):
+            return not dedicated_capacity and admitted_e2b_runner(job, entry)
         if dedicated_capacity:
             return {"self-hosted", "Linux", "X64", "openmates-capacity"}.issubset(
                 labels

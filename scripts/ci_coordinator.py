@@ -62,8 +62,29 @@ APPROVED_RECOVERY_CASES = frozenset(
 TERMINAL = ("success", "failure", "cancelled")
 
 
+E2B_FORCE_MODES = frozenset({"component", "pytest", "e2e"})
+E2B_TIMEOUT_MINUTES = 60  # isolated-tests.yml timeout for component/pytest/e2e.
+
+
+def e2b_module():
+    """Import the E2B runner helper lazily, with the repo-script fallbacks."""
+    try:
+        from scripts import ci_e2b_runner
+    except ImportError:
+        import ci_e2b_runner
+    return ci_e2b_runner
+
+
+def e2b_registration(job: dict) -> dict | None:
+    """Return the stored E2B runner registration of a queue row, if any."""
+    raw = job.get("e2b_runner")
+    return json.loads(raw) if raw else None
+
+
 def runner_class(job: dict) -> str:
     # This must match isolated-tests.yml's runs-on expression.
+    if job.get("e2b_runner"):
+        return "e2b"
     return (
         "selfhosted"
         if "storage-capacity-target.spec.ts" in json.loads(job["specs"])
@@ -282,6 +303,10 @@ class GitHub:
                     occupancy["hosted"] += 1
                 for job in active:
                     labels = set(job.get("labels") or ())
+                    if "openmates-e2b" in labels:
+                        # Single-use E2B runners are governed by the dev E2B
+                        # cap (ci_e2b_runner.available), not hosted capacity.
+                        continue
                     if "openmates-capacity" in labels:
                         occupancy["selfhosted"] += 1
                     elif "self-hosted" not in labels:
@@ -372,6 +397,11 @@ class GitHub:
                     ),
                     "dispatch_token": job["token"],
                     **(
+                        {"runner_label": e2b_registration(job)["label"]}
+                        if job.get("e2b_runner")
+                        else {}
+                    ),
+                    **(
                         {"native_dev_transport": job["_native_dev_transport"]}
                         if job.get("mode") == "rust-native-dev"
                         else {}
@@ -407,6 +437,30 @@ class GitHub:
                     ),
                 },
             },
+        )
+
+    def supports_runner_label(self) -> bool:
+        """True when the dispatched workflow declares the runner_label input."""
+        content = self.request(
+            f"repos/{self.repo}/contents/.github/workflows/{WORKFLOW}?ref=dev"
+        )
+        import base64
+
+        text = base64.b64decode(content.get("content", "")).decode("utf-8", "replace")
+        return re.search(r"(?m)^\s+runner_label:", text) is not None
+
+    def delete_runner(self, runner_id) -> None:
+        subprocess.run(
+            [
+                "gh",
+                "api",
+                "--method",
+                "DELETE",
+                f"repos/{self.repo}/actions/runners/{int(runner_id)}",
+            ],
+            cwd=self.root,
+            capture_output=True,
+            timeout=45,
         )
 
     def run(self, run_id):
@@ -520,6 +574,8 @@ class Queue:
                 "case_title": "TEXT NOT NULL DEFAULT ''",
                 "runtime_seed": "TEXT NOT NULL DEFAULT ''",
                 "web_rust_core": "INTEGER NOT NULL DEFAULT 0",
+                "e2b_runner": "TEXT NOT NULL DEFAULT ''",
+                "force_e2b": "INTEGER NOT NULL DEFAULT 0",
             }
             for name, definition in candidate_columns.items():
                 if name not in columns:
@@ -554,9 +610,14 @@ class Queue:
         case_title: str = "",
         runtime_seed_job: str = "",
         web_rust_core: bool = False,
+        force_e2b: bool = False,
     ) -> dict:
         if web_rust_core and mode not in WEB_RUST_CORE_MODES:
             raise ValueError("Web Rust core option requires --mode e2e or component")
+        if force_e2b and (
+            mode not in E2B_FORCE_MODES or owner == DAILY_OWNER
+        ):
+            raise ValueError("--runner e2b requires --mode component, pytest or e2e")
         if not owner or not re.fullmatch(r"[0-9a-f]{40}", source):
             raise ValueError("Owner and full immutable source commit are required")
         if mode not in (
@@ -850,6 +911,8 @@ class Queue:
             identity.append({"case_title": case_title})
         if web_rust_core:
             identity.append({"web_rust_core": True})
+        if force_e2b:
+            identity.append({"force_e2b": True})
         key = hashlib.sha256(json.dumps(identity).encode()).hexdigest()
         now = time.time()
         with self.connect() as db:
@@ -966,6 +1029,11 @@ class Queue:
             if web_rust_core:
                 db.execute(
                     "UPDATE jobs SET web_rust_core=1 WHERE id=? AND state='queued'",
+                    (key,),
+                )
+            if force_e2b:
+                db.execute(
+                    "UPDATE jobs SET force_e2b=1 WHERE id=? AND state='queued'",
                     (key,),
                 )
             if runtime_seed:
@@ -1142,6 +1210,84 @@ class Queue:
         if hour in DAILY_NIGHT_HOURS_UTC:
             return max(self.daily_max_active, self.daily_night_max_active)
         return self.daily_max_active
+
+    def overflow_to_e2b(
+        self, db, github, pending, now, owners, priority, last_owner
+    ) -> None:
+        """Start single-use E2B runners for jobs GitHub-hosted capacity left queued.
+
+        Forced jobs (--runner e2b) always try E2B. Automatic overflow covers only
+        component/pytest jobs of non-daily owners that could run hosted; capacity
+        is governed by ci_e2b_runner.available(). Nothing runs on the dev server;
+        a refused start leaves the job queued for GitHub.
+        """
+        automatic = e2b_module().overflow_enabled()
+        candidates = [
+            job
+            for job in pending
+            if runner_class(job) == "hosted"
+            and (
+                job.get("force_e2b")
+                or (
+                    automatic
+                    and job["mode"] in e2b_module().OVERFLOW_MODES
+                    and job["owner"] != DAILY_OWNER
+                )
+            )
+        ]
+        candidates.sort(
+            key=lambda item: (
+                not item.get("force_e2b"),
+                item["id"] != priority,
+                owners.get(item["owner"], 0),
+                item["owner"] == last_owner,
+                item["created"],
+                item["id"],
+            )
+        )
+        if not candidates or not hasattr(github, "supports_runner_label"):
+            return
+        if not github.supports_runner_label():
+            return
+        e2b = e2b_module()
+        for job in candidates:
+            if not e2b.available():
+                return
+            registration = e2b.start(
+                github.repo,
+                job["token"],
+                E2B_TIMEOUT_MINUTES,
+                Path(__file__).resolve().parents[1],
+            )
+            if registration is None:
+                return
+            dispatch_job = {**job, "e2b_runner": json.dumps(registration)}
+            db.execute(
+                "UPDATE jobs SET e2b_runner=?,state='dispatching',phase='E2B runner (GitHub overflow)',sent=?,updated=? WHERE id=?",
+                (dispatch_job["e2b_runner"], now, now, job["id"]),
+            )
+            db.commit()
+            try:
+                if hasattr(github, "prepare_dispatch"):
+                    dispatch_job = github.prepare_dispatch(dispatch_job)
+                github.dispatch(dispatch_job)
+            except (
+                GitHubError,
+                RuntimeError,
+                ValueError,
+                OSError,
+                subprocess.TimeoutExpired,
+            ):
+                if hasattr(github, "delete_runner"):
+                    github.delete_runner(registration["runner_id"])
+                raise
+            db.execute(
+                "UPDATE jobs SET state='submitted',updated=? WHERE id=?",
+                (now, job["id"]),
+            )
+            db.commit()
+            owners[job["owner"]] = owners.get(job["owner"], 0) + 1
+            time.sleep(1)
 
     def tick(self, github, now=None):
         now = time.time() if now is None else now
@@ -1333,7 +1479,7 @@ class Queue:
                         pending.append(job)
                     db.commit()
                     active_jobs = [job for job in current if job["id"] in reservations]
-                    local = {"hosted": 0, "selfhosted": 0}
+                    local = {"hosted": 0, "selfhosted": 0, "e2b": 0}
                     for job in active_jobs:
                         local[runner_class(job)] += reservations[job["id"]]
                     # One owner-wide snapshot per two minutes avoids per-caller polling.
@@ -1353,7 +1499,7 @@ class Queue:
                         if any(
                             not isinstance(external.get(kind), int)
                             or external[kind] < 0
-                            for kind in local
+                            for kind in ("hosted", "selfhosted")
                         ):
                             raise ValueError("Invalid owner-wide CI occupancy")
                         snapshot = {"at": now, **external}
@@ -1379,7 +1525,8 @@ class Queue:
                         eligible = [
                             job
                             for job in pending
-                            if local[runner_class(job)] + external[runner_class(job)]
+                            if not job.get("force_e2b")
+                            and local[runner_class(job)] + external[runner_class(job)]
                             < (
                                 self.max_selfhosted
                                 if runner_class(job) == "selfhosted"
@@ -1446,6 +1593,9 @@ class Queue:
                         self.set_meta(db, "last_admitted_owner", last_owner)
                         # Respect GitHub's guidance to space mutating requests.
                         time.sleep(1)
+                    self.overflow_to_e2b(
+                        db, github, pending, now, owners, priority, last_owner
+                    )
                     self.set_meta(db, "last_error", "")
                     self.set_meta(
                         db,
@@ -1520,6 +1670,7 @@ def enqueue_submission(
     case_title: str = "",
     runtime_seed_job: str = "",
     web_rust_core: bool = False,
+    force_e2b: bool = False,
 ) -> list[dict]:
     """Split E2Es and optionally attach exact private shared preparation."""
     if case_title and (
@@ -1645,6 +1796,7 @@ def enqueue_submission(
             case_title,
             runtime_seed_job,
             web_rust_core,
+            force_e2b,
         )
         for batch in batches
     ]
@@ -1826,6 +1978,12 @@ def main():
         action="store_true",
         help="e2e or component only: build the web app with the Rust client core off (legacy configuration)",
     )
+    submit.add_argument(
+        "--runner",
+        choices=["auto", "e2b"],
+        default="auto",
+        help="e2b: run on a single-use E2B runner regardless of hosted capacity (component, pytest, e2e)",
+    )
     priority = sub.add_parser("prioritize")
     priority.add_argument("id")
     priority.add_argument("--session", required=True)
@@ -1964,6 +2122,7 @@ def main():
             runtime_seed_job=args.runtime_seed_job,
             web_rust_core=args.mode in WEB_RUST_CORE_MODES
             and not args.no_web_rust_core,
+            force_e2b=args.runner == "e2b",
         )
         print_receipt(
             receipts[0] if len(receipts) == 1 else receipts, as_json=args.json

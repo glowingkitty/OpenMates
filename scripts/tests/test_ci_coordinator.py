@@ -1097,3 +1097,160 @@ def test_apple_test_lanes_need_no_separate_compile_job(tmp_path):
     assert queue.enqueue("owner", source, ["OpenMatesTests/A"], mode="apple-unit")["id"]
     assert queue.enqueue("owner", source, ["OpenMatesUITests/A"], mode="apple-ui")["id"]
     assert queue.enqueue("owner", source, ["all"], mode="apple-build")["id"]
+
+
+class E2BRemote(Remote):
+    repo = "example/repo"
+
+    def __init__(self, supported=True):
+        super().__init__()
+        self.supported = supported
+        self.deleted = []
+
+    def supports_runner_label(self):
+        return self.supported
+
+    def delete_runner(self, runner_id):
+        self.deleted.append(runner_id)
+
+
+class FakeE2B:
+    OVERFLOW_MODES = frozenset({"component", "pytest"})
+
+    def __init__(self, free=True, accept=True, enabled=True):
+        self.free = free
+        self.accept = accept
+        self.enabled = enabled
+        self.started = []
+
+    def overflow_enabled(self):
+        return self.enabled
+
+    def available(self):
+        return self.free
+
+    def start(self, repo, token, timeout_minutes, root):
+        self.started.append((repo, token, timeout_minutes))
+        if not self.accept:
+            return None
+        return {
+            "label": "e2b-" + token[:8],
+            "runner_id": 77,
+            "runner_name": "e2b-runner-1",
+            "sandbox_id": "sbx",
+            "state_file": "/tmp/state",
+        }
+
+
+def _overflow_queue(tmp_path, monkeypatch, fake, owner="dev", mode="component", max_active=1):
+    monkeypatch.setattr("scripts.ci_coordinator.time.sleep", lambda _: None)
+    monkeypatch.setattr("scripts.ci_coordinator.e2b_module", lambda: fake)
+    q = Queue(tmp_path / "queue.db", max_active=max_active, lightweight_reserve=0)
+    q.enqueue("filler", "a" * 40, ["x.spec.ts"], mode="component")
+    q.enqueue(owner, "a" * 40, ["y.spec.ts"], mode=mode)
+    return q
+
+
+# contract-test: tooling
+def test_overflow_uses_e2b_only_when_hosted_is_full_and_slot_free(tmp_path, monkeypatch):
+    fake = FakeE2B()
+    q = _overflow_queue(tmp_path, monkeypatch, fake)
+    remote = E2BRemote()
+    q.tick(remote, 100)
+    assert len(remote.sent) == 2 and not remote.sent[0].get("e2b_runner")
+    sent = remote.sent[1]
+    assert json_label(sent) == "e2b-" + sent["token"][:8]
+    assert len(fake.started) == 1
+    assert fake.started[0][2] == 60
+    row = q.status(sent["id"])[0]
+    assert row["state"] == "submitted"
+
+
+def json_label(job):
+    import json
+
+    return json.loads(job["e2b_runner"])["label"]
+
+
+# contract-test: tooling
+def test_no_overflow_while_hosted_capacity_is_free(tmp_path, monkeypatch):
+    fake = FakeE2B()
+    q = _overflow_queue(tmp_path, monkeypatch, fake, max_active=5)
+    remote = E2BRemote()
+    q.tick(remote, 100)
+    assert len(remote.sent) == 2 and fake.started == []
+    assert all(not job.get("e2b_runner") for job in remote.sent)
+
+
+# contract-test: tooling
+@pytest.mark.parametrize("fake", [FakeE2B(free=False), FakeE2B(accept=False)])
+def test_refused_e2b_leaves_job_queued_for_github(tmp_path, monkeypatch, fake):
+    q = _overflow_queue(tmp_path, monkeypatch, fake)
+    remote = E2BRemote()
+    q.tick(remote, 100)
+    assert len(remote.sent) == 1
+    assert [r["state"] for r in q.status(None)].count("queued") == 1
+
+
+# contract-test: tooling
+def test_no_automatic_overflow_while_switch_is_off(tmp_path, monkeypatch):
+    fake = FakeE2B(enabled=False)
+    q = _overflow_queue(tmp_path, monkeypatch, fake)
+    remote = E2BRemote()
+    q.tick(remote, 100)
+    assert fake.started == []
+    assert [r["state"] for r in q.status(None)].count("queued") == 1
+
+
+# contract-test: tooling
+def test_daily_owner_and_unsupported_modes_never_overflow(tmp_path, monkeypatch):
+    fake = FakeE2B()
+    q = _overflow_queue(tmp_path, monkeypatch, fake, owner="daily")
+    remote = E2BRemote()
+    q.tick(remote, 100)
+    assert fake.started == [] and len(remote.sent) == 1
+    fake2 = FakeE2B()
+    q2 = _overflow_queue(tmp_path / "b", monkeypatch, fake2, mode="e2e")
+    q2.tick(E2BRemote(), 100)
+    assert fake2.started == []
+
+
+# contract-test: tooling
+def test_overflow_requires_harness_workflow_input(tmp_path, monkeypatch):
+    fake = FakeE2B()
+    q = _overflow_queue(tmp_path, monkeypatch, fake)
+    remote = E2BRemote(supported=False)
+    q.tick(remote, 100)
+    assert fake.started == [] and len(remote.sent) == 1
+
+
+# contract-test: tooling
+def test_forced_e2b_runs_regardless_of_hosted_capacity(tmp_path, monkeypatch):
+    fake = FakeE2B()
+    monkeypatch.setattr("scripts.ci_coordinator.time.sleep", lambda _: None)
+    monkeypatch.setattr("scripts.ci_coordinator.e2b_module", lambda: fake)
+    q = Queue(tmp_path / "queue.db", max_active=5, lightweight_reserve=0)
+    q.enqueue("dev", "a" * 40, ["z.spec.ts"], mode="e2e", force_e2b=True)
+    remote = E2BRemote()
+    q.tick(remote, 100)
+    assert len(remote.sent) == 1 and json_label(remote.sent[0])
+    with pytest.raises(ValueError):
+        q.enqueue("dev", "a" * 40, ["z.spec.ts"], mode="vitest", force_e2b=True)
+
+
+# contract-test: tooling
+def test_failed_e2b_dispatch_deletes_runner_registration(tmp_path, monkeypatch):
+    fake = FakeE2B()
+    q = _overflow_queue(tmp_path, monkeypatch, fake)
+    remote = E2BRemote()
+
+    original = remote.dispatch
+
+    def dispatch(job):
+        original(job)
+        if job.get("e2b_runner"):
+            raise GitHubError("boom", 100)
+
+    remote.dispatch = dispatch
+    q.tick(remote, 100)
+    assert remote.deleted == [77]
