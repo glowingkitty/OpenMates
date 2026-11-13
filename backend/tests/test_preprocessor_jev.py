@@ -1035,3 +1035,13 @@ async def test_empty_use_case_registry_asks_no_question_and_uses_tier_routing(mo
     )
     assert selected["selected_llm_for_main_id"] == "inception/mercury-3"
     assert selected["use_case_val"] is None
+
+
+def test_ask_first_memory_is_offered_at_a_lower_relevance_than_auto_include():
+    # Ask first Memories load only after approval; a near miss costs one question.
+    near_miss = 0.71
+    ask_first = {"id": "press-style", "source": "project", "load_mode": "ask_first"}
+    auto_include = {"id": "press-style", "source": "project", "load_mode": "auto_include"}
+    assert near_miss >= jev_preprocessing.rule_selection_threshold(ask_first)
+    assert near_miss < jev_preprocessing.rule_selection_threshold(auto_include)
+    assert jev_preprocessing.rule_selection_threshold({"id": "app-guide", "source": "app"}) == 0.75

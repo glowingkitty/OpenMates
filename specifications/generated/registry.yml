@@ -157,7 +157,7 @@ specifications:
     version: 6
     status: draft
     path: features/app-memories
-    fingerprint: 718b85f3822d014c5ef9e95748a9ee835bb727acb21701bfa13f0600e216895b
+    fingerprint: ad8a0e03a73f515832e9f1128bc2dcde2e7993d28a227f103a91c04705c6442f
     required_applies_to:
     - rest_api
     - cli
@@ -3370,7 +3370,7 @@ assertions:
     specification: feature.app-memories@6
     specification_id: feature.app-memories
     type: privacy
-    fingerprint: fbee1b7a6c75cc7182a01517d7ff167423af05a38042193f29244c2bec9dc74f
+    fingerprint: 1800759794365348e2a4b84a04add851e4d625ada9e25df407c8acc24f4b7ed6
     required_applies_to:
     - rest_api
     - cli

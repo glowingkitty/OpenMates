@@ -33739,7 +33739,7 @@ assertions:
     current_direct_proof: false
   app-memories.load-modes:
     specification: feature.app-memories@6
-    fingerprint: fbee1b7a6c75cc7182a01517d7ff167423af05a38042193f29244c2bec9dc74f
+    fingerprint: 1800759794365348e2a4b84a04add851e4d625ada9e25df407c8acc24f4b7ed6
     direct_tests:
     - &id4325
       path: backend/tests/test_project_memory_ask_first.py

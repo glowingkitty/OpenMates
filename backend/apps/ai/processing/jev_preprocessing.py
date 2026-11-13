@@ -71,6 +71,18 @@ ICONS = {
     "utensils": "Food or cooking",
     "heart": "Health or relationships",
 }
+
+# A selected Ask first Memory is only offered by title and loads after the user's
+# approval, so a near miss costs one question; Auto include loads silently.
+AUTO_INCLUDE_RULE_THRESHOLD = 0.75
+ASK_FIRST_RULE_THRESHOLD = 0.65
+
+
+def rule_selection_threshold(row: dict) -> float:
+    """Minimum relevance for selecting a Memory candidate, by its load mode."""
+    return ASK_FIRST_RULE_THRESHOLD if row.get("load_mode") == "ask_first" else AUTO_INCLUDE_RULE_THRESHOLD
+
+
 def _criteria(entries: Iterable[str]) -> dict[str, str]:
     result: dict[str, str] = {}
     for entry in entries:
@@ -867,6 +879,7 @@ async def decide_preprocessing_with_jev(
             if type_id in diagram_type_ids and type_id not in selected_diagram_types:
                 selected_diagram_types.append(type_id)
 
+    rule_scores = {key: noul_value(response, question) for question, key in rule_map.items()}
     result: dict[str, Any] = {
         "llm_response_temp": temperature,
         "reasoning_level": (early_decisions.get("reasoning_level") if early_decisions
@@ -887,8 +900,8 @@ async def decide_preprocessing_with_jev(
         # `source` must survive: the preprocessor turns selected personal rows into
         # `memory:<id>` load requests and drops every non-auto_include row without it.
         "relevant_rules": [{"id": row["id"], "revision": row.get("revision"), "source": row.get("source"),
-                            "load_mode": row.get("load_mode", "auto_include")} for row in rule_candidates if row['id'] in {
-            key for question, key in rule_map.items() if noul_value(response, question) >= 0.75}],
+                            "load_mode": row.get("load_mode", "auto_include")} for row in rule_candidates
+                           if rule_scores.get(row["id"], 0.0) >= rule_selection_threshold(row)],
         "relevant_diagram_types": selected_diagram_types,
         "relevant_diagram_variant": (
             choice_value(response, "diagram_variant") if selected_diagram_types else None
@@ -916,7 +929,6 @@ async def decide_preprocessing_with_jev(
         "selected_app_ids": selected,
     }
     # Counts only (no titles or ids): shows whether a Project Memory was offered and chosen.
-    rule_scores = {key: noul_value(response, question) for question, key in rule_map.items()}
     rule_sources = [row.get("source") for row in rule_candidates]
     logger.info("[RULE_PRESELECTION] candidates app=%d project=%d selected app=%d project=%d project_scores=%s",
                 rule_sources.count("app"), rule_sources.count("project"),

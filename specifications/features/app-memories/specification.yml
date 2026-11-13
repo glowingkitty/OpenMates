@@ -390,7 +390,9 @@ assertions:
     are never sent with a chat request, except Auto include Project Memory bodies, which accompany the request only under
     authorized active Project Focus and are revision-checked before use. After the preprocessor selects a memory by title and when-to-use, the server asks
     the client for just that body using the existing memory request; the client answers automatically for Auto include and
-    only after user approval for Ask first, and a mention supplies only that memory. Received bodies are used transiently
+    only after user approval for Ask first, and a mention supplies only that memory. Because an Ask first selection only
+    offers the title for approval, the preprocessor selects Ask first memories at a lower relevance bar than Auto include
+    ones (a near match is offered, not loaded). Received bodies are used transiently
     and may be cached only vault-encrypted for the lifetime of the chat, never stored durably or logged. Memories outside
     their start/expiry window, and Mention only memories, are excluded from catalogs by the client. Public app Memories always
     auto include.
