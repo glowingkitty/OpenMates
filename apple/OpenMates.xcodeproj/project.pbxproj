@@ -616,6 +616,7 @@
 		7A1E5C0D4B2F4E6A9C3D8F11 /* NativeEncryptedSyncPerformanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1E5C0D4B2F4E6A9C3D8F10 /* NativeEncryptedSyncPerformanceTests.swift */; };
 		51D240B035F711EAE019F529 /* EmbedRenderingParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ED0610A1F4AB6B5EB28B20C /* EmbedRenderingParityUITests.swift */; };
 		BB5A0EEB51F3AF3C25984AA3 /* ChatCardsParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68FC0366C1EDC7D3002289B7 /* ChatCardsParityUITests.swift */; };
+		0C0EC0DE1A2B3C4D5E6FDD01 /* AgenticCodingPreviewUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C0EC0DE1A2B3C4D5E6FDD02 /* AgenticCodingPreviewUITests.swift */; };
 		51D6F43ECA336A723552FA76 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B11ABB7D716D034151DB7B3 /* NotificationService.swift */; };
 		51D987ADFA608E554C87AD76 /* WatchPhoneOpenPayloadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5317D124541F183D89A6CE83 /* WatchPhoneOpenPayloadTests.swift */; };
 		B7A2C41E5D9F4A1083E6C5D1 /* NativeHapticsPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7A2C41E5D9F4A1083E6C5D2 /* NativeHapticsPolicyTests.swift */; };
@@ -2085,6 +2086,7 @@
 		2E41C6493C094896089FA076 /* NativeVoiceCallAppCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeVoiceCallAppCoordinatorTests.swift; sourceTree = "<group>"; };
 		2ED0610A1F4AB6B5EB28B20C /* EmbedRenderingParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbedRenderingParityUITests.swift; sourceTree = "<group>"; };
 		68FC0366C1EDC7D3002289B7 /* ChatCardsParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatCardsParityUITests.swift; sourceTree = "<group>"; };
+		0C0EC0DE1A2B3C4D5E6FDD02 /* AgenticCodingPreviewUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgenticCodingPreviewUITests.swift; sourceTree = "<group>"; };
 		2F0EA2469B8BC887B5C5FEF6 /* DeviceShakeReportTrigger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceShakeReportTrigger.swift; sourceTree = "<group>"; };
 		2F3466F7C05304D22DDC5BCB /* NativePCBSchematicActionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativePCBSchematicActionTests.swift; sourceTree = "<group>"; };
 		2F3D88F11AEB65604DF27A3E /* HostingEmbedStrings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostingEmbedStrings.swift; sourceTree = "<group>"; };
@@ -3244,6 +3246,7 @@
 				CACCA88F420D02C737E02E1B /* DevSignupRuntimeUITests.swift */,
 				2ED0610A1F4AB6B5EB28B20C /* EmbedRenderingParityUITests.swift */,
 				68FC0366C1EDC7D3002289B7 /* ChatCardsParityUITests.swift */,
+				0C0EC0DE1A2B3C4D5E6FDD02 /* AgenticCodingPreviewUITests.swift */,
 				B75A5B8D21E5270E31DD14EF /* EmbedResponsiveGeometryUITests.swift */,
 				8FBC6FC6309A686EB25E8CE1 /* EmbedShareSettingsParityUITests.swift */,
 				B43A930E257363CFA545E342 /* FocusPhaseNativeUITests.swift */,
@@ -6216,6 +6219,7 @@
 				684524B1757D6DA9EEA3CD93 /* DevSignupRuntimeUITests.swift in Sources */,
 				51D240B035F711EAE019F529 /* EmbedRenderingParityUITests.swift in Sources */,
 				BB5A0EEB51F3AF3C25984AA3 /* ChatCardsParityUITests.swift in Sources */,
+				0C0EC0DE1A2B3C4D5E6FDD01 /* AgenticCodingPreviewUITests.swift in Sources */,
 				A4A0EF76804D4B8B79B17ACC /* EmbedResponsiveGeometryUITests.swift in Sources */,
 				490186B7DFB8AE40A13005AE /* EmbedShareSettingsParityUITests.swift in Sources */,
 				D997993E143DD1207E4FD27B /* FocusPhaseNativeUITests.swift in Sources */,

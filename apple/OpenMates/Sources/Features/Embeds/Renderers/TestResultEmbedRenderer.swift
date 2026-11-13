@@ -50,6 +50,7 @@ struct TestResultStatusBadge: View {
         .foregroundStyle(tone == .failed ? Color.error : tone == .stale ? Color.warning : Color.fontPrimary)
         .background(Color.grey10, in: Capsule())
         .fixedSize()
+        .accessibilityElement(children: .combine)
     }
 
     private var dotStyle: AnyShapeStyle {
@@ -76,13 +77,17 @@ private struct TestResultPreviewBody: View {
 
     var body: some View {
         let statusLabel = AppStrings.localized(view.runStatus.labelKey)
+        // `.tr-info` of TestResultEmbedPreview.svelte: title, status row and counts,
+        // kept clear of the BasicInfosBar painted over the card's bottom 61pt.
         VStack(spacing: 0) {
             if view.kind == .browser { frameArea(statusLabel: statusLabel) }
-            VStack(alignment: .leading, spacing: .spacing2) {
-                Text(view.title).font(.omP).fontWeight(.semibold)
-                    .foregroundStyle(Color.fontPrimary).lineLimit(1)
+            VStack(alignment: .leading, spacing: .spacing3) {
+                Text(view.title)
+                    .font(.omP).fontWeight(.semibold)
+                    .foregroundStyle(Color.fontPrimary)
+                    .lineLimit(1).truncationMode(.tail)
                     .accessibilityIdentifier("test-result-preview-title")
-                HStack(spacing: .spacing2) {
+                HStack(spacing: .spacing3) {
                     TestResultStatusBadge(tone: TestResultStatusBadge.tone(for: view.runStatus), label: statusLabel)
                         .accessibilityIdentifier("test-result-preview-status")
                     if !view.isCurrent {
@@ -90,26 +95,41 @@ private struct TestResultPreviewBody: View {
                             .accessibilityIdentifier("test-result-preview-stale")
                     }
                 }
-                HStack(spacing: .spacing3) {
-                    Text("\(view.passed) \(AppStrings.localized("embeds.code.test_result.status_passed"))")
-                    Text("\(view.failed) \(AppStrings.localized("embeds.code.test_result.status_failed"))")
-                        .foregroundStyle(Color.error)
-                    if view.skipped > 0 {
-                        Text("\(view.skipped) \(AppStrings.localized("embeds.code.test_result.status_skipped"))")
+                // `.tr-counts` wraps whole items (flex-wrap), never inside one.
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: .spacing4) { countItems; durationItem }
+                    VStack(alignment: .leading, spacing: .spacing2) {
+                        HStack(spacing: .spacing4) { countItems }
+                        durationItem
                     }
-                    if view.durationMs != nil { Text(TestResultView.formatDuration(view.durationMs)) }
                 }
-                .font(.omXs).foregroundStyle(Color.fontSecondary)
+                .font(.omSmall).foregroundStyle(Color.fontSecondary)
                 .accessibilityIdentifier("test-result-preview-counts")
             }
-            .padding(.horizontal, .spacing4)
-            .padding(.vertical, .spacing3)
+            .padding(.horizontal, .spacing12)
+            .padding(.vertical, .spacing6)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .frame(maxHeight: view.kind == .browser ? nil : .infinity)
+            .frame(maxHeight: view.kind == .browser ? nil : .infinity, alignment: .center)
         }
+        .padding(.bottom, EmbedPreviewFooterLayout.height)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("test-result-preview")
+    }
+
+    @ViewBuilder
+    private var countItems: some View {
+        Text("\(view.passed) \(AppStrings.localized("embeds.code.test_result.status_passed"))").fixedSize()
+        Text("\(view.failed) \(AppStrings.localized("embeds.code.test_result.status_failed"))")
+            .foregroundStyle(Color.error).fixedSize()
+        if view.skipped > 0 {
+            Text("\(view.skipped) \(AppStrings.localized("embeds.code.test_result.status_skipped"))").fixedSize()
+        }
+    }
+
+    @ViewBuilder
+    private var durationItem: some View {
+        if view.durationMs != nil { Text(TestResultView.formatDuration(view.durationMs)).fixedSize() }
     }
 
     @ViewBuilder
@@ -193,6 +213,7 @@ private struct TestResultFullscreenBody: View {
         .padding(.spacing2)
         .onAppear { playback.load(videoURL) }
         .onDisappear { playback.tearDown() }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("test-result-fullscreen-body")
     }
 

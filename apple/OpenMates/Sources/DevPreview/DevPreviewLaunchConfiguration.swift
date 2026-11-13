@@ -140,7 +140,7 @@ enum DevPreviewComponentRegistry {
         case .tasks:
             return .init(component: component, webComponentPath: "tasks/TasksPage", nativeRendererNames: ["TasksWorkspaceView", "TaskDetailView", "PlanDetailView", "TasksSidebarView"], variants: ["default", "manyBacklog", "plans", "supplementary-load-failure", "task-load-failure"], hostSupport: .componentHost)
         case .projects:
-            return .init(component: component, webComponentPath: "projects/ProjectsPage", nativeRendererNames: ["ProjectsWorkspaceView", "ProjectsSidebarView"], variants: ["default", "landing", "folders", "readme", "tasks", "connectedSource", "localFolderSource", "multipleSources", "largeConnectedSource", "legacyConnectedSource", "rootFiles", "truncatedConnectedSource", "offlineConnectedSource", "offlineCachedSource", "sidebar", "chats"], hostSupport: .componentHost)
+            return .init(component: component, webComponentPath: "projects/ProjectsPage", nativeRendererNames: ["ProjectsWorkspaceView", "ProjectsSidebarView"], variants: ["default", "landing", "folders", "readme", "tasks", "connectedSource", "localFolderSource", "multipleSources", "largeConnectedSource", "legacyConnectedSource", "rootFiles", "truncatedConnectedSource", "offlineConnectedSource", "offlineCachedSource", "sidebar", "chats", "applicationFolder"], hostSupport: .componentHost)
         case .storage:
             return .init(component: component, webComponentPath: "settings/SettingsTeams", nativeRendererNames: ["StoragePersonalSummaryView", "TeamStorageStatusView", "StorageNoticeView"], variants: ["default", "personal", "current", "unpaid", "disabled", "manual-review", "selection-fencing"], hostSupport: .componentHost)
         case .notification:

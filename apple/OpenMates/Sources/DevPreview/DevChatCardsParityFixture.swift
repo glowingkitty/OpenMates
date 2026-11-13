@@ -20,6 +20,9 @@ enum DevChatCardsFixtureKind: String {
     case imageGenerate = "image-generate"
     case recommendations
     case projectCreated = "project-created"
+    case projectCreatedUndo = "project-created-undo"
+    case testResultPreviews = "test-result-previews"
+    case testResultFullscreen = "test-result-fullscreen"
 
     static let argument = "--dev-chat-cards-fixture"
 
@@ -48,6 +51,9 @@ struct DevChatCardsParityFixture: View {
                 case .imageGenerate: DevImageGenerateStatesFixture()
                 case .recommendations: DevRecommendationsCardFixture()
                 case .projectCreated: DevProjectCreatedCardFixture()
+                case .projectCreatedUndo: DevProjectCreatedUndoFixture()
+                case .testResultPreviews: DevTestResultPreviewsFixture()
+                case .testResultFullscreen: DevTestResultFullscreenFixture()
                 }
             }
             .padding(.spacing8)
@@ -162,6 +168,107 @@ private struct DevProjectCreatedCardFixture: View {
             data: .raw(Self.fields.mapValues { AnyCodable($0) }),
             parentEmbedId: nil, appId: "projects", skillId: nil, embedIds: nil,
             createdAt: "2026-11-12T08:30:00Z"), mode: .preview)
+    }
+}
+/// Project-created card with an Undo button wired to a local closure (no network).
+private struct DevProjectCreatedUndoFixture: View {
+    private static let projectID = "4f1c2a7e-3b5d-4c8e-9a10-2b3c4d5e6f70"
+    private static let focusID = "project-\(projectID)"
+    /// Counts calls of the local undo closure, so a UI test can tell a lost tap
+    /// from a card whose undo state was reset.
+    @MainActor
+    private final class UndoCalls: ObservableObject { @Published var count = 0 }
+    @StateObject private var calls = UndoCalls()
+    @StateObject private var undoModel: ProjectCreatedUndoModel
+
+    init() {
+        let calls = UndoCalls()
+        _calls = StateObject(wrappedValue: calls)
+        _undoModel = StateObject(wrappedValue: ProjectCreatedUndoModel(chatID: "dev-chat-example-1") { @MainActor _ in
+            calls.count += 1
+        })
+    }
+
+    var body: some View {
+        let created = ProjectCreatedFocus(
+            data: ["project_created": AnyCodable(true), "project_id": AnyCodable(Self.projectID),
+                   "project_name": AnyCodable("Kitchen renovation")],
+            focusName: "Work on Kitchen renovation")
+        VStack(spacing: .spacing4) {
+            if let created {
+                ProjectCreatedCardView(created: created, focusID: Self.focusID, undoModel: undoModel)
+            }
+            Color.clear
+                .frame(height: 1)
+                .accessibilityElement()
+                .accessibilityIdentifier("dev-project-undo-calls")
+                .accessibilityValue("calls:\(calls.count)")
+        }
+    }
+}
+
+private enum DevTestResultFixtureData {
+    static func obj(_ value: [String: Any]) -> [String: Any] { value }
+
+    static func record(id: String, _ fields: [String: Any]) -> EmbedRecord {
+        EmbedRecord(id: "dev-test-result-\(id)", type: EmbedType.codeTestResult.rawValue, status: .finished,
+                    data: .raw(fields.mapValues { AnyCodable($0) }), parentEmbedId: nil,
+                    appId: "code", skillId: "test_result", embedIds: nil, createdAt: "2026-11-12T08:30:00Z")
+    }
+
+    static var browser: EmbedRecord {
+        record(id: "browser", [
+            "kind": "browser", "run_status": "passed", "target": "Checkout flow", "duration_ms": 8200,
+            "passed": 3, "failed": 0, "skipped": 0, "is_current": true, "preview_step_index": 1,
+            "steps": [
+                obj(["name": "Open https://example.org/shop", "start_ms": 0, "end_ms": 1800, "status": "passed"]),
+                obj(["name": "Add the kettle to the basket", "start_ms": 1800, "end_ms": 4600, "status": "passed"]),
+                obj(["name": "Pay with the test card", "start_ms": 4600, "end_ms": 8200, "status": "passed"])
+            ],
+            "evidence": [
+                obj(["kind": "video", "path": "runs/checkout.webm", "mime_type": "video/webm",
+                 "asset_id": "dev-test-result-video"]),
+                obj(["kind": "preview_frame", "path": "runs/checkout.png", "mime_type": "image/png",
+                 "asset_id": "dev-test-result-frame", "at_step": 1])
+            ]
+        ])
+    }
+
+    static var cli: EmbedRecord {
+        record(id: "cli", [
+            "kind": "cli", "run_status": "failed", "target": "npm run build", "exit_code": 1,
+            "duration_ms": 12400, "passed": 0, "failed": 1, "skipped": 0, "is_current": true,
+            "error": "Build failed: example.org module not found",
+            "steps": [obj(["name": "npm run build", "start_ms": 0, "end_ms": 12400, "status": "failed",
+                       "command": "npm run build", "output": "Error: cannot resolve ./kitchen"])]
+        ])
+    }
+
+    static var unit: EmbedRecord {
+        record(id: "unit", [
+            "kind": "unit", "run_status": "passed", "target": "tests/test_kettle.py", "duration_ms": 640,
+            "passed": 4, "failed": 0, "skipped": 1, "is_current": false,
+            "stale_reason": "Files changed after this run",
+            "tests": [obj(["name": "test_boils_water", "status": "passed", "duration_ms": 120]),
+                      obj(["name": "test_shuts_off", "status": "passed", "duration_ms": 90])]
+        ])
+    }
+}
+
+private struct DevTestResultPreviewsFixture: View {
+    var body: some View {
+        ForEach([("browser", DevTestResultFixtureData.browser), ("cli", DevTestResultFixtureData.cli),
+                 ("unit", DevTestResultFixtureData.unit)], id: \.0) { item in
+            EmbedPreviewCard(embed: item.1) {}
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("dev-test-result-card-\(item.0)")
+        }
+    }
+}
+
+private struct DevTestResultFullscreenFixture: View {
+    var body: some View {
+        EmbedContentView(embed: DevTestResultFixtureData.browser, mode: .fullscreen)
     }
 }
 #endif

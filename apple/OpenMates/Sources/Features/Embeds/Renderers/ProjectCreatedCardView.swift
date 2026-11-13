@@ -101,6 +101,13 @@ struct ProjectCreatedCardView: View {
         _undoModel = StateObject(wrappedValue: ProjectCreatedUndoModel(chatID: chatID))
     }
 
+    /// Injects a prepared undo model (dev-preview fixtures supply a local undo closure).
+    init(created: ProjectCreatedFocus, focusID: String, undoModel: ProjectCreatedUndoModel) {
+        self.created = created
+        self.focusID = focusID
+        _undoModel = StateObject(wrappedValue: undoModel)
+    }
+
     var body: some View {
         // Card gap spacing2 between rows; the second row adds a 1px grey25
         // border-top and padding-top spacing3 (`.created-row + .created-row`).
@@ -154,7 +161,9 @@ struct ProjectCreatedCardView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             if undoModel.canUndo {
-                Button { Task { await undoModel.performUndo() } } label: {
+                Button {
+                    Task { await undoModel.performUndo() }
+                } label: {
                     Text(AppStrings.projectCreatedUndo)
                         .font(.omP)
                         .foregroundStyle(Color.grey100)
@@ -162,6 +171,7 @@ struct ProjectCreatedCardView: View {
                         .padding(.vertical, .spacing2)
                         .background(Color.grey25)
                         .clipShape(RoundedRectangle(cornerRadius: .radius4))
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .disabled(undoModel.isUndoing)
