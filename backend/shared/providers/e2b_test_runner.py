@@ -16,6 +16,7 @@ import shlex
 import time
 from dataclasses import dataclass
 from typing import Callable, cast
+from urllib.parse import urlsplit
 
 from backend.shared.providers.e2b_code_runner import (
     CODE_RUN_TEMPLATE_ENV,
@@ -76,6 +77,12 @@ def command_to_shell(command: TestCommand, env: dict[str, str] | None = None) ->
 def server_start_shell(command_line: str) -> str:
     """Start the server detached so it outlives this step and is torn down with the sandbox."""
     return f"nohup setsid bash -lc {shlex.quote(command_line)} > {SERVER_LOG} 2>&1 & echo $! > {SERVER_PID}"
+
+
+def server_origin(ready_url: str) -> str:
+    """Origin (scheme://host:port) of the server readiness URL, used as the tests' baseURL."""
+    parts = urlsplit(ready_url)
+    return f"{parts.scheme}://{parts.netloc}"
 
 
 def readiness_shell(url: str, timeout_seconds: int) -> str:
@@ -242,6 +249,9 @@ def run_tests_in_e2b(
         sandbox.files.write_files([{"path": f"{WORKSPACE_DIR}/{f.path}", "data": _file_payload(f)} for f in files])
         started = time.monotonic()
         env = recorder_env(spec.kind)
+        if spec.server is not None:
+            # Default baseURL for the browser test config overlay (record_browser.py).
+            env["OPENMATES_TEST_BASE_URL"] = server_origin(spec.server.ready_url)
 
         def finish(exit_code: int | None, error: str | None, timed_out: bool = False) -> TestRunOutcome:
             artifacts, skipped = _discover_output_artifacts(sandbox, test_run=True)

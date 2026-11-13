@@ -71,3 +71,13 @@ pub(crate) fn note_caller(location: &'static std::panic::Location<'static>) {
         *last = Some(format!("at:{}:{}", location.file(), location.line()));
     }
 }
+
+/// Remember the failing turn step unless a deeper site was already noted.
+pub(in crate::client) fn note_step(label: &'static str) {
+    if enabled()
+        && let Ok(mut last) = LAST.lock()
+        && last.is_none()
+    {
+        *last = Some(format!("step:{label}"));
+    }
+}

@@ -139,7 +139,7 @@ impl PlaintextBytes {
             fn flush(&mut self) -> std::io::Result<()> { Ok(()) }
         }
         let mut count = Count(0);
-        serde_json::to_writer(&mut count, value).map_err(|_| Error::Protocol)?;
+        serde_json::to_writer(&mut count, value).map_err(|_| crate::client::send::refusal_trace::protocol_at!())?;
         let result = Self {
             bytes: zeroize::Zeroizing::new(vec![0; count.0]),
             #[cfg(test)]
@@ -150,8 +150,8 @@ impl PlaintextBytes {
     fn write(mut self, value: &impl serde::Serialize) -> Result<Self> {
         let expected = self.bytes.len();
         let mut cursor = std::io::Cursor::new(self.bytes.as_mut_slice());
-        serde_json::to_writer(&mut cursor, value).map_err(|_| Error::Protocol)?;
-        if cursor.position() != expected as u64 { return Err(Error::Protocol); }
+        serde_json::to_writer(&mut cursor, value).map_err(|_| crate::client::send::refusal_trace::protocol_at!())?;
+        if cursor.position() != expected as u64 { return Err(crate::client::send::refusal_trace::protocol_at!()); }
         Ok(self)
     }
     fn owned(self, source: PlaintextJson) -> tungstenite::Bytes {
@@ -227,7 +227,7 @@ impl Socket {
         self.resource.receiving.compare_exchange(false,true,std::sync::atomic::Ordering::AcqRel,std::sync::atomic::Ordering::Acquire).map_err(|_|Error::Conflict)?;
         Ok(SocketReceiveOwner{resource:self.resource.clone()})
     }
-    fn pop_pending(&self)->Result<Option<(String,Value)>>{Ok(self.resource.pending.lock().map_err(|_|Error::Protocol)?.pop_front())}
+    fn pop_pending(&self)->Result<Option<(String,Value)>>{Ok(self.resource.pending.lock().map_err(|_| crate::client::send::refusal_trace::protocol_at!())?.pop_front())}
     pub(super) async fn close(
         &mut self,
         frame: Option<tungstenite::protocol::CloseFrame>,
@@ -308,7 +308,7 @@ pub(super) fn cookie_header(cookies: &BTreeMap<String, String>) -> Result<String
             || v.bytes()
                 .any(|b| b <= 32 || b >= 127 || b == b';' || b == b',')
     }) {
-        return Err(Error::Protocol);
+        return Err(crate::client::send::refusal_trace::protocol_at!());
     }
     Ok(cookies
         .iter()
@@ -332,9 +332,9 @@ impl Client {
             || path.contains('\\')
             || path.contains('#')
         {
-            return Err(Error::Protocol);
+            return Err(crate::client::send::refusal_trace::protocol_at!());
         }
-        let url = self.base.join(path).map_err(|_| Error::Protocol)?;
+        let url = self.base.join(path).map_err(|_| crate::client::send::refusal_trace::protocol_at!())?;
         if url.origin() != self.base.origin() {
             return Err(Error::Forbidden);
         }
@@ -384,7 +384,7 @@ impl Client {
                 method, path, Some(body), None, None, None, None, false, None, None,
             )
             .await?
-            .ok_or(Error::Protocol)
+            .ok_or_else(|| crate::client::send::refusal_trace::protocol_at!())
         }
     }
     pub(super) async fn request_with(
@@ -430,7 +430,7 @@ impl Client {
             None,
         )
         .await?
-        .ok_or(Error::Protocol)
+        .ok_or_else(|| crate::client::send::refusal_trace::protocol_at!())
     }
     #[allow(clippy::too_many_arguments)]
     pub(crate) async fn request_task_headers_observed(
@@ -457,7 +457,7 @@ impl Client {
             None,
         )
         .await?
-        .ok_or(Error::Protocol)
+        .ok_or_else(|| crate::client::send::refusal_trace::protocol_at!())
     }
     /// A closed authenticated result GET. Only the server's exact pending
     /// response becomes None; all other failures retain the generic mapping.
@@ -476,7 +476,7 @@ impl Client {
     /// request_task_headers_observed remains non-success-only for CLI parity.
     pub(super) async fn auth_session_request_observed(&mut self,body:Value,status:&mut Option<u16>)->Result<Value>{
         *status=None;
-        self.request_task_headers_inner(Method::POST,"/v1/auth/session",Some(RequestBody::Ordinary(body)),None,None,None,None,false,None,Some(status)).await?.ok_or(Error::Protocol)
+        self.request_task_headers_inner(Method::POST,"/v1/auth/session",Some(RequestBody::Ordinary(body)),None,None,None,None,false,None,Some(status)).await?.ok_or_else(|| crate::client::send::refusal_trace::protocol_at!())
     }
     /// SAME fixed normal protocol/transport, closed original pending context.
     /// Actual request budget covers headers AND the complete streamed body.
@@ -485,12 +485,12 @@ impl Client {
         if !self.browser_transport||self.browser_authority.is_some()||self.browser_credentials.is_some()||self.session.is_some()
             ||!self.user.is_null(){return Err(Error::Forbidden)}
         *status=None;
-        self.request_task_headers_inner_mode(Method::POST,"/v1/auth/session",Some(RequestBody::Ordinary(body)),None,None,None,None,false,None,Some(status),None,None,None,Some(SessionRequestBudget::NormalBrowserCheck{deadline})).await?.ok_or(Error::Protocol)
+        self.request_task_headers_inner_mode(Method::POST,"/v1/auth/session",Some(RequestBody::Ordinary(body)),None,None,None,None,false,None,Some(status),None,None,None,Some(SessionRequestBudget::NormalBrowserCheck{deadline})).await?.ok_or_else(|| crate::client::send::refusal_trace::protocol_at!())
     }
     // Only this fixed metadata read preserves exact HTTP 404 as absence. Other
     // status codes retain their ordinary errors and credential-rotation rules.
     pub(super) async fn request_chat_metadata(&mut self, id: &str) -> Result<Option<Value>> {
-        uuid::Uuid::parse_str(id).map_err(|_| Error::Protocol)?;
+        uuid::Uuid::parse_str(id).map_err(|_| crate::client::send::refusal_trace::protocol_at!())?;
         self.require_credentials()?;
         let path = self.scoped("/v1/chats/metadata/batch")?;
         self.request_task_headers_inner(
@@ -510,7 +510,7 @@ impl Client {
     /// The server's stored unread counter for one chat (`read_details` of the
     /// selected metadata row); `None` when the row carries no counter.
     pub(super) async fn request_chat_unread_count(&mut self, id: &str) -> Result<Option<u64>> {
-        uuid::Uuid::parse_str(id).map_err(|_| Error::Protocol)?;
+        uuid::Uuid::parse_str(id).map_err(|_| crate::client::send::refusal_trace::protocol_at!())?;
         self.require_credentials()?;
         let path = self.scoped("/v1/chats/metadata/batch")?;
         let metadata = self
@@ -528,7 +528,7 @@ impl Client {
             )
             .await?
             .ok_or(Error::Forbidden)?;
-        let rows = metadata["chats"].as_array().ok_or(Error::Protocol)?;
+        let rows = metadata["chats"].as_array().ok_or_else(|| crate::client::send::refusal_trace::protocol_at!())?;
         let row = rows.iter().find(|row| text(row, "id") == id).ok_or(Error::Forbidden)?;
         Ok(row["read_details"]["unread_count"].as_u64())
     }
@@ -539,7 +539,7 @@ impl Client {
         id: &str,
         wrappers: bool,
     ) -> Result<Value> {
-        uuid::Uuid::parse_str(id).map_err(|_| Error::Protocol)?;
+        uuid::Uuid::parse_str(id).map_err(|_| crate::client::send::refusal_trace::protocol_at!())?;
         self.require_credentials()?;
         let path = self.scoped(&format!(
             "/v1/user-tasks/{id}{}",
@@ -547,7 +547,7 @@ impl Client {
         ))?;
         self.request_task_headers_inner(Method::GET, &path, None, None, None, None, Some(id), false, None, None)
             .await?
-            .ok_or(Error::Protocol)
+            .ok_or_else(|| crate::client::send::refusal_trace::protocol_at!())
     }
     /// Fixed legacy settings/reminders compatibility only. Normal auth,
     /// header/cookie, denial and body-limit paths remain shared and strict.
@@ -556,7 +556,7 @@ impl Client {
         let mut root_keys = zeroize::Zeroizing::new(Vec::new());
         let value = self.request_task_headers_inner_mode(Method::GET, "/v1/settings/reminders", None,
             None, None, None, None, false, None, None, Some(http_error), Some(&mut root_keys), None,None)
-            .await?.ok_or(Error::Protocol)?;
+            .await?.ok_or_else(|| crate::client::send::refusal_trace::protocol_at!())?;
         Ok(crate::account::SettingsReadResponse::from_parts(value, root_keys))
     }
     #[allow(clippy::too_many_arguments)]
@@ -576,7 +576,7 @@ impl Client {
     pub(super) async fn request_embed_history(
         &mut self, embed: &str, chat: &str, version: u64,
     ) -> Result<Option<Value>> {
-        if version == 0 { return Err(Error::Protocol); }
+        if version == 0 { return Err(crate::client::send::refusal_trace::protocol_at!()); }
         self.require_credentials()?;
         let path = self.scoped(&format!(
             "/v1/embeds/{}/versions/{version}?capability=bounded-v1&chat_id={}",
@@ -633,11 +633,11 @@ impl Client {
         }
         self.in_flight_method = Some(method.as_str().to_owned());
         let settings_reminders = settings_http_error.is_some();
-        if settings_reminders != settings_root_keys.is_some() { return Err(Error::Protocol); }
+        if settings_reminders != settings_root_keys.is_some() { return Err(crate::client::send::refusal_trace::protocol_at!()); }
         if settings_reminders && (method != Method::GET || path != "/v1/settings/reminders" || body.is_some()
             || pair_secret.is_some() || idempotency.is_some() || task.is_some() || committed_task.is_some()
             || metadata_not_found || http_failure_status.is_some() || auth_response_status.is_some() || history_version.is_some()) {
-            return Err(Error::Protocol);
+            return Err(crate::client::send::refusal_trace::protocol_at!());
         }
         let (req, generation, monitor_origin) = self.prepare_http_request(
             method, path, body, pair_secret, idempotency, task, committed_task,
@@ -668,7 +668,7 @@ impl Client {
         if !(method == Method::GET && body.is_none()
             || method == Method::POST && body.is_some() && self.is_metadata_batch_read(path))
         {
-            return Err(Error::Protocol);
+            return Err(crate::client::send::refusal_trace::protocol_at!());
         }
         let (request, generation, monitor_origin) = self.prepare_http_request(
             method, path, body.map(RequestBody::Ordinary), None, None, None, None,
@@ -838,13 +838,13 @@ impl Client {
             .content_length()
             .is_some_and(|n| n > MAX_BODY as u64)
         {
-            return Err(Error::Protocol);
+            return Err(crate::client::send::refusal_trace::protocol_at!());
         }
         let mut bytes = zeroize::Zeroizing::new(Vec::new());
         while let Some(chunk) = response.chunk().await.map_err(|_| Error::Offline)? {
             if status.as_u16()==403&&bytes.len()+chunk.len()>4096{return Err(Error::Forbidden);}
             if bytes.len() + chunk.len() > MAX_BODY {
-                return Err(Error::Protocol);
+                return Err(crate::client::send::refusal_trace::protocol_at!());
             }
             bytes.extend_from_slice(&chunk);
         }
@@ -896,7 +896,7 @@ impl Client {
                 400 | 422 => Error::Invalid("The server rejected the requested operation."),
                 404 | 410 => Error::Invalid("The requested item is unavailable."),
                 429 | 500..=599 => Error::Offline,
-                _ => Error::Protocol,
+                _ => crate::client::send::refusal_trace::protocol_at!(),
             });
         }
         if bytes.is_empty() {
@@ -904,7 +904,7 @@ impl Client {
         } else if settings_reminders {
             // Legacy HttpClient JSON decoding defaults to {}. This fixed read
             // reaches here only AFTER all original auth/cookie/body/owner checks.
-            let root_slot = settings_root_keys.as_mut().ok_or(Error::Protocol)?;
+            let root_slot = settings_root_keys.as_mut().ok_or_else(|| crate::client::send::refusal_trace::protocol_at!())?;
             let decoded = crate::account::SettingsReadResponse::decode_legacy(&bytes)?;
             let (value, keys) = decoded.into_parts();
             **root_slot = keys;
@@ -912,7 +912,7 @@ impl Client {
         } else {
             serde_json::from_slice(&bytes)
                 .map(Some)
-                .map_err(|_| Error::Protocol)
+                .map_err(|_| crate::client::send::refusal_trace::protocol_at!())
         }
     }
     pub(crate) async fn public_workflow_projection(&self, template: &str) -> Result<Value> {
@@ -942,16 +942,16 @@ impl Client {
             });
         }
         if response.content_length().is_some_and(|n| n > 1_048_576) {
-            return Err(Error::Protocol);
+            return Err(crate::client::send::refusal_trace::protocol_at!());
         }
         let mut bytes = Vec::new();
         while let Some(chunk) = response.chunk().await.map_err(|_| Error::Offline)? {
             if bytes.len() + chunk.len() > 1_048_576 {
-                return Err(Error::Protocol);
+                return Err(crate::client::send::refusal_trace::protocol_at!());
             }
             bytes.extend_from_slice(&chunk);
         }
-        serde_json::from_slice(&bytes).map_err(|_| Error::Protocol)
+        serde_json::from_slice(&bytes).map_err(|_| crate::client::send::refusal_trace::protocol_at!())
     }
     pub(super) async fn workflow_run(&mut self, path: &str, id: &str) -> Result<Value> {
         self.request_headers(
@@ -1081,7 +1081,7 @@ impl Client {
         } else {
             "ws"
         })
-        .map_err(|_| Error::Protocol)?;
+        .map_err(|_| crate::client::send::refusal_trace::protocol_at!())?;
         let mut capabilities = if ephemeral {
             String::new()
         } else if task_jobs {
@@ -1105,13 +1105,13 @@ impl Client {
             }
         }
         if let Some(request_id) = inventory_request_id {
-            let parsed = uuid::Uuid::parse_str(request_id).map_err(|_| Error::Protocol)?;
+            let parsed = uuid::Uuid::parse_str(request_id).map_err(|_| crate::client::send::refusal_trace::protocol_at!())?;
             if !task_jobs
                 || !completion_recovery
                 || parsed.get_version_num() != 4
                 || parsed.to_string() != request_id
             {
-                return Err(Error::Protocol);
+                return Err(crate::client::send::refusal_trace::protocol_at!());
             }
             url.query_pairs_mut()
                 .append_pair("inventory_request_id", request_id);
@@ -1126,16 +1126,16 @@ impl Client {
         let mut req = url
             .as_str()
             .into_client_request()
-            .map_err(|_| Error::Protocol)?;
+            .map_err(|_| crate::client::send::refusal_trace::protocol_at!())?;
         req.headers_mut().insert(
             "User-Agent",
-            USER_AGENT.parse().map_err(|_| Error::Protocol)?,
+            USER_AGENT.parse().map_err(|_| crate::client::send::refusal_trace::protocol_at!())?,
         );
         req.headers_mut().insert(
             "Cookie",
             cookie_header(&self.cookies)?
                 .parse()
-                .map_err(|_| Error::Protocol)?,
+                .map_err(|_| crate::client::send::refusal_trace::protocol_at!())?,
         );
         req.headers_mut().insert(
             "X-OpenMates-SDK",
@@ -1143,11 +1143,11 @@ impl Client {
                 .identity
                 .header()
                 .parse()
-                .map_err(|_| Error::Protocol)?,
+                .map_err(|_| crate::client::send::refusal_trace::protocol_at!())?,
         );
         req.headers_mut().insert(
             "Origin",
-            self.app_url().parse().map_err(|_| Error::Protocol)?,
+            self.app_url().parse().map_err(|_| crate::client::send::refusal_trace::protocol_at!())?,
         );
         let config = WebSocketConfig::default()
             .max_message_size(Some(MAX_BODY))
@@ -1233,7 +1233,7 @@ where
         payload.value = envelope;
         let serialized = PlaintextBytes::serialize(&payload.value)?;
         let text = tungstenite::Utf8Bytes::try_from(serialized.owned(payload))
-            .map_err(|_| Error::Protocol)?;
+            .map_err(|_| crate::client::send::refusal_trace::protocol_at!())?;
         sink.send(tungstenite::Message::Text(text))
             .await
             .map_err(|_| Error::Offline)
@@ -1361,7 +1361,7 @@ async fn receive_raw_policy(
                     {
                         return Ok((event.to_owned(), frame));
                     }
-                    return Err(Error::Protocol);
+                    return Err(crate::client::send::refusal_trace::protocol_at!());
                 }
                 let kind = required(&frame, "type")?.to_owned();
                 if kind == "force_logout" {
@@ -1374,7 +1374,7 @@ async fn receive_raw_policy(
                     });
                 }
                 if kind == "error" && rejects_error_frame(&frame["payload"], ephemeral, allowance) {
-                    return Err(Error::Protocol);
+                    return Err(crate::client::send::refusal_trace::protocol_at!());
                 }
                 return Ok((kind, frame.get("payload").cloned().unwrap_or(Value::Null)));
             }
@@ -1454,7 +1454,7 @@ pub(super) async fn wait_workflow(
                 | "WorkflowChatDeliveryStaleClaimError"
                 | "ValueError",
             ) => Error::Conflict,
-            _ => Error::Protocol,
+            _ => crate::client::send::refusal_trace::protocol_at!(),
         });
     }
     Ok(value)
@@ -1476,7 +1476,7 @@ pub(super) async fn wait_task_job(
         return Err(match value["code"].as_str() {
             Some("TaskUpdateJobConflictError" | "TaskUpdateJobNotFoundError") => Error::Conflict,
             Some("PermissionError") => Error::Forbidden,
-            _ => Error::Protocol,
+            _ => crate::client::send::refusal_trace::protocol_at!(),
         });
     }
     Ok(value)
@@ -1492,9 +1492,9 @@ async fn wait_matching_policy(
 ) -> Result<(String, Value)> {
     let _original_receive=ws.own_receive()?;
     {
-        let mut pending=ws.resource.pending.lock().map_err(|_|Error::Protocol)?;
+        let mut pending=ws.resource.pending.lock().map_err(|_| crate::client::send::refusal_trace::protocol_at!())?;
         if let Some(index)=pending.iter().position(|(kind,payload)|matches(kind,payload)) {
-            return pending.remove(index).ok_or(Error::Protocol);
+            return pending.remove(index).ok_or_else(|| crate::client::send::refusal_trace::protocol_at!());
         }
     } // Never retain the pending queue guard across any await.
     let deadline = crate::platform::time::Instant::now() + Duration::from_secs(90);
@@ -1505,9 +1505,9 @@ async fn wait_matching_policy(
         if matches(&k, &p) {
             return Ok((k, p));
         }
-        let mut pending=ws.resource.pending.lock().map_err(|_|Error::Protocol)?;
+        let mut pending=ws.resource.pending.lock().map_err(|_| crate::client::send::refusal_trace::protocol_at!())?;
         let size=pending.iter().map(|(kind,payload)|kind.len()+payload.to_string().len()).sum::<usize>()+k.len()+p.to_string().len();
-        if pending.len()>=256||size>16*1024*1024{return Err(Error::Protocol)}
+        if pending.len()>=256||size>16*1024*1024{return Err(crate::client::send::refusal_trace::protocol_at!())}
         pending.push_back((k,p));
     }
 }
@@ -1788,7 +1788,7 @@ impl Client {
         } else {
             "ws"
         })
-        .map_err(|_| Error::Protocol)?;
+        .map_err(|_| crate::client::send::refusal_trace::protocol_at!())?;
         url.query_pairs_mut()
             .append_pair("client_capabilities", "")
             .append_pair("sessionId", &uuid::Uuid::new_v4().to_string())
@@ -1799,7 +1799,7 @@ impl Client {
         let mut request = url
             .as_str()
             .into_client_request()
-            .map_err(|_| Error::Protocol)?;
+            .map_err(|_| crate::client::send::refusal_trace::protocol_at!())?;
         for (name, value) in [
             ("User-Agent", USER_AGENT.to_owned()),
             ("Cookie", cookie_header(&self.cookies)?),
@@ -1808,8 +1808,8 @@ impl Client {
         ] {
             request.headers_mut().insert(
                 tungstenite::http::header::HeaderName::from_bytes(name.as_bytes())
-                    .map_err(|_| Error::Protocol)?,
-                value.parse().map_err(|_| Error::Protocol)?,
+                    .map_err(|_| crate::client::send::refusal_trace::protocol_at!())?,
+                value.parse().map_err(|_| crate::client::send::refusal_trace::protocol_at!())?,
             );
         }
         Ok(TaskSocketRequest {
@@ -1924,7 +1924,7 @@ pub(super) async fn receive_source_host(socket: &mut Socket) -> Result<(String, 
             )
         )
     {
-        return Err(Error::Protocol);
+        return Err(crate::client::send::refusal_trace::protocol_at!());
     }
     Ok((kind, payload))
 }

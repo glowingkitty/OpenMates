@@ -16,6 +16,7 @@ from pathlib import Path
 import pytest
 
 from backend.shared.providers.e2b_test_recorder import ASSET_DIR, browser_recorder_wrapper
+from backend.shared.providers.e2b_test_runner import server_origin
 from backend.shared.python_schemas.code_test_run import TestRunSpec, parse_recorder_report
 
 _spec = importlib.util.spec_from_file_location("record_browser", ASSET_DIR / "record_browser.py")
@@ -160,6 +161,29 @@ def test_report_over_cap_drops_error_text() -> None:
     notes: list = []
     text = rb.build_report([], steps, None, notes)
     assert len(text.encode()) <= rb.REPORT_MAX and notes
+
+
+# contract-test: supporting surface=rest_api assertions=code-run.tests.recorded-evidence
+@pytest.mark.parametrize("user_use, expected", [("{}", "http://localhost:5173"),
+                                                ("{ baseURL: 'http://127.0.0.1:9000' }", "http://127.0.0.1:9000")])
+def test_overlay_defaults_base_url_to_the_started_server(tmp_path: Path, user_use: str, expected: str) -> None:
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node not installed")
+    user = tmp_path / "playwright.config.mjs"
+    user.write_text(f"export default {{ use: {user_use} }};\n")
+    overlay = tmp_path / ".openmates-playwright.config.mjs"
+    overlay.write_text(rb.overlay_source(user, overlay, "/tmp/r.cjs", "/tmp/out"))
+    script = f"import('{overlay.as_uri()}').then(m => console.log(m.default.use.baseURL, m.default.use.video.mode))"
+    run = subprocess.run([node, "-e", script], capture_output=True, text=True,
+                         env={"PATH": "/usr/bin:/bin", "OPENMATES_TEST_BASE_URL": "http://localhost:5173"})
+    assert run.returncode == 0, run.stderr
+    assert run.stdout.split() == [expected, "on"]
+
+
+# contract-test: supporting surface=rest_api assertions=code-run.tests.recorded-evidence
+def test_server_origin_is_the_readiness_url_without_path() -> None:
+    assert server_origin("http://localhost:5173/health?x=1") == "http://localhost:5173"
 
 
 # contract-test: supporting surface=rest_api assertions=code-run.tests.recorded-evidence

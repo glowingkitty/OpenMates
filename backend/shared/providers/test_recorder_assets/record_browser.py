@@ -248,7 +248,9 @@ def overlay_source(user_config: Optional[Path], overlay: Path, reporter: str, ou
         )
     return f"""{import_line}
 const forced = {{ video: {{ mode: 'on', size: {{ width: 1280, height: 720 }} }}, trace: 'retain-on-failure', screenshot: 'on' }};
-const withUse = (cfg) => ({{ ...cfg, use: {{ ...(cfg.use || {{}}), ...forced }} }});
+// The started app server is the default baseURL, so page.goto('/') works; a baseURL the test sets wins.
+const served = process.env.OPENMATES_TEST_BASE_URL ? {{ baseURL: process.env.OPENMATES_TEST_BASE_URL }} : {{}};
+const withUse = (cfg) => ({{ ...cfg, use: {{ ...served, ...(cfg.use || {{}}), ...forced }} }});
 const cfg = withUse(base);
 if (Array.isArray(cfg.projects)) cfg.projects = cfg.projects.map(withUse);
 cfg.reporter = [[{json.dumps(reporter)}], ['list']];

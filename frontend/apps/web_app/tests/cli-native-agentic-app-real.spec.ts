@@ -73,7 +73,11 @@ function numbersUnder(value: unknown, keys: string[], out: number[] = []): numbe
 
 /** Ids of embeds whose type field equals `type`, anywhere in a decoded JSON value. */
 function embedIdsOfType(value: unknown, type: string, out: string[] = []): string[] {
-  if (Array.isArray(value)) value.forEach((entry) => embedIdsOfType(entry, type, out));
+  if (typeof value === 'string') {
+    // Reply text references an embed with a ```json {"type": ..., "embed_id": ...}``` block.
+    const block = new RegExp(`"type":\\s*"${type}",\\s*"embed_id":\\s*"([0-9a-f-]{36})"`, 'g');
+    for (const match of value.matchAll(block)) if (!out.includes(match[1])) out.push(match[1]);
+  } else if (Array.isArray(value)) value.forEach((entry) => embedIdsOfType(entry, type, out));
   else if (value && typeof value === 'object') {
     const row = value as Record<string, unknown>;
     const kind = row.type ?? row.embed_type ?? row.embedType ?? row.skill_id ?? row.skillId;

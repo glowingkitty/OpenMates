@@ -534,7 +534,7 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
             // replay again until its acknowledgements settle (see the policy).
             let mut replays=0u32;
             loop {
-                match phases.replay_outputs(ws, &selected_outputs, Some((id, key))).await {
+                match phases.replay_outputs(ws, &selected_outputs, Some((id, key))).await.inspect_err(|_| super::send::refusal_trace::note_step("terminal_replay_outputs")) {
                     Ok(_)=>break,
                     Err(error) if super::recovery::terminal_replay_retry(&error,replays)
                         && crate::platform::time::Instant::now()+super::recovery::TERMINAL_REPLAY_RETRY<turn_deadline.at() => {
@@ -554,7 +554,8 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
                 &bind_turn_embeds(&streamed_embeds, message, &task_id, &earlier_tasks),
                 &checkpoints,
             )
-            .await?;
+            .await
+            .inspect_err(|_| super::send::refusal_trace::note_step("terminal_persist_stream_artifacts"))?;
             trace.phase = SendPhase::ProjectPhase;
             adopt_turn_embeds(
                 phases,
@@ -624,7 +625,8 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
         let selected_outputs=Client::select_turn_outputs(recovery_outputs,id,turn);
         trace.phase = SendPhase::ReplayArtifacts;
         phases.replay_outputs(ws, &selected_outputs, Some((id, key)))
-            .await?;
+            .await
+            .inspect_err(|_| super::send::refusal_trace::note_step("leased_replay_outputs"))?;
         let artifacts = phases
             .persist_stream_artifacts(
                 ws,
@@ -635,7 +637,8 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
                 &bind_turn_embeds(&streamed_embeds, message, &task_id, &earlier_tasks),
                 &checkpoints,
             )
-            .await?;
+            .await
+            .inspect_err(|_| super::send::refusal_trace::note_step("leased_persist_stream_artifacts"))?;
         trace.phase = SendPhase::ProjectPhase;
         adopt_turn_embeds(
             phases,
