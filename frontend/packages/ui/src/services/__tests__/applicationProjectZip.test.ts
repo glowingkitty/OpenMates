@@ -16,6 +16,14 @@ vi.mock("../embedResolver", () => ({
   extractEmbedReferences: vi.fn(() => []),
 }));
 
+// The Rust `transfer` unit plans the zip name and paths; this test stands in for it.
+vi.mock("../rustCore/transfer/rustChatZip", () => ({
+  rustApplicationZip: vi.fn(async (appName: string, paths: string[]) => ({
+    zipName: `${appName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.zip`,
+    paths,
+  })),
+}));
+
 import { downloadApplicationProjectZip } from "../zipExportService";
 
 describe("downloadApplicationProjectZip", () => {
@@ -34,6 +42,7 @@ describe("downloadApplicationProjectZip", () => {
     vi.restoreAllMocks();
   });
 
+  // contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary
   it("preserves application manifest paths and strips code headers", async () => {
     const clicked: HTMLAnchorElement[] = [];
     const originalCreateElement = document.createElement.bind(document);

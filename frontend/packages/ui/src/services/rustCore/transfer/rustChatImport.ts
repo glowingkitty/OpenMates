@@ -1,7 +1,6 @@
 /**
- * Flag-on (VITE_OPENMATES_RUST_CORE) Account Import V1 parsing: the page adapter
- * over the shared Rust core Worker `transfer` unit. Loaded only by the guarded
- * branches of chatImportService.ts, so default builds never bundle it.
+ * Account Import V1 parsing: the page adapter
+ * over the shared Rust core Worker `transfer` unit. Used by chatImportService.ts.
  *
  * Rust (web_transfer*.rs, shared with the CLI importer) decides: file and ZIP
  * routing, provider detection, every export's parsing and normalization,
@@ -14,7 +13,7 @@ import JSZip from 'jszip';
 import { parse } from 'yaml';
 import type {
 	AccountImportSource, ImportCostEstimate, ImportProgressCallback, ParsedAccountImport, ParsedImportChat,
-} from '../../chatImportService';
+} from '../../chatImportTypes';
 import type { TransferChatEstimate, TransferParsed } from './transferProtocol';
 import { transferCall } from './transferUnitClient';
 

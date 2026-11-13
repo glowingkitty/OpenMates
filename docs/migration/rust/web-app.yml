@@ -10,10 +10,10 @@ flag:
   flag_off_behavior: original TypeScript path, byte-identical build output (guarded in CI)
 summary:
   total: 21
-  done: 3
-  partial: 13
+  done: 4
+  partial: 12
   missing: 5
-  percent: 14.3
+  percent: 19.0
 worker_namespaces_installed_not_progress:
   installed: 18
   total: 19
@@ -210,7 +210,7 @@ units:
   what_moved: Serves chat import routing/parsing (transferProtocol.ts) on the unit port from the realm's single
     WASM binding. It holds no account state and does no IO, so it is a pre-bind namespace.
   typescript_fallback: none declared (2 files)
-  unit_tests: [transferExportVectors.test.ts, transferSharedUnit.test.ts, transferZipVectors.test.ts]
+  unit_tests: [transferSharedUnit.test.ts, transferZipVectors.test.ts]
   e2e_specs: [web-rust-core-transfer.spec.ts]
   vectors: [packages/openmates-rust/src/web_transfer_ts_vectors.json, packages/openmates-rust/src/web_transfer_export_ts_vectors.json]
   open_gaps: [ZIP assembly and account export (scope 3) are not moved., import-chats.spec is red on the CI stack

@@ -23,7 +23,6 @@ import {
 } from "./embedResolver";
 import { tipTapToCanonicalMarkdown, tipTapToReadableMarkdown } from "../message_parsing/serializers";
 import { parseCodeEmbedContent } from "../components/embeds/code/codeEmbedContent";
-import { restorePIIInText } from "../components/enter_message/services/piiDetectionService";
 import { fetchAndDecryptImage } from "../components/embeds/images/imageEmbedCrypto";
 import { hasMediaEncryptionMetadata } from "./encryption/mediaEncryption";
 import {
@@ -42,14 +41,9 @@ import {
 
 import type * as RustChatZip from "./rustCore/transfer/rustChatZip";
 
-/** Opt-in shared Rust core build: zip planning runs in the shared Worker `transfer` unit. */
-const RUST_TRANSFER_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1";
-/** Measurement-only opt-out (like chatExportService): `'ts'` keeps this TypeScript exporter. */
-const RUST_TRANSFER_OPT_OUT_KEY = "openmates_rust_core_transfer";
 let rustZipModule: Promise<typeof RustChatZip> | null = null;
-function rustChatZip(): Promise<typeof RustChatZip> | null {
-  if (!RUST_TRANSFER_BUILD) return null;
-  if (typeof localStorage === "undefined" || localStorage.getItem(RUST_TRANSFER_OPT_OUT_KEY) === "ts") return null;
+/** Shared Rust core `transfer` unit: zip planning always runs there. */
+function rustChatZip(): Promise<typeof RustChatZip> {
   rustZipModule ??= import("./rustCore/transfer/rustChatZip");
   return rustZipModule;
 }
@@ -122,100 +116,6 @@ function uniqueFilename(filename: string, usedFilenames: Set<string>): string {
   nextFilename = `${base}_${counter}${extension}`;
   usedFilenames.add(nextFilename.toLowerCase());
   return nextFilename;
-}
-
-/**
- * Converts a single message to markdown format
- * @param message - The message to convert
- * @param piiOptions - Optional PII export options to control sensitive data handling
- */
-async function convertMessageToMarkdown(
-  message: Message,
-  piiOptions?: PIIExportOptions,
-): Promise<string> {
-  try {
-    // Handle both seconds (regular chats) and milliseconds (demo chats) timestamps
-    const timestampMs =
-      message.created_at < 1e12
-        ? message.created_at * 1000
-        : message.created_at;
-    const timestamp = new Date(timestampMs).toISOString();
-    const role = message.role === "assistant" ? "Assistant" : "You";
-
-    let content = "";
-    if (typeof message.content === "string") {
-      // Raw markdown string — resolve embed blocks to readable text
-      content = await tipTapToReadableMarkdown(message.content);
-    } else if (message.content && typeof message.content === "object") {
-      // TipTap doc — serialize to canonical markdown first, then resolve embeds
-      content = await tipTapToReadableMarkdown(message.content);
-    }
-
-    // Apply PII handling: message content from DB has PLACEHOLDERS.
-    // When PII is revealed (piiHidden=false), restore originals for export.
-    // When hidden, content keeps placeholders as-is.
-    if (
-      piiOptions &&
-      !piiOptions.piiHidden &&
-      piiOptions.piiMappings.length > 0
-    ) {
-      content = restorePIIInText(content, piiOptions.piiMappings);
-    }
-
-    return `## ${role} - ${timestamp}\n\n${content}\n\n`;
-  } catch (error) {
-    console.error(
-      "[ZipExportService] Error converting message to markdown:",
-      error,
-    );
-    return "";
-  }
-}
-
-/**
- * Converts chat messages to markdown format
- * @param chat - The chat to convert
- * @param messages - Array of messages
- * @param piiOptions - Optional PII export options to control sensitive data handling
- */
-export async function convertChatToMarkdown(
-  chat: Chat,
-  messages: Message[],
-  piiOptions?: PIIExportOptions,
-): Promise<string> {
-  try {
-    let markdown = "";
-
-    // Add title header
-    if (chat.title) {
-      markdown += `# ${chat.title}\n\n`;
-    }
-
-    // Add metadata
-    // Handle both seconds (regular chats) and milliseconds (demo chats) timestamps
-    const timestampMs =
-      chat.created_at < 1e12 ? chat.created_at * 1000 : chat.created_at;
-    const createdDate = new Date(timestampMs).toISOString();
-    markdown += `*Created: ${createdDate}*\n\n`;
-    markdown += "---\n\n";
-
-    // Add all messages, respecting PII visibility
-    for (const message of messages) {
-      const messageMarkdown = await convertMessageToMarkdown(
-        message,
-        piiOptions,
-      );
-      markdown += messageMarkdown;
-    }
-
-    return markdown;
-  } catch (error) {
-    console.error(
-      "[ZipExportService] Error converting chat to markdown:",
-      error,
-    );
-    return "";
-  }
 }
 
 /**
@@ -1542,38 +1442,6 @@ export async function getPDFEmbedsForChat(messages: Message[]): Promise<
   }
 }
 
-/**
- * Determines the file extension for a code language
- */
-function getFileExtensionForLanguage(language: string): string {
-  const extensions: Record<string, string> = {
-    javascript: "js",
-    typescript: "ts",
-    python: "py",
-    java: "java",
-    cpp: "cpp",
-    c: "c",
-    rust: "rs",
-    go: "go",
-    ruby: "rb",
-    php: "php",
-    swift: "swift",
-    kotlin: "kt",
-    yaml: "yml",
-    xml: "xml",
-    markdown: "md",
-    bash: "sh",
-    shell: "sh",
-    sql: "sql",
-    json: "json",
-    css: "css",
-    html: "html",
-    dockerfile: "Dockerfile",
-  };
-
-  return extensions[language.toLowerCase()] || language.toLowerCase();
-}
-
 /** Loads every embed-backed file of a chat in the order the zip lists them. */
 export async function collectChatZipFiles(messages: Message[]): Promise<ChatZipFiles> {
   const code = await getCodeEmbedsForChat(messages);
@@ -1584,79 +1452,6 @@ export async function collectChatZipFiles(messages: Message[]): Promise<ChatZipF
   const audio = await getAudioRecordingsForChat(messages);
   const pdfs = await getPDFEmbedsForChat(messages);
   return { code, transcripts, images, generatedAudio, staticFiles, audio, pdfs };
-}
-
-/** TypeScript zip layout of the embed-backed files (flag-off path). */
-export function addChatZipFilesTs(zip: ZipTarget, files: ChatZipFiles): void {
-  // Code embeds: use file_path if available (reconstruct directory structure),
-  // otherwise filename + language, or fall back to the embed id.
-  for (const codeEmbed of files.code) {
-    let filePath: string;
-    if (codeEmbed.file_path) {
-      filePath = codeEmbed.file_path;
-    } else if (codeEmbed.filename) {
-      filePath = `code/${codeEmbed.filename}`;
-    } else {
-      const ext = getFileExtensionForLanguage(codeEmbed.language);
-      filePath = `code/${codeEmbed.embed_id}.${ext}`;
-    }
-    zip.file(filePath, codeEmbed.content);
-  }
-  for (const transcriptEmbed of files.transcripts) {
-    zip.file(`transcripts/${transcriptEmbed.filename}`, transcriptEmbed.content);
-  }
-  for (const imageEmbed of files.images) {
-    zip.file(`images/${imageEmbed.filename}`, imageEmbed.blob);
-  }
-  for (const audioFile of files.generatedAudio) {
-    zip.file(`generated-audio/${audioFile.filename}`, audioFile.blob);
-  }
-  for (const file of files.staticFiles) {
-    zip.file(`static-files/${file.filename}`, file.blob);
-  }
-  for (const recording of files.audio) {
-    zip.file(`uploads/audio/${recording.filename}`, recording.blob);
-    // Always write a transcript sidecar - empty file if no transcript yet.
-    const transcriptFilename =
-      recording.filename.replace(/\.[^.]+$/, "") + "_transcript.txt";
-    zip.file(`uploads/audio/${transcriptFilename}`, recording.transcript);
-  }
-  // PDFs are page screenshots (the encrypted PDF binary is never stored client-side).
-  for (const pdfEmbed of files.pdfs) {
-    for (const page of pdfEmbed.pages) {
-      zip.file(`uploads/pdfs/${pdfEmbed.folderName}/${page.filename}`, page.blob);
-    }
-  }
-}
-
-/** `filename` without its extension (a trailing dot stays, like the original regex). */
-export function chatZipBase(filename: string): string {
-  return filename.replace(/\.[^.]+$/, "");
-}
-
-/** TypeScript zip layout of one chat (flag-off path); returns the download file name. */
-export async function writeChatZipTs(
-  zip: ZipTarget,
-  input: {
-    filename: string;
-    completenessJson: string | null;
-    chat: Chat;
-    messages: Message[];
-    piiOptions: PIIExportOptions | undefined;
-    files: ChatZipFiles;
-    yaml: string;
-  },
-): Promise<string> {
-  const filenameWithoutExt = chatZipBase(input.filename);
-  if (input.completenessJson !== null) zip.file("export-metadata.json", input.completenessJson);
-  zip.file(`${filenameWithoutExt}.yml`, input.yaml);
-  // Add Markdown file, respecting PII visibility
-  zip.file(
-    `${filenameWithoutExt}.md`,
-    await convertChatToMarkdown(input.chat, input.messages, input.piiOptions),
-  );
-  addChatZipFilesTs(zip, input.files);
-  return `${filenameWithoutExt}.zip`;
 }
 
 /** Triggers the browser download of a generated zip blob. */
@@ -1710,19 +1505,11 @@ export async function downloadChatAsZip(
     );
 
     const files = await collectChatZipFiles(messages);
-    const rust = rustChatZip();
-    let zipName: string;
-    if (rust) {
-      const { rustPlanChatZip, applyChatZipPlan } = await rust;
-      const input = { filename, completenessJson, chat, messages, piiOptions, files, yaml: yamlContent };
-      const plan = await rustPlanChatZip(input, (content) => tipTapToReadableMarkdown(content as never));
-      applyChatZipPlan(zip, plan, input);
-      zipName = plan.zipName;
-    } else {
-      zipName = await writeChatZipTs(zip, {
-        filename, completenessJson, chat, messages, piiOptions, files, yaml: yamlContent,
-      });
-    }
+    const { rustPlanChatZip, applyChatZipPlan } = await rustChatZip();
+    const input = { filename, completenessJson, chat, messages, piiOptions, files, yaml: yamlContent };
+    const plan = await rustPlanChatZip(input, (content) => tipTapToReadableMarkdown(content as never));
+    applyChatZipPlan(zip, plan, input);
+    const zipName = plan.zipName;
 
     // Generate and download zip
     const zipBlob = await zip.generateAsync({ type: "blob" });
@@ -1762,29 +1549,12 @@ export async function downloadChatsAsZip(
 
         // Generate filename base (without extension)
         const filename = await generateChatFilename(chat, "");
-        const rust = rustChatZip();
-
-        if (rust) {
-          const { rustPlanChatZip, applyChatZipPlan } = await rust;
-          const yamlContent = await convertChatToYaml(chat, messages, false);
-          const files = await collectChatZipFiles(messages);
-          const input = { filename, completenessJson: null, chat, messages, piiOptions: undefined, files, yaml: yamlContent };
-          const plan = await rustPlanChatZip(input, (content) => tipTapToReadableMarkdown(content as never));
-          const chatFolder = zip.folder(plan.base);
-          if (!chatFolder) {
-            console.warn(
-              "[ZipExportService] Failed to create folder for chat:",
-              chat.chat_id,
-            );
-            continue;
-          }
-          applyChatZipPlan(chatFolder, plan, input);
-          successCount++;
-          continue;
-        }
-
-        // Create folder for this chat
-        const chatFolder = zip.folder(chatZipBase(filename));
+        const { rustPlanChatZip, applyChatZipPlan } = await rustChatZip();
+        const yamlContent = await convertChatToYaml(chat, messages, false);
+        const files = await collectChatZipFiles(messages);
+        const input = { filename, completenessJson: null, chat, messages, piiOptions: undefined, files, yaml: yamlContent };
+        const plan = await rustPlanChatZip(input, (content) => tipTapToReadableMarkdown(content as never));
+        const chatFolder = zip.folder(plan.base);
         if (!chatFolder) {
           console.warn(
             "[ZipExportService] Failed to create folder for chat:",
@@ -1792,13 +1562,7 @@ export async function downloadChatsAsZip(
           );
           continue;
         }
-
-        const yamlContent = await convertChatToYaml(chat, messages, false);
-        await writeChatZipTs(chatFolder, {
-          filename, completenessJson: null, chat, messages, piiOptions: undefined,
-          files: await collectChatZipFiles(messages), yaml: yamlContent,
-        });
-
+        applyChatZipPlan(chatFolder, plan, input);
         successCount++;
       } catch (error) {
         console.warn(
@@ -1816,18 +1580,7 @@ export async function downloadChatsAsZip(
     // Generate and download zip
     const zipBlob = await zip.generateAsync({ type: "blob" });
     const now = new Date();
-    const rustBulk = rustChatZip();
-    if (rustBulk) {
-      saveZipBlob(zipBlob, await (await rustBulk).rustBulkZipName(now.toISOString()));
-    } else {
-      // Use current date/time for bulk download filename
-      const zipDateStr = now
-        .toISOString()
-        .slice(0, 19)
-        .replace(/[:-]/g, "-")
-        .replace("T", "_");
-      saveZipBlob(zipBlob, `chats_${zipDateStr}.zip`);
-    }
+    saveZipBlob(zipBlob, await (await rustChatZip()).rustBulkZipName(now.toISOString()));
 
     console.warn(
       "[ZipExportService] Bulk zip download completed:",
@@ -1900,16 +1653,9 @@ export async function downloadApplicationProjectZip({
       projectFiles.push({ path: String(ref.path), code: parsed.code });
     }
 
-    const rust = rustChatZip();
-    let zipName: string;
-    if (rust) {
-      const planned = await (await rust).rustApplicationZip(appName, projectFiles.map((file) => file.path));
-      planned.paths.forEach((path, index) => zip.file(path, projectFiles[index].code));
-      zipName = planned.zipName;
-    } else {
-      for (const file of projectFiles) zip.file(safeApplicationZipPath(file.path), file.code);
-      zipName = `${safeDownloadName(appName || "application")}.zip`;
-    }
+    const planned = await (await rustChatZip()).rustApplicationZip(appName, projectFiles.map((file) => file.path));
+    planned.paths.forEach((path, index) => zip.file(path, projectFiles[index].code));
+    const zipName = planned.zipName;
 
     const zipBlob = await zip.generateAsync({ type: "blob" });
     saveZipBlob(zipBlob, zipName);
@@ -1917,23 +1663,6 @@ export async function downloadApplicationProjectZip({
     console.error("[ZipExportService] Error downloading application project zip:", error);
     throw new Error("Failed to download application project zip");
   }
-}
-
-function safeApplicationZipPath(path: string): string {
-  const parts = path
-    .replace(/\\/g, "/")
-    .split("/")
-    .map((part) => part.trim())
-    .filter((part) => part && part !== "." && part !== "..");
-  return parts.join("/") || "application-file.txt";
-}
-
-function safeDownloadName(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]+/g, "-")
-    .replace(/^-+|-+$/g, "") || "application";
 }
 
 /**
@@ -1961,8 +1690,6 @@ export async function downloadCodeFilesAsZip(
     }
 
     const zip = new JSZip();
-    const usedFilenames = new Set<string>();
-    const rust = rustChatZip();
 
     // Parse code content to extract filename from header (e.g., "dockerfile:app/Dockerfile")
     // This also strips the header line from the code content
@@ -1973,72 +1700,20 @@ export async function downloadCodeFilesAsZip(
         filename: file.filename,
       }),
     }));
-    const now = new Date();
-    const planned = rust
-      ? await (await rust).rustCodeFileNames(
-          parsedFiles.map(({ file, parsed }) => ({
-            filename: file.filename ?? null,
-            headerFilename: parsed.filename ?? null,
-            language: parsed.language || file.language,
-          })),
-          now.toISOString(),
-        )
-      : null;
+    const planned = await (await rustChatZip()).rustCodeFileNames(
+      parsedFiles.map(({ file, parsed }) => ({
+        filename: file.filename ?? null,
+        headerFilename: parsed.filename ?? null,
+        language: parsed.language || file.language,
+      })),
+      new Date().toISOString(),
+    );
 
-    // Add each code file to the zip
-    for (let i = 0; i < parsedFiles.length; i++) {
-      const { file, parsed } = parsedFiles[i];
-      const finalCode = parsed.code;
-      const finalLanguage = parsed.language || file.language;
-      if (planned) {
-        zip.file(planned.names[i], finalCode);
-        continue;
-      }
+    // Add each parsed (header-stripped) code file to the zip
+    parsedFiles.forEach(({ parsed }, i) => zip.file(planned.names[i], parsed.code));
 
-      // Determine filename - use provided filename or extract from parsed header
-      let downloadFilename: string;
-      if (file.filename) {
-        // Extract just the filename from any path
-        const pathParts = file.filename.split(/[/\\]/);
-        downloadFilename = pathParts[pathParts.length - 1];
-      } else if (parsed.filename) {
-        // Use filename extracted from header (extract basename)
-        const pathParts = parsed.filename.split(/[/\\]/);
-        downloadFilename = pathParts[pathParts.length - 1];
-      } else {
-        const ext = getFileExtensionForLanguage(finalLanguage);
-        downloadFilename = `code_snippet.${ext}`;
-      }
-
-      // Ensure unique filenames by appending index if needed
-      let finalFilename = downloadFilename;
-      if (usedFilenames.has(downloadFilename.toLowerCase())) {
-        const ext = downloadFilename.lastIndexOf(".");
-        if (ext > 0) {
-          finalFilename = `${downloadFilename.slice(0, ext)}_${i + 1}${downloadFilename.slice(ext)}`;
-        } else {
-          finalFilename = `${downloadFilename}_${i + 1}`;
-        }
-      }
-      usedFilenames.add(finalFilename.toLowerCase());
-
-      // Add the parsed (header-stripped) code to the zip
-      zip.file(finalFilename, finalCode);
-    }
-
-    // Generate and download zip
     const zipBlob = await zip.generateAsync({ type: "blob" });
-    if (planned) {
-      saveZipBlob(zipBlob, planned.zipName);
-    } else {
-      // Generate zip filename with timestamp
-      const zipDateStr = now
-        .toISOString()
-        .slice(0, 19)
-        .replace(/[:-]/g, "-")
-        .replace("T", "_");
-      saveZipBlob(zipBlob, `code_files_${zipDateStr}.zip`);
-    }
+    saveZipBlob(zipBlob, planned.zipName);
 
     console.warn(
       "[ZipExportService] Code files zip download completed:",
@@ -2077,27 +1752,11 @@ export async function downloadCodeFile(
     const finalCode = parsed.code;
     const finalLanguage = parsed.language || language;
     // For download, extract just the filename from the full path
-    const rust = rustChatZip();
-    let downloadFilename: string;
-    if (rust) {
-      const planned = await (await rust).rustCodeFileNames(
-        [{ filename: filename ?? null, headerFilename: parsed.filename ?? null, language: finalLanguage }],
-        new Date().toISOString(),
-      );
-      downloadFilename = planned.names[0];
-    } else if (filename) {
-      // Use explicitly provided filename (extract basename if it's a path)
-      const pathParts = filename.split(/[/\\]/);
-      downloadFilename = pathParts[pathParts.length - 1];
-    } else if (parsed.filename) {
-      // Use filename extracted from header (extract basename if it's a path)
-      const pathParts = parsed.filename.split(/[/\\]/);
-      downloadFilename = pathParts[pathParts.length - 1];
-    } else {
-      // Fallback to generic name with language-appropriate extension
-      const ext = getFileExtensionForLanguage(finalLanguage);
-      downloadFilename = `code_snippet.${ext}`;
-    }
+    const planned = await (await rustChatZip()).rustCodeFileNames(
+      [{ filename: filename ?? null, headerFilename: parsed.filename ?? null, language: finalLanguage }],
+      new Date().toISOString(),
+    );
+    const downloadFilename = planned.names[0];
 
     console.warn("[ZipExportService] Resolved download filename:", {
       originalFilename: filename,

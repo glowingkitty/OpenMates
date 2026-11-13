@@ -18,7 +18,7 @@
  * their secret guards. The page loads embeds/blobs and writes the zip bytes.
  */
 import type { UnitProtocol } from '../host/unitPort';
-import type { AccountImportSource, ParsedAccountImport } from '../../chatImportService';
+import type { AccountImportSource, ParsedAccountImport } from '../../chatImportTypes';
 
 export type TransferError = { kind: 'error'; message: string };
 /** `[estimatedTokens, nonBlankMessages]` per parsed chat (estimateImportCost inputs). */

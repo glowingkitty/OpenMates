@@ -17,8 +17,8 @@ capabilities:
       ts-only: 5
       swift-only: 0
       rust-twin: 0
-      rust-default: 13
-      rust-only: 1
+      rust-default: 12
+      rust-only: 2
       stays-shell: 2
     apple:
       total: 21
@@ -37,7 +37,7 @@ capabilities:
       rust-only: 19
       stays-shell: 2
 overall:
-  percent: 29.3
+  percent: 31.2
   formula: overall = round(0.4 * web_app + 0.2 * shared_client + 0.25 * cli + 0.15 * sdk, 1), sdk = mean(sdk_rust,
     sdk_npm, sdk_python); each term is the area percent
   weights:
@@ -47,7 +47,7 @@ overall:
     sdk: 0.15
   weights_decided: '2026-11-08'
   inputs:
-    web_app: 14.3
+    web_app: 19.0
     shared_client: 28.6
     cli: 64.6
     sdk: 11.3
@@ -58,10 +58,10 @@ areas:
   file: web-app.yml
   unit: capabilities (web cells)
   total: 21
-  done: 3
-  partial: 13
+  done: 4
+  partial: 12
   missing: 5
-  percent: 14.3
+  percent: 19.0
   done_definition: capability whose web cell is rust-only (old web code deleted, suite green) or stays-shell (capabilities.yml)
   blockers: ['planned units without installer: embedEdit', 'perf gate not cleared: chatRendered is inconclusive
       (2026-11-08-chatRendered-01)', 'perf gate not cleared: embedReady is inconclusive (2026-11-08-embedReady-01)',

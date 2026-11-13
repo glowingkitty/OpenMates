@@ -1,26 +1,22 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- Playwright helpers expose CommonJS exports. */
 /**
- * Opt-in shared Rust core (WASM) — Account Import V1 parsing on the shared
- * Worker `transfer` unit, VITE_OPENMATES_RUST_CORE=1 build.
+ * Shared Rust core (WASM) — Account Import V1 parsing, chat export and account
+ * export on the shared Worker `transfer` unit (the only transfer path).
  *
- * Engineering migration check (web lane: import/export). For each supported
- * export (Claude JSON, ChatGPT ZIP, OpenCode JSON, OpenMates Export V1 ZIP and a
- * generic role/content transcript) alternating reloads parse the same file on
- * the TypeScript parser (measurement opt-out `openmates_rust_core_transfer=ts`)
- * and on the Rust unit. Both arms must send an identical import preview (source,
- * parser, chat count, source fingerprints, token estimates and the byte size of
- * the parsed chats), and the Rust arm must route through the unit with exactly
- * one shared Worker, one WASM instance and none on the page. A full Claude
- * import then runs on the Rust arm through scan and encrypted persistence.
+ * Engineering check (web lane: import/export). For each supported export
+ * (Claude JSON, ChatGPT ZIP, OpenCode JSON, OpenMates Export V1 ZIP and a
+ * generic role/content transcript) the file is parsed on the Rust unit; the
+ * import preview must carry the expected source and chat count, and the page
+ * must route through the unit with exactly one shared Worker, one WASM instance
+ * and none on the page. A full Claude import then runs through scan and
+ * encrypted persistence.
  *
  * Chat export (web_transfer_export.rs): a real chat is downloaded from the sidebar
- * context menu on both arms; the Rust-built YAML file and filename must equal the
- * TypeScript exporter's, apart from the export timestamp. The zip layout (metadata,
- * Markdown, file paths) is planned by web_transfer_zip.rs: every zip entry must match.
+ * context menu; the zip (planned by web_transfer_zip.rs) must hold the metadata,
+ * Markdown and YAML entries with the sent message.
  *
  * Account export (web_transfer_account_export.rs): the Account Export V1 archive is
- * downloaded on both arms from the same mocked job; every entry must match apart
- * from the README export time.
+ * downloaded from a mocked job and must hold every expected entry.
  * Runs only in the CI lane that builds the Rust core package (web-rust-core-* specs).
  */
 export {};
@@ -46,7 +42,6 @@ const {
 } = require('./helpers/account-import-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
-const TRANSFER_OPT_OUT_KEY = 'openmates_rust_core_transfer';
 
 const FORMATS: Array<{ name: string; source: string; upload: (page: any) => Promise<void> }> = [
 	{ name: 'claude-json', source: 'claude', upload: (page) => uploadClaudeJson(page, 3) },
@@ -56,10 +51,8 @@ const FORMATS: Array<{ name: string; source: string; upload: (page: any) => Prom
 	{ name: 'generic-json', source: 'other', upload: uploadGenericJson },
 ];
 
-async function openImport(page: any, arm: 'ts' | 'rust'): Promise<void> {
-	await page.evaluate(([key, ts]: [string, boolean]) => { if (ts) localStorage.setItem(key, 'ts'); else localStorage.removeItem(key); },
-		[TRANSFER_OPT_OUT_KEY, arm === 'ts']);
-	// Fresh realm per arm: the parser choice and the unit client are per page load.
+async function openImport(page: any): Promise<void> {
+	// Fresh realm per format: the unit client is per page load.
 	// Navigating to the app root (not reload) drops any settings deep link so the
 	// profile menu opens closed and the import tab is reached from a clean state.
 	await page.goto('/', { waitUntil: 'domcontentloaded' });
@@ -77,8 +70,8 @@ async function previewBody(page: any, calls: Array<{ path: string; body: Record<
 	return previews[previews.length - 1].body;
 }
 
-// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary,sdk.web.before-after-performance
-test('account import parses every export format identically on the shared Rust transfer unit', async ({ page }: { page: any }, testInfo: any) => {
+// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary
+test('account import parses every export format on the shared Rust transfer unit', async ({ page }: { page: any }, testInfo: any) => {
 	test.slow();
 	test.setTimeout(420000);
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
@@ -89,29 +82,21 @@ test('account import parses every export format identically on the shared Rust t
 
 	const report: Record<string, unknown> = {};
 	for (const format of FORMATS) {
-		const bodies: Record<string, unknown> = {};
-		for (const arm of ['ts', 'rust'] as const) {
-			await openImport(page, arm);
-			bodies[arm] = await previewBody(page, calls, format);
-			const stats = await page.evaluate(() => (window as any).__openmatesRustTransferStats?.() ?? null);
-			if (arm === 'rust') {
-				expect(stats, `${format.name}: Rust arm loaded the transfer unit client`).not.toBeNull();
-				expect(stats.calls, `${format.name}: Rust arm parsed through the transfer unit`).toBeGreaterThanOrEqual(2);
-				expect(stats.failures, `${format.name}: no transfer unit call failed`).toBe(0);
-				const instances = await rustCoreInstances(page);
-				expect(instances.wasmMainThreadInstantiations, 'no WASM on the page realm').toBe(0);
-				expect(instances.workers.filter((worker: { name: string }) => worker.name === 'shared.worker').length, 'one shared Rust core Worker').toBe(1);
-				expect(instances.rustWorkers, 'no other Rust core Worker').toBe(1);
-				expect(instances.sharedWorkerWasm, 'one WASM instance in the shared Worker').toBe(1);
-			} else {
-				expect(stats, `${format.name}: TS arm never loaded the Rust transfer adapter`).toBeNull();
-			}
-		}
-		expect(bodies.rust, `${format.name}: Rust preview equals the TypeScript preview`).toEqual(bodies.ts);
-		report[format.name] = bodies.rust;
+		await openImport(page);
+		const body = await previewBody(page, calls, format);
+		expect(body, `${format.name}: the Rust unit sent an import preview`).not.toBeNull();
+		const stats = await page.evaluate(() => (window as any).__openmatesRustTransferStats?.() ?? null);
+		expect(stats, `${format.name}: Rust loaded the transfer unit client`).not.toBeNull();
+		expect(stats.calls, `${format.name}: parsed through the transfer unit`).toBeGreaterThanOrEqual(2);
+		expect(stats.failures, `${format.name}: no transfer unit call failed`).toBe(0);
+		const instances = await rustCoreInstances(page);
+		expect(instances.wasmMainThreadInstantiations, 'no WASM on the page realm').toBe(0);
+		expect(instances.workers.filter((worker: { name: string }) => worker.name === 'shared.worker').length, 'one shared Rust core Worker').toBe(1);
+		expect(instances.rustWorkers, 'no other Rust core Worker').toBe(1);
+		expect(instances.sharedWorkerWasm, 'one WASM instance in the shared Worker').toBe(1);
+		report[format.name] = body;
 	}
-	await testInfo.attach('transfer-preview-parity.json', { body: JSON.stringify(report, null, 2), contentType: 'application/json' });
-	await page.evaluate((key: string) => localStorage.removeItem(key), TRANSFER_OPT_OUT_KEY);
+	await testInfo.attach('transfer-preview.json', { body: JSON.stringify(report, null, 2), contentType: 'application/json' });
 });
 
 // contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary
@@ -122,7 +107,7 @@ test('Rust-parsed Claude import completes scan and encrypted persistence', async
 	await loginToTestAccount(page, () => undefined, async () => undefined, {
 		credentials: { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY },
 	});
-	await openImport(page, 'rust');
+	await openImport(page);
 	await selectImportSource(page, 'claude');
 	await uploadClaudeJson(page, 1);
 	await expect(page.getByTestId('import-preview-summary')).toContainText('Chats found', { timeout: 30000 });
@@ -165,10 +150,8 @@ function readZipEntries(zip: Buffer): Record<string, string> {
 }
 
 /** The chat download is a zip (metadata, YAML, Markdown, embeds): returns its name and every text entry. */
-async function downloadActiveChat(page: any, chatId: string, arm: 'ts' | 'rust'): Promise<{ filename: string; entries: Record<string, string> }> {
-	await page.evaluate(([key, ts]: [string, boolean]) => { if (ts) localStorage.setItem(key, 'ts'); else localStorage.removeItem(key); },
-		[TRANSFER_OPT_OUT_KEY, arm === 'ts']);
-	// Fresh realm per arm: the exporter choice and the unit client are per page load.
+async function downloadActiveChat(page: any, chatId: string): Promise<{ filename: string; entries: Record<string, string> }> {
+	// Fresh realm: the unit client is per page load.
 	await page.goto(`/#chat-id=${chatId}`, { waitUntil: 'domcontentloaded' });
 	await page.reload({ waitUntil: 'domcontentloaded' });
 	await expect(page.getByTestId('message-user').first()).toBeVisible({ timeout: 60000 });
@@ -191,8 +174,8 @@ async function downloadActiveChat(page: any, chatId: string, arm: 'ts' | 'rust')
 	return { filename: download.suggestedFilename(), entries };
 }
 
-// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary,sdk.web.before-after-performance
-test('chat download builds the identical YAML file on the shared Rust transfer unit', async ({ page }: { page: any }, testInfo: any) => {
+// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary
+test('chat download builds the YAML file on the shared Rust transfer unit', async ({ page }: { page: any }, testInfo: any) => {
 	test.slow();
 	test.setTimeout(420000);
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
@@ -213,18 +196,12 @@ test('chat download builds the identical YAML file on the shared Rust transfer u
 	const chatId = page.url().match(/chat-id=([a-f0-9-]{36})/)![1];
 	await expect(page.getByTestId('message-assistant').last()).toBeVisible({ timeout: 60000 });
 	await expect(page.getByTestId('typing-indicator')).toHaveCount(0, { timeout: 60000 });
-	// Let title generation and the server sync settle so both arms export the same chat state.
+	// Let title generation and the server sync settle so the export sees the final chat state.
 	await page.waitForTimeout(8000);
 
-	const exported: Record<'ts' | 'rust', { filename: string; entries: Record<string, string> }> = {
-		ts: await downloadActiveChat(page, chatId, 'ts'),
-		rust: { filename: '', entries: {} },
-	};
-	const tsStats = await page.evaluate(() => (window as any).__openmatesRustTransferStats?.() ?? null);
-	expect(tsStats, 'TS arm never loaded the Rust transfer client').toBeNull();
-	exported.rust = await downloadActiveChat(page, chatId, 'rust');
+	const exported = await downloadActiveChat(page, chatId);
 	const stats = await page.evaluate(() => (window as any).__openmatesRustTransferStats?.() ?? null);
-	expect(stats, 'Rust arm loaded the transfer unit client').not.toBeNull();
+	expect(stats, 'Rust loaded the transfer unit client').not.toBeNull();
 	expect(stats.calls, 'filename, YAML and the zip plan were built on the transfer unit').toBeGreaterThanOrEqual(3);
 	expect(stats.failures, 'no transfer unit call failed').toBe(0);
 	const instances = await rustCoreInstances(page);
@@ -232,35 +209,29 @@ test('chat download builds the identical YAML file on the shared Rust transfer u
 	expect(instances.workers.filter((worker: { name: string }) => worker.name === 'shared.worker').length, 'one shared Rust core Worker').toBe(1);
 	expect(instances.sharedWorkerWasm, 'one WASM instance in the shared Worker').toBe(1);
 
-	// Only the export timestamp may differ between two separate downloads.
+	// Only the export timestamp varies between downloads.
 	const withoutExportTime = (text: string) => text.replace(/^ {2}exported_at: .*$/m, '  exported_at: <time>');
-	expect(exported.rust.filename, 'same download filename').toBe(exported.ts.filename);
-	expect(Object.keys(exported.rust.entries), 'same zip entries (names come from the Rust filename helper)').toEqual(Object.keys(exported.ts.entries));
+	expect(exported.filename, 'download filename is a zip').toMatch(/\.zip$/);
+	const names = Object.keys(exported.entries);
 	for (const required of ['export-metadata.json']) {
-		expect(Object.keys(exported.ts.entries), `the zip holds ${required}`).toContain(required);
+		expect(names, `the zip holds ${required}`).toContain(required);
 	}
-	const markdownName = Object.keys(exported.ts.entries).find((name) => name.endsWith('.md'));
+	const markdownName = names.find((name) => name.endsWith('.md'));
 	expect(markdownName, 'the zip holds the chat Markdown').toBeTruthy();
-	expect(exported.ts.entries[markdownName!]).toContain('## You - ');
-	const yamlName = Object.keys(exported.ts.entries).find((name) => name.endsWith('.yml'));
+	expect(exported.entries[markdownName!]).toContain('## You - ');
+	const yamlName = names.find((name) => name.endsWith('.yml'));
 	expect(yamlName, 'the zip holds the chat YAML').toBeTruthy();
-	const tsYaml = exported.ts.entries[yamlName!];
-	expect(tsYaml).toContain('Please explain how leaves use sunlight in a few words.');
-	expect(tsYaml).toMatch(/^chat:\n {2}title: /);
-	for (const name of Object.keys(exported.ts.entries)) {
-		expect(withoutExportTime(exported.rust.entries[name]), `Rust zip entry ${name} equals the TypeScript one`).toBe(withoutExportTime(exported.ts.entries[name]));
-	}
-	await testInfo.attach('chat-export-parity.yaml', { body: withoutExportTime(exported.rust.entries[yamlName!]), contentType: 'text/yaml' });
+	const yaml = exported.entries[yamlName!];
+	expect(yaml).toContain('Please explain how leaves use sunlight in a few words.');
+	expect(yaml).toMatch(/^chat:\n {2}title: /);
+	await testInfo.attach('chat-export.yaml', { body: withoutExportTime(yaml), contentType: 'text/yaml' });
 
-	await page.evaluate((key: string) => localStorage.removeItem(key), TRANSFER_OPT_OUT_KEY);
 	await deleteActiveChat(page, log, screenshot, 'export-cleanup');
 });
 
-/** Downloads the Account Export V1 archive of the mocked job on one arm. */
-async function downloadAccountExport(page: any, arm: 'ts' | 'rust'): Promise<{ filename: string; entries: Record<string, string> }> {
-	await page.evaluate(([key, ts]: [string, boolean]) => { if (ts) localStorage.setItem(key, 'ts'); else localStorage.removeItem(key); },
-		[TRANSFER_OPT_OUT_KEY, arm === 'ts']);
-	// Fresh realm per arm: the assembler choice and the unit client are per page load.
+/** Downloads the Account Export V1 archive of the mocked job on the Rust unit. */
+async function downloadAccountExport(page: any): Promise<{ filename: string; entries: Record<string, string> }> {
+	// Fresh realm: the unit client is per page load.
 	await page.goto('/', { waitUntil: 'domcontentloaded' });
 	await expect(page.getByTestId('profile-container')).toBeVisible({ timeout: 30000 });
 	await page.getByTestId('profile-container').click();
@@ -281,8 +252,8 @@ async function downloadAccountExport(page: any, arm: 'ts' | 'rust'): Promise<{ f
 	return { filename: download.suggestedFilename(), entries: readZipEntries(Buffer.concat(chunks)) };
 }
 
-// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary,sdk.web.before-after-performance
-test('account export builds the identical archive on the shared Rust transfer unit', async ({ page }: { page: any }, testInfo: any) => {
+// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary
+test('account export builds the archive on the shared Rust transfer unit', async ({ page }: { page: any }, testInfo: any) => {
 	test.slow();
 	test.setTimeout(300000);
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
@@ -291,28 +262,21 @@ test('account export builds the identical archive on the shared Rust transfer un
 		credentials: { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY },
 	});
 
-	const ts = await downloadAccountExport(page, 'ts');
-	const tsStats = await page.evaluate(() => (window as any).__openmatesRustTransferStats?.() ?? null);
-	expect(tsStats, 'TS arm never loaded the Rust transfer client').toBeNull();
-	const rust = await downloadAccountExport(page, 'rust');
+	const archive = await downloadAccountExport(page);
 	const stats = await page.evaluate(() => (window as any).__openmatesRustTransferStats?.() ?? null);
-	expect(stats, 'Rust arm loaded the transfer unit client').not.toBeNull();
+	expect(stats, 'Rust loaded the transfer unit client').not.toBeNull();
 	expect(stats.calls, 'the archive was assembled on the transfer unit').toBeGreaterThanOrEqual(1);
 	expect(stats.failures, 'no transfer unit call failed').toBe(0);
 	const instances = await rustCoreInstances(page);
 	expect(instances.wasmMainThreadInstantiations, 'no WASM on the page realm').toBe(0);
 	expect(instances.sharedWorkerWasm, 'one WASM instance in the shared Worker').toBe(1);
 
-	// Only the README export time may differ between two separate downloads.
+	// Only the README export time varies between downloads.
 	const withoutExportTime = (text: string) => text.replace(/^Exported at: .*$/m, 'Exported at: <time>');
-	expect(Object.keys(rust.entries), 'same archive entries').toEqual(Object.keys(ts.entries));
+	const names = Object.keys(archive.entries);
 	for (const required of ['README.md', 'manifest.yml', 'manifest.json', 'export-report.yml', 'domains/chats.json', 'domains/usage.json']) {
-		expect(Object.keys(ts.entries), `the archive holds ${required}`).toContain(required);
+		expect(names, `the archive holds ${required}`).toContain(required);
 	}
-	expect(Object.keys(ts.entries).some((name) => name.startsWith('chats/') && name.endsWith('.md')), 'per-chat Markdown').toBe(true);
-	for (const name of Object.keys(ts.entries)) {
-		expect(withoutExportTime(rust.entries[name]), `Rust archive entry ${name} equals the TypeScript one`).toBe(withoutExportTime(ts.entries[name]));
-	}
-	await testInfo.attach('account-export-parity.yml', { body: withoutExportTime(rust.entries['export-report.yml']), contentType: 'text/yaml' });
-	await page.evaluate((key: string) => localStorage.removeItem(key), TRANSFER_OPT_OUT_KEY);
+	expect(names.some((name) => name.startsWith('chats/') && name.endsWith('.md')), 'per-chat Markdown').toBe(true);
+	await testInfo.attach('account-export-report.yml', { body: withoutExportTime(archive.entries['export-report.yml']), contentType: 'text/yaml' });
 });

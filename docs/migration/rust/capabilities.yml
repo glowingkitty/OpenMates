@@ -265,12 +265,12 @@ capabilities:
 - id: transfer
   what: uploads, media fetch, pending uploads
   web:
-    status: rust-default
+    status: rust-only
     old: []
     unit: transfer
-    note: Worker unit installed and on by default in dev and production builds; the TypeScript path still exists;
-      transfer unit
-    last_commit: 06da1b2448
+    note: chat import parsing, chat/account export and ZIP writing run only in the transfer Worker unit; the
+      TypeScript paths, flag and opt-out are deleted. File uploads and media fetch are not part of this unit.
+    last_commit: pending
   apple:
     status: swift-only
     old:
