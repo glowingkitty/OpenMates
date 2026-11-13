@@ -2061,6 +2061,26 @@ import { storageArchiveFetch } from "../config/api";
     !isCurrentlyStreaming
   );
 
+  // Open Project focus suggestions of this chat, shown in the Recommendations card
+  // (the history keeps only their job progress). Started or expired ones drop out.
+  let projectFocusRecommendations = $derived.by((): ProjectAuthoringRecommendation[] => {
+    if (!ownedRecommendationsView || !currentChatId) return [];
+    const started = new Set(Object.values($projectAuthoringJobs).map((job) => job.recommendation_id));
+    const now = Date.now() / 1000;
+    const open: ProjectAuthoringRecommendation[] = [];
+    for (const msg of candidateDisplayMessages) {
+      if (msg.role !== 'system') continue;
+      const event = parseAgentContextEvent(msg.original_message?.content ?? msg.content);
+      const entries = event?.type === 'project_authoring_recommendation' ? [event]
+        : event?.type === 'project_authoring_recommendations' ? event.recommendations : [];
+      for (const entry of entries) {
+        if (entry.kind === 'focus' && entry.chat_id === currentChatId && !started.has(entry.recommendation_id)
+          && (entry.expires_at === undefined || entry.expires_at > now)) open.push(entry);
+      }
+    }
+    return open;
+  });
+
   let showRecommendationsInHistory = $derived(
     ownedRecommendationsView &&
     lastAssistantMessageId !== null &&
@@ -3534,7 +3554,7 @@ import { storageArchiveFetch } from "../config/api";
                       in:fade={{ duration: 0 }}
                       animate:flip={{ duration: (msg.status === 'streaming' || msg.status === 'processing') ? 0 : 250 }}>
                     {#if agentContext}
-                      <AgentContextMessage event={agentContext} onAuthoring={startContextAuthoring} jobs={Object.values($projectAuthoringJobs)} onSaveJob={saveProjectAuthoring} />
+                      <AgentContextMessage event={agentContext} onAuthoring={startContextAuthoring} jobs={Object.values($projectAuthoringJobs)} onSaveJob={saveProjectAuthoring} focusInRecommendationsCard={ownedRecommendationsView} />
                     {:else if msg.role === 'system' && contextEntryEvents[msg.id]}
                       <div class="context-entry-row">
                         <SystemMessageNotice testId="context-entry-notice">
@@ -3701,7 +3721,8 @@ import { storageArchiveFetch } from "../config/api";
                  Visible without requiring the user to focus the message input first. -->
             {#if showRecommendationsInHistory && currentChatId && !timelineSection}
                 <div class="recommendations-wrapper" in:fade={{ duration: 200 }}>
-                    <ChatRecommendations chatId={currentChatId} category={chatCategory ?? null} />
+                    <ChatRecommendations chatId={currentChatId} category={chatCategory ?? null}
+                      projectFocus={projectFocusRecommendations} onProjectAuthoring={startContextAuthoring} />
                 </div>
             {/if}
 

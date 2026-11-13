@@ -1,7 +1,10 @@
 <!-- frontend/packages/ui/src/components/ChatRecommendations.svelte
      Container of the Recommendations card for one owned chat: hydrates the chat's
      encrypted recommendations and opens drafts (Memory draft in Settings > Memories,
-     Workflow draft in the side panel). Clicking an action never removes a
+     Workflow draft in the side panel). Project focus suggestions of the active
+     Project (project_authoring_recommendation events, passed in by ChatHistory) are
+     shown in the same card; their action starts the existing Project authoring job,
+     whose progress and Save step stay in the chat history. Clicking an action never removes a
      recommendation; only saving the entry does (contextEntryEvents).
      Rendered only in Rust core builds (VITE_OPENMATES_RUST_CORE=1).
      Plan: docs/plans/chat-recommendations/plan.yml (D-7..D-10)
@@ -27,18 +30,33 @@
     RecommendationDraftError, buildWorkflowInstruction, loadRecommendationTurn,
     requestCreateMemoryDraft, requestUpdatePreview, updateMemoryDraft,
   } from '../services/recommendationDrafts';
-  import type { ChatRecommendation } from '../types/recommendations';
+  import type { ChatRecommendation, RecommendationCardItem } from '../types/recommendations';
+  import type { ProjectAuthoringRecommendation } from '../utils/agentContextEvents';
 
   interface Props {
     chatId: string;
     /** Chat category; selects the card gradient. */
     category: string | null;
+    /** Open Project focus suggestions of this chat (not yet started). */
+    projectFocus: readonly ProjectAuthoringRecommendation[];
+    /** Starts the Project authoring job of a focus suggestion. */
+    onProjectAuthoring: (recommendation: ProjectAuthoringRecommendation) => Promise<void>;
   }
-  let { chatId, category }: Props = $props();
+  let { chatId, category, projectFocus, onProjectAuthoring }: Props = $props();
 
+  const FOCUS_ID_PREFIX = 'project-focus-';
   let busyId = $state<string | null>(null);
   let upToDateId = $state<string | null>(null);
-  let items = $derived($chatRecommendations[chatId]?.items ?? []);
+  let startedFocus = $state<string[]>([]);
+  let focusItems = $derived(projectFocus
+    .filter((entry) => entry.chat_id === chatId && !startedFocus.includes(entry.recommendation_id))
+    .map((entry): RecommendationCardItem => ({
+      id: FOCUS_ID_PREFIX + entry.recommendation_id, kind: 'focus', action: entry.action,
+      target_id: entry.target_id ?? null,
+      title: entry.title || $text(entry.action === 'update' ? 'recommendations.focus_update_title' : 'recommendations.focus_create_title'),
+      summary: $text(entry.action === 'update' ? 'recommendations.focus_update_summary' : 'recommendations.focus_create_summary'),
+    })));
+  let items = $derived<RecommendationCardItem[]>([...($chatRecommendations[chatId]?.items ?? []), ...focusItems]);
   let statusText = $derived(
     upToDateId && items.some((item) => item.id === upToDateId) ? $text('memories.suggestion_up_to_date') : null,
   );
@@ -63,6 +81,7 @@
     hydratedCiphertext = undefined;
     busyId = null;
     upToDateId = null;
+    startedFocus = [];
     refreshQuietly(target);
   });
 
@@ -119,16 +138,25 @@
     });
   }
 
-  async function handleAction(item: ChatRecommendation): Promise<void> {
+  async function startFocus(item: RecommendationCardItem): Promise<void> {
+    const recommendationId = item.id.slice(FOCUS_ID_PREFIX.length);
+    const recommendation = projectFocus.find((entry) => entry.recommendation_id === recommendationId);
+    if (!recommendation) return;
+    await onProjectAuthoring(recommendation);
+    startedFocus = [...startedFocus, recommendationId];
+  }
+
+  async function handleAction(item: RecommendationCardItem): Promise<void> {
     if (busyId) return;
     busyId = item.id;
     upToDateId = null;
     try {
-      if (item.kind === 'memory') await openMemory(item);
-      else await openWorkflow(item);
+      if (item.kind === 'focus') await startFocus(item);
+      else if (item.kind === 'memory') await openMemory(item as ChatRecommendation);
+      else await openWorkflow(item as ChatRecommendation);
     } catch (error) {
       console.error('[Recommendations] Could not open the recommendation draft', error);
-      notificationStore.error(failureMessage(error), 5000);
+      notificationStore.error(item.kind === 'focus' ? $text('rules.authoring_failed') : failureMessage(error), 5000);
     } finally {
       busyId = null;
     }

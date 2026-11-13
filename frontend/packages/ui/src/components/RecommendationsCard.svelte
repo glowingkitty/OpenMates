@@ -1,7 +1,8 @@
 <!-- frontend/packages/ui/src/components/RecommendationsCard.svelte
      Recommendations container between the chat history and the follow-up suggestion
      chips. Keeps the colored chat-category gradient of the former quick tips card and
-     shows one recommendation at a time: a heading naming the kind (memory/workflow)
+     shows one recommendation at a time: a heading naming the kind (memory/workflow, or
+     a Project focus suggested for the active Project)
      and whether it is new or an update, then the entry as an embed preview card (a
      click opens the same draft as the button), with the Create/Update button below it and previous/next buttons plus one dot per
      recommendation underneath. There is no dismiss control: the next completed turn
@@ -13,23 +14,24 @@
   import { text } from '../i18n/translations';
   import { getCategoryGradientColors } from '../utils/categoryUtils';
   import RecommendationEmbedPreview from './RecommendationEmbedPreview.svelte';
-  import type { ChatRecommendation } from '../types/recommendations';
+  import type { RecommendationCardItem } from '../types/recommendations';
 
   interface Props {
-    items: ChatRecommendation[];
+    items: RecommendationCardItem[];
     /** Chat category; selects the same gradient the quick tips card used. */
     category: string | null;
     /** Recommendation whose draft is being prepared (action disabled meanwhile). */
     busyId: string | null;
     /** Optional status line for the visible recommendation (e.g. "already up to date"). */
     statusText: string | null;
-    onAction: (item: ChatRecommendation) => void;
+    onAction: (item: RecommendationCardItem) => void;
   }
   let { items, category, busyId, statusText, onAction }: Props = $props();
 
   const HEADING_KEYS = {
     memory: { create: 'recommendations.heading_memory_create', update: 'recommendations.heading_memory_update' },
     workflow: { create: 'recommendations.heading_workflow_create', update: 'recommendations.heading_workflow_update' },
+    focus: { create: 'recommendations.heading_focus_create', update: 'recommendations.heading_focus_update' },
   } as const;
 
   let index = $state(0);
@@ -49,7 +51,7 @@
     index = (next + items.length) % items.length;
   }
 
-  function open(target: ChatRecommendation): void {
+  function open(target: RecommendationCardItem): void {
     if (busyId !== null) return;
     onAction(target);
   }

@@ -17706,8 +17706,29 @@
     "heading_workflow_update": {
       "text": "Workflow update recommended"
     },
+    "heading_focus_create": {
+      "text": "New Project focus recommended"
+    },
+    "heading_focus_update": {
+      "text": "Project focus update recommended"
+    },
+    "focus_create_title": {
+      "text": "New focus for this Project"
+    },
+    "focus_update_title": {
+      "text": "Focus of this Project"
+    },
+    "focus_create_summary": {
+      "text": "Turn the reusable way of working from this chat into a focus that later chats in this Project can start."
+    },
+    "focus_update_summary": {
+      "text": "Add what this chat established to the Project focus, so later chats follow it."
+    },
     "type_memory": {
       "text": "Memory"
+    },
+    "type_focus": {
+      "text": "Project focus"
     },
     "type_workflow": {
       "text": "Workflow"

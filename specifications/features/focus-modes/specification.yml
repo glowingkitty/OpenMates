@@ -161,8 +161,13 @@ assertions:
   type: behavior
   must: After a completed assistant response in an authorized Project, Jev assesses chat context against the eligible Project
     Focus catalog of titles and summaries, including inactive Focuses. It may select existing IDs for full inspection or recommend
-    a useful non-overlapping new Project Focus and expose Create directly. Improvement proposals for public/app Focuses or
-    personal/global Focuses outside Projects are excluded. Catalog assessment performs no generative authoring.
+    a useful non-overlapping new Project Focus and expose Create directly. A new Project Focus is not recommended for a goal a
+    built-in focus mode already serves (the assessment also receives the names and descriptions of the built-in focus modes);
+    a Project-specific style for such a goal belongs in a Project Memory. Improvement proposals for public/app Focuses or
+    personal/global Focuses outside Projects are excluded. Catalog assessment performs no generative authoring. Where the
+    chat Recommendations card is shown, Project Focus Create/Update suggestions appear in it next to Memory and Workflow
+    recommendations instead of a separate "Suggested Project improvements" block; the started job's progress and Save step
+    stay in the chat history.
   depends_on:
   - examples.recommendation_catalog
 - id: focus-modes.project-recommendation-full-assessment

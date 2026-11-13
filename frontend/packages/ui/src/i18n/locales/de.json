@@ -16942,8 +16942,29 @@
     "heading_workflow_update": {
       "text": "Aktualisierung eines Workflows empfohlen"
     },
+    "heading_focus_create": {
+      "text": "Neuer Projekt-Fokus empfohlen"
+    },
+    "heading_focus_update": {
+      "text": "Aktualisierung eines Projekt-Fokus empfohlen"
+    },
+    "focus_create_title": {
+      "text": "Neuer Fokus für dieses Projekt"
+    },
+    "focus_update_title": {
+      "text": "Fokus dieses Projekts"
+    },
+    "focus_create_summary": {
+      "text": "Macht die wiederverwendbare Arbeitsweise aus diesem Chat zu einem Fokus, den spätere Chats in diesem Projekt starten können."
+    },
+    "focus_update_summary": {
+      "text": "Ergänzt den Projekt-Fokus um das, was dieser Chat festgelegt hat, damit spätere Chats es befolgen."
+    },
     "type_memory": {
       "text": "Erinnerung"
+    },
+    "type_focus": {
+      "text": "Projekt-Fokus"
     },
     "type_workflow": {
       "text": "Workflow"

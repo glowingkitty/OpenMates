@@ -30,6 +30,23 @@ export interface ChatRecommendation {
   summary: string;
 }
 
+/**
+ * Kind shown in the Recommendations card. `focus` items are Project Focus
+ * suggestions (project_authoring_recommendation events of the active Project);
+ * they are not persisted in chats.encrypted_recommendations.
+ */
+export type RecommendationCardKind = ChatRecommendationKind | 'focus';
+
+/** One entry of the Recommendations card: a chat recommendation or a Project Focus suggestion. */
+export interface RecommendationCardItem {
+  id: string;
+  kind: RecommendationCardKind;
+  action: ChatRecommendationAction;
+  target_id: string | null;
+  title: string;
+  summary: string;
+}
+
 /** Plaintext of chats.encrypted_recommendations (encrypted with the chat key). */
 export interface ChatRecommendationsState {
   schema_version: 1;

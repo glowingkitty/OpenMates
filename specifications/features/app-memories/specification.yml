@@ -425,7 +425,8 @@ assertions:
     Recommendations card that replaced the quick tips container between chat history and the follow-up suggestion chips.
     The follow-up suggestion chips are a separate feature and are unchanged. The card keeps the chat-category colored
     background of the former quick tips container and shows one recommendation at a time, starting with a heading that says whether it
-    recommends a new memory or workflow or an update to an existing one, the entry as an embed preview card, and below it a
+    recommends a new memory or workflow or an update to an existing one (in a Project chat also a Project focus, see
+    focus-modes.project-recommendation-catalog), the entry as an embed preview card, and below it a
     Create (or Update) button; clicking the preview card does the same as the button. Previous/next icon buttons and one dot
     per recommendation sit underneath. There is no dismiss control. No recommendations are
     produced for sub-chats, incognito chats, guests, greeting-only turns, or when the user turned Recommendations off in

@@ -68,6 +68,21 @@ test('starts authoring only after a click and prevents repeated submissions', as
 });
 
 // contract-test: supporting surface=gui.web assertions=focus-modes.project-authoring-click
+test('leaves Project focus suggestions to the Recommendations card and keeps their job progress here', async ({ page }, testInfo) => {
+  await page.goto(`${PREVIEW}&variant=focus_in_card&width=350`);
+  await waitForComponentPreview(page);
+  await expect(page.getByTestId('project-authoring-action')).toHaveCount(1);
+  await expect(page.getByTestId('project-authoring-action')).toHaveText('Update Workflow');
+  await testInfo.attach('workflow-suggestion-only', { body: await page.getByTestId('agent-context-message').screenshot(), contentType: 'image/png' });
+  await page.goto(`${PREVIEW}&variant=focus_job_only&width=350`);
+  await waitForComponentPreview(page);
+  await expect(page.getByTestId('project-authoring-action')).toHaveCount(0);
+  await expect(page.getByText('Suggested Project improvements')).toHaveCount(0);
+  await expect(page.getByTestId('project-authoring-job')).toHaveAttribute('data-job-status', 'running');
+  await testInfo.attach('focus-job-progress-only', { body: await page.getByTestId('agent-context-message').screenshot(), contentType: 'image/png' });
+});
+
+// contract-test: supporting surface=gui.web assertions=focus-modes.project-authoring-click
 test('keeps failed authoring actionable and reports failure without claiming a job started', async ({ page }) => {
   await page.goto(`${PREVIEW}&variant=error&width=350`);
   await waitForComponentPreview(page);

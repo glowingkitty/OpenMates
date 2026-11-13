@@ -8,13 +8,16 @@
     onAuthoring: (recommendation: ProjectAuthoringRecommendation) => Promise<void> | void;
     jobs: readonly ProjectAuthoringJobDisplay[];
     onSaveJob: (jobId: string) => Promise<unknown> | void;
+    /** True when the Recommendations card shows Project focus suggestions, so their buttons are not repeated here. */
+    focusInRecommendationsCard: boolean;
   }
-  let { event, onAuthoring, jobs, onSaveJob }: Props = $props();
+  let { event, onAuthoring, jobs, onSaveJob, focusInRecommendationsCard }: Props = $props();
   let pending = $state<string | null>(null);
   let submitted = $state<string[]>([]);
   let error = $state('');
   let recommendations = $derived(event.type === 'project_authoring_recommendation'
     ? [event] : event.type === 'project_authoring_recommendations' ? event.recommendations : []);
+  let buttons = $derived(focusInRecommendationsCard ? recommendations.filter((item) => item.kind !== 'focus') : recommendations);
   let relatedJobs = $derived(jobs.filter((job) => recommendations.some((item) => item.recommendation_id === job.recommendation_id && item.chat_id === job.chat_id)));
   let savingJob = $state<string | null>(null);
   let savedJobs = $state<string[]>([]);
@@ -65,9 +68,10 @@
       <pre data-testid="direction-correction-instruction">{event.instruction}</pre>
     </details>
   {:else}
+    {#if buttons.length}
     <p class="recommendation-label">{$text('rules.authoring_suggestions')}</p>
     <div class="actions">
-      {#each recommendations as recommendation (recommendation.recommendation_id)}
+      {#each buttons as recommendation (recommendation.recommendation_id)}
         <button
           type="button"
           data-testid="project-authoring-action"
@@ -86,6 +90,7 @@
         </button>
       {/each}
     </div>
+    {/if}
     {#each relatedJobs as job (job.job_id)}
       <section class="authoring-job" data-testid="project-authoring-job" data-job-status={job.status}>
         <p role="status">{$text(`rules.job_${statuses.includes(job.status) ? job.status : 'waiting'}`)}</p>

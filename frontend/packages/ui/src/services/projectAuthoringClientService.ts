@@ -21,7 +21,7 @@ export interface ProjectAuthoringRecommendation {
   created_at?: number;
 }
 export type ProjectAuthoringReceipt = ProjectAuthoringRecommendation & {
-  event_id: string; created_at: number; type: 'project_authoring_recommendation';
+  event_id: string; created_at: number; type: 'project_authoring_recommendation'; title?: string;
 };
 export interface ProjectAuthoringAvailable {
   chat_id: string; project_id: string; user_message_id: string; assistant_message_id: string;
@@ -122,7 +122,11 @@ export async function assessProjectAuthoring(event: ProjectAuthoringAvailable): 
     if (inspected.recommendation) confirmed.push(inspected.recommendation);
   }
   await workspace(event.chat_id, event.project_id, current.owner);
+  // Update suggestions carry the target Focus title so the Recommendations card can name it.
+  const focusTitles = new Map(focuses.map(({ id, title }) => [id, title]));
   return confirmed.map(proposal => ({ ...proposal, type: 'project_authoring_recommendation',
+    ...(proposal.kind === 'focus' && proposal.target_id && focusTitles.get(proposal.target_id)
+      ? { title: focusTitles.get(proposal.target_id) } : {}),
     event_id: proposal.recommendation_id, created_at: proposal.created_at ?? proposal.expires_at - 1_200 }));
 }
 

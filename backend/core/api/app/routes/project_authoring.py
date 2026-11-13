@@ -27,7 +27,7 @@ from backend.core.api.app.services.project_authoring_service import (
     normalize_saved_project_focus_document, validate_history,
 )
 from backend.core.api.app.services.project_recommendation_service import (
-    ProjectAuthoringAccess, ProjectCatalogEntry, ProjectRecommendationService,
+    ProjectAuthoringAccess, ProjectCatalogEntry, ProjectRecommendationService, builtin_focus_catalog,
 )
 from backend.core.api.app.services.project_write_authorization_service import ProjectWriteAuthorizationError
 from backend.core.api.app.services.workflow_authoring_billing import MeteredJevClient, WorkflowAuthoringBilling
@@ -155,9 +155,17 @@ async def recommend(request: Request, project_id: str, body: RecommendRequest,
     try:
         return {"recommendations": await service.assess(user_id=current_user.id, chat_id=body.chat_id,
             project_id=project_id, team_id=body.team_id, catalog=body.catalog, history=_history(body.history),
-            vault_key_id=current_user.vault_key_id, message_id=body.message_id)}
+            vault_key_id=current_user.vault_key_id, message_id=body.message_id,
+            builtin_focuses=_builtin_focuses(request))}
     except Exception as exc:
         _denial(exc)
+
+
+def _builtin_focuses(request: Request) -> list[dict[str, str]]:
+    service = getattr(request.app.state, "translation_service", None)
+    translations = service.get_translations(lang="en") if service is not None else {}
+    return builtin_focus_catalog(getattr(request.app.state, "discovered_apps_metadata", None) or {},
+                                 translations if isinstance(translations, dict) else {})
 
 
 @router.post("/inspect")
