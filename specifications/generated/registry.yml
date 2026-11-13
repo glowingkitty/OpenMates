@@ -632,7 +632,7 @@ specifications:
     version: 2
     status: draft
     path: features/chat-orchestration
-    fingerprint: 1b8d46e5b14963eedb29ec0ad2f82a6776d3175fd98cd85893897fde99a923a2
+    fingerprint: 7a8f7302b69c1dc63866eba13dcf57d0546d087b92114dbe277697d605d601b6
     required_applies_to:
     - rest_api
     - cli
@@ -8620,6 +8620,15 @@ assertions:
     specification_id: feature.chat-orchestration
     type: behavior
     fingerprint: aca853273abd27ba7f5b35759c65674d9bc247d72b1a0ac801dbee5c9ee77cbe
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  chat-orchestration.skills.answer-own-questions-here:
+    specification: feature.chat-orchestration@2
+    specification_id: feature.chat-orchestration
+    type: behavior
+    fingerprint: ba881031f95ad914cb73cfff3f7abff4b0ce5ac533f613efcbe985235e8719e5
     required_applies_to:
     - rest_api
     - cli

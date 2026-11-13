@@ -277,6 +277,16 @@ async def test_gating_exposes_list_read_send_when_chat_has_spawned(fake):
     assert added == set()
 
 
+# contract-test: supporting surface=rest_api assertions=chat-orchestration.skills.answer-own-questions-here
+@pytest.mark.asyncio
+async def test_creator_instruction_keeps_the_users_own_questions_here(fake):
+    fake.spawned_list = [{"chat_id": "c1"}]
+    _, text = await hooks.orchestration_skill_additions(
+        cache_service=FakeCache(), encryption_service=None, request_data=_request(None))
+    assert "Answer the user's own new questions yourself, here in this chat" in text
+    assert "only when the user explicitly asks" in text
+
+
 # contract-test: supporting surface=rest_api assertions=chat-orchestration.status.automatic
 @pytest.mark.asyncio
 async def test_status_hooks_only_for_linked_chats(fake):

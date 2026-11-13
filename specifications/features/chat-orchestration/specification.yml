@@ -238,6 +238,13 @@ assertions:
   depends_on:
   - models.SpawnedChatState
   - examples.list_read_send
+- id: chat-orchestration.skills.answer-own-questions-here
+  type: behavior
+  must: The creator assistant answers the user's own new questions itself, in the current chat, also while a spawned
+    chat is working. It writes to a spawned or other chat only when the user explicitly asks it to tell or send that
+    chat something (for example "tell the news chat to also look at Asia").
+  depends_on:
+  - examples.list_read_send
 - id: chat-orchestration.privacy.device-executed
   type: privacy
   must: Chat keys never leave the user's devices. Creating a spawned chat, encrypting its brief, storing creator events,

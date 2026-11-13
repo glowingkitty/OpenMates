@@ -4,8 +4,8 @@
 
 Generates the spoken question with text-to-speech (dev ``api`` container, script
 backend/scripts/generate_voice_call_speaker_audio.py) as one WAV: short lead silence,
-a question about penguins and 20 s of silence (Chromium loops it). The spawned chat is started by a typed
-request in the same chat before the call. Runs frontend/apps/web_app/tests/voice-call-orchestration-real.spec.ts
+a question about penguins and 60 s of silence (Chromium loops it). The spawned chat is started by a request
+typed during the call; the spec unmutes only while the question should be heard. Runs frontend/apps/web_app/tests/voice-call-orchestration-real.spec.ts
 against https://app.dev.openmates.org with the personal dev test account; Chromium plays
 the WAV as its microphone. Same harness as scripts/voice_call_web_real_test.py.
 
@@ -35,9 +35,9 @@ GENERATOR = ROOT / "backend/scripts/generate_voice_call_speaker_audio.py"
 API_CONTAINER = "api"
 SLUG = "chat-report-spoken"  # keep in sync with SLUG in the spec
 QUESTION = "Tell me one fun fact about penguins."
-# Chromium loops the fake-microphone file from browser start; a short file repeats the
-# question until the call hears it, then the spec mutes the microphone.
-TAIL_SECONDS = 20.0
+# Chromium loops the fake-microphone file from browser start; the spec mutes at once and
+# unmutes only for the question, so a long silent tail keeps it from repeating early.
+TAIL_SECONDS = 60.0
 PATTERNS = (("heard", r"heard: ([^\n]+)"),
             ("events", r"event notices: ([^\n]+)"),
             ("played_audio", r"played audio: ([^\n]+)"),

@@ -5,14 +5,15 @@
  * Real voice call that starts a spawned main chat and speaks its report (dev-only:
  * scripts/voice_call_orchestration_web_real_test.py). No mocks.
  *
- * A typed request in a new chat starts a spawned main chat that searches the web and reports back
- * (speech-to-text dropped or split a spoken start-chat request too often for a reliable proof).
- * Then a voice call starts in that chat; one WAV is the fake microphone: a question about
- * penguins and 20 s of silence, looped by Chromium until the spec mutes the microphone.
- * Checked: the spawned chat appears with its started notice in the creator chat; the question is
- * answered and spoken; the report/finished notices arrive during the call; exactly one
- * automatic interpreting assistant message follows them, is spoken without overlapping any earlier
- * speech, and nothing answers the same events a second time within 30 s.
+ * A voice call starts in a new chat with the microphone muted at once; a request typed during the
+ * call starts a spawned main chat that searches the web and reports back (speech-to-text dropped or
+ * split a spoken start-chat request too often for a reliable proof). One WAV is the fake
+ * microphone: a question about penguins and 60 s of silence, looped by Chromium; the spec unmutes
+ * only while the question should be heard.
+ * Checked: the spawned chat appears with its started notice; the unrelated spoken question is
+ * answered and spoken here, without writing to the spawned chat; the report/finished notices
+ * arrive during the call; exactly one automatic interpreting assistant message follows them, is
+ * spoken without overlapping any other speech, and nothing answers the same events again within 30 s.
  * Held out of isolated CI: real provider inference with the personal dev account.
  */
 import type { Page, TestInfo } from '@playwright/test';
@@ -84,16 +85,27 @@ async function snap(page: Page, testInfo: TestInfo, name: string) {
   await testInfo.attach(name, { path: file, contentType: 'image/png' });
 }
 
-/** Index of the last report/finished notice and of the last assistant message in document order, plus counts. */
+/**
+ * Document-order sequence of orchestration notices and assistant messages ('q' = the penguin
+ * answer, 'a' = any other assistant message) and how many non-penguin assistant messages follow
+ * the first report/finished notice: the automatic interpreting turn(s).
+ */
 async function chatShape(page: Page) {
   return page.evaluate((notice) => {
     const nodes = Array.from(document.querySelectorAll(`${notice}, [data-testid="message-assistant"]`));
-    const kind = (node: Element) => (node.matches('[data-testid="message-assistant"]') ? 'a'
+    const kind = (node: Element) => (node.matches('[data-testid="message-assistant"]')
+      ? (/penguin/i.test(node.textContent || '') ? 'q' : 'a')
       : (node.getAttribute('data-action') || 'n'));
     const sequence = nodes.map(kind);
-    const lastEvent = Math.max(sequence.lastIndexOf('report'), sequence.lastIndexOf('finished'));
-    return { sequence, lastEvent, assistantAfterEvents: lastEvent < 0 ? 0 : sequence.slice(lastEvent + 1).filter((k) => k === 'a').length };
+    const firstEvent = sequence.findIndex((k) => k === 'report' || k === 'finished');
+    return { sequence, assistantAfterEvents: firstEvent < 0 ? 0 : sequence.slice(firstEvent + 1).filter((k) => k === 'a').length };
   }, NOTICE);
+}
+
+/** True when every call speech track that started has also ended. */
+async function speechIdle(page: Page, since: number) {
+  const speech = (await recorded(page)).played.filter((e) => e.playing && e.startedAt >= since && !e.src.includes(ACK_ROOT));
+  return speech.every((e) => e.endedAt > e.startedAt);
 }
 
 // Worker-level launch options (fake microphone file) must be set at file level.
@@ -109,7 +121,7 @@ test.use({
 
 test.describe(`real voice call orchestration: ${SLUG}`, () => {
   test.skip(!ENABLED, 'Dev-only real voice call: run through scripts/voice_call_orchestration_web_real_test.py.');
-  // contract-test: direct surface=gui.web assertions=video-call.chat.orchestration-continuity,chat-orchestration.events.automatic-interpretation,chat-orchestration.spawn.brief-not-answered-here
+  // contract-test: direct surface=gui.web assertions=video-call.chat.orchestration-continuity,chat-orchestration.events.automatic-interpretation,chat-orchestration.spawn.brief-not-answered-here,chat-orchestration.skills.answer-own-questions-here
   test('a spawned chat reports back during a call and its report is interpreted once, spoken without cutting off other speech',
     async ({ page }: { page: Page }, testInfo: TestInfo) => {
       test.setTimeout(900_000);
@@ -125,38 +137,51 @@ test.describe(`real voice call orchestration: ${SLUG}`, () => {
       await setChatSidebarOpen(page, true, log);
       const chatsBefore = await page.getByTestId('chat-item').count();
       await startNewChat(page, log);
-      await sendMessage(page, SPAWN_REQUEST, log, screenshot, 'spawn-request');
-      await expect(page).toHaveURL(/chat-id=[0-9a-f]{8}-/, { timeout: 30_000 });
-
-      // A new sidebar chat appears and the creator chat shows the started notice.
-      const startedNotice = page.locator(`${NOTICE}[data-action="started"]`);
-      await expect(startedNotice.first()).toBeVisible({ timeout: 240_000 });
-      await expect.poll(() => page.getByTestId('chat-item').count(), { timeout: 60_000, message: 'spawned chat in the sidebar' })
-        .toBeGreaterThan(chatsBefore + 1);  // the creator chat and the spawned chat
-      await snap(page, testInfo, `${SLUG}-01-started-notice`);
 
       let started = false;
       try {
         const tCallStart = await now(page);
         await page.locator('[data-testid="voice-call-start"]:visible').first().click();
         started = true;
+        // A fresh account sees the voice privacy notice first; it can appear after the click returns.
+        const status = page.getByTestId('voice-call-status-text');
         const privacy = page.getByTestId('notification').filter({ hasText: 'Before your first voice call' });
-        if (await privacy.isVisible({ timeout: 3_000 }).catch(() => false)) {
-          await privacy.getByRole('button', { name: 'Continue', exact: true }).click();
-        }
-        await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now', { timeout: 45_000 });
+        await expect.poll(async () => {
+          if (await privacy.isVisible().catch(() => false)) {
+            await privacy.getByRole('button', { name: 'Continue', exact: true }).click().catch(() => undefined);
+          }
+          return (await status.textContent().catch(() => ''))?.trim();
+        }, { timeout: 60_000, message: 'call connected' }).toBe('Listening · You can speak now');
+        const mute = page.getByTestId('voice-call-mute');
+        await mute.click();  // the looped question is spoken only after the spawn request
+        await expect(mute).toHaveAttribute('aria-pressed', 'true');
 
-        // The spoken question arrives while the spawned chat works.
+        // Typed during the call: start the spawned chat. The brief's search wording stays in the brief.
+        await sendMessage(page, SPAWN_REQUEST, log, screenshot, 'spawn-request');
+        await expect(page).toHaveURL(/chat-id=[0-9a-f]{8}-/, { timeout: 30_000 });
+        const startedNotice = page.locator(`${NOTICE}[data-action="started"]`);
+        await expect(startedNotice.first()).toBeVisible({ timeout: 240_000 });
+        await expect.poll(() => page.getByTestId('chat-item').count(), { timeout: 60_000, message: 'spawned chat in the sidebar' })
+          .toBeGreaterThan(chatsBefore + 1);  // the creator chat and the spawned chat
+        await expect.poll(() => page.getByTestId('message-assistant').count(), { timeout: 120_000,
+          message: 'creator turn confirmed the start' }).toBeGreaterThanOrEqual(1);
+        await expect.poll(() => speechIdle(page, tCallStart), { timeout: 120_000, message: 'start confirmation spoken' }).toBe(true);
+        await snap(page, testInfo, `${SLUG}-01-started-notice`);
+
+        // An unrelated spoken question while the spawned chat works is answered here.
+        await mute.click();
+        await expect(mute).toHaveAttribute('aria-pressed', 'false');
         const heardB = page.getByTestId('message-user').filter({ hasText: /penguin/i });
         await expect(heardB).toHaveCount(1, { timeout: 120_000 });
-                log(`heard: ${(await heardB.first().textContent())?.trim()}`);
-        const mute = page.getByTestId('voice-call-mute');
+        log(`heard: ${(await heardB.first().textContent())?.trim()}`);
         if (await mute.isEnabled()) {
-          await mute.click();  // the looped file must not repeat the requests
+          await mute.click();  // the looped file must not repeat the question
           await expect(mute).toHaveAttribute('aria-pressed', 'true');
         }
         const answer = page.getByTestId('message-assistant').filter({ hasText: /penguin/i });
         await expect(answer.first()).toBeVisible({ timeout: 150_000 });
+        await expect(answer.first(), 'the question is answered here, not written to the spawned chat')
+          .not.toContainText('Used the OpenMates app');
         await snap(page, testInfo, `${SLUG}-02-question-answer`);
 
         // The spawned chat's report / finished event arrives in the creator chat.
