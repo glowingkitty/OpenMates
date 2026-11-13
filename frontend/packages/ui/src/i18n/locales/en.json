@@ -13215,8 +13215,8 @@
     "landing_intro_headline_line2": {
       "text": "for getting things done"
     },
-    "landing_intro_request_doctor": {
-      "text": "Find doctor appointments"
+    "landing_intro_request_document": {
+      "text": "Write a document"
     },
     "landing_intro_request_events": {
       "text": "Find events"
@@ -13239,35 +13239,20 @@
     "landing_actionable_event_assistant_message": {
       "text": "Of course, here you go:"
     },
-    "landing_actionable_event_source": {
-      "text": "event website event"
-    },
     "landing_actionable_event_title": {
-      "text": "DEPIN DAY BERLIN"
-    },
-    "landing_actionable_event_meta": {
-      "text": "May 22 at Magazin in der Heeresbaeckerei"
+      "text": "Open Source AI Night"
     },
     "landing_actionable_event_detail": {
-      "text": "A Berlin event website event about decentralized compute and DePIN research, found from a real event search."
+      "text": "Short talks and demos about open-source AI tools, with time to meet people afterwards."
     },
     "landing_actionable_event_open_provider": {
-      "text": "Open on event website"
-    },
-    "landing_actionable_event_venue": {
-      "text": "Magazin in der Heeresbaeckerei"
-    },
-    "landing_actionable_event_address": {
-      "text": "Koepenicker Strasse 16-17"
+      "text": "Open event page"
     },
     "landing_actionable_event_city": {
       "text": "Berlin"
     },
     "landing_actionable_event_country": {
       "text": "Germany"
-    },
-    "landing_actionable_event_organizer": {
-      "text": "Fluence"
     },
     "landing_actionable_event_online": {
       "text": "Online"
@@ -13278,26 +13263,11 @@
     "landing_actionable_event_rsvps": {
       "text": "RSVPs"
     },
-    "landing_actionable_event_tag_language": {
-      "text": "German"
-    },
-    "landing_actionable_event_tag_level": {
-      "text": "Beginner friendly"
-    },
-    "landing_actionable_event_chip_day": {
-      "text": "Today"
-    },
-    "landing_actionable_event_chip_time": {
-      "text": "19:00"
-    },
-    "landing_actionable_event_chip_place": {
-      "text": "Kreuzberg"
-    },
     "landing_privacy_saved_data": {
-      "text": "Only your devices can decrypt all your data."
+      "text": "Your chats are encrypted on your device before they are stored."
     },
     "landing_privacy_pii": {
-      "text": "Personal details are replaced, before the AI sees them."
+      "text": "Personal details are replaced before the AI sees them."
     },
     "landing_privacy_email_request": {
       "text": "Prepare an email to"
@@ -13305,11 +13275,8 @@
     "landing_privacy_email_response": {
       "text": "Ok, preparing an email to"
     },
-    "landing_privacy_memory": {
-      "text": "Choose which memories can personalize this response."
-    },
     "landing_privacy_trip_request": {
-      "text": "Recommended places for my next trip?"
+      "text": "Recommend places for my next trip."
     },
     "landing_privacy_memory_result": {
       "text": "Personalized responses. But only when you want them."
@@ -13330,7 +13297,7 @@
       "text": "Optimized instructions, selected when they are needed."
     },
     "landing_people_models": {
-      "text": "All the best AI models, in one place."
+      "text": "Leading AI models, in one place."
     },
     "landing_people_access": {
       "text": "Access your OpenMates chats the way you prefer."

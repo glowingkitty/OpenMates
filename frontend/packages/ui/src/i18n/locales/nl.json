@@ -11200,22 +11200,22 @@
   },
   "guest_onboarding": {
     "landing_intro_headline_line1": {
-      "text": "Simply ask"
+      "text": "Jouw AI-team"
     },
     "landing_intro_headline_line2": {
-      "text": "your AI team mates"
+      "text": "om dingen gedaan te krijgen"
     },
-    "landing_intro_request_doctor": {
-      "text": "Find doctor appointments"
+    "landing_intro_request_document": {
+      "text": "Schrijf een document"
     },
     "landing_intro_request_events": {
-      "text": "Find events"
+      "text": "Zoek evenementen"
     },
     "landing_intro_request_web_app": {
-      "text": "Build a web app"
+      "text": "Bouw een web-app"
     },
     "landing_intro_request_news": {
-      "text": "Explain the news"
+      "text": "Leg het nieuws uit"
     },
     "landing_actionable_line1": {
       "text": "Direct uitvoerbaar."
@@ -11229,35 +11229,20 @@
     "landing_actionable_event_assistant_message": {
       "text": "Natuurlijk, alsjeblieft:"
     },
-    "landing_actionable_event_source": {
-      "text": "Event preview"
-    },
     "landing_actionable_event_title": {
-      "text": "DEPIN DAY BERLIN"
-    },
-    "landing_actionable_event_meta": {
-      "text": "Today at 19:00 near Kreuzberg"
+      "text": "Open Source AI Night"
     },
     "landing_actionable_event_detail": {
-      "text": "Een event website-evenement in Berlijn over gedecentraliseerde rekenkracht en DePIN-onderzoek."
+      "text": "Korte talks en demo's over open-source AI-tools, met daarna tijd om mensen te ontmoeten."
     },
     "landing_actionable_event_open_provider": {
-      "text": "Openen op event website"
-    },
-    "landing_actionable_event_venue": {
-      "text": "Magazin in der Heeresbaeckerei"
-    },
-    "landing_actionable_event_address": {
-      "text": "Koepenicker Strasse 16-17"
+      "text": "Open evenementpagina"
     },
     "landing_actionable_event_city": {
       "text": "Berlijn"
     },
     "landing_actionable_event_country": {
       "text": "Duitsland"
-    },
-    "landing_actionable_event_organizer": {
-      "text": "Fluence"
     },
     "landing_actionable_event_online": {
       "text": "Online"
@@ -11268,62 +11253,44 @@
     "landing_actionable_event_rsvps": {
       "text": "aanmeldingen"
     },
-    "landing_actionable_event_tag_language": {
-      "text": "German"
-    },
-    "landing_actionable_event_tag_level": {
-      "text": "Beginner friendly"
-    },
-    "landing_actionable_event_chip_day": {
-      "text": "Today"
-    },
-    "landing_actionable_event_chip_time": {
-      "text": "19:00"
-    },
-    "landing_actionable_event_chip_place": {
-      "text": "Kreuzberg"
-    },
     "landing_privacy_saved_data": {
-      "text": "Only your devices can unlock your saved data."
+      "text": "Je chats worden op je apparaat versleuteld voordat ze worden opgeslagen."
     },
     "landing_privacy_pii": {
-      "text": "Personal details are replaced before AI processing."
+      "text": "Persoonlijke gegevens worden vervangen voordat de AI ze ziet."
     },
     "landing_privacy_email_request": {
-      "text": "Prepare an email to"
+      "text": "Bereid een e-mail voor aan"
     },
     "landing_privacy_email_response": {
-      "text": "Ok, preparing an email to"
-    },
-    "landing_privacy_memory": {
-      "text": "Choose which memories can personalize this response."
+      "text": "Ok, ik bereid een e-mail voor aan"
     },
     "landing_privacy_trip_request": {
-      "text": "Recommend places for my next trip."
+      "text": "Beveel plekken aan voor mijn volgende reis."
     },
     "landing_privacy_memory_result": {
-      "text": "Personalized responses, but only when you want them."
+      "text": "Gepersonaliseerde antwoorden, maar alleen als je dat wilt."
     },
     "landing_privacy_originals": {
-      "text": "Only you can view the originals."
+      "text": "Alleen jij kunt de originelen bekijken."
     },
     "landing_privacy_previous_trips": {
-      "text": "Previous trips"
+      "text": "Eerdere reizen"
     },
     "landing_privacy_favorite_places": {
-      "text": "Favorite places"
+      "text": "Favoriete plekken"
     },
     "landing_mates_experts": {
-      "text": "Your AI experts, specialized for different topics."
+      "text": "Jouw AI-experts, gespecialiseerd in verschillende onderwerpen."
     },
     "landing_mates_focus_modes": {
-      "text": "Optimized instructions, selected when they are needed."
+      "text": "Geoptimaliseerde instructies, gekozen wanneer ze nodig zijn."
     },
     "landing_people_models": {
-      "text": "All the best AI models, in one place."
+      "text": "Toonaangevende AI-modellen, op één plek."
     },
     "landing_people_access": {
-      "text": "Access your OpenMates chats the way you prefer."
+      "text": "Open je OpenMates-chats op de manier die je het prettigst vindt."
     }
   },
   "header": {

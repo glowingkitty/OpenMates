@@ -11227,22 +11227,22 @@
   },
   "guest_onboarding": {
     "landing_intro_headline_line1": {
-      "text": "Simply ask"
+      "text": "Sua equipe de IA"
     },
     "landing_intro_headline_line2": {
-      "text": "your AI team mates"
+      "text": "para resolver o que precisa ser feito"
     },
-    "landing_intro_request_doctor": {
-      "text": "Find doctor appointments"
+    "landing_intro_request_document": {
+      "text": "Escreva um documento"
     },
     "landing_intro_request_events": {
-      "text": "Find events"
+      "text": "Encontre eventos"
     },
     "landing_intro_request_web_app": {
-      "text": "Build a web app"
+      "text": "Crie um app web"
     },
     "landing_intro_request_news": {
-      "text": "Explain the news"
+      "text": "Explique as notícias"
     },
     "landing_actionable_line1": {
       "text": "Acionável."
@@ -11256,35 +11256,20 @@
     "landing_actionable_event_assistant_message": {
       "text": "Claro, aqui está:"
     },
-    "landing_actionable_event_source": {
-      "text": "Event preview"
-    },
     "landing_actionable_event_title": {
-      "text": "DEPIN DAY BERLIN"
-    },
-    "landing_actionable_event_meta": {
-      "text": "Today at 19:00 near Kreuzberg"
+      "text": "Open Source AI Night"
     },
     "landing_actionable_event_detail": {
-      "text": "Um evento da event website em Berlim sobre computação descentralizada e pesquisa DePIN."
+      "text": "Palestras curtas e demonstrações sobre ferramentas de IA de código aberto, com tempo para conhecer pessoas depois."
     },
     "landing_actionable_event_open_provider": {
-      "text": "Abrir no event website"
-    },
-    "landing_actionable_event_venue": {
-      "text": "Magazin in der Heeresbaeckerei"
-    },
-    "landing_actionable_event_address": {
-      "text": "Koepenicker Strasse 16-17"
+      "text": "Abrir página do evento"
     },
     "landing_actionable_event_city": {
       "text": "Berlim"
     },
     "landing_actionable_event_country": {
       "text": "Alemanha"
-    },
-    "landing_actionable_event_organizer": {
-      "text": "Fluence"
     },
     "landing_actionable_event_online": {
       "text": "Online"
@@ -11295,62 +11280,44 @@
     "landing_actionable_event_rsvps": {
       "text": "confirmações"
     },
-    "landing_actionable_event_tag_language": {
-      "text": "German"
-    },
-    "landing_actionable_event_tag_level": {
-      "text": "Beginner friendly"
-    },
-    "landing_actionable_event_chip_day": {
-      "text": "Today"
-    },
-    "landing_actionable_event_chip_time": {
-      "text": "19:00"
-    },
-    "landing_actionable_event_chip_place": {
-      "text": "Kreuzberg"
-    },
     "landing_privacy_saved_data": {
-      "text": "Only your devices can unlock your saved data."
+      "text": "Seus chats são criptografados no seu dispositivo antes de serem armazenados."
     },
     "landing_privacy_pii": {
-      "text": "Personal details are replaced before AI processing."
+      "text": "Os dados pessoais são substituídos antes que a IA os veja."
     },
     "landing_privacy_email_request": {
-      "text": "Prepare an email to"
+      "text": "Prepare um e-mail para"
     },
     "landing_privacy_email_response": {
-      "text": "Ok, preparing an email to"
-    },
-    "landing_privacy_memory": {
-      "text": "Choose which memories can personalize this response."
+      "text": "Ok, estou preparando um e-mail para"
     },
     "landing_privacy_trip_request": {
-      "text": "Recommend places for my next trip."
+      "text": "Recomende lugares para minha próxima viagem."
     },
     "landing_privacy_memory_result": {
-      "text": "Personalized responses, but only when you want them."
+      "text": "Respostas personalizadas, mas só quando você quiser."
     },
     "landing_privacy_originals": {
-      "text": "Only you can view the originals."
+      "text": "Só você pode ver os originais."
     },
     "landing_privacy_previous_trips": {
-      "text": "Previous trips"
+      "text": "Viagens anteriores"
     },
     "landing_privacy_favorite_places": {
-      "text": "Favorite places"
+      "text": "Lugares favoritos"
     },
     "landing_mates_experts": {
-      "text": "Your AI experts, specialized for different topics."
+      "text": "Seus especialistas em IA, cada um focado em um tema diferente."
     },
     "landing_mates_focus_modes": {
-      "text": "Optimized instructions, selected when they are needed."
+      "text": "Instruções otimizadas, selecionadas quando necessárias."
     },
     "landing_people_models": {
-      "text": "All the best AI models, in one place."
+      "text": "Os principais modelos de IA, em um só lugar."
     },
     "landing_people_access": {
-      "text": "Access your OpenMates chats the way you prefer."
+      "text": "Acesse seus chats do OpenMates do jeito que preferir."
     }
   },
   "header": {

@@ -13070,13 +13070,13 @@
   },
   "guest_onboarding": {
     "landing_intro_headline_line1": {
-      "text": "Frag einfach"
+      "text": "Dein KI-Team"
     },
     "landing_intro_headline_line2": {
-      "text": "deine KI Team-Mates"
+      "text": "für alles, was ansteht"
     },
-    "landing_intro_request_doctor": {
-      "text": "Arzttermine finden"
+    "landing_intro_request_document": {
+      "text": "Dokument schreiben"
     },
     "landing_intro_request_events": {
       "text": "Events finden"
@@ -13099,35 +13099,20 @@
     "landing_actionable_event_assistant_message": {
       "text": "Natürlich, hier bitte:"
     },
-    "landing_actionable_event_source": {
-      "text": "event website-Event"
-    },
     "landing_actionable_event_title": {
-      "text": "DEPIN DAY BERLIN"
-    },
-    "landing_actionable_event_meta": {
-      "text": "22. Mai in der Heeresbaeckerei"
+      "text": "Open Source AI Night"
     },
     "landing_actionable_event_detail": {
-      "text": "Ein Berliner event website-Event ueber dezentrales Computing und DePIN-Forschung, gefunden aus einer echten Eventsuche."
+      "text": "Kurze Talks und Demos zu Open-Source-KI-Tools, danach Zeit zum Kennenlernen."
     },
     "landing_actionable_event_open_provider": {
-      "text": "Auf event website öffnen"
-    },
-    "landing_actionable_event_venue": {
-      "text": "Magazin in der Heeresbaeckerei"
-    },
-    "landing_actionable_event_address": {
-      "text": "Koepenicker Strasse 16-17"
+      "text": "Eventseite öffnen"
     },
     "landing_actionable_event_city": {
       "text": "Berlin"
     },
     "landing_actionable_event_country": {
       "text": "Deutschland"
-    },
-    "landing_actionable_event_organizer": {
-      "text": "Fluence"
     },
     "landing_actionable_event_online": {
       "text": "Online"
@@ -13138,23 +13123,8 @@
     "landing_actionable_event_rsvps": {
       "text": "Zusagen"
     },
-    "landing_actionable_event_tag_language": {
-      "text": "Deutsch"
-    },
-    "landing_actionable_event_tag_level": {
-      "text": "Fuer Anfaenger geeignet"
-    },
-    "landing_actionable_event_chip_day": {
-      "text": "Heute"
-    },
-    "landing_actionable_event_chip_time": {
-      "text": "19:00"
-    },
-    "landing_actionable_event_chip_place": {
-      "text": "Kreuzberg"
-    },
     "landing_privacy_saved_data": {
-      "text": "Nur deine Geräte können alle deine Daten entschlüsseln."
+      "text": "Deine Chats werden auf deinem Gerät verschlüsselt, bevor sie gespeichert werden."
     },
     "landing_privacy_pii": {
       "text": "Persönliche Angaben werden ersetzt, bevor die KI sie sieht."
@@ -13165,11 +13135,8 @@
     "landing_privacy_email_response": {
       "text": "Ok, ich bereite eine E-Mail vor an"
     },
-    "landing_privacy_memory": {
-      "text": "Wähle, welche Erinnerungen diese Antwort personalisieren dürfen."
-    },
     "landing_privacy_trip_request": {
-      "text": "Empfohlene Orte für meine nächste Reise?"
+      "text": "Empfiehl mir Orte für meine nächste Reise."
     },
     "landing_privacy_memory_result": {
       "text": "Personalisierte Antworten. Aber nur, wenn du sie möchtest."
@@ -13187,10 +13154,10 @@
       "text": "Deine KI-Experten, spezialisiert auf verschiedene Themen."
     },
     "landing_mates_focus_modes": {
-      "text": "Optimierte Anweisungen, ausgewählt wenn sie gebraucht werden."
+      "text": "Optimierte Anweisungen, ausgewählt, wenn sie gebraucht werden."
     },
     "landing_people_models": {
-      "text": "Alle besten KI-Modelle an einem Ort."
+      "text": "Führende KI-Modelle an einem Ort."
     },
     "landing_people_access": {
       "text": "Greife so auf deine OpenMates-Chats zu, wie du möchtest."

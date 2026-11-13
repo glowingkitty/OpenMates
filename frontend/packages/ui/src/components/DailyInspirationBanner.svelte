@@ -110,10 +110,12 @@
     'privacy/hide-personal-data',
     'settings_memories',
   ]);
-  const LANDING_INTRO_FEATURED_APP_IDS = ['health', 'events', 'code', 'news'];
+  // Only requests that work for every user on production today; the landing is
+  // quoted in press material, so removed or dev-only capabilities never appear.
+  const LANDING_INTRO_FEATURED_APP_IDS = ['docs', 'events', 'code', 'news'];
   const LANDING_INTRO_EXCLUDED_APP_IDS = new Set(['ai']);
   const LANDING_INTRO_REQUESTS = [
-    { appId: 'health', labelKey: 'guest_onboarding.landing_intro_request_doctor' },
+    { appId: 'docs', labelKey: 'guest_onboarding.landing_intro_request_document' },
     { appId: 'events', labelKey: 'guest_onboarding.landing_intro_request_events' },
     { appId: 'code', labelKey: 'guest_onboarding.landing_intro_request_web_app' },
     { appId: 'news', labelKey: 'guest_onboarding.landing_intro_request_news' },

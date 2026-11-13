@@ -31,9 +31,20 @@
   let { playing, onComplete }: Props = $props();
 
   const MousePointerIcon = getLucideIcon('mouse-pointer-2');
-  const demoStartDate = new Date('2024-05-22T11:00:00+02:00');
+  // The demo mirrors what event search returns from public web pages today: title,
+  // date, city, description and the event's own page (provider = that site). No
+  // RSVP counts, organizers or street addresses, which web pages rarely state.
+  // The date is always an upcoming evening, because past events are filtered out.
+  const demoStartDate = nextDemoEventDate(new Date());
   const demoEndDate = new Date(demoStartDate);
-  demoEndDate.setHours(18, 0, 0, 0);
+  demoEndDate.setHours(21, 0, 0, 0);
+
+  function nextDemoEventDate(now: Date): Date {
+    const date = new Date(now);
+    date.setDate(date.getDate() + 7 - ((date.getDay() + 3) % 7));
+    date.setHours(19, 0, 0, 0);
+    return date;
+  }
 
   let activeStageIndex = $state(0);
   let interactionState = $state<InteractionState>('idle');
@@ -48,26 +59,21 @@
   );
   let demoEvent = $derived.by(() => ({
     embed_id: 'landing-actionable-event-preview',
-    id: 'landing-actionable-depin-berlin',
-    provider: 'event website',
+    id: 'landing-actionable-open-source-ai-night',
+    provider: 'example.org',
     title: $text('guest_onboarding.landing_actionable_event_title'),
     description: $text('guest_onboarding.landing_actionable_event_detail'),
-    url: 'https://example.com/fixture',
+    url: 'https://example.org/events/open-source-ai-night',
     date_start: demoStartDate.toISOString(),
     date_end: demoEndDate.toISOString(),
+    // The illustrative event is at 19:00 where the visitor is, shown without a UTC offset.
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     event_type: 'PHYSICAL',
     venue: {
-      name: $text('guest_onboarding.landing_actionable_event_venue'),
-      address: $text('guest_onboarding.landing_actionable_event_address'),
       city: $text('guest_onboarding.landing_actionable_event_city'),
       country: $text('guest_onboarding.landing_actionable_event_country'),
-      lat: 52.5094,
-      lon: 13.4307,
     },
-    organizer: { name: $text('guest_onboarding.landing_actionable_event_organizer') },
-    rsvp_count: 460,
     is_paid: false,
-    image_url: 'https://example.com/fixture',
   }));
 
   function noop() {

@@ -11200,22 +11200,22 @@
   },
   "guest_onboarding": {
     "landing_intro_headline_line1": {
-      "text": "Simply ask"
+      "text": "צוות ה-AI שלך"
     },
     "landing_intro_headline_line2": {
-      "text": "your AI team mates"
+      "text": "לסיים כל מה שצריך"
     },
-    "landing_intro_request_doctor": {
-      "text": "Find doctor appointments"
+    "landing_intro_request_document": {
+      "text": "כתוב מסמך"
     },
     "landing_intro_request_events": {
-      "text": "Find events"
+      "text": "מצא אירועים"
     },
     "landing_intro_request_web_app": {
-      "text": "Build a web app"
+      "text": "בנה אפליקציית ווב"
     },
     "landing_intro_request_news": {
-      "text": "Explain the news"
+      "text": "הסבר את החדשות"
     },
     "landing_actionable_line1": {
       "text": "מעשי."
@@ -11229,35 +11229,20 @@
     "landing_actionable_event_assistant_message": {
       "text": "כמובן, הנה:"
     },
-    "landing_actionable_event_source": {
-      "text": "Event preview"
-    },
     "landing_actionable_event_title": {
-      "text": "DEPIN DAY BERLIN"
-    },
-    "landing_actionable_event_meta": {
-      "text": "Today at 19:00 near Kreuzberg"
+      "text": "Open Source AI Night"
     },
     "landing_actionable_event_detail": {
-      "text": "אירוע event website בברלין על מחשוב מבוזר ומחקר DePIN."
+      "text": "הרצאות קצרות והדגמות על כלי בינה מלאכותית בקוד פתוח, ואחר כך זמן להכיר אנשים."
     },
     "landing_actionable_event_open_provider": {
-      "text": "פתיחה ב-event website"
-    },
-    "landing_actionable_event_venue": {
-      "text": "Magazin in der Heeresbaeckerei"
-    },
-    "landing_actionable_event_address": {
-      "text": "Koepenicker Strasse 16-17"
+      "text": "פתח את דף האירוע"
     },
     "landing_actionable_event_city": {
       "text": "ברלין"
     },
     "landing_actionable_event_country": {
       "text": "גרמניה"
-    },
-    "landing_actionable_event_organizer": {
-      "text": "Fluence"
     },
     "landing_actionable_event_online": {
       "text": "מקוון"
@@ -11268,62 +11253,44 @@
     "landing_actionable_event_rsvps": {
       "text": "משתתפים"
     },
-    "landing_actionable_event_tag_language": {
-      "text": "German"
-    },
-    "landing_actionable_event_tag_level": {
-      "text": "Beginner friendly"
-    },
-    "landing_actionable_event_chip_day": {
-      "text": "Today"
-    },
-    "landing_actionable_event_chip_time": {
-      "text": "19:00"
-    },
-    "landing_actionable_event_chip_place": {
-      "text": "Kreuzberg"
-    },
     "landing_privacy_saved_data": {
-      "text": "Only your devices can unlock your saved data."
+      "text": "השיחות שלך מוצפנות במכשיר שלך לפני שהן נשמרות."
     },
     "landing_privacy_pii": {
-      "text": "Personal details are replaced before AI processing."
+      "text": "פרטים אישיים מוחלפים לפני שה-AI רואה אותם."
     },
     "landing_privacy_email_request": {
-      "text": "Prepare an email to"
+      "text": "הכן אימייל אל"
     },
     "landing_privacy_email_response": {
-      "text": "Ok, preparing an email to"
-    },
-    "landing_privacy_memory": {
-      "text": "Choose which memories can personalize this response."
+      "text": "אוקיי, מכין אימייל אל"
     },
     "landing_privacy_trip_request": {
-      "text": "Recommend places for my next trip."
+      "text": "המלץ לי על מקומות לטיול הבא שלי."
     },
     "landing_privacy_memory_result": {
-      "text": "Personalized responses, but only when you want them."
+      "text": "תשובות מותאמות אישית, אבל רק כשאתה רוצה."
     },
     "landing_privacy_originals": {
-      "text": "Only you can view the originals."
+      "text": "רק אתה יכול לראות את המקור."
     },
     "landing_privacy_previous_trips": {
-      "text": "Previous trips"
+      "text": "טיולים קודמים"
     },
     "landing_privacy_favorite_places": {
-      "text": "Favorite places"
+      "text": "מקומות מועדפים"
     },
     "landing_mates_experts": {
-      "text": "Your AI experts, specialized for different topics."
+      "text": "מומחי ה-AI שלך, מתמחים בנושאים שונים."
     },
     "landing_mates_focus_modes": {
-      "text": "Optimized instructions, selected when they are needed."
+      "text": "הנחיות מותאמות, שנבחרות כשצריך אותן."
     },
     "landing_people_models": {
-      "text": "All the best AI models, in one place."
+      "text": "מודלי AI מובילים, במקום אחד."
     },
     "landing_people_access": {
-      "text": "Access your OpenMates chats the way you prefer."
+      "text": "גש לשיחות ה-OpenMates שלך בדרך שנוח לך."
     }
   },
   "header": {

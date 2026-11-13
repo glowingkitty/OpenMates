@@ -35,7 +35,7 @@ interface LandingProductSlide {
 
 const PRODUCT_INTRO_TEXT: Record<string, ProductIntroText> = {
   en: {
-    phrase: "Simply ask your AI team mates.",
+    phrase: "Your AI team for getting things done.",
     title: "OpenMates for Everyone",
     assistantResponse:
       "Ask naturally and OpenMates routes the work to specialized mates and apps inside one chat workspace.",
@@ -48,17 +48,17 @@ const PRODUCT_INTRO_TEXT: Record<string, ProductIntroText> = {
     featureDescription: "Ask naturally and let specialized mates and apps help from one workspace.",
   },
   de: {
-    phrase: "Frag einfach deine KI Team-Mates.",
-    title: "OpenMates fuer alle",
+    phrase: "Dein KI-Team für alles, was ansteht.",
+    title: "OpenMates für alle",
     assistantResponse:
-      "Frag natuerlich und OpenMates leitet die Arbeit an spezialisierte Mates und Apps in einem Chat-Arbeitsbereich weiter.",
+      "Frag ganz natürlich, und OpenMates gibt die Aufgabe an spezialisierte Mates und Apps in einem Chat-Arbeitsbereich weiter.",
     suggestions: [
-      "Zeig mir, wie OpenMates Datenschutz schuetzt",
-      "Was koennen App-Skills?",
+      "Zeig mir, wie OpenMates meine Privatsphäre schützt",
+      "Was können App-Skills?",
       "Was ist anders als bei einem einzelnen Chatbot?",
     ],
     featureTitle: "Lerne OpenMates kennen",
-    featureDescription: "Frag natuerlich und lass spezialisierte Mates und Apps in einem Arbeitsbereich helfen.",
+    featureDescription: "Frag ganz natürlich und lass dir von spezialisierten Mates und Apps in einem Arbeitsbereich helfen.",
   },
 };
 
@@ -69,16 +69,16 @@ const LANDING_PRODUCT_SLIDES: Record<string, LandingProductSlide[]> = {
       phrase: "Privacy & safety by design.",
       title: "Stay in control of personal data",
       assistantResponse:
-        "OpenMates is built around encrypted chats, local-first controls, and explicit choices before sensitive context is shared.",
+        "OpenMates encrypts your chats on your device before they are stored, replaces personal details before the AI sees them, and lets you decide which memories are used.",
       suggestions: [
         "How does OpenMates protect private chats?",
         "Show privacy controls",
-        "Explain local memories",
+        "How do memories work?",
       ],
       featureId: "openmates-privacy-safety",
       icon: "shield-check",
       featureTitle: "Privacy & safety",
-      featureDescription: "Encrypted chats and clear controls help you decide what is shared, when, and why.",
+      featureDescription: "Chats encrypted on your device and clear controls help you decide what is shared, when, and why.",
       tags: ["privacy"],
       order: 20,
     },
@@ -91,7 +91,7 @@ const LANDING_PRODUCT_SLIDES: Record<string, LandingProductSlide[]> = {
       suggestions: [
         "Show focus modes",
         "Which mate should help me?",
-        "Plan a project step by step",
+        "Plan a birthday party step by step",
       ],
       featureId: "openmates-mates-focus",
       icon: "users",
@@ -102,7 +102,7 @@ const LANDING_PRODUCT_SLIDES: Record<string, LandingProductSlide[]> = {
     },
     {
       inspiration_id: "openmates-provider-cross-platform",
-      phrase: "Build for the best possible user experience.",
+      phrase: "Built for the best possible user experience.",
       title: "Bring OpenMates across your tools",
       assistantResponse:
         "OpenMates is designed around portable chats, multiple AI providers, and clients beyond one browser tab.",
@@ -136,36 +136,36 @@ const LANDING_PRODUCT_SLIDES: Record<string, LandingProductSlide[]> = {
     {
       inspiration_id: "openmates-privacy-safety",
       phrase: "Datenschutz & Sicherheit von Anfang an.",
-      title: "Behalte Kontrolle ueber persoenliche Daten",
+      title: "Behalte die Kontrolle über persönliche Daten",
       assistantResponse:
-        "OpenMates setzt auf verschluesselte Chats, lokale Kontrollen und bewusste Entscheidungen, bevor sensible Inhalte geteilt werden.",
+        "OpenMates verschlüsselt deine Chats auf deinem Gerät, bevor sie gespeichert werden, ersetzt persönliche Angaben, bevor die KI sie sieht, und lässt dich entscheiden, welche Erinnerungen genutzt werden.",
       suggestions: [
-        "Wie schuetzt OpenMates private Chats?",
+        "Wie schützt OpenMates private Chats?",
         "Zeig Datenschutz-Kontrollen",
-        "Erklaer lokale Erinnerungen",
+        "Wie funktionieren Erinnerungen?",
       ],
       featureId: "openmates-privacy-safety",
       icon: "shield-check",
       featureTitle: "Datenschutz & Sicherheit",
-      featureDescription: "Verschluesselte Chats und klare Kontrollen helfen dir zu entscheiden, was geteilt wird.",
+      featureDescription: "Auf deinem Gerät verschlüsselte Chats und klare Kontrollen helfen dir zu entscheiden, was geteilt wird.",
       tags: ["privacy"],
       order: 20,
     },
     {
       inspiration_id: "openmates-mates-focus",
-      phrase: "Hol das Beste aus KI heraus. Ohne tiefes technisches Vorwissen.",
+      phrase: "Kein tiefes Technikwissen nötig.",
       title: "Arbeite mit dem passenden Mate",
       assistantResponse:
         "OpenMates kann einen Chat auf Lernen, Planen, Bauen, Recherche oder andere Aufgaben fokussieren.",
       suggestions: [
         "Zeig Fokusmodi",
         "Welcher Mate passt?",
-        "Plane ein Projekt Schritt fuer Schritt",
+        "Plane eine Geburtstagsfeier Schritt für Schritt",
       ],
       featureId: "openmates-mates-focus",
       icon: "users",
       featureTitle: "Mates & Fokusmodi",
-      featureDescription: "Nutze spezialisierte Hilfe fuer verschiedene Aufgaben im selben Chat-Arbeitsbereich.",
+      featureDescription: "Nutze spezialisierte Hilfe für verschiedene Aufgaben im selben Chat-Arbeitsbereich.",
       tags: ["learning", "software_development"],
       order: 30,
     },
@@ -174,22 +174,22 @@ const LANDING_PRODUCT_SLIDES: Record<string, LandingProductSlide[]> = {
       phrase: "Für die bestmögliche Nutzererfahrung entwickelt.",
       title: "Nutze OpenMates in deinen Tools",
       assistantResponse:
-        "OpenMates ist fuer portable Chats, mehrere KI-Provider und verschiedene Clients gebaut.",
+        "OpenMates ist für portable Chats, mehrere KI-Anbieter und verschiedene Clients gebaut.",
       suggestions: [
-        "Vergleiche KI-Provider",
+        "Vergleiche KI-Anbieter",
         "Zeig die CLI",
         "Wie portabel sind meine Chats?",
       ],
       featureId: "openmates-provider-cross-platform",
       icon: "network",
-      featureTitle: "Unabhaengiger Arbeitsbereich",
-      featureDescription: "Vermeide, deine Arbeit an einen Modellanbieter oder eine App-Oberflaeche zu binden.",
+      featureTitle: "Unabhängiger Arbeitsbereich",
+      featureDescription: "Binde deine Arbeit nicht an einen Modellanbieter oder eine App-Oberfläche.",
       tags: ["privacy", "software_development"],
       order: 40,
     },
     {
       inspiration_id: SIGNUP_CTA_INSPIRATION_ID,
-      phrase: "OpenMates starten:",
+      phrase: "OpenMates starten",
       title: "Registrieren",
       assistantResponse: "Erstelle dein OpenMates-Konto und nutze einen privaten KI-Arbeitsbereich mit Pay-per-Use.",
       suggestions: ["Keine Werbung", "Kein Abo", "Datenschutz im Fokus", "Pay-per-Use"],

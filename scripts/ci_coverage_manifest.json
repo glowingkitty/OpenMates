@@ -1227,6 +1227,13 @@
         "components/result-embed-card-media.spec.ts"
       ]
     },
+    "guest_intro_actionable_event_component": {
+      "execution": "e2e",
+      "enabling_work": "Account-free runner-local bare preview of the guest intro Actionable event demo with fixed in-page event data and a fixed browser clock. Vite-only component profile; no backend, account, provider action or inference.",
+      "specs": [
+        "components/landing-actionable-event-demo.spec.ts"
+      ]
+    },
     "authored_result_landing_component": {
       "execution": "e2e",
       "enabling_work": "Account-free runner-local bare public landing animation fixture, supplied date-only FOSDEM facts, source/provenance and reduced-motion controls. Vite-only component profile; no backend, account, provider action or inference.",

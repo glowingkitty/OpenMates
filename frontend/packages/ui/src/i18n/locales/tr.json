@@ -11200,22 +11200,22 @@
   },
   "guest_onboarding": {
     "landing_intro_headline_line1": {
-      "text": "Simply ask"
+      "text": "Yapay zekâ ekibin"
     },
     "landing_intro_headline_line2": {
-      "text": "your AI team mates"
+      "text": "işlerini halletmek için"
     },
-    "landing_intro_request_doctor": {
-      "text": "Find doctor appointments"
+    "landing_intro_request_document": {
+      "text": "Belge yaz"
     },
     "landing_intro_request_events": {
-      "text": "Find events"
+      "text": "Etkinlik bul"
     },
     "landing_intro_request_web_app": {
-      "text": "Build a web app"
+      "text": "Web uygulaması yap"
     },
     "landing_intro_request_news": {
-      "text": "Explain the news"
+      "text": "Haberleri açıkla"
     },
     "landing_actionable_line1": {
       "text": "Uygulanabilir."
@@ -11229,35 +11229,20 @@
     "landing_actionable_event_assistant_message": {
       "text": "Elbette, işte burada:"
     },
-    "landing_actionable_event_source": {
-      "text": "Event preview"
-    },
     "landing_actionable_event_title": {
-      "text": "DEPIN DAY BERLIN"
-    },
-    "landing_actionable_event_meta": {
-      "text": "Today at 19:00 near Kreuzberg"
+      "text": "Open Source AI Night"
     },
     "landing_actionable_event_detail": {
-      "text": "Merkeziyetsiz bilişim ve DePIN araştırmaları üzerine Berlin'de bir event website etkinliği."
+      "text": "Açık kaynaklı yapay zekâ araçları üzerine kısa konuşmalar ve demolar; sonrasında insanlarla tanışma zamanı."
     },
     "landing_actionable_event_open_provider": {
-      "text": "event website'da aç"
-    },
-    "landing_actionable_event_venue": {
-      "text": "Magazin in der Heeresbaeckerei"
-    },
-    "landing_actionable_event_address": {
-      "text": "Koepenicker Strasse 16-17"
+      "text": "Etkinlik sayfasını aç"
     },
     "landing_actionable_event_city": {
       "text": "Berlin"
     },
     "landing_actionable_event_country": {
       "text": "Almanya"
-    },
-    "landing_actionable_event_organizer": {
-      "text": "Fluence"
     },
     "landing_actionable_event_online": {
       "text": "Çevrim içi"
@@ -11268,62 +11253,44 @@
     "landing_actionable_event_rsvps": {
       "text": "katılımcı"
     },
-    "landing_actionable_event_tag_language": {
-      "text": "German"
-    },
-    "landing_actionable_event_tag_level": {
-      "text": "Beginner friendly"
-    },
-    "landing_actionable_event_chip_day": {
-      "text": "Today"
-    },
-    "landing_actionable_event_chip_time": {
-      "text": "19:00"
-    },
-    "landing_actionable_event_chip_place": {
-      "text": "Kreuzberg"
-    },
     "landing_privacy_saved_data": {
-      "text": "Only your devices can unlock your saved data."
+      "text": "Sohbetlerin saklanmadan önce cihazında şifrelenir."
     },
     "landing_privacy_pii": {
-      "text": "Personal details are replaced before AI processing."
+      "text": "Kişisel bilgiler, yapay zekâ görmeden önce değiştirilir."
     },
     "landing_privacy_email_request": {
-      "text": "Prepare an email to"
+      "text": "E-posta hazırla, alıcı"
     },
     "landing_privacy_email_response": {
-      "text": "Ok, preparing an email to"
-    },
-    "landing_privacy_memory": {
-      "text": "Choose which memories can personalize this response."
+      "text": "Tamam, e-posta hazırlıyorum, alıcı"
     },
     "landing_privacy_trip_request": {
-      "text": "Recommend places for my next trip."
+      "text": "Bir sonraki seyahatim için yerler öner."
     },
     "landing_privacy_memory_result": {
-      "text": "Personalized responses, but only when you want them."
+      "text": "Kişiselleştirilmiş yanıtlar, ama yalnızca sen istediğinde."
     },
     "landing_privacy_originals": {
-      "text": "Only you can view the originals."
+      "text": "Orijinalleri yalnızca sen görebilirsin."
     },
     "landing_privacy_previous_trips": {
-      "text": "Previous trips"
+      "text": "Önceki seyahatler"
     },
     "landing_privacy_favorite_places": {
-      "text": "Favorite places"
+      "text": "Favori yerler"
     },
     "landing_mates_experts": {
-      "text": "Your AI experts, specialized for different topics."
+      "text": "Farklı konularda uzmanlaşmış yapay zekâ uzmanların."
     },
     "landing_mates_focus_modes": {
-      "text": "Optimized instructions, selected when they are needed."
+      "text": "Optimize edilmiş talimatlar, gerektiğinde seçilir."
     },
     "landing_people_models": {
-      "text": "All the best AI models, in one place."
+      "text": "Önde gelen yapay zekâ modelleri, tek bir yerde."
     },
     "landing_people_access": {
-      "text": "Access your OpenMates chats the way you prefer."
+      "text": "OpenMates sohbetlerine istediğin şekilde eriş."
     }
   },
   "header": {

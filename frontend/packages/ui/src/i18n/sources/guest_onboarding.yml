@@ -1,146 +1,146 @@
 landing_intro_headline_line1:
   context: First line of the expanded logged-out landing intro headline
   en: Your AI team
-  de: Frag einfach
-  zh: Simply ask
-  es: Simply ask
-  fr: Simply ask
-  pt: Simply ask
-  ru: Simply ask
-  ja: Simply ask
-  ko: Simply ask
-  it: Simply ask
-  tr: Simply ask
-  vi: Simply ask
-  id: Simply ask
-  pl: Simply ask
-  nl: Simply ask
-  ar: Simply ask
-  hi: Simply ask
-  th: Simply ask
-  cs: Simply ask
-  sv: Simply ask
-  he: Simply ask
+  de: Dein KI-Team
+  zh: 你的 AI 团队
+  es: Tu equipo de IA
+  fr: Ton équipe IA
+  pt: Sua equipe de IA
+  ru: Твоя команда ИИ
+  ja: あなたのAIチーム
+  ko: 나만의 AI 팀
+  it: Il tuo team di IA
+  tr: Yapay zekâ ekibin
+  vi: Đội ngũ AI của bạn
+  id: Tim AI kamu
+  pl: Twój zespół AI
+  nl: Jouw AI-team
+  ar: فريقك من الذكاء الاصطناعي
+  hi: तुम्हारी AI टीम
+  th: ทีม AI ของคุณ
+  cs: Tvůj AI tým
+  sv: Ditt AI-team
+  he: צוות ה-AI שלך
   verified_by_human: []
 landing_intro_headline_line2:
   context: Second line of the expanded logged-out landing intro headline
   en: for getting things done
-  de: deine KI Team-Mates
-  zh: your AI team mates
-  es: your AI team mates
-  fr: your AI team mates
-  pt: your AI team mates
-  ru: your AI team mates
-  ja: your AI team mates
-  ko: your AI team mates
-  it: your AI team mates
-  tr: your AI team mates
-  vi: your AI team mates
-  id: your AI team mates
-  pl: your AI team mates
-  nl: your AI team mates
-  ar: your AI team mates
-  hi: your AI team mates
-  th: your AI team mates
-  cs: your AI team mates
-  sv: your AI team mates
-  he: your AI team mates
+  de: für alles, was ansteht
+  zh: 帮你把事情做完
+  es: para sacar tus tareas adelante
+  fr: pour faire avancer tes tâches
+  pt: para resolver o que precisa ser feito
+  ru: для всех твоих дел
+  ja: やるべきことをやり遂げるために
+  ko: 할 일을 끝내도록 도와줘요
+  it: per portare a termine tutto
+  tr: işlerini halletmek için
+  vi: để hoàn thành mọi việc
+  id: untuk menyelesaikan banyak hal
+  pl: do załatwiania spraw
+  nl: om dingen gedaan te krijgen
+  ar: لإنجاز كل ما يلزم
+  hi: हर काम पूरा करने के लिए
+  th: ที่ช่วยให้งานสำเร็จ
+  cs: pro vyřízení všeho, co čeká
+  sv: för att få saker gjorda
+  he: לסיים כל מה שצריך
   verified_by_human: []
-landing_intro_request_doctor:
+landing_intro_request_document:
   context: Short rotating request bubble in the expanded logged-out landing intro
-  en: Find doctor appointments
-  de: Arzttermine finden
-  zh: Find doctor appointments
-  es: Find doctor appointments
-  fr: Find doctor appointments
-  pt: Find doctor appointments
-  ru: Find doctor appointments
-  ja: Find doctor appointments
-  ko: Find doctor appointments
-  it: Find doctor appointments
-  tr: Find doctor appointments
-  vi: Find doctor appointments
-  id: Find doctor appointments
-  pl: Find doctor appointments
-  nl: Find doctor appointments
-  ar: Find doctor appointments
-  hi: Find doctor appointments
-  th: Find doctor appointments
-  cs: Find doctor appointments
-  sv: Find doctor appointments
-  he: Find doctor appointments
+  en: Write a document
+  de: Dokument schreiben
+  zh: 写一份文档
+  es: Escribe un documento
+  fr: Rédige un document
+  pt: Escreva um documento
+  ru: Напиши документ
+  ja: 文書を作成
+  ko: 문서 작성하기
+  it: Scrivi un documento
+  tr: Belge yaz
+  vi: Viết tài liệu
+  id: Tulis dokumen
+  pl: Napisz dokument
+  nl: Schrijf een document
+  ar: اكتب مستندًا
+  hi: दस्तावेज़ लिखो
+  th: เขียนเอกสาร
+  cs: Napiš dokument
+  sv: Skriv ett dokument
+  he: כתוב מסמך
   verified_by_human: []
 landing_intro_request_events:
   context: Short rotating request bubble in the expanded logged-out landing intro
   en: Find events
   de: Events finden
-  zh: Find events
-  es: Find events
-  fr: Find events
-  pt: Find events
-  ru: Find events
-  ja: Find events
-  ko: Find events
-  it: Find events
-  tr: Find events
-  vi: Find events
-  id: Find events
-  pl: Find events
-  nl: Find events
-  ar: Find events
-  hi: Find events
-  th: Find events
-  cs: Find events
-  sv: Find events
-  he: Find events
+  zh: 查找活动
+  es: Busca eventos
+  fr: Trouve des événements
+  pt: Encontre eventos
+  ru: Найди мероприятия
+  ja: イベントを探す
+  ko: 이벤트 찾기
+  it: Trova eventi
+  tr: Etkinlik bul
+  vi: Tìm sự kiện
+  id: Cari acara
+  pl: Znajdź wydarzenia
+  nl: Zoek evenementen
+  ar: ابحث عن فعاليات
+  hi: कार्यक्रम खोजो
+  th: ค้นหากิจกรรม
+  cs: Najdi akce
+  sv: Hitta evenemang
+  he: מצא אירועים
   verified_by_human: []
 landing_intro_request_web_app:
   context: Short rotating request bubble in the expanded logged-out landing intro
   en: Build a web app
   de: Web-App bauen
-  zh: Build a web app
-  es: Build a web app
-  fr: Build a web app
-  pt: Build a web app
-  ru: Build a web app
-  ja: Build a web app
-  ko: Build a web app
-  it: Build a web app
-  tr: Build a web app
-  vi: Build a web app
-  id: Build a web app
-  pl: Build a web app
-  nl: Build a web app
-  ar: Build a web app
-  hi: Build a web app
-  th: Build a web app
-  cs: Build a web app
-  sv: Build a web app
-  he: Build a web app
+  zh: 构建网页应用
+  es: Crea una aplicación web
+  fr: Crée une appli web
+  pt: Crie um app web
+  ru: Создай веб-приложение
+  ja: Webアプリを作る
+  ko: 웹 앱 만들기
+  it: Crea una web app
+  tr: Web uygulaması yap
+  vi: Xây dựng ứng dụng web
+  id: Buat aplikasi web
+  pl: Zbuduj aplikację webową
+  nl: Bouw een web-app
+  ar: أنشئ تطبيق ويب
+  hi: वेब ऐप बनाओ
+  th: สร้างเว็บแอป
+  cs: Vytvoř webovou aplikaci
+  sv: Bygg en webbapp
+  he: בנה אפליקציית ווב
   verified_by_human: []
 landing_intro_request_news:
   context: Short rotating request bubble in the expanded logged-out landing intro
   en: Explain the news
   de: Nachrichten erklären
-  zh: Explain the news
-  es: Explain the news
-  fr: Explain the news
-  pt: Explain the news
-  ru: Explain the news
-  ja: Explain the news
-  ko: Explain the news
-  it: Explain the news
-  tr: Explain the news
-  vi: Explain the news
-  id: Explain the news
-  pl: Explain the news
-  nl: Explain the news
-  ar: Explain the news
-  hi: Explain the news
-  th: Explain the news
-  cs: Explain the news
-  sv: Explain the news
-  he: Explain the news
+  zh: 解读新闻
+  es: Explica las noticias
+  fr: Explique l'actualité
+  pt: Explique as notícias
+  ru: Объясни новости
+  ja: ニュースを解説
+  ko: 뉴스 설명하기
+  it: Spiega le notizie
+  tr: Haberleri açıkla
+  vi: Giải thích tin tức
+  id: Jelaskan berita
+  pl: Wyjaśnij wiadomości
+  nl: Leg het nieuws uit
+  ar: اشرح الأخبار
+  hi: खबरें समझाओ
+  th: อธิบายข่าว
+  cs: Vysvětli zprávy
+  sv: Förklara nyheterna
+  he: הסבר את החדשות
   verified_by_human: []
 landing_actionable_line1:
   context: First line of the second logged-out landing slide headline
@@ -238,173 +238,77 @@ landing_actionable_event_assistant_message:
   sv: "Självklart, här är det:"
   he: "כמובן, הנה:"
   verified_by_human: []
-landing_actionable_event_source:
-  context: Source label for the lightweight Actionable landing slide event demo
-  en: event website event
-  de: event website-Event
-  zh: Event preview
-  es: Event preview
-  fr: Event preview
-  pt: Event preview
-  ru: Event preview
-  ja: Event preview
-  ko: Event preview
-  it: Event preview
-  tr: Event preview
-  vi: Event preview
-  id: Event preview
-  pl: Event preview
-  nl: Event preview
-  ar: Event preview
-  hi: Event preview
-  th: Event preview
-  cs: Event preview
-  sv: Event preview
-  he: Event preview
-  verified_by_human: []
 landing_actionable_event_title:
-  context: Event title for the lightweight Actionable landing slide event demo
-  en: DEPIN DAY BERLIN
-  de: DEPIN DAY BERLIN
-  zh: DEPIN DAY BERLIN
-  es: DEPIN DAY BERLIN
-  fr: DEPIN DAY BERLIN
-  pt: DEPIN DAY BERLIN
-  ru: DEPIN DAY BERLIN
-  ja: DEPIN DAY BERLIN
-  ko: DEPIN DAY BERLIN
-  it: DEPIN DAY BERLIN
-  tr: DEPIN DAY BERLIN
-  vi: DEPIN DAY BERLIN
-  id: DEPIN DAY BERLIN
-  pl: DEPIN DAY BERLIN
-  nl: DEPIN DAY BERLIN
-  ar: DEPIN DAY BERLIN
-  hi: DEPIN DAY BERLIN
-  th: DEPIN DAY BERLIN
-  cs: DEPIN DAY BERLIN
-  sv: DEPIN DAY BERLIN
-  he: DEPIN DAY BERLIN
-  verified_by_human: []
-landing_actionable_event_meta:
-  context: Event metadata for the lightweight Actionable landing slide event demo
-  en: May 22 at Magazin in der Heeresbaeckerei
-  de: 22. Mai in der Heeresbaeckerei
-  zh: Today at 19:00 near Kreuzberg
-  es: Today at 19:00 near Kreuzberg
-  fr: Today at 19:00 near Kreuzberg
-  pt: Today at 19:00 near Kreuzberg
-  ru: Today at 19:00 near Kreuzberg
-  ja: Today at 19:00 near Kreuzberg
-  ko: Today at 19:00 near Kreuzberg
-  it: Today at 19:00 near Kreuzberg
-  tr: Today at 19:00 near Kreuzberg
-  vi: Today at 19:00 near Kreuzberg
-  id: Today at 19:00 near Kreuzberg
-  pl: Today at 19:00 near Kreuzberg
-  nl: Today at 19:00 near Kreuzberg
-  ar: Today at 19:00 near Kreuzberg
-  hi: Today at 19:00 near Kreuzberg
-  th: Today at 19:00 near Kreuzberg
-  cs: Today at 19:00 near Kreuzberg
-  sv: Today at 19:00 near Kreuzberg
-  he: Today at 19:00 near Kreuzberg
+  context: Illustrative event title in the Actionable landing slide event demo (keep in English; it is an event name)
+  en: Open Source AI Night
+  de: Open Source AI Night
+  zh: Open Source AI Night
+  es: Open Source AI Night
+  fr: Open Source AI Night
+  pt: Open Source AI Night
+  ru: Open Source AI Night
+  ja: Open Source AI Night
+  ko: Open Source AI Night
+  it: Open Source AI Night
+  tr: Open Source AI Night
+  vi: Open Source AI Night
+  id: Open Source AI Night
+  pl: Open Source AI Night
+  nl: Open Source AI Night
+  ar: Open Source AI Night
+  hi: Open Source AI Night
+  th: Open Source AI Night
+  cs: Open Source AI Night
+  sv: Open Source AI Night
+  he: Open Source AI Night
   verified_by_human: []
 landing_actionable_event_detail:
-  context: Fullscreen detail description for the lightweight Actionable landing slide event demo
-  en: A Berlin event website event about decentralized compute and DePIN research, found from a real event search.
-  de: Ein Berliner event website-Event ueber dezentrales Computing und DePIN-Forschung, gefunden aus einer echten Eventsuche.
-  zh: 在柏林举办的 event website 活动，探讨去中心化计算和 DePIN 研究。
-  es: Un evento de event website en Berlín sobre computación descentralizada e investigación DePIN.
-  fr: Un événement event website à Berlin sur le calcul décentralisé et la recherche DePIN.
-  pt: Um evento da event website em Berlim sobre computação descentralizada e pesquisa DePIN.
-  ru: Мероприятие event website в Берлине о децентрализованных вычислениях и исследованиях DePIN.
-  ja: 分散型コンピューティングと DePIN 研究を扱うベルリンの event website イベントです。
-  ko: 탈중앙화 컴퓨팅과 DePIN 연구를 다루는 베를린 event website 이벤트입니다.
-  it: Un evento event website a Berlino su calcolo decentralizzato e ricerca DePIN.
-  tr: Merkeziyetsiz bilişim ve DePIN araştırmaları üzerine Berlin'de bir event website etkinliği.
-  vi: Một sự kiện event website tại Berlin về điện toán phi tập trung và nghiên cứu DePIN.
-  id: Acara event website di Berlin tentang komputasi terdesentralisasi dan riset DePIN.
-  pl: Wydarzenie event website w Berlinie o zdecentralizowanych obliczeniach i badaniach DePIN.
-  nl: Een event website-evenement in Berlijn over gedecentraliseerde rekenkracht en DePIN-onderzoek.
-  ar: فعالية على event website في برلين حول الحوسبة اللامركزية وأبحاث DePIN.
-  hi: विकेंद्रीकृत कंप्यूटिंग और DePIN शोध पर बर्लिन में एक event website कार्यक्रम।
-  th: งาน event website ในเบอร์ลินเกี่ยวกับการประมวลผลแบบกระจายศูนย์และงานวิจัย DePIN
-  cs: Akce event website v Berlíně o decentralizovaných výpočtech a výzkumu DePIN.
-  sv: Ett event website-evenemang i Berlin om decentraliserad databehandling och DePIN-forskning.
-  he: אירוע event website בברלין על מחשוב מבוזר ומחקר DePIN.
+  context: Event description in the Actionable landing slide event demo
+  en: Short talks and demos about open-source AI tools, with time to meet people afterwards.
+  de: Kurze Talks und Demos zu Open-Source-KI-Tools, danach Zeit zum Kennenlernen.
+  zh: 关于开源 AI 工具的短讲和演示，之后还有时间认识新朋友。
+  es: Charlas breves y demostraciones sobre herramientas de IA de código abierto, con tiempo para conocer gente después.
+  fr: Courts exposés et démos autour d'outils d'IA open source, puis du temps pour faire connaissance.
+  pt: Palestras curtas e demonstrações sobre ferramentas de IA de código aberto, com tempo para conhecer pessoas depois.
+  ru: Короткие доклады и демонстрации инструментов ИИ с открытым исходным кодом, а потом время для знакомств.
+  ja: オープンソースAIツールについての短いトークとデモ。終了後には交流の時間もあります。
+  ko: 오픈소스 AI 도구에 대한 짧은 발표와 시연, 그리고 이후 사람들과 만날 시간이 있어요.
+  it: Brevi talk e demo sugli strumenti di IA open source, con tempo per conoscere altre persone dopo.
+  tr: Açık kaynaklı yapay zekâ araçları üzerine kısa konuşmalar ve demolar; sonrasında insanlarla tanışma zamanı.
+  vi: Các bài nói ngắn và demo về công cụ AI mã nguồn mở, sau đó có thời gian gặp gỡ mọi người.
+  id: Presentasi singkat dan demo tentang alat AI sumber terbuka, lalu ada waktu untuk bertemu orang-orang.
+  pl: Krótkie prelekcje i pokazy narzędzi AI o otwartym kodzie, a potem czas na poznanie innych uczestników.
+  nl: Korte talks en demo's over open-source AI-tools, met daarna tijd om mensen te ontmoeten.
+  ar: عروض تقديمية قصيرة وعروض توضيحية عن أدوات الذكاء الاصطناعي مفتوحة المصدر، مع وقت للتعرف على الآخرين بعد ذلك.
+  hi: ओपन-सोर्स AI टूल्स पर छोटी बातचीतें और डेमो, और उसके बाद लोगों से मिलने का समय।
+  th: การบรรยายสั้น ๆ และการสาธิตเครื่องมือ AI โอเพนซอร์ส พร้อมเวลาพบปะผู้คนหลังจบงาน
+  cs: Krátké přednášky a ukázky open-source AI nástrojů a potom čas na seznámení s dalšími lidmi.
+  sv: Korta föredrag och demos om AI-verktyg med öppen källkod, med tid att träffa folk efteråt.
+  he: הרצאות קצרות והדגמות על כלי בינה מלאכותית בקוד פתוח, ואחר כך זמן להכיר אנשים.
   verified_by_human: []
 landing_actionable_event_open_provider:
-  context: CTA clicked by the animated pointer in the Actionable landing slide
-  en: Open on event website
-  de: Auf event website öffnen
-  zh: 在 event website 中打开
-  es: Abrir en event website
-  fr: Ouvrir sur event website
-  pt: Abrir no event website
-  ru: Открыть в event website
-  ja: event website で開く
-  ko: event website에서 열기
-  it: Apri su event website
-  tr: event website'da aç
-  vi: Mở trên event website
-  id: Buka di event website
-  pl: Otwórz w event website
-  nl: Openen op event website
-  ar: فتح على event website
-  hi: event website पर खोलें
-  th: เปิดบน event website
-  cs: Otevřít na event website
-  sv: Öppna på event website
-  he: פתיחה ב-event website
-  verified_by_human: []
-landing_actionable_event_venue:
-  context: Venue name in the Actionable landing slide event preview
-  en: Magazin in der Heeresbaeckerei
-  de: Magazin in der Heeresbaeckerei
-  zh: Magazin in der Heeresbaeckerei
-  es: Magazin in der Heeresbaeckerei
-  fr: Magazin in der Heeresbaeckerei
-  pt: Magazin in der Heeresbaeckerei
-  ru: Magazin in der Heeresbaeckerei
-  ja: Magazin in der Heeresbaeckerei
-  ko: Magazin in der Heeresbaeckerei
-  it: Magazin in der Heeresbaeckerei
-  tr: Magazin in der Heeresbaeckerei
-  vi: Magazin in der Heeresbaeckerei
-  id: Magazin in der Heeresbaeckerei
-  pl: Magazin in der Heeresbaeckerei
-  nl: Magazin in der Heeresbaeckerei
-  ar: Magazin in der Heeresbaeckerei
-  hi: Magazin in der Heeresbaeckerei
-  th: Magazin in der Heeresbaeckerei
-  cs: Magazin in der Heeresbaeckerei
-  sv: Magazin in der Heeresbaeckerei
-  he: Magazin in der Heeresbaeckerei
-  verified_by_human: []
-landing_actionable_event_address:
-  context: Venue address in the Actionable landing slide event preview
-  en: Koepenicker Strasse 16-17
-  de: Koepenicker Strasse 16-17
-  zh: Koepenicker Strasse 16-17
-  es: Koepenicker Strasse 16-17
-  fr: Koepenicker Strasse 16-17
-  pt: Koepenicker Strasse 16-17
-  ru: Koepenicker Strasse 16-17
-  ja: Koepenicker Strasse 16-17
-  ko: Koepenicker Strasse 16-17
-  it: Koepenicker Strasse 16-17
-  tr: Koepenicker Strasse 16-17
-  vi: Koepenicker Strasse 16-17
-  id: Koepenicker Strasse 16-17
-  pl: Koepenicker Strasse 16-17
-  nl: Koepenicker Strasse 16-17
-  ar: Koepenicker Strasse 16-17
-  hi: Koepenicker Strasse 16-17
-  th: Koepenicker Strasse 16-17
-  cs: Koepenicker Strasse 16-17
-  sv: Koepenicker Strasse 16-17
-  he: Koepenicker Strasse 16-17
+  context: Button clicked by the animated pointer in the Actionable landing slide; opens the event's own web page
+  en: Open event page
+  de: Eventseite öffnen
+  zh: 打开活动页面
+  es: Abrir página del evento
+  fr: Ouvrir la page de l'événement
+  pt: Abrir página do evento
+  ru: Открыть страницу мероприятия
+  ja: イベントページを開く
+  ko: 이벤트 페이지 열기
+  it: Apri la pagina dell'evento
+  tr: Etkinlik sayfasını aç
+  vi: Mở trang sự kiện
+  id: Buka halaman acara
+  pl: Otwórz stronę wydarzenia
+  nl: Open evenementpagina
+  ar: افتح صفحة الفعالية
+  hi: कार्यक्रम का पेज खोलें
+  th: เปิดหน้ากิจกรรม
+  cs: Otevřít stránku akce
+  sv: Öppna eventsidan
+  he: פתח את דף האירוע
   verified_by_human: []
 landing_actionable_event_city:
   context: Venue city in the Actionable landing slide event preview
@@ -453,30 +357,6 @@ landing_actionable_event_country:
   cs: Německo
   sv: Tyskland
   he: גרמניה
-  verified_by_human: []
-landing_actionable_event_organizer:
-  context: Organizer name in the Actionable landing slide event preview
-  en: Fluence
-  de: Fluence
-  zh: Fluence
-  es: Fluence
-  fr: Fluence
-  pt: Fluence
-  ru: Fluence
-  ja: Fluence
-  ko: Fluence
-  it: Fluence
-  tr: Fluence
-  vi: Fluence
-  id: Fluence
-  pl: Fluence
-  nl: Fluence
-  ar: Fluence
-  hi: Fluence
-  th: Fluence
-  cs: Fluence
-  sv: Fluence
-  he: Fluence
   verified_by_human: []
 landing_actionable_event_online:
   context: Online event type label in the Actionable landing slide preview
@@ -550,459 +430,315 @@ landing_actionable_event_rsvps:
   sv: anmälningar
   he: משתתפים
   verified_by_human: []
-landing_actionable_event_tag_language:
-  context: Language tag in the lightweight Actionable landing slide event demo
-  en: German
-  de: Deutsch
-  zh: German
-  es: German
-  fr: German
-  pt: German
-  ru: German
-  ja: German
-  ko: German
-  it: German
-  tr: German
-  vi: German
-  id: German
-  pl: German
-  nl: German
-  ar: German
-  hi: German
-  th: German
-  cs: German
-  sv: German
-  he: German
-  verified_by_human: []
-landing_actionable_event_tag_level:
-  context: Skill level tag in the lightweight Actionable landing slide event demo
-  en: Beginner friendly
-  de: Fuer Anfaenger geeignet
-  zh: Beginner friendly
-  es: Beginner friendly
-  fr: Beginner friendly
-  pt: Beginner friendly
-  ru: Beginner friendly
-  ja: Beginner friendly
-  ko: Beginner friendly
-  it: Beginner friendly
-  tr: Beginner friendly
-  vi: Beginner friendly
-  id: Beginner friendly
-  pl: Beginner friendly
-  nl: Beginner friendly
-  ar: Beginner friendly
-  hi: Beginner friendly
-  th: Beginner friendly
-  cs: Beginner friendly
-  sv: Beginner friendly
-  he: Beginner friendly
-  verified_by_human: []
-landing_actionable_event_chip_day:
-  context: Day chip in the lightweight Actionable landing slide event demo
-  en: Today
-  de: Heute
-  zh: Today
-  es: Today
-  fr: Today
-  pt: Today
-  ru: Today
-  ja: Today
-  ko: Today
-  it: Today
-  tr: Today
-  vi: Today
-  id: Today
-  pl: Today
-  nl: Today
-  ar: Today
-  hi: Today
-  th: Today
-  cs: Today
-  sv: Today
-  he: Today
-  verified_by_human: []
-landing_actionable_event_chip_time:
-  context: Time chip in the lightweight Actionable landing slide event demo
-  en: "19:00"
-  de: "19:00"
-  zh: "19:00"
-  es: "19:00"
-  fr: "19:00"
-  pt: "19:00"
-  ru: "19:00"
-  ja: "19:00"
-  ko: "19:00"
-  it: "19:00"
-  tr: "19:00"
-  vi: "19:00"
-  id: "19:00"
-  pl: "19:00"
-  nl: "19:00"
-  ar: "19:00"
-  hi: "19:00"
-  th: "19:00"
-  cs: "19:00"
-  sv: "19:00"
-  he: "19:00"
-  verified_by_human: []
-landing_actionable_event_chip_place:
-  context: Place chip in the lightweight Actionable landing slide event demo
-  en: Kreuzberg
-  de: Kreuzberg
-  zh: Kreuzberg
-  es: Kreuzberg
-  fr: Kreuzberg
-  pt: Kreuzberg
-  ru: Kreuzberg
-  ja: Kreuzberg
-  ko: Kreuzberg
-  it: Kreuzberg
-  tr: Kreuzberg
-  vi: Kreuzberg
-  id: Kreuzberg
-  pl: Kreuzberg
-  nl: Kreuzberg
-  ar: Kreuzberg
-  hi: Kreuzberg
-  th: Kreuzberg
-  cs: Kreuzberg
-  sv: Kreuzberg
-  he: Kreuzberg
-  verified_by_human: []
 landing_privacy_saved_data:
-  context: Encryption-at-storage explanation in the privacy landing header story
-  en: Only your devices can decrypt all your data.
-  de: Nur deine Geräte können alle deine Daten entschlüsseln.
-  zh: Only your devices can unlock your saved data.
-  es: Only your devices can unlock your saved data.
-  fr: Only your devices can unlock your saved data.
-  pt: Only your devices can unlock your saved data.
-  ru: Only your devices can unlock your saved data.
-  ja: Only your devices can unlock your saved data.
-  ko: Only your devices can unlock your saved data.
-  it: Only your devices can unlock your saved data.
-  tr: Only your devices can unlock your saved data.
-  vi: Only your devices can unlock your saved data.
-  id: Only your devices can unlock your saved data.
-  pl: Only your devices can unlock your saved data.
-  nl: Only your devices can unlock your saved data.
-  ar: Only your devices can unlock your saved data.
-  hi: Only your devices can unlock your saved data.
-  th: Only your devices can unlock your saved data.
-  cs: Only your devices can unlock your saved data.
-  sv: Only your devices can unlock your saved data.
-  he: Only your devices can unlock your saved data.
+  context: Client-side encryption explanation in the privacy landing header story (never claim end-to-end encryption)
+  en: Your chats are encrypted on your device before they are stored.
+  de: Deine Chats werden auf deinem Gerät verschlüsselt, bevor sie gespeichert werden.
+  zh: 你的聊天在存储之前，会先在你的设备上加密。
+  es: Tus chats se cifran en tu dispositivo antes de guardarse.
+  fr: Tes chats sont chiffrés sur ton appareil avant d'être enregistrés.
+  pt: Seus chats são criptografados no seu dispositivo antes de serem armazenados.
+  ru: Твои чаты шифруются на твоём устройстве до того, как будут сохранены.
+  ja: チャットは、保存される前にお使いのデバイス上で暗号化されます。
+  ko: 채팅은 저장되기 전에 내 기기에서 암호화돼요.
+  it: Le tue chat vengono cifrate sul tuo dispositivo prima di essere salvate.
+  tr: Sohbetlerin saklanmadan önce cihazında şifrelenir.
+  vi: Cuộc trò chuyện của bạn được mã hóa trên thiết bị của bạn trước khi được lưu trữ.
+  id: Obrolanmu dienkripsi di perangkatmu sebelum disimpan.
+  pl: Twoje czaty są szyfrowane na twoim urządzeniu, zanim zostaną zapisane.
+  nl: Je chats worden op je apparaat versleuteld voordat ze worden opgeslagen.
+  ar: تُشفَّر محادثاتك على جهازك قبل تخزينها.
+  hi: तुम्हारी चैट सेव होने से पहले तुम्हारे डिवाइस पर एन्क्रिप्ट हो जाती हैं।
+  th: แชทของคุณจะถูกเข้ารหัสบนอุปกรณ์ของคุณก่อนที่จะถูกจัดเก็บ
+  cs: Tvoje chaty se šifrují na tvém zařízení, než se uloží.
+  sv: Dina chattar krypteras på din enhet innan de lagras.
+  he: השיחות שלך מוצפנות במכשיר שלך לפני שהן נשמרות.
   verified_by_human: []
 landing_privacy_pii:
   context: Client-side personal-data placeholder explanation in the privacy landing header story
-  en: Personal details are replaced, before the AI sees them.
+  en: Personal details are replaced before the AI sees them.
   de: Persönliche Angaben werden ersetzt, bevor die KI sie sieht.
-  zh: Personal details are replaced before AI processing.
-  es: Personal details are replaced before AI processing.
-  fr: Personal details are replaced before AI processing.
-  pt: Personal details are replaced before AI processing.
-  ru: Personal details are replaced before AI processing.
-  ja: Personal details are replaced before AI processing.
-  ko: Personal details are replaced before AI processing.
-  it: Personal details are replaced before AI processing.
-  tr: Personal details are replaced before AI processing.
-  vi: Personal details are replaced before AI processing.
-  id: Personal details are replaced before AI processing.
-  pl: Personal details are replaced before AI processing.
-  nl: Personal details are replaced before AI processing.
-  ar: Personal details are replaced before AI processing.
-  hi: Personal details are replaced before AI processing.
-  th: Personal details are replaced before AI processing.
-  cs: Personal details are replaced before AI processing.
-  sv: Personal details are replaced before AI processing.
-  he: Personal details are replaced before AI processing.
+  zh: 个人信息在 AI 看到之前就会被替换。
+  es: Tus datos personales se sustituyen antes de que la IA los vea.
+  fr: Les informations personnelles sont remplacées avant que l'IA ne les voie.
+  pt: Os dados pessoais são substituídos antes que a IA os veja.
+  ru: Личные данные заменяются до того, как их увидит ИИ.
+  ja: 個人情報は、AIが目にする前に置き換えられます。
+  ko: 개인 정보는 AI가 보기 전에 다른 값으로 대체돼요.
+  it: I dati personali vengono sostituiti prima che l'IA li veda.
+  tr: Kişisel bilgiler, yapay zekâ görmeden önce değiştirilir.
+  vi: Thông tin cá nhân được thay thế trước khi AI nhìn thấy.
+  id: Data pribadi diganti sebelum dilihat oleh AI.
+  pl: Dane osobowe są zastępowane, zanim zobaczy je AI.
+  nl: Persoonlijke gegevens worden vervangen voordat de AI ze ziet.
+  ar: تُستبدل التفاصيل الشخصية قبل أن يراها الذكاء الاصطناعي.
+  hi: व्यक्तिगत जानकारी AI के देखने से पहले बदल दी जाती है।
+  th: ข้อมูลส่วนตัวจะถูกแทนที่ก่อนที่ AI จะมองเห็น
+  cs: Osobní údaje se nahradí dřív, než je AI uvidí.
+  sv: Personuppgifter ersätts innan AI:n ser dem.
+  he: פרטים אישיים מוחלפים לפני שה-AI רואה אותם.
   verified_by_human: []
 landing_privacy_email_request:
   context: User-message prefix before the email value in the privacy landing header story
   en: Prepare an email to
   de: Bereite eine E-Mail vor an
-  zh: Prepare an email to
-  es: Prepare an email to
-  fr: Prepare an email to
-  pt: Prepare an email to
-  ru: Prepare an email to
-  ja: Prepare an email to
-  ko: Prepare an email to
-  it: Prepare an email to
-  tr: Prepare an email to
-  vi: Prepare an email to
-  id: Prepare an email to
-  pl: Prepare an email to
-  nl: Prepare an email to
-  ar: Prepare an email to
-  hi: Prepare an email to
-  th: Prepare an email to
-  cs: Prepare an email to
-  sv: Prepare an email to
-  he: Prepare an email to
+  zh: 写一封邮件给
+  es: Prepara un correo para
+  fr: Prépare un e-mail pour
+  pt: Prepare um e-mail para
+  ru: Подготовь письмо для
+  ja: メールを準備して、宛先は
+  ko: 이메일을 준비해줘, 수신자는
+  it: Prepara un'email per
+  tr: E-posta hazırla, alıcı
+  vi: Soạn một email gửi đến
+  id: Siapkan email untuk
+  pl: Przygotuj e-mail do
+  nl: Bereid een e-mail voor aan
+  ar: جهّز رسالة بريد إلكتروني إلى
+  hi: ईमेल तैयार करो, प्राप्तकर्ता
+  th: เตรียมอีเมลถึง
+  cs: Připrav e-mail pro
+  sv: Förbered ett mejl till
+  he: הכן אימייל אל
   verified_by_human: []
 landing_privacy_email_response:
   context: Burton assistant-message prefix before the protected email value in the privacy landing header story
   en: Ok, preparing an email to
   de: Ok, ich bereite eine E-Mail vor an
-  zh: Ok, preparing an email to
-  es: Ok, preparing an email to
-  fr: Ok, preparing an email to
-  pt: Ok, preparing an email to
-  ru: Ok, preparing an email to
-  ja: Ok, preparing an email to
-  ko: Ok, preparing an email to
-  it: Ok, preparing an email to
-  tr: Ok, preparing an email to
-  vi: Ok, preparing an email to
-  id: Ok, preparing an email to
-  pl: Ok, preparing an email to
-  nl: Ok, preparing an email to
-  ar: Ok, preparing an email to
-  hi: Ok, preparing an email to
-  th: Ok, preparing an email to
-  cs: Ok, preparing an email to
-  sv: Ok, preparing an email to
-  he: Ok, preparing an email to
-  verified_by_human: []
-landing_privacy_memory:
-  context: Memory consent title in the privacy landing header story
-  en: Choose which memories can personalize this response.
-  de: Wähle, welche Erinnerungen diese Antwort personalisieren dürfen.
-  zh: Choose which memories can personalize this response.
-  es: Choose which memories can personalize this response.
-  fr: Choose which memories can personalize this response.
-  pt: Choose which memories can personalize this response.
-  ru: Choose which memories can personalize this response.
-  ja: Choose which memories can personalize this response.
-  ko: Choose which memories can personalize this response.
-  it: Choose which memories can personalize this response.
-  tr: Choose which memories can personalize this response.
-  vi: Choose which memories can personalize this response.
-  id: Choose which memories can personalize this response.
-  pl: Choose which memories can personalize this response.
-  nl: Choose which memories can personalize this response.
-  ar: Choose which memories can personalize this response.
-  hi: Choose which memories can personalize this response.
-  th: Choose which memories can personalize this response.
-  cs: Choose which memories can personalize this response.
-  sv: Choose which memories can personalize this response.
-  he: Choose which memories can personalize this response.
+  zh: 好的，正在写一封邮件给
+  es: Vale, preparo un correo para
+  fr: D'accord, je prépare un e-mail pour
+  pt: Ok, estou preparando um e-mail para
+  ru: Хорошо, готовлю письмо для
+  ja: 了解です。メールを準備します、宛先は
+  ko: 알겠어요, 이메일을 준비할게요, 수신자는
+  it: Ok, preparo un'email per
+  tr: Tamam, e-posta hazırlıyorum, alıcı
+  vi: Ok, đang soạn email gửi đến
+  id: Oke, menyiapkan email untuk
+  pl: Ok, przygotowuję e-mail do
+  nl: Ok, ik bereid een e-mail voor aan
+  ar: حسنًا، أجهّز رسالة بريد إلكتروني إلى
+  hi: ठीक है, ईमेल तैयार कर रहा हूँ, प्राप्तकर्ता
+  th: โอเค กำลังเตรียมอีเมลถึง
+  cs: Ok, připravuji e-mail pro
+  sv: Ok, jag förbereder ett mejl till
+  he: אוקיי, מכין אימייל אל
   verified_by_human: []
 landing_privacy_trip_request:
   context: Synthetic travel request in the privacy landing header story
-  en: Recommended places for my next trip?
-  de: Empfohlene Orte für meine nächste Reise?
-  zh: Recommend places for my next trip.
-  es: Recommend places for my next trip.
-  fr: Recommend places for my next trip.
-  pt: Recommend places for my next trip.
-  ru: Recommend places for my next trip.
-  ja: Recommend places for my next trip.
-  ko: Recommend places for my next trip.
-  it: Recommend places for my next trip.
-  tr: Recommend places for my next trip.
-  vi: Recommend places for my next trip.
-  id: Recommend places for my next trip.
-  pl: Recommend places for my next trip.
-  nl: Recommend places for my next trip.
-  ar: Recommend places for my next trip.
-  hi: Recommend places for my next trip.
-  th: Recommend places for my next trip.
-  cs: Recommend places for my next trip.
-  sv: Recommend places for my next trip.
-  he: Recommend places for my next trip.
+  en: Recommend places for my next trip.
+  de: Empfiehl mir Orte für meine nächste Reise.
+  zh: 请为我的下一次旅行推荐一些地点。
+  es: Recomiéndame lugares para mi próximo viaje.
+  fr: Recommande-moi des lieux pour mon prochain voyage.
+  pt: Recomende lugares para minha próxima viagem.
+  ru: Посоветуй места для моей следующей поездки.
+  ja: 次の旅行におすすめの場所を教えて。
+  ko: 다음 여행에 갈 만한 장소를 추천해줘.
+  it: Consigliami dei posti per il mio prossimo viaggio.
+  tr: Bir sonraki seyahatim için yerler öner.
+  vi: Gợi ý địa điểm cho chuyến đi tiếp theo của tôi.
+  id: Rekomendasikan tempat untuk perjalanan berikutnya.
+  pl: Poleć mi miejsca na moją następną podróż.
+  nl: Beveel plekken aan voor mijn volgende reis.
+  ar: اقترح لي أماكن لرحلتي القادمة.
+  hi: मेरी अगली यात्रा के लिए जगहें सुझाओ।
+  th: แนะนำสถานที่สำหรับทริปครั้งต่อไปของฉัน
+  cs: Doporuč mi místa na moji příští cestu.
+  sv: Rekommendera platser för min nästa resa.
+  he: המלץ לי על מקומות לטיול הבא שלי.
   verified_by_human: []
 landing_privacy_memory_result:
   context: Memory consent result in the privacy landing header story
   en: Personalized responses. But only when you want them.
   de: Personalisierte Antworten. Aber nur, wenn du sie möchtest.
-  zh: Personalized responses, but only when you want them.
-  es: Personalized responses, but only when you want them.
-  fr: Personalized responses, but only when you want them.
-  pt: Personalized responses, but only when you want them.
-  ru: Personalized responses, but only when you want them.
-  ja: Personalized responses, but only when you want them.
-  ko: Personalized responses, but only when you want them.
-  it: Personalized responses, but only when you want them.
-  tr: Personalized responses, but only when you want them.
-  vi: Personalized responses, but only when you want them.
-  id: Personalized responses, but only when you want them.
-  pl: Personalized responses, but only when you want them.
-  nl: Personalized responses, but only when you want them.
-  ar: Personalized responses, but only when you want them.
-  hi: Personalized responses, but only when you want them.
-  th: Personalized responses, but only when you want them.
-  cs: Personalized responses, but only when you want them.
-  sv: Personalized responses, but only when you want them.
-  he: Personalized responses, but only when you want them.
+  zh: 个性化的回复，但只在你想要的时候。
+  es: Respuestas personalizadas, pero solo cuando tú quieras.
+  fr: Des réponses personnalisées, mais seulement quand tu le veux.
+  pt: Respostas personalizadas, mas só quando você quiser.
+  ru: Персонализированные ответы, но только когда ты этого хочешь.
+  ja: パーソナライズされた回答。ただし、あなたが望むときだけ。
+  ko: 맞춤형 답변, 하지만 원할 때만요.
+  it: Risposte personalizzate, ma solo quando lo vuoi.
+  tr: Kişiselleştirilmiş yanıtlar, ama yalnızca sen istediğinde.
+  vi: Câu trả lời được cá nhân hóa, nhưng chỉ khi bạn muốn.
+  id: Jawaban yang dipersonalisasi, tapi hanya saat kamu mau.
+  pl: Spersonalizowane odpowiedzi, ale tylko wtedy, gdy tego chcesz.
+  nl: Gepersonaliseerde antwoorden, maar alleen als je dat wilt.
+  ar: إجابات مخصصة، ولكن فقط عندما تريد ذلك.
+  hi: व्यक्तिगत जवाब, लेकिन सिर्फ़ तब जब तुम चाहो।
+  th: คำตอบที่ปรับให้เหมาะกับคุณ แต่เฉพาะเมื่อคุณต้องการ
+  cs: Personalizované odpovědi, ale jen když chceš.
+  sv: Personliga svar, men bara när du vill.
+  he: תשובות מותאמות אישית, אבל רק כשאתה רוצה.
   verified_by_human: []
 landing_privacy_originals:
   context: PII reveal explanation in the privacy landing header story
   en: Only you can view the originals.
   de: Nur du kannst die Originale sehen.
-  zh: Only you can view the originals.
-  es: Only you can view the originals.
-  fr: Only you can view the originals.
-  pt: Only you can view the originals.
-  ru: Only you can view the originals.
-  ja: Only you can view the originals.
-  ko: Only you can view the originals.
-  it: Only you can view the originals.
-  tr: Only you can view the originals.
-  vi: Only you can view the originals.
-  id: Only you can view the originals.
-  pl: Only you can view the originals.
-  nl: Only you can view the originals.
-  ar: Only you can view the originals.
-  hi: Only you can view the originals.
-  th: Only you can view the originals.
-  cs: Only you can view the originals.
-  sv: Only you can view the originals.
-  he: Only you can view the originals.
+  zh: 只有你能查看原始内容。
+  es: Solo tú puedes ver los originales.
+  fr: Toi seul peux voir les originaux.
+  pt: Só você pode ver os originais.
+  ru: Только ты можешь увидеть оригиналы.
+  ja: 元のデータを見られるのはあなただけです。
+  ko: 원본은 나만 볼 수 있어요.
+  it: Solo tu puoi vedere gli originali.
+  tr: Orijinalleri yalnızca sen görebilirsin.
+  vi: Chỉ bạn mới xem được bản gốc.
+  id: Hanya kamu yang bisa melihat aslinya.
+  pl: Tylko ty możesz zobaczyć oryginały.
+  nl: Alleen jij kunt de originelen bekijken.
+  ar: أنت وحدك من يمكنه عرض النسخ الأصلية.
+  hi: सिर्फ़ तुम ही मूल जानकारी देख सकते हो।
+  th: มีเพียงคุณเท่านั้นที่ดูต้นฉบับได้
+  cs: Originály vidíš jen ty.
+  sv: Bara du kan se originalen.
+  he: רק אתה יכול לראות את המקור.
   verified_by_human: []
 landing_privacy_previous_trips:
   context: Selected travel memory label in the privacy landing header story
   en: Previous trips
   de: Frühere Reisen
-  zh: Previous trips
-  es: Previous trips
-  fr: Previous trips
-  pt: Previous trips
-  ru: Previous trips
-  ja: Previous trips
-  ko: Previous trips
-  it: Previous trips
-  tr: Previous trips
-  vi: Previous trips
-  id: Previous trips
-  pl: Previous trips
-  nl: Previous trips
-  ar: Previous trips
-  hi: Previous trips
-  th: Previous trips
-  cs: Previous trips
-  sv: Previous trips
-  he: Previous trips
+  zh: 以前的旅行
+  es: Viajes anteriores
+  fr: Voyages précédents
+  pt: Viagens anteriores
+  ru: Прошлые поездки
+  ja: 過去の旅行
+  ko: 이전 여행
+  it: Viaggi precedenti
+  tr: Önceki seyahatler
+  vi: Các chuyến đi trước
+  id: Perjalanan sebelumnya
+  pl: Poprzednie podróże
+  nl: Eerdere reizen
+  ar: الرحلات السابقة
+  hi: पिछली यात्राएँ
+  th: ทริปก่อนหน้า
+  cs: Předchozí cesty
+  sv: Tidigare resor
+  he: טיולים קודמים
   verified_by_human: []
 landing_privacy_favorite_places:
   context: Selected place preference memory label in the privacy landing header story
   en: Favorite places
   de: Lieblingsorte
-  zh: Favorite places
-  es: Favorite places
-  fr: Favorite places
-  pt: Favorite places
-  ru: Favorite places
-  ja: Favorite places
-  ko: Favorite places
-  it: Favorite places
-  tr: Favorite places
-  vi: Favorite places
-  id: Favorite places
-  pl: Favorite places
-  nl: Favorite places
-  ar: Favorite places
-  hi: Favorite places
-  th: Favorite places
-  cs: Favorite places
-  sv: Favorite places
-  he: Favorite places
+  zh: 喜爱的地点
+  es: Lugares favoritos
+  fr: Lieux préférés
+  pt: Lugares favoritos
+  ru: Любимые места
+  ja: お気に入りの場所
+  ko: 즐겨 찾는 장소
+  it: Luoghi preferiti
+  tr: Favori yerler
+  vi: Địa điểm yêu thích
+  id: Tempat favorit
+  pl: Ulubione miejsca
+  nl: Favoriete plekken
+  ar: الأماكن المفضلة
+  hi: पसंदीदा जगहें
+  th: สถานที่โปรด
+  cs: Oblíbená místa
+  sv: Favoritplatser
+  he: מקומות מועדפים
   verified_by_human: []
 landing_mates_experts:
   context: Mate list explanation in the AI accessibility landing header story
   en: Your AI experts, specialized for different topics.
   de: Deine KI-Experten, spezialisiert auf verschiedene Themen.
-  zh: Your AI experts, specialized for different topics.
-  es: Your AI experts, specialized for different topics.
-  fr: Your AI experts, specialized for different topics.
-  pt: Your AI experts, specialized for different topics.
-  ru: Your AI experts, specialized for different topics.
-  ja: Your AI experts, specialized for different topics.
-  ko: Your AI experts, specialized for different topics.
-  it: Your AI experts, specialized for different topics.
-  tr: Your AI experts, specialized for different topics.
-  vi: Your AI experts, specialized for different topics.
-  id: Your AI experts, specialized for different topics.
-  pl: Your AI experts, specialized for different topics.
-  nl: Your AI experts, specialized for different topics.
-  ar: Your AI experts, specialized for different topics.
-  hi: Your AI experts, specialized for different topics.
-  th: Your AI experts, specialized for different topics.
-  cs: Your AI experts, specialized for different topics.
-  sv: Your AI experts, specialized for different topics.
-  he: Your AI experts, specialized for different topics.
+  zh: 你的 AI 专家，各自专注于不同的主题。
+  es: Tus expertos de IA, especializados en distintos temas.
+  fr: Tes experts IA, spécialisés dans différents sujets.
+  pt: Seus especialistas em IA, cada um focado em um tema diferente.
+  ru: Твои ИИ-эксперты, специализирующиеся на разных темах.
+  ja: あなたのAIエキスパートは、それぞれ異なる分野に特化しています。
+  ko: 주제별로 전문화된 나만의 AI 전문가들이에요.
+  it: I tuoi esperti di IA, specializzati in argomenti diversi.
+  tr: Farklı konularda uzmanlaşmış yapay zekâ uzmanların.
+  vi: Các chuyên gia AI của bạn, mỗi người chuyên về một chủ đề khác nhau.
+  id: Para pakar AI-mu, yang masing-masing mengkhususkan diri pada topik berbeda.
+  pl: Twoi eksperci AI, wyspecjalizowani w różnych tematach.
+  nl: Jouw AI-experts, gespecialiseerd in verschillende onderwerpen.
+  ar: خبراؤك من الذكاء الاصطناعي، متخصصون في موضوعات مختلفة.
+  hi: तुम्हारे AI विशेषज्ञ, अलग-अलग विषयों में माहिर।
+  th: ผู้เชี่ยวชาญ AI ของคุณ ที่เชี่ยวชาญในหัวข้อต่างกัน
+  cs: Tvoji AI experti, specializovaní na různá témata.
+  sv: Dina AI-experter, specialiserade på olika ämnen.
+  he: מומחי ה-AI שלך, מתמחים בנושאים שונים.
   verified_by_human: []
 landing_mates_focus_modes:
   context: Focus-mode list explanation in the AI accessibility landing header story
   en: Optimized instructions, selected when they are needed.
-  de: Optimierte Anweisungen, ausgewählt wenn sie gebraucht werden.
-  zh: Optimized instructions, selected when they are needed.
-  es: Optimized instructions, selected when they are needed.
-  fr: Optimized instructions, selected when they are needed.
-  pt: Optimized instructions, selected when they are needed.
-  ru: Optimized instructions, selected when they are needed.
-  ja: Optimized instructions, selected when they are needed.
-  ko: Optimized instructions, selected when they are needed.
-  it: Optimized instructions, selected when they are needed.
-  tr: Optimized instructions, selected when they are needed.
-  vi: Optimized instructions, selected when they are needed.
-  id: Optimized instructions, selected when they are needed.
-  pl: Optimized instructions, selected when they are needed.
-  nl: Optimized instructions, selected when they are needed.
-  ar: Optimized instructions, selected when they are needed.
-  hi: Optimized instructions, selected when they are needed.
-  th: Optimized instructions, selected when they are needed.
-  cs: Optimized instructions, selected when they are needed.
-  sv: Optimized instructions, selected when they are needed.
-  he: Optimized instructions, selected when they are needed.
+  de: Optimierte Anweisungen, ausgewählt, wenn sie gebraucht werden.
+  zh: 经过优化的指令，在需要时自动选用。
+  es: Instrucciones optimizadas, seleccionadas cuando se necesitan.
+  fr: Des instructions optimisées, choisies au moment où elles sont utiles.
+  pt: Instruções otimizadas, selecionadas quando necessárias.
+  ru: Оптимизированные инструкции, которые подбираются тогда, когда они нужны.
+  ja: 最適化された指示が、必要なときに選ばれます。
+  ko: 최적화된 지침이 필요할 때 선택돼요.
+  it: Istruzioni ottimizzate, scelte quando servono.
+  tr: Optimize edilmiş talimatlar, gerektiğinde seçilir.
+  vi: Các hướng dẫn được tối ưu hóa, được chọn khi cần.
+  id: Instruksi yang dioptimalkan, dipilih saat dibutuhkan.
+  pl: Zoptymalizowane instrukcje, wybierane wtedy, gdy są potrzebne.
+  nl: Geoptimaliseerde instructies, gekozen wanneer ze nodig zijn.
+  ar: تعليمات محسّنة، تُختار عند الحاجة إليها.
+  hi: अनुकूलित निर्देश, जो ज़रूरत पड़ने पर चुने जाते हैं।
+  th: คำสั่งที่ปรับให้เหมาะสม เลือกใช้เมื่อจำเป็น
+  cs: Optimalizované instrukce, vybrané ve chvíli, kdy jsou potřeba.
+  sv: Optimerade instruktioner, valda när de behövs.
+  he: הנחיות מותאמות, שנבחרות כשצריך אותן.
   verified_by_human: []
 landing_people_models:
   context: Provider choice explanation in the people-first landing header story
-  en: All the best AI models, in one place.
-  de: Alle besten KI-Modelle an einem Ort.
-  zh: All the best AI models, in one place.
-  es: All the best AI models, in one place.
-  fr: All the best AI models, in one place.
-  pt: All the best AI models, in one place.
-  ru: All the best AI models, in one place.
-  ja: All the best AI models, in one place.
-  ko: All the best AI models, in one place.
-  it: All the best AI models, in one place.
-  tr: All the best AI models, in one place.
-  vi: All the best AI models, in one place.
-  id: All the best AI models, in one place.
-  pl: All the best AI models, in one place.
-  nl: All the best AI models, in one place.
-  ar: All the best AI models, in one place.
-  hi: All the best AI models, in one place.
-  th: All the best AI models, in one place.
-  cs: All the best AI models, in one place.
-  sv: All the best AI models, in one place.
-  he: All the best AI models, in one place.
+  en: Leading AI models, in one place.
+  de: Führende KI-Modelle an einem Ort.
+  zh: 领先的 AI 模型，汇聚一处。
+  es: Los principales modelos de IA, en un solo lugar.
+  fr: Les meilleurs modèles d'IA, au même endroit.
+  pt: Os principais modelos de IA, em um só lugar.
+  ru: Ведущие модели ИИ в одном месте.
+  ja: 主要なAIモデルを、ひとつの場所で。
+  ko: 대표적인 AI 모델을 한곳에서.
+  it: I principali modelli di IA, in un unico posto.
+  tr: Önde gelen yapay zekâ modelleri, tek bir yerde.
+  vi: Các mô hình AI hàng đầu, tại một nơi.
+  id: Model AI terkemuka, di satu tempat.
+  pl: Wiodące modele AI w jednym miejscu.
+  nl: Toonaangevende AI-modellen, op één plek.
+  ar: نماذج الذكاء الاصطناعي الرائدة في مكان واحد.
+  hi: अग्रणी AI मॉडल, एक ही जगह।
+  th: โมเดล AI ชั้นนำ ในที่เดียว
+  cs: Přední modely AI na jednom místě.
+  sv: Ledande AI-modeller på ett ställe.
+  he: מודלי AI מובילים, במקום אחד.
   verified_by_human: []
 landing_people_access:
   context: Cross-platform access explanation in the people-first landing header story
   en: Access your OpenMates chats the way you prefer.
   de: Greife so auf deine OpenMates-Chats zu, wie du möchtest.
-  zh: Access your OpenMates chats the way you prefer.
-  es: Access your OpenMates chats the way you prefer.
-  fr: Access your OpenMates chats the way you prefer.
-  pt: Access your OpenMates chats the way you prefer.
-  ru: Access your OpenMates chats the way you prefer.
-  ja: Access your OpenMates chats the way you prefer.
-  ko: Access your OpenMates chats the way you prefer.
-  it: Access your OpenMates chats the way you prefer.
-  tr: Access your OpenMates chats the way you prefer.
-  vi: Access your OpenMates chats the way you prefer.
-  id: Access your OpenMates chats the way you prefer.
-  pl: Access your OpenMates chats the way you prefer.
-  nl: Access your OpenMates chats the way you prefer.
-  ar: Access your OpenMates chats the way you prefer.
-  hi: Access your OpenMates chats the way you prefer.
-  th: Access your OpenMates chats the way you prefer.
-  cs: Access your OpenMates chats the way you prefer.
-  sv: Access your OpenMates chats the way you prefer.
-  he: Access your OpenMates chats the way you prefer.
+  zh: 用你喜欢的方式访问你的 OpenMates 聊天。
+  es: Accede a tus chats de OpenMates como prefieras.
+  fr: Accède à tes chats OpenMates comme tu préfères.
+  pt: Acesse seus chats do OpenMates do jeito que preferir.
+  ru: Открывай свои чаты OpenMates так, как тебе удобно.
+  ja: OpenMatesのチャットには、お好みの方法でアクセスできます。
+  ko: 원하는 방식으로 OpenMates 채팅에 접근해요.
+  it: Accedi alle tue chat di OpenMates come preferisci.
+  tr: OpenMates sohbetlerine istediğin şekilde eriş.
+  vi: Truy cập các cuộc trò chuyện OpenMates theo cách bạn thích.
+  id: Akses obrolan OpenMates-mu dengan cara yang kamu suka.
+  pl: Korzystaj z czatów OpenMates tak, jak ci wygodnie.
+  nl: Open je OpenMates-chats op de manier die je het prettigst vindt.
+  ar: افتح محادثاتك على OpenMates بالطريقة التي تفضّلها.
+  hi: अपनी OpenMates चैट को अपनी पसंद के तरीके से एक्सेस करो।
+  th: เข้าถึงแชท OpenMates ของคุณในแบบที่คุณชอบ
+  cs: Přistupuj ke svým chatům v OpenMates tak, jak ti vyhovuje.
+  sv: Kom åt dina OpenMates-chattar på det sätt du föredrar.
+  he: גש לשיחות ה-OpenMates שלך בדרך שנוח לך.
   verified_by_human: []

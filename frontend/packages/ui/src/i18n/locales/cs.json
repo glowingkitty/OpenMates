@@ -11200,22 +11200,22 @@
   },
   "guest_onboarding": {
     "landing_intro_headline_line1": {
-      "text": "Simply ask"
+      "text": "Tvůj AI tým"
     },
     "landing_intro_headline_line2": {
-      "text": "your AI team mates"
+      "text": "pro vyřízení všeho, co čeká"
     },
-    "landing_intro_request_doctor": {
-      "text": "Find doctor appointments"
+    "landing_intro_request_document": {
+      "text": "Napiš dokument"
     },
     "landing_intro_request_events": {
-      "text": "Find events"
+      "text": "Najdi akce"
     },
     "landing_intro_request_web_app": {
-      "text": "Build a web app"
+      "text": "Vytvoř webovou aplikaci"
     },
     "landing_intro_request_news": {
-      "text": "Explain the news"
+      "text": "Vysvětli zprávy"
     },
     "landing_actionable_line1": {
       "text": "Praktické."
@@ -11229,35 +11229,20 @@
     "landing_actionable_event_assistant_message": {
       "text": "Samozřejmě, tady je:"
     },
-    "landing_actionable_event_source": {
-      "text": "Event preview"
-    },
     "landing_actionable_event_title": {
-      "text": "DEPIN DAY BERLIN"
-    },
-    "landing_actionable_event_meta": {
-      "text": "Today at 19:00 near Kreuzberg"
+      "text": "Open Source AI Night"
     },
     "landing_actionable_event_detail": {
-      "text": "Akce event website v Berlíně o decentralizovaných výpočtech a výzkumu DePIN."
+      "text": "Krátké přednášky a ukázky open-source AI nástrojů a potom čas na seznámení s dalšími lidmi."
     },
     "landing_actionable_event_open_provider": {
-      "text": "Otevřít na event website"
-    },
-    "landing_actionable_event_venue": {
-      "text": "Magazin in der Heeresbaeckerei"
-    },
-    "landing_actionable_event_address": {
-      "text": "Koepenicker Strasse 16-17"
+      "text": "Otevřít stránku akce"
     },
     "landing_actionable_event_city": {
       "text": "Berlín"
     },
     "landing_actionable_event_country": {
       "text": "Německo"
-    },
-    "landing_actionable_event_organizer": {
-      "text": "Fluence"
     },
     "landing_actionable_event_online": {
       "text": "Online"
@@ -11268,62 +11253,44 @@
     "landing_actionable_event_rsvps": {
       "text": "účastníků"
     },
-    "landing_actionable_event_tag_language": {
-      "text": "German"
-    },
-    "landing_actionable_event_tag_level": {
-      "text": "Beginner friendly"
-    },
-    "landing_actionable_event_chip_day": {
-      "text": "Today"
-    },
-    "landing_actionable_event_chip_time": {
-      "text": "19:00"
-    },
-    "landing_actionable_event_chip_place": {
-      "text": "Kreuzberg"
-    },
     "landing_privacy_saved_data": {
-      "text": "Only your devices can unlock your saved data."
+      "text": "Tvoje chaty se šifrují na tvém zařízení, než se uloží."
     },
     "landing_privacy_pii": {
-      "text": "Personal details are replaced before AI processing."
+      "text": "Osobní údaje se nahradí dřív, než je AI uvidí."
     },
     "landing_privacy_email_request": {
-      "text": "Prepare an email to"
+      "text": "Připrav e-mail pro"
     },
     "landing_privacy_email_response": {
-      "text": "Ok, preparing an email to"
-    },
-    "landing_privacy_memory": {
-      "text": "Choose which memories can personalize this response."
+      "text": "Ok, připravuji e-mail pro"
     },
     "landing_privacy_trip_request": {
-      "text": "Recommend places for my next trip."
+      "text": "Doporuč mi místa na moji příští cestu."
     },
     "landing_privacy_memory_result": {
-      "text": "Personalized responses, but only when you want them."
+      "text": "Personalizované odpovědi, ale jen když chceš."
     },
     "landing_privacy_originals": {
-      "text": "Only you can view the originals."
+      "text": "Originály vidíš jen ty."
     },
     "landing_privacy_previous_trips": {
-      "text": "Previous trips"
+      "text": "Předchozí cesty"
     },
     "landing_privacy_favorite_places": {
-      "text": "Favorite places"
+      "text": "Oblíbená místa"
     },
     "landing_mates_experts": {
-      "text": "Your AI experts, specialized for different topics."
+      "text": "Tvoji AI experti, specializovaní na různá témata."
     },
     "landing_mates_focus_modes": {
-      "text": "Optimized instructions, selected when they are needed."
+      "text": "Optimalizované instrukce, vybrané ve chvíli, kdy jsou potřeba."
     },
     "landing_people_models": {
-      "text": "All the best AI models, in one place."
+      "text": "Přední modely AI na jednom místě."
     },
     "landing_people_access": {
-      "text": "Access your OpenMates chats the way you prefer."
+      "text": "Přistupuj ke svým chatům v OpenMates tak, jak ti vyhovuje."
     }
   },
   "header": {
