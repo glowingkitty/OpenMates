@@ -80,6 +80,17 @@ macro_rules! protocol_at {
 }
 pub(in crate::client) use protocol_at;
 
+/// `Error::Offline` that also notes its source location (file:line, a static
+/// label) for the opt-in send diagnostic, so a turn that ends
+/// `turn_recovery_required` names which socket, request or deadline gave up.
+macro_rules! offline_at {
+    () => {{
+        $crate::client::send::refusal_trace::note(concat!(file!(), ":", line!()));
+        $crate::Error::Offline
+    }};
+}
+pub(in crate::client) use offline_at;
+
 /// Remember the source location of a JSON decode failure or missing field
 /// into `Error::Protocol` (file:line only, never the input).
 pub(crate) fn note_caller(location: &'static std::panic::Location<'static>) {

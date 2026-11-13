@@ -199,7 +199,7 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
             let event = if let Some(event) = deferred.pop_front() {
                 event
             } else {
-                let received=tokio::select! {biased;_=cancel.cancelled()=>return Err(Error::Cancelled),r=crate::platform::time::timeout_at(turn_deadline.at(),receive(ws))=>r.map_err(|_|Error::Offline)??};
+                let received=tokio::select! {biased;_=cancel.cancelled()=>return Err(Error::Cancelled),r=crate::platform::time::timeout_at(turn_deadline.at(),receive(ws))=>r.map_err(|_|crate::client::send::refusal_trace::offline_at!())??};
                 turn_deadline.on_frame(crate::platform::time::Instant::now());
                 received
             };

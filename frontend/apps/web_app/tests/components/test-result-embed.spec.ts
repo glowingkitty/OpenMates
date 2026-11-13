@@ -15,7 +15,7 @@ async function open(page: Page, path: string, variant?: string, width = '900') {
 
 test.describe('test result preview card', () => {
 	// contract-test: supporting surface=gui.web assertions=code-run.tests.recorded-evidence
-	test('browser run shows the preview frame image with status and counts', async ({ page }) => {
+	test('browser run shows the preview frame image with status and counts', async ({ page }, testInfo) => {
 		await open(page, PREVIEW);
 		const frame = page.getByTestId('test-result-preview-frame');
 		await expect(frame).toBeVisible({ timeout: 30_000 });
@@ -25,6 +25,12 @@ test.describe('test result preview card', () => {
 		await expect(page.getByTestId('test-result-preview-status')).toHaveAttribute('data-status', 'passed');
 		await expect(page.getByTestId('test-result-preview-counts')).toContainText('4');
 		await expect(page.getByTestId('test-result-preview-stale')).toHaveCount(0);
+		// The title names the test; the execution target ("e2b") is never the title.
+		await expect(page.getByTestId('test-result-preview-title')).toHaveText('Signing in opens the dashboard');
+		await testInfo.attach('test-result-preview-card', {
+			body: await page.getByTestId('test-result-preview').screenshot(),
+			contentType: 'image/png'
+		});
 	});
 
 	// contract-test: supporting surface=gui.web assertions=code-run.tests.recorded-evidence

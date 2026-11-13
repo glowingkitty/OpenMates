@@ -117,6 +117,16 @@ export function parseTestResult(content: Record<string, unknown> | undefined | n
   };
 }
 
+/**
+ * Card title: the name of the test that ran. `target` is where the run executed
+ * (`e2b` or `remote_source`, see TestTarget in code_test_run.py), never what was
+ * tested, so it is not a title. Several tests or none: the generic fallback.
+ */
+export function testResultTitle(view: TestResultView, fallback: string): string {
+  const names = view.tests.map((t) => t.name).filter((name) => name.length > 0);
+  return names.length === 1 ? names[0] : fallback;
+}
+
 export function formatDuration(ms: number | undefined): string {
   if (ms === undefined) return '';
   if (ms < 1000) return `${Math.round(ms)} ms`;

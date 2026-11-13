@@ -1131,7 +1131,8 @@
         "components/slides-editor.spec.ts",
         "components/code-editor.spec.ts",
         "components/docs-editor.spec.ts",
-        "components/test-result-embed.spec.ts"
+        "components/test-result-embed.spec.ts",
+        "components/application-embed-preview.spec.ts"
       ]
     },
     "chat_message_timeline": {

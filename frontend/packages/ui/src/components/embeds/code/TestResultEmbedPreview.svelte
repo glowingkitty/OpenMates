@@ -15,6 +15,7 @@
     formatDuration,
     parseTestResult,
     resolveArtifactEvidenceUrl,
+    testResultTitle,
     type EvidenceUrlResolver,
   } from './testResultContent';
 
@@ -80,7 +81,7 @@
   });
 
   let statusLabel = $derived($text(`embeds.code.test_result.status_${view.runStatus}`));
-  let title = $derived(view.target || $text('embeds.code.test_result.title'));
+  let title = $derived(testResultTitle(view, $text('embeds.code.test_result.title')));
   let showFrame = $derived(Boolean(frameUrl) && !frameFailed);
 </script>
 

@@ -38,20 +38,22 @@ const base = {
 };
 
 export const browserPassed = {
-  ...base, kind: 'browser', target: 'e2e/login.spec.ts', run_status: 'passed', duration_ms: 8000,
-  passed: 4, failed: 0, preview_step_index: 2, steps: browserSteps(false), evidence: browserEvidence, tests: [],
+  ...base, kind: 'browser', target: 'e2b', run_status: 'passed', duration_ms: 8000,
+  passed: 4, failed: 0, preview_step_index: 2, steps: browserSteps(false), evidence: browserEvidence,
+  tests: [{ name: 'Signing in opens the dashboard', status: 'passed', duration_ms: 8000 }],
 };
 
 export const browserFailed = {
-  ...base, kind: 'browser', target: 'e2e/login.spec.ts', run_status: 'failed', exit_code: 1, duration_ms: 8000,
-  passed: 3, failed: 1, preview_step_index: 3, steps: browserSteps(true), evidence: browserEvidence, tests: [],
+  ...base, kind: 'browser', target: 'e2b', run_status: 'failed', exit_code: 1, duration_ms: 8000,
+  passed: 3, failed: 1, preview_step_index: 3, steps: browserSteps(true), evidence: browserEvidence,
+  tests: [{ name: 'Signing in opens the dashboard', status: 'failed', duration_ms: 8000 }],
   error: '1 step failed',
 };
 
 export const browserNoFrame = { ...browserPassed, evidence: [] };
 
 export const cliResult = {
-  ...base, kind: 'cli', target: 'cargo test -p openmates-sdk', run_status: 'failed', exit_code: 101, duration_ms: 4200,
+  ...base, kind: 'cli', target: 'e2b', run_status: 'failed', exit_code: 101, duration_ms: 4200,
   passed: 1, failed: 1, evidence: [], tests: [],
   steps: [
     { name: 'Build', start_ms: 0, end_ms: 1500, status: 'passed', is_preview: false, command: 'cargo build -p openmates-sdk', output: 'Compiling openmates-sdk v0.1.0\n    Finished dev [unoptimized] target(s) in 1.4s' },
@@ -60,7 +62,7 @@ export const cliResult = {
 };
 
 export const unitResult = {
-  ...base, kind: 'unit', target: 'tests/test_parser.py', run_status: 'failed', exit_code: 1, duration_ms: 950,
+  ...base, kind: 'unit', target: 'remote_source', run_status: 'failed', exit_code: 1, duration_ms: 950,
   passed: 2, failed: 1, skipped: 1, steps: [], evidence: [],
   tests: [
     { name: 'test_parse_simple', status: 'passed', duration_ms: 12 },

@@ -37,7 +37,7 @@ impl PreparedRead {
     pub(super) async fn send(self) -> SentRead {
         let Self { request, path, generation, monitor_origin, metadata_not_found } = self;
         SentRead {
-            response: request.send().await.map_err(|_| Error::Offline),
+            response: request.send().await.map_err(|_| crate::client::send::refusal_trace::offline_at!()),
             path,
             generation,
             monitor_origin,
@@ -642,7 +642,7 @@ impl Client {
         let (req, generation, monitor_origin) = self.prepare_http_request(
             method, path, body, pair_secret, idempotency, task, committed_task,
         )?;
-        let response = session_request_budget_at(req,session_budget,crate::platform::time::Instant::now())?.send().await.map_err(|_| Error::Offline);
+        let response = session_request_budget_at(req,session_budget,crate::platform::time::Instant::now())?.send().await.map_err(|_| crate::client::send::refusal_trace::offline_at!());
         self.finish_http_response(path, response, generation, monitor_origin, metadata_not_found,
             http_failure_status, auth_response_status, settings_http_error, settings_root_keys,
             history_version, project_result_pending).await
@@ -841,7 +841,7 @@ impl Client {
             return Err(crate::client::send::refusal_trace::protocol_at!());
         }
         let mut bytes = zeroize::Zeroizing::new(Vec::new());
-        while let Some(chunk) = response.chunk().await.map_err(|_| Error::Offline)? {
+        while let Some(chunk) = response.chunk().await.map_err(|_| crate::client::send::refusal_trace::offline_at!())? {
             if status.as_u16()==403&&bytes.len()+chunk.len()>4096{return Err(Error::Forbidden);}
             if bytes.len() + chunk.len() > MAX_BODY {
                 return Err(crate::client::send::refusal_trace::protocol_at!());
@@ -895,7 +895,7 @@ impl Client {
                 409 => Error::Conflict,
                 400 | 422 => Error::Invalid("The server rejected the requested operation."),
                 404 | 410 => Error::Invalid("The requested item is unavailable."),
-                429 | 500..=599 => Error::Offline,
+                429 | 500..=599 => crate::client::send::refusal_trace::offline_at!(),
                 _ => crate::client::send::refusal_trace::protocol_at!(),
             });
         }
@@ -930,14 +930,14 @@ impl Client {
             .header("Accept", "application/json")
             .send()
             .await
-            .map_err(|_| Error::Offline)?;
+            .map_err(|_| crate::client::send::refusal_trace::offline_at!())?;
         if response.status().is_redirection() {
             return Err(Error::Forbidden);
         }
         if !response.status().is_success() {
             return Err(match response.status().as_u16() {
                 404 | 410 => Error::Invalid("The requested template is unavailable."),
-                429 | 500..=599 => Error::Offline,
+                429 | 500..=599 => crate::client::send::refusal_trace::offline_at!(),
                 _ => Error::Forbidden,
             });
         }
@@ -945,7 +945,7 @@ impl Client {
             return Err(crate::client::send::refusal_trace::protocol_at!());
         }
         let mut bytes = Vec::new();
-        while let Some(chunk) = response.chunk().await.map_err(|_| Error::Offline)? {
+        while let Some(chunk) = response.chunk().await.map_err(|_| crate::client::send::refusal_trace::offline_at!())? {
             if bytes.len() + chunk.len() > 1_048_576 {
                 return Err(crate::client::send::refusal_trace::protocol_at!());
             }
@@ -1189,7 +1189,7 @@ async fn connect_socket_stream(request:tungstenite::http::Request<()>,config:Web
     inventory_network:std::sync::Arc<std::sync::atomic::AtomicU64>)->Result<Socket>{
     let(inner,_)=crate::platform::time::timeout(Duration::from_secs(10),
         crate::platform::socket::connect(request,Some(config),false))
-        .await.map_err(|_|Error::Offline)?.map_err(|_|Error::Authentication)?;
+        .await.map_err(|_|crate::client::send::refusal_trace::offline_at!())?.map_err(|_|Error::Authentication)?;
     Ok(Socket::new(inner,Some(inventory_network)))
 }
 async fn connect_prepared_socket(prepared:PreparedSocketConnection)->Result<Socket>{
@@ -1236,7 +1236,7 @@ where
             .map_err(|_| crate::client::send::refusal_trace::protocol_at!())?;
         sink.send(tungstenite::Message::Text(text))
             .await
-            .map_err(|_| Error::Offline)
+            .map_err(|_| crate::client::send::refusal_trace::offline_at!())
     }
 }
 pub(super) async fn send(ws: &mut Socket, kind: &str, payload: Value) -> Result<()> {
@@ -1248,7 +1248,7 @@ pub(super) async fn send(ws: &mut Socket, kind: &str, payload: Value) -> Result<
             json!({"type":kind,"payload":payload}).to_string().into(),
         ))
         .await
-        .map_err(|_| Error::Offline)
+        .map_err(|_| crate::client::send::refusal_trace::offline_at!())
 }
 /// `chat_turn_preflight_handler.py` rejects a durable preflight (for example a
 /// CMS transaction failure) with this exact frame before anything is admitted.
@@ -1342,7 +1342,7 @@ async fn receive_raw_policy(
         let next = {
             let mut original=ws.resource.inner.lock().await;
             crate::platform::time::timeout(Duration::from_secs(90),original.next()).await
-                .map_err(|_|Error::Offline)?.ok_or(Error::Offline)?.map_err(|_|Error::Offline)?
+                .map_err(|_|crate::client::send::refusal_trace::offline_at!())?.ok_or_else(|| crate::client::send::refusal_trace::offline_at!())?.map_err(|_|crate::client::send::refusal_trace::offline_at!())?
         }; // No socket guard survives frame parsing or a Client phase callback.
         if let Some(network) = &ws.inventory_network {
             network.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
@@ -1382,8 +1382,8 @@ async fn receive_raw_policy(
             tungstenite::Message::Ping(data) => ws.resource.inner.lock().await
                 .send(tungstenite::Message::Pong(data))
                 .await
-                .map_err(|_| Error::Offline)?,
-            tungstenite::Message::Close(_) => return Err(Error::Offline),
+                .map_err(|_| crate::client::send::refusal_trace::offline_at!())?,
+            tungstenite::Message::Close(_) => return Err(crate::client::send::refusal_trace::offline_at!()),
             _ => {}
         }
     }
@@ -1502,7 +1502,7 @@ async fn wait_matching_policy(
     loop {
         let (k, p) = crate::platform::time::timeout_at(deadline, receive_raw_policy(ws, false, false, allowance))
             .await
-            .map_err(|_| Error::Offline)??;
+            .map_err(|_| crate::client::send::refusal_trace::offline_at!())??;
         if matches(&k, &p) {
             return Ok((k, p));
         }
@@ -1836,7 +1836,7 @@ pub(super) async fn connect_task_socket(prepared: TaskSocketRequest) -> Result<S
         crate::platform::socket::connect(prepared.request, Some(config), false),
     )
     .await
-    .map_err(|_| Error::Offline)?
+    .map_err(|_| crate::client::send::refusal_trace::offline_at!())?
     .map_err(|_| Error::Authentication)?;
     let mut socket=Socket::new(inner,Some(prepared.inventory_network));
     if let Err(error)=prepared_socket_grant_current(&prepared.authority,prepared.expires_at,&prepared.prepared_cancel){let _=socket.close(None).await;return Err(error);}
@@ -1889,7 +1889,7 @@ pub(super) async fn connect_source_host_socket(
         Ok(socket)
     })
     .await
-    .map_err(|_| Error::Offline)?
+    .map_err(|_| crate::client::send::refusal_trace::offline_at!())?
 }
 #[cfg(test)]
 pub(super) fn expire_prepared_socket_for_test(prepared:&mut TaskSocketRequest){prepared.expires_at=Some(0);}

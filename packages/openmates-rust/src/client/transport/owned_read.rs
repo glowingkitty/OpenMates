@@ -242,7 +242,7 @@ impl Client {
         if status.as_u16()==403&&super::super::browser::expected_principal_mismatch(&completed.bytes){self.forget_session();return Err(Error::Expired);}
         if completed.monitor_access_denied{return Err(Error::Forbidden);}
         if completed.binding.metadata_not_found&&status.as_u16()==404{return Ok(None);}
-        if !status.is_success(){return Err(match status.as_u16(){401=>Error::Expired,403=>Error::Forbidden,409=>Error::Conflict,400|422=>Error::Invalid("The server rejected the requested operation."),404|410=>Error::Invalid("The requested item is unavailable."),429|500..=599=>Error::Offline,_=>Error::Protocol});}
+        if !status.is_success(){return Err(match status.as_u16(){401=>Error::Expired,403=>Error::Forbidden,409=>Error::Conflict,400|422=>Error::Invalid("The server rejected the requested operation."),404|410=>Error::Invalid("The requested item is unavailable."),429|500..=599=>crate::client::send::refusal_trace::offline_at!(),_=>Error::Protocol});}
         let value=super::super::plaintext::Plain::new(if completed.bytes.is_empty(){json!({})}else{serde_json::from_slice(&completed.bytes).map_err(|_|Error::Protocol)?});
         completed.binding.check_original_client(self)?;
         Ok(Some(value.into_inner()))
@@ -302,7 +302,7 @@ impl Client {
 pub(in crate::client) async fn send_owned_read_headers<F>(prepared:PreparedOwnedRead,cancel:&CancellationToken,negative:F)->Result<OwnedReadHeaders>
 where F:Fn()->Result<()> {
     negative()?;if cancel.is_cancelled(){return Err(Error::Cancelled);}
-    let response=tokio::select!{biased;_=cancel.cancelled()=>return Err(Error::Cancelled),r=prepared.request.send()=>r.map_err(|_|Error::Offline)?};
+    let response=tokio::select!{biased;_=cancel.cancelled()=>return Err(Error::Cancelled),r=prepared.request.send()=>r.map_err(|_|crate::client::send::refusal_trace::offline_at!())?};
     // Headers are returned immediately, not held behind a body/policy await.
     // The original Client applies actual rotation before future body checks.
     Ok(OwnedReadHeaders{binding:prepared.binding,response})
@@ -317,7 +317,7 @@ where F:Fn()->Result<()> {
     let mut bytes=Zeroizing::new(Vec::new());let status=body.response.status();
     loop {
         negative()?;
-        let chunk=tokio::select!{biased;_=cancel.cancelled()=>return Err(Error::Cancelled),r=body.response.chunk()=>r.map_err(|_|Error::Offline)?};
+        let chunk=tokio::select!{biased;_=cancel.cancelled()=>return Err(Error::Cancelled),r=body.response.chunk()=>r.map_err(|_|crate::client::send::refusal_trace::offline_at!())?};
         negative()?;
         let Some(chunk)=chunk else{break};
         if status.as_u16()==403&&bytes.len().saturating_add(chunk.len())>4096{return Err(Error::Forbidden);}
