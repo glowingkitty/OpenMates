@@ -59,18 +59,6 @@ function collect(value: unknown, keys: string[], out: string[] = []): string[] {
   return out;
 }
 
-/** Every number under `keys` anywhere in a decoded JSON value. */
-function numbersUnder(value: unknown, keys: string[], out: number[] = []): number[] {
-  if (Array.isArray(value)) value.forEach((entry) => numbersUnder(entry, keys, out));
-  else if (value && typeof value === 'object') {
-    for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
-      if (keys.includes(key) && typeof entry === 'number') out.push(entry);
-      else numbersUnder(entry, keys, out);
-    }
-  }
-  return out;
-}
-
 /** Ids of embeds whose type field equals `type`, anywhere in a decoded JSON value. */
 function embedIdsOfType(value: unknown, type: string, out: string[] = []): string[] {
   if (typeof value === 'string') {
@@ -238,11 +226,17 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
       const shown = await run(['chats', 'show', chatId, '--json']);
       const testResults = embedIdsOfType(shown, 'test_result');
       testResultId = testResults[testResults.length - 1] || '';
+      // `embeds versions list` needs an API key in the native CLI, so read
+      // versions upward from 1; the last readable one is the latest. Version 1
+      // must exist: its failure is reported.
       const readResult = async (id: string) => {
-        const numbers = numbersUnder(await run(['embeds', 'versions', 'list', id, '--json']), ['version_number', 'versionNumber']);
-        const latest = String(numbers.length ? Math.max(...numbers) : 1);
-        const read = await run(['embeds', 'test-result', id, '--version', latest, '--json']);
-        return (read.test_result ?? {}) as Record<string, unknown>;
+        let latest = await run(['embeds', 'test-result', id, '--version', '1', '--json']);
+        for (let version = 2; version <= 20; version += 1) {
+          const next = await runRust(binary, env, ['embeds', 'test-result', id, '--version', String(version), '--json'], 120_000);
+          if (next.code !== 0) break;
+          latest = parseJson(next);
+        }
+        return (latest.test_result ?? {}) as Record<string, unknown>;
       };
       // Outcome of every run of this turn: run status, error and failing step (no command output).
       const runs: Record<string, unknown>[] = [];
