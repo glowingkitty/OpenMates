@@ -44,17 +44,21 @@ pub(in crate::client) fn note_http(status: u16, path: &str) {
     }
 }
 
-/// Remember a rejected WebSocket `error` frame by its server code. Codes are
-/// fixed identifiers; anything else (ids, free text) is masked as `_`.
-pub(in crate::client) fn note_ws_error(code: Option<&str>) {
+/// A fixed server identifier, or `_` for anything else (ids, free text).
+fn fixed_code(code: Option<&str>) -> &str {
+    code.filter(|c| !c.is_empty() && c.len() <= 64 && c.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_'))
+        .unwrap_or("_")
+}
+
+/// Remember a rejected WebSocket `error` frame by its server code and reason
+/// (both fixed identifiers; anything else is masked as `_`).
+pub(in crate::client) fn note_ws_error(code: Option<&str>, reason: Option<&str>) {
     if !enabled() {
         return;
     }
-    let code = code
-        .filter(|c| !c.is_empty() && c.len() <= 64 && c.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_'))
-        .unwrap_or("_");
+    let (code, reason) = (fixed_code(code), fixed_code(reason));
     if let Ok(mut last) = LAST.lock() {
-        *last = Some(format!("ws_error:{code}"));
+        *last = Some(format!("ws_error:{code}/{reason}"));
     }
 }
 
@@ -86,12 +90,19 @@ pub(crate) fn note_caller(location: &'static std::panic::Location<'static>) {
     }
 }
 
-/// Remember the failing turn step unless a deeper site was already noted.
+/// Remember the failing turn step unless a deeper site was already noted. A
+/// rejected WebSocket frame names no step, so the first step is added to it.
 pub(in crate::client) fn note_step(label: &'static str) {
     if enabled()
         && let Ok(mut last) = LAST.lock()
-        && last.is_none()
     {
-        *last = Some(format!("step:{label}"));
+        match last.as_mut() {
+            None => *last = Some(format!("step:{label}")),
+            Some(site) if site.starts_with("ws_error:") && !site.contains('@') => {
+                site.push('@');
+                site.push_str(label);
+            }
+            Some(_) => {}
+        }
     }
 }
