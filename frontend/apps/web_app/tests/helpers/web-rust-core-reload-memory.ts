@@ -86,14 +86,13 @@ async function gcDump(page: any, browserSession: any): Promise<{ dumpOk: boolean
 
 /**
  * The TS arm is the flag-off behaviour: besides the history opt-out it must also opt out of
- * Rust crypto (which gates the embedData/embedWrite Worker paths) and the persist unit. With
+ * Rust crypto (which gates the embedData/embedWrite Worker paths) With
  * the history opt-out alone no Worker session is bound, so embed reads wait for a bind that
  * never comes (embed_write_not_bound) and the embed preview never finishes.
  */
 const CRYPTO_OPT_OUT_KEY = 'openmates_rust_core_crypto';
-const PERSIST_OPT_OUT_KEY = 'openmates_rust_core_persist';
 function tsArmOptOutKeys(historyKey: string): string[] {
-	return [historyKey, CRYPTO_OPT_OUT_KEY, PERSIST_OPT_OUT_KEY];
+	return [historyKey, CRYPTO_OPT_OUT_KEY];
 }
 
 /** Reloads the chat tab once in `arm`, waits until usable, reads RSS and (with `dump`) the GC-first dump. */

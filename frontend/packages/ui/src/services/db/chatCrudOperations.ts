@@ -28,7 +28,16 @@ import { wrapTeamChatKey } from "../teamService";
 import { invalidateRecentChatWindow } from "../recentChatWindowCache";
 import { computeSHA256 } from "../../message_parsing/utils";
 import { chatRowDecisions } from "./chatRowDecisions";
-import { applyRowPatch, applyTeamDraftIntent, mergeDraftFields } from "./chatRowPolicy";
+
+/** Assigns a Rust merge decision's patch onto `row` (keys in `undefinedKeys` become `undefined`). */
+function applyRowPatch<T extends object>(
+  row: T,
+  decision: { patch: Record<string, unknown>; undefinedKeys: string[] },
+): T {
+  Object.assign(row, decision.patch);
+  for (const key of decision.undefinedKeys) (row as Record<string, unknown>)[key] = undefined;
+  return row;
+}
 import { rewriteChatRow } from "./chatRowRewrite";
 
 // Type for ChatDatabase instance to avoid circular import
@@ -376,7 +385,7 @@ export async function addCandidateKey(
     const chat = await dbInstance.getChat(chatId);
     if (!chat) return;
 
-    // Deduplicates and keeps the newest MAX_CANDIDATE_KEYS entries (chatRowPolicy.ts).
+    // Deduplicates and keeps the newest MAX_CANDIDATE_KEYS entries (Rust persist unit).
     const updated = await (await chatRowDecisions()).candidateKeys(chat.candidate_encrypted_keys, encryptedKeyBlob);
     if (!updated) return; // already stored
     // Use a minimal update object — only touch the candidate_encrypted_keys field
@@ -1560,33 +1569,14 @@ export async function setTeamDraftPendingSync(
   await dbInstance.init();
   if (!writeGuard()) return null;
   const decisions = await chatRowDecisions();
-  if (decisions.deferred) {
-    // Rust decides on a snapshot; the write re-checks that the row is unchanged.
-    return rewriteChatRow(dbInstance, chatId, async (chat) => {
-      if (!writeGuard()) return { kind: "skip", value: null };
-      const decision = await decisions.teamDraftIntent({ chat: chat ?? null, teamId, pending, expected });
-      return decision.apply
-        ? { kind: "write", next: applyRowPatch({ ...chat! }, decision) }
-        : { kind: "skip", value: null };
-    }, writeGuard);
-  }
-  const transaction = await dbInstance.getTransaction(dbInstance.CHATS_STORE_NAME, "readwrite");
-  return new Promise((resolve, reject) => {
-    let updated: Chat | null = null;
-    transaction.oncomplete = () => resolve(updated);
-    transaction.onerror = () => reject(transaction.error ?? new Error("Team draft intent transaction failed"));
-    transaction.onabort = () => reject(transaction.error ?? new Error("Team draft intent transaction aborted"));
-    const store = transaction.objectStore(dbInstance.CHATS_STORE_NAME);
-    const request = store.get(chatId);
-    request.onerror = () => reject(request.error ?? new Error("Team draft intent read failed"));
-    request.onsuccess = () => {
-      const chat = request.result as Chat | undefined;
-      const decision = applyTeamDraftIntent(chat ?? null, teamId, pending, expected);
-      if (!decision.apply || !writeGuard()) return;
-      updated = applyRowPatch({ ...chat! }, decision);
-      store.put(updated);
-    };
-  });
+  // Rust decides on a snapshot; the write re-checks that the row is unchanged.
+  return rewriteChatRow(dbInstance, chatId, async (chat) => {
+    if (!writeGuard()) return { kind: "skip", value: null };
+    const decision = await decisions.teamDraftIntent({ chat: chat ?? null, teamId, pending, expected });
+    return decision.apply
+      ? { kind: "write", next: applyRowPatch({ ...chat! }, decision) }
+      : { kind: "skip", value: null };
+  }, writeGuard);
 }
 
 /** Draft ciphertext is master-key encrypted; never replace its chat security/header snapshot. */
@@ -1611,45 +1601,15 @@ export async function saveChatDraftFields(
   }
   if (!dbInstance.db) await dbInstance.init();
   const decisions = await chatRowDecisions();
-  if (decisions.deferred) {
-    // Rust decides on a snapshot; the write re-checks that the row is unchanged.
-    return rewriteChatRow(dbInstance, chatId, async (current) => {
-      const decision = await decisions.draftMerge({ chatId, current: current ?? null, fields, missingRow: missingRow ?? null });
-      if (decision.action === "none") return { kind: "skip", value: null };
-      if (decision.action === "abort") return { kind: "abort", message: "Draft transaction aborted" };
-      if (decision.action === "keep") return { kind: "skip", value: current! };
-      const saved = applyRowPatch({ ...(current ?? missingRow!) }, decision);
-      delete saved.messages;
-      return { kind: "write", next: saved };
-    });
-  }
-  const transaction = await dbInstance.getTransaction(dbInstance.CHATS_STORE_NAME, "readwrite");
-  return new Promise((resolve, reject) => {
-    let saved: Chat | null = null;
-    transaction.oncomplete = () => resolve(saved);
-    transaction.onerror = () => reject(transaction.error ?? new Error("Draft transaction failed"));
-    transaction.onabort = () => reject(transaction.error ?? new Error("Draft transaction aborted"));
-    const store = transaction.objectStore(dbInstance.CHATS_STORE_NAME);
-    const request = store.get(chatId);
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => {
-      const current = request.result as Chat | undefined;
-      // Recheck draft ordering under the write lock, rather than trusting the
-      // caller's earlier read while a send or deletion was committing.
-      const decision = mergeDraftFields(chatId, current ?? null, fields, missingRow ?? null);
-      if (decision.action === "none") return;
-      if (decision.action === "abort") {
-        transaction.abort();
-        return;
-      }
-      if (decision.action === "keep") {
-        saved = current!;
-        return;
-      }
-      saved = applyRowPatch({ ...(current ?? missingRow!) }, decision);
-      delete saved.messages;
-      store.put(saved);
-    };
+  // Rust decides on a snapshot; the write re-checks that the row is unchanged.
+  return rewriteChatRow(dbInstance, chatId, async (current) => {
+    const decision = await decisions.draftMerge({ chatId, current: current ?? null, fields, missingRow: missingRow ?? null });
+    if (decision.action === "none") return { kind: "skip", value: null };
+    if (decision.action === "abort") return { kind: "abort", message: "Draft transaction aborted" };
+    if (decision.action === "keep") return { kind: "skip", value: current! };
+    const saved = applyRowPatch({ ...(current ?? missingRow!) }, decision);
+    delete saved.messages;
+    return { kind: "write", next: saved };
   });
 }
 

@@ -1,9 +1,11 @@
 // `persist` unit of the shared Rust core Worker: the real router and installer over a
-// binding that answers with the flag-off TypeScript policy (the Rust decisions
+// binding that answers with the test-only reference policy (the Rust decisions
 // themselves are proven by web_persist/tests.rs over the same TS-generated vectors),
 // and the flag-on page adapter (rustMessageRowPolicy.ts) which projects rows to the
 // fields the policy reads and follows the unit's answers with no TS fallback.
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.unmock('../persist/persistUnitClient');
 import { createSharedCoreClient, registerSharedRustCore, type SharedWorkerEndpoint } from '../host/sharedCoreRegistry';
 import { createSharedWorkerRouter } from '../host/sharedWorkerProtocol';
 import { installPersistUnit } from '../persist/persistUnit';
@@ -14,7 +16,7 @@ import { rustCacheDecisions } from '../persist/rustCachePolicy';
 import { rustChatRowDecisions } from '../persist/rustChatRowPolicy';
 import { PERSIST_OPS } from '../persist/persistProtocol';
 import { referenceOps } from './persistPolicyReference';
-import { hasNewEncryptedFields, isContentDuplicate, isSafeToEvictMessage, shouldUpdateMessage } from '../../db/messageRowPolicy';
+import { hasNewEncryptedFields, isContentDuplicate, isSafeToEvictMessage, shouldUpdateMessage } from './reference/messageRowPolicy';
 import type { Message } from '../../../types/chat';
 
 const seen: string[] = [];

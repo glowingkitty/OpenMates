@@ -11,7 +11,7 @@
  */
 import type { UnitProtocol } from '../host/unitPort';
 import type { Message } from '../../../types/chat';
-import type * as cache from '../../db/cachePolicy';
+import type * as cache from '../../db/cacheTypes';
 import type * as chatRows from '../../db/chatRowPolicy';
 
 export interface PersistUnitProtocol extends UnitProtocol {

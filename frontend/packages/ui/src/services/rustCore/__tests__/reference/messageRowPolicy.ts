@@ -9,7 +9,7 @@
 // the source of the parity vectors (web_persist/ts_vectors.json). Type-only
 // imports keep it loadable by the vector generator without the app.
 
-import type { Message } from "../../types/chat";
+import type { Message } from "../../../../types/chat";
 
 const UNSAFE_TO_EVICT_MESSAGE_STATUSES = new Set<Message["status"]>([
   "sending",

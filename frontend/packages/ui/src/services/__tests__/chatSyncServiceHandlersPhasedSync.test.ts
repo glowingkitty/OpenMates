@@ -92,7 +92,7 @@ import {
   prepareMessagesForStorage,
 } from "../chatSyncServiceHandlersPhasedSync";
 import { clearQueuedProcessing, hasQueuedProcessing, recordQueuedProcessing } from "../queuedMessageLifecycle";
-import { shouldUpdateMessage } from "../db/messageOperations";
+import { shouldUpdateMessage } from "../rustCore/__tests__/reference/messageRowPolicy";
 import { phasedSyncState } from "../../stores/phasedSyncStateStore";
 import { activeTeamContext } from "../../stores/teamStore";
 

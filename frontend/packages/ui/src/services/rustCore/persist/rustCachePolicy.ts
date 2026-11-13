@@ -12,7 +12,7 @@
  */
 import type { Message } from '../../../types/chat';
 import type { CacheDecisions } from '../../db/cacheDecisions';
-import type { CachePage } from '../../db/cachePolicy';
+import type { CachePage } from '../../db/cacheTypes';
 import { persistCall } from './persistUnitClient';
 import { pickFields } from './rustMessageRowPolicy';
 

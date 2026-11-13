@@ -107,14 +107,11 @@ capabilities:
 - id: local-cache
   what: encrypted local cache model, partitioning, retention, migrations
   web:
-    status: rust-default
-    old:
-    - frontend/packages/ui/src/services/db.ts
-    - frontend/packages/ui/src/services/chatListCache.ts
-    - frontend/packages/ui/src/services/chatMetadataCache.ts
+    status: rust-only
+    old: []
     unit: persist
-    note: Worker unit installed and on by default in dev and production builds; the TypeScript path still exists
-    last_commit: 06da1b2448
+    note: IndexedDB cache decisions (window, eviction, budget, quota, page size) run only in the Worker persist unit; the TypeScript policy, flag and opt-out are deleted. IndexedDB I/O stays in the shell.
+    last_commit: pending
   apple:
     status: rust-twin
     old:

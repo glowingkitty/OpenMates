@@ -13,31 +13,23 @@ import type { Message } from "../../types/chat";
 import { writeWithQuotaRetry } from "./quotaRecovery";
 import { chatKeyManager } from "../encryption/ChatKeyManager";
 import { invalidateRecentChatWindow, invalidateRecentChatWindowForMessage } from "../recentChatWindowCache";
-import { cacheDecisions, RUST_PERSIST_BUILD } from "./cacheDecisions";
-import {
-  MESSAGE_WINDOW_PAGE_CACHE_GENERATION,
-  offlineCacheTargetBytes as cacheTargetBytes,
-} from "./cachePolicy";
+import { cacheDecisions } from "./cacheDecisions";
+import { MESSAGE_WINDOW_PAGE_CACHE_GENERATION } from "./cacheTypes";
 import { deleteConfirmedMessageAfterDecision } from "./messageEviction";
-import {
-  hasNewEncryptedFields,
-  hasNewerStoredRevision,
-  isContentDuplicate,
-  isSafeToEvictMessage,
-  planDuplicateCleanup,
-  shouldUpdateMessage,
-} from "./messageRowPolicy";
-
-// The row policy lives in messageRowPolicy.ts; re-exported for existing importers.
-export { hasNewEncryptedFields, isContentDuplicate, isSafeToEvictMessage, shouldUpdateMessage };
 
 /**
- * Opt-in shared Rust core build (RUST_PERSIST_BUILD): save/duplicate/eviction,
- * window, cache-budget and quota decisions run in the shared Worker `persist` unit.
- * IndexedDB reads, writes and encryption stay here.
+ * Save/duplicate/eviction, window, cache-budget and quota decisions run in the
+ * shared Worker `persist` unit. IndexedDB reads, writes and encryption stay here.
  */
 function rustMessageRowPolicy() {
   return import("../rustCore/persist/rustMessageRowPolicy");
+}
+
+/** A stored queued message already carries a newer queue revision than the incoming one. */
+function hasNewerStoredRevision(stored: Message, incoming: Message): boolean {
+  return Number.isSafeInteger(stored.queue_revision) &&
+    Number.isSafeInteger(incoming.queue_revision) &&
+    (stored.queue_revision ?? 0) > (incoming.queue_revision ?? 0);
 }
 
 // Type for ChatDatabase instance to avoid circular import
@@ -228,35 +220,14 @@ export function configureOfflineCacheBudget(bytes: number): void {
   lastBudgetCheckAt = 0;
 }
 
-export function offlineCacheTargetBytes(quota?: number): number {
-  return cacheTargetBytes(configuredOfflineCacheBudgetBytes, quota);
-}
-
 async function deleteConfirmedMessage(
   dbInstance: ChatDatabaseInstance,
   messageId: string,
 ): Promise<boolean> {
-  if (RUST_PERSIST_BUILD) {
-    // The Rust verdict arrives outside the transaction: decide on a snapshot, then delete only if the row is unchanged.
-    return deleteConfirmedMessageAfterDecision(
-      dbInstance, messageId, (row) => rustMessageRowPolicy().then((policy) => policy.rustIsSafeToEvictMessage(row)),
-    );
-  }
-  const transaction = await dbInstance.getTransaction(MESSAGES_STORE_NAME, "readwrite");
-  return new Promise((resolve, reject) => {
-    const store = transaction.objectStore(MESSAGES_STORE_NAME);
-    let deleted = false;
-    const request = store.get(messageId);
-    request.onsuccess = () => {
-      if (!isSafeToEvictMessage(request.result as Message | undefined)) return;
-      store.delete(messageId);
-      deleted = true;
-    };
-    request.onerror = () => reject(request.error);
-    transaction.oncomplete = () => resolve(deleted);
-    transaction.onerror = () => reject(transaction.error);
-    transaction.onabort = () => reject(transaction.error ?? new Error("Cache eviction aborted"));
-  });
+  // The Rust verdict arrives outside the transaction: decide on a snapshot, then delete only if the row is unchanged.
+  return deleteConfirmedMessageAfterDecision(
+    dbInstance, messageId, (row) => rustMessageRowPolicy().then((policy) => policy.rustIsSafeToEvictMessage(row)),
+  );
 }
 
 function pageRecordsForChatRange(chatId: string): IDBKeyRange {
@@ -290,21 +261,7 @@ export async function findContentDuplicate(
   }
 
   // The Rust decision is outside the read guard: a refused call must fail, not read as "no duplicate".
-  if (RUST_PERSIST_BUILD) return (await rustMessageRowPolicy()).rustFindContentDuplicate(chatMessages, message);
-
-  // Look for messages with same content, role, and similar timestamp
-  for (const existingMessage of chatMessages) {
-    if (existingMessage.message_id === message.message_id) {
-      continue; // Skip same message_id
-    }
-
-    // Check if it's the same logical message based on content and timing
-    if (isContentDuplicate(existingMessage, message)) {
-      return existingMessage;
-    }
-  }
-
-  return null;
+  return (await rustMessageRowPolicy()).rustFindContentDuplicate(chatMessages, message);
 }
 
 // ============================================================================
@@ -1041,17 +998,10 @@ export async function saveMessage(
 
   // Handle duplicates based on check results
   if (existingMessage) {
-    const rustDecision = RUST_PERSIST_BUILD
-      ? await (await rustMessageRowPolicy()).rustSaveDecision(existingMessage, message, encryptedMessage)
-      : null;
-    const shouldUpdateDueToNewEncryptedFields = rustDecision
-      ? rustDecision.fillsEncrypted
-      : hasNewEncryptedFields(existingMessage, encryptedMessage);
+    const rustDecision = await (await rustMessageRowPolicy()).rustSaveDecision(existingMessage, message, encryptedMessage);
+    const shouldUpdateDueToNewEncryptedFields = rustDecision.fillsEncrypted;
     // Only update if the new message has higher priority status
-    if (
-      (rustDecision ? rustDecision.shouldUpdate : shouldUpdateMessage(existingMessage, message)) ||
-      shouldUpdateDueToNewEncryptedFields
-    ) {
+    if (rustDecision.shouldUpdate || shouldUpdateDueToNewEncryptedFields) {
       if (
         shouldUpdateDueToNewEncryptedFields &&
         existingMessage.status === message.status
@@ -1075,9 +1025,7 @@ export async function saveMessage(
       `[ChatDatabase] ⚠️ CONTENT DUPLICATE DETECTED - Found duplicate with different message_id: ${contentDuplicate.message_id} -> ${message.message_id}`,
     );
     // Update the existing message with higher priority status if applicable
-    if (RUST_PERSIST_BUILD
-      ? await (await rustMessageRowPolicy()).rustShouldUpdateMessage(contentDuplicate, message)
-      : shouldUpdateMessage(contentDuplicate, message)) {
+    if (await (await rustMessageRowPolicy()).rustShouldUpdateMessage(contentDuplicate, message)) {
       console.info(
         `[ChatDatabase] ✅ DUPLICATE PREVENTED - Updating content duplicate with higher priority: ${contentDuplicate.message_id} (${contentDuplicate.status} -> ${message.status})`,
       );
@@ -1221,7 +1169,7 @@ export async function saveMessage(
             message.message_id,
             recheckTx,
           );
-          if (currentInDb && !shouldUpdateMessage(currentInDb, message)) {
+          if (currentInDb && !(await (await rustMessageRowPolicy()).rustShouldUpdateMessage(currentInDb, message))) {
             console.info(
               `[ChatDatabase] ✅ STALE WRITE PREVENTED on external tx retry - message ${message.message_id} already has status (${currentInDb.status}), skipping write of status (${message.status})`,
             );
@@ -1269,7 +1217,7 @@ export async function saveMessage(
             message.message_id,
             recheckTx,
           );
-          if (currentInDb && !shouldUpdateMessage(currentInDb, message)) {
+          if (currentInDb && !(await (await rustMessageRowPolicy()).rustShouldUpdateMessage(currentInDb, message))) {
             console.info(
               `[ChatDatabase] ✅ STALE WRITE PREVENTED on retry - message ${message.message_id} already has equal/higher priority status in IDB (${currentInDb.status}), skipping write of status (${message.status})`,
             );
@@ -1314,8 +1262,10 @@ export async function saveMessage(
       try {
         const recheckTx = await dbInstance.getTransaction(MESSAGES_STORE_NAME, "readonly");
         const current = await getMessage(dbInstance, message.message_id, recheckTx);
-        if (current && !shouldUpdateMessage(current, message) &&
-            !hasNewEncryptedFields(current, encryptedMessage)) return;
+        if (current) {
+          const decision = await (await rustMessageRowPolicy()).rustSaveDecision(current, message, encryptedMessage);
+          if (!decision.shouldUpdate && !decision.fillsEncrypted) return;
+        }
       } catch (recheckError) {
         console.debug("[ChatDatabase] Could not recheck message after quota trim:", recheckError);
       }
@@ -1505,19 +1455,17 @@ export async function batchSaveMessages(
     }),
   );
 
-  // Process duplicate checks in memory. With the Rust core one batched call decides every stored pair.
+  // Process duplicate checks in memory. One batched Rust call decides every stored pair.
   const storedPairs = existingMessageChecks.flatMap(({ message, existingMessage }) =>
     existingMessage ? [{ existing: existingMessage, incoming: message }] : []);
-  const rustUpdates = RUST_PERSIST_BUILD
-    ? await (await rustMessageRowPolicy()).rustShouldUpdateMessages(storedPairs)
-    : null;
+  const rustUpdates = await (await rustMessageRowPolicy()).rustShouldUpdateMessages(storedPairs);
   let storedPairIndex = 0;
   for (const { message, existingMessage } of existingMessageChecks) {
     if (existingMessage) {
       existingMessagesMap.set(message.message_id, existingMessage);
 
       // Check if we should update
-      if (rustUpdates ? rustUpdates[storedPairIndex++] : shouldUpdateMessage(existingMessage, message)) {
+      if (rustUpdates[storedPairIndex++]) {
         console.debug(
           `[ChatDatabase] batchSaveMessages: Will update existing message ${message.message_id} with higher priority`,
         );
@@ -2024,11 +1972,8 @@ export async function cleanupDuplicateMessages(
   try {
     // Pass duringInit=true since this is called from init()
     const allMessages = await getAllMessages(dbInstance, true);
-    // Which copies go is decided by the row policy (Rust persist unit with the core
-    // flag, db/messageRowPolicy.ts otherwise); the deletes stay here.
-    const deleteIds = RUST_PERSIST_BUILD
-      ? await (await rustMessageRowPolicy()).rustPlanDuplicateCleanup(allMessages)
-      : planDuplicateCleanup(allMessages);
+    // Which copies go is decided by the Rust persist unit; the deletes stay here.
+    const deleteIds = await (await rustMessageRowPolicy()).rustPlanDuplicateCleanup(allMessages);
     for (const messageId of deleteIds) await deleteMessage(dbInstance, messageId);
     const duplicatesRemoved = deleteIds.length;
 

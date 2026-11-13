@@ -12,6 +12,9 @@ import { installUnitFetchGuard } from "./test-mocks/unit-fetch-guard";
 // Keep a rejecting transport as the original baseline even after mock cleanup.
 installUnitFetchGuard(globalThis);
 
+// IndexedDB cache decisions run in the Worker persist unit; unit suites answer them with the test-only reference policy.
+vi.mock("./services/rustCore/persist/persistUnitClient", () => import("./services/rustCore/__tests__/persistReferenceClient"));
+
 const VITE_FS_PREFIX = "/@fs";
 const UI_SRC_PREFIX = "/src/";
 const WORKSPACE_PATH_SEGMENTS = ["/frontend/packages/ui/", "/backend/", "/shared/"];
