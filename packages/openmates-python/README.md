@@ -190,7 +190,7 @@ immutable `openmates.RawDownload` (`content_type`, `filename`, `data`), matching
 the npm `RawDownload` and Rust `sdk_ops::RawDownload`. `filename` is the last
 path component of the server's `Content-Disposition` name (`filename*` UTF-8
 wins over `filename`); it is `None` for missing, malformed, `.` or `..` names.
-Compatibility: 0.30.0 returned a plain `dict`; `RawDownload` keeps read-only
+Compatibility: 0.31.0 returned a plain `dict`; `RawDownload` keeps read-only
 mapping access (`download["data"]`, `.get()`, `.keys()`, `dict(download)`), so
 existing callers keep working, but it can no longer be mutated.
 
@@ -312,11 +312,11 @@ it yet; from a source checkout run
 
 ## Versioning
 
-OpenMates shows the short product line, for example `v0.30`, in the web app.
+OpenMates shows the short product line, for example `v0.31`, in the web app.
 Python package artifacts use exact release-line versions:
 
-- `0.30.0aN` is an alpha prerelease from the `dev` branch.
-- `0.30.0` is a stable release from `main`.
+- `0.31.0aN` is an alpha prerelease from the `dev` branch.
+- `0.31.0` is a stable release from `main`.
 
 Install stable releases with `pip install openmates`. Install prereleases with
 `pip install --pre openmates`.

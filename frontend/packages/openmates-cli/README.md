@@ -387,7 +387,7 @@ in to the CLI. Create an API key in Settings → Developers. Each key carries it
 own wrapped copy of your account key, so the SDK decrypts your chats locally,
 in memory, with only that key.
 
-Since 0.30.0 the root `OpenMatesClient` is the API-key client and requires
+Since 0.31.0 the root `OpenMatesClient` is the API-key client and requires
 `apiKey`; constructing it without one throws `OpenMatesApiKeyRequiredError`
 (code `OPENMATES_SDK_API_KEY_REQUIRED`). The former `session` and
 `loadStoredSession` options are rejected.
@@ -418,12 +418,12 @@ artifacts are not yet published; from a source checkout run
 
 ## Versioning
 
-OpenMates shows the short product line, for example `v0.30`, in the web app.
+OpenMates shows the short product line, for example `v0.31`, in the web app.
 The npm package uses exact artifact versions:
 
-- `0.30.0-alpha.N` is a prerelease from the `dev` branch published under the
+- `0.31.0-alpha.N` is a prerelease from the `dev` branch published under the
   `alpha` npm tag.
-- `0.30.0` is a stable release from `main` published under the `latest` npm tag.
+- `0.31.0` is a stable release from `main` published under the `latest` npm tag.
 
 Install stable releases with `npm install -g openmates`. Install prereleases with
 `npm install -g openmates@alpha`.
