@@ -114,6 +114,57 @@ fn routes_memory_job_frame(options: &SendOptions, kind: &str, frame: &Value, cha
         && crate::client::memory_write_jobs::is_job_frame(kind)
         && text(frame, "chat_id") == chat
 }
+/// Replays this turn's sealed outputs until they settle. Another device of the
+/// same owner (a web tab showing the chat, or the device that completed the
+/// job) may replay the same outputs at the same time; the loser of that race
+/// gets a refused write (`Protocol`, e.g. `embed_revision_conflict`) or a
+/// version fence (`Conflict`). A new replay re-reads each output's status and
+/// skips, after verifying, what the other device acknowledged, so a lost race
+/// is retried within the turn deadline. The server fences still decide every
+/// write; any other error ends the turn.
+#[allow(clippy::too_many_arguments)] // One turn's replay context; grouping it adds no meaning.
+async fn replay_until_settled<P: SavedTurnClientPhases>(
+    phases: &mut P,
+    ws: &mut Socket,
+    outputs: &BTreeMap<String, Value>,
+    root: (&str, &[u8; 32]),
+    turn_scope: &AsyncCryptoScope,
+    generation: u64,
+    deadline: crate::platform::time::Instant,
+    cancel: &CancellationToken,
+    step: &'static str,
+) -> Result<()> {
+    let mut replays = 0u32;
+    loop {
+        match phases
+            .replay_outputs(ws, outputs, Some(root))
+            .await
+            .inspect_err(|_| super::send::refusal_trace::note_step(step))
+        {
+            Ok(_) => {
+                if replays > 0 {
+                    // The lost race was settled; drop its diagnostic site.
+                    let _ = super::send::refusal_trace::take();
+                }
+                return Ok(());
+            }
+            Err(error)
+                if super::recovery::terminal_replay_retry(&error, replays)
+                    && crate::platform::time::Instant::now() + super::recovery::TERMINAL_REPLAY_RETRY
+                        < deadline =>
+            {
+                replays += 1;
+                tokio::select! {
+                    biased;
+                    _ = cancel.cancelled() => return Err(Error::Cancelled),
+                    _ = crate::platform::time::sleep(super::recovery::TERMINAL_REPLAY_RETRY) => {}
+                }
+                phases.check(turn_scope, root.0, generation).await?;
+            }
+            Err(error) => return Err(error),
+        }
+    }
+}
 /// Delay between claims while another device of the same owner holds the lease.
 const CLAIM_CONFLICT_RETRY: Duration = Duration::from_millis(500);
 #[allow(clippy::too_many_arguments)]
@@ -532,19 +583,8 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
             trace.phase = SendPhase::ReplayArtifacts;
             // The device that completed the job replays the same outputs now;
             // replay again until its acknowledgements settle (see the policy).
-            let mut replays=0u32;
-            loop {
-                match phases.replay_outputs(ws, &selected_outputs, Some((id, key))).await.inspect_err(|_| super::send::refusal_trace::note_step("terminal_replay_outputs")) {
-                    Ok(_)=>break,
-                    Err(error) if super::recovery::terminal_replay_retry(&error,replays)
-                        && crate::platform::time::Instant::now()+super::recovery::TERMINAL_REPLAY_RETRY<turn_deadline.at() => {
-                        replays+=1;
-                        tokio::select! {biased;_=cancel.cancelled()=>return Err(Error::Cancelled),_=crate::platform::time::sleep(super::recovery::TERMINAL_REPLAY_RETRY)=>{}}
-                        phases.check(turn_scope,id,generation).await?;
-                    }
-                    Err(error)=>return Err(error),
-                }
-            }
+            replay_until_settled(phases, ws, &selected_outputs, (id, key), turn_scope, generation,
+                turn_deadline.at(), cancel, "terminal_replay_outputs").await?;
             phases.persist_stream_artifacts(
                 ws,
                 id,
@@ -624,9 +664,10 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
         phases.check(turn_scope,id,generation).await?;
         let selected_outputs=Client::select_turn_outputs(recovery_outputs,id,turn);
         trace.phase = SendPhase::ReplayArtifacts;
-        phases.replay_outputs(ws, &selected_outputs, Some((id, key)))
-            .await
-            .inspect_err(|_| super::send::refusal_trace::note_step("leased_replay_outputs"))?;
+        // A device showing this chat replays the same sealed outputs as soon
+        // as the job is persisted; settle a lost race like the terminal path.
+        replay_until_settled(phases, ws, &selected_outputs, (id, key), turn_scope, generation,
+            turn_deadline.at(), cancel, "leased_replay_outputs").await?;
         let artifacts = phases
             .persist_stream_artifacts(
                 ws,
