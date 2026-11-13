@@ -117,6 +117,21 @@ pub(super) struct MemoryJobState {
     notices: Vec<String>,
     /// The turn's chat key, so the notice needs no extra chat read.
     chat_key: Option<Key>,
+    /// The chat's privacy mappings; restore placeholders before the write
+    /// (plan decision D-5: stored Memories hold real details).
+    mappings: JobMappings,
+}
+
+/// The chat's privacy mappings: wiped on drop and never printed.
+#[derive(Clone, Default)]
+struct JobMappings(Vec<Value>);
+
+impl Drop for JobMappings {
+    fn drop(&mut self) {
+        for mapping in &mut self.0 {
+            crate::model::zeroize_json(mapping);
+        }
+    }
 }
 
 impl fmt::Debug for MemoryJobState {
@@ -133,6 +148,12 @@ impl MemoryJobState {
     /// Remember the turn's chat key for the history notice.
     pub(super) fn set_chat_key(&mut self, key: &[u8; 32]) {
         self.chat_key = Some(Zeroizing::new(*key));
+    }
+
+    /// Remember the chat's privacy mappings; later writes restore with them.
+    /// An empty list leaves documents untouched.
+    pub(super) fn set_mappings(&mut self, mappings: &[Value]) {
+        self.mappings = JobMappings(mappings.to_vec());
     }
 
     /// One-line summaries for the shell (created, updated or not saved).
@@ -154,6 +175,7 @@ impl MemoryJobState {
         self.records.clear();
         self.notices.clear();
         self.chat_key = None;
+        self.mappings = JobMappings::default();
     }
 
     fn record(&mut self, job: &Job, status: MemoryWriteStatus) -> &mut MemoryWriteRecord {
@@ -396,6 +418,24 @@ async fn write_and_notice<R: MemoryJobRunner>(
     }
 }
 
+/// Replace known placeholders in the job's title and document by their
+/// originals (unknown tokens stay literal), then validate the restored
+/// document again: restoring can make it too long.
+fn restore_job(job: &mut Job, mappings: &[Value]) -> std::result::Result<(), &'static str> {
+    if mappings.is_empty() || job.defect.is_some() {
+        return Ok(());
+    }
+    let title = crate::privacy::restore_page(&job.title, mappings).map_err(|_| "invalid_job")?;
+    let document =
+        crate::privacy::restore_page(&job.document, mappings).map_err(|_| "invalid_rule_document")?;
+    if validate_memory_document(&document).is_err() {
+        return Err("invalid_rule_document");
+    }
+    job.title = Zeroizing::new(title);
+    job.document = Zeroizing::new(document);
+    Ok(())
+}
+
 async fn apply<R: MemoryJobRunner>(
     runner: &mut R,
     job: Job,
@@ -403,7 +443,12 @@ async fn apply<R: MemoryJobRunner>(
     state: &mut MemoryJobState,
 ) -> Result<Vec<(&'static str, Value)>> {
     let key = state.chat_key.clone();
-    let outcome = write_and_notice(runner, &job, now_s, key.as_deref()).await;
+    let mut job = job;
+    let restored = restore_job(&mut job, &state.mappings.0);
+    let outcome = match restored {
+        Ok(()) => write_and_notice(runner, &job, now_s, key.as_deref()).await,
+        Err(code) => Err(Failure::Code(code)),
+    };
     let title = job.title.to_string();
     match outcome {
         Err(Failure::Cancelled) => Err(Error::Cancelled),

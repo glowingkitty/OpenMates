@@ -766,7 +766,10 @@ export async function handlePermissionDialogConfirm(
     console.info(
       `[ChatSyncService:AppSettings] About to send ${appSettingsMemories.length} entries to server...`,
     );
-    await sendPermissionResponse(serviceInstance, chatId, appSettingsMemories, responseTransport, voiceRequest);
+    // Decision D-5: every released body is anonymized by the core before it leaves.
+    const { anonymizeMemoryEntries } = await import("./rustCore/memory/memoryPrivacy");
+    const anonymized = await anonymizeMemoryEntries(chatId, appSettingsMemories);
+    await sendPermissionResponse(serviceInstance, chatId, anonymized.entries as MemoryPermissionResponse, responseTransport, voiceRequest);
     autoMemoryEntriesByRequest.delete(requestId);
     answeredMemoryRequests.add(requestId);
 
@@ -788,6 +791,7 @@ export async function handlePermissionDialogConfirm(
           messageId,
           "included",
           categoryMetadata,
+          anonymized.addedMappings,
         );
         console.info(
           `[ChatSyncService:AppSettings] Created system message for 'included' action on message ${messageId}`,
@@ -1029,6 +1033,8 @@ export interface AppSettingsMemoriesResponseContent {
   user_message_id: string;
   action: "included" | "rejected";
   categories?: AppSettingsMemoriesResponseCategory[];
+  /** Mappings of anonymized Memory bodies (restores placeholders the model echoes). */
+  pii_mappings?: Array<{ placeholder: string; original: string; type: string }>;
 }
 
 /**
@@ -1051,6 +1057,7 @@ async function saveAppSettingsMemoriesResponseMessage(
   userMessageId: string,
   action: "included" | "rejected",
   categories?: AppSettingsMemoriesResponseCategory[],
+  piiMappings: unknown[] = [],
 ): Promise<void> {
   // Import required utilities
   const { generateUUID } = await import("../message_parsing/utils");
@@ -1060,7 +1067,10 @@ async function saveAppSettingsMemoriesResponseMessage(
   const chatIdSuffix = chatId.slice(-10);
   const messageId = `${chatIdSuffix}-${generateUUID()}`;
 
-  const contentString = await decideResponseContent(userMessageId, action, categories);
+  const decidedContent = await decideResponseContent(userMessageId, action, categories);
+  // Mappings of the anonymized Memory bodies travel inside the chat-key-encrypted content.
+  const contentString = piiMappings.length === 0 ? decidedContent
+    : JSON.stringify({ ...JSON.parse(decidedContent), pii_mappings: piiMappings });
 
   // Get chat key for encryption (zero-knowledge architecture)
   const chatKey = await chatKeyManager.getKey(chatId);

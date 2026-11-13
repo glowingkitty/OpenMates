@@ -107,7 +107,7 @@ async fn auto_include_memories_are_answered_without_a_request_to_approve() {
     let scope = AsyncCryptoScope::begin(&client).unwrap();
     let (updates, _receiver) = mpsc::channel(1);
     let event = json!({"request_id":"r1","requested_keys":["memory-personal:auto","memory-personal:mention"]});
-    let (deferred, record) = client
+    let (deferred, record, _) = client
         .memory_consent_decided(
             &mut ws,
             &scope,
@@ -115,6 +115,7 @@ async fn auto_include_memories_are_answered_without_a_request_to_approve() {
             CHAT,
             "message",
             &[9; 32],
+            &[],
             &[],
             decision(&["personal:auto", "personal:mention"]),
             &updates,
@@ -189,6 +190,7 @@ async fn ask_first_memories_need_approval_and_auto_ones_survive_a_rejection() {
                 "message",
                 &[9; 32],
                 &[],
+                &[],
                 decision(&["personal:auto", "personal:ask"]),
                 &updates,
                 &cancel,
@@ -196,7 +198,7 @@ async fn ask_first_memories_need_approval_and_auto_ones_survive_a_rejection() {
             ),
             decide
         );
-        let (_, record) = result.unwrap();
+        let (_, record, _) = result.unwrap();
         assert_eq!(record.entry_count, if released { 2 } else { 1 });
         drop(ws);
         let frames = server.await.unwrap();
@@ -252,6 +254,7 @@ async fn caller_cannot_release_a_withheld_memory_through_the_dialog() {
             "message",
             &[9; 32],
             &[],
+            &[],
             decision(&["personal:mention", "personal:ask"]),
             &updates,
             &cancel,
@@ -260,4 +263,37 @@ async fn caller_cannot_release_a_withheld_memory_through_the_dialog() {
         decide
     );
     assert!(matches!(result, Err(Error::Forbidden)));
+}
+
+#[tokio::test]
+async fn released_memory_bodies_reach_the_server_only_as_placeholders() {
+    let (mut ws, server) = peer().await;
+    let mut client = client();
+    let scope = AsyncCryptoScope::begin(&client).unwrap();
+    let (updates, _receiver) = mpsc::channel(1);
+    let event = json!({"request_id":"r9","requested_keys":["memory-personal:cv"]});
+    let document = PersonalMemoryDocument {
+        id: "personal:cv".into(),
+        document: Zeroizing::new(
+            "---\ntitle: CV\n---\nMail jane.doe@example.org, phone +49 170 1234567.\n".into(),
+        ),
+    };
+    let decision = Plain::new(decide_memory_request(&["personal:cv".into()], &[document], NOW));
+    let (_, _, added) = client
+        .memory_consent_decided(
+            &mut ws, &scope, &event, CHAT, "message", &[9; 32], &[], &[], decision, &updates,
+            &CancellationToken::new(), SendConsentPolicy::Reject,
+        )
+        .await
+        .unwrap();
+    drop(ws);
+    let frames = server.await.unwrap();
+    let sent = frames[0]["payload"].to_string();
+    assert!(!sent.contains("jane.doe@example.org"), "{sent}");
+    assert!(!sent.contains("1234567"), "{sent}");
+    assert!(!added.is_empty());
+    // Mappings live only inside the chat-key encrypted response message.
+    assert!(!frames[1]["payload"].to_string().contains("jane.doe"));
+    let response = content(&frames[1]);
+    assert_eq!(response["pii_mappings"], json!(added));
 }

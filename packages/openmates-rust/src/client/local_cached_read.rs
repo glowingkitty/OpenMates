@@ -446,10 +446,15 @@ impl Client {
             } else {
                 serde_json::from_str::<Vec<Value>>(&value)?
             });
+            let response = Plain::new(super::memory_privacy::response_mappings(message)?);
             if raw.get("encrypted_pii_mappings").is_some() {
                 output
                     .mappings
                     .insert(message.id.clone(), values.into_inner());
+            } else if !response.is_empty() {
+                output
+                    .mappings
+                    .insert(message.id.clone(), response.into_inner());
             }
             // Closed source metadata keeps existing IDB flags/aliases; clear
             // extension fields never enter content or ciphertext persistence.

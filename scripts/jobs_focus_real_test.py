@@ -36,7 +36,7 @@ import time
 from pathlib import Path
 from uuid import uuid4
 
-from code_run_real_test import command, delete_owned_chat, personal_test_environment, personal_test_leases
+from code_run_real_test import command, delete_owned_chat
 from personal_dev_draft_guard import DraftGuard, DraftGuardError
 from workflow_schedule_real_test import API_URL, ProofError, sessions, write_receipt
 
@@ -176,6 +176,29 @@ def run_case(cli: str, label: str, case: dict, out: Path, timeout: int) -> dict:
     return result
 
 
+MODEL = "@Gemini-3.8-Flash"
+MODEL_NAME = "Gemini 3.8 Flash"
+
+
+def persisted_models(shown: object) -> set[str]:
+    """Every assistant ``modelName`` recorded in a ``chats show`` transcript."""
+    found: set[str] = set()
+
+    def walk(node: object) -> None:
+        if isinstance(node, dict):
+            name = node.get("modelName")
+            if isinstance(name, str) and name:
+                found.add(name)
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+
+    walk(shown)
+    return found
+
+
 def run_profile_reuse(cli: str, out: Path, timeout: int) -> dict:
     """Chat 1 asks the assistant to save a career profile Memory; chat 2 must use it unprompted."""
     result: dict = {"label": "profile-reuse", "status": "failed"}
@@ -186,7 +209,7 @@ def run_profile_reuse(cli: str, out: Path, timeout: int) -> dict:
     try:
         before = command(cli, ["settings", "memories", "list"])
         baseline = {json.dumps(entry, sort_keys=True) for entry in before} if isinstance(before, list) else set()
-        first = command(cli, ["chats", "new", "Please save my career profile as a memory so I never have to "
+        first = command(cli, ["chats", "new", f"{MODEL} Please save my career profile as a memory so I never have to "
                               "repeat it. " + PERSON, *flags], timeout=timeout + 30)
         write_receipt(out / "profile-reuse-save.json", first)
         if not isinstance(first, dict) or not first.get("chatId"):
@@ -208,7 +231,7 @@ def run_profile_reuse(cli: str, out: Path, timeout: int) -> dict:
         slugs.append(second_slug)
         transport = out / "profile-reuse-use-transport.json"
         try:
-            second = command(cli, ["chats", "new", "Write a short cover letter in English for this job, using what "
+            second = command(cli, ["chats", "new", f"{MODEL} Write a short cover letter in English for this job, using what "
                                    "you know about me. " + POSTING, "--slug", second_slug, *flags,
                                    "--auto-approve-memories"], timeout=timeout + 30, diagnostic_path=transport)
         except ProofError:
@@ -231,8 +254,10 @@ def run_profile_reuse(cli: str, out: Path, timeout: int) -> dict:
         write_receipt(out / "profile-reuse-use-chat.json", shown)
         text = json.dumps(shown).lower()
         result["profile_used"] = "example retail" in text and "15" in text
+        result["models"] = sorted(persisted_models(shown))
+        result["model_pinned"] = result["models"] == [MODEL_NAME]
         result["status"] = ("passed" if result["saved"] and result["memory_listed"] and result["profile_used"]
-                            else "failed")
+                            and result["model_pinned"] else "failed")
     except (ProofError, subprocess.TimeoutExpired) as exc:
         result["reason"] = str(exc) if isinstance(exc, ProofError) else "timeout"
     finally:
@@ -275,6 +300,8 @@ def main() -> int:
     parser.add_argument("--case", action="append", choices=sorted([*CASES, "profile-reuse"]))
     parser.add_argument("--timeout-seconds", type=int, default=420)
     parser.add_argument("--allow-paid-dev-inference", action="store_true")
+    parser.add_argument("--personal-only", action="store_true",
+                        help="Wait for the personal account instead of using a throwaway account when it is busy")
     args = parser.parse_args()
     if any(os.getenv(key) for key in ("CI", "GITHUB_ACTIONS", "BUILDKITE", "GITLAB_CI")):
         parser.error("real inference is dev-only and cannot run in CI")
@@ -297,7 +324,7 @@ def main() -> int:
         parser.error("installed global openmates executable missing")
     receipt: dict = {"status": "started", "target": API_URL, "session": args.session, "cases": [],
                      "cli": "native" if importer else "npm"}
-    leases, stop, guard = [], threading.Event(), None
+    leases, stop, guard, real_account = [], threading.Event(), None, None
     old_umask = os.umask(0o077)
     try:
         state.mkdir(mode=0o700)
@@ -311,8 +338,16 @@ def main() -> int:
             os.environ.pop("OPENMATES_PROFILE", None)
             os.environ.update(DBUS_SESSION_BUS_ADDRESS="unix:path=/nonexistent/openmates-no-bus",
                               NO_COLOR="1", OPENMATES_APP_URL=APP_URL)
-        login_env = personal_test_environment()
-        leases = personal_test_leases(args.session)
+        import dev_test_account
+
+        # Personal account when free, else a throwaway dev account (chats are
+        # backed up, then the account is deleted); --personal-only waits instead.
+        real_account = dev_test_account.acquire_real_test_account(
+            "jobs-focus", args.session, "jobs-focus", stack_timeout=120,
+            allow_throwaway=not args.personal_only)
+        login_env, leases = real_account.environment, real_account.leases
+        receipt["account_role"] = ("personal_dev_test" if real_account.kind == "personal"
+                                   else "throwaway_dev_test")
 
         def renew() -> None:
             while not stop.wait(sessions.DOCKER_TEST_LEASE_RENEW_INTERVAL_SECONDS):
@@ -357,8 +392,8 @@ def main() -> int:
         if guard is not None:
             from personal_dev_draft_guard import record_leftovers
             record_leftovers(receipt, guard)
-        for lease_id, *_ in reversed(leases):
-            sessions.release_test_resource_lease(lease_id)
+        if real_account is not None:
+            receipt["account_cleanup"] = dev_test_account.finish_real_test_account(real_account)
         shutil.rmtree(state, ignore_errors=True)
         os.umask(old_umask)
         if out.is_dir():

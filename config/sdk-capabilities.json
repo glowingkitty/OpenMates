@@ -6983,6 +6983,8 @@
             "client.memory_documents.read_memory_documents",
             "client.memory_documents.validate_memory_document",
             "client.memory_documents.write_memory_plaintext",
+            "client.memory_privacy.anonymize_entries",
+            "client.memory_privacy.response_mappings",
             "client.memory_write_job_bridge.MemoryEffectOutcome",
             "client.memory_write_job_bridge.MemoryJobDesk",
             "client.memory_write_job_bridge.MemoryJobDesk.clear",

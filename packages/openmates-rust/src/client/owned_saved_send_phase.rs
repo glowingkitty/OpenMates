@@ -41,7 +41,7 @@ enum Call {
     CatalogueProjectCipher(Plain<Value>),
     CatalogueTeamKey {team:String,expected:TeamCacheStamp,wrapped:zeroize::Zeroizing<String>,key:Key},
     Subchat {socket:Socket,event:Plain<Value>,chat:String,task:String,updates:mpsc::Sender<StreamUpdate>,policy:SendConsentPolicy},
-    Memory {socket:Socket,event:Plain<Value>,chat:String,message:String,key:Key,memories:Plain<Vec<Value>>,updates:mpsc::Sender<StreamUpdate>,policy:SendConsentPolicy},
+    Memory {socket:Socket,event:Plain<Value>,chat:String,message:String,key:Key,memories:Plain<Vec<Value>>,mappings:Plain<Vec<Value>>,updates:mpsc::Sender<StreamUpdate>,policy:SendConsentPolicy},
     Replay {socket:Socket,outputs:Plain<BTreeMap<String,Value>>,root:Option<(String,Key)>},
     Artifacts {socket:Socket,chat:String,message:String,key:Key,task:String,embeds:Plain<BTreeMap<String,Value>>,checkpoints:Plain<Vec<Value>>},
     CanonicalOpen {chat:String},
@@ -60,7 +60,7 @@ enum Reply {
     CataloguePrepared(PreparedOwnedRead),CatalogueBody(OwnedReadBody),CatalogueValue(Plain<Value>),
     CatalogueWrapping(CatalogueWrappingPlan),CatalogueCipher {detail:Plain<Value>,cipher:zeroize::Zeroizing<String>},
     CatalogueTeamWrapping(MasterCapability),Frames(Plain<Vec<(String,Value)>>),
-    Memory(Plain<(Vec<(String,Value)>,SendMemoryRequest)>),
+    Memory(Plain<(Vec<(String,Value)>,SendMemoryRequest,Vec<Value>)>),
     Count(usize),Items(Plain<Vec<Item>>),Chat(Plain<Chat>),
     Tasks {result:Result<()>,observed:Plain<SendObservations>},
     ProjectCreate {result:Result<()>,state:super::super::project_create_request::ProjectCreateState},
@@ -188,9 +188,9 @@ impl SavedTurnClientPhases for OwnedTurnPhases {
         Box::pin(async move{self.chat(chat)?;bound(event)?;let socket=self.socket(ws)?;
             match self.exchange(Call::Subchat{socket,event:Plain::new(event.clone()),chat:chat.into(),task:task.into(),updates:updates.clone(),policy}).await?{Reply::Frames(frames)=>Ok(frames.into_inner()),_=>Err(Error::Protocol)}})
     }
-    fn memory_consent<'a>(&'a mut self,ws:&'a mut Socket,event:&'a Value,chat:&'a str,message:&'a str,key:&'a [u8;32],memories:&'a [Value],updates:&'a mpsc::Sender<StreamUpdate>,_cancel:&'a CancellationToken,policy:SendConsentPolicy)->TurnPhaseFuture<'a,(Vec<(String,Value)>,SendMemoryRequest)>{
-        Box::pin(async move{self.chat(chat)?;bound(&(event,memories))?;let socket=self.socket(ws)?;
-            match self.exchange(Call::Memory{socket,event:Plain::new(event.clone()),chat:chat.into(),message:message.into(),key:zeroize::Zeroizing::new(*key),memories:Plain::new(memories.to_vec()),updates:updates.clone(),policy}).await?{Reply::Memory(value)=>Ok(value.into_inner()),_=>Err(Error::Protocol)}})
+    fn memory_consent<'a>(&'a mut self,ws:&'a mut Socket,event:&'a Value,chat:&'a str,message:&'a str,key:&'a [u8;32],memories:&'a [Value],mappings:&'a [Value],updates:&'a mpsc::Sender<StreamUpdate>,_cancel:&'a CancellationToken,policy:SendConsentPolicy)->TurnPhaseFuture<'a,(Vec<(String,Value)>,SendMemoryRequest,Vec<Value>)>{
+        Box::pin(async move{self.chat(chat)?;bound(&(event,memories,mappings))?;let socket=self.socket(ws)?;
+            match self.exchange(Call::Memory{socket,event:Plain::new(event.clone()),chat:chat.into(),message:message.into(),key:zeroize::Zeroizing::new(*key),memories:Plain::new(memories.to_vec()),mappings:Plain::new(mappings.to_vec()),updates:updates.clone(),policy}).await?{Reply::Memory(value)=>Ok(value.into_inner()),_=>Err(Error::Protocol)}})
     }
     fn replay_outputs<'a>(&'a mut self,ws:&'a mut Socket,outputs:&'a BTreeMap<String,Value>,hint:Option<(&'a str,&'a [u8;32])>)->TurnPhaseFuture<'a,usize>{
         Box::pin(async move{bound(outputs)?;let socket=self.socket(ws)?;let root=match hint{Some((chat,key))=>{self.chat(chat)?;Some((chat.into(),zeroize::Zeroizing::new(*key)))},None=>None};
@@ -314,9 +314,9 @@ impl Client {
                         context.check_socket(&socket)?;let child=context.admission.scope.child();
                         Ok(Reply::Frames(Plain::new(active.subchat_consent(&mut socket,&event,&chat,&task,&updates,&child,policy).await?)))
                     },
-                    Call::Memory{mut socket,event,chat,message,key,memories,updates,policy}=>{
+                    Call::Memory{mut socket,event,chat,message,key,memories,mappings,updates,policy}=>{
                         context.check_socket(&socket)?;let child=context.admission.scope.child();
-                        Ok(Reply::Memory(Plain::new(active.memory_consent(&mut socket,&event,&chat,&message,&key,&memories,&updates,&child,policy).await?)))
+                        Ok(Reply::Memory(Plain::new(active.memory_consent(&mut socket,&event,&chat,&message,&key,&memories,&mappings,&updates,&child,policy).await?)))
                     },
                     Call::Replay{mut socket,outputs,root}=>{
                         context.check_socket(&socket)?;let hint=root.as_ref().map(|(chat,key)|(chat.as_str(),&**key));

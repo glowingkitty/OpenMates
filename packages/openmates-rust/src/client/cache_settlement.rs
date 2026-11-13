@@ -218,6 +218,7 @@ impl Client {
                 let mapping = zeroize::Zeroizing::new(decrypt_optional(&raw, "encrypted_pii_mappings", &key)?);
                 if !mapping.is_empty() { mappings.extend(serde_json::from_str::<Vec<Value>>(&mapping)?); }
             }
+            mappings.extend(crate::client::memory_privacy::response_mappings(&message)?);
             messages.push(message.into_inner());
         }
         for message in messages.iter_mut() {

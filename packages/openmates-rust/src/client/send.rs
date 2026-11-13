@@ -24,6 +24,7 @@ impl Wipe for crate::privacy::PreparedPrivacy {
 }
 
 impl<A:Wipe,B:Wipe> Wipe for (A,B){fn wipe(&mut self){self.0.wipe();self.1.wipe();}}
+impl<A:Wipe,B:Wipe,C:Wipe> Wipe for (A,B,C){fn wipe(&mut self){self.0.wipe();self.1.wipe();self.2.wipe();}}
 impl<T:Wipe> Wipe for std::collections::VecDeque<T>{fn wipe(&mut self){for value in self{value.wipe();}}}
 impl Wipe for StreamUpdate{fn wipe(&mut self){zeroize::Zeroize::zeroize(self);}}
 impl Wipe for SendMemoryRequest{

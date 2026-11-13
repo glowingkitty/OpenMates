@@ -22,6 +22,7 @@ import {
   memoryJobFrame, memoryJobResume, memoryUndoPrepare,
   type MemoryJobEffect, type MemoryJobStep, type MemoryUndoPrepared,
 } from '../crypto/memoryOps';
+import { chatPiiMappings } from './memoryPrivacy';
 import type { ContextEntryHistoryEvent } from '../../../types/recommendations';
 
 const JOB_FRAMES = ['memory_write_job_available', 'memory_write_job_claim_result', 'memory_write_job_result_ack'] as const;
@@ -100,8 +101,11 @@ async function perform(effect: MemoryJobEffect): Promise<string | null> {
 
 async function handleFrame(kind: string, payload: unknown): Promise<void> {
   const client = cryptoClient();
+  // The chat's placeholders let the core restore real values before storing.
+  const chatId = (payload as { chat_id?: unknown } | null)?.chat_id;
+  const mappings = typeof chatId === 'string' ? await chatPiiMappings(chatId) : [];
   let step: MemoryJobStep = await memoryJobFrame(
-    client, await masterKey(), get(userProfile).encrypted_settings ?? null, kind, payload, nowSeconds());
+    client, await masterKey(), get(userProfile).encrypted_settings ?? null, kind, payload, nowSeconds(), mappings);
   while ('token' in step) {
     step = await memoryJobResume(client, step.token, await perform(step.effect));
   }

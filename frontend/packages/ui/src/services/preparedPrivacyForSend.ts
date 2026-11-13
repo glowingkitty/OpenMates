@@ -381,3 +381,8 @@ export function personalPrivacyMetadataKeys(receipt: PrivacySendReceipt): string
     && (receipt.privacy.settings[key] as unknown[]).length > 0)) keys.add('openmates-memories');
   return [...keys];
 }
+
+/** Privacy settings rows of the retained prepared bundle (empty before the first prepare: core defaults apply). */
+export function retainedPreparedPrivacyMemories(): PreparedPrivacy['memories'] {
+  return bundle?.scope === scope() ? bundle.privacy.memories : [];
+}

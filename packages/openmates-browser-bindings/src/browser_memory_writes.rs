@@ -6,7 +6,9 @@
 //! the core's stable lowercase codes (`rule_changed`, ...); no Memory text,
 //! key or ciphertext is logged.
 use crate::browser_crypto::BrowserMasterCrypto;
-use openmates_sdk::client::memory_write_job_bridge::{MemoryJobDesk, MemoryJobDriver, MemoryJobEffect};
+use openmates_sdk::client::memory_write_job_bridge::{
+    MemoryJobDesk, MemoryJobDriver, MemoryJobEffect,
+};
 use openmates_sdk::client::memory_write_jobs::{
     MemoryUndoOutcome, build_memory_write_undone_event, memory_write_undone_message_id,
     prepare_memory_undo,
@@ -66,16 +68,22 @@ pub async fn memory_job_frame(
     kind: String,
     event_json: String,
     now_s: f64,
+    mappings_json: Option<String>,
 ) -> Result<String, JsValue> {
     let event: Value = serde_json::from_str(&event_json).map_err(|_| code("protocol"))?;
     if !(now_s.is_finite() && now_s >= 0.0) {
         return Err(code("protocol"));
     }
+    // The chat's privacy mappings (JSON array); absent = none.
+    let mappings: Vec<Value> = match mappings_json.as_deref() {
+        None | Some("") => Vec::new(),
+        Some(raw) => serde_json::from_str(raw).map_err(|_| code("protocol"))?,
+    };
     let master = master(master_key)?;
     // Whole seconds: the protocol's `expires_at` is integral.
     let (run, driver) = DESK.with(|desk| {
         desk.borrow_mut()
-            .start(master, settings, &kind, event, now_s as u64)
+            .start(master, settings, &kind, event, now_s as u64, mappings)
     });
     wasm_bindgen_futures::spawn_local(run);
     step(driver).await
@@ -132,4 +140,29 @@ pub async fn memory_undo_prepare(
         "marker": marker,
     })
     .to_string())
+}
+
+/// Anonymize the `content` of released Memory entries with the chat's privacy
+/// placeholders (decision D-5). `entries_json`/`memories_json`/`existing_json`
+/// are JSON arrays; resolves `{"entries":[..],"addedMappings":[..]}`. Only the
+/// new mappings are returned; the page stores them with the memory response.
+#[wasm_bindgen(js_name = memoryAnonymize)]
+pub fn memory_anonymize(
+    entries_json: String,
+    memories_json: String,
+    existing_json: String,
+) -> Result<String, JsValue> {
+    let mut entries: Vec<Value> =
+        serde_json::from_str(&entries_json).map_err(|_| code("protocol"))?;
+    let memories: Vec<Value> =
+        serde_json::from_str(&memories_json).map_err(|_| code("protocol"))?;
+    let existing: Vec<Value> =
+        serde_json::from_str(&existing_json).map_err(|_| code("protocol"))?;
+    let added = openmates_sdk::client::memory_privacy::anonymize_entries(
+        &mut entries,
+        &memories,
+        &existing,
+    )
+    .map_err(|_| code("privacy_failed"))?;
+    Ok(json!({"entries": entries, "addedMappings": added}).to_string())
 }

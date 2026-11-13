@@ -200,6 +200,7 @@ impl MemoryJobDesk {
         kind: &str,
         event: Value,
         now_s: u64,
+        mappings: Vec<Value>,
     ) -> (impl Future<Output = ()> + use<>, MemoryJobDriver) {
         let (sender, steps) = mpsc::unbounded_channel();
         let chat = event["chat_id"]
@@ -213,6 +214,7 @@ impl MemoryJobDesk {
                 .clone()
         });
         let kind = kind.to_owned();
+        let mappings = super::plaintext::Plain::new(mappings);
         let run = async move {
             let mut frames = Vec::new();
             if let (Some(chat), Some(state)) = (chat, state) {
@@ -222,6 +224,7 @@ impl MemoryJobDesk {
                     steps: sender.clone(),
                 };
                 let mut state = state.lock().await;
+                state.set_mappings(&mappings);
                 // Cancellation (the shell dropped the driver) sends nothing.
                 if let Ok(out) =
                     job_frames(&mut runner, &kind, &event, &chat, now_s, &mut state).await

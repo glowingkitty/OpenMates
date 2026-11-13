@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
     getEncryptedFields: vi.fn(),
   },
   privateMemories: { decrypt: vi.fn(), send: vi.fn() },
+  memoryPrivacy: { anonymize: vi.fn() },
   permission: { request: null as null | Record<string, unknown> },
   localMemories: { load: vi.fn() },
   chatKeyManager: {
@@ -63,6 +64,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("../encryption/MetadataEncryptor", () => ({ decryptWithMasterKey: mocks.privateMemories.decrypt }));
+vi.mock("../rustCore/memory/memoryPrivacy", () => ({ anonymizeMemoryEntries: mocks.memoryPrivacy.anonymize }));
 vi.mock("../workspaceQueryCache", () => ({ getWorkspaceCacheIdentity: () => mocks.workspace.identity }));
 vi.mock("../chatSyncServiceSenders", () => ({ sendAppSettingsMemoriesConfirmedImpl: mocks.privateMemories.send }));
 vi.mock("../../stores/appSettingsMemoriesPermissionStore", () => ({ appSettingsMemoriesPermissionStore: {
@@ -125,6 +127,7 @@ function resetHoistedMocks(): void {
     }
   }
 
+  mocks.memoryPrivacy.anonymize.mockImplementation(async (_chatId: string, entries: unknown[]) => ({ entries, addedMappings: [] }));
   mocks.activeChatStore.get.mockReturnValue("chat-1");
   mocks.chatKeyManager.onKeyReady.mockReturnValue(() => undefined);
   mocks.webSocketService.on.mockImplementation(() => undefined);
@@ -1551,6 +1554,46 @@ describe("voice memory permission continuation", () => {
     await handlePermissionDialogConfirm(service, "voice-request", ["health-medical_history"]);
     expect(response).toHaveBeenCalledExactlyOnceWith([]);
     expect(mocks.privateMemories.send).not.toHaveBeenCalled();
+  });
+});
+
+describe("Memory release anonymization (D-5)", () => {
+  const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+  const mapping = { placeholder: "[EMAIL_1]", original: "jane.doe@example.org", type: "EMAIL" };
+  beforeEach(() => {
+    resetHoistedMocks();
+    mocks.permission.request = { requestId: "anon-request", chatId: "chat-1", messageId: "user-msg-1", categories: [
+      { key: "health-medical_history", appId: "health", itemType: "medical_history" },
+    ] };
+    mocks.chatDB.getAppSettingsMemoriesEntriesByAppAndType.mockResolvedValue([{ id: "e1", encrypted_item_json: "cipher" }]);
+    mocks.privateMemories.decrypt.mockResolvedValue('{"note":"mail jane.doe@example.org"}');
+    mocks.memoryPrivacy.anonymize.mockImplementation(async (_chatId: string, entries: unknown[]) => ({
+      entries: (entries as Array<Record<string, unknown>>).map((entry) => ({ ...entry, content: { note: "mail [EMAIL_1]" } })),
+      addedMappings: [mapping],
+    }));
+    mocks.chatKeyManager.getKey.mockResolvedValue(new Uint8Array([1]));
+    mocks.ensureChatKeySafeForWrite.mockResolvedValue(true);
+    mocks.encryptWithChatKey.mockImplementation(async () => "encrypted-content");
+    mocks.chatDB.saveMessage.mockResolvedValue(undefined);
+  });
+  afterEach(() => { removePendingPermissionRequest("anon-request"); mocks.permission.request = null; });
+
+  // contract-test: supporting surface=gui.web assertions=app-memories.conversation.explicit-approval
+  it("sends only anonymized bodies and stores the added mappings in the response content", async () => {
+    const response = vi.fn(async (_entries: unknown) => {});
+    registerMemoryPermissionResponseTransport("anon-request", response);
+    await handlePermissionDialogConfirm(service, "anon-request", ["health-medical_history"]);
+    expect(mocks.memoryPrivacy.anonymize).toHaveBeenCalledWith("chat-1", expect.any(Array));
+    const sent = JSON.stringify(response.mock.calls[0][0]);
+    expect(sent).toContain("[EMAIL_1]");
+    expect(sent).not.toContain("jane.doe@example.org");
+    const stored = mocks.chatDB.saveMessage.mock.calls[0][0] as { content: string };
+    const content = JSON.parse(stored.content);
+    expect(content.type).toBe("app_settings_memories_response");
+    expect(content.pii_mappings).toEqual([mapping]);
+    // The mappings leave the device only inside the chat-key-encrypted content.
+    expect(mocks.webSocketService.sendMessage.mock.calls.every(([, payload]) =>
+      !JSON.stringify(payload).includes("jane.doe@example.org"))).toBe(true);
   });
 });
 

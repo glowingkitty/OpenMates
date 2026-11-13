@@ -442,6 +442,9 @@ fn active_focus(row: &Value, key: &[u8; 32]) -> Result<Option<String>> {
 }
 fn project_message(row: &Value, decoded: Message, key: &[u8; 32]) -> Result<ChatDetailsMessage> {
     let mut decoded = Plain::new(decoded);
+    // A Memory response row carries the mappings of its anonymized bodies
+    // inside its encrypted content (plan decision D-5).
+    let response = Plain::new(memory_privacy::response_mappings(&decoded)?);
     let raw_pii = Plain::new(
         if row
             .get("encrypted_pii_mappings")
@@ -459,8 +462,11 @@ fn project_message(row: &Value, decoded: Message, key: &[u8; 32]) -> Result<Chat
                     .filter(|v| !v.is_empty())
                     .unwrap_or_else(|| "[]".into()),
             )?)
-        } else {
+        } else if response.is_empty() {
             None
+        } else {
+            let text = Plain::new(serde_json::to_string(&*response)?);
+            Some(ChatDetailsJson::from_text(text.into_inner())?)
         },
     );
     let mut output = Plain::new(ChatDetailsMessage {

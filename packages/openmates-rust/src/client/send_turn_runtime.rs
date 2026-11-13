@@ -24,7 +24,7 @@ pub(in crate::client) trait SavedTurnClientPhases:PhasePlatform {
     fn persist_focus_event<'a>(&'a mut self,ws:&'a mut Socket,kind:&'a str,event:&'a Value,chat:&'a str,key:&'a [u8;32],previous:&'a mut Value)->TurnPhaseFuture<'a,()>;
     fn project_routing_catalog<'a>(&'a mut self,id:&'a str)->TurnPhaseFuture<'a,Vec<Value>>;
     fn subchat_consent<'a>(&'a mut self,ws:&'a mut Socket,event:&'a Value,chat:&'a str,task:&'a str,updates:&'a mpsc::Sender<StreamUpdate>,cancel:&'a CancellationToken,policy:SendConsentPolicy)->TurnPhaseFuture<'a,Vec<(String,Value)>>;
-    fn memory_consent<'a>(&'a mut self,ws:&'a mut Socket,event:&'a Value,chat:&'a str,message:&'a str,key:&'a [u8;32],memories:&'a [Value],updates:&'a mpsc::Sender<StreamUpdate>,cancel:&'a CancellationToken,policy:SendConsentPolicy)->TurnPhaseFuture<'a,(Vec<(String,Value)>,SendMemoryRequest)>;
+    fn memory_consent<'a>(&'a mut self,ws:&'a mut Socket,event:&'a Value,chat:&'a str,message:&'a str,key:&'a [u8;32],memories:&'a [Value],mappings:&'a [Value],updates:&'a mpsc::Sender<StreamUpdate>,cancel:&'a CancellationToken,policy:SendConsentPolicy)->TurnPhaseFuture<'a,(Vec<(String,Value)>,SendMemoryRequest,Vec<Value>)>;
     fn replay_outputs<'a>(&'a mut self,ws:&'a mut Socket,outputs:&'a BTreeMap<String,Value>,root:Option<(&'a str,&'a [u8;32])>)->TurnPhaseFuture<'a,usize>;
     fn persist_stream_artifacts<'a>(&'a mut self,ws:&'a mut Socket,chat:&'a str,message:&'a str,key:&'a [u8;32],task:&'a str,embeds:&'a BTreeMap<String,Value>,checkpoints:&'a [Value])->TurnPhaseFuture<'a,Vec<Item>>;
     fn open_chat_live<'a>(&'a mut self,id:&'a str)->TurnPhaseFuture<'a,Chat>;
@@ -42,7 +42,7 @@ impl SavedTurnClientPhases for BorrowedTurnPhases<'_>{
     fn persist_focus_event<'a>(&'a mut self,ws:&'a mut Socket,kind:&'a str,event:&'a Value,chat:&'a str,key:&'a [u8;32],previous:&'a mut Value)->TurnPhaseFuture<'a,()>{Box::pin(self.client.persist_focus_event(ws,kind,event,chat,key,previous))}
     fn project_routing_catalog<'a>(&'a mut self,id:&'a str)->TurnPhaseFuture<'a,Vec<Value>>{Box::pin(self.client.project_routing_catalog(id))}
     fn subchat_consent<'a>(&'a mut self,ws:&'a mut Socket,event:&'a Value,chat:&'a str,task:&'a str,updates:&'a mpsc::Sender<StreamUpdate>,cancel:&'a CancellationToken,policy:SendConsentPolicy)->TurnPhaseFuture<'a,Vec<(String,Value)>>{Box::pin(self.client.subchat_consent(ws,event,chat,task,updates,cancel,policy))}
-    fn memory_consent<'a>(&'a mut self,ws:&'a mut Socket,event:&'a Value,chat:&'a str,message:&'a str,key:&'a [u8;32],memories:&'a [Value],updates:&'a mpsc::Sender<StreamUpdate>,cancel:&'a CancellationToken,policy:SendConsentPolicy)->TurnPhaseFuture<'a,(Vec<(String,Value)>,SendMemoryRequest)>{Box::pin(self.client.memory_consent(ws,event,chat,message,key,memories,updates,cancel,policy))}
+    fn memory_consent<'a>(&'a mut self,ws:&'a mut Socket,event:&'a Value,chat:&'a str,message:&'a str,key:&'a [u8;32],memories:&'a [Value],mappings:&'a [Value],updates:&'a mpsc::Sender<StreamUpdate>,cancel:&'a CancellationToken,policy:SendConsentPolicy)->TurnPhaseFuture<'a,(Vec<(String,Value)>,SendMemoryRequest,Vec<Value>)>{Box::pin(self.client.memory_consent(ws,event,chat,message,key,memories,mappings,updates,cancel,policy))}
     fn replay_outputs<'a>(&'a mut self,ws:&'a mut Socket,outputs:&'a BTreeMap<String,Value>,root:Option<(&'a str,&'a [u8;32])>)->TurnPhaseFuture<'a,usize>{Box::pin(self.client.replay_outputs(ws,outputs,root))}
     fn persist_stream_artifacts<'a>(&'a mut self,ws:&'a mut Socket,chat:&'a str,message:&'a str,key:&'a [u8;32],task:&'a str,embeds:&'a BTreeMap<String,Value>,checkpoints:&'a [Value])->TurnPhaseFuture<'a,Vec<Item>>{Box::pin(self.client.persist_stream_artifacts(ws,chat,message,key,task,embeds,checkpoints))}
     fn open_chat_live<'a>(&'a mut self,id:&'a str)->TurnPhaseFuture<'a,Chat>{Box::pin(self.client.open_chat_live(id))}
@@ -122,7 +122,7 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
     id:&str,turn:&str,message:&str,input:&str,key:&[u8;32],wrapped:&str,baseline:u64,new_chat:bool,
     chat:&mut Chat,updates:&mpsc::Sender<StreamUpdate>,cancel:&CancellationToken,generation:u64,
     options:&SendOptions,trace:&mut SendTrace,task_id:&mut String)->Result<SendOutcome>{
-        let prepared_turn::PreparedTurnContext{team,projects,sender,memories,prepared,wait_ai,mut focus_state}=prepared_turn;
+        let prepared_turn::PreparedTurnContext{team,projects,sender,memories,mut prepared,wait_ai,mut focus_state}=prepared_turn;
         let mut observed=Plain::new(SendObservations::default());
         let mut confirmed = false;
         let mut admitted = false;
@@ -302,6 +302,7 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
             if routes_memory_job_frame(options, &kind, &p, id) {
                 // save_memory waits for our claim and result; the turn resumes afterwards.
                 observed.project_create.memory_jobs.set_chat_key(key);
+                observed.project_create.memory_jobs.set_mappings(&prepared.mappings);
                 phases.project_create(ws, &kind, &p, id, &mut observed.project_create).await?;
                 for notice in observed.project_create.memory_jobs.take_notices() {
                     phases.deliver_update(&turn_scope,id,updates,cancel,StreamUpdate::Status(notice)).await?;
@@ -329,7 +330,7 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
             if kind == "request_app_settings_memories"
                 && admit_memory_request(&p, id, message, &mut consent_requests)
             {
-                let (frames, record) = phases
+                let (frames, record, added) = phases
                     .memory_consent(
                         ws,
                         &p,
@@ -337,11 +338,14 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
                         message,
                         key,
                         &memories,
+                        &prepared.mappings,
                         updates,
                         cancel,
                         options.memory_consent,
                     )
                     .await?;
+                // Placeholders minted for Memory bodies must restore the answer.
+                prepared.mappings.extend(added);
                 deferred.extend(frames);
                 if observed.memories.len() >= 64 {
                     return Err(Error::Protocol);
@@ -483,6 +487,7 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
                     // the in-stream path so the job record is complete.
                     if routes_memory_job_frame(options, &kind, &p, id) {
                         observed.project_create.memory_jobs.set_chat_key(key);
+                observed.project_create.memory_jobs.set_mappings(&prepared.mappings);
                         phases.project_create(ws, &kind, &p, id, &mut observed.project_create).await?;
                         for notice in observed.project_create.memory_jobs.take_notices() {
                             phases.deliver_update(&turn_scope,id,updates,cancel,StreamUpdate::Status(notice)).await?;

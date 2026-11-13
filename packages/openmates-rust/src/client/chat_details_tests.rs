@@ -432,3 +432,19 @@ fn compact_string_writer_keeps_bounds_failure_wiping_and_nonstring_semantics() {
     assert!(entries[0].0.utf16_units().is_empty());
     assert!(matches!(entries[0].1, ChatDetailsJsonValue::Number(n) if n == 0.0));
 }
+#[test]
+fn memory_response_rows_expose_the_mappings_stored_in_their_content() {
+    let id = "22222222-2222-4222-8222-222222222222";
+    let content = r#"{"type":"app_settings_memories_response","action":"included","pii_mappings":[{"placeholder":"[EMAIL_1]","original":"ada@example.org"}]}"#;
+    let row = json!({"id":"sys-row","client_message_id":"sys","chat_id":id,"role":"system","created_at":0,"encrypted_content":encrypted(content),"encrypted_sender_name":encrypted(""),"encrypted_category":encrypted(""),"encrypted_model_name":encrypted("")});
+    let mut seen = std::collections::HashSet::new();
+    let (raw, decoded) = sync::decode_chat_message_stored(&row, id, &[7; 32], &mut seen).unwrap();
+    let message = project_message(&raw, decoded, &[7; 32]).unwrap();
+    let mappings = message.pii_mappings.as_ref().expect("response mappings");
+    assert!(
+        mappings
+            .encoded_json()
+            .unwrap()
+            .contains("ada@example.org")
+    );
+}

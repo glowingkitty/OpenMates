@@ -1579,6 +1579,9 @@ pub(super) fn restore_chat_tokens_from_rows(
             mappings.extend(serde_json::from_str::<Vec<Value>>(&value)?);
         }
     }
+    for message in &chat.messages {
+        mappings.extend(crate::client::memory_privacy::response_mappings(message)?);
+    }
     for message in &mut chat.messages {
         let restored = crate::privacy::restore(&message.content, &mappings)?;
         replace_text(&mut message.content, restored);

@@ -183,6 +183,7 @@ pub mod memory_document_fields;
 mod memory_frontmatter;
 pub mod memory_documents;
 mod memory_catalog;
+pub mod memory_privacy;
 pub mod memory_write_jobs;
 pub mod server_region;
 pub mod memory_write_job_bridge;

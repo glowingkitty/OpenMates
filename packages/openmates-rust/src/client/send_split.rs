@@ -514,14 +514,15 @@ impl SavedTurnClientPhases for LeasedTurnPhases<'_> {
         message: &'a str,
         key: &'a [u8; 32],
         memories: &'a [Value],
+        mappings: &'a [Value],
         updates: &'a mpsc::Sender<StreamUpdate>,
         cancel: &'a CancellationToken,
         policy: SendConsentPolicy,
-    ) -> TurnPhaseFuture<'a, (Vec<(String, Value)>, SendMemoryRequest)> {
+    ) -> TurnPhaseFuture<'a, (Vec<(String, Value)>, SendMemoryRequest, Vec<Value>)> {
         leased!(
             self,
             memory_consent(
-                ws, event, chat, message, key, memories, updates, cancel, policy
+                ws, event, chat, message, key, memories, mappings, updates, cancel, policy
             )
         )
     }

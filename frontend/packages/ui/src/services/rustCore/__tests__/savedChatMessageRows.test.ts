@@ -38,6 +38,20 @@ function read(overrides: Partial<SavedChatReadback> = {}): SavedChatReadback {
 }
 
 describe('savedReadToMessages', () => {
+  // contract-test: supporting surface=gui.web assertions=app-memories.conversation.explicit-approval
+  it('exposes memory-response mappings on the system row', () => {
+    const mapping = { placeholder: '[EMAIL_2]', original: 'jane.doe@example.org', type: 'EMAIL' };
+    const base = read();
+    const rows = savedReadToMessages(read({
+      chat: { ...base.chat, messages: [...base.chat.messages,
+        { id: 'm-sys', role: 'system', content: '{"type":"app_settings_memories_response"}', sender: '', thinking: '', embeds: [] }] },
+      messageMetadata: [...base.messageMetadata, meta('m-sys', 102)],
+      piiMappingsByMessageId: { ...base.piiMappingsByMessageId, 'm-sys': [mapping] },
+    }), chatId);
+    expect(rows[2].role).toBe('system');
+    expect(rows[2].pii_mappings).toEqual([mapping]);
+  });
+
   // contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary,chats.persistence.client-encrypted
   it('maps Rust decrypted rows to the existing Message rows', () => {
     const [user, assistant] = savedReadToMessages(read(), chatId);

@@ -105,6 +105,17 @@ acceptance_criteria:
   verification_scope: manual
   verification_ids:
   - T-REAL
+- id: AC-6
+  scenario: S-4
+  text: A Memory saved from a chat whose contact details were placeholders stores the real details; when a later chat loads
+    it, the payload sent to the server contains only placeholders, and the answer shows the real details in CLI and web, live
+    and after reload.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: cli
+  verification_ids:
+  - T-PRIV
 tests:
 - id: T-TOOL
   type: pytest
@@ -180,7 +191,18 @@ tests:
   green_phase:
     required: true
     expected: pass
-    evidence: {}
+    evidence:
+      status: passed
+      command: python3 scripts/ci_coordinator.py submit --session 3bb9 --source a3952f1e22311541f81e533c82d63906aa7c9ba8 --mode
+        e2e --spec cli-memory-write.spec.ts
+      run_id: 0f6227ab76964059ca0c18367c4b1e1a9e88b8ad094ace4721c2f3db05b00b4b
+      subject_commit: bd80112de1a1a789e8d274fc5fcd3f42fd4ffef7
+      execution_environment: isolated_github_ci
+      harness_commit: a3952f1e22311541f81e533c82d63906aa7c9ba8
+      profile: e2e
+      artifacts:
+      - https://github.com/glowingkitty/OpenMates/actions/runs/43280737753/artifacts/13974191856
+      timestamp: '2026-11-12T18:45:00Z'
 - id: T-UNDO
   type: playwright
   file: frontend/apps/web_app/tests/memory-write-undo.spec.ts
@@ -224,6 +246,26 @@ tests:
   - no re-asking in second chat
   covers:
   - AC-5
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+- id: T-PRIV
+  type: unit
+  file: packages/openmates-rust/src/client/memory_privacy_tests.rs
+  command: python3 scripts/ci_coordinator.py submit --session 3bb9 --mode rust-check
+  execution_environment: isolated_github_ci
+  target: isolated_github_ci
+  assertions:
+  - released memory payload has no original values
+  - write job restores placeholders
+  - history restores memory-origin placeholders
+  covers:
+  - AC-6
   red_phase:
     required: false
     expected: not_applicable
@@ -316,6 +358,34 @@ tasks:
   ownership:
     files: *id004
     shared_files: []
+- id: TASK-5
+  title: 'Core: anonymize released Memory bodies, persist their mappings in the memory response, restore placeholders in memory
+    write jobs; native and web shells'
+  status: in_progress
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    - S-4
+    acceptance_criteria:
+    - AC-6
+  expected_files:
+  - packages/openmates-rust/src/client/memory_privacy.rs
+  - packages/openmates-rust/src/client/consent.rs
+  - packages/openmates-rust/src/client/memory_write_jobs.rs
+  verification_ids:
+  - T-PRIV
+  - T-REAL
+  dependencies:
+  - TASK-4
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - packages/openmates-rust/src/client/memory_privacy.rs
+    shared_files:
+    - packages/openmates-rust/src/client/consent.rs
+    - packages/openmates-rust/src/client/memory_write_jobs.rs
 implementation_state:
   subject_commit: bd80112de1a1a789e8d274fc5fcd3f42fd4ffef7
 approvals:
@@ -348,6 +418,15 @@ decisions:
     entries written in the turn.
   reason: Requested by the user on 2026-11-10.
   decided_at: '2026-11-10'
+- id: D-5
+  status: active
+  decision: Stored Memories hold real details, never privacy placeholders. A memory write job restores the turn's placeholders
+    before the client encrypts and stores the document. Every Memory body the client releases to the server (approval, auto
+    include, mention) is anonymized with the chat's placeholders first; mappings created for it are stored inside the chat-key-encrypted
+    memory response message, and history readers merge them with the user-message mappings.
+  reason: 'Owner decision 2026-11-13 (relayed from a voice call): placeholders in stored memories are pointless; real details
+    must never reach the server. A real run showed a saved profile with placeholders breaking the next chat (admitted_turn_unreadable).'
+  decided_at: '2026-11-13'
 attempts:
 - id: A-1
   task_id: TASK-1

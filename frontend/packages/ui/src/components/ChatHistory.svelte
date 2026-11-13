@@ -1,5 +1,6 @@
 <script lang="ts">
 import { storageArchiveFetch } from "../config/api";
+  import { memoryResponseMappings } from '../services/rustCore/memory/memoryResponseMappings';
 
   import { searchResultImageUrl } from '../utils/searchPreviewImages';
   import { collectHeaderImageRefs } from './embeds/embedPreviewHydration';
@@ -255,11 +256,12 @@ import { storageArchiveFetch } from "../config/api";
     const cumulativeMappings = new Map<string, PIIMapping>();
     
     for (const msg of allMessages) {
-      if (msg.role === 'user' && msg.pii_mappings && msg.pii_mappings.length > 0) {
-        for (const mapping of msg.pii_mappings) {
-          cumulativeMappings.set(mapping.placeholder, mapping);
-        }
-      }
+      // Memory responses carry the placeholders of anonymized Memory bodies (the core
+      // read path exposes them per system row; IndexedDB rows carry them in the content).
+      const mappings = msg.role === 'user' ? msg.pii_mappings
+        : msg.role === 'system' ? (msg.pii_mappings?.length ? msg.pii_mappings : memoryResponseMappings(msg.content))
+        : undefined;
+      for (const mapping of mappings ?? []) cumulativeMappings.set(mapping.placeholder, mapping);
     }
     
     return cumulativeMappings;

@@ -170,10 +170,11 @@ impl Client {
         user_message: &str,
         key: &[u8; 32],
         memories: &[Value],
+        mappings: &[Value],
         updates: &mpsc::Sender<StreamUpdate>,
         cancel: &CancellationToken,
         policy: SendConsentPolicy,
-    ) -> Result<(Vec<(String, Value)>, SendMemoryRequest)> {
+    ) -> Result<(Vec<(String, Value)>, SendMemoryRequest, Vec<Value>)> {
         let scope = AsyncCryptoScope::begin(self)?;
         self.require_browser_owner_guards()?;
         scope.check_chat(self, chat_id)?;
@@ -199,6 +200,7 @@ impl Client {
             user_message,
             key,
             memories,
+            mappings,
             decision,
             updates,
             cancel,
@@ -219,11 +221,12 @@ impl Client {
         user_message: &str,
         key: &[u8; 32],
         memories: &[Value],
+        mappings: &[Value],
         decision: Plain<memory_catalog::MemoryRequestDecision>,
         updates: &mpsc::Sender<StreamUpdate>,
         cancel: &CancellationToken,
         policy: SendConsentPolicy,
-    ) -> Result<(Vec<(String, Value)>, SendMemoryRequest)> {
+    ) -> Result<(Vec<(String, Value)>, SendMemoryRequest, Vec<Value>)> {
         scope.check_chat(self, chat_id)?;
         let key = zeroize::Zeroizing::new(*key);
         let request_id = Plain::new(
@@ -414,6 +417,13 @@ impl Client {
         for memory in decision.auto.iter().chain(released_ask.iter().copied()) {
             entries.push(memory.response_entry());
         }
+        // Released bodies are anonymized like message text: real details never
+        // reach the server or the model (plan decision D-5).
+        let added = Plain::new(memory_privacy::anonymize_entries(
+            entries.as_mut_slice(),
+            memories,
+            mappings,
+        )?);
         scope.check_chat(self, chat_id)?;
         if cancel.is_cancelled() {
             return Err(Error::Cancelled);
@@ -446,9 +456,13 @@ impl Client {
         }
         // The web client stores no response for a silent answer without content.
         if needs_dialog || !entries.is_empty() {
-            let response = Plain::new(
+            let mut response = Plain::new(
                 json!({"type":"app_settings_memories_response","user_message_id":user_message,"action":if entries.is_empty(){"rejected"}else{"included"},"categories":&*categories}),
             );
+            if !added.is_empty() {
+                // Chat-key encrypted with the message: history restores them.
+                response["pii_mappings"] = json!(&*added);
+            }
             let response_message = Plain::new(format!(
                 "{user_message}-memory-response-{}",
                 request_id.as_str()
@@ -478,7 +492,7 @@ impl Client {
             approved_keys: std::mem::take(&mut approved.keys).into_iter().collect(),
             entry_count: entries.len() as u64,
         });
-        Ok((deferred.into_inner(), record.into_inner()))
+        Ok((deferred.into_inner(), record.into_inner(), added.into_inner()))
     }
     #[allow(clippy::too_many_arguments)]
     async fn consent_input(

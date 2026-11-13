@@ -10,7 +10,7 @@
  */
 import type { WebCryptoOp } from './webCryptoClient';
 
-export type MemoryOp = 'memoryJobFrame' | 'memoryJobResume' | 'memoryJobsClear' | 'memoryUndoPrepare';
+export type MemoryOp = 'memoryJobFrame' | 'memoryJobResume' | 'memoryJobsClear' | 'memoryUndoPrepare' | 'memoryAnonymize';
 
 /** Worker export behind each op; spread into the crypto unit's async export table. */
 export const MEMORY_ASYNC_EXPORTS: Record<MemoryOp, string> = {
@@ -18,6 +18,7 @@ export const MEMORY_ASYNC_EXPORTS: Record<MemoryOp, string> = {
   memoryJobResume: 'memoryJobResume',
   memoryJobsClear: 'memoryJobsClear',
   memoryUndoPrepare: 'memoryUndoPrepare',
+  memoryAnonymize: 'memoryAnonymize',
 };
 
 /** IO the page performs for the core (see MemoryJobEffect in the bridge). */
@@ -46,8 +47,10 @@ export interface MemoryOpsClient {
 /** Starts one inbound `memory_write_job_*` frame in the core. */
 export async function memoryJobFrame(
   client: MemoryOpsClient, masterKey: CryptoKey, settings: string | null, kind: string, event: unknown, nowSeconds: number,
+  mappings: unknown[] = [],
 ): Promise<MemoryJobStep> {
-  return JSON.parse(await client.call<string>('memoryJobFrame', masterKey, settings, kind, JSON.stringify(event), nowSeconds));
+  return JSON.parse(await client.call<string>(
+    'memoryJobFrame', masterKey, settings, kind, JSON.stringify(event), nowSeconds, JSON.stringify(mappings)));
 }
 
 /** Answers the effect of `token` (`null` = success, else an error code). */
@@ -60,4 +63,18 @@ export async function memoryUndoPrepare(
   client: MemoryOpsClient, masterKey: CryptoKey, settings: string | null, event: unknown, nowSeconds: number,
 ): Promise<MemoryUndoPrepared> {
   return JSON.parse(await client.call<string>('memoryUndoPrepare', masterKey, settings, JSON.stringify(event), nowSeconds));
+}
+
+/** Released entries with anonymized `content`, plus the mappings the core added. */
+export interface MemoryAnonymized {
+  entries: Array<Record<string, unknown>>;
+  addedMappings: Array<{ placeholder: string; original: string; type: string }>;
+}
+
+/** Anonymizes Memory bodies in the core (`memories` = the user's privacy settings rows). */
+export async function memoryAnonymize(
+  client: MemoryOpsClient, entries: unknown[], memories: unknown[], existing: unknown[],
+): Promise<MemoryAnonymized> {
+  return JSON.parse(await client.call<string>(
+    'memoryAnonymize', JSON.stringify(entries), JSON.stringify(memories), JSON.stringify(existing)));
 }

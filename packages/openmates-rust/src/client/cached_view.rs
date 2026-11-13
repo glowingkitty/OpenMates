@@ -740,6 +740,7 @@ impl Client {
                     mappings.extend(serde_json::from_str::<Vec<Value>>(&mapping)?);
                 }
             }
+            mappings.extend(crate::client::memory_privacy::response_mappings(&message)?);
             messages.push(message.into_inner());
         }
         // Same explicit page-local policy as bounded saved reads: mappings from

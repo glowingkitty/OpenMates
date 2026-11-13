@@ -34,7 +34,7 @@ async fn drive(
     event: Value,
     mut answer: impl FnMut(&MemoryJobEffect) -> MemoryEffectOutcome,
 ) -> Vec<MemoryJobEffect> {
-    let (run, mut driver) = desk.start(master(), ciphertext, kind, event, NOW);
+    let (run, mut driver) = desk.start(master(), ciphertext, kind, event, NOW, Vec::new());
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async move {
@@ -272,4 +272,36 @@ async fn the_undone_marker_round_trips_and_is_not_a_context_entry() {
     user_saved.undo = None;
     user_saved.source = None;
     assert!(build_memory_write_undone_event(&user_saved, 1).is_err());
+}
+
+#[tokio::test]
+async fn a_start_with_mappings_restores_the_placeholder_in_the_stored_document() {
+    let mut desk = MemoryJobDesk::default();
+    let mut event = available();
+    event["document"] = json!(event["document"]
+        .as_str()
+        .unwrap()
+        .replace("Teal.", "Mail [EMAIL_1]."));
+    let mappings = vec![json!({"placeholder":"[EMAIL_1]","original":"ada@example.org"})];
+    let start = |desk: &mut MemoryJobDesk, kind: &str, event: Value| {
+        desk.start(master(), None, kind, event, NOW, mappings.clone())
+    };
+    let local = tokio::task::LocalSet::new();
+    local
+        .run_until(async {
+            let (run, mut driver) = start(&mut desk, "memory_write_job_available", event);
+            tokio::task::spawn_local(run);
+            while !matches!(driver.next().await.unwrap(), MemoryJobEffect::Done { .. }) {}
+            let (run, mut driver) = start(&mut desk, "memory_write_job_claim_result", granted());
+            tokio::task::spawn_local(run);
+            let MemoryJobEffect::PostSettings { encrypted_settings } = driver.next().await.unwrap()
+            else {
+                panic!("first effect must post the settings");
+            };
+            let stored = read_memory_documents(&master(), Some(&encrypted_settings))
+                .await
+                .unwrap();
+            assert!(stored[0].document.contains("Mail ada@example.org."));
+        })
+        .await;
 }

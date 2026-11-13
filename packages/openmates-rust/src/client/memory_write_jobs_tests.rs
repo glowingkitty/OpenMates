@@ -320,3 +320,39 @@ fn undo_refuses_edited_missing_and_user_saved_memories() {
         Err(MemoryDocumentError::NotUndoable)
     );
 }
+
+fn mapping(placeholder: &str, original: &str) -> Value {
+    json!({"placeholder":placeholder,"original":original,"type":"EMAIL"})
+}
+
+#[tokio::test]
+async fn placeholders_in_the_title_and_document_are_restored_before_the_write() {
+    let (mut fake, mut state) = (Fake::default(), MemoryJobState::default());
+    state.set_mappings(&[mapping("[EMAIL_1]", "ada@example.org")]);
+    let mut event = job("create", "abc");
+    event["title"] = json!("Contact [EMAIL_1]");
+    event["document"] = json!(DOC.replace("Senior Rust engineer.", "Mail [EMAIL_1] or [PHONE_9]."));
+    claimed(&mut fake, &event, &mut state).await;
+    let sent = run(&mut fake, CLAIM_RESULT, &grant(true), &mut state).await;
+    assert_eq!(sent[0].1["status"], "applied");
+    let stored = &fake.stored["personal:abc"];
+    assert!(stored.contains("Mail ada@example.org or [PHONE_9]."), "{stored}");
+    assert!(!stored.contains("[EMAIL_1]"));
+    assert_eq!(
+        state.take_notices(),
+        ["Memory created by the assistant: Contact ada@example.org"]
+    );
+}
+
+#[tokio::test]
+async fn a_restored_document_that_became_invalid_fails_the_job_without_writing() {
+    let (mut fake, mut state) = (Fake::default(), MemoryJobState::default());
+    state.set_mappings(&[mapping("[EMAIL_1]", &"x".repeat(30_000))]);
+    let mut event = job("create", "abc");
+    event["document"] = json!(DOC.replace("Senior Rust engineer.", "[EMAIL_1]"));
+    claimed(&mut fake, &event, &mut state).await;
+    let sent = run(&mut fake, CLAIM_RESULT, &grant(true), &mut state).await;
+    assert_eq!(sent[0].1["status"], "failed");
+    assert_eq!(sent[0].1["error_code"], "invalid_rule_document");
+    assert!(fake.stored.is_empty());
+}
