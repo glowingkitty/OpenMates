@@ -23,6 +23,17 @@ impl Wipe for Prepared {
         self.key.zeroize();
     }
 }
+/// Pause between output reads while another device settles the same output.
+const OUTPUT_SETTLE_RETRY: std::time::Duration = std::time::Duration::from_secs(1);
+/// Reads of a settling output before the replay fails (about half a minute).
+const OUTPUT_SETTLE_ATTEMPTS: u32 = 30;
+
+/// True while an output another device is preparing or acknowledging may still
+/// become readable or acknowledged; ABSENT and unknown states never wait.
+pub(super) fn output_settling(state: &Value, attempts: u32) -> bool {
+    attempts < OUTPUT_SETTLE_ATTEMPTS && matches!(state.as_str(), Some("PREPARING" | "PENDING"))
+}
+
 impl Client {
     pub(super) async fn replay_outputs(
         &mut self,
@@ -93,7 +104,11 @@ impl Client {
                 root_keys.insert(root.into(), key);
             }
             let key = root_keys.get(root).ok_or(Error::Crypto)?.clone();
-            let ready = match scoped_output_request(
+            // Another foreground device of the owner may be preparing or
+            // acknowledging the same output (it won the job lease). Wait for it
+            // within a short bound instead of failing the whole turn.
+            let mut attempts = 0u32;
+            let ready = loop { match scoped_output_request(
                 self,
                 &scope,
                 ws,
@@ -104,7 +119,7 @@ impl Client {
             )
             .await
             {
-                Ok(v) => v,
+                Ok(v) => break Some(v),
                 Err(Error::Protocol) => {
                     let status = scoped_output_request(
                         self,
@@ -120,13 +135,19 @@ impl Client {
                     if status["state"] == "ACKNOWLEDGED" && status["canonical_verified"] == true {
                         self.verify_acknowledged_output(output, &status, &key, &scope)
                             .await?;
-                        continue;
-                    } else {
-                        return Err(Error::Protocol);
+                        break None;
                     }
+                    if output_settling(&status["state"], attempts) {
+                        attempts += 1;
+                        crate::platform::time::sleep(OUTPUT_SETTLE_RETRY).await;
+                        scope.check(self)?;
+                        continue;
+                    }
+                    return Err(Error::Protocol);
                 }
                 Err(e) => return Err(e),
-            };
+            } };
+            let Some(ready) = ready else { continue };
             same_identity(output, &ready)?;
             let recovery = crypto::recovery_keypair(
                 &key,
@@ -1537,3 +1558,6 @@ mod tests {
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "recovery/opaque_tests.rs"]
 mod opaque_tests;
+#[cfg(test)]
+#[path = "recovery/settle_tests.rs"]
+mod settle_tests;
