@@ -80,7 +80,8 @@ def test_apple_build_plan_compiles_all_targets_and_keeps_going():
     assert ci_apple.validate_specs("apple-build", ["all"]) == ["all"]
     with pytest.raises(ValueError):
         ci_apple.validate_specs("apple-build", ["OpenMatesTests/A"])
-    name, command, *_ = ci_apple.xcode_plan("apple-build", Path("/out"), ["all"])[-1]
+    plan = ci_apple.xcode_plan("apple-build", Path("/out"), ["all"])
+    name, command, *_ = plan[-2]
     assert name == "xcodebuild build-for-testing"
     assert command[:2] == ["xcodebuild", "build-for-testing"]
     assert "-IDEBuildingContinueBuildingAfterErrors=YES" in command
@@ -91,13 +92,21 @@ def test_apple_build_plan_compiles_all_targets_and_keeps_going():
     assert "OTHER_SWIFT_FLAGS=$(inherited) -DOPENMATES_CORE_TEST_SUPPORT" in command
     # The arm64 runner never builds the x86_64 Watch simulator core (tier-3, about 14 minutes).
     assert "EXCLUDED_ARCHS=x86_64" in command
+    # The same job also compiles the macOS app, keeping going after errors as well.
+    mac_name, mac, *_ = plan[-1]
+    assert mac_name == ci_apple.MACOS_BUILD_STEP
+    assert mac[:2] == ["xcodebuild", "build"]
+    assert mac[mac.index("-scheme") + 1] == "OpenMates_macOS"
+    assert mac[mac.index("-destination") + 1] == "platform=macOS"
+    assert "-IDEBuildingContinueBuildingAfterErrors=YES" in mac
+    assert "OPENMATES_CORE_TEST_SUPPORT=YES" in mac
 
 
 @pytest.mark.parametrize(
     "mode,specs", [("apple-unit", ["all"]), ("apple-ui", ["OpenMatesUITests/A"])]
 )
 def test_test_lanes_build_once_then_test_on_those_products(mode, specs):
-    build_only = ci_apple.xcode_plan("apple-build", Path("/out"), ["all"])[-1]
+    build_only = ci_apple.xcode_plan("apple-build", Path("/out"), ["all"])[-2]
     plan = ci_apple.xcode_plan(mode, Path("/out"), specs)
     build, test = plan[-2], plan[-1]
     # The compile step is the build lane's, so every test job lists all Swift errors itself.
@@ -121,3 +130,37 @@ def test_swift_errors_are_unique_relative_and_complete():
         "apple/A.swift:3:5: error: cannot find 'x' in scope",
         "apple/Tests/C.swift:7:9: error: missing argument",
     ]
+
+
+def test_apple_build_compiles_macos_even_when_the_ios_build_fails(tmp_path, monkeypatch):
+    import sys
+    import types
+
+    rows: list[dict] = []
+    logs = {
+        ci_apple.BUILD_STEP: f"{tmp_path}/apple/A.swift:1:2: error: ios only\n",
+        ci_apple.MACOS_BUILD_STEP: f"{tmp_path}/apple/B.swift:3:4: error: mac only\n",
+    }
+    fake = types.ModuleType("ci_rust_checks")
+    fake.slug = lambda name: name.replace(" ", "-")
+
+    def run(name, command, *, blocking, cwd):
+        code = 65 if name in logs else 0
+        if name in logs:
+            log = tmp_path / "test-results" / "apple-build" / "rows" / f"{fake.slug(name)}.log"
+            log.parent.mkdir(parents=True, exist_ok=True)
+            log.write_text(logs[name])
+        rows.append({"excerpt": [], "seconds": 1, "diagnostics": 0})
+        return code
+
+    fake.run = run
+    fake.load_rows = lambda: rows
+    monkeypatch.setitem(sys.modules, "ci_rust_checks", fake)
+    results: list[dict] = []
+    ci_apple.run(tmp_path, results, "apple-build", ["all"])
+    names = [row["suite"] for row in results]
+    assert names[-2:] == [f"apple-build:{ci_apple.BUILD_STEP}", f"apple-build:{ci_apple.MACOS_BUILD_STEP}"]
+    assert results[-2]["failures"] == ["apple/A.swift:1:2: error: ios only"]
+    assert results[-1]["failures"] == ["apple/B.swift:3:4: error: mac only"]
+    errors = (tmp_path / "test-results" / "apple-build" / "swift-errors.txt").read_text().splitlines()
+    assert errors == ["apple/A.swift:1:2: error: ios only", "apple/B.swift:3:4: error: mac only"]

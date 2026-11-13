@@ -9,9 +9,11 @@ version the release Mac builds with), never on the shared dev host.
                OpenMatesCoreFFI xcframework (iOS, simulator, macOS) and then, as its own
                step, the Watch slices; print the sizes.
   apple-build  target `all`: compile only. `xcodebuild build-for-testing` of the OpenMates_iOS
-               scheme (app, unit-test and UI-test targets) that keeps building after an error,
-               so one run lists the Swift errors of every file it could reach. A target that
-               imports a module which failed to compile is not reached.
+               scheme (app, embedded Watch app, unit-test and UI-test targets), then, in the
+               same job and even when that failed, `xcodebuild build` of the OpenMates_macOS
+               scheme. Both keep building after an error, so one run lists the Swift errors of
+               every file either build could reach. A target that imports a module which
+               failed to compile is not reached.
   apple-unit   targets `all` or `OpenMatesTests[/<Class>[/<test>]]`: generate the design tokens and locales the project
                references, fetch the pinned Whistle link inputs, run the same build step as
                apple-build (a failed build lists all Swift errors and ends the job), then
@@ -52,6 +54,8 @@ SWIFT_ERROR = re.compile(r"^(?P<path>/\S[^:]*\.swift):(?P<line>\d+):(?P<column>\
 MAX_SWIFT_ERRORS = 400
 # Core test fixtures: the Rust feature (Xcode phase) and the Swift compilation condition.
 BUILD_STEP = "xcodebuild build-for-testing"
+MACOS_BUILD_STEP = "xcodebuild build OpenMates_macOS"
+BUILD_STEPS = (BUILD_STEP, MACOS_BUILD_STEP)
 TEST_SUPPORT_SETTING = "OPENMATES_CORE_TEST_SUPPORT=YES"
 TEST_SUPPORT_SWIFT_FLAGS = "OTHER_SWIFT_FLAGS=$(inherited) -DOPENMATES_CORE_TEST_SUPPORT"
 RUST_TEST_FLAGS = ["--locked", "--lib", "--bins", "--tests"]
@@ -181,6 +185,26 @@ def xcode_plan(mode: str, results: Path, specs: list[str]) -> list[Step]:
         "-IDEBuildingContinueBuildingAfterErrors=YES", *settings,
     ]
     steps: list[Step] = [(BUILD_STEP, build, {}, "")]
+    if build_only:
+        # The macOS app shares most sources but has its own platform branches; the build lane
+        # compiles it too, so macOS-only errors arrive in the same round as the iOS ones.
+        steps.append((
+            MACOS_BUILD_STEP,
+            [
+                "xcodebuild", "build",
+                "-project", "apple/OpenMates.xcodeproj",
+                "-scheme", "OpenMates_macOS",
+                "-configuration", "Debug",
+                "-destination", "platform=macOS",
+                "-derivedDataPath", str(results / "DerivedData"),
+                "-clonedSourcePackagesDirPath", str(results / "SourcePackages"),
+                "-skipPackagePluginValidation", "-skipMacroValidation",
+                "-resultBundlePath", str(results / "OpenMatesMacBuild.xcresult"),
+                "-IDEBuildingContinueBuildingAfterErrors=YES", *settings,
+            ],
+            {},
+            "",
+        ))
     if not build_only:
         # The tests run on the products of the build above; nothing is compiled twice.
         # A test that never returns (for example audio playback without an output device on
@@ -261,11 +285,12 @@ def run(root: Path, results: list[dict], mode: str, specs: list[str]) -> None:
                     os.environ[key] = value
         row = checks.load_rows()[-1]
         failures = [line[:300] for line in row["excerpt"][:40]]
-        if name == BUILD_STEP and code != 0:
+        if name in BUILD_STEPS and code != 0:
             log = out / "rows" / f"{checks.slug(name)}.log"
             found = swift_errors(log.read_text(errors="replace").splitlines(), root) if log.is_file() else []
             if found:
-                (out / "swift-errors.txt").write_text("\n".join(found) + "\n")
+                with (out / "swift-errors.txt").open("a") as errors:
+                    errors.write("\n".join(found) + "\n")
                 print(f"::group::Swift errors ({len(found)})\n" + "\n".join(found) + "\n::endgroup::", flush=True)
                 failures = found
         results.append(
@@ -276,8 +301,8 @@ def run(root: Path, results: list[dict], mode: str, specs: list[str]) -> None:
                 "failures": failures,
             }
         )
-        if mode in XCODE_MODES and code != 0:
-            break  # the test run cannot proceed without its generated inputs
+        if mode in XCODE_MODES and code != 0 and not (mode == "apple-build" and name == BUILD_STEP):
+            break  # the test run cannot proceed without its generated inputs or its build
 
 
 def main() -> None:
