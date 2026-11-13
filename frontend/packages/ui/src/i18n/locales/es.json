@@ -135,6 +135,12 @@
         "description": {
           "text": "Calcula cuánto captar, qué instrumento encaja, la dilución y un calendario, con una hoja de cap table editable."
         }
+      },
+      "write_press_release": {
+        "text": "Redactar nota de prensa",
+        "description": {
+          "text": "Redacta una nota de prensa que los periodistas puedan usar, con el estilo de prensa de tu empresa, como documento de Word u otro formato que pidas."
+        }
       }
     },
     "code": {
@@ -3968,6 +3974,12 @@
     },
     "download": {
       "text": "Descargar"
+    },
+    "download_pdf": {
+      "text": "Descargar PDF"
+    },
+    "download_word": {
+      "text": "Descargar Word"
     },
     "loading": {
       "text": "Cargando..."
@@ -10762,6 +10774,21 @@
         "text": "Redacta un correo corto para un inversor, una presentación reenviable para un contacto común y dos seguimientos."
       }
     },
+    "business_write_press_release": {
+      "text": "Redactar nota de prensa",
+      "description": {
+        "text": "Redacta una nota de prensa que los periodistas puedan usar, con el estilo de prensa de tu empresa, como documento de Word u otro formato que pidas."
+      },
+      "process": {
+        "text": "- Usa tu estilo de prensa guardado (nombres, descripción de la empresa, portavoces, contacto, tono) o primero crea uno a partir de notas anteriores, unas preguntas o valores neutros\n\n- Ofrece guardar el estilo en tu proyecto para que todas las notas futuras suenen igual\n\n- Solo pregunta lo que falta sobre la noticia, una pregunta cada vez, y te dice con honestidad si el enganche periodístico es débil\n\n- Muestra opciones de titular, la entradilla y los datos que usará, para que los corrijas antes de escribir nada\n\n- Redacta la nota con titular, lugar y fecha, entradilla, citas, descripción de la empresa y contacto de prensa, por defecto como documento de Word, o como PDF, HTML o React si lo pides\n\n- Usa solo datos que hayas confirmado, nunca inventa citas y marca cada cita para su aprobación\n\n- Revisa el resultado y ofrece un correo de presentación para periodistas, una publicación para redes o una traducción"
+      },
+      "how_to_use": {
+        "text": "- Redacta una **nota de prensa** sobre el lanzamiento de nuestra app el 18 de noviembre. Aquí están nuestras dos últimas notas\n\n- Crea nuestro **estilo de prensa** a partir de nuestra web y guárdalo en este proyecto\n\n- Convierte este anuncio en una **nota de prensa en PDF** y un breve correo de presentación para periodistas"
+      },
+      "systemprompt": {
+        "text": "Ayudas al usuario a redactar una nota de prensa que un periodista pueda usar tal cual: primero una noticia real, datos comprobables, una voz con nombre y un contacto que responde. El estilo de prensa de la empresa y los deseos explícitos del usuario tienen prioridad sobre las convenciones generales.\n\nSigue solo las instrucciones de la fase actual. Haz una pregunta por ronda, con un ejemplo concreto y una recomendación, y espera la respuesta. Respeta las peticiones de saltarse preguntas, responder todo de una vez o ir directo a un borrador.\n\nPautas importantes:\n\n- Nunca pidas información que una memoria cargada, un archivo subido o el chat ya contengan. Parte de ella y pide confirmación.\n\n- Los datos del usuario son la única fuente. Mejora la redacción, el orden y el énfasis; nunca inventes ni infles cifras, fechas, clientes, socios, premios, resultados ni nombres. Si el usuario te pide inventar algo, recházalo y ofrece una alternativa veraz.\n\n- Nunca presentes una cita como definitiva. Escribe las citas como borradores para que la persona nombrada los apruebe, y nunca atribuyas palabras a una persona real ajena a la organización del usuario sin una fuente.\n\n- Escribe con claridad y concreción. Elimina superlativos vacíos y palabras de moda, o cámbialos por un dato.\n\n- Mantén la información bajo embargo o aún no publicada en este chat y en el proyecto del usuario; nunca la publiques, envíes ni compartas, y nunca contactes con periodistas ni con nadie más. Tú escribes borradores; el usuario los envía.\n\n- Word es el formato por defecto. Genera PDF, HTML o React solo cuando se pida, siguiendo las reglas de formato de la fase de borrador.\n\n- Un estilo de prensa pertenece a una empresa. Recomienda guardarlo en las Memorias del proyecto activo; sin proyecto activo, ofrece una memoria personal que solo se carga cuando se menciona. Guarda solo después de que el usuario acepte.\n\n- Di que una memoria se guardó o actualizó solo después de que la llamada a la herramienta de guardado haya tenido éxito. Si la herramienta disponible no puede guardar en el proyecto, dilo, ofrece una memoria personal o indica que el usuario puede pegar el estilo en la pestaña Memorias del proyecto.\n\n- No des asesoramiento legal sobre obligaciones de divulgación, normas bursátiles o marcas; indica cuándo el usuario debería consultar a un abogado o a su equipo de relaciones con inversores.\n\n- Mantén las respuestas del chat breves. El documento lleva el contenido.\n\n- Valores como [EMAIL_1_org] o [PHONE_1_000] son marcadores de privacidad. La app muestra en su lugar los datos reales del usuario en pantalla y en el documento. Úsalos sin cambios como el valor real; nunca los llames marcadores, ausentes o inválidos, y nunca pidas al usuario que los sustituya."
+      }
+    },
     "code_analyze_logs": {
       "text": "Analizar registros",
       "description": {
@@ -14423,6 +14450,11 @@
     }
   },
   "rules": {},
+  "safety_strikes": {
+    "unavailable": {
+      "text": "La comprobación de seguridad no está disponible temporalmente, así que no se pudo procesar la solicitud. Inténtalo de nuevo en un momento."
+    }
+  },
   "settings": {
     "account": {
       "username": {

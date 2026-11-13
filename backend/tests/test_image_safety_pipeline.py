@@ -447,7 +447,7 @@ class TestStrikeCounter:
     @pytest.mark.asyncio
     async def test_different_responses_both_record(self, mock_cache):
         mock_cache._mock_client.set.return_value = True  # both nx=True succeed
-        mock_cache._mock_client.incrby.side_effect = [2, 4]
+        mock_cache._mock_client.incrby.side_effect = [1, 2]
         counter = StrikeCounter(mock_cache)
 
         r1 = await counter.record_strike(
@@ -461,23 +461,44 @@ class TestStrikeCounter:
             assistant_response_id="resp-2",
         )
         assert r1.recorded and r2.recorded
-        assert r2.ban_triggered  # count crossed 4
+        assert not r2.ban_triggered
 
     @pytest.mark.asyncio
-    async def test_critical_severity_instant_ban(self, mock_cache):
-        # Critical = weight 4 → crosses BAN_THRESHOLD (4) on first strike
+    @pytest.mark.parametrize("severity", ["critical", "adversarial", "severe", "moderate"])
+    async def test_every_severity_counts_exactly_one_strike(self, mock_cache, severity):
+        # No single request can delete an account: a critical rejection is
+        # one strike like any other and never reaches the ban threshold alone.
         mock_cache._mock_client.set.return_value = True
-        mock_cache._mock_client.incrby.return_value = 4
+        mock_cache._mock_client.incrby.return_value = 1
         counter = StrikeCounter(mock_cache)
 
         result = await counter.record_strike(
             user_id="user-1",
-            severity="critical",
+            severity=severity,
             assistant_response_id="resp-1",
         )
         assert result.recorded
-        assert result.ban_triggered
-        assert result.new_count == BAN_THRESHOLD
+        assert not result.ban_triggered
+        mock_cache._mock_client.incrby.assert_called_once_with(
+            "chat_image_rejects:user-1", 1
+        )
+
+    @pytest.mark.asyncio
+    async def test_ban_only_after_threshold_separate_violations(self, mock_cache):
+        mock_cache._mock_client.set.return_value = True
+        mock_cache._mock_client.incrby.side_effect = list(range(1, BAN_THRESHOLD + 1))
+        counter = StrikeCounter(mock_cache)
+
+        results = [
+            await counter.record_strike(
+                user_id="user-1",
+                severity="critical",
+                assistant_response_id=f"resp-{i}",
+            )
+            for i in range(BAN_THRESHOLD)
+        ]
+        assert [r.ban_triggered for r in results] == [False] * (BAN_THRESHOLD - 1) + [True]
+        assert BAN_THRESHOLD > 1
 
 
 # ---------------------------------------------------------------------------

@@ -151,3 +151,36 @@ def build_rejection_payload(category: str) -> Dict[str, Any]:
         ),
         "do_not_retry": True,
     }
+
+
+# Categories that mean a safety check could not reach a decision (provider
+# error, missing configuration, unparseable verdict). They refuse the request
+# but are never a user violation: no strike, no violation audit entry and no
+# account deletion.
+TECHNICAL_CATEGORIES = frozenset({
+    "safeguard_error",
+    "safeguard_not_configured",
+    "safeguard_parse_error",
+    "sightengine_not_configured",
+})
+
+
+def is_technical_category(category: str) -> bool:
+    """True when the category marks an unavailable or failing safety check."""
+    return category in TECHNICAL_CATEGORIES
+
+
+def build_unavailable_payload(message: str) -> Dict[str, Any]:
+    """Tool response for a request refused because a safety check was unavailable."""
+    return {
+        "error": "safety_check_unavailable",
+        "category": "safety_check_unavailable",
+        "user_facing_message": message,
+        "instructions_to_llm": (
+            "The safety check is temporarily unavailable; this is not a policy "
+            "violation. Do not call images-generate again in this response. "
+            "Tell the user, in their language, that the image could not be "
+            "checked right now and that they can try again in a moment."
+        ),
+        "do_not_retry": True,
+    }

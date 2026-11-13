@@ -135,6 +135,12 @@
         "description": {
           "text": "Calcola quanto raccogliere, quale strumento è adatto, la diluizione e le tempistiche, con una cap table modificabile."
         }
+      },
+      "write_press_release": {
+        "text": "Scrivi un comunicato stampa",
+        "description": {
+          "text": "Scrivi un comunicato stampa che i giornalisti possano usare, nello stile di comunicazione della tua azienda, come documento Word o in un altro formato a tua scelta."
+        }
       }
     },
     "code": {
@@ -3968,6 +3974,12 @@
     },
     "download": {
       "text": "Scarica"
+    },
+    "download_pdf": {
+      "text": "Scarica PDF"
+    },
+    "download_word": {
+      "text": "Scarica Word"
     },
     "loading": {
       "text": "Caricamento..."
@@ -10762,6 +10774,21 @@
         "text": "Scrivi una breve email a un investitore, una presentazione inoltrabile per un contatto comune e due solleciti."
       }
     },
+    "business_write_press_release": {
+      "text": "Scrivi un comunicato stampa",
+      "description": {
+        "text": "Scrivi un comunicato stampa che i giornalisti possano usare, nello stile di comunicazione della tua azienda, come documento Word o in un altro formato a tua scelta."
+      },
+      "process": {
+        "text": "- Usa il tuo stile di comunicazione salvato (nomi, profilo aziendale, portavoce, contatti, tono) oppure ne crea prima uno da comunicati precedenti, poche domande o impostazioni neutre\n\n- Propone di salvare lo stile nel tuo progetto, così ogni comunicato futuro avrà la stessa voce\n\n- Chiede solo ciò che manca sulla notizia, una domanda alla volta, e ti dice con onestà se lo spunto giornalistico è debole\n\n- Mostra opzioni di titolo, l'attacco e i fatti che userà, così puoi correggerli prima che venga scritto qualcosa\n\n- Scrive il comunicato con titolo, luogo e data, attacco, citazioni, profilo aziendale e contatto stampa, di default come documento Word, oppure come PDF, HTML o React su richiesta\n\n- Usa solo fatti che hai confermato, non inventa mai citazioni e segna ogni citazione per l'approvazione\n\n- Controlla il risultato e propone un'e-mail di presentazione per i giornalisti, un post social o una traduzione"
+      },
+      "how_to_use": {
+        "text": "- Scrivi un **comunicato stampa** sul lancio della nostra app il 18 novembre. Ecco i nostri ultimi due comunicati\n\n- Crea il nostro **stile di comunicazione** dal nostro sito e salvalo in questo progetto\n\n- Trasforma questo annuncio in un **comunicato stampa in PDF** e in una breve e-mail di presentazione per i giornalisti"
+      },
+      "systemprompt": {
+        "text": "Aiuti l'utente a scrivere un comunicato stampa che un giornalista possa usare così com'è: prima una notizia vera, fatti verificabili, una voce con nome e un contatto che risponde. Lo stile di comunicazione dell'azienda e i desideri espliciti dell'utente hanno la precedenza sulle convenzioni generali.\n\nSegui solo le istruzioni della fase attuale. Fai una domanda per volta, con un esempio concreto e una raccomandazione, e aspetta la risposta. Rispetta le richieste di saltare le domande, rispondere tutto insieme o passare subito a una bozza.\n\nLinee guida importanti:\n\n- Non chiedere mai informazioni che una memoria caricata, un upload o la chat contengono già. Parti da lì e chiedi conferma.\n\n- I fatti dell'utente sono l'unica fonte. Migliora formulazione, ordine e enfasi; non inventare né gonfiare mai cifre, date, clienti, partner, premi, risultati o nomi. Se l'utente ti chiede di inventare qualcosa, rifiuta e proponi un'alternativa veritiera.\n\n- Non presentare mai una citazione come definitiva. Scrivi le citazioni come bozze che la persona indicata deve approvare e non attribuire mai parole a una persona reale esterna all'organizzazione dell'utente senza una fonte.\n\n- Scrivi in modo semplice e preciso. Elimina superlativi vuoti e parole di moda, oppure sostituiscili con un fatto.\n\n- Tieni le informazioni sotto embargo o non ancora pubbliche in questa chat e nel progetto dell'utente; non pubblicarle, inviarle o condividerle mai e non contattare mai giornalisti o altri. Tu scrivi bozze; è l'utente a inviarle.\n\n- Word è il formato predefinito. Produci PDF, HTML o React solo su richiesta, seguendo le regole di formato della fase di bozza.\n\n- Uno stile di comunicazione appartiene a una sola azienda. Consiglia di salvarlo nelle Memorie del progetto attivo; senza progetto attivo, proponi una memoria personale che si carica solo quando viene menzionata. Salva solo dopo il consenso dell'utente.\n\n- Di' che una memoria è stata salvata o aggiornata solo dopo che la chiamata allo strumento di salvataggio è riuscita. Se lo strumento disponibile non può salvare nel progetto, dillo, proponi una memoria personale o indica che l'utente può incollare lo stile nella scheda Memorie del progetto.\n\n- Non dare consulenza legale su obblighi di informativa, regole di borsa o questioni di marchio; di' quando l'utente dovrebbe sentire un avvocato o il team investor relations.\n\n- Tieni brevi le risposte in chat. Il contenuto sta nel documento.\n\n- Valori come [EMAIL_1_org] o [PHONE_1_000] sono segnaposto per la privacy. L'app mostra al loro posto i dati reali dell'utente sullo schermo e nel documento. Usali invariati come valore reale; non chiamarli mai segnaposto, mancanti o non validi e non chiedere mai all'utente di sostituirli."
+      }
+    },
     "code_analyze_logs": {
       "text": "Analizza log",
       "description": {
@@ -14423,6 +14450,11 @@
     }
   },
   "rules": {},
+  "safety_strikes": {
+    "unavailable": {
+      "text": "Il controllo di sicurezza è temporaneamente non disponibile, quindi la richiesta non ha potuto essere elaborata. Riprova tra un momento."
+    }
+  },
   "settings": {
     "account": {
       "username": {

@@ -135,6 +135,12 @@
         "description": {
           "text": "Tính cần huy động bao nhiêu, công cụ nào phù hợp, mức pha loãng và lộ trình, kèm bảng cổ phần có thể chỉnh sửa."
         }
+      },
+      "write_press_release": {
+        "text": "Viết thông cáo báo chí",
+        "description": {
+          "text": "Viết thông cáo báo chí mà nhà báo có thể dùng ngay, theo phong cách báo chí riêng của công ty bạn, dưới dạng tài liệu Word hoặc định dạng khác bạn yêu cầu."
+        }
       }
     },
     "code": {
@@ -3941,6 +3947,12 @@
     },
     "download": {
       "text": "Tải xuống"
+    },
+    "download_pdf": {
+      "text": "Tải xuống PDF"
+    },
+    "download_word": {
+      "text": "Tải xuống Word"
     },
     "loading": {
       "text": "Đang tải..."
@@ -10735,6 +10747,21 @@
         "text": "Soạn email ngắn cho một nhà đầu tư, đoạn giới thiệu có thể chuyển tiếp cho người quen chung và hai email nhắc lại."
       }
     },
+    "business_write_press_release": {
+      "text": "Viết thông cáo báo chí",
+      "description": {
+        "text": "Viết thông cáo báo chí mà nhà báo có thể dùng ngay, theo phong cách báo chí riêng của công ty bạn, dưới dạng tài liệu Word hoặc định dạng khác bạn yêu cầu."
+      },
+      "process": {
+        "text": "- Dùng phong cách báo chí bạn đã lưu (tên, giới thiệu công ty, người phát ngôn, liên hệ, giọng văn) hoặc tạo trước một phong cách từ các thông cáo cũ, vài câu hỏi hay mặc định trung tính\n\n- Đề nghị lưu phong cách vào dự án của bạn để mọi thông cáo sau này đều cùng một giọng\n\n- Chỉ hỏi những gì còn thiếu về tin tức, mỗi lần một câu, và nói thẳng nếu điểm tin chưa đủ mạnh\n\n- Cho xem các phương án tiêu đề, đoạn dẫn và các dữ kiện sẽ dùng để bạn chỉnh sửa trước khi viết\n\n- Viết thông cáo với tiêu đề, địa điểm và ngày, đoạn dẫn, trích dẫn, giới thiệu công ty và đầu mối truyền thông, mặc định là tài liệu Word, hoặc PDF, HTML, React nếu bạn muốn\n\n- Chỉ dùng dữ kiện bạn đã xác nhận, không bao giờ bịa trích dẫn và đánh dấu mọi trích dẫn để chờ duyệt\n\n- Kiểm tra kết quả và đề xuất email giới thiệu cho nhà báo, bài đăng mạng xã hội hoặc bản dịch"
+      },
+      "how_to_use": {
+        "text": "- Viết một **thông cáo báo chí** về buổi ra mắt app của chúng tôi vào ngày 18 tháng 11. Đây là hai thông cáo gần nhất\n\n- Tạo **phong cách báo chí** của chúng tôi từ website và lưu vào dự án này\n\n- Biến thông báo này thành **thông cáo báo chí dạng PDF** và một email giới thiệu ngắn gửi nhà báo"
+      },
+      "systemprompt": {
+        "text": "Bạn giúp người dùng viết thông cáo báo chí mà nhà báo có thể dùng nguyên văn: trước hết là tin thật, dữ kiện kiểm chứng được, một tiếng nói có tên và một đầu mối liên hệ có phản hồi. Phong cách báo chí của công ty và yêu cầu rõ ràng của người dùng được ưu tiên hơn quy ước chung.\n\nChỉ làm theo hướng dẫn của giai đoạn hiện tại. Mỗi lượt hỏi một câu, kèm ví dụ cụ thể và một đề xuất, rồi chờ trả lời. Làm theo yêu cầu bỏ qua câu hỏi, trả lời một lần hoặc chuyển thẳng sang bản nháp.\n\nNguyên tắc quan trọng:\n\n- Không bao giờ hỏi thông tin mà ký ức đã tải, tệp tải lên hoặc cuộc trò chuyện đã có. Hãy dựa vào đó và nhờ người dùng xác nhận.\n\n- Dữ kiện của người dùng là nguồn duy nhất. Hãy cải thiện cách diễn đạt, thứ tự và điểm nhấn; không bao giờ bịa hay thổi phồng số liệu, ngày tháng, khách hàng, đối tác, giải thưởng, kết quả hay tên. Nếu người dùng yêu cầu bịa, hãy từ chối và đề xuất phương án trung thực.\n\n- Không bao giờ trình bày một trích dẫn như bản cuối. Viết trích dẫn dưới dạng bản nháp để người được nêu tên duyệt, và không bao giờ gán lời cho người thật ngoài tổ chức của người dùng khi không có nguồn.\n\n- Viết giản dị và cụ thể. Bỏ các so sánh nhất rỗng và từ thời thượng hoặc thay bằng một dữ kiện.\n\n- Giữ thông tin đang cấm công bố hoặc chưa phát hành trong cuộc trò chuyện này và dự án của người dùng; không bao giờ đăng, gửi hay chia sẻ, và không bao giờ liên hệ nhà báo hay bất kỳ ai khác. Bạn viết bản nháp; người dùng là người gửi.\n\n- Word là định dạng mặc định. Chỉ tạo PDF, HTML hoặc React khi được yêu cầu, theo quy tắc định dạng của giai đoạn soạn nháp.\n\n- Một phong cách báo chí thuộc về một công ty. Đề nghị lưu vào Ký ức của dự án đang dùng; nếu không có dự án đang dùng, đề nghị một ký ức cá nhân chỉ được tải khi được nhắc đến. Chỉ lưu sau khi người dùng đồng ý.\n\n- Chỉ nói rằng ký ức đã được lưu hoặc cập nhật sau khi lệnh gọi công cụ lưu thành công. Nếu công cụ hiện có không lưu được vào dự án, hãy nói rõ, đề nghị ký ức cá nhân hoặc cho biết người dùng có thể dán phong cách vào tab Ký ức của dự án.\n\n- Không đưa ra lời khuyên pháp lý về nghĩa vụ công bố thông tin, quy định thị trường chứng khoán hay nhãn hiệu; hãy nói khi nào người dùng nên hỏi luật sư hoặc bộ phận quan hệ nhà đầu tư.\n\n- Giữ câu trả lời trong chat ngắn gọn. Tài liệu mới là nơi chứa nội dung.\n\n- Các giá trị như [EMAIL_1_org] hay [PHONE_1_000] là ký hiệu giữ chỗ quyền riêng tư. Ứng dụng hiển thị thông tin thật của người dùng ở vị trí đó trên màn hình và trong tài liệu. Hãy dùng chúng nguyên trạng như giá trị thật; không bao giờ gọi chúng là ký hiệu giữ chỗ, bị thiếu hay không hợp lệ, và không bảo người dùng thay thế."
+      }
+    },
     "code_analyze_logs": {
       "text": "Phân tích nhật ký",
       "description": {
@@ -14396,6 +14423,11 @@
     }
   },
   "rules": {},
+  "safety_strikes": {
+    "unavailable": {
+      "text": "Kiểm tra an toàn tạm thời không khả dụng nên yêu cầu này chưa thể được xử lý. Vui lòng thử lại sau một lát."
+    }
+  },
   "settings": {
     "account": {
       "username": {
