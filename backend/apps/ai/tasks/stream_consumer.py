@@ -302,26 +302,23 @@ async def publish_instant_voice_acknowledgement(
     *,
     task_id: str,
     request_data: AskSkillRequest,
-    all_mates_configs: Any,
+    mate: Any,
     preprocessing_result: Any = None,
     cache_service: Any,
     log_prefix: str,
 ) -> bool:
-    """Play a pre-recorded "I'm on it" clip the moment a call turn starts processing."""
+    """Play a pre-recorded "I'm on it" clip in the voice of the Mate that answers.
+
+    ``mate`` must be the Mate whose voice speaks the answer: the explicitly
+    chosen Mate before routing, or the routed Mate afterwards. Callers never
+    guess one (a previous turn's or a default Mate): a clip in another voice
+    than the answer is worse than no clip, so without a known Mate it stays silent.
+    """
     if not (request_data.voice_mode and request_data.auto_speak_response) \
             or request_data.is_external or request_data.is_incognito:
         return False
     from backend.apps.ai.assistant_speech.voice_status import select_instant_acknowledgement
 
-    mates = list(all_mates_configs or [])
-    mate_id = getattr(preprocessing_result, "selected_mate_id", None) or request_data.mate_id
-    if not mate_id and cache_service is not None and request_data.voice_call_id:
-        # Routing has not chosen a Mate yet: keep the voice this call already used.
-        cached = await cache_service.get(f"voice_call_last_mate:{request_data.voice_call_id}")
-        mate_id = cached if isinstance(cached, str) else None
-    mate = next((item for item in mates if item.id == mate_id), None)
-    if mate is None and not mate_id:
-        mate = next((item for item in mates if item.category == "general_knowledge"), None)
     if mate is None:
         return False
     language = getattr(preprocessing_result, "output_language", None)
@@ -6711,12 +6708,12 @@ async def _consume_main_processing_stream(
                 )
             instant_ack_played = False
             if request_data.voice_mode and request_data.auto_speak_response:
-                # Normally already played when the turn started; this covers a
-                # turn whose Mate was only chosen by preprocessing.
+                # Already played when the turn started for an explicitly chosen
+                # Mate; otherwise it plays now, in the routed Mate's voice.
                 instant_ack_played = (
                     _INSTANT_ACK_SENT.pop(assistant_message_id, 0) is None
                     or await publish_instant_voice_acknowledgement(
-                        task_id=task_id, request_data=request_data, all_mates_configs=all_mates_configs,
+                        task_id=task_id, request_data=request_data, mate=selected_mate,
                         preprocessing_result=preprocessing_result, cache_service=cache_service,
                         log_prefix=log_prefix,
                     )

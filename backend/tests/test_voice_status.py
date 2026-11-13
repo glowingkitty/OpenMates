@@ -145,7 +145,7 @@ async def test_instant_acknowledgement_follows_call_language_and_is_silent_when_
     async def play(text, preference, remembered=None):
         published.clear()
         sent = await stream_consumer.publish_instant_voice_acknowledgement(
-            task_id="task-1", request_data=request(text, preference), all_mates_configs=[mate],
+            task_id="task-1", request_data=request(text, preference), mate=mate,
             cache_service=Cache(remembered), log_prefix="[test]",
         )
         return sent, [event["payload"]["clip_id"] for event in published]
@@ -155,3 +155,43 @@ async def test_instant_acknowledgement_follows_call_language_and_is_silent_when_
     sent, clips = await play("Hmm okay", "en", remembered="de")
     assert sent and "-de-DE-" in clips[0]
     assert await play("Hmm", None) == (False, [])
+
+
+# contract-test: direct surface=rest_api assertions=video-call.audio.localized-waiting
+async def test_instant_acknowledgement_uses_only_the_answering_mates_voice(monkeypatch):
+    """Before routing an unchosen Mate is unknown: no guessed (default or previous) voice plays."""
+    from types import SimpleNamespace
+
+    from backend.apps.ai.processing.preprocessor import _resolve_explicit_mate
+    from backend.apps.ai.tasks import stream_consumer
+
+    published: list[dict] = []
+
+    async def capture(_cache, _channel, event, *_args):
+        published.append(event)
+
+    monkeypatch.setattr(stream_consumer, "_publish_to_redis", capture)
+    george = SimpleNamespace(id="george_mate", category="general_knowledge",
+                             voice_profile=SimpleNamespace(key="george", version=2))
+    sophia = SimpleNamespace(id="sophia_mate", category="software_development",
+                             voice_profile=SimpleNamespace(key="sophia", version=2))
+    request = SimpleNamespace(
+        voice_mode=True, auto_speak_response=True, is_external=False, is_incognito=False, mate_id=None,
+        voice_call_id="call-1", current_user_content="What is the weather", message_history=[],
+        user_preferences={"language": "en"}, chat_id="chat", user_id_hash="u",
+    )
+
+    # Automatic routing: nothing is explicit yet, so the pre-routing clip stays silent.
+    explicit, _source = _resolve_explicit_mate([george, sophia], None, request.mate_id)
+    assert explicit is None
+    assert not await stream_consumer.publish_instant_voice_acknowledgement(
+        task_id="task-1", request_data=request, mate=explicit, cache_service=None, log_prefix="[test]",
+    )
+    assert published == []
+
+    # After routing (or for an explicitly chosen Mate) the clip is that Mate's voice.
+    assert await stream_consumer.publish_instant_voice_acknowledgement(
+        task_id="task-1", request_data=request, mate=sophia, cache_service=None, log_prefix="[test]",
+    )
+    assert published[0]["payload"]["clip_id"].startswith("sophia-en-US-")
+    assert published[0]["payload"]["audio_url"].startswith("/audio/assistant-acknowledgements/sophia/")

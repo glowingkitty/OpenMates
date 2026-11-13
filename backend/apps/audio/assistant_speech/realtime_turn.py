@@ -10,10 +10,13 @@ import asyncio
 import base64
 import hashlib
 import logging
+import re
 from collections.abc import Awaitable, Callable, Mapping
 from time import monotonic
 from typing import Any
 from uuid import uuid4
+
+from backend.apps.ai.assistant_speech.projection import VOICE_DELIVERY_CUES
 
 MAX_TURN_CHARACTERS = 10_000
 MAX_TURN_AUDIO_BYTES = 16 * 1024 * 1024
@@ -26,6 +29,9 @@ MAX_WORD_STARTS_PER_EVENT = 512
 # mp3_44100_128 is constant-bitrate: 16 bytes per millisecond.
 MP3_BYTES_PER_MS = 16
 SAFE_ERROR = "Speech is temporarily unavailable."
+# Delivery tags ("[curious]") steer the provider's voice but are never shown in
+# the written answer, so word highlighting must not count them as words.
+_DELIVERY_CUE_TAG = re.compile(r"\[(?:" + "|".join(map(re.escape, VOICE_DELIVERY_CUES)) + r")\]")
 logger = logging.getLogger(__name__)
 
 # Diagnostic values are fixed categories, never exception bodies or provider text.
@@ -229,8 +235,13 @@ class RealtimeSpeechTurn:
             await self._credit_check(count + len(text))
             await self._ensure_active()
             await self._provider.append_text(text)
+            offset = len(self._spoken_source)
             if hidden:
-                self._hidden_spans.append((len(self._spoken_source), len(self._spoken_source) + len(text)))
+                self._hidden_spans.append((offset, offset + len(text)))
+            else:
+                self._hidden_spans.extend(
+                    (offset + match.start(), offset + match.end()) for match in _DELIVERY_CUE_TAG.finditer(text)
+                )
             self._spoken_source += text
             count += len(text)
             await self._provider.flush()

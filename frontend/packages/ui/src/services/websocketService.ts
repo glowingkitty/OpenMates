@@ -197,6 +197,8 @@ function isRetryableRecoveryProtocolError(payload: unknown): boolean {
     ((payload.code === "version_conflict" ||
       payload.code === "lease_conflict" ||
       payload.code === "recovery_job_not_found" ||
+      // Already acknowledged by another open client: a stale, silent outcome.
+      payload.code === "recovery_output_not_found" ||
       payload.code === "recovery_requires_foreground") &&
       typeof payload.job_id === "string" &&
       typeof payload.request_id === "string") ||

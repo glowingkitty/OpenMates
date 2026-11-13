@@ -67,7 +67,7 @@ from backend.apps.ai.utils.instruction_loader import load_validated_base_instruc
 from backend.apps.ai.utils.user_task_turn_finalization import finalize_user_task_turn
 from backend.apps.ai.utils.mate_utils import load_mates_config, MateConfig
 from backend.apps.ai.utils.model_selector import DEFAULT_FALLBACK_MODEL
-from backend.apps.ai.processing.preprocessor import handle_preprocessing, PreprocessingResult
+from backend.apps.ai.processing.preprocessor import handle_preprocessing, PreprocessingResult, _resolve_explicit_mate
 from backend.apps.ai.processing.summary_billing import (
     SummaryBillingAmbiguousError,
     SummaryBillingDuplicateError,
@@ -3681,9 +3681,17 @@ async def _async_process_ai_skill_ask_task(
                         await summary_task
 
                 await require_active_voice_dispatch(cache_service_instance, request_data)
-                # The call turn is accepted: acknowledge before slow routing starts.
+                # The call turn is accepted: acknowledge before slow routing starts,
+                # but only when the answering Mate is already certain (chosen by the
+                # user or the request). An automatically routed Mate is unknown yet;
+                # its acknowledgement plays after routing, in its own voice.
+                explicit_call_mate, _source = _resolve_explicit_mate(
+                    list(all_mates_configs or []),
+                    user_overrides.mate_id if user_overrides else None,
+                    request_data.mate_id,
+                )
                 await publish_instant_voice_acknowledgement(
-                    task_id=task_id, request_data=request_data, all_mates_configs=all_mates_configs,
+                    task_id=task_id, request_data=request_data, mate=explicit_call_mate,
                     cache_service=cache_service_instance, log_prefix=f"[Task ID: {task_id}] ",
                 )
                 with ai_phase_span("preprocess"):

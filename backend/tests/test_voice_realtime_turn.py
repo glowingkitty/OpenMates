@@ -579,3 +579,16 @@ async def test_status_lines_are_spoken_in_order_without_advancing_answer_word_hi
     assert provider.inputs == ["Okay. I used web search. ", "The big cat. "]
     assert words[0][0][0] == 0
     assert [index for batch in words for index, _ in batch] == [0, 1, 2]
+
+
+# contract-test: supporting surface=rest_api assertions=video-call.audio.spoken-rich-response
+async def test_delivery_cue_tags_are_voiced_but_never_counted_as_shown_words():
+    provider = AlignedProvider([[(b"x" * 160, "[curious] The big cat. ")]])
+    owner, provider, events, first, finalize, _credits = make_turn(provider)
+    await owner.enqueue(span(0, "[curious] The big cat."))
+    owner.finish_input()
+    await owner.wait()
+    words = [row["payload"]["word_starts"] for row in events if row["payload"]["phase"] == "words"]
+    # The written answer shows "The big cat." only: its first word is index 0.
+    assert provider.inputs == ["[curious] The big cat. "]
+    assert [index for batch in words for index, _ in batch] == [0, 1, 2]

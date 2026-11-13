@@ -125,6 +125,31 @@ describe("webSocketService recovery protocol errors", () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced
+  it("does not toast an output another open client already acknowledged", () => {
+    const consoleDebug = vi.spyOn(console, "debug").mockImplementation(() => undefined);
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const handlers = (webSocketService as unknown as {
+      messageHandlers: Map<string, Array<(payload: unknown) => void>>;
+    }).messageHandlers.get("error");
+
+    handlers?.[0]?.({
+      code: "recovery_output_not_found",
+      job_id: "record-1",
+      request_id: "request-1",
+      message: "Encrypted completion recovery was rejected.",
+    });
+
+    expect(consoleDebug).toHaveBeenCalledWith(
+      "[WebSocketService] Received retryable recovery protocol error:",
+      expect.objectContaining({ code: "recovery_output_not_found" }),
+    );
+    expect(consoleError).not.toHaveBeenCalledWith(
+      "[WebSocketService] Received error message from server:",
+      expect.anything(),
+    );
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced
   it("does not emit a global server error for stale legacy recovery persistence", () => {
     const consoleDebug = vi.spyOn(console, "debug").mockImplementation(() => undefined);
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);

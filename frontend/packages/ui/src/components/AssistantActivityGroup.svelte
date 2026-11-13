@@ -284,7 +284,8 @@
   });
 </script>
 
-<div class="assistant-activity-group" data-testid="assistant-activity-group" class:active={groupActive}>
+<!-- data-speech-skip: summary text is not spoken, so voice-call word highlighting skips it. -->
+<div class="assistant-activity-group" data-testid="assistant-activity-group" data-speech-skip class:active={groupActive}>
   <button type="button" class="activity-summary" data-testid="assistant-activity-toggle"
     aria-expanded={expanded} aria-label={summaryCandidates[0]} title={summaryCandidates[0]}
     onclick={() => { expanded = !expanded; userToggled = true; }}>

@@ -66,7 +66,9 @@ const INITIAL_SYNC_POLL_MS = 100;
 const RECOVERY_PREREQUISITE_POLL_MS = 250;
 const RECOVERY_PREREQUISITE_TIMEOUT_MS = 120_000;
 const RECOVERY_RETRYABLE_ERROR_CODES = new Set(["lease_conflict"]);
-const RECOVERY_STALE_TERMINAL_ERROR_CODES = new Set(["recovery_job_not_found"]);
+// Another open client (tab or device) can claim and acknowledge the same job or
+// output first; the late reader is told it no longer exists. Nothing was lost.
+const RECOVERY_STALE_TERMINAL_ERROR_CODES = new Set(["recovery_job_not_found", "recovery_output_not_found"]);
 const recoveryJobsInProgress = new Set<string>();
 const recoveryJobSettlements = new Map<string, Promise<boolean>>();
 const metadataJobsInProgress = new Set<string>();
